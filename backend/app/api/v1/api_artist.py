@@ -73,6 +73,14 @@ def update_current_artist_profile(
         raise HTTPException(status_code=404, detail="Artist profile not found.")
 
     update_data = profile_in.model_dump(exclude_unset=True)
+
+    # Convert Pydantic HttpUrl objects to plain strings for JSON columns
+    if "portfolio_urls" in update_data and update_data["portfolio_urls"] is not None:
+        update_data["portfolio_urls"] = [str(url) for url in update_data["portfolio_urls"]]
+
+    if "profile_picture_url" in update_data and update_data["profile_picture_url"] is not None:
+        update_data["profile_picture_url"] = str(update_data["profile_picture_url"])
+
     for field, value in update_data.items():
         setattr(artist_profile, field, value)
 
