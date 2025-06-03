@@ -61,10 +61,10 @@ app.mount(
 
 
 # ─── CORS middleware (adjust allow_origins if your frontend is hosted elsewhere) ─────────
-# Allow only http://localhost:3000 for local Next.js development
+# Allow configurable origins (defaults to * for development)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=settings.CORS_ORIGINS or ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

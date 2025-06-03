@@ -5,7 +5,8 @@ import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { ArtistProfile } from '@/types';
 import { getArtists } from '@/lib/api';
-import api from '@/lib/api';
+import { getFullImageUrl } from '@/lib/utils';
+
 
 export default function ArtistsPage() {
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
@@ -54,16 +55,12 @@ export default function ArtistsPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Our Artists</h1>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {artists.map((artist) => {
-            // Build the profile‐pic URL (or fallback to first portfolio URL)
-            const imageUrl = artist.profile_picture_url
-              ? artist.profile_picture_url.startsWith('http')
-                ? artist.profile_picture_url
-                : `${api.defaults.baseURL}/static/${artist.profile_picture_url.replace(/^\/+/, '')}`
-              : artist.portfolio_urls && artist.portfolio_urls.length > 0
-              ? artist.portfolio_urls[0].startsWith('http')
-                ? artist.portfolio_urls[0]
-                : `${api.defaults.baseURL}/static/${artist.portfolio_urls[0].replace(/^\/+/, '')}`
-              : null;
+            const profilePic = getFullImageUrl(artist.profile_picture_url);
+            const fallbackPic =
+              artist.portfolio_urls && artist.portfolio_urls.length > 0
+                ? getFullImageUrl(artist.portfolio_urls[0])
+                : null;
+            const imageUrl = profilePic || fallbackPic;
 
             return (
               <div
