@@ -17,6 +17,7 @@ import {
   getArtistReviews,
   createBookingRequest,
 } from '@/lib/api';
+import { extractErrorMessage } from '@/lib/utils';
 import {
   StarIcon,
   MapPinIcon,
@@ -158,11 +159,12 @@ export default function ArtistProfilePage() {
       }, 2000);
     } catch (err: any) {
       console.error('Error creating booking request:', err);
-      const msg =
-        err.response?.data?.detail ||
-        err.message ||
-        'Failed to send booking request. Please try again.';
-      setRequestError(msg);
+      if (err.response?.data?.detail) {
+        setRequestError(extractErrorMessage(err.response.data.detail));
+      } else {
+        const msg = err.message || 'Failed to send booking request. Please try again.';
+        setRequestError(msg);
+      }
     } finally {
       setRequestLoading(false);
     }
