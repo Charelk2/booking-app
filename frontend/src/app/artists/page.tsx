@@ -7,23 +7,6 @@ import { ArtistProfile } from '@/types';
 import { getArtists } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 
-
-/**
- * Convert a path stored in the DB (which might already start with
- * "/static/..." or might be an absolute URL) into a fully qualified URL
- * that can be used in an <img> tag.
- */
-const getFullImageUrl = (relativePath: string | undefined | null): string | null => {
-  if (!relativePath) return null;
-  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-    return relativePath;
-  }
-  const cleanPath = relativePath.startsWith('/static/')
-    ? relativePath
-    : `/static/${relativePath.replace(/^\/+/, '')}`;
-  return `${api.defaults.baseURL}${cleanPath}`;
-};
-
 export default function ArtistsPage() {
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);

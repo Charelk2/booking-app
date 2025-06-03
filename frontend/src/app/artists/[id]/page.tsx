@@ -33,20 +33,6 @@ import 'react-calendar/dist/Calendar.css';
 import '@/styles/custom-calendar.css';
 import { getFullImageUrl } from '@/lib/utils';
 
-/**
- * Convert a stored image path into a fully qualified URL.
- */
-const getFullImageUrl = (relativePath: string | undefined | null): string | null => {
-  if (!relativePath) return null;
-  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-    return relativePath;
-  }
-  const cleanPath = relativePath.startsWith('/static/')
-    ? relativePath
-    : `/static/${relativePath.replace(/^\/+/, '')}`;
-  return `${api.defaults.baseURL}${cleanPath}`;
-};
-
 export default function ArtistProfilePage() {
   const params = useParams();
   const artistId = Number(params.id);
