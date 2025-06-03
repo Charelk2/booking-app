@@ -72,7 +72,18 @@ export default function ArtistProfilePage() {
           getArtists(),
         ]);
         setArtist(artistRes.data);
-        setServices(servicesRes.data);
+        const processedServices = servicesRes.data.map((service: Service) => ({
+          ...service,
+          price:
+            typeof service.price === 'string'
+              ? parseFloat(service.price)
+              : service.price,
+          duration_minutes:
+            typeof service.duration_minutes === 'string'
+              ? parseInt(service.duration_minutes as unknown as string, 10)
+              : service.duration_minutes,
+        }));
+        setServices(processedServices);
         setReviews(reviewsRes.data);
 
         // pick up to 3 other artists (excluding this one)
@@ -327,7 +338,7 @@ export default function ArtistProfilePage() {
                           <p className="mt-2 text-gray-600 text-sm">{service.description}</p>
                         )}
                         <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-2xl font-bold text-gray-800">${service.price}</p>
+                          <p className="text-2xl font-bold text-gray-800">${Number(service.price).toFixed(2)}</p>
                           <p className="text-sm text-gray-500">
                             <BriefcaseIcon className="h-4 w-4 inline mr-1" /> {service.duration_minutes} minutes
                           </p>
@@ -437,7 +448,7 @@ export default function ArtistProfilePage() {
                       <option value="">— Select a Service —</option>
                       {services.map((srv) => (
                         <option key={`srvOption-${srv.id}`} value={srv.id}>
-                          {srv.name} (${srv.price.toFixed(2)})
+                          {srv.title} (${Number(srv.price).toFixed(2)})
                         </option>
                       ))}
                     </select>
