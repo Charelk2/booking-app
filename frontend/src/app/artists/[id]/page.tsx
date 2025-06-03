@@ -88,7 +88,7 @@ export default function ArtistProfilePage() {
 
         // pick up to 3 other artists (excluding this one)
         const filtered = allArtistsRes.data
-          .filter((a) => a.user_id !== artistId)
+          .filter((a) => a.user_id && a.user_id !== artistId)
           .slice(0, 3);
         setOtherArtists(filtered);
       } catch (err) {
