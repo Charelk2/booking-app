@@ -334,7 +334,7 @@ export default function ArtistProfilePage() {
                         key={`service-${service.id}`}
                         className="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow"
                       >
-                        <h3 className="text-xl font-semibold text-gray-900">{service.name}</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">{service.title}</h3>
                         {service.description && (
                           <p className="mt-2 text-gray-600 text-sm">{service.description}</p>
                         )}
@@ -348,7 +348,7 @@ export default function ArtistProfilePage() {
                           onClick={handleScrollToBooking}
                           className="mt-6 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
                         >
-                          Book {service.name}
+                          Book {service.title}
                         </button>
                       </div>
                     ))}

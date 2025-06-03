@@ -12,7 +12,7 @@ interface AddServiceModalProps {
   onServiceAdded: (newService: Service) => void;
 }
 
-type ServiceFormData = Pick<Service, 'name' | 'description' | 'price' | 'duration_minutes'>;
+type ServiceFormData = Pick<Service, 'title' | 'description' | 'price' | 'duration_minutes'>;
 
 export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: AddServiceModalProps) {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ServiceFormData>();
@@ -52,14 +52,14 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
           <h3 className="text-lg leading-6 font-medium text-gray-900">Add New Service</h3>
           <form onSubmit={handleSubmit(onSubmit)} className="mt-2 px-7 py-3 space-y-4 text-left">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Service Name</label>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700">Service Title</label>
               <input
                 type="text"
-                id="name"
-                {...register('name', { required: 'Service name is required' })}
+                id="title"
+                {...register('title', { required: 'Service title is required' })}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               />
-              {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
+              {errors.title && <p className="mt-1 text-xs text-red-600">{errors.title.message}</p>}
             </div>
 
             <div>

@@ -1,7 +1,7 @@
 # app/api/api_service.py
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 
 from ..database import get_db
@@ -16,6 +16,16 @@ router = APIRouter(
     # Note: NO prefix here, because main.py already does `prefix="/api/v1/services"`
     tags=["Services"],
 )
+
+@router.get("/", response_model=List[ServiceResponse])
+def list_services(db: Session = Depends(get_db)):
+    """List all services with artist info."""
+    services = (
+        db.query(Service)
+        .options(joinedload(Service.artist))
+        .all()
+    )
+    return services
 
 @router.post("/", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
 def create_service(
@@ -76,7 +86,12 @@ def read_service(
     Get a specific service by its ID (publicly accessible).
     Full path → GET /api/v1/services/{service_id}
     """
-    service = db.query(Service).filter(Service.id == service_id).first()
+    service = (
+        db.query(Service)
+        .options(joinedload(Service.artist))
+        .filter(Service.id == service_id)
+        .first()
+    )
     if not service:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
     return service
@@ -102,7 +117,12 @@ def read_services_by_artist(
             detail="Artist profile not found for this user ID."
         )
 
-    services = db.query(Service).filter(Service.artist_id == artist_user_id).all()
+    services = (
+        db.query(Service)
+        .options(joinedload(Service.artist))
+        .filter(Service.artist_id == artist_user_id)
+        .all()
+    )
     return services
 
 @router.delete("/{service_id}", status_code=status.HTTP_204_NO_CONTENT)
