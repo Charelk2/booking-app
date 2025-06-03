@@ -64,9 +64,11 @@ export default function ServicesPage() {
                     </p>
                   )}
                   <div className="mt-4 flex justify-between items-center">
-                    <span className="font-bold">${'{'}service.price{'}'}</span>
+                    <span className="font-bold">
+                      ${Number(service.price).toFixed(2)}
+                    </span>
                     <span className="text-sm text-gray-500">
-                      {'{'}service.duration_minutes{'}'} min
+                      {service.duration_minutes} min
                     </span>
                   </div>
                   <Link
