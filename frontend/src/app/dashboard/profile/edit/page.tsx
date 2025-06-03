@@ -219,10 +219,25 @@ export default function EditArtistProfilePage() {
         business_name: businessNameInput.trim(),
         description: descriptionInput.trim(),
         location: locationInput.trim(),
-        hourly_rate: hourlyRateInput ? parseFloat(String(hourlyRateInput)) : undefined,
-        specialties: specialtiesInput.split(',').map((s) => s.trim()).filter((s) => s),
-        portfolio_urls: portfolioUrlsInput.split(',').map((u) => u.trim()).filter((u) => u),
-        profile_picture_url: profilePictureUrlInput.trim() ? profilePictureUrlInput.trim() : undefined,
+        hourly_rate: hourlyRateInput
+          ? parseFloat(String(hourlyRateInput))
+          : undefined,
+        specialties: specialtiesInput
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s),
+        portfolio_urls: portfolioUrlsInput
+          .split(',')
+          .map((u) => u.trim())
+          .filter((u) => u)
+          .map((u) =>
+            u.startsWith('http://') || u.startsWith('https://')
+              ? u
+              : `http://${u}`
+          ),
+        profile_picture_url: profilePictureUrlInput.trim()
+          ? profilePictureUrlInput.trim()
+          : undefined,
       };
 
       await updateMyArtistProfile(dataToUpdate);
