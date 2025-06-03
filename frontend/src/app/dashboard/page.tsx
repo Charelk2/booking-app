@@ -14,24 +14,8 @@ import {
 import { format } from 'date-fns';
 import AddServiceModal from '@/components/dashboard/AddServiceModal';
 import Link from 'next/link';
-import api from '@/lib/api'; // api.defaults.baseURL === "http://localhost:8000"
+import { getFullImageUrl } from '@/lib/utils';
 
-/**
- * If “relativePath” is null/undefined: return null.
- * If it already looks like “http://…” or “https://…”: return it unchanged.
- * Otherwise, prepend the API base URL and ensure the path starts with `/static/...`.
- */
-const getFullImageUrl = (relativePath: string | undefined | null): string | null => {
-  if (!relativePath) return null;
-  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-    return relativePath;
-  }
-  // Ensure it begins with "/static/..."
-  const cleanPath = relativePath.startsWith('/static/')
-    ? relativePath
-    : `/static/${relativePath.replace(/^\/+/, '')}`;
-  return `${api.defaults.baseURL}${cleanPath}`;
-};
 
 export default function DashboardPage() {
   const { user } = useAuth();

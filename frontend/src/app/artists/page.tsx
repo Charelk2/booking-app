@@ -5,7 +5,8 @@ import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { ArtistProfile } from '@/types';
 import { getArtists } from '@/lib/api';
-import api from '@/lib/api';
+import { getFullImageUrl } from '@/lib/utils';
+
 
 /**
  * Convert a path stored in the DB (which might already start with
