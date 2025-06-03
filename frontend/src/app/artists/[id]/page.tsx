@@ -32,6 +32,20 @@ import 'react-calendar/dist/Calendar.css';
 import '@/styles/custom-calendar.css';
 import api from '@/lib/api';
 
+/**
+ * Convert a stored image path into a fully qualified URL.
+ */
+const getFullImageUrl = (relativePath: string | undefined | null): string | null => {
+  if (!relativePath) return null;
+  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+    return relativePath;
+  }
+  const cleanPath = relativePath.startsWith('/static/')
+    ? relativePath
+    : `/static/${relativePath.replace(/^\/+/, '')}`;
+  return `${api.defaults.baseURL}${cleanPath}`;
+};
+
 export default function ArtistProfilePage() {
   const params = useParams();
   const artistId = Number(params.id);
@@ -175,13 +189,8 @@ export default function ArtistProfilePage() {
   }
 
   // Build full URLs for cover & profile photos
-  const coverPhotoUrl = artist.cover_photo_url?.startsWith('http')
-    ? artist.cover_photo_url
-    : `${api.defaults.baseURL}/static/${artist.cover_photo_url?.replace(/^\/+/, '')}`;
-
-  const profilePictureUrl = artist.profile_picture_url?.startsWith('http')
-    ? artist.profile_picture_url
-    : `${api.defaults.baseURL}/static/${artist.profile_picture_url?.replace(/^\/+/, '')}`;
+  const coverPhotoUrl = getFullImageUrl(artist.cover_photo_url);
+  const profilePictureUrl = getFullImageUrl(artist.profile_picture_url);
 
   return (
     <MainLayout>
@@ -508,10 +517,7 @@ export default function ArtistProfilePage() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {otherArtists.map((otherArtist) => {
-                  const otherProfilePicUrl = otherArtist.profile_picture_url?.startsWith('http')
-                    ? otherArtist.profile_picture_url
-                    : `${api.defaults.baseURL}/static/${otherArtist.profile_picture_url
-                        ?.replace(/^\/+/, '')}`;
+                  const otherProfilePicUrl = getFullImageUrl(otherArtist.profile_picture_url);
                   return (
                     <Link
                       href={`/artists/${otherArtist.user_id}`}
