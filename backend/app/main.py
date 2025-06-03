@@ -15,7 +15,7 @@ from .models.request_quote      import BookingRequest, Quote
 
 # Routers under app/api/
 from .api       import auth
-from .api       import api_service, api_booking, api_review, api_booking_request, api_quote
+from .api       import api_service, api_booking, api_review, api_booking_request, api_quote, api_sound_provider
 # The “artist‐profiles” router lives under app/api/v1/
 from .api.v1    import api_artist
 
@@ -123,6 +123,13 @@ app.include_router(
     api_quote.router,
     prefix=f"{api_prefix}/quotes",
     tags=["quotes"]
+)
+
+# ─── SOUND PROVIDER ROUTES (under /api/v1/sound-providers) ───────────────
+app.include_router(
+    api_sound_provider.router,
+    prefix=f"{api_prefix}/sound-providers",
+    tags=["sound-providers"],
 )
 
 
