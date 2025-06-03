@@ -5,6 +5,7 @@ import { Service } from '@/types';
 import { createService as apiCreateService } from '@/lib/api'; // Assuming this function exists
 import { useState } from 'react';
 import axios from 'axios';
+import { extractErrorMessage } from '@/lib/utils';
 
 interface AddServiceModalProps {
   isOpen: boolean;
@@ -33,17 +34,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
       onClose();
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        const detail = err.response?.data?.detail;
-        let message: string;
-        if (Array.isArray(detail)) {
-          message = detail.map((d: any) => d.msg).join(', ');
-        } else if (typeof detail === 'string') {
-          message = detail;
-        } else if (detail) {
-          message = JSON.stringify(detail);
-        } else {
-          message = 'Failed to create service. Please try again.';
-        }
+        const message = extractErrorMessage(err.response?.data?.detail);
         setServerError(message);
       } else {
         setServerError('An unexpected error occurred. Failed to create service.');
