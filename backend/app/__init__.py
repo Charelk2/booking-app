@@ -1,0 +1,3 @@
+"""
+Artist Booking API package
+"""

@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: var(--font-inter);
+}
+
+@layer base {
+  body {
+    @apply bg-white text-gray-900;
+  }
+} 
