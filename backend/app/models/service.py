@@ -11,6 +11,7 @@ class Service(BaseModel):
     title       = Column(String, index=True, nullable=False)
     description = Column(Text, nullable=True)
     price       = Column(Numeric(10, 2), nullable=False)
+    duration_minutes = Column(Integer, nullable=False)
 
     # Link back to the ArtistProfileV2
     artist = relationship("ArtistProfileV2", back_populates="services")
