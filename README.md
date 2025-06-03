@@ -28,3 +28,7 @@ npm run dev
 ```
 
 The frontend expects the backend to be running on `http://localhost:8000`.
+
+## New Features
+
+This version introduces basic management of sound providers and an API for quick quote calculations that factor in travel distance, optional provider fees, and accommodation costs.  Routers are mounted under `/api/v1/sound-providers` and `/api/v1/quotes/calculate`.
