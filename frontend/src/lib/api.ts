@@ -151,7 +151,7 @@ export const getArtistReviews = (artistUserId: number) =>
 //    POST /api/v1/booking-requests/
 // Body must match BookingRequestCreate interface.
 export const createBookingRequest = (data: BookingRequestCreate) =>
-  api.post<BookingRequest>(`${API_V1}/booking-requests`, data);
+  api.post<BookingRequest>(`${API_V1}/booking-requests/`, data);
 
 // Optionally, if you want to get a list of booking requests (e.g., for a client dashboard):
 export const getMyBookingRequests = () =>
