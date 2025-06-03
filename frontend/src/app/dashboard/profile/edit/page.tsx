@@ -11,7 +11,7 @@ import {
   uploadMyArtistProfilePicture,
   uploadMyArtistCoverPhoto,
 } from '@/lib/api';
-import { getFullImageUrl } from '@/lib/utils';
+import { getFullImageUrl, extractErrorMessage } from '@/lib/utils';
 
 import {
   ReactCrop,
@@ -318,8 +318,12 @@ export default function EditArtistProfilePage() {
       setCompletedCrop(undefined);
     } catch (err: any) {
       console.error('Failed to crop or upload image:', err);
-      const msg = err.response?.data?.detail || err.message || 'Failed to upload image.';
-      setError(msg);
+      if (err.response?.data?.detail) {
+        setError(extractErrorMessage(err.response.data.detail));
+      } else {
+        const msg = err.message || 'Failed to upload image.';
+        setError(msg);
+      }
     } finally {
       setUploadingImage(false);
     }
@@ -340,8 +344,12 @@ export default function EditArtistProfilePage() {
       setCoverPhotoSuccessMessage('Cover photo uploaded successfully!');
     } catch (err: any) {
       console.error('Failed to upload cover photo:', err);
-      const msg = err.response?.data?.detail || err.message || 'Failed to upload cover photo.';
-      setCoverPhotoError(msg);
+      if (err.response?.data?.detail) {
+        setCoverPhotoError(extractErrorMessage(err.response.data.detail));
+      } else {
+        const msg = err.message || 'Failed to upload cover photo.';
+        setCoverPhotoError(msg);
+      }
     } finally {
       setUploadingCoverPhoto(false);
       e.target.value = '';
