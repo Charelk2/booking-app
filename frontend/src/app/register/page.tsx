@@ -8,6 +8,7 @@ import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { User } from '@/types';
 import axios from 'axios';
+import { extractErrorMessage } from '@/lib/utils';
 
 interface RegisterForm extends Omit<User, 'id' | 'is_active' | 'is_verified'> {
   password: string;
@@ -30,8 +31,8 @@ export default function RegisterPage() {
       router.push('/login');
     } catch (err) {
       if (axios.isAxiosError(err)) {
-        const errorMessage = err.response?.data?.detail || 'Registration failed. Please try again.';
-        setError(errorMessage);
+        const message = extractErrorMessage(err.response?.data?.detail);
+        setError(message);
       } else {
         setError('Registration failed. Please try again.');
       }
