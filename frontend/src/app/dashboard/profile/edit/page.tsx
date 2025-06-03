@@ -11,7 +11,7 @@ import {
   uploadMyArtistProfilePicture,
   uploadMyArtistCoverPhoto,
 } from '@/lib/api';
-import api from '@/lib/api'; // api.defaults.baseURL === "http://localhost:8000"
+import { getFullImageUrl } from '@/lib/utils';
 
 import {
   ReactCrop,
@@ -22,21 +22,6 @@ import {
 } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
-/**
- * Takes the “relative” path stored in the DB (e.g. "/static/profile_pics/…jpg"
- * or sometimes just "profile_pics/…jpg"), and turns it into a fully qualified
- * URL (http://localhost:8000/static/...).
- */
-const getFullImageUrl = (relativePath: string | undefined | null): string | null => {
-  if (!relativePath) return null;
-  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
-    return relativePath;
-  }
-  const cleanPath = relativePath.startsWith('/static/')
-    ? relativePath
-    : `/static/${relativePath.replace(/^\/+/, '')}`;
-  return `${api.defaults.baseURL}${cleanPath}`;
-};
 
 // Helper function to generate a centered aspect‐ratio crop
 function centerAspectCrop(

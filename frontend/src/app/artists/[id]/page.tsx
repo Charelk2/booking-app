@@ -30,7 +30,7 @@ import {
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import '@/styles/custom-calendar.css';
-import api from '@/lib/api';
+import { getFullImageUrl } from '@/lib/utils';
 
 /**
  * Convert a stored image path into a fully qualified URL.
