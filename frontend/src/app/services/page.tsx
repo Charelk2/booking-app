@@ -1,19 +1,91 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
+import { Service } from '@/types';
+import { getAllServices } from '@/lib/api';
 
 export default function ServicesPage() {
+  const [services, setServices] = useState<Service[]>([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const res = await getAllServices();
+        setServices(res.data);
+      } catch (err) {
+        console.error('Failed to load services', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, []);
+
+  const filtered = services.filter((s) =>
+    s.title.toLowerCase().includes(search.toLowerCase()) ||
+    (s.artist?.location || '').toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <MainLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Our Services</h1>
-        <div className="text-center py-10">
-          <p className="text-xl text-gray-700">
-            Services information will be displayed here soon.
-          </p>
-          {/* Placeholder for service listings or categories */}
-        </div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Explore Services</h1>
+        <input
+          type="text"
+          placeholder="Search by title or location"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full max-w-md border border-gray-300 rounded-md p-2 mb-6"
+        />
+        {loading ? (
+          <div className="text-center">Loading...</div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.length > 0 ? (
+              filtered.map((service) => (
+                <div
+                  key={service.id}
+                  className="bg-white rounded-lg shadow-md p-6 flex flex-col"
+                >
+                  <h3 className="text-lg font-semibold">{service.title}</h3>
+                  {service.artist && (
+                    <p className="text-sm text-gray-500">
+                      {service.artist.business_name ||
+                        `${service.artist.user.first_name} ${service.artist.user.last_name}`}
+                    </p>
+                  )}
+                  {service.description && (
+                    <p className="mt-2 text-gray-600 flex-grow">
+                      {service.description}
+                    </p>
+                  )}
+                  <div className="mt-4 flex justify-between items-center">
+                    <span className="font-bold">${'{'}service.price{'}'}</span>
+                    <span className="text-sm text-gray-500">
+                      {'{'}service.duration_minutes{'}'} min
+                    </span>
+                  </div>
+                  <Link
+                    href={`/artists/${service.artist_id}`}
+                    legacyBehavior
+                    passHref
+                  >
+                    <a className="mt-4 inline-block bg-indigo-600 text-white px-4 py-2 rounded-md text-center hover:bg-indigo-700">
+                      View Artist
+                    </a>
+                  </Link>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-600">No services match your search.</p>
+            )}
+          </div>
+        )}
       </div>
     </MainLayout>
   );
-} 
+}
