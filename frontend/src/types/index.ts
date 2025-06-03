@@ -30,7 +30,7 @@ export interface ArtistProfile {
 export interface Service {
   id: number;
   artist_id: number;
-  name: string;
+  title: string;
   description: string;
   duration_minutes: number;
   price: number;

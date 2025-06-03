@@ -248,7 +248,7 @@ export default function DashboardPage() {
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {booking.service.name}
+                        {booking.service.title}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         {format(new Date(booking.start_time), 'MMM d, yyyy h:mm a')}
@@ -299,7 +299,7 @@ export default function DashboardPage() {
                   >
                     <div className="min-w-0 flex-1">
                       <div className="focus:outline-none">
-                        <p className="text-sm font-medium text-gray-900">{service.name}</p>
+                        <p className="text-sm font-medium text-gray-900">{service.title}</p>
                         <p className="truncate text-sm text-gray-500">{service.description}</p>
                         <div className="mt-2 flex items-center justify-between">
                           <span className="text-sm font-medium text-gray-900">
