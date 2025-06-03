@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     SQLALCHEMY_DATABASE_URL: str = "sqlite:///./booking.db"
 
     # CORS origins
-    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3002"]
 
     class Config:
         env_file = ".env"
