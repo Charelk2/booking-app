@@ -5,8 +5,8 @@ from typing import List
 from .. import crud, models, schemas
 from .dependencies import get_db, get_current_user, get_current_active_client, get_current_active_artist
 
+# Prefix is added when this router is included in `app/main.py`.
 router = APIRouter(
-    prefix="/booking-requests",
     tags=["Booking Requests"],
 )
 
