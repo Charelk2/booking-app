@@ -138,8 +138,10 @@ export default function ArtistProfilePage() {
     try {
       const payload: BookingRequestCreate = {
         artist_id: artist.user_id,
-        service_id: Number(selectedServiceId),
       };
+      if (selectedServiceId !== '') {
+        payload.service_id = Number(selectedServiceId);
+      }
       if (requestMessage.trim() !== '') {
         payload.message = requestMessage.trim();
       }
