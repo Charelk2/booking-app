@@ -61,3 +61,19 @@ def test_read_all_artist_profiles_uses_cache(monkeypatch):
     second_db = FailingDB([])
     second = api_artist.read_all_artist_profiles(second_db)
     assert second == first
+
+
+def test_fallback_when_redis_unavailable(monkeypatch):
+    class DummyRedis:
+        def get(self, key):
+            raise redis_cache.redis.exceptions.ConnectionError()
+        def setex(self, *args, **kwargs):
+            raise redis_cache.redis.exceptions.ConnectionError()
+
+    monkeypatch.setattr(redis_cache, "get_redis_client", lambda: DummyRedis())
+
+    db = DummyDB([make_artist(2)])
+    result = api_artist.read_all_artist_profiles(db)
+    # when redis fails, it should query the db once
+    assert db.called == 1
+    assert result[0]["user_id"] == 2
