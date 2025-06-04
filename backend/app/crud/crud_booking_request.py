@@ -12,7 +12,7 @@ def create_booking_request(
     client_id: int
 ) -> models.BookingRequest:
     db_booking_request = models.BookingRequest(
-        **booking_request.model_dump(),
+        **booking_request.model_dump(exclude={"status"}),
         client_id=client_id,
         status=booking_request.status
         or models.BookingRequestStatus.PENDING_QUOTE,
