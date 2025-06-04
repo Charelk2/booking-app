@@ -78,3 +78,7 @@ class ArtistProfileNested(ArtistProfileBase):
     model_config = {
         "from_attributes": True
     }
+
+
+class ArtistAvailabilityResponse(BaseModel):
+    unavailable_dates: List[str]

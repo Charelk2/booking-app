@@ -13,3 +13,4 @@ httpx==0.25.1
 pydantic-settings==2.1.0
 redis==5.0.3
 fakeredis==2.23.2
+email-validator==2.1.0
