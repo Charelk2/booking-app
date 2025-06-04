@@ -94,7 +94,6 @@ export interface BookingRequest {
 // If you need to handle Quotes (e.g. when the artist replies):
 export interface QuoteCreate {
   booking_request_id: number;
-  artist_id: number;
   quote_details: string;
   price: number;
   currency?: string;      // defaults to "USD"
@@ -122,9 +121,15 @@ export interface Message {
   sender_id: number;
   sender_type: 'client' | 'artist';
   content: string;
+  message_type: 'text' | 'quote' | 'system';
+  quote_id?: number | null;
+  attachment_url?: string | null;
   timestamp: string;
 }
 
 export interface MessageCreate {
   content: string;
+  message_type?: 'text' | 'quote' | 'system';
+  quote_id?: number;
+  attachment_url?: string;
 }

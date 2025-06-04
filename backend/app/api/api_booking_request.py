@@ -46,6 +46,7 @@ def create_booking_request(
             sender_type=models.SenderType.CLIENT,
             content=request_in.message,
             message_type=models.MessageType.TEXT,
+            attachment_url=None,
         )
     crud.crud_message.create_message(
         db=db,
@@ -54,6 +55,7 @@ def create_booking_request(
         sender_type=models.SenderType.CLIENT,
         content="Booking request sent",
         message_type=models.MessageType.SYSTEM,
+        attachment_url=None,
     )
     notify_user_new_booking_request(artist_user, new_request.id)
     return new_request
