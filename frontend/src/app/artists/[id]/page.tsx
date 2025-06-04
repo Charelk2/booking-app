@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import {
@@ -35,6 +35,7 @@ import { getFullImageUrl } from '@/lib/utils';
 
 export default function ArtistProfilePage() {
   const params = useParams();
+  const router = useRouter();
   const artistId = Number(params.id);
 
   const [artist, setArtist] = useState<ArtistProfile | null>(null);
