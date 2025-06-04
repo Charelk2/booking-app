@@ -436,10 +436,12 @@ export default function ArtistProfilePage() {
                 {isRequesting ? (
                   <form onSubmit={onSubmitBookingRequest} className="space-y-3">
                     {/* 1) Service dropdown */}
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="service-select" className="block text-sm font-medium text-gray-700">
                       Choose Service *
                     </label>
                     <select
+                      id="service-select"
+                      name="service"
                       value={selectedServiceId}
                       onChange={(e) =>
                         setSelectedServiceId(e.target.value === '' ? '' : Number(e.target.value))
@@ -456,10 +458,12 @@ export default function ArtistProfilePage() {
                     </select>
 
                     {/* 2) Proposed date & time */}
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="proposed-datetime" className="block text-sm font-medium text-gray-700">
                       Proposed Date & Time
                     </label>
                     <input
+                      id="proposed-datetime"
+                      name="proposed_datetime"
                       type="datetime-local"
                       value={proposedDateTime}
                       onChange={(e) => setProposedDateTime(e.target.value)}
@@ -467,10 +471,12 @@ export default function ArtistProfilePage() {
                     />
 
                     {/* 3) Optional message */}
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="request-message" className="block text-sm font-medium text-gray-700">
                       Message (optional)
                     </label>
                     <textarea
+                      id="request-message"
+                      name="message"
                       value={requestMessage}
                       onChange={(e) => setRequestMessage(e.target.value)}
                       placeholder="Say something to the artist…"
