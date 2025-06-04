@@ -5,7 +5,7 @@ from typing import List
 from .. import crud, models, schemas
 from .dependencies import get_db, get_current_user, get_current_active_client, get_current_active_artist
 from ..crud.crud_booking import create_booking_from_quote # Will be created later
-from ..services.booking_quote import calculate_quote
+from ..services.booking_quote import calculate_quote_breakdown, calculate_quote
 from decimal import Decimal
 
 router = APIRouter(
@@ -244,7 +244,7 @@ def confirm_quote_and_create_booking(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create booking after quote confirmation.")
 
 
-@router.post("/calculate", response_model=dict)
+@router.post("/quotes/calculate", response_model=schemas.QuoteCalculationResponse)
 def calculate_quote_endpoint(
     *,
     base_fee: Decimal,
@@ -259,5 +259,5 @@ def calculate_quote_endpoint(
         provider = db.query(models.SoundProvider).filter(models.SoundProvider.id == provider_id).first()
         if not provider:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found")
-    quote = calculate_quote(base_fee, distance_km, provider, accommodation_cost)
-    return {"total": quote}
+    breakdown = calculate_quote_breakdown(base_fee, distance_km, provider, accommodation_cost)
+    return breakdown
