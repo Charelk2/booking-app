@@ -25,9 +25,10 @@ class ArtistProfileBase(BaseModel):
     profile_picture_url: Optional[str] = None
     cover_photo_url: Optional[str] = None
 
-    class Config:
+    model_config = {
         # Still needed so that Pydantic can work with ORM objects, but we override below
-        orm_mode = True
+        "from_attributes": True,
+    }
 
 
 class ArtistProfileCreate(ArtistProfileBase):
