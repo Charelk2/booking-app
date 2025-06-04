@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .database import engine, Base
-from .db_utils import ensure_message_type_column
+from .db_utils import ensure_message_type_column, ensure_attachment_url_column
 from .models.user import User
 from .models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
 from .models.service import Service
@@ -33,6 +33,7 @@ from .core.config import settings
 
 # ─── Ensure database schema is up-to-date ──────────────────────────────────
 ensure_message_type_column(engine)
+ensure_attachment_url_column(engine)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Artist Booking API")
@@ -44,10 +45,12 @@ THIS_DIR = os.path.dirname(__file__)  # backend/app
 APP_STATIC_DIR = os.path.join(THIS_DIR, "static")  # backend/app/static
 PROFILE_PICS_DIR = os.path.join(APP_STATIC_DIR, "profile_pics")
 COVER_PHOTOS_DIR = os.path.join(APP_STATIC_DIR, "cover_photos")
+ATTACHMENTS_DIR = os.path.join(APP_STATIC_DIR, "attachments")
 
 # Ensure all the subfolders exist
 os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
 os.makedirs(COVER_PHOTOS_DIR, exist_ok=True)
+os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 
 
 # ─── Mount “/static” so that requests to /static/... serve from backend/app/static/... ────

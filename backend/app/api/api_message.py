@@ -1,12 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 
 from .. import crud, models, schemas
 from .dependencies import get_db, get_current_user
 from ..utils.notifications import notify_user_new_message
+import os, uuid, shutil
 
 router = APIRouter(tags=["messages"])
+
+ATTACHMENTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "static", "attachments"))
+os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 
 
 @router.get("/booking-requests/{request_id}/messages", response_model=List[schemas.MessageResponse])
@@ -35,9 +39,31 @@ def create_message(request_id: int, message_in: schemas.MessageCreate, db: Sessi
         content=message_in.content,
         message_type=message_in.message_type,
         quote_id=message_in.quote_id,
+        attachment_url=message_in.attachment_url,
     )
     other_user_id = booking_request.artist_id if sender_type == models.SenderType.CLIENT else booking_request.client_id
     other_user = db.query(models.User).filter(models.User.id == other_user_id).first()
     if other_user:
         notify_user_new_message(other_user, message_in.content)
     return msg
+
+
+@router.post("/booking-requests/{request_id}/attachments", status_code=status.HTTP_201_CREATED)
+async def upload_attachment(request_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    booking_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
+    if not booking_request:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking request not found")
+    if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to upload attachment")
+
+    _, ext = os.path.splitext(file.filename)
+    unique_filename = f"{uuid.uuid4()}{ext}"
+    save_path = os.path.join(ATTACHMENTS_DIR, unique_filename)
+    try:
+        with open(save_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    finally:
+        file.file.close()
+
+    url = f"/static/attachments/{unique_filename}"
+    return {"url": url}

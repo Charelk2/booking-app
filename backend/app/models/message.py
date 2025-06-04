@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, DateTime, Enum, ForeignKey
+from sqlalchemy import Column, Integer, Text, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -25,6 +25,7 @@ class Message(BaseModel):
     message_type = Column(Enum(MessageType), nullable=False, default=MessageType.TEXT)
     content = Column(Text, nullable=False)
     quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=True)
+    attachment_url = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     booking_request = relationship("BookingRequest", backref="messages")
