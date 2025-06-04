@@ -115,3 +115,16 @@ export interface Quote {
   // booking_request?: BookingRequest;
   // artist?: User;
 }
+
+export interface Message {
+  id: number;
+  booking_request_id: number;
+  sender_id: number;
+  sender_type: 'client' | 'artist';
+  content: string;
+  timestamp: string;
+}
+
+export interface MessageCreate {
+  content: string;
+}

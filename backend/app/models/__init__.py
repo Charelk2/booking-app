@@ -6,6 +6,7 @@ from .review import Review
 from .request_quote import BookingRequest, Quote, BookingRequestStatus, QuoteStatus
 from .sound_provider import SoundProvider
 from .artist_sound_preference import ArtistSoundPreference
+from .message import Message, SenderType
 
 __all__ = [
     "User",
@@ -15,10 +16,12 @@ __all__ = [
     "Review",
     "BookingRequest",
     "Quote",
+    "Message",
     "SoundProvider",
     "ArtistSoundPreference",
     "UserType",
     "BookingStatus",
     "BookingRequestStatus",
     "QuoteStatus",
+    "SenderType",
 ]
