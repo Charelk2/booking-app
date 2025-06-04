@@ -110,8 +110,8 @@ app.include_router(
 )
 
 
-# ─── QUOTE ROUTES (under /api/v1/quotes) ────────────────────────────────────────────
-app.include_router(api_quote.router, prefix=f"{api_prefix}/quotes", tags=["quotes"])
+# ─── QUOTE ROUTES (under /api/v1) ─────────────────────────────────────────────
+app.include_router(api_quote.router, prefix=f"{api_prefix}", tags=["quotes"])
 
 # ─── MESSAGE ROUTES (under /api/v1) ─────────────────────────────────────────
 app.include_router(
