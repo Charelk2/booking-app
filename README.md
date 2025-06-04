@@ -33,6 +33,29 @@ The frontend expects the backend to be running on `http://localhost:8000`.
 
 This version introduces basic management of sound providers and an API for quick quote calculations that factor in travel distance, optional provider fees, and accommodation costs.  Routers are mounted under `/api/v1/sound-providers` and `/api/v1/quotes/calculate`.
 
+## Sound Provider API
+
+The sound provider routes let you manage equipment suppliers and each artist's
+preferences. Example requests:
+
+- `GET /api/v1/sound-providers/` – List all providers.
+- `POST /api/v1/sound-providers/` – Create a provider by sending JSON like:
+
+  ```json
+  {
+    "name": "ACME Audio",
+    "contact_info": "acme@example.com",
+    "price_per_event": 150.00
+  }
+  ```
+
+- `PUT /api/v1/sound-providers/{id}` – Update a provider.
+- `DELETE /api/v1/sound-providers/{id}` – Remove a provider.
+- `GET /api/v1/sound-providers/artist/{artist_id}` – Retrieve an artist's
+  preferred providers ordered by priority.
+- `POST /api/v1/sound-providers/artist/{artist_id}` – Add a new preference for
+  the authenticated artist.
+
 ## Booking Request API
 
 ### `POST /api/v1/booking-requests/`
