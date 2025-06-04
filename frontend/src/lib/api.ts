@@ -52,16 +52,28 @@ export const login = (email: string, password: string) => {
 
 const API_V1 = '/api/v1';
 
+// Helper to ensure API responses always include `user_id`
+const normalizeArtistProfile = (profile: any): ArtistProfile => ({
+  ...profile,
+  user_id: profile.user_id ?? profile.id,
+});
+
 // ─── ARTISTS ───────────────────────────────────────────────────────────────────
 
-export const getArtists = () =>
-  api.get<ArtistProfile[]>(`${API_V1}/artist-profiles`);
+export const getArtists = async () => {
+  const res = await api.get<ArtistProfile[]>(`${API_V1}/artist-profiles`);
+  return { ...res, data: res.data.map(normalizeArtistProfile) };
+};
 
-export const getArtist = (userId: number) =>
-  api.get<ArtistProfile>(`${API_V1}/artist-profiles/${userId}`);
+export const getArtist = async (userId: number) => {
+  const res = await api.get<ArtistProfile>(`${API_V1}/artist-profiles/${userId}`);
+  return { ...res, data: normalizeArtistProfile(res.data) };
+};
 
-export const getArtistProfileMe = () =>
-  api.get<ArtistProfile>(`${API_V1}/artist-profiles/me`);
+export const getArtistProfileMe = async () => {
+  const res = await api.get<ArtistProfile>(`${API_V1}/artist-profiles/me`);
+  return { ...res, data: normalizeArtistProfile(res.data) };
+};
 
 export const updateMyArtistProfile = (data: Partial<ArtistProfile>) =>
   api.put(`${API_V1}/artist-profiles/me`, data);
