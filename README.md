@@ -66,3 +66,20 @@ payload didn't match the expected schema. Ensure you send JSON similar to:
 
 All numeric fields must be numbers (not strings) and datetimes must be valid ISO
 8601 strings. Omit optional fields rather than sending empty strings.
+
+## Caching with Redis
+
+The artist list endpoint (`/api/v1/artist-profiles/`) now caches its GET
+responses using Redis. By default the backend connects to
+`redis://localhost:6379/0`. You can override this by setting the `REDIS_URL`
+environment variable.
+
+To enable caching during development, install and start a Redis server:
+
+```bash
+sudo apt-get install redis-server
+redis-server
+```
+
+Cached results expire after about one minute. If Redis is unavailable the
+endpoint falls back to querying the database normally.
