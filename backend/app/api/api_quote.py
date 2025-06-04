@@ -47,6 +47,7 @@ def create_quote_for_request(
             content="Artist sent a quote",
             message_type=models.MessageType.QUOTE,
             quote_id=new_quote.id,
+            attachment_url=None,
         )
         return new_quote
     except ValueError as e:

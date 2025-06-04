@@ -16,3 +16,19 @@ def ensure_message_type_column(engine: Engine) -> None:
                 )
             )
             conn.commit()
+
+
+def ensure_attachment_url_column(engine: Engine) -> None:
+    """Add the attachment_url column if missing."""
+    inspector = inspect(engine)
+    if "messages" not in inspector.get_table_names():
+        return
+    column_names = [col["name"] for col in inspector.get_columns("messages")]
+    if "attachment_url" not in column_names:
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE messages ADD COLUMN attachment_url VARCHAR"
+                )
+            )
+            conn.commit()
