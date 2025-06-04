@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import {
@@ -35,6 +35,7 @@ import { getFullImageUrl } from '@/lib/utils';
 
 export default function ArtistProfilePage() {
   const params = useParams();
+  const router = useRouter();
   const artistId = Number(params.id);
 
   const [artist, setArtist] = useState<ArtistProfile | null>(null);
@@ -149,13 +150,16 @@ export default function ArtistProfilePage() {
         payload.proposed_datetime_1 = new Date(proposedDateTime).toISOString();
       }
 
-      await createBookingRequest(payload);
-      setRequestSuccess('Your booking request has been sent!');
+      const res = await createBookingRequest(payload);
+      setRequestSuccess('Your booking request has been sent! Redirecting…');
 
       setTimeout(() => {
         setIsRequesting(false);
         setRequestSuccess(null);
-      }, 2000);
+        if (res.data && res.data.id) {
+          router.push(`/booking-requests/${res.data.id}`);
+        }
+      }, 1000);
     } catch (err: any) {
       console.error('Error creating booking request:', err);
       if (err.response?.data?.detail) {
