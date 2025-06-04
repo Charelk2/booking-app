@@ -185,6 +185,12 @@ export const getBookingRequestsForArtist = () =>
 export const getBookingRequestById = (id: number) =>
   api.get<BookingRequest>(`${API_V1}/booking-requests/${id}`);
 
+// Update an existing booking request as the client
+export const updateBookingRequest = (
+  id: number,
+  data: Partial<BookingRequestCreate> & { status?: string }
+) => api.put<BookingRequest>(`${API_V1}/booking-requests/${id}/client`, data);
+
 // Create a new quote (artist → client) for an existing booking request:
 //    POST /api/v1/quotes/
 // Body must match QuoteCreate interface.
