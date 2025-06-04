@@ -31,7 +31,19 @@ The frontend expects the backend to be running on `http://localhost:8000`.
 
 ## New Features
 
-This version introduces basic management of sound providers and an API for quick quote calculations that factor in travel distance, optional provider fees, and accommodation costs.  Routers are mounted under `/api/v1/sound-providers` and `/api/v1/quotes/calculate`.
+This version introduces basic management of sound providers and an API for quick quote calculations that factor in travel distance, optional provider fees, and accommodation costs. Routers are mounted under `/api/v1/sound-providers` and `/api/v1/quotes/calculate`.
+
+The quote calculation endpoint now returns a full cost breakdown:
+
+```json
+{
+  "base_fee": 100.0,
+  "travel_cost": 20.0,
+  "provider_cost": 150.0,
+  "accommodation_cost": 50.0,
+  "total": 320.0
+}
+```
 
 ## Sound Provider API
 
