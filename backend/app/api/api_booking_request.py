@@ -4,6 +4,7 @@ from typing import List
 
 from .. import crud, models, schemas
 from .dependencies import get_db, get_current_user, get_current_active_client, get_current_active_artist
+from ..utils.notifications import notify_user_new_booking_request
 
 # Prefix is added when this router is included in `app/main.py`.
 router = APIRouter(
@@ -54,6 +55,7 @@ def create_booking_request(
         content="Booking request sent",
         message_type=models.MessageType.SYSTEM,
     )
+    notify_user_new_booking_request(artist_user, new_request.id)
     return new_request
 
 @router.get("/me/client", response_model=List[schemas.BookingRequestResponse])
