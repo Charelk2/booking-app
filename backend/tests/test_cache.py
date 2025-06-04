@@ -76,4 +76,4 @@ def test_fallback_when_redis_unavailable(monkeypatch):
     result = api_artist.read_all_artist_profiles(db)
     # when redis fails, it should query the db once
     assert db.called == 1
-    assert result[0]["user_id"] == 2
+    assert result[0].user_id == 2
