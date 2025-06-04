@@ -15,8 +15,8 @@ This file documents the key automation, agent modules, and service components in
 | **Payment Agent**                | Manages payment workflows, booking status update, confirmation            | backend/app/api/api_payment.py (planned), frontend/components/PaymentForm.tsx      | On payment page/booking confirmation           |
 | **Notification Agent**           | Sends emails, chat alerts, and booking status updates                     | backend/app/notifications/ (if implemented), frontend/hooks/useNotifications.ts     | Triggered on status changes, messages, actions |
 | **Chat Agent**                   | Manages client-artist/support chat, delivers new message notifications    | backend/app/api/api_chat.py, frontend/components/Chat.tsx                          | Always-on for active bookings                  |
-| **Availability Agent**           | Handles real-time artist/service availability checks                      | backend/app/api/api_artist.py, frontend/components/ArtistSelect.tsx                | On date/service selection, booking start       |
-| **Form State Agent**             | Maintains progress, handles multi-step UX, restores unfinished bookings   | frontend/components/BookingStepper.tsx, frontend/context/BookingContext.tsx         | Throughout user session                        |
+| **Availability Agent**           | Handles real-time artist/service availability checks                      | backend/app/api/v1/api_artist.py, frontend/components/booking/BookingWizard.tsx                | On date/service selection, booking start       |
+| **Form State Agent**             | Maintains progress, handles multi-step UX, restores unfinished bookings   | frontend/components/booking/BookingWizard.tsx, frontend/contexts/BookingContext.tsx         | Throughout user session                        |
 | **Validation Agent**             | Validates all user input (dates, contact info, logic rules)               | frontend/components/BookingForm.tsx, backend/app/schemas/                           | At every form step and backend endpoint        |
 
 ---
@@ -74,7 +74,7 @@ This file documents the key automation, agent modules, and service components in
 ### 9. Form State Agent
 
 * **Purpose:** Manages progress through multi-step booking, “save for later,” restores session on reload or login.
-* **Frontend:** Uses React context/state in `BookingStepper.tsx` and `BookingContext.tsx`.
+* **Frontend:** Uses React context/state in `booking/BookingWizard.tsx` and `contexts/BookingContext.tsx`.
 
 ### 10. Validation Agent
 
