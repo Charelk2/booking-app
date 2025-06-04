@@ -49,3 +49,20 @@ Optional fields can also be provided:
 - `proposed_datetime_2` (ISO 8601 datetime) – Second proposed time.
 
 `artist_id` must be an integer. If you don't want to include an optional field, omit it entirely or send a properly typed value. Avoid sending empty strings as placeholders.
+
+## Troubleshooting 422 errors
+
+If the `POST /api/v1/booking-requests/` endpoint responds with **HTTP 422**, the
+payload didn't match the expected schema. Ensure you send JSON similar to:
+
+```json
+{
+  "artist_id": 1,
+  "service_id": 3,
+  "message": "I'd like to book you",
+  "proposed_datetime_1": "2025-01-15T20:00:00Z"
+}
+```
+
+All numeric fields must be numbers (not strings) and datetimes must be valid ISO
+8601 strings. Omit optional fields rather than sending empty strings.
