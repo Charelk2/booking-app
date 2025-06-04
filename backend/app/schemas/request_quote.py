@@ -95,3 +95,13 @@ class QuoteCalculationResponse(BaseModel):
     provider_cost: Decimal
     accommodation_cost: Decimal
     total: Decimal
+
+
+class QuoteCalculationParams(BaseModel):
+    """Schema for the /quotes/calculate request body."""
+
+    base_fee: Decimal
+    distance_km: float
+    provider_id: Optional[int] = None
+    accommodation_cost: Optional[Decimal] = None
+
