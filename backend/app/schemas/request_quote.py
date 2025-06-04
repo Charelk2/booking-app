@@ -18,6 +18,7 @@ class BookingRequestBase(BaseModel):
 
 class BookingRequestCreate(BookingRequestBase):
     artist_id: int # Client must specify the artist they are requesting
+    status: Optional[BookingRequestStatus] = BookingRequestStatus.PENDING_QUOTE
 
 class BookingRequestUpdateByClient(BaseModel): # Client can withdraw or update message/times
     message: Optional[str] = None
