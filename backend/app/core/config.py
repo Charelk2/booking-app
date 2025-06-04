@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     # Database URL
     SQLALCHEMY_DATABASE_URL: str = "sqlite:///./booking.db"
 
+    # Redis connection URL for caching
+    REDIS_URL: str = "redis://localhost:6379/0"
+
     # CORS origins
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3002"]
 

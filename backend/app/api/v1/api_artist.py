@@ -7,6 +7,8 @@ import re, shutil
 from pathlib import Path
 from typing import List, Optional
 
+from app.utils.redis_cache import get_cached_artist_list, cache_artist_list
+
 from app.database import get_db
 from app.models.user import User
 from app.models.artist_profile_v2 import ArtistProfileV2 as Artist
@@ -237,8 +239,15 @@ def read_all_artist_profiles(
     """
     Return a list of all artist profiles (public).
     """
+    cached = get_cached_artist_list()
+    if cached is not None:
+        return cached
+
     artists = db.query(Artist).all()
-    return artists
+    # Serialize using the response schema so the cached data matches the API output
+    data = [ArtistProfileResponse.model_validate(a).model_dump() for a in artists]
+    cache_artist_list(data)
+    return data
 
 @router.get("/{artist_id}", response_model=ArtistProfileResponse)
 def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
