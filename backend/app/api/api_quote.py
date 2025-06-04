@@ -244,9 +244,7 @@ def confirm_quote_and_create_booking(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create booking after quote confirmation.")
 
 
-01y4af-codex/implement-booking-logic-and-ux-improvements
 @router.post("/quotes/calculate", response_model=schemas.QuoteCalculationResponse)
-main
 def calculate_quote_endpoint(
     *,
     base_fee: Decimal,
