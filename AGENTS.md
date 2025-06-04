@@ -8,7 +8,7 @@ This file documents the key automation, agent modules, and service components in
 
 | Agent Name                       | Description                                                               | Code Location                                                                       | How it Works / When Triggered                  |
 | -------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------- |
-| **Booking Request Agent**        | Handles booking form data, booking flow logic, and business rules         | backend/app/api/api_booking_request.py, frontend/components/BookingForm.tsx       | When user submits or updates a booking request |
+| **Booking Request Agent**        | Handles booking wizard data, booking flow logic, and business rules         | backend/app/api/api_booking_request.py, frontend/components/booking/BookingWizard.tsx       | When user submits or updates a booking request |
 | **Provider Matching Agent**      | Matches user with artist’s preferred sound/accommodation providers        | backend/app/crud/crud_service.py, backend/app/api/api_service.py                  | Invoked during booking and quote steps         |
 | **Travel & Accommodation Agent** | Calculates travel needs, handles accommodation logic and user prompts     | backend/app/api/api_booking_request.py, frontend/components/AccommodationStep.tsx | Called if event is outside radius/needs travel |
 | **Quote Generator**              | Gathers performance, provider, travel, and accommodation costs for client | backend/app/api/api_quote.py, frontend/components/QuoteSummary.tsx                 | Runs after all booking info is entered         |
@@ -17,7 +17,7 @@ This file documents the key automation, agent modules, and service components in
 | **Chat Agent**                   | Manages client-artist/support chat, delivers new message notifications    | backend/app/api/api_chat.py, frontend/components/Chat.tsx                          | Always-on for active bookings                  |
 | **Availability Agent**           | Handles real-time artist/service availability checks                      | backend/app/api/v1/api_artist.py, frontend/components/booking/BookingWizard.tsx                | On date/service selection, booking start       |
 | **Form State Agent**             | Maintains progress, handles multi-step UX, restores unfinished bookings   | frontend/components/booking/BookingWizard.tsx, frontend/contexts/BookingContext.tsx         | Throughout user session                        |
-| **Validation Agent**             | Validates all user input (dates, contact info, logic rules)               | frontend/components/BookingForm.tsx, backend/app/schemas/                           | At every form step and backend endpoint        |
+| **Validation Agent**             | Validates all user input (dates, contact info, logic rules)               | frontend/components/booking/BookingWizard.tsx, backend/app/schemas/                           | At every form step and backend endpoint        |
 
 ---
 
@@ -26,7 +26,7 @@ This file documents the key automation, agent modules, and service components in
 ### 1. Booking Request Agent
 
 * **Purpose:** Orchestrates multi-step booking—receives event details, stores booking-in-progress, validates required info.
-* **Frontend:** `BookingForm.tsx` manages state, collects data, sends to backend.
+* **Frontend:** `BookingWizard.tsx` manages state, collects data, sends to backend.
 * **Backend:** `api_booking_request.py` parses, validates, persists booking requests, and triggers downstream agents.
 
 ### 2. Provider Matching Agent
@@ -94,7 +94,7 @@ This file documents the key automation, agent modules, and service components in
 
 ## Last Updated
 
-2024-06-04
+2024-06-06
 
 ---
 

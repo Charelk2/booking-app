@@ -14,6 +14,8 @@ interface BookingContextValue {
   setStep: (s: number) => void;
   details: EventDetails;
   setDetails: (d: EventDetails) => void;
+  requestId?: number;
+  setRequestId: (id: number | undefined) => void;
 }
 
 const BookingContext = createContext<BookingContextValue | undefined>(undefined);
@@ -21,8 +23,9 @@ const BookingContext = createContext<BookingContextValue | undefined>(undefined)
 export const BookingProvider = ({ children }: { children: ReactNode }) => {
   const [step, setStep] = useState(0);
   const [details, setDetails] = useState<EventDetails>({ guests: 1, venueType: 'indoor' });
+  const [requestId, setRequestId] = useState<number | undefined>(undefined);
   return (
-    <BookingContext.Provider value={{ step, setStep, details, setDetails }}>
+    <BookingContext.Provider value={{ step, setStep, details, setDetails, requestId, setRequestId }}>
       {children}
     </BookingContext.Provider>
   );

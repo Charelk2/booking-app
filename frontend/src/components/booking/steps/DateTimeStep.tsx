@@ -1,0 +1,38 @@
+'use client';
+import { Controller } from 'react-hook-form';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
+import { format } from 'date-fns';
+
+interface Props {
+  control: any;
+  unavailable: string[];
+  watch: any;
+}
+
+export default function DateTimeStep({ control, unavailable, watch }: Props) {
+  const tileDisabled = ({ date }: { date: Date }) => {
+    const day = format(date, 'yyyy-MM-dd');
+    return unavailable.includes(day) || date < new Date();
+  };
+  return (
+    <div className="space-y-4">
+      <Controller
+        name="date"
+        control={control}
+        render={({ field }) => (
+          <Calendar {...field} onChange={field.onChange} tileDisabled={tileDisabled} />
+        )}
+      />
+      {watch('date') && (
+        <Controller
+          name="time"
+          control={control}
+          render={({ field }) => (
+            <input type="time" className="border p-2 rounded w-full" {...field} />
+          )}
+        />
+      )}
+    </div>
+  );
+}
