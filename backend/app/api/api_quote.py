@@ -38,7 +38,17 @@ def create_quote_for_request(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to create a quote for this request")
 
     try:
-        return crud.crud_quote.create_quote(db=db, quote=quote_in, artist_id=current_artist.id)
+        new_quote = crud.crud_quote.create_quote(db=db, quote=quote_in, artist_id=current_artist.id)
+        crud.crud_message.create_message(
+            db=db,
+            booking_request_id=request_id,
+            sender_id=current_artist.id,
+            sender_type=models.SenderType.ARTIST,
+            content="Artist sent a quote",
+            message_type=models.MessageType.QUOTE,
+            quote_id=new_quote.id,
+        )
+        return new_quote
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 

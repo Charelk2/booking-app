@@ -34,9 +34,27 @@ def create_booking_request(
         if not service:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Service ID does not match the specified artist or does not exist.")
 
-    return crud.crud_booking_request.create_booking_request(
+    new_request = crud.crud_booking_request.create_booking_request(
         db=db, booking_request=request_in, client_id=current_user.id
     )
+    if request_in.message:
+        crud.crud_message.create_message(
+            db=db,
+            booking_request_id=new_request.id,
+            sender_id=current_user.id,
+            sender_type=models.SenderType.CLIENT,
+            content=request_in.message,
+            message_type=models.MessageType.TEXT,
+        )
+    crud.crud_message.create_message(
+        db=db,
+        booking_request_id=new_request.id,
+        sender_id=current_user.id,
+        sender_type=models.SenderType.CLIENT,
+        content="Booking request sent",
+        message_type=models.MessageType.SYSTEM,
+    )
+    return new_request
 
 @router.get("/me/client", response_model=List[schemas.BookingRequestResponse])
 def read_my_client_booking_requests(
