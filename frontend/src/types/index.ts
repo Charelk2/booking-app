@@ -70,6 +70,7 @@ export interface BookingRequestCreate {
   service_id?: number;
   message?: string;
   proposed_datetime_1?: string; // ISO‐formatted date‐time string
+  status?: string;
 }
 
 // This is what the backend returns when you GET a booking request:
