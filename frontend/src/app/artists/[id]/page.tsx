@@ -149,13 +149,16 @@ export default function ArtistProfilePage() {
         payload.proposed_datetime_1 = new Date(proposedDateTime).toISOString();
       }
 
-      await createBookingRequest(payload);
-      setRequestSuccess('Your booking request has been sent!');
+      const res = await createBookingRequest(payload);
+      setRequestSuccess('Your booking request has been sent! Redirecting…');
 
       setTimeout(() => {
         setIsRequesting(false);
         setRequestSuccess(null);
-      }, 2000);
+        if (res.data && res.data.id) {
+          router.push(`/booking-requests/${res.data.id}`);
+        }
+      }, 1000);
     } catch (err: any) {
       console.error('Error creating booking request:', err);
       if (err.response?.data?.detail) {
