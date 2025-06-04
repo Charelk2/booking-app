@@ -33,6 +33,16 @@ The frontend expects the backend to be running on `http://localhost:8000`.
 
 This version introduces basic management of sound providers and an API for quick quote calculations that factor in travel distance, optional provider fees, and accommodation costs. Routers are mounted under `/api/v1/sound-providers` and `/api/v1/quotes/calculate`.
 
+### Artist Availability
+
+You can now query an artist's unavailable dates via:
+
+```
+GET /api/v1/artist-profiles/{artist_id}/availability
+```
+
+which returns a list of `unavailable_dates` to disable in the booking calendar.
+
 The quote calculation endpoint now returns a full cost breakdown:
 
 ```json

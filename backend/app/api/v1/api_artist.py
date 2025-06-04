@@ -12,9 +12,12 @@ from app.utils.redis_cache import get_cached_artist_list, cache_artist_list
 from app.database import get_db
 from app.models.user import User
 from app.models.artist_profile_v2 import ArtistProfileV2 as Artist
+from app.models.booking import Booking, BookingStatus
+from app.models.request_quote import BookingRequest, BookingRequestStatus
 from app.schemas.artist import (
     ArtistProfileResponse,
     ArtistProfileUpdate,  # new Pydantic schema for updates
+    ArtistAvailabilityResponse,
 )
 from app.api.auth import get_current_user
 
@@ -258,6 +261,38 @@ def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
     if not artist:
         raise HTTPException(status_code=404, detail="Artist profile not found.")
     return artist
+
+
+@router.get("/{artist_id}/availability", response_model=ArtistAvailabilityResponse)
+def read_artist_availability(artist_id: int, db: Session = Depends(get_db)):
+    """Return dates the artist is unavailable."""
+    bookings = (
+        db.query(Booking)
+        .filter(
+            Booking.artist_id == artist_id,
+            Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
+        )
+        .all()
+    )
+    requests = (
+        db.query(BookingRequest)
+        .filter(
+            BookingRequest.artist_id == artist_id,
+            BookingRequest.status != BookingRequestStatus.REQUEST_DECLINED,
+        )
+        .all()
+    )
+
+    dates = set()
+    for b in bookings:
+        dates.add(b.start_time.date().isoformat())
+    for r in requests:
+        if r.proposed_datetime_1:
+            dates.add(r.proposed_datetime_1.date().isoformat())
+        if r.proposed_datetime_2:
+            dates.add(r.proposed_datetime_2.date().isoformat())
+
+    return {"unavailable_dates": sorted(dates)}
 
 def read_all_artists(db: Session = Depends(get_db)):
     """
