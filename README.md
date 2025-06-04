@@ -32,3 +32,20 @@ The frontend expects the backend to be running on `http://localhost:8000`.
 ## New Features
 
 This version introduces basic management of sound providers and an API for quick quote calculations that factor in travel distance, optional provider fees, and accommodation costs.  Routers are mounted under `/api/v1/sound-providers` and `/api/v1/quotes/calculate`.
+
+## Booking Request API
+
+### `POST /api/v1/booking-requests/`
+
+Create a new booking request. The request body must include:
+
+- `artist_id` (integer, required) – ID of the artist being requested.
+
+Optional fields can also be provided:
+
+- `service_id` (integer) – ID of the service offered by the artist.
+- `message` (string) – A message to the artist.
+- `proposed_datetime_1` (ISO 8601 datetime) – First proposed time.
+- `proposed_datetime_2` (ISO 8601 datetime) – Second proposed time.
+
+`artist_id` must be an integer. If you don't want to include an optional field, omit it entirely or send a properly typed value. Avoid sending empty strings as placeholders.
