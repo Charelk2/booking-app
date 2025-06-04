@@ -246,18 +246,16 @@ def confirm_quote_and_create_booking(
 
 @router.post("/quotes/calculate", response_model=schemas.QuoteCalculationResponse)
 def calculate_quote_endpoint(
-    *,
-    base_fee: Decimal,
-    distance_km: float,
-    provider_id: int | None = None,
-    accommodation_cost: Decimal | None = None,
+    params: schemas.QuoteCalculationParams,
     db: Session = Depends(get_db),
 ):
     """Return a quick quote estimation used during booking flow."""
     provider = None
-    if provider_id is not None:
-        provider = db.query(models.SoundProvider).filter(models.SoundProvider.id == provider_id).first()
+    if params.provider_id is not None:
+        provider = db.query(models.SoundProvider).filter(models.SoundProvider.id == params.provider_id).first()
         if not provider:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found")
-    breakdown = calculate_quote_breakdown(base_fee, distance_km, provider, accommodation_cost)
+    breakdown = calculate_quote_breakdown(
+        params.base_fee, params.distance_km, provider, params.accommodation_cost
+    )
     return breakdown
