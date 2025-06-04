@@ -125,11 +125,11 @@ def update_booking_request_by_client(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this request")
     
     # Prevent updating if artist has already provided a quote or declined
-    if db_request.status not in [models.BookingRequestStatus.PENDING_QUOTE, models.BookingRequestStatus.REQUEST_WITHDRAWN]:
+    if db_request.status not in [models.BookingRequestStatus.DRAFT, models.BookingRequestStatus.PENDING_QUOTE, models.BookingRequestStatus.REQUEST_WITHDRAWN]:
          raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot update request in status: {db_request.status.value}")
 
     # Validate status change if present
-    if request_update.status and request_update.status not in [models.BookingRequestStatus.REQUEST_WITHDRAWN, models.BookingRequestStatus.PENDING_QUOTE]:
+    if request_update.status and request_update.status not in [models.BookingRequestStatus.REQUEST_WITHDRAWN, models.BookingRequestStatus.PENDING_QUOTE, models.BookingRequestStatus.DRAFT]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status update by client.")
 
     return crud.crud_booking_request.update_booking_request(
@@ -153,8 +153,8 @@ def update_booking_request_by_artist(
     if db_request.artist_id != current_artist.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this request")
 
-    # Artist can only update PENDING_QUOTE or QUOTE_PROVIDED (to decline, after quote)
-    if db_request.status not in [models.BookingRequestStatus.PENDING_QUOTE, models.BookingRequestStatus.QUOTE_PROVIDED]:
+    # Artist can only update DRAFT, PENDING_QUOTE or QUOTE_PROVIDED (to decline, after quote)
+    if db_request.status not in [models.BookingRequestStatus.DRAFT, models.BookingRequestStatus.PENDING_QUOTE, models.BookingRequestStatus.QUOTE_PROVIDED]:
          raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot update request in status: {db_request.status.value}")
 
     # Validate status change by artist (e.g., only to REQUEST_DECLINED)
