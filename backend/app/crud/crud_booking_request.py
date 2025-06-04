@@ -7,17 +7,15 @@ from .. import schemas
 # --- BookingRequest CRUD ---_REQUEST
 
 def create_booking_request(
-    db: Session, 
-    booking_request: schemas.BookingRequestCreate, 
+    db: Session,
+    booking_request: schemas.BookingRequestCreate,
     client_id: int
 ) -> models.BookingRequest:
-    data = booking_request.model_dump(exclude={"status"})
     db_booking_request = models.BookingRequest(
-
-        booking_request.model_dump(),
-        main,
+        **booking_request.model_dump(),
         client_id=client_id,
-        status=booking_request.status or models.BookingRequestStatus.PENDING_QUOTE,
+        status=booking_request.status
+        or models.BookingRequestStatus.PENDING_QUOTE,
     )
     db.add(db_booking_request)
     db.commit()
