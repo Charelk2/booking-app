@@ -232,33 +232,28 @@ async def upload_artist_cover_photo_me(
     summary="List all artist profiles",
     description="Returns an array of every artist’s profile."
 )
-@router.get("/", response_model=List[ArtistProfileResponse], summary="List all artist profiles")
-def read_all_artist_profiles(
-    db: Session = Depends(get_db)
-):
-    """
-    Return a list of all artist profiles (public).
-    """
+def read_all_artist_profiles(db: Session = Depends(get_db)):
+    """Return a list of all artist profiles (public)."""
+
     cached = get_cached_artist_list()
     if cached is not None:
-        return cached
+        # Convert cached dicts back into Pydantic models for response validation
+        return [ArtistProfileResponse.model_validate(item) for item in cached]
 
     artists = db.query(Artist).all()
-    # Serialize using the response schema so the cached data matches the API output
-    data = [ArtistProfileResponse.model_validate(a).model_dump() for a in artists]
-    cache_artist_list(data)
-    return data
+
+    profiles = [ArtistProfileResponse.model_validate(a) for a in artists]
+
+    # Store serialisable data in cache, making sure user_id is present
+    cache_artist_list([
+        {**profile.model_dump(), "user_id": profile.user_id}
+        for profile in profiles
+    ])
+
+    return profiles
 
 @router.get("/{artist_id}", response_model=ArtistProfileResponse)
 def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
-    artist = db.query(Artist).filter(Artist.user_id == artist_id).first()
-    if not artist:
-        raise HTTPException(status_code=404, detail="Artist profile not found.")
-    return artist
-
-    """
-    Retrieve a public artist profile by its integer ID.
-    """
     artist = db.query(Artist).filter(Artist.user_id == artist_id).first()
     if not artist:
         raise HTTPException(status_code=404, detail="Artist profile not found.")
