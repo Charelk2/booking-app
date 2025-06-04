@@ -27,8 +27,9 @@ class UserResponse(UserBase):
     is_active: bool
     is_verified: bool
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 # TokenData for extracting “sub” (email) from JWT
