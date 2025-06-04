@@ -134,3 +134,30 @@ export interface MessageCreate {
   quote_id?: number;
   attachment_url?: string;
 }
+
+export interface SoundProvider {
+  id: number;
+  name: string;
+  contact_info?: string | null;
+  price_per_event?: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface QuoteCalculationResponse {
+  base_fee: number;
+  travel_cost: number;
+  provider_cost: number;
+  accommodation_cost: number;
+  total: number;
+}
+export interface ArtistSoundPreference {
+  id: number;
+  artist_id: number;
+  provider_id: number;
+  priority?: number | null;
+  provider?: SoundProvider;
+  created_at?: string;
+  updated_at?: string;
+}
+
