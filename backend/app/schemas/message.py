@@ -7,6 +7,7 @@ class MessageCreate(BaseModel):
     content: str
     message_type: MessageType = MessageType.TEXT
     quote_id: int | None = None
+    attachment_url: str | None = None
 
 
 class MessageResponse(BaseModel):
@@ -17,6 +18,7 @@ class MessageResponse(BaseModel):
     message_type: MessageType
     content: str
     quote_id: int | None = None
+    attachment_url: str | None = None
     timestamp: datetime
 
     model_config = {
