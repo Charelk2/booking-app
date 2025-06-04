@@ -197,7 +197,7 @@ export const updateBookingRequest = (
 export const createQuoteForRequest = (
   requestId: number,
   data: QuoteCreate
-) => api.post<Quote>(`${API_V1}/booking-requests/${requestId}/quotes/`, data);
+) => api.post<Quote>(`${API_V1}/booking-requests/${requestId}/quotes`, data);
 
 // Optionally, fetch all quotes for a given booking request:
 export const getQuotesForBookingRequest = (bookingRequestId: number) =>

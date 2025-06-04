@@ -12,7 +12,11 @@ router = APIRouter(
     tags=["Quotes"],
 )
 
-@router.post("/booking-requests/{request_id}/quotes/", response_model=schemas.QuoteResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/booking-requests/{request_id}/quotes",
+    response_model=schemas.QuoteResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_quote_for_request(
     request_id: int,
     quote_in: schemas.QuoteCreate,
