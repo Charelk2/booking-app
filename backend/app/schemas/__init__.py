@@ -23,6 +23,7 @@ from .request_quote import (
     QuoteUpdateByClient,
     QuoteResponse,
     QuoteCalculationResponse,
+    QuoteCalculationParams,
 )
 from .message import MessageCreate, MessageResponse
 
@@ -58,6 +59,7 @@ __all__ = [
     "QuoteUpdateByClient",
     "QuoteResponse",
     "QuoteCalculationResponse",
+    "QuoteCalculationParams",
     "MessageCreate",
     "MessageResponse",
     "SoundProviderBase",
