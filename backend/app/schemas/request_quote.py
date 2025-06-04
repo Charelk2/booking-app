@@ -83,4 +83,14 @@ class QuoteResponse(QuoteBase):
     }
 
 # Update BookingRequestResponse to include quotes after QuoteResponse is defined
-BookingRequestResponse.model_rebuild() 
+BookingRequestResponse.model_rebuild()
+
+
+class QuoteCalculationResponse(BaseModel):
+    """Schema for detailed quote calculations used by the quick quote API."""
+
+    base_fee: Decimal
+    travel_cost: Decimal
+    provider_cost: Decimal
+    accommodation_cost: Decimal
+    total: Decimal
