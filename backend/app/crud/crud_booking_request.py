@@ -13,7 +13,9 @@ def create_booking_request(
 ) -> models.BookingRequest:
     data = booking_request.model_dump(exclude={"status"})
     db_booking_request = models.BookingRequest(
-        **data,
+
+        **booking_request.model_dump(),
+        main
         client_id=client_id,
         status=booking_request.status or models.BookingRequestStatus.PENDING_QUOTE,
     )
