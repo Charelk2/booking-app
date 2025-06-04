@@ -11,10 +11,11 @@ def create_booking_request(
     booking_request: schemas.BookingRequestCreate, 
     client_id: int
 ) -> models.BookingRequest:
+    data = booking_request.model_dump(exclude={"status"})
     db_booking_request = models.BookingRequest(
-        **booking_request.model_dump(), 
+        **data,
         client_id=client_id,
-        status=models.BookingRequestStatus.PENDING_QUOTE # Explicitly set default status if not in schema
+        status=booking_request.status or models.BookingRequestStatus.PENDING_QUOTE,
     )
     db.add(db_booking_request)
     db.commit()

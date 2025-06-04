@@ -6,6 +6,7 @@ import enum
 from ..database import Base # Assuming Base is in database.py
 
 class BookingRequestStatus(str, enum.Enum):
+    DRAFT = "draft"
     PENDING_QUOTE = "pending_quote"
     QUOTE_PROVIDED = "quote_provided"
     PENDING_ARTIST_CONFIRMATION = "pending_artist_confirmation"
