@@ -1,6 +1,7 @@
 import json
 import redis
 from typing import Any, List
+import logging
 from app.core.config import settings
 
 _redis_client = None
@@ -18,7 +19,11 @@ ARTIST_LIST_KEY = "artist_profiles:list"
 
 def get_cached_artist_list() -> List[dict] | None:
     client = get_redis_client()
-    data = client.get(ARTIST_LIST_KEY)
+    try:
+        data = client.get(ARTIST_LIST_KEY)
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Redis unavailable: %s", exc)
+        return None
     if data:
         return json.loads(data)
     return None
@@ -26,4 +31,7 @@ def get_cached_artist_list() -> List[dict] | None:
 
 def cache_artist_list(data: List[dict], expire: int = 60) -> None:
     client = get_redis_client()
-    client.setex(ARTIST_LIST_KEY, expire, json.dumps(data))
+    try:
+        client.setex(ARTIST_LIST_KEY, expire, json.dumps(data))
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Could not cache artist list: %s", exc)
