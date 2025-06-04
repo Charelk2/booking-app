@@ -12,10 +12,11 @@ from .sound_provider import (
     ArtistSoundPreferenceResponse,
 )
 from .request_quote import (
-    BookingRequestBase, BookingRequestCreate, BookingRequestUpdateByClient, 
+    BookingRequestBase, BookingRequestCreate, BookingRequestUpdateByClient,
     BookingRequestUpdateByArtist, BookingRequestResponse,
     QuoteBase, QuoteCreate, QuoteUpdateByArtist, QuoteUpdateByClient, QuoteResponse
 )
+from .message import MessageCreate, MessageResponse
 
 __all__ = [
     "UserBase",
@@ -48,6 +49,8 @@ __all__ = [
     "QuoteUpdateByArtist",
     "QuoteUpdateByClient",
     "QuoteResponse",
+    "MessageCreate",
+    "MessageResponse",
     "SoundProviderBase",
     "SoundProviderCreate",
     "SoundProviderUpdate",

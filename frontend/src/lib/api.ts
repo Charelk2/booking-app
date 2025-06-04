@@ -11,6 +11,8 @@ import {
   BookingRequest,
   QuoteCreate,
   Quote,
+  Message,
+  MessageCreate,
 } from '@/types';
 
 // Create a single axios instance for all requests
@@ -187,6 +189,21 @@ export const createQuote = (data: QuoteCreate) =>
 export const getQuotesForBookingRequest = (bookingRequestId: number) =>
   api.get<Quote[]>(
     `${API_V1}/booking-requests/${bookingRequestId}/quotes`
+  );
+
+// ─── MESSAGES ───────────────────────────────────────────────────────────
+export const getMessagesForBookingRequest = (bookingRequestId: number) =>
+  api.get<Message[]>(
+    `${API_V1}/booking-requests/${bookingRequestId}/messages`
+  );
+
+export const postMessageToBookingRequest = (
+  bookingRequestId: number,
+  data: MessageCreate
+) =>
+  api.post<Message>(
+    `${API_V1}/booking-requests/${bookingRequestId}/messages`,
+    data
   );
 
 export default api;
