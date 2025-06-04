@@ -9,6 +9,8 @@ import {
   Service,
   Review as ReviewType,
   BookingRequestCreate,
+  QuoteCalculationResponse,
+  ArtistSoundPreference,
 } from '@/types';
 import {
   getArtist,
@@ -16,6 +18,8 @@ import {
   getArtistServices,
   getArtistReviews,
   createBookingRequest,
+  getSoundProvidersForArtist,
+  calculateQuote,
 } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/utils';
 import {
@@ -53,6 +57,15 @@ export default function ArtistProfilePage() {
   const [requestLoading, setRequestLoading] = useState(false);
   const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [soundProviders, setSoundProviders] = useState<ArtistSoundPreference[]>(
+    []
+  );
+  const [selectedProviderId, setSelectedProviderId] = useState<number | ''>('');
+  const [distanceKm, setDistanceKm] = useState('');
+  const [accommodationCost, setAccommodationCost] = useState('');
+  const [quoteResult, setQuoteResult] = useState<QuoteCalculationResponse | null>(
+    null
+  );
 
   // TODO: replace with your actual Auth logic to get current client’s ID
   const currentUserId =  123;
@@ -118,7 +131,35 @@ export default function ArtistProfilePage() {
     setSelectedServiceId('');
     setProposedDateTime('');
     setRequestMessage('');
+    setSelectedProviderId('');
+    setDistanceKm('');
+    setAccommodationCost('');
+    setQuoteResult(null);
+    if (artist) {
+      getSoundProvidersForArtist(artist.user_id)
+        .then((res) => setSoundProviders(res.data))
+        .catch(() => setSoundProviders([]));
+    }
     setIsRequesting(true);
+  };
+
+  const onCalculateQuote = async () => {
+    if (!artist || selectedServiceId === '' || distanceKm === '') return;
+    const service = services.find((s) => s.id === Number(selectedServiceId));
+    if (!service) return;
+    try {
+      const res = await calculateQuote({
+        base_fee: Number(service.price),
+        distance_km: Number(distanceKm),
+        provider_id: selectedProviderId ? Number(selectedProviderId) : undefined,
+        accommodation_cost: accommodationCost
+          ? Number(accommodationCost)
+          : undefined,
+      });
+      setQuoteResult(res.data);
+    } catch (err) {
+      console.error('Failed to calculate quote', err);
+    }
   };
 
   const onSubmitBookingRequest = async (e: React.FormEvent) => {
@@ -473,6 +514,60 @@ export default function ArtistProfilePage() {
                       onChange={(e) => setProposedDateTime(e.target.value)}
                       className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
                     />
+
+                    <label className="block text-sm font-medium text-gray-700 mt-2">
+                      Distance from Artist (km)
+                    </label>
+                    <input
+                      type="number"
+                      value={distanceKm}
+                      onChange={(e) => setDistanceKm(e.target.value)}
+                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      required
+                    />
+
+                    <label className="block text-sm font-medium text-gray-700 mt-2">
+                      Preferred Sound Provider
+                    </label>
+                    <select
+                      value={selectedProviderId}
+                      onChange={(e) =>
+                        setSelectedProviderId(
+                          e.target.value === '' ? '' : Number(e.target.value)
+                        )
+                      }
+                      className="block w-full border border-gray-300 bg-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="">None</option>
+                      {soundProviders.map((pref) => (
+                        <option key={pref.id} value={pref.provider_id}>
+                          {pref.provider?.name || `Provider ${pref.provider_id}`}
+                        </option>
+                      ))}
+                    </select>
+
+                    <label className="block text-sm font-medium text-gray-700 mt-2">
+                      Accommodation Cost
+                    </label>
+                    <input
+                      type="number"
+                      value={accommodationCost}
+                      onChange={(e) => setAccommodationCost(e.target.value)}
+                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={onCalculateQuote}
+                      className="w-full mt-2 bg-gray-100 border rounded-md px-3 py-2 text-sm hover:bg-gray-200"
+                    >
+                      Calculate Estimate
+                    </button>
+                    {quoteResult && (
+                      <p className="text-sm text-gray-700 mt-1">
+                        Estimated total: ${Number(quoteResult.total).toFixed(2)}
+                      </p>
+                    )}
 
                     {/* 3) Optional message */}
                     <label htmlFor="request-message" className="block text-sm font-medium text-gray-700">
