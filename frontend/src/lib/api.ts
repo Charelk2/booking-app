@@ -169,11 +169,11 @@ export const createBookingRequest = (data: BookingRequestCreate) =>
 
 // Optionally, if you want to get a list of booking requests (e.g., for a client dashboard):
 export const getMyBookingRequests = () =>
-  api.get<BookingRequest[]>(`${API_V1}/booking-requests/my-requests`);
+  api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/client`);
 
 // If the artist needs to fetch requests addressed to them:
 export const getBookingRequestsForArtist = () =>
-  api.get<BookingRequest[]>(`${API_V1}/booking-requests/artist-requests`);
+  api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/artist`);
 
 // If you want to fetch a single booking request by ID:
 export const getBookingRequestById = (id: number) =>

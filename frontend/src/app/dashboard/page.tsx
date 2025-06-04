@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { Booking, Service, ArtistProfile } from '@/types';
+import { Booking, Service, ArtistProfile, BookingRequest } from '@/types';
 import {
   getMyClientBookings,
   getMyArtistBookings,
   getArtistServices,
   getArtistProfileMe,
+  getMyBookingRequests,
+  getBookingRequestsForArtist,
 } from '@/lib/api';
 import { format } from 'date-fns';
 import AddServiceModal from '@/components/dashboard/AddServiceModal';
@@ -23,6 +25,7 @@ export default function DashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
+  const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
@@ -36,12 +39,14 @@ export default function DashboardPage() {
     const fetchDashboardData = async () => {
       try {
         if (user.user_type === 'artist') {
-          const [bookingsData, servicesDataResponse, artistProfileData] = await Promise.all([
+          const [bookingsData, servicesDataResponse, artistProfileData, requestsData] = await Promise.all([
             getMyArtistBookings(),
             getArtistServices(user.id),
             getArtistProfileMe(),
+            getBookingRequestsForArtist(),
           ]);
           setBookings(bookingsData.data);
+          setBookingRequests(requestsData.data);
 
           const processedServices = servicesDataResponse.data.map((service: Service) => ({
             ...service,
@@ -54,8 +59,12 @@ export default function DashboardPage() {
           setServices(processedServices);
           setArtistProfile(artistProfileData.data);
         } else {
-          const bookingsData = await getMyClientBookings();
+          const [bookingsData, requestsData] = await Promise.all([
+            getMyClientBookings(),
+            getMyBookingRequests(),
+          ]);
           setBookings(bookingsData.data);
+          setBookingRequests(requestsData.data);
         }
       } catch (err) {
         console.error('Dashboard fetch error:', err);
@@ -186,6 +195,47 @@ export default function DashboardPage() {
                 </>
               )}
             </div>
+          </div>
+
+          {/* Booking Requests */}
+          <div className="mt-8">
+            <h2 className="text-lg font-medium text-gray-900">Booking Requests</h2>
+            {bookingRequests.length === 0 ? (
+              <p className="mt-2 text-sm text-gray-500">No booking requests yet.</p>
+            ) : (
+              <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                <table className="min-w-full divide-y divide-gray-300">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                        {user.user_type === 'artist' ? 'Client' : 'Artist'}
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                        Status
+                      </th>
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                        Created
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {bookingRequests.map((req) => (
+                      <tr key={req.id}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
+                          <Link href={`/booking-requests/${req.id}`} className="text-indigo-600 hover:underline">
+                            View Chat
+                          </Link>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{req.status}</td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {new Date(req.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Recent Bookings */}
