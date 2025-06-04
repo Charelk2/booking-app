@@ -1,10 +1,12 @@
 from pydantic import BaseModel
 from datetime import datetime
-from ..models.message import SenderType
+from ..models.message import SenderType, MessageType
 
 
 class MessageCreate(BaseModel):
     content: str
+    message_type: MessageType = MessageType.TEXT
+    quote_id: int | None = None
 
 
 class MessageResponse(BaseModel):
@@ -12,7 +14,9 @@ class MessageResponse(BaseModel):
     booking_request_id: int
     sender_id: int
     sender_type: SenderType
+    message_type: MessageType
     content: str
+    quote_id: int | None = None
     timestamp: datetime
 
     model_config = {
