@@ -182,8 +182,10 @@ export const getBookingRequestById = (id: number) =>
 // Create a new quote (artist → client) for an existing booking request:
 //    POST /api/v1/quotes/
 // Body must match QuoteCreate interface.
-export const createQuote = (data: QuoteCreate) =>
-  api.post<Quote>(`${API_V1}/quotes/`, data);
+export const createQuoteForRequest = (
+  requestId: number,
+  data: QuoteCreate
+) => api.post<Quote>(`${API_V1}/booking-requests/${requestId}/quotes/`, data);
 
 // Optionally, fetch all quotes for a given booking request:
 export const getQuotesForBookingRequest = (bookingRequestId: number) =>
@@ -205,5 +207,18 @@ export const postMessageToBookingRequest = (
     `${API_V1}/booking-requests/${bookingRequestId}/messages`,
     data
   );
+
+export const uploadMessageAttachment = (
+  bookingRequestId: number,
+  file: File
+) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post<{ url: string }>(
+    `${API_V1}/booking-requests/${bookingRequestId}/attachments`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+};
 
 export default api;

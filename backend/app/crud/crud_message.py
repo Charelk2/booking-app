@@ -12,6 +12,7 @@ def create_message(
     content: str,
     message_type: models.MessageType = models.MessageType.TEXT,
     quote_id: int | None = None,
+    attachment_url: str | None = None,
 ) -> models.Message:
     db_msg = models.Message(
         booking_request_id=booking_request_id,
@@ -20,6 +21,7 @@ def create_message(
         content=content,
         message_type=message_type,
         quote_id=quote_id,
+        attachment_url=attachment_url,
     )
     db.add(db_msg)
     db.commit()
