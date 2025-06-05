@@ -39,6 +39,18 @@ The booking wizard also features a new **Review** step. This shows a preview of 
 Artist profile pages now link to this wizard via a "Start Booking" button which navigates to `/booking?artist_id={id}`.
 After submitting a booking request, clients are redirected straight to the associated chat thread so they can continue the conversation. The chat interface uses polished message bubbles and aligns your own messages on the right, similar to Airbnb's inbox.
 
+### Service Types
+
+Services now include a required **service_type** field with the following options:
+
+- **Live Performance**
+- **Virtual Appearance**
+- **Personalized Video**
+- **Custom Song**
+- **Other**
+
+If a client chooses a service that is not a Live Performance or Virtual Appearance, the booking wizard is skipped and they are taken directly to the request chat with the service prefilled.
+
 
 ### Artist Availability
 
