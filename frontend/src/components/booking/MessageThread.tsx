@@ -158,10 +158,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     <div className="border rounded-md p-4 bg-white flex flex-col h-96 space-y-2">
       <div className="flex-1 overflow-y-auto space-y-3">
         {messages.map((msg) => {
-          const isSelf = msg.sender_id === user?.id;
           const isSystem = msg.message_type === 'system';
-          const avatar = isSelf
-            ? clientName?.charAt(0)
+          // System messages should never render as "self" so they appear on the left
+          const isSelf = !isSystem && msg.sender_id === user?.id;
+          const avatar = isSystem
+            ? artistName?.charAt(0)
             : msg.sender_type === 'artist'
             ? artistName?.charAt(0)
             : clientName?.charAt(0);

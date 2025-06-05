@@ -20,7 +20,23 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
   const { user } = useAuth();
   const threadRef = useRef<MessageThreadHandle>(null);
   const [progress, setProgress] = useState(0);
-  const [awaitingAnswer, setAwaitingAnswer] = useState(false);
+  // Controls the typing indicator while the system prepares the next question
+  const [systemTyping, setSystemTyping] = useState(false);
+
+  const sendSystemMessage = useCallback(
+    async (text: string) => {
+      setSystemTyping(true);
+      // brief delay so the typing indicator is visible before the message appears
+      await new Promise((r) => setTimeout(r, 1000));
+      await postMessageToBookingRequest(bookingRequestId, {
+        content: text,
+        message_type: 'system',
+      });
+      setSystemTyping(false);
+      threadRef.current?.refreshMessages();
+    },
+    [bookingRequestId],
+  );
 
   const refreshFlow = useCallback(async () => {
     try {
@@ -30,46 +46,32 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
       setProgress(progressCount);
 
       if (user?.user_type === 'client') {
-        let sent = false;
         if (progressCount < videoQuestions.length) {
           const next = videoQuestions[progressCount];
           const alreadyAsked = msgs.some(
             (m) => m.message_type === 'system' && m.content === next,
           );
-          if (!alreadyAsked) {
-            await postMessageToBookingRequest(bookingRequestId, {
-              content: next,
-              message_type: 'system',
-            });
-            sent = true;
+          const last = msgs[msgs.length - 1];
+          const waitingForAnswer =
+            last &&
+            last.message_type === 'system' &&
+            last.content === next;
+          if (!alreadyAsked && !systemTyping && !waitingForAnswer) {
+            await sendSystemMessage(next);
           }
         } else {
           const done = msgs.some(
             (m) => m.message_type === 'system' && m.content === READY_MESSAGE,
           );
-          if (!done) {
-            await postMessageToBookingRequest(bookingRequestId, {
-              content: READY_MESSAGE,
-              message_type: 'system',
-            });
-            sent = true;
+          if (!done && !systemTyping) {
+            await sendSystemMessage(READY_MESSAGE);
           }
-        }
-        const last = msgs[msgs.length - 1];
-        setAwaitingAnswer(
-          progressCount < videoQuestions.length &&
-            last &&
-            last.message_type === 'system' &&
-            last.content === videoQuestions[progressCount]
-        );
-        if (sent) {
-          threadRef.current?.refreshMessages();
         }
       }
     } catch (err) {
       console.error('Video flow check failed', err);
     }
-  }, [bookingRequestId, user]);
+  }, [bookingRequestId, user, sendSystemMessage, systemTyping]);
 
   useEffect(() => {
     (async () => {
@@ -96,7 +98,7 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
         onMessageSent={refreshFlow}
         clientName={clientName}
         artistName={artistName}
-        isSystemTyping={awaitingAnswer}
+        isSystemTyping={systemTyping}
       />
     </div>
   );
