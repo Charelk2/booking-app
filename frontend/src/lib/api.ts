@@ -118,6 +118,9 @@ export const getArtistServices = (artistUserId: number) =>
 export const getAllServices = () =>
   api.get<Service[]>(`${API_V1}/services/`);
 
+export const getService = (serviceId: number) =>
+  api.get<Service>(`${API_V1}/services/${serviceId}`);
+
 // create / update / delete a service: POST /api/v1/services, PUT /api/v1/services/{id}, DELETE /api/v1/services/{id}
 export const createService = (data: Partial<Service>) =>
   api.post(`${API_V1}/services/`, data);
