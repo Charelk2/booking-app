@@ -204,9 +204,9 @@ export default function ArtistProfilePage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
           {/* ── Profile Header ────────────────────────────────────────────────────────── */}
-          <div className="-mt-12 sm:-mt-16 md:-mt-20 lg:-mt-24 pb-8">
+          <div className="relative pt-16 pb-8">
             <div className="flex flex-col md:flex-row md:flex-nowrap items-center md:items-end space-y-4 md:space-y-0 md:space-x-5">
-              <div className="relative flex-shrink-0">
+              <div className="relative flex-shrink-0 -mt-16 md:-mt-20">
                 {profilePictureUrl ? (
                   <Image
                     src={profilePictureUrl}
