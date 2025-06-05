@@ -65,3 +65,19 @@ def ensure_display_order_column(engine: Engine) -> None:
                 )
             )
             conn.commit()
+
+
+def ensure_notification_link_column(engine: Engine) -> None:
+    """Add the link column to notifications if it's missing."""
+    inspector = inspect(engine)
+    if "notifications" not in inspector.get_table_names():
+        return
+    column_names = [col["name"] for col in inspector.get_columns("notifications")]
+    if "link" not in column_names:
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE notifications ADD COLUMN link VARCHAR NOT NULL DEFAULT ''"
+                )
+            )
+            conn.commit()

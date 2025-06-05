@@ -116,6 +116,9 @@ Likewise, services now use a `display_order` integer to control sorting in the
 dashboard. If your database was created prior to this addition the column will
 be added automatically when the backend starts.
 
+Notifications also store a `link` field used by the UI. Older SQLite databases
+are patched on startup to add this column if it's missing.
+
 ### Service Management
 
 From the artist dashboard you can now edit, delete, and rearrange your offered
