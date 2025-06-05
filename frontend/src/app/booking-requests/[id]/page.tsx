@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import MessageThread from '@/components/booking/MessageThread';
+import PersonalizedVideoFlow from '@/components/booking/PersonalizedVideoFlow';
 import { getBookingRequestById } from '@/lib/api';
 import { BookingRequest } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -93,7 +94,11 @@ export default function BookingRequestDetailPage() {
             {request.message}
           </p>
         )}
-        <MessageThread bookingRequestId={request.id} />
+        {request.service?.service_type === 'Personalized Video' ? (
+          <PersonalizedVideoFlow bookingRequestId={request.id} />
+        ) : (
+          <MessageThread bookingRequestId={request.id} />
+        )}
       </div>
     </MainLayout>
   );
