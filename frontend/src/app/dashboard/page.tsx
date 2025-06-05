@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import MainLayout from '@/components/layout/MainLayout';
-import { useAuth } from '@/contexts/AuthContext';
-import { Booking, Service, ArtistProfile, BookingRequest } from '@/types';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import MainLayout from "@/components/layout/MainLayout";
+import { useAuth } from "@/contexts/AuthContext";
+import { Booking, Service, ArtistProfile, BookingRequest } from "@/types";
 import {
   getMyClientBookings,
   getMyArtistBookings,
@@ -12,33 +12,43 @@ import {
   getArtistProfileMe,
   getMyBookingRequests,
   getBookingRequestsForArtist,
-} from '@/lib/api';
-import { format } from 'date-fns';
-import AddServiceModal from '@/components/dashboard/AddServiceModal';
-import Link from 'next/link';
-
+  updateService,
+  deleteService,
+} from "@/lib/api";
+import { format } from "date-fns";
+import AddServiceModal from "@/components/dashboard/AddServiceModal";
+import EditServiceModal from "@/components/dashboard/EditServiceModal";
+import Link from "next/link";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
+  const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(
+    null,
+  );
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
 
   useEffect(() => {
     if (!user) {
-      router.push('/login');
+      router.push("/login");
       return;
     }
 
     const fetchDashboardData = async () => {
       try {
-        if (user.user_type === 'artist') {
-          const [bookingsData, servicesDataResponse, artistProfileData, requestsData] = await Promise.all([
+        if (user.user_type === "artist") {
+          const [
+            bookingsData,
+            servicesDataResponse,
+            artistProfileData,
+            requestsData,
+          ] = await Promise.all([
             getMyArtistBookings(),
             getArtistServices(user.id),
             getArtistProfileMe(),
@@ -47,14 +57,19 @@ export default function DashboardPage() {
           setBookings(bookingsData.data);
           setBookingRequests(requestsData.data);
 
-          const processedServices = servicesDataResponse.data.map((service: Service) => ({
-            ...service,
-            price: typeof service.price === 'string' ? parseFloat(service.price) : service.price,
-            duration_minutes:
-              typeof service.duration_minutes === 'string'
-                ? parseInt(service.duration_minutes, 10)
-                : service.duration_minutes,
-          }));
+          const processedServices = servicesDataResponse.data
+            .map((service: Service) => ({
+              ...service,
+              price:
+                typeof service.price === "string"
+                  ? parseFloat(service.price)
+                  : service.price,
+              duration_minutes:
+                typeof service.duration_minutes === "string"
+                  ? parseInt(service.duration_minutes, 10)
+                  : service.duration_minutes,
+            }))
+            .sort((a, b) => a.display_order - b.display_order);
           setServices(processedServices);
           setArtistProfile(artistProfileData.data);
         } else {
@@ -66,8 +81,8 @@ export default function DashboardPage() {
           setBookingRequests(requestsData.data);
         }
       } catch (err) {
-        console.error('Dashboard fetch error:', err);
-        setError('Failed to load dashboard data. Please try again.');
+        console.error("Dashboard fetch error:", err);
+        setError("Failed to load dashboard data. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -79,13 +94,59 @@ export default function DashboardPage() {
   const handleServiceAdded = (newService: Service) => {
     const processedService = {
       ...newService,
-      price: typeof newService.price === 'string' ? parseFloat(newService.price) : newService.price,
+      price:
+        typeof newService.price === "string"
+          ? parseFloat(newService.price)
+          : newService.price,
       duration_minutes:
-        typeof newService.duration_minutes === 'string'
+        typeof newService.duration_minutes === "string"
           ? parseInt(newService.duration_minutes, 10)
           : newService.duration_minutes,
     };
-    setServices((prevServices) => [...prevServices, processedService]);
+    setServices((prevServices) =>
+      [...prevServices, processedService].sort(
+        (a, b) => a.display_order - b.display_order,
+      ),
+    );
+  };
+
+  const handleServiceUpdated = (updated: Service) => {
+    setServices((prev) =>
+      prev
+        .map((s) => (s.id === updated.id ? { ...updated } : s))
+        .sort((a, b) => a.display_order - b.display_order),
+    );
+  };
+
+  const handleDeleteService = async (id: number) => {
+    try {
+      await deleteService(id);
+      setServices((prev) => prev.filter((s) => s.id !== id));
+    } catch (err) {
+      console.error("Service delete error:", err);
+    }
+  };
+
+  const moveService = async (id: number, direction: "up" | "down") => {
+    const sorted = [...services].sort(
+      (a, b) => a.display_order - b.display_order,
+    );
+    const index = sorted.findIndex((s) => s.id === id);
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (index === -1 || newIndex < 0 || newIndex >= sorted.length) return;
+    const [item] = sorted.splice(index, 1);
+    sorted.splice(newIndex, 0, item);
+    const reordered = sorted.map((s, i) => ({ ...s, display_order: i + 1 }));
+    setServices(reordered);
+    try {
+      await Promise.all(
+        reordered.map((s) =>
+          updateService(s.id, { display_order: s.display_order }),
+        ),
+      );
+    } catch (err) {
+      console.error("Service reorder error:", err);
+    }
   };
 
   if (!user) {
@@ -98,7 +159,8 @@ export default function DashboardPage() {
     );
   }
 
-  const showLocationPrompt = user.user_type === 'artist' && artistProfile && !artistProfile.location;
+  const showLocationPrompt =
+    user.user_type === "artist" && artistProfile && !artistProfile.location;
 
   if (loading) {
     return (
@@ -147,10 +209,13 @@ export default function DashboardPage() {
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">Complete Your Profile</h3>
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    Complete Your Profile
+                  </h3>
                   <div className="mt-2 text-sm text-yellow-700">
                     <p>
-                      Please add your location to help clients discover your services.
+                      Please add your location to help clients discover your
+                      services.
                       <Link
                         href="/dashboard/profile/edit"
                         className="font-medium underline text-yellow-800 hover:text-yellow-900 ml-1"
@@ -168,25 +233,31 @@ export default function DashboardPage() {
           <div className="mt-8">
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-                <dt className="truncate text-sm font-medium text-gray-500">Total Bookings</dt>
+                <dt className="truncate text-sm font-medium text-gray-500">
+                  Total Bookings
+                </dt>
                 <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                   {bookings.length}
                 </dd>
               </div>
-              {user.user_type === 'artist' && (
+              {user.user_type === "artist" && (
                 <>
                   <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-                    <dt className="truncate text-sm font-medium text-gray-500">Total Services</dt>
+                    <dt className="truncate text-sm font-medium text-gray-500">
+                      Total Services
+                    </dt>
                     <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                       {services.length}
                     </dd>
                   </div>
                   <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
-                    <dt className="truncate text-sm font-medium text-gray-500">Total Earnings</dt>
+                    <dt className="truncate text-sm font-medium text-gray-500">
+                      Total Earnings
+                    </dt>
                     <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                       $
                       {bookings
-                        .filter((booking) => booking.status === 'completed')
+                        .filter((booking) => booking.status === "completed")
                         .reduce((acc, booking) => acc + booking.total_price, 0)
                         .toFixed(2)}
                     </dd>
@@ -198,9 +269,13 @@ export default function DashboardPage() {
 
           {/* Booking Requests */}
           <div className="mt-8">
-            <h2 className="text-lg font-medium text-gray-900">Booking Requests</h2>
+            <h2 className="text-lg font-medium text-gray-900">
+              Booking Requests
+            </h2>
             {bookingRequests.length === 0 ? (
-              <p className="mt-2 text-sm text-gray-500">No booking requests yet.</p>
+              <p className="mt-2 text-sm text-gray-500">
+                No booking requests yet.
+              </p>
             ) : (
               <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
                 <table className="min-w-full divide-y divide-gray-300">
@@ -210,7 +285,7 @@ export default function DashboardPage() {
                         scope="col"
                         className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
                       >
-                        {user.user_type === 'artist' ? 'Client' : 'Artist'}
+                        {user.user_type === "artist" ? "Client" : "Artist"}
                       </th>
                       <th
                         scope="col"
@@ -237,7 +312,7 @@ export default function DashboardPage() {
                       <tr key={req.id}>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                           <div className="font-medium text-gray-900">
-                            {user.user_type === 'artist'
+                            {user.user_type === "artist"
                               ? `${req.client?.first_name} ${req.client?.last_name}`
                               : `${req.artist?.first_name} ${req.artist?.last_name}`}
                           </div>
@@ -249,9 +324,11 @@ export default function DashboardPage() {
                           </Link>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {req.service?.title || '—'}
+                          {req.service?.title || "—"}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{req.status}</td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {req.status}
+                        </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {new Date(req.created_at).toLocaleDateString()}
                         </td>
@@ -265,7 +342,9 @@ export default function DashboardPage() {
 
           {/* Recent Bookings */}
           <div className="mt-8">
-            <h2 className="text-lg font-medium text-gray-900">Recent Bookings</h2>
+            <h2 className="text-lg font-medium text-gray-900">
+              Recent Bookings
+            </h2>
             <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
               <table className="min-w-full divide-y divide-gray-300">
                 <thead className="bg-gray-50">
@@ -316,9 +395,12 @@ export default function DashboardPage() {
                           </div>
                           <div className="ml-4">
                             <div className="font-medium text-gray-900">
-                              {booking.client.first_name} {booking.client.last_name}
+                              {booking.client.first_name}{" "}
+                              {booking.client.last_name}
                             </div>
-                            <div className="text-gray-500">{booking.client.email}</div>
+                            <div className="text-gray-500">
+                              {booking.client.email}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -326,18 +408,21 @@ export default function DashboardPage() {
                         {booking.service.title}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {format(new Date(booking.start_time), 'MMM d, yyyy h:mm a')}
+                        {format(
+                          new Date(booking.start_time),
+                          "MMM d, yyyy h:mm a",
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm">
                         <span
                           className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                            booking.status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : booking.status === 'cancelled'
-                              ? 'bg-red-100 text-red-800'
-                              : booking.status === 'confirmed'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-yellow-100 text-yellow-800'
+                            booking.status === "completed"
+                              ? "bg-green-100 text-green-800"
+                              : booking.status === "cancelled"
+                                ? "bg-red-100 text-red-800"
+                                : booking.status === "confirmed"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-yellow-100 text-yellow-800"
                           }`}
                         >
                           {booking.status}
@@ -354,10 +439,12 @@ export default function DashboardPage() {
           </div>
 
           {/* Services (Artist Only) */}
-          {user.user_type === 'artist' && (
+          {user.user_type === "artist" && (
             <div className="mt-8">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium text-gray-900">Your Services</h2>
+                <h2 className="text-lg font-medium text-gray-900">
+                  Your Services
+                </h2>
                 <button
                   type="button"
                   onClick={() => setIsAddServiceModalOpen(true)}
@@ -367,16 +454,22 @@ export default function DashboardPage() {
                 </button>
               </div>
               <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {services.map((service) => (
+                {services.map((service, idx) => (
                   <div
                     key={service.id}
                     className="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="focus:outline-none">
-                        <p className="text-sm font-medium text-gray-900">{service.title}</p>
-                        <p className="truncate text-sm text-gray-500">{service.description}</p>
-                        <p className="text-xs text-gray-500">{service.service_type}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {service.title}
+                        </p>
+                        <p className="truncate text-sm text-gray-500">
+                          {service.description}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {service.service_type}
+                        </p>
                         <div className="mt-2 flex items-center justify-between">
                           <span className="text-sm font-medium text-gray-900">
                             ${service.price.toFixed(2)}
@@ -385,6 +478,36 @@ export default function DashboardPage() {
                             {service.duration_minutes} min
                           </span>
                         </div>
+                      </div>
+                    </div>
+                    <div className="ml-4 flex flex-col space-y-1">
+                      <button
+                        className="text-xs text-indigo-600"
+                        onClick={() => setEditingService(service)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-xs text-red-600"
+                        onClick={() => handleDeleteService(service.id)}
+                      >
+                        Delete
+                      </button>
+                      <div className="flex space-x-1">
+                        <button
+                          className="text-xs"
+                          onClick={() => moveService(service.id, "up")}
+                          disabled={idx === 0}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          className="text-xs"
+                          onClick={() => moveService(service.id, "down")}
+                          disabled={idx === services.length - 1}
+                        >
+                          ↓
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -399,6 +522,14 @@ export default function DashboardPage() {
         onClose={() => setIsAddServiceModalOpen(false)}
         onServiceAdded={handleServiceAdded}
       />
+      {editingService && (
+        <EditServiceModal
+          isOpen={!!editingService}
+          service={editingService}
+          onClose={() => setEditingService(null)}
+          onServiceUpdated={handleServiceUpdated}
+        />
+      )}
     </MainLayout>
   );
 }

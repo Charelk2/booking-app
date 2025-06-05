@@ -12,8 +12,14 @@ def test_service_create_requires_type():
         service_type=ServiceType.OTHER,
     )
     assert s.service_type == ServiceType.OTHER
+    assert s.display_order is None
 
 
 def test_service_update_type_optional():
     upd = ServiceUpdate()
     assert upd.service_type is None
+
+
+def test_service_update_accepts_display_order():
+    upd = ServiceUpdate(display_order=5)
+    assert upd.display_order == 5
