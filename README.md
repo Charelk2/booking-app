@@ -178,10 +178,9 @@ endpoint falls back to querying the database normally.
 
 ## Local Test Instructions
 
-Set the `PYTHONPATH` when running backend tests:
+Run backend tests from the project root:
 
 ```bash
-export PYTHONPATH=.
 pytest
 ```
 
