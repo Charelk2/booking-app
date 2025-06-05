@@ -66,20 +66,23 @@ def mark_as_read(
 
 
 def get_message_thread_notifications(db: Session, user_id: int) -> List[dict]:
-    """Return aggregated unread message notifications grouped by booking_request."""
-    unread = (
+    """Return aggregated message notifications grouped by booking_request.
+
+    Threads are returned even if all messages have been read; ``unread_count``
+    simply becomes ``0`` when no unread notifications remain.
+    """
+    notifs = (
         db.query(models.Notification)
         .filter(
             models.Notification.user_id == user_id,
             models.Notification.type == models.NotificationType.NEW_MESSAGE,
-            models.Notification.is_read == False,
         )
         .order_by(models.Notification.timestamp.desc())
         .all()
     )
 
     threads: Dict[int, dict] = {}
-    for n in unread:
+    for n in notifs:
         try:
             request_id = int(n.link.split("/")[-1])
         except (IndexError, ValueError):
@@ -110,13 +113,14 @@ def get_message_thread_notifications(db: Session, user_id: int) -> List[dict]:
             threads[request_id] = {
                 "booking_request_id": request_id,
                 "name": name,
-                "unread_count": 1,
+                "unread_count": 0 if n.is_read else 1,
                 "last_message": n.message,
                 "link": n.link,
                 "timestamp": n.timestamp,
             }
         else:
-            thread["unread_count"] += 1
+            if not n.is_read:
+                thread["unread_count"] += 1
             if n.timestamp > thread["timestamp"]:
                 thread["last_message"] = n.message
                 thread["timestamp"] = n.timestamp
