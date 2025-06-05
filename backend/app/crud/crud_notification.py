@@ -9,8 +9,11 @@ def create_notification(
     user_id: int,
     type: models.NotificationType,
     message: str,
+    link: str,
 ) -> models.Notification:
-    db_obj = models.Notification(user_id=user_id, type=type, message=message)
+    db_obj = models.Notification(
+        user_id=user_id, type=type, message=message, link=link
+    )
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)

@@ -1,9 +1,11 @@
 'use client';
 
 import { Fragment } from 'react';
+import { useRouter } from 'next/navigation';
 import { Menu, Transition } from '@headlessui/react';
 import { BellIcon } from '@heroicons/react/24/outline';
 import useNotifications from '@/hooks/useNotifications';
+import type { Notification } from '@/types';
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
@@ -11,6 +13,14 @@ function classNames(...classes: string[]) {
 
 export default function NotificationBell() {
   const { notifications, unreadCount, markRead } = useNotifications();
+  const router = useRouter();
+
+  const handleClick = async (n: Notification) => {
+    if (!n.is_read) {
+      await markRead(n.id);
+    }
+    router.push(n.link);
+  };
 
   return (
     <Menu as="div" className="relative ml-3">
@@ -39,16 +49,17 @@ export default function NotificationBell() {
           {notifications.map((n) => (
             <Menu.Item key={n.id}>
               {({ active }) => (
-                <div
-                  onClick={() => !n.is_read && markRead(n.id)}
+                <button
+                  type="button"
+                  onClick={() => handleClick(n)}
                   className={classNames(
                     active ? 'bg-gray-100' : '',
-                    'px-4 py-2 text-sm cursor-pointer',
+                    'block w-full text-left px-4 py-2 text-sm',
                     n.is_read ? 'text-gray-500' : 'font-medium'
                   )}
                 >
                   {n.message}
-                </div>
+                </button>
               )}
             </Menu.Item>
           ))}
