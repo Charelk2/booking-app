@@ -3,7 +3,7 @@
 export interface User {
   id: number;
   email: string;
-  user_type: 'artist' | 'client';
+  user_type: "artist" | "client";
   first_name: string;
   last_name: string;
   phone_number: string;
@@ -32,8 +32,14 @@ export interface Service {
   artist_id: number;
   title: string;
   description: string;
-  service_type: 'Live Performance' | 'Virtual Appearance' | 'Personalized Video' | 'Custom Song' | 'Other';
+  service_type:
+    | "Live Performance"
+    | "Virtual Appearance"
+    | "Personalized Video"
+    | "Custom Song"
+    | "Other";
   duration_minutes: number;
+  display_order: number;
   price: number;
   artist: ArtistProfile;
 }
@@ -45,7 +51,7 @@ export interface Booking {
   service_id: number;
   start_time: string;
   end_time: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  status: "pending" | "confirmed" | "completed" | "cancelled";
   total_price: number;
   notes: string;
   artist: ArtistProfile;
@@ -98,8 +104,8 @@ export interface QuoteCreate {
   booking_request_id: number;
   quote_details: string;
   price: number;
-  currency?: string;      // defaults to "USD"
-  valid_until?: string;   // ISO date-time
+  currency?: string; // defaults to "USD"
+  valid_until?: string; // ISO date-time
 }
 
 export interface Quote {
@@ -121,9 +127,9 @@ export interface Message {
   id: number;
   booking_request_id: number;
   sender_id: number;
-  sender_type: 'client' | 'artist';
+  sender_type: "client" | "artist";
   content: string;
-  message_type: 'text' | 'quote' | 'system';
+  message_type: "text" | "quote" | "system";
   quote_id?: number | null;
   attachment_url?: string | null;
   timestamp: string;
@@ -131,7 +137,7 @@ export interface Message {
 
 export interface MessageCreate {
   content: string;
-  message_type?: 'text' | 'quote' | 'system';
+  message_type?: "text" | "quote" | "system";
   quote_id?: number;
   attachment_url?: string;
 }
@@ -161,4 +167,3 @@ export interface ArtistSoundPreference {
   created_at?: string;
   updated_at?: string;
 }
-
