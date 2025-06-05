@@ -144,6 +144,8 @@ GET /api/v1/artist-profiles/{artist_id}/availability
 
 which returns a list of `unavailable_dates` to disable in the booking calendar.
 
+The artist profile sidebar now shows up to five upcoming available dates as badges instead of an interactive calendar.
+
 The quote calculation endpoint now returns a full cost breakdown:
 
 ```json
