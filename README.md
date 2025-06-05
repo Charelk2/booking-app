@@ -93,8 +93,8 @@ The chat now auto-scrolls after each message, shows image previews before sendin
 - The Personalized Video progress bar now disappears once all questions are answered.
 The latest update refines the chat bubbles even further: each message now shows its send time inside the bubble. The timestamp sits beneath the text in a tiny gray font and the input field still highlights when focused for better accessibility.
 - When artists are logged in, their own messages now appear in blue bubbles just like the client view, while the other person's messages show in gray.
-The backend now persists notifications when a new booking request or message is created. Clients and artists can fetch unread notifications from `/api/v1/notifications` and mark them read with `/api/v1/notifications/{id}/read`.
-The frontend now shows a notification bell in the top navigation. Clicking it reveals recent alerts and automatically marks them as read.
+The backend now persists notifications when a new booking request or message is created. Clients and artists can fetch unread notifications from `/api/v1/notifications` and mark them read with `/api/v1/notifications/{id}/read`. Notifications may also be fetched in pages using the `skip` and `limit` query parameters or grouped by type via `/api/v1/notifications/grouped`.
+The frontend now shows a notification bell in the top navigation. Clicking it reveals recent alerts, loads more on demand, and automatically marks them as read.
 Each notification links directly to the related booking request so you can jump straight into the conversation.
 The chat thread now displays a friendly placeholder when no messages are present and formats quote prices with the appropriate currency symbol. Any errors fetching or sending messages appear below the input field so problems can be spotted quickly.
 
