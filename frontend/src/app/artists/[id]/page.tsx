@@ -305,7 +305,7 @@ export default function ArtistProfilePage() {
                           onClick={() => handleBookService(service)}
                           className="mt-6 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
                         >
-                          Book {service.title}
+                          Book Now
                         </button>
                       </div>
                     ))}
@@ -355,10 +355,10 @@ export default function ArtistProfilePage() {
               </section>
             </div>
 
-            {/* ── Right-third: Contact & Booking Form ───────────────────────────────────── */}
+            {/* ── Right-third: Contact Info ───────────────────────────────────── */}
             <aside id="booking-contact-sidebar" className="lg:col-span-1 mt-12 lg:mt-0">
               <div className="sticky top-24 space-y-6 p-6 bg-white rounded-2xl shadow-md border border-gray-200">
-                <h3 className="text-xl font-semibold text-gray-800 border-b pb-3">Contact & Booking</h3>
+                <h3 className="text-xl font-semibold text-gray-800 border-b pb-3">Contact</h3>
                 {averageRating ? (
                   <div className="flex items-center text-sm text-gray-700">
                     <StarIcon className="h-5 w-5 text-yellow-400 mr-1" />
@@ -377,36 +377,12 @@ export default function ArtistProfilePage() {
                   </p>
                 )}
 
-                <div className="mt-6">
-                  <h4 className="text-md font-medium text-gray-700 mb-3 flex items-center">
-                    <CalendarDaysIcon className="h-5 w-5 mr-2 text-gray-500" /> Availability
-                  </h4>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {nextAvailableDates.map((d) => (
-                      <span
-                        key={d.toISOString()}
-                        className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-sm"
-                      >
-                        {format(d, 'MMM d')}
-                      </span>
-                    ))}
-                    {nextAvailableDates.length === 0 && (
-                      <span className="text-sm text-gray-500">No upcoming availability</span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    See full calendar and select your date during booking.
+                {nextAvailableDates.length > 0 && (
+                  <p className="text-sm text-gray-500 flex items-center mt-4">
+                    <CalendarDaysIcon className="h-5 w-5 mr-2 text-gray-500" />
+                    Next available: {format(nextAvailableDates[0], 'MMM d')}
                   </p>
-                </div>
-
-                <div className="text-center">
-                  <Link
-                    href={`/booking?artist_id=${artist.user_id}`}
-                    className="block w-full bg-rose-500 text-white py-3 px-4 rounded-lg hover:bg-rose-600 font-semibold text-lg transition-colors"
-                  >
-                    Start Booking
-                  </Link>
-                </div>
+                )}
               </div>
             </aside>
           </div>
