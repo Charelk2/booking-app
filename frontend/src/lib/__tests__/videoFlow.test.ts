@@ -39,4 +39,14 @@ describe('computeVideoProgress', () => {
     });
     expect(computeVideoProgress(msgs)).toBe(videoQuestions.length);
   });
+
+  it('stops counting when a question lacks an answer', () => {
+    const msgs = [q(videoQuestions[0]), a(), q(videoQuestions[1])];
+    expect(computeVideoProgress(msgs)).toBe(1);
+  });
+
+  it('ignores unrelated system messages', () => {
+    const msgs = [q(videoQuestions[0]), a(), q('Unrelated'), a()];
+    expect(computeVideoProgress(msgs)).toBe(1);
+  });
 });
