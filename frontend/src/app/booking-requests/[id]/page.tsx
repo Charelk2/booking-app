@@ -70,8 +70,29 @@ export default function BookingRequestDetailPage() {
     <MainLayout>
       <div className="max-w-3xl mx-auto p-4 space-y-4">
         <h1 className="text-xl font-semibold">Booking Request #{request.id}</h1>
+        <div className="space-y-1 text-sm text-gray-700">
+          {request.client && (
+            <p>
+              <span className="font-medium">Client:</span> {request.client.first_name}{' '}
+              {request.client.last_name} ({request.client.email})
+            </p>
+          )}
+          {request.service && (
+            <p>
+              <span className="font-medium">Service:</span> {request.service.title}
+            </p>
+          )}
+          {request.proposed_datetime_1 && (
+            <p>
+              <span className="font-medium">Proposed:</span>{' '}
+              {new Date(request.proposed_datetime_1).toLocaleString()}
+            </p>
+          )}
+        </div>
         {request.message && (
-          <p className="border p-2 bg-white rounded-md">{request.message}</p>
+          <p className="border p-2 bg-white rounded-md whitespace-pre-wrap">
+            {request.message}
+          </p>
         )}
         <MessageThread bookingRequestId={request.id} />
       </div>
