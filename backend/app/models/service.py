@@ -23,7 +23,11 @@ class Service(BaseModel):
     price       = Column(Numeric(10, 2), nullable=False)
     duration_minutes = Column(Integer, nullable=False)
     service_type = Column(
-        SQLAlchemyEnum(ServiceType),
+        SQLAlchemyEnum(
+            ServiceType,
+            values_callable=lambda enum: [e.value for e in enum],
+            native_enum=False,
+        ),
         nullable=False,
         default=ServiceType.LIVE_PERFORMANCE,
     )
