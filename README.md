@@ -43,7 +43,7 @@ This version introduces basic management of sound providers and an API for quick
 The booking wizard also features a new **Review** step. This shows a preview of the calculated quote and summarizes all entered details with an improved progress indicator and clearer submit buttons.
 
 Artist profile pages now link to this wizard via a "Start Booking" button which navigates to `/booking?artist_id={id}`.
-After submitting a booking request, clients are redirected straight to the associated chat thread so they can continue the conversation. The chat interface uses polished message bubbles and aligns your own messages on the right, similar to Airbnb's inbox.
+After submitting a booking request, clients are redirected straight to the associated chat thread so they can continue the conversation. The chat interface uses polished message bubbles and aligns your own messages on the right, similar to Airbnb's inbox. The automatic "Requesting ..." and "Booking request sent" entries that previously appeared at the top of each conversation have been removed so the thread begins with meaningful details.
 
 ### Service Types
 
