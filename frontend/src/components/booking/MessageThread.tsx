@@ -96,15 +96,18 @@ export default function MessageThread({ bookingRequestId }: MessageThreadProps) 
 
   return (
     <div className="border rounded-md p-4 bg-white space-y-3">
-      <div className="h-64 overflow-y-auto mb-2 space-y-2">
+      <div className="h-80 overflow-y-auto mb-2 space-y-3">
         {messages.map((msg) => (
-          <div key={msg.id} className="flex flex-col">
-            <span className="text-sm text-gray-500">
+          <div
+            key={msg.id}
+            className={`flex flex-col ${msg.sender_id === user?.id ? 'items-end text-right' : 'items-start'}`}
+          >
+            <span className="text-xs text-gray-500 mb-1">
               {msg.sender_type === 'artist' ? 'Artist' : 'Client'} •{' '}
               {new Date(msg.timestamp).toLocaleString()}
             </span>
             {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
-              <div className="bg-yellow-50 p-2 rounded-md border">
+              <div className="bg-yellow-50 p-2 rounded-md border max-w-xs">
                 <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
                 <p className="text-sm text-gray-700 mt-1">
                   ${Number(quotes[msg.quote_id].price).toFixed(2)}{' '}
@@ -112,7 +115,9 @@ export default function MessageThread({ bookingRequestId }: MessageThreadProps) 
                 </p>
               </div>
             ) : (
-              <span className="bg-gray-100 p-2 rounded-md whitespace-pre-wrap">
+              <span
+                className={`px-3 py-2 rounded-lg whitespace-pre-wrap max-w-xs ${msg.sender_id === user?.id ? 'bg-indigo-100' : 'bg-gray-100'}`}
+              >
                 {msg.content}
               </span>
             )}
@@ -131,7 +136,7 @@ export default function MessageThread({ bookingRequestId }: MessageThreadProps) 
       </div>
       {user && (
         <>
-          <form onSubmit={handleSend} className="flex flex-col sm:flex-row gap-2">
+          <form onSubmit={handleSend} className="flex items-center gap-2 border rounded-md p-2">
             <input
               type="text"
               value={newMessage}
