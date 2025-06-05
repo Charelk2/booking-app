@@ -7,6 +7,7 @@ class NotificationCreate(BaseModel):
     user_id: int
     type: NotificationType
     message: str
+    link: str
 
 
 class NotificationResponse(BaseModel):
@@ -14,6 +15,7 @@ class NotificationResponse(BaseModel):
     user_id: int
     type: NotificationType
     message: str
+    link: str
     is_read: bool
     timestamp: datetime
 

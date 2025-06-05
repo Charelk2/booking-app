@@ -56,7 +56,7 @@ def create_message(request_id: int, message_in: schemas.MessageCreate, db: Sessi
     other_user_id = booking_request.artist_id if sender_type == models.SenderType.CLIENT else booking_request.client_id
     other_user = db.query(models.User).filter(models.User.id == other_user_id).first()
     if other_user:
-        notify_user_new_message(db, other_user, message_in.content)
+        notify_user_new_message(db, other_user, request_id, message_in.content)
     return msg
 
 
