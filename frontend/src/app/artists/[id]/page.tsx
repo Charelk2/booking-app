@@ -36,6 +36,10 @@ import {
 import ArtistServiceCard from '@/components/artist/ArtistServiceCard';
 import { Button, Tag } from '@/components/ui';
 
+// This profile page now lazy loads each section (services, reviews, other
+// artists) separately so the main artist info appears faster. Images use the
+// Next.js `<Image>` component for optimized loading.
+
 export default function ArtistProfilePage() {
   const params = useParams();
   const router = useRouter();
@@ -47,6 +51,9 @@ export default function ArtistProfilePage() {
   const [reviews, setReviews] = useState<ReviewType[]>([]);
   const [otherArtists, setOtherArtists] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [servicesLoading, setServicesLoading] = useState(false);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [othersLoading, setOthersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [otherView, setOtherView] = useState<'grid' | 'list'>('grid');
 
@@ -54,41 +61,66 @@ export default function ArtistProfilePage() {
   useEffect(() => {
     if (!artistId) return;
 
-    const fetchPageData = async () => {
-      // TODO: split API calls so sections can lazy load independently
+    const fetchArtist = async () => {
       setLoading(true);
       try {
-        const [
-          artistRes,
-          servicesRes,
-          reviewsRes,
-          allArtistsRes,
-        ] = await Promise.all([
-          getArtist(artistId),
-          getArtistServices(artistId),
-          getArtistReviews(artistId),
-          getArtists(),
-        ]);
-        setArtist(artistRes.data);
-        const processedServices = servicesRes.data.map((service: Service) =>
-          normalizeService(service)
-        );
-        setServices(processedServices);
-        setReviews(reviewsRes.data);
-        // pick up to 3 other artists (excluding this one)
-        const filtered = allArtistsRes.data
-          .filter((a) => a.user_id && a.user_id !== artistId)
-          .slice(0, 3);
-        setOtherArtists(filtered);
+        const res = await getArtist(artistId);
+        setArtist(res.data);
       } catch (err) {
-        console.error('Error fetching page data:', err);
-        setError('Failed to load artist profile or related data');
+        console.error('Error fetching artist:', err);
+        setError('Failed to load artist profile');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPageData();
+    fetchArtist();
+  }, [artistId]);
+
+  // load services independently so the section can render on demand
+  useEffect(() => {
+    if (!artistId) return;
+    setServicesLoading(true);
+    getArtistServices(artistId)
+      .then((res) => {
+        const processed = res.data.map((service: Service) =>
+          normalizeService(service)
+        );
+        setServices(processed);
+      })
+      .catch((err) => {
+        console.error('Error fetching services:', err);
+      })
+      .finally(() => setServicesLoading(false));
+  }, [artistId]);
+
+  // load reviews separately
+  useEffect(() => {
+    if (!artistId) return;
+    setReviewsLoading(true);
+    getArtistReviews(artistId)
+      .then((res) => setReviews(res.data))
+      .catch((err) => {
+        console.error('Error fetching reviews:', err);
+      })
+      .finally(() => setReviewsLoading(false));
+  }, [artistId]);
+
+  // load other artists separately
+  useEffect(() => {
+    if (!artistId) return;
+    setOthersLoading(true);
+    getArtists()
+      .then((res) => {
+        const filtered = res.data
+          .filter((a) => a.user_id && a.user_id !== artistId)
+          .slice(0, 3);
+        setOtherArtists(filtered);
+      })
+      .catch((err) => {
+        console.error('Error fetching other artists:', err);
+      })
+      .finally(() => setOthersLoading(false));
   }, [artistId]);
 
   const averageRating =
@@ -153,14 +185,17 @@ export default function ArtistProfilePage() {
       <MainLayout>
       <div className="bg-gray-100">
         {/* ── Cover Photo Banner ─────────────────────────────────────────────────────── */}
-        <div
-          className={`h-64 md:h-96 bg-gray-300 ${coverPhotoUrl ? 'bg-cover bg-center' : ''}`}
-          style={{ backgroundImage: coverPhotoUrl ? `url(${coverPhotoUrl})` : 'none' }}
-          /* TODO: preload cover photo and generate responsive sizes */
-          role="img"
-          aria-label="Cover photo"
-        >
-          {!coverPhotoUrl && (
+        <div className="relative h-64 md:h-96 bg-gray-300" role="img" aria-label="Cover photo">
+          {coverPhotoUrl ? (
+            <Image
+              src={coverPhotoUrl}
+              alt="Cover photo"
+              fill
+              priority
+              className="object-cover"
+              sizes="(min-width: 768px) 100vw, 100vw"
+            />
+          ) : (
             <div className="h-full flex items-center justify-center text-gray-500">
               No cover photo
             </div>
@@ -301,7 +336,9 @@ export default function ArtistProfilePage() {
               {/* “Services” Section */}
               <section id="services" aria-labelledby="services-heading" role="region">
                 <h2 id="services-heading" className="text-2xl font-bold text-gray-800 mb-6">Services Offered</h2>
-                {services.length > 0 ? (
+                {servicesLoading ? (
+                  <p className="text-gray-600" role="status">Loading services...</p>
+                ) : services.length > 0 ? (
                   <ul className="space-y-6" role="list">
                     {services.map((service) => (
                       <li key={`service-${service.id}`}>
@@ -317,7 +354,9 @@ export default function ArtistProfilePage() {
               {/* “Reviews” Section */}
               <section id="reviews" aria-labelledby="reviews-heading" role="region">
                 <h2 id="reviews-heading" className="text-2xl font-bold text-gray-800 mb-4">Reviews ({reviews.length})</h2>
-                {reviews.length > 0 ? (
+                {reviewsLoading ? (
+                  <p className="text-gray-600" role="status">Loading reviews...</p>
+                ) : reviews.length > 0 ? (
                   <ul className="space-y-6" role="list">
                     {reviews.map((review) => (
                       <li
@@ -357,7 +396,9 @@ export default function ArtistProfilePage() {
 
 
           {/* ── “Explore Other Artists” Section ─────────────────────────────────────────── */}
-          {otherArtists.length > 0 ? (
+          {othersLoading ? (
+            <p className="mt-16 text-center text-gray-600" role="status">Loading artists...</p>
+          ) : otherArtists.length > 0 ? (
             <section className="mt-16 pt-8 border-t border-gray-200" aria-labelledby="other-artists-heading" role="region">
               <h2 id="other-artists-heading" className="text-2xl font-bold text-gray-800 mb-8 text-center">
                 Explore Other Artists
@@ -394,17 +435,18 @@ export default function ArtistProfilePage() {
                       <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl">
                         <div className="h-48 bg-gray-200 flex items-center justify-center overflow-hidden">
                           {otherProfilePicUrl ? (
-                            <>
-                              {/* TODO: use responsive <Image> with priority */}
-                              <img
-                                src={otherProfilePicUrl}
-                                alt={
-                                  otherArtist.business_name ||
-                                  otherArtist.user.first_name
-                                }
-                                className="w-full h-full object-cover"
-                              />
-                            </>
+                            <Image
+                              src={otherProfilePicUrl}
+                              alt={
+                                otherArtist.business_name ||
+                                otherArtist.user.first_name
+                              }
+                              width={300}
+                              height={300}
+                              className="w-full h-full object-cover"
+                              priority
+                              sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                            />
                           ) : (
                             <UserIcon className="h-16 w-16 text-gray-400" />
                           )}
