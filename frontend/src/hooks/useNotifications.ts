@@ -25,7 +25,8 @@ export default function useNotifications() {
     setLoading(true);
     try {
       const res = await getNotifications(page * limit, limit);
-      setNotifications((prev) => [...prev, ...res.data]);
+      const filtered = res.data.filter((n) => n.type !== 'new_message');
+      setNotifications((prev) => [...prev, ...filtered]);
       setPage((p) => p + 1);
     } catch (err) {
       console.error('Failed to fetch notifications:', err);

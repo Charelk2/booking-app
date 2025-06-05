@@ -96,7 +96,17 @@ def get_message_thread_notifications(db: Session, user_id: int) -> List[dict]:
                 continue
             other_id = br.client_id if br.artist_id == user_id else br.artist_id
             other = db.query(models.User).filter(models.User.id == other_id).first()
-            name = f"{other.first_name} {other.last_name}" if other else "Unknown"
+            name = "Unknown"
+            if other:
+                name = f"{other.first_name} {other.last_name}"
+                if other.user_type == models.UserType.ARTIST:
+                    profile = (
+                        db.query(models.ArtistProfile)
+                        .filter(models.ArtistProfile.user_id == other.id)
+                        .first()
+                    )
+                    if profile and profile.business_name:
+                        name = profile.business_name
             threads[request_id] = {
                 "booking_request_id": request_id,
                 "name": name,
