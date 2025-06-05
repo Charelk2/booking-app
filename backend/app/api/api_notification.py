@@ -1,21 +1,38 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import Dict, List
 
 from .. import models, schemas, crud
 from .dependencies import get_db, get_current_user
 
 router = APIRouter(tags=["notifications"])
-# TODO: add pagination and grouping endpoints to reduce payload size
 
 
 @router.get("/notifications", response_model=List[schemas.NotificationResponse])
 def read_my_notifications(
+    skip: int = 0,
+    limit: int = 20,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Retrieve notifications for the current user."""
-    return crud.crud_notification.get_notifications_for_user(db, current_user.id)
+    """Retrieve notifications for the current user with pagination."""
+    return crud.crud_notification.get_notifications_for_user(
+        db, current_user.id, skip=skip, limit=limit
+    )
+
+
+@router.get(
+    "/notifications/grouped",
+    response_model=Dict[str, List[schemas.NotificationResponse]],
+)
+def read_my_notifications_grouped(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Retrieve notifications grouped by type for the current user."""
+    return crud.crud_notification.get_notifications_grouped_by_type(
+        db, current_user.id
+    )
 
 
 @router.put(
