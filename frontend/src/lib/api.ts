@@ -16,6 +16,7 @@ import {
   SoundProvider,
   ArtistSoundPreference,
   QuoteCalculationResponse,
+  Notification,
 } from '@/types';
 
 // Create a single axios instance for all requests
@@ -268,5 +269,12 @@ export const calculateQuote = (params: {
   provider_id?: number;
   accommodation_cost?: number;
 }) => api.post<QuoteCalculationResponse>(`${API_V1}/quotes/calculate`, params);
+
+// ─── NOTIFICATIONS ───────────────────────────────────────────────────────────
+export const getNotifications = () =>
+  api.get<Notification[]>(`${API_V1}/notifications`);
+
+export const markNotificationRead = (id: number) =>
+  api.put<Notification>(`${API_V1}/notifications/${id}/read`);
 
 export default api;
