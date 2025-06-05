@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import MessageThread, { MessageThreadHandle } from './MessageThread';
 import { getMessagesForBookingRequest, postMessageToBookingRequest } from '@/lib/api';
 import { computeVideoProgress, videoQuestions } from '@/lib/videoFlow';
