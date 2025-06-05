@@ -132,3 +132,18 @@ redis-server
 
 Cached results expire after about one minute. If Redis is unavailable the
 endpoint falls back to querying the database normally.
+
+## Local Test Instructions
+
+Set the `PYTHONPATH` when running backend tests:
+
+```bash
+export PYTHONPATH=.
+pytest
+```
+
+Run linting without prompts:
+
+```bash
+npx eslint .
+```
