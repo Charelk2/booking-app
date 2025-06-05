@@ -71,6 +71,7 @@ This file documents the key automation, agent modules, and service components in
 * **Purpose:** Delivers real-time or async chat, manages unread notifications, logs chat history.
 * **Frontend:** `Chat.tsx` for UI, message sending, badge.
 * **Backend:** `api_chat.py` for storing/sending messages and push notifications.
+* **Features:** Auto-scrolls on new messages, mobile-friendly input bar, avatars, image previews, and a progress bar with typing indicator for Q&A flows.
 
 ### 9. Availability Agent
 
