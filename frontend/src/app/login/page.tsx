@@ -1,5 +1,6 @@
 'use client';
-// TODO: Extract common auth form components and add social login options
+
+// Login form uses shared auth components and offers optional social login
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -8,6 +9,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import Button from '@/components/ui/Button';
+import AuthInput from '@/components/auth/AuthInput';
+import SocialLoginButtons from '@/components/auth/SocialLoginButtons';
 
 interface LoginForm {
   email: string;
@@ -40,29 +43,20 @@ export default function LoginPage() {
 
         <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900">
-                Email address
-              </label>
-              <div className="mt-2">
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  {...register('email', {
-                    required: 'Email is required',
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Invalid email address',
-                    },
-                  })}
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                />
-                {errors.email && (
-                  <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>
-                )}
-              </div>
-            </div>
+            <AuthInput
+              id="email"
+              type="email"
+              label="Email address"
+              autoComplete="email"
+              registration={register('email', {
+                required: 'Email is required',
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: 'Invalid email address',
+                },
+              })}
+              error={errors.email}
+            />
 
             <div>
               <div className="flex items-center justify-between">
@@ -75,24 +69,20 @@ export default function LoginPage() {
                   </Link>
                 </div>
               </div>
-              <div className="mt-2">
-                <input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  {...register('password', {
-                    required: 'Password is required',
-                    minLength: {
-                      value: 6,
-                      message: 'Password must be at least 6 characters',
-                    },
-                  })}
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                />
-                {errors.password && (
-                  <p className="mt-2 text-sm text-red-600">{errors.password.message}</p>
-                )}
-              </div>
+              <AuthInput
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                label="Password"
+                registration={register('password', {
+                  required: 'Password is required',
+                  minLength: {
+                    value: 6,
+                    message: 'Password must be at least 6 characters',
+                  },
+                })}
+                error={errors.password}
+              />
             </div>
 
             {error && (
@@ -109,6 +99,10 @@ export default function LoginPage() {
               <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting ? 'Signing in...' : 'Sign in'}
               </Button>
+            </div>
+
+            <div className="pt-2">
+              <SocialLoginButtons />
             </div>
           </form>
 
