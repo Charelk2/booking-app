@@ -7,6 +7,7 @@ from .request_quote import BookingRequest, Quote, BookingRequestStatus, QuoteSta
 from .sound_provider import SoundProvider
 from .artist_sound_preference import ArtistSoundPreference
 from .message import Message, SenderType, MessageType
+from .notification import Notification, NotificationType
 
 __all__ = [
     "User",
@@ -25,4 +26,6 @@ __all__ = [
     "QuoteStatus",
     "SenderType",
     "MessageType",
+    "Notification",
+    "NotificationType",
 ]
