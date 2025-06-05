@@ -381,7 +381,6 @@ export default function ArtistProfilePage() {
               </section>
             </div>
 
-          </div>
 
           {/* ── “Explore Other Artists” Section ─────────────────────────────────────────── */}
           {otherArtists.length > 0 && (
