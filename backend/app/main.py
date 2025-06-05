@@ -18,6 +18,7 @@ from .models.service import Service
 from .models.booking import Booking
 from .models.review import Review
 from .models.request_quote import BookingRequest, Quote
+from .models.notification import Notification
 
 # Routers under app/api/
 from .api import auth
@@ -29,6 +30,7 @@ from .api import (
     api_quote,
     api_sound_provider,
     api_message,
+    api_notification,
 )
 
 # The “artist‐profiles” router lives under app/api/v1/
@@ -125,6 +127,13 @@ app.include_router(
     api_message.router,
     prefix=f"{api_prefix}",
     tags=["messages"],
+)
+
+# ─── NOTIFICATION ROUTES (under /api/v1) ───────────────────────────────────────
+app.include_router(
+    api_notification.router,
+    prefix=f"{api_prefix}",
+    tags=["notifications"],
 )
 
 # ─── SOUND PROVIDER ROUTES (under /api/v1/sound-providers) ───────────────
