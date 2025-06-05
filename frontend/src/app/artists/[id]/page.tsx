@@ -29,6 +29,8 @@ import {
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import '@/styles/custom-calendar.css';
+import { format } from 'date-fns';
+import { enUS } from 'date-fns/locale';
 import { getFullImageUrl } from '@/lib/utils';
 
 export default function ArtistProfilePage() {
@@ -44,6 +46,8 @@ export default function ArtistProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   const [calendarDate, setCalendarDate] = useState<Date | null>(new Date());
+  const formatLongDate = (_locale: string | undefined, date: Date) =>
+    format(date, 'MMMM d, yyyy', { locale: enUS });
 
   useEffect(() => {
     if (!artistId) return;
@@ -353,6 +357,8 @@ export default function ArtistProfilePage() {
                     className="rounded-md border border-gray-300 shadow-sm w-full"
                     tileClassName="text-sm p-1 md:p-2"
                     view="month"
+                    locale="en-US"
+                    formatLongDate={formatLongDate}
                   />
                   <p className="mt-3 text-xs text-gray-500 text-center">
                     (Select a date/time then click Start Booking)
