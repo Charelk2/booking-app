@@ -162,8 +162,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           // Bubble alignment still depends on the logged in user
           const isSelf = !isSystem && msg.sender_id === user?.id;
 
-          const isClientMessage = msg.sender_type === 'client';
-          const bubbleClass = isClientMessage
+          const bubbleClass = isSelf
             ? 'bg-indigo-500 text-white'
             : isSystem
               ? 'bg-gray-200'
@@ -182,7 +181,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           });
           const timeClass =
             'ml-2 text-[10px] font-light self-end ' +
-            (isClientMessage ? 'text-white' : 'text-gray-500');
+            (isSelf ? 'text-white' : 'text-gray-500');
 
           return (
             <div
