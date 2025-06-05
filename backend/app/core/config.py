@@ -1,7 +1,8 @@
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
-from typing import Any
+from typing import Any, ClassVar
 import json
+from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -13,7 +14,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # Database URL
-    SQLALCHEMY_DATABASE_URL: str = "sqlite:///./booking.db"
+    # Use an absolute path so running the app from different directories
+    # (e.g., repo root or backend/) always resolves the same DB file.
+    BASE_DIR: ClassVar[Path] = Path(__file__).resolve().parents[2]
+    SQLALCHEMY_DATABASE_URL: str = f"sqlite:///{BASE_DIR / 'booking.db'}"
 
     # Redis connection URL for caching
     REDIS_URL: str = "redis://localhost:6379/0"
