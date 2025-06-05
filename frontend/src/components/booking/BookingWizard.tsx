@@ -1,13 +1,10 @@
 'use client';
-// TODO: Use a shared stepper component and extract form logic into hooks
-// for better reusability across booking flows.
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { format } from 'date-fns';
 import Button from '../ui/Button';
+import Stepper from '../ui/Stepper';
 import {
   getArtistAvailability,
   createBookingRequest,
@@ -17,6 +14,7 @@ import {
 } from '@/lib/api';
 import { BookingRequestCreate } from '@/types';
 import { useBooking, EventDetails } from '@/contexts/BookingContext';
+import useBookingForm from '@/hooks/useBookingForm';
 import DateTimeStep from './steps/DateTimeStep';
 import LocationStep from './steps/LocationStep';
 import GuestsStep from './steps/GuestsStep';
@@ -60,17 +58,8 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
     handleSubmit,
     trigger,
     watch,
-    formState: { errors },
-  } = useForm<EventDetails>({
-    defaultValues: details,
-    resolver: yupResolver(schema),
-    mode: 'onChange',
-  });
-
-  useEffect(() => {
-    const sub = watch((v) => setDetails(v as EventDetails));
-    return () => sub.unsubscribe();
-  }, [watch, setDetails]);
+    errors,
+  } = useBookingForm(schema, details, setDetails);
 
   useEffect(() => {
     if (!artistId) return;
@@ -198,33 +187,7 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
   return (
     <div className="lg:flex lg:space-x-4">
       <div className="flex-1 space-y-4">
-        <div className="flex items-center" aria-label="Progress">
-          {steps.map((label, i) => (
-            <div key={label} className="flex items-center flex-1">
-              <div
-                className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium ${i <= step ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}
-              >
-                {i + 1}
-              </div>
-              <span className="ml-2 text-sm">{label}</span>
-              {i < steps.length - 1 && (
-                <div className="flex-1 border-t border-gray-200 mx-2" />
-              )}
-            </div>
-          ))}
-        </div>
-        <div
-          className="w-full bg-gray-200 rounded h-2"
-          role="progressbar"
-          aria-valuenow={step}
-          aria-valuemin={0}
-          aria-valuemax={steps.length - 1}
-        >
-          <div
-            className="bg-indigo-600 h-2 rounded"
-            style={{ width: `${(step / (steps.length - 1)) * 100}%` }}
-          />
-        </div>
+        <Stepper steps={steps} currentStep={step} />
         {renderStep()}
         {warning && <p className="text-orange-600 text-sm">{warning}</p>}
         {Object.values(errors).length > 0 && (
