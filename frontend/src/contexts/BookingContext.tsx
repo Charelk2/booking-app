@@ -2,7 +2,7 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 
 export interface EventDetails {
   date: Date;
-  time: string;
+  time?: string;
   location: string;
   guests: number;
   venueType: 'indoor' | 'outdoor' | 'hybrid';
