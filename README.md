@@ -80,6 +80,7 @@ The latest update refines the chat bubbles even further: each message now shows 
 - When artists are logged in, their own messages now appear in blue bubbles just like the client view, while the other person's messages show in gray.
 The backend now persists notifications when a new booking request or message is created. Clients and artists can fetch unread notifications from `/api/v1/notifications` and mark them read with `/api/v1/notifications/{id}/read`.
 The frontend now shows a notification bell in the top navigation. Clicking it reveals recent alerts and automatically marks them as read.
+Each notification links directly to the related booking request so you can jump straight into the conversation.
 The chat thread now displays a friendly placeholder when no messages are present and formats quote prices with the appropriate currency symbol. Any errors fetching or sending messages appear below the input field so problems can be spotted quickly.
 
 ### Service Types

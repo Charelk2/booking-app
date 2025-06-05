@@ -173,6 +173,7 @@ export interface Notification {
   user_id: number;
   type: 'new_message' | 'new_booking_request';
   message: string;
+  link: string;
   is_read: boolean;
   timestamp: string;
 }

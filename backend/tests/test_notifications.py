@@ -42,6 +42,7 @@ def test_message_creates_notification():
     notifs = crud_notification.get_notifications_for_user(db, artist.id)
     assert len(notifs) == 1
     assert notifs[0].type.value == 'new_message'
+    assert notifs[0].link == f"/booking-requests/{br.id}"
 
 
 def test_booking_request_creates_notification():
@@ -59,3 +60,4 @@ def test_booking_request_creates_notification():
     notifs = crud_notification.get_notifications_for_user(db, artist.id)
     assert len(notifs) == 1
     assert notifs[0].type.value == 'new_booking_request'
+    assert notifs[0].link.startswith('/booking-requests/')
