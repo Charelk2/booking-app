@@ -20,12 +20,6 @@ export default function useNotifications() {
 
   const [threads, setThreads] = useState<ThreadNotification[]>([]);
 
-  useEffect(() => {
-    if (!user) return;
-    loadMore();
-    loadThreads();
-  }, [user, loadMore, loadThreads]);
-
   const loadMore = useCallback(async () => {
     if (!user) return;
     setLoading(true);
@@ -51,6 +45,12 @@ export default function useNotifications() {
       setError('Failed to load notifications.');
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadMore();
+    loadThreads();
+  }, [user, loadMore, loadThreads]);
 
   const unreadCount =
     notifications.filter((n) => !n.is_read).length +
