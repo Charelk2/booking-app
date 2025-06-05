@@ -177,3 +177,12 @@ export interface Notification {
   is_read: boolean;
   timestamp: string;
 }
+
+export interface ThreadNotification {
+  booking_request_id: number;
+  name: string;
+  unread_count: number;
+  last_message: string;
+  link: string;
+  timestamp: string;
+}
