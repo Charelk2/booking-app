@@ -34,7 +34,10 @@ const schema = yup.object({
   time: yup.string().required('Time is required'),
   location: yup.string().required('Location is required'),
   guests: yup.number().min(1).required(),
-  venueType: yup.string().required(),
+  venueType: yup
+    .mixed<'indoor' | 'outdoor' | 'hybrid'>()
+    .oneOf(['indoor', 'outdoor', 'hybrid'])
+    .required(),
   notes: yup.string().optional(),
 });
 
