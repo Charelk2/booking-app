@@ -51,6 +51,10 @@ Services now include a required **service_type** field with the following option
 
 If a client chooses a service that is not a Live Performance or Virtual Appearance, the booking wizard is skipped and they are taken directly to the request chat with the service prefilled.
 
+When running against an existing SQLite database created before this field
+existed, the backend will automatically add the `service_type` column at
+startup so older installations continue to work without manual migrations.
+
 
 ### Artist Availability
 
