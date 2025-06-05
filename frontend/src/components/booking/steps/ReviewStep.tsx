@@ -10,7 +10,8 @@ export default function ReviewStep() {
       <ul className="text-sm space-y-1">
         {details.date && (
           <li>
-            <strong>Date:</strong> {format(details.date, 'PP')} {details.time}
+            <strong>Date:</strong> {format(details.date, 'PP')}
+            {details.time && ` ${details.time}`}
           </li>
         )}
         {details.location && (
