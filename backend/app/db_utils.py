@@ -81,3 +81,15 @@ def ensure_notification_link_column(engine: Engine) -> None:
                 )
             )
             conn.commit()
+
+
+def ensure_custom_subtitle_column(engine: Engine) -> None:
+    """Add the custom_subtitle column to artist_profiles if it's missing."""
+    inspector = inspect(engine)
+    if "artist_profiles" not in inspector.get_table_names():
+        return
+    column_names = [col["name"] for col in inspector.get_columns("artist_profiles")]
+    if "custom_subtitle" not in column_names:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE artist_profiles ADD COLUMN custom_subtitle VARCHAR"))
+            conn.commit()

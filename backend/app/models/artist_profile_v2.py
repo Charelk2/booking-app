@@ -16,6 +16,7 @@ class ArtistProfileV2(BaseModel):
         index=True,
     )
     business_name      = Column(String, index=True, nullable=True)
+    custom_subtitle    = Column(String, nullable=True)
     description        = Column(Text, nullable=True)
     location           = Column(String, nullable=True)
     hourly_rate        = Column(Numeric(10, 2), nullable=True)

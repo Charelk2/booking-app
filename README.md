@@ -105,6 +105,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - Explore Other Artists offers grid/list toggles and shows specialties.
 - Notification dropdown now displays icons and timestamps.
 - Buttons and modals include subtle scale animations.
+- Artist profiles now support an optional subtitle/tagline displayed beneath the main name.
 - Introduced shared `Card`, `Tag`, and `TextInput` components with built-in loading states and accessibility helpers.
 - Profile pages now generate Open Graph meta tags for easier sharing and show a fallback avatar image with an edit overlay for artists.
 - Notifications are grouped by type in a dropdown with options to mark each as read or preview the related item.
