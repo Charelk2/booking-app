@@ -95,9 +95,17 @@ export default function BookingRequestDetailPage() {
           </p>
         )}
         {request.service?.service_type === 'Personalized Video' ? (
-          <PersonalizedVideoFlow bookingRequestId={request.id} />
+          <PersonalizedVideoFlow
+            bookingRequestId={request.id}
+            clientName={request.client?.first_name}
+            artistName={request.artist?.first_name}
+          />
         ) : (
-          <MessageThread bookingRequestId={request.id} />
+          <MessageThread
+            bookingRequestId={request.id}
+            clientName={request.client?.first_name}
+            artistName={request.artist?.first_name}
+          />
         )}
       </div>
     </MainLayout>
