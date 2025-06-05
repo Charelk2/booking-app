@@ -99,6 +99,7 @@ Each notification links directly to the related booking request so you can jump 
 The chat thread now displays a friendly placeholder when no messages are present and formats quote prices with the appropriate currency symbol. Any errors fetching or sending messages appear below the input field so problems can be spotted quickly.
 
 The registration page now includes a password strength meter and shows a toast notification once an account is created successfully.
+Both auth pages use new shared form components and include optional Google and GitHub sign-in buttons.
 
 ### Service Types
 
