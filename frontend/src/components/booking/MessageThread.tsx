@@ -50,6 +50,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [showQuoteForm, setShowQuoteForm] = useState(false);
   const [quoteDetails, setQuoteDetails] = useState('');
   const [quotePrice, setQuotePrice] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const fetchMessages = async () => {
@@ -63,8 +64,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           ),
       );
       setMessages(filtered);
+      setErrorMsg(null);
     } catch (err) {
       console.error('Failed to fetch messages', err);
+      setErrorMsg('Failed to load messages');
     }
   };
 
@@ -78,6 +81,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       setQuotes(map);
     } catch (err) {
       console.error('Failed to fetch quotes', err);
+      setErrorMsg('Failed to load quotes');
     }
   };
 
@@ -132,6 +136,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       if (onMessageSent) onMessageSent();
     } catch (err) {
       console.error('Failed to send message', err);
+      setErrorMsg('Failed to send message');
     }
   };
 
@@ -151,12 +156,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       if (onMessageSent) onMessageSent();
     } catch (err) {
       console.error('Failed to send quote', err);
+      setErrorMsg('Failed to send quote');
     }
   };
 
   return (
     <div className="border rounded-md p-4 bg-white flex flex-col h-96 space-y-2">
       <div className="flex-1 overflow-y-auto space-y-3">
+        {messages.length === 0 && !isSystemTyping && (
+          <p className="text-sm text-gray-500">No messages yet. Start the conversation below.</p>
+        )}
         {messages.map((msg) => {
           const isSystem = msg.message_type === 'system';
           // Bubble alignment still depends on the logged in user
@@ -202,7 +211,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                       <div className="text-gray-800">
                         <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
                         <p className="text-sm mt-1">
-                          ${Number(quotes[msg.quote_id].price).toFixed(2)} {quotes[msg.quote_id].currency}
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: quotes[msg.quote_id].currency,
+                          }).format(Number(quotes[msg.quote_id].price))}
                         </p>
                       </div>
                     ) : (
@@ -319,6 +331,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             </div>
           )}
         </>
+      )}
+      {errorMsg && (
+        <p className="text-sm text-red-600" role="alert">
+          {errorMsg}
+        </p>
       )}
     </div>
   );
