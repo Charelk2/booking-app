@@ -1,9 +1,11 @@
 # backend/app/main.py
 
 import os
-from fastapi import FastAPI
+import logging
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 from .database import engine, Base
 from .db_utils import (
@@ -37,6 +39,8 @@ from .api import (
 from .api.v1 import api_artist
 
 from .core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # ─── Ensure database schema is up-to-date ──────────────────────────────────
 ensure_message_type_column(engine)
@@ -80,6 +84,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def catch_exceptions(request: Request, call_next):
+    """Return JSON 500 errors so CORS headers are included."""
+    try:
+        return await call_next(request)
+    except Exception as exc:  # pragma: no cover - generic handler
+        logger.exception("Unhandled error: %s", exc)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "Internal Server Error"},
+        )
 
 api_prefix = settings.API_V1_STR  # usually something like "/api/v1"
 

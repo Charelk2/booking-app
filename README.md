@@ -30,6 +30,8 @@ includes both `http://localhost:3000` and `http://localhost:3002`.
 The value can be provided as a JSON array or a comma separated string.
 If your frontend runs on another origin, update the `CORS_ORIGINS` entry
 in `.env`.
+Unhandled exceptions are wrapped in a middleware that returns JSON
+`500` responses so the configured CORS headers are always included.
 
 ## Frontend
 
