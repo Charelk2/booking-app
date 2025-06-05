@@ -17,6 +17,7 @@ import {
   ArtistSoundPreference,
   QuoteCalculationResponse,
   Notification,
+  ThreadNotification,
 } from '@/types';
 
 // Create a single axios instance for all requests
@@ -284,5 +285,11 @@ export const getGroupedNotifications = () =>
 
 export const markNotificationRead = (id: number) =>
   api.put<Notification>(`${API_V1}/notifications/${id}/read`);
+
+export const getMessageThreads = () =>
+  api.get<ThreadNotification[]>(`${API_V1}/notifications/message-threads`);
+
+export const markThreadRead = (bookingRequestId: number) =>
+  api.put(`${API_V1}/notifications/message-threads/${bookingRequestId}/read`);
 
 export default api;
