@@ -3,7 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Head from 'next/head';
+import Image from 'next/image';
 import MainLayout from '@/components/layout/MainLayout';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   ArtistProfile,
   Service,
@@ -24,17 +27,19 @@ import {
   GlobeAltIcon,
   ListBulletIcon,
   Squares2X2Icon,
+  PencilIcon,
 } from '@heroicons/react/24/outline';
 import {
   getFullImageUrl,
   normalizeService,
 } from '@/lib/utils';
 import ArtistServiceCard from '@/components/artist/ArtistServiceCard';
-import Button from '@/components/ui/Button';
+import { Button, Tag } from '@/components/ui';
 
 export default function ArtistProfilePage() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
   const artistId = Number(params.id);
 
   const [artist, setArtist] = useState<ArtistProfile | null>(null);
@@ -138,7 +143,14 @@ export default function ArtistProfilePage() {
   const profilePictureUrl = getFullImageUrl(artist.profile_picture_url);
 
   return (
-    <MainLayout>
+    <>
+      <Head>
+        <title>{artist.business_name || `${artist.user.first_name} ${artist.user.last_name}`}</title>
+        <meta property="og:title" content={artist.business_name || `${artist.user.first_name} ${artist.user.last_name}`} />
+        {artist.description && <meta property="og:description" content={artist.description} />}
+        {profilePictureUrl && <meta property="og:image" content={profilePictureUrl} />}
+      </Head>
+      <MainLayout>
       <div className="bg-gray-100">
         {/* ── Cover Photo Banner ─────────────────────────────────────────────────────── */}
         <div
@@ -159,20 +171,33 @@ export default function ArtistProfilePage() {
           {/* ── Profile Header ────────────────────────────────────────────────────────── */}
           <div className="-mt-12 sm:-mt-16 md:-mt-20 lg:-mt-24 pb-8">
             <div className="flex flex-col md:flex-row items-center md:items-end space-y-4 md:space-y-0 md:space-x-5">
-              {profilePictureUrl ? (
-                <>
-                  {/* TODO: replace with next/image and preload for performance */}
-                  <img
-                    className="h-32 w-32 md:h-40 md:w-40 rounded-full ring-4 ring-white object-cover shadow-lg"
+              <div className="relative">
+                {profilePictureUrl ? (
+                  <Image
                     src={profilePictureUrl}
+                    width={160}
+                    height={160}
+                    className="h-32 w-32 md:h-40 md:w-40 rounded-full ring-4 ring-white object-cover shadow-lg"
                     alt={artist.business_name || 'Artist'}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
+                    }}
                   />
-                </>
-              ) : (
-                <div className="h-32 w-32 md:h-40 md:w-40 rounded-full ring-4 ring-white bg-gray-300 flex items-center justify-center text-gray-500 shadow-lg">
-                  <UserIcon className="h-16 w-16 text-gray-400" />
-                </div>
-              )}
+                ) : (
+                  <div className="h-32 w-32 md:h-40 md:w-40 rounded-full ring-4 ring-white bg-gray-300 flex items-center justify-center text-gray-500 shadow-lg">
+                    <UserIcon className="h-16 w-16 text-gray-400" />
+                  </div>
+                )}
+                {user && user.user_type === 'artist' && artist.user_id === user.id && (
+                  <button
+                    type="button"
+                    className="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    aria-label="Edit profile photo"
+                  >
+                    <PencilIcon className="h-4 w-4 text-gray-600" />
+                  </button>
+                )}
+              </div>
               <div className="pt-3 md:pt-10 text-center md:text-left">
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
                   {artist.business_name || `${artist.user.first_name} ${artist.user.last_name}`}
@@ -202,14 +227,14 @@ export default function ArtistProfilePage() {
 
           <div className="space-y-8">
               {/* “About” Section */}
-              {artist.description && (
-                <section>
-                  <h2 className="text-xl font-semibold text-gray-800 mb-3">
-                    About {artist.user.first_name}
-                  </h2>
+              <section>
+                <h2 className="text-xl font-semibold text-gray-800 mb-3">About {artist.user.first_name}</h2>
+                {artist.description ? (
                   <p className="text-gray-600 whitespace-pre-line">{artist.description}</p>
-                </section>
-              )}
+                ) : (
+                  <p className="text-gray-500" role="status">Bio has not been added yet.</p>
+                )}
+              </section>
 
               {/* “Specialties” Section */}
               <section aria-labelledby="specialties-heading" role="region">
@@ -217,13 +242,7 @@ export default function ArtistProfilePage() {
                 {artist.specialties && artist.specialties.length > 0 ? (
                   <div className="flex flex-wrap gap-2" role="list">
                     {artist.specialties.map((specialty) => (
-                      <span
-                        key={`${artist.id}-spec-${specialty}`}
-                        className="px-3 py-1 text-sm rounded-full bg-indigo-100 text-indigo-700 font-medium"
-                        role="listitem"
-                      >
-                        {specialty}
-                      </span>
+                      <Tag key={`${artist.id}-spec-${specialty}`}>{specialty}</Tag>
                     ))}
                   </div>
                 ) : (
@@ -405,12 +424,9 @@ export default function ArtistProfilePage() {
                             otherArtist.specialties.length > 0 && (
                               <div className="mt-2 flex flex-wrap gap-1">
                                 {otherArtist.specialties.slice(0, 2).map((spec) => (
-                                  <span
-                                    key={`other-${otherArtist.user_id}-spec-${spec}`}
-                                    className="px-2 py-0.5 text-xs rounded-full bg-indigo-50 text-indigo-600 font-medium"
-                                  >
+                                  <Tag key={`other-${otherArtist.user_id}-spec-${spec}`} className="px-2 py-0.5 text-xs">
                                     {spec}
-                                  </span>
+                                  </Tag>
                                 ))}
                                 {otherArtist.specialties.length > 2 && (
                                   <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600 font-medium">
@@ -434,5 +450,6 @@ export default function ArtistProfilePage() {
         </div>
       </div>
     </MainLayout>
+    </>
   );
 }

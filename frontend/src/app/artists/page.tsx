@@ -6,6 +6,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { ArtistProfile } from '@/types';
 import { getArtists } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
+import { Card, Tag } from '@/components/ui';
 
 export default function ArtistsPage() {
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
@@ -62,10 +63,7 @@ export default function ArtistsPage() {
             const imageUrl = profilePic || fallbackPic;
 
             return (
-              <div
-                key={`artistCard-${artist.id}`}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
-              >
+              <Card key={`artistCard-${artist.id}`} className="overflow-hidden">
                 <div className="aspect-w-16 aspect-h-9 bg-gray-200 flex items-center justify-center">
                   {imageUrl ? (
                     <img
@@ -86,24 +84,19 @@ export default function ArtistsPage() {
                     <h3 className="text-sm font-medium text-gray-900">Specialties:</h3>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {artist.specialties?.map((specialty) => (
-                        <span
-                          key={`artist-${artist.id}-spec-${specialty}`}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
-                        >
-                          {specialty}
-                        </span>
+                        <Tag key={`artist-${artist.id}-spec-${specialty}`}>{specialty}</Tag>
                       ))}
                     </div>
                   </div>
                   <div className="mt-6">
                     <Link href={`/artists/${artist.id}`} legacyBehavior passHref>
-                      <a className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                      <a className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 w-full justify-center">
                         View Profile
                       </a>
                     </Link>
                   </div>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
