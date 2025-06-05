@@ -16,6 +16,7 @@ class Notification(BaseModel):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     type = Column(Enum(NotificationType), nullable=False)
     message = Column(String, nullable=False)
+    link = Column(String, nullable=False)
     is_read = Column(Boolean, default=False)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
