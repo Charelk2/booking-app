@@ -9,25 +9,30 @@ const READY_MESSAGE = 'All details collected! The artist has been notified.';
 
 interface Props {
   bookingRequestId: number;
+  clientName?: string;
+  artistName?: string;
 }
 
 /**
  * Wrapper for MessageThread that runs the personalized video Q&A sequence.
  */
-export default function PersonalizedVideoFlow({ bookingRequestId }: Props) {
+export default function PersonalizedVideoFlow({ bookingRequestId, clientName, artistName }: Props) {
   const { user } = useAuth();
   const threadRef = useRef<MessageThreadHandle>(null);
+  const [progress, setProgress] = useState(0);
+  const [awaitingAnswer, setAwaitingAnswer] = useState(false);
 
   const refreshFlow = useCallback(async () => {
     try {
       const res = await getMessagesForBookingRequest(bookingRequestId);
       const msgs = res.data;
-      const progress = computeVideoProgress(msgs);
+      const progressCount = computeVideoProgress(msgs);
+      setProgress(progressCount);
 
       if (user?.user_type === 'client') {
         let sent = false;
-        if (progress < videoQuestions.length) {
-          const next = videoQuestions[progress];
+        if (progressCount < videoQuestions.length) {
+          const next = videoQuestions[progressCount];
           const alreadyAsked = msgs.some(
             (m) => m.message_type === 'system' && m.content === next,
           );
@@ -50,6 +55,13 @@ export default function PersonalizedVideoFlow({ bookingRequestId }: Props) {
             sent = true;
           }
         }
+        const last = msgs[msgs.length - 1];
+        setAwaitingAnswer(
+          progressCount < videoQuestions.length &&
+            last &&
+            last.message_type === 'system' &&
+            last.content === videoQuestions[progressCount]
+        );
         if (sent) {
           threadRef.current?.refreshMessages();
         }
@@ -68,10 +80,24 @@ export default function PersonalizedVideoFlow({ bookingRequestId }: Props) {
   }, [refreshFlow]);
 
   return (
-    <MessageThread
-      ref={threadRef}
-      bookingRequestId={bookingRequestId}
-      onMessageSent={refreshFlow}
-    />
+    <div className="space-y-2">
+      <div className="text-sm text-gray-600">
+        {progress}/{videoQuestions.length} questions answered
+      </div>
+      <div className="w-full bg-gray-200 rounded h-2" aria-hidden="true">
+        <div
+          className="bg-indigo-600 h-2 rounded"
+          style={{ width: `${(progress / videoQuestions.length) * 100}%` }}
+        />
+      </div>
+      <MessageThread
+        ref={threadRef}
+        bookingRequestId={bookingRequestId}
+        onMessageSent={refreshFlow}
+        clientName={clientName}
+        artistName={artistName}
+        isSystemTyping={awaitingAnswer}
+      />
+    </div>
   );
 }
