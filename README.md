@@ -110,6 +110,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - Introduced shared `Card`, `Tag`, and `TextInput` components with built-in loading states and accessibility helpers.
 - Profile pages now generate Open Graph meta tags for easier sharing and show a fallback avatar image with an edit overlay for artists.
 - Notifications are grouped by type in a dropdown with options to mark each as read or preview the related item.
+- The notification dropdown has been replaced with a slide-out drawer that offers more room and a single click to mark all notifications read.
 - Artist profile sections now load independently for faster page rendering and show loading states per section.
 - Cover and profile images use Next.js `<Image>` for responsive sizing and better performance.
 - Service cards refresh their data when expanded so pricing stays accurate.
