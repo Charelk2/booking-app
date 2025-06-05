@@ -34,6 +34,8 @@ The frontend expects the backend to be running on `http://localhost:8000`.
 vqiaju-codex/implement-frontend-features
 This version introduces basic management of sound providers and an API for quick quote calculations that factor in travel distance, optional provider fees, and accommodation costs. Routers are mounted under `/api/v1/sound-providers` and `/api/v1/quotes/calculate`. The frontend now includes pages at `/sound-providers` and `/quote-calculator` for managing providers and testing quote calculations. The "Request to Book" form on each artist profile now lets clients pick a preferred sound provider, enter travel distance, and see an estimated total before submitting a request.
 
+The booking wizard also features a new **Review** step. This shows a preview of the calculated quote and summarizes all entered details with an improved progress indicator and clearer submit buttons.
+
 
 ### Artist Availability
 

@@ -48,36 +48,42 @@ This file documents the key automation, agent modules, and service components in
 * **Frontend:** `QuoteSummary.tsx` displays breakdown and live updates as selections change.
 * **Backend:** `api_quote.py` aggregates, formats, and returns structured JSON to frontend.
 
-### 5. Payment Agent
+### 5. Quote Preview Agent
+
+* **Purpose:** Shows an estimated total on the review step so the client knows what to expect.
+* **Frontend:** `ReviewStep.tsx` calls the quote API and displays the total before submission.
+* **Backend:** Reuses `api_quote.py` endpoints to provide quick totals.
+
+### 6. Payment Agent
 
 * **Purpose:** Handles payment workflow—collects payment, updates status, triggers contract/invoice.
 * **Frontend:** `PaymentForm.tsx` (or equivalent page/component) takes payment and handles callbacks.
 * **Backend:** `api_payment.py` (if implemented) processes payment, updates booking.
 
-### 6. Notification Agent
+### 7. Notification Agent
 
 * **Purpose:** Sends transactional emails, booking updates, reminders, and chat alerts.
 * **Frontend:** `useNotifications.ts` for popups/toasts, badge updates.
 * **Backend:** Notification module or function (email/SMS integration planned or present in `notifications/`).
 
-### 7. Chat Agent
+### 8. Chat Agent
 
 * **Purpose:** Delivers real-time or async chat, manages unread notifications, logs chat history.
 * **Frontend:** `Chat.tsx` for UI, message sending, badge.
 * **Backend:** `api_chat.py` for storing/sending messages and push notifications.
 
-### 8. Availability Agent
+### 9. Availability Agent
 
 * **Purpose:** Checks/updates in real time which artists and providers are available for a user’s event date and needs.
 * **Frontend:** When client picks date/artist, disables blocked dates, shows live availability.
 * **Backend:** `api_artist.py` logic for checking calendars, marking bookings.
 
-### 9. Form State Agent
+### 10. Form State Agent
 
 * **Purpose:** Manages progress through multi-step booking, “save for later,” restores session on reload or login.
 * **Frontend:** Uses React context/state in `booking/BookingWizard.tsx` and `contexts/BookingContext.tsx`.
 
-### 10. Validation Agent
+### 11. Validation Agent
 
 * **Purpose:** Ensures all inputs are correct (dates, emails, phone, logic like “accommodation required if >X km”).
 * **Frontend:** Inline validation on form steps, helpful error messages.
@@ -95,7 +101,7 @@ This file documents the key automation, agent modules, and service components in
 
 ## Last Updated
 
-2025-06-05
+2025-06-06
 
 ---
 
