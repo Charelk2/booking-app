@@ -44,6 +44,7 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
   const [artistLocation, setArtistLocation] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const {
     control,
@@ -99,6 +100,7 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
   });
 
   const submitRequest = handleSubmit(async (vals) => {
+    setSubmitting(true);
     const payload: BookingRequestCreate = {
       artist_id: artistId,
       proposed_datetime_1:
@@ -117,6 +119,8 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
       alert('Request submitted');
     } catch (e) {
       setError('Failed to submit request');
+    } finally {
+      setSubmitting(false);
     }
   });
 
@@ -161,6 +165,12 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
             </div>
           ))}
         </div>
+        <div className="w-full bg-gray-200 rounded h-2" aria-hidden="true">
+          <div
+            className="bg-indigo-600 h-2 rounded"
+            style={{ width: `${(step / (steps.length - 1)) * 100}%` }}
+          />
+        </div>
         {renderStep()}
         {warning && <p className="text-orange-600 text-sm">{warning}</p>}
         {Object.values(errors).length > 0 && (
@@ -193,9 +203,10 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
               <button
                 type="button"
                 onClick={submitRequest}
-                className="px-4 py-2 bg-green-600 text-white rounded"
+                disabled={submitting}
+                className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
               >
-                Submit Request
+                {submitting ? 'Submitting...' : 'Submit Request'}
               </button>
             </div>
           )}
