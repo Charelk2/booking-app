@@ -14,7 +14,6 @@ import {
   getArtists,
   getArtistServices,
   getArtistReviews,
-  getArtistAvailability,
   createBookingRequest,
 } from '@/lib/api';
 
@@ -22,17 +21,12 @@ import {
   StarIcon,
   MapPinIcon,
   BriefcaseIcon,
-  EnvelopeIcon,
   UserIcon,
-  PhoneIcon,
   GlobeAltIcon,
-  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
-import { format } from 'date-fns';
 import {
   getFullImageUrl,
   normalizeService,
-  getNextAvailableDates,
 } from '@/lib/utils';
 
 export default function ArtistProfilePage() {
@@ -47,7 +41,6 @@ export default function ArtistProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [nextAvailableDates, setNextAvailableDates] = useState<Date[]>([]);
 
   useEffect(() => {
     if (!artistId) return;
@@ -60,13 +53,11 @@ export default function ArtistProfilePage() {
           servicesRes,
           reviewsRes,
           allArtistsRes,
-          availabilityRes,
         ] = await Promise.all([
           getArtist(artistId),
           getArtistServices(artistId),
           getArtistReviews(artistId),
           getArtists(),
-          getArtistAvailability(artistId),
         ]);
         setArtist(artistRes.data);
         const processedServices = servicesRes.data.map((service: Service) =>
@@ -74,13 +65,6 @@ export default function ArtistProfilePage() {
         );
         setServices(processedServices);
         setReviews(reviewsRes.data);
-
-        const nextDates = getNextAvailableDates(
-          availabilityRes.data.unavailable_dates,
-          5,
-        );
-        setNextAvailableDates(nextDates);
-
         // pick up to 3 other artists (excluding this one)
         const filtered = allArtistsRes.data
           .filter((a) => a.user_id && a.user_id !== artistId)
@@ -204,33 +188,6 @@ export default function ArtistProfilePage() {
             </div>
           </div>
 
-          <section id="contact" className="mb-8 space-y-6 p-6 bg-white rounded-2xl shadow-md border border-gray-200">
-            <h3 className="text-xl font-semibold text-gray-800 border-b pb-3">Contact</h3>
-            {averageRating ? (
-              <div className="flex items-center text-sm text-gray-700">
-                <StarIcon className="h-5 w-5 text-yellow-400 mr-1" />
-                {averageRating} ({reviews.length})
-              </div>
-            ) : (
-              <div className="h-5" />
-            )}
-
-            <p className="text-gray-600 text-sm flex items-center">
-              <EnvelopeIcon className="h-5 w-5 mr-2 text-gray-500" /> Email: {artist.user.email}
-            </p>
-            {artist.user.phone_number && (
-              <p className="text-gray-600 text-sm flex items-center">
-                <PhoneIcon className="h-5 w-5 mr-2 text-gray-500" /> Phone: {artist.user.phone_number}
-              </p>
-            )}
-
-            {nextAvailableDates.length > 0 && (
-              <p className="text-sm text-gray-500 flex items-center mt-4">
-                <CalendarDaysIcon className="h-5 w-5 mr-2 text-gray-500" />
-                Next available: {format(nextAvailableDates[0], 'MMM d')}
-              </p>
-            )}
-          </section>
 
           <div className="space-y-8">
               {/* “About” Section */}
