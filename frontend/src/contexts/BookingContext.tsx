@@ -1,9 +1,9 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 
 export interface EventDetails {
-  date?: Date;
-  time?: string;
-  location?: string;
+  date: Date;
+  time: string;
+  location: string;
   guests: number;
   venueType: 'indoor' | 'outdoor' | 'hybrid';
   notes?: string;
@@ -22,7 +22,13 @@ const BookingContext = createContext<BookingContextValue | undefined>(undefined)
 
 export const BookingProvider = ({ children }: { children: ReactNode }) => {
   const [step, setStep] = useState(0);
-  const [details, setDetails] = useState<EventDetails>({ guests: 1, venueType: 'indoor' });
+  const [details, setDetails] = useState<EventDetails>({
+    date: new Date(),
+    time: '',
+    location: '',
+    guests: 1,
+    venueType: 'indoor',
+  });
   const [requestId, setRequestId] = useState<number | undefined>(undefined);
   return (
     <BookingContext.Provider value={{ step, setStep, details, setDetails, requestId, setRequestId }}>
