@@ -119,6 +119,11 @@ All numeric fields must be numbers (not strings) and datetimes must be valid ISO
 8601 strings. Omit optional fields rather than sending empty strings. If you only
 know the date, you can leave the time portion off `proposed_datetime_1`.
 
+After submitting a booking request, the frontend automatically posts a system
+message summarizing the selected date, location, guest count, venue type and
+any notes into the request's chat thread. This ensures both the artist and
+client can easily review all event details from the conversation view.
+
 ## Caching with Redis
 
 The artist list endpoint (`/api/v1/artist-profiles/`) now caches its GET
