@@ -205,8 +205,8 @@ export default function ArtistProfilePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
           {/* ── Profile Header ────────────────────────────────────────────────────────── */}
           <div className="-mt-12 sm:-mt-16 md:-mt-20 lg:-mt-24 pb-8">
-            <div className="flex flex-col md:flex-row items-center md:items-end space-y-4 md:space-y-0 md:space-x-5">
-              <div className="relative">
+            <div className="flex flex-col md:flex-row md:flex-nowrap items-center md:items-end space-y-4 md:space-y-0 md:space-x-5">
+              <div className="relative flex-shrink-0">
                 {profilePictureUrl ? (
                   <Image
                     src={profilePictureUrl}
@@ -233,8 +233,8 @@ export default function ArtistProfilePage() {
                   </button>
                 )}
               </div>
-              <div className="pt-3 md:pt-10 text-center md:text-left">
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
+              <div className="pt-3 md:pt-10 text-center md:text-left md:flex-1 md:min-w-0">
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 break-words">
                   {artist.business_name || `${artist.user.first_name} ${artist.user.last_name}`}
                 </h1>
                 {artist.business_name && (
