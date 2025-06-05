@@ -6,7 +6,7 @@ import { Menu, Transition } from '@headlessui/react';
 import { BellIcon, ChatBubbleOvalLeftEllipsisIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import { formatDistanceToNow } from 'date-fns';
 import useNotifications from '@/hooks/useNotifications';
-import type { Notification } from '@/types';
+import type { Notification, ThreadNotification } from '@/types';
 
 // Displays a dropdown of recent notifications. Unread counts update via the
 // `useNotifications` hook. Notifications are loaded incrementally for better
@@ -19,8 +19,10 @@ function classNames(...classes: string[]) {
 export default function NotificationBell() {
   const {
     notifications,
+    threads,
     unreadCount,
     markRead,
+    markThread,
     loadMore,
     hasMore,
   } = useNotifications();
@@ -33,11 +35,18 @@ export default function NotificationBell() {
     router.push(n.link);
   };
 
+  const handleThreadClick = async (t: ThreadNotification) => {
+    await markThread(t.booking_request_id);
+    router.push(t.link);
+  };
+
   const markAllRead = async () => {
     await Promise.all(
       notifications.filter((n) => !n.is_read).map((n) => markRead(n.id)),
     );
   };
+
+  const hasThreads = threads.length > 0;
 
   const grouped = notifications.reduce<Record<string, Notification[]>>((acc, n) => {
     const key = n.type || 'other';
@@ -67,7 +76,7 @@ export default function NotificationBell() {
         leaveTo="transform opacity-0 scale-95"
       >
         <Menu.Items className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-          {notifications.length > 0 && (
+          {(notifications.length > 0 || hasThreads) && (
             <div className="px-4 py-2 border-b border-gray-200 flex justify-end">
               <button
                 type="button"
@@ -79,8 +88,45 @@ export default function NotificationBell() {
               </button>
             </div>
           )}
-          {notifications.length === 0 && (
+          {notifications.length === 0 && !hasThreads && (
             <div className="px-4 py-2 text-sm text-gray-500">No notifications</div>
+          )}
+          {hasThreads && (
+            <div className="py-1" key="threads">
+              <p className="px-4 pt-2 text-xs font-semibold text-gray-500">Messages</p>
+              {threads.map((t) => (
+                <Menu.Item key={t.booking_request_id}>
+                  {({ active }) => (
+                    <div
+                      className={classNames(
+                        active ? 'bg-gray-100' : '',
+                        'flex w-full items-start px-4 py-2 text-sm gap-2'
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleThreadClick(t)}
+                        className="flex-1 text-left"
+                      >
+                        <span className="flex items-start gap-2">
+                          <ChatBubbleOvalLeftEllipsisIcon className="h-4 w-4 mt-0.5" />
+                          <span className="flex-1 font-medium">{t.name}</span>
+                          <span className="ml-auto text-xs bg-indigo-600 text-white rounded-full px-1">
+                            {t.unread_count}
+                          </span>
+                        </span>
+                        <span className="block text-xs text-gray-400 truncate">
+                          {t.last_message}
+                        </span>
+                        <span className="block text-xs text-gray-400">
+                          {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </Menu.Item>
+              ))}
+            </div>
           )}
           {Object.entries(grouped).map(([type, items]) => (
             <div key={type} className="py-1">

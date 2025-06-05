@@ -20,3 +20,16 @@ class NotificationResponse(BaseModel):
     timestamp: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ThreadNotificationResponse(BaseModel):
+    """Aggregated message notifications for a chat thread."""
+
+    booking_request_id: int
+    name: str
+    unread_count: int
+    last_message: str
+    link: str
+    timestamp: datetime
+
+    model_config = {"from_attributes": True}

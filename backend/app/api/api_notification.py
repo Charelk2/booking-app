@@ -30,9 +30,7 @@ def read_my_notifications_grouped(
     current_user: models.User = Depends(get_current_user),
 ):
     """Retrieve notifications grouped by type for the current user."""
-    return crud.crud_notification.get_notifications_grouped_by_type(
-        db, current_user.id
-    )
+    return crud.crud_notification.get_notifications_grouped_by_type(db, current_user.id)
 
 
 @router.put(
@@ -47,5 +45,30 @@ def mark_notification_read(
     """Mark a notification as read."""
     db_notif = crud.crud_notification.get_notification(db, notification_id)
     if not db_notif or db_notif.user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found"
+        )
     return crud.crud_notification.mark_as_read(db, db_notif)
+
+
+@router.get(
+    "/notifications/message-threads",
+    response_model=List[schemas.ThreadNotificationResponse],
+)
+def read_message_threads(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Retrieve unread message notifications grouped by chat thread."""
+    return crud.crud_notification.get_message_thread_notifications(db, current_user.id)
+
+
+@router.put("/notifications/message-threads/{booking_request_id}/read")
+def mark_thread_read(
+    booking_request_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Mark all message notifications for the thread as read."""
+    crud.crud_notification.mark_thread_read(db, current_user.id, booking_request_id)
+    return {"booking_request_id": booking_request_id}
