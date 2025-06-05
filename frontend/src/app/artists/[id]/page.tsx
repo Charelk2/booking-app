@@ -233,8 +233,8 @@ export default function ArtistProfilePage() {
                   </button>
                 )}
               </div>
-              <div className="pt-3 md:pt-10 text-center md:text-left md:flex-1 md:min-w-0">
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 break-words">
+              <div className="pt-3 md:pt-10 text-center md:text-left flex-1 min-w-0">
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900 truncate md:break-words">
                   {artist.business_name || `${artist.user.first_name} ${artist.user.last_name}`}
                 </h1>
                 {artist.business_name && (
