@@ -85,10 +85,10 @@ export interface BookingRequest {
   status: string; // e.g. "pending_quote", "quote_provided", etc.
   created_at: string;
   updated_at: string;
-  // If you want to expand relationships, you could add:
-  // client?: User;
-  // artist?: User;
-  // service?: Service;
+  // Optional expanded relations returned by the API
+  client?: User;
+  artist?: User;
+  service?: Service;
   // quotes?: Quote[];
 }
 
