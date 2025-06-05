@@ -61,6 +61,10 @@ When running against an existing SQLite database created before this field
 existed, the backend will automatically add the `service_type` column at
 startup so older installations continue to work without manual migrations.
 
+### Service Management
+
+From the artist dashboard you can now edit, delete, and rearrange your offered
+services. Use the up/down arrows next to a service to change its display order.
 
 ### Artist Availability
 
@@ -96,7 +100,7 @@ preferences. Example requests:
   {
     "name": "ACME Audio",
     "contact_info": "acme@example.com",
-    "price_per_event": 150.00
+    "price_per_event": 150.0
   }
   ```
 
