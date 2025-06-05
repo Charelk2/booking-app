@@ -1,5 +1,5 @@
 'use client';
-// TODO: Replace interval polling with WebSocket updates for real-time chat
+
 
 import {
   useEffect,
@@ -18,6 +18,11 @@ import {
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '../ui/Button';
+
+const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const wsBase =
+  process.env.NEXT_PUBLIC_WS_URL || apiBase.replace(/^http/, 'ws');
+const API_V1 = '/api/v1';
 
 export interface MessageThreadHandle {
   refreshMessages: () => void;
@@ -103,11 +108,31 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     setLoading(true);
     fetchMessages();
     fetchQuotes();
-    const interval = setInterval(() => {
-      fetchMessages();
-      fetchQuotes();
-    }, 5000);
-    return () => clearInterval(interval);
+
+    const token = localStorage.getItem('token');
+    const socket = new WebSocket(
+      `${wsBase}${API_V1}/ws/booking-requests/${bookingRequestId}?token=${token}`,
+    );
+
+    socket.onopen = () => {
+      setLoading(false);
+    };
+
+    socket.onmessage = (event) => {
+      const msg: Message = JSON.parse(event.data);
+      setMessages((prev) => [...prev, msg]);
+      if (msg.message_type === 'quote') {
+        fetchQuotes();
+      }
+    };
+
+    socket.onerror = () => {
+      setErrorMsg('WebSocket connection error');
+    };
+
+    return () => {
+      socket.close();
+    };
   }, [bookingRequestId]);
 
   // Create a preview URL whenever the file changes
