@@ -34,6 +34,35 @@ npm run dev
 ```
 
 The frontend expects the backend to be running on `http://localhost:8000`.
+## Development
+
+### Setup
+```bash
+cd backend
+pip install -r requirements.txt
+cd ../frontend
+npm install
+```
+
+### Linting
+```bash
+cd frontend
+npm run lint
+```
+
+### Testing
+```bash
+pytest
+cd frontend
+npm test
+```
+
+### Build
+```bash
+cd frontend
+npm run build
+```
+
 
 ## New Features
 
@@ -46,6 +75,7 @@ Artist profile pages now link to this wizard via a "Start Booking" button which 
 After submitting a booking request, clients are redirected straight to the associated chat thread so they can continue the conversation. The chat interface uses polished message bubbles and aligns your own messages on the right, similar to Airbnb's inbox. The automatic "Requesting ..." and "Booking request sent" entries that previously appeared at the top of each conversation have been removed so the thread begins with meaningful details.
 
 The chat now auto-scrolls after each message, shows image previews before sending, and keeps the input bar fixed above the keyboard on mobile. A subtle timestamp appears under each bubble, avatars display initials, and the Personalized Video flow shows a progress bar like "1/3 questions answered" with a typing indicator when waiting for the client. Once all questions are answered the progress bar disappears automatically.
+- The Personalized Video progress bar now disappears once all questions are answered.
 
 ### Service Types
 
