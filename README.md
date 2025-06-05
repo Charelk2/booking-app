@@ -142,8 +142,10 @@ export PYTHONPATH=.
 pytest
 ```
 
-Run linting without prompts:
+Run linting from the `frontend` directory. Install dependencies with `npm install` first if needed:
 
 ```bash
-npx eslint .
+cd frontend
+npm install   # if node_modules are missing
+npx eslint src
 ```
