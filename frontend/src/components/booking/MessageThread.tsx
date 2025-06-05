@@ -40,7 +40,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const fetchMessages = async () => {
     try {
       const res = await getMessagesForBookingRequest(bookingRequestId);
-      setMessages(res.data);
+      const filtered = res.data.filter(
+        (m) =>
+          !(
+            (m.message_type === 'text' && m.content.startsWith('Requesting ')) ||
+            (m.message_type === 'system' && m.content === 'Booking request sent')
+          ),
+      );
+      setMessages(filtered);
     } catch (err) {
       console.error('Failed to fetch messages', err);
     }
