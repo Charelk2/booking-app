@@ -61,6 +61,10 @@ When running against an existing SQLite database created before this field
 existed, the backend will automatically add the `service_type` column at
 startup so older installations continue to work without manual migrations.
 
+Likewise, services now use a `display_order` integer to control sorting in the
+dashboard. If your database was created prior to this addition the column will
+be added automatically when the backend starts.
+
 ### Service Management
 
 From the artist dashboard you can now edit, delete, and rearrange your offered
