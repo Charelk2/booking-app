@@ -204,9 +204,35 @@ export default function ArtistProfilePage() {
             </div>
           </div>
 
-          <div className="lg:grid lg:grid-cols-3 lg:gap-8">
-            {/* ── Left Two-Thirds: About / Services / Reviews ────────────────────────── */}
-            <div className="lg:col-span-2 space-y-8">
+          <section id="contact" className="mb-8 space-y-6 p-6 bg-white rounded-2xl shadow-md border border-gray-200">
+            <h3 className="text-xl font-semibold text-gray-800 border-b pb-3">Contact</h3>
+            {averageRating ? (
+              <div className="flex items-center text-sm text-gray-700">
+                <StarIcon className="h-5 w-5 text-yellow-400 mr-1" />
+                {averageRating} ({reviews.length})
+              </div>
+            ) : (
+              <div className="h-5" />
+            )}
+
+            <p className="text-gray-600 text-sm flex items-center">
+              <EnvelopeIcon className="h-5 w-5 mr-2 text-gray-500" /> Email: {artist.user.email}
+            </p>
+            {artist.user.phone_number && (
+              <p className="text-gray-600 text-sm flex items-center">
+                <PhoneIcon className="h-5 w-5 mr-2 text-gray-500" /> Phone: {artist.user.phone_number}
+              </p>
+            )}
+
+            {nextAvailableDates.length > 0 && (
+              <p className="text-sm text-gray-500 flex items-center mt-4">
+                <CalendarDaysIcon className="h-5 w-5 mr-2 text-gray-500" />
+                Next available: {format(nextAvailableDates[0], 'MMM d')}
+              </p>
+            )}
+          </section>
+
+          <div className="space-y-8">
               {/* “About” Section */}
               {artist.description && (
                 <section>
@@ -355,36 +381,6 @@ export default function ArtistProfilePage() {
               </section>
             </div>
 
-            {/* ── Right-third: Contact Info ───────────────────────────────────── */}
-            <aside id="booking-contact-sidebar" className="lg:col-span-1 mt-12 lg:mt-0">
-              <div className="sticky top-24 space-y-6 p-6 bg-white rounded-2xl shadow-md border border-gray-200">
-                <h3 className="text-xl font-semibold text-gray-800 border-b pb-3">Contact</h3>
-                {averageRating ? (
-                  <div className="flex items-center text-sm text-gray-700">
-                    <StarIcon className="h-5 w-5 text-yellow-400 mr-1" />
-                    {averageRating} ({reviews.length})
-                  </div>
-                ) : (
-                  <div className="h-5" />
-                )}
-
-                <p className="text-gray-600 text-sm flex items-center">
-                  <EnvelopeIcon className="h-5 w-5 mr-2 text-gray-500" /> Email: {artist.user.email}
-                </p>
-                {artist.user.phone_number && (
-                  <p className="text-gray-600 text-sm flex items-center">
-                    <PhoneIcon className="h-5 w-5 mr-2 text-gray-500" /> Phone: {artist.user.phone_number}
-                  </p>
-                )}
-
-                {nextAvailableDates.length > 0 && (
-                  <p className="text-sm text-gray-500 flex items-center mt-4">
-                    <CalendarDaysIcon className="h-5 w-5 mr-2 text-gray-500" />
-                    Next available: {format(nextAvailableDates[0], 'MMM d')}
-                  </p>
-                )}
-              </div>
-            </aside>
           </div>
 
           {/* ── “Explore Other Artists” Section ─────────────────────────────────────────── */}
