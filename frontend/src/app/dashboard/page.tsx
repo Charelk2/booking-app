@@ -16,7 +16,6 @@ import {
 import { format } from 'date-fns';
 import AddServiceModal from '@/components/dashboard/AddServiceModal';
 import Link from 'next/link';
-import { getFullImageUrl } from '@/lib/utils';
 
 
 export default function DashboardPage() {

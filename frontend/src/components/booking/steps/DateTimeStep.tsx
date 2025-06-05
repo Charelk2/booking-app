@@ -1,13 +1,13 @@
 'use client';
-import { Controller } from 'react-hook-form';
+import { Controller, Control, UseFormWatch, FieldValues } from 'react-hook-form';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { format } from 'date-fns';
 
 interface Props {
-  control: any;
+  control: Control<FieldValues>;
   unavailable: string[];
-  watch: any;
+  watch: UseFormWatch<FieldValues>;
 }
 
 export default function DateTimeStep({ control, unavailable, watch }: Props) {
