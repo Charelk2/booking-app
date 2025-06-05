@@ -106,12 +106,16 @@ export default function NotificationBell() {
                       <button
                         type="button"
                         onClick={() => handleThreadClick(t)}
-                        className="flex-1 text-left"
+                        className={classNames(
+                          'flex-1 text-left',
+                          t.unread_count > 0 ? 'font-medium' : 'text-gray-500'
+                        )}
                       >
                         <span className="flex items-start gap-2">
                           <ChatBubbleOvalLeftEllipsisIcon className="h-4 w-4 mt-0.5" />
-                          <span className="flex-1 font-medium">
-                            {t.name} — {t.unread_count} new messages
+                          <span className="flex-1">
+                            {t.name}
+                            {t.unread_count > 0 && ` — ${t.unread_count} new messages`}
                           </span>
                         </span>
                         <span className="block text-xs text-gray-400 truncate">

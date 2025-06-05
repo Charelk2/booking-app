@@ -40,7 +40,13 @@ export default function useNotifications() {
     if (!user) return;
     try {
       const res = await getMessageThreads();
-      setThreads(res.data);
+      const sorted = [...res.data].sort((a, b) => {
+        if ((b.unread_count > 0 ? 1 : 0) !== (a.unread_count > 0 ? 1 : 0)) {
+          return b.unread_count - a.unread_count;
+        }
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      });
+      setThreads(sorted);
     } catch (err) {
       console.error('Failed to fetch threads:', err);
       setError('Failed to load notifications.');
@@ -72,7 +78,11 @@ export default function useNotifications() {
   const markThread = async (requestId: number) => {
     try {
       await markThreadRead(requestId);
-      setThreads((prev) => prev.filter((t) => t.booking_request_id !== requestId));
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.booking_request_id === requestId ? { ...t, unread_count: 0 } : t,
+        ),
+      );
     } catch (err) {
       console.error('Failed to mark thread read:', err);
       setError('Failed to update notification.');
