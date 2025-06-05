@@ -78,6 +78,7 @@ The chat now auto-scrolls after each message, shows image previews before sendin
 - The Personalized Video progress bar now disappears once all questions are answered.
 The latest update refines the chat bubbles even further: each message now shows its send time inside the bubble. The timestamp sits beneath the text in a tiny gray font and the input field still highlights when focused for better accessibility.
 - When artists are logged in, their own messages now appear in blue bubbles just like the client view, while the other person's messages show in gray.
+The chat thread now displays a friendly placeholder when no messages are present and formats quote prices with the appropriate currency symbol. Any errors fetching or sending messages appear below the input field so problems can be spotted quickly.
 
 ### Service Types
 
