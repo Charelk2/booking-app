@@ -1,28 +1,21 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import axios from 'axios';
 import MainLayout from '@/components/layout/MainLayout';
 import {
   ArtistProfile,
   Service,
   Review as ReviewType,
-  BookingRequestCreate,
-  QuoteCalculationResponse,
-  ArtistSoundPreference,
 } from '@/types';
 import {
   getArtist,
   getArtists,
   getArtistServices,
   getArtistReviews,
-  createBookingRequest,
-  getSoundProvidersForArtist,
-  calculateQuote,
 } from '@/lib/api';
-import { extractErrorMessage } from '@/lib/utils';
+
 import {
   StarIcon,
   MapPinIcon,
@@ -50,27 +43,7 @@ export default function ArtistProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ── “Request to Book” form state ─────────────────────────
-  const [isRequesting, setIsRequesting] = useState(false);
-  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
-  const [proposedDateTime, setProposedDateTime] = useState<string>(''); // e.g. "2025-06-10T14:30"
-  const [requestMessage, setRequestMessage] = useState<string>('');
-  const [requestLoading, setRequestLoading] = useState(false);
-  const [requestSuccess, setRequestSuccess] = useState<string | null>(null);
-  const [requestError, setRequestError] = useState<string | null>(null);
-  const [soundProviders, setSoundProviders] = useState<ArtistSoundPreference[]>(
-    []
-  );
-  const [selectedProviderId, setSelectedProviderId] = useState<number | null>(null);
-  const [distanceKm, setDistanceKm] = useState('');
-  const [accommodationCost, setAccommodationCost] = useState('');
-  const [quoteResult, setQuoteResult] = useState<QuoteCalculationResponse | null>(
-    null
-  );
-
-
   const [calendarDate, setCalendarDate] = useState<Date | null>(new Date());
-  const bookingSectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!artistId) return;
@@ -121,103 +94,10 @@ export default function ArtistProfilePage() {
       : null;
 
   const handleScrollToBooking = () => {
-    bookingSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+    router.push(`/booking?artist_id=${artistId}`);
   };
 
-  const onOpenRequestForm = () => {
-    setRequestError(null);
-    setRequestSuccess(null);
-    setSelectedServiceId(null);
-    setProposedDateTime('');
-    setRequestMessage('');
-    setSelectedProviderId(null);
-    setDistanceKm('');
-    setAccommodationCost('');
-    setQuoteResult(null);
-    if (artist) {
-      getSoundProvidersForArtist(artist.user_id)
-        .then((res) => setSoundProviders(res.data))
-        .catch(() => setSoundProviders([]));
-    }
-    setIsRequesting(true);
-  };
 
-  const onCalculateQuote = async () => {
-    if (!artist || selectedServiceId === null || distanceKm === '') return;
-    const service = services.find((s) => s.id === Number(selectedServiceId));
-    if (!service) return;
-    try {
-      const res = await calculateQuote({
-        base_fee: Number(service.price),
-        distance_km: Number(distanceKm),
-        provider_id: selectedProviderId ? Number(selectedProviderId) : undefined,
-        accommodation_cost: accommodationCost
-          ? Number(accommodationCost)
-          : undefined,
-      });
-      setQuoteResult(res.data);
-    } catch (err) {
-      console.error('Failed to calculate quote', err);
-    }
-  };
-
-  const onSubmitBookingRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRequestError(null);
-    setRequestSuccess(null);
-
-    if (!artist) {
-      setRequestError('Artist data not loaded.');
-      return;
-    }
-    if (selectedServiceId === null) {
-      setRequestError('Please select a service to request.');
-      return;
-    }
-    setRequestLoading(true);
-
-    try {
-      const payload: BookingRequestCreate = {
-        artist_id: artist.user_id,
-      };
-      if (selectedServiceId !== null) {
-        payload.service_id = Number(selectedServiceId);
-      }
-      if (requestMessage.trim() !== '') {
-        payload.message = requestMessage.trim();
-      }
-      if (proposedDateTime) {
-        payload.proposed_datetime_1 = new Date(proposedDateTime).toISOString();
-      }
-
-      const res = await createBookingRequest(payload);
-      setRequestSuccess('Your booking request has been sent! Redirecting…');
-
-      setTimeout(() => {
-        setIsRequesting(false);
-        setRequestSuccess(null);
-        if (res.data && res.data.id) {
-          router.push(`/booking-requests/${res.data.id}`);
-        }
-      }, 1000);
-    } catch (err: unknown) {
-      console.error('Error creating booking request:', err);
-      if (
-        axios.isAxiosError(err) &&
-        err.response?.data?.detail
-      ) {
-        setRequestError(extractErrorMessage(err.response.data.detail));
-      } else {
-        const msg =
-          err instanceof Error
-            ? err.message
-            : 'Failed to send booking request. Please try again.';
-        setRequestError(msg);
-      }
-    } finally {
-      setRequestLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -450,11 +330,7 @@ export default function ArtistProfilePage() {
             </div>
 
             {/* ── Right-third: Contact & Booking Form ───────────────────────────────────── */}
-            <aside
-              ref={bookingSectionRef}
-              id="booking-contact-sidebar"
-              className="lg:col-span-1 mt-12 lg:mt-0"
-            >
+            <aside id="booking-contact-sidebar" className="lg:col-span-1 mt-12 lg:mt-0">
               <div className="sticky top-24 space-y-6 p-6 bg-white rounded-lg shadow-lg border border-gray-200">
                 <h3 className="text-xl font-semibold text-gray-800 border-b pb-3">Contact & Booking</h3>
 
@@ -479,145 +355,18 @@ export default function ArtistProfilePage() {
                     view="month"
                   />
                   <p className="mt-3 text-xs text-gray-500 text-center">
-                    (Select a date/time below to request booking)
+                    (Select a date/time then click Start Booking)
                   </p>
                 </div>
 
-                {isRequesting ? (
-                  <form onSubmit={onSubmitBookingRequest} className="space-y-3">
-                    {/* 1) Service dropdown */}
-                    <label htmlFor="service-select" className="block text-sm font-medium text-gray-700">
-                      Choose Service *
-                    </label>
-                    <select
-                      id="service-select"
-                      name="service"
-                      value={selectedServiceId ?? ''}
-                      onChange={(e) =>
-                        setSelectedServiceId(
-                          e.target.value === '' ? null : Number(e.target.value)
-                        )
-                      }
-                      className="block w-full border border-gray-300 bg-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                      required
-                    >
-                      <option value="">— Select a Service —</option>
-                      {services.map((srv) => (
-                        <option key={`srvOption-${srv.id}`} value={srv.id}>
-                          {srv.title} (${Number(srv.price).toFixed(2)})
-                        </option>
-                      ))}
-                    </select>
-
-                    {/* 2) Proposed date & time */}
-                    <label htmlFor="proposed-datetime" className="block text-sm font-medium text-gray-700">
-                      Proposed Date & Time
-                    </label>
-                    <input
-                      id="proposed-datetime"
-                      name="proposed_datetime"
-                      type="datetime-local"
-                      value={proposedDateTime}
-                      onChange={(e) => setProposedDateTime(e.target.value)}
-                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-
-                    <label className="block text-sm font-medium text-gray-700 mt-2">
-                      Distance from Artist (km)
-                    </label>
-                    <input
-                      type="number"
-                      value={distanceKm}
-                      onChange={(e) => setDistanceKm(e.target.value)}
-                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                      required
-                    />
-
-                    <label className="block text-sm font-medium text-gray-700 mt-2">
-                      Preferred Sound Provider
-                    </label>
-                    <select
-                      value={selectedProviderId ?? ''}
-                      onChange={(e) =>
-                        setSelectedProviderId(
-                          e.target.value === '' ? null : Number(e.target.value)
-                        )
-                      }
-                      className="block w-full border border-gray-300 bg-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value="">None</option>
-                      {soundProviders.map((pref) => (
-                        <option key={pref.id} value={pref.provider_id}>
-                          {pref.provider?.name || `Provider ${pref.provider_id}`}
-                        </option>
-                      ))}
-                    </select>
-
-                    <label className="block text-sm font-medium text-gray-700 mt-2">
-                      Accommodation Cost
-                    </label>
-                    <input
-                      type="number"
-                      value={accommodationCost}
-                      onChange={(e) => setAccommodationCost(e.target.value)}
-                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={onCalculateQuote}
-                      className="w-full mt-2 bg-gray-100 border rounded-md px-3 py-2 text-sm hover:bg-gray-200"
-                    >
-                      Calculate Estimate
-                    </button>
-                    {quoteResult && (
-                      <p className="text-sm text-gray-700 mt-1">
-                        Estimated total: ${Number(quoteResult.total).toFixed(2)}
-                      </p>
-                    )}
-
-                    {/* 3) Optional message */}
-                    <label htmlFor="request-message" className="block text-sm font-medium text-gray-700">
-                      Message (optional)
-                    </label>
-                    <textarea
-                      id="request-message"
-                      name="message"
-                      value={requestMessage}
-                      onChange={(e) => setRequestMessage(e.target.value)}
-                      placeholder="Say something to the artist…"
-                      className="block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                      rows={3}
-                    />
-
-                    {requestError && <p className="text-sm text-red-600">{requestError}</p>}
-                    {requestSuccess && <p className="text-sm text-green-600">{requestSuccess}</p>}
-
-                    <button
-                      type="submit"
-                      disabled={requestLoading}
-                      className={`w-full ${
-                        requestLoading ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'
-                      } text-white py-2 px-4 rounded-md font-medium transition-colors`}
-                    >
-                      {requestLoading ? 'Sending…' : 'Send Booking Request'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsRequesting(false)}
-                      className="w-full mt-1 text-center text-gray-700 text-sm underline hover:text-gray-900"
-                    >
-                      Cancel
-                    </button>
-                  </form>
-                ) : (
-                  <button
-                    onClick={onOpenRequestForm}
-                    className="w-full bg-rose-500 text-white py-3 px-4 rounded-lg hover:bg-rose-600 font-semibold text-lg transition-colors"
+                <div className="text-center">
+                  <Link
+                    href={`/booking?artist_id=${artist.user_id}`}
+                    className="block w-full bg-rose-500 text-white py-3 px-4 rounded-lg hover:bg-rose-600 font-semibold text-lg transition-colors"
                   >
-                    Request to Book Artist
-                  </button>
-                )}
+                    Start Booking
+                  </Link>
+                </div>
               </div>
             </aside>
           </div>

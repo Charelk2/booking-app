@@ -36,6 +36,8 @@ This version introduces basic management of sound providers and an API for quick
 
 The booking wizard also features a new **Review** step. This shows a preview of the calculated quote and summarizes all entered details with an improved progress indicator and clearer submit buttons.
 
+Artist profile pages now link to this wizard via a "Start Booking" button which navigates to `/booking?artist_id={id}`.
+
 
 ### Artist Availability
 
