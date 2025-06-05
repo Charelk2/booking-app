@@ -47,9 +47,21 @@ def ensure_attachment_url_column(engine: Engine) -> None:
     column_names = [col["name"] for col in inspector.get_columns("messages")]
     if "attachment_url" not in column_names:
         with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE messages ADD COLUMN attachment_url VARCHAR"))
+            conn.commit()
+
+
+def ensure_display_order_column(engine: Engine) -> None:
+    """Add the display_order column to services if it's missing."""
+    inspector = inspect(engine)
+    if "services" not in inspector.get_table_names():
+        return
+    column_names = [col["name"] for col in inspector.get_columns("services")]
+    if "display_order" not in column_names:
+        with engine.connect() as conn:
             conn.execute(
                 text(
-                    "ALTER TABLE messages ADD COLUMN attachment_url VARCHAR"
+                    "ALTER TABLE services ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0"
                 )
             )
             conn.commit()
