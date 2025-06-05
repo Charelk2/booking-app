@@ -13,6 +13,10 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 Install dependencies using `pip install -r requirements.txt` first if needed.
 
+The SQLite database path is automatically resolved to the project root so you
+can start the backend from either the repository root or the `backend/` folder
+without creating duplicate database files.
+
 ### Service type enum
 
 `services.service_type` stores the enum's string values such as "Live Performance".
