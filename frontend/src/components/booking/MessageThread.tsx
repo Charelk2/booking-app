@@ -159,52 +159,79 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       <div className="flex-1 overflow-y-auto space-y-3">
         {messages.map((msg) => {
           const isSystem = msg.message_type === 'system';
-          // System messages should never render as "self" so they appear on the left
+          // Bubble alignment still depends on the logged in user
           const isSelf = !isSystem && msg.sender_id === user?.id;
+
+          const isClientMessage = msg.sender_type === 'client';
+          const bubbleClass = isClientMessage
+            ? 'bg-indigo-500 text-white'
+            : isSystem
+              ? 'bg-gray-200'
+              : 'bg-gray-100';
+
           const avatar = isSystem
             ? artistName?.charAt(0)
             : msg.sender_type === 'artist'
             ? artistName?.charAt(0)
             : clientName?.charAt(0);
+
+          const timeString = new Date(msg.timestamp).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          });
+
           return (
-            <div key={msg.id} className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
-              {!isSelf && (
-                <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
-                  {avatar}
-                </div>
-              )}
-              <div
-                className={`max-w-xs rounded-2xl px-3 py-2 whitespace-pre-wrap ${
-                  isSelf ? 'bg-indigo-500 text-white' : isSystem ? 'bg-gray-200' : 'bg-gray-100'
-                }`}
-              >
-                {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
-                  <div className="text-gray-800">
-                    <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
-                    <p className="text-sm mt-1">
-                      ${Number(quotes[msg.quote_id].price).toFixed(2)} {quotes[msg.quote_id].currency}
-                    </p>
+            <div
+              key={msg.id}
+              className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} gap-1`}
+            >
+              <div className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                {!isSelf && (
+                  <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
+                    {avatar}
                   </div>
-                ) : (
-                  msg.content
                 )}
-                {msg.attachment_url && (
-                  <a
-                    href={msg.attachment_url}
-                    target="_blank"
-                    className="block text-blue-600 underline mt-1 text-sm"
-                    rel="noopener noreferrer"
-                  >
-                    View attachment
-                  </a>
-                )}
-                <div className="text-[10px] text-gray-500 mt-1 text-right">
-                  {new Date(msg.timestamp).toLocaleTimeString()}
+                <div
+                  className={`max-w-xs rounded-2xl px-3 py-2 whitespace-pre-wrap ${bubbleClass}`}
+                >
+                  {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
+                    <div className="text-gray-800">
+                      <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
+                      <p className="text-sm mt-1">
+                        ${Number(quotes[msg.quote_id].price).toFixed(2)} {quotes[msg.quote_id].currency}
+                      </p>
+                    </div>
+                  ) : (
+                    msg.content
+                  )}
+                  {msg.attachment_url && (
+                    <a
+                      href={msg.attachment_url}
+                      target="_blank"
+                      className="block text-blue-600 underline mt-1 text-sm"
+                      rel="noopener noreferrer"
+                    >
+                      View attachment
+                    </a>
+                  )}
+                  {/* Client messages display time inside the bubble */}
+                  {isClientMessage && !isSystem && (
+                    <div className="text-xs font-light text-white mt-1 text-right">
+                      {timeString}
+                    </div>
+                  )}
                 </div>
+                {isSelf && (
+                  <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
+                    {avatar}
+                  </div>
+                )}
               </div>
-              {isSelf && (
-                <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
-                  {avatar}
+              {/* Artist and system messages show time below the bubble */}
+              {!isClientMessage && (
+                <div className="text-xs font-light text-gray-500 mt-1 px-8">
+                  {timeString}
                 </div>
               )}
             </div>
