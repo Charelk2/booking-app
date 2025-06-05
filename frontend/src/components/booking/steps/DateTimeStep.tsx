@@ -21,7 +21,12 @@ export default function DateTimeStep({ control, unavailable, watch }: Props) {
         name="date"
         control={control}
         render={({ field }) => (
-          <Calendar {...field} onChange={field.onChange} tileDisabled={tileDisabled} />
+          <Calendar
+            {...field}
+            locale="en-US"
+            onChange={field.onChange}
+            tileDisabled={tileDisabled}
+          />
         )}
       />
       {watch('date') && (
