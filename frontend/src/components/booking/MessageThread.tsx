@@ -180,7 +180,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             minute: '2-digit',
             hour12: false,
           });
-          const timeClass = 'block mt-1 text-[10px] font-light text-gray-500 text-right';
+          const timeClass =
+            'ml-2 text-[10px] font-light self-end ' +
+            (isClientMessage ? 'text-white' : 'text-gray-500');
 
           return (
             <div
@@ -194,28 +196,30 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   </div>
                 )}
                 <div
-                  className={`max-w-xs rounded-2xl px-3 py-2 whitespace-pre-wrap ${bubbleClass}`}
+                  className={`max-w-xs rounded-2xl px-3 py-2 whitespace-pre-wrap flex ${bubbleClass}`}
                 >
-                  {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
-                    <div className="text-gray-800">
-                      <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
-                      <p className="text-sm mt-1">
-                        ${Number(quotes[msg.quote_id].price).toFixed(2)} {quotes[msg.quote_id].currency}
-                      </p>
-                    </div>
-                  ) : (
-                    msg.content
-                  )}{' '}
-                  {msg.attachment_url && (
-                    <a
-                      href={msg.attachment_url}
-                      target="_blank"
-                      className="block text-blue-600 underline mt-1 text-sm"
-                      rel="noopener noreferrer"
-                    >
-                      View attachment
-                    </a>
-                  )}
+                  <div className="flex-1">
+                    {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
+                      <div className="text-gray-800">
+                        <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
+                        <p className="text-sm mt-1">
+                          ${Number(quotes[msg.quote_id].price).toFixed(2)} {quotes[msg.quote_id].currency}
+                        </p>
+                      </div>
+                    ) : (
+                      msg.content
+                    )}{' '}
+                    {msg.attachment_url && (
+                      <a
+                        href={msg.attachment_url}
+                        target="_blank"
+                        className="block text-blue-600 underline mt-1 text-sm"
+                        rel="noopener noreferrer"
+                      >
+                        View attachment
+                      </a>
+                    )}
+                  </div>
                   <span className={timeClass}>{timeString}</span>
                 </div>
                 {isSelf && (
