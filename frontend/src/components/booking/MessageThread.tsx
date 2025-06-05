@@ -180,7 +180,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             minute: '2-digit',
             hour12: false,
           });
-          const timeClass = 'ml-2 text-[10px] font-light text-gray-500';
+          const timeClass = 'block mt-1 text-[10px] font-light text-gray-500 text-right';
 
           return (
             <div
@@ -216,15 +216,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                       View attachment
                     </a>
                   )}
+                  <span className={timeClass}>{timeString}</span>
                 </div>
-                <span className={timeClass}>{timeString}</span>
                 {isSelf && (
                   <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
                     {avatar}
                   </div>
                 )}
               </div>
-              {/* Timestamps now appear to the right of each bubble instead of below. */}
+              {/* Timestamps now appear inside each bubble instead of beside it. */}
             </div>
           );
         })}
