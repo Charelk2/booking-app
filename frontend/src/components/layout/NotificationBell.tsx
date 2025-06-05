@@ -8,6 +8,8 @@ import { formatDistanceToNow } from 'date-fns';
 import useNotifications from '@/hooks/useNotifications';
 import type { Notification } from '@/types';
 
+// TODO: load notifications incrementally (pagination or infinite scroll)
+
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
 }
@@ -21,6 +23,12 @@ export default function NotificationBell() {
       await markRead(n.id);
     }
     router.push(n.link);
+  };
+
+  const markAllRead = async () => {
+    await Promise.all(
+      notifications.filter((n) => !n.is_read).map((n) => markRead(n.id)),
+    );
   };
 
   return (
@@ -44,6 +52,18 @@ export default function NotificationBell() {
         leaveTo="transform opacity-0 scale-95"
       >
         <Menu.Items className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+          {notifications.length > 0 && (
+            <div className="px-4 py-2 border-b border-gray-200 flex justify-end">
+              <button
+                type="button"
+                onClick={markAllRead}
+                className="text-xs text-indigo-600 hover:underline focus:outline-none"
+                aria-label="Mark all notifications read"
+              >
+                Mark all read
+              </button>
+            </div>
+          )}
           {notifications.length === 0 && (
             <div className="px-4 py-2 text-sm text-gray-500">No notifications</div>
           )}
@@ -52,19 +72,34 @@ export default function NotificationBell() {
               {({ active }) => {
                 const Icon = n.type === 'new_message' ? ChatBubbleOvalLeftEllipsisIcon : CalendarIcon;
                 return (
-                  <button
-                    type="button"
-                    onClick={() => handleClick(n)}
+                  <div
                     className={classNames(
                       active ? 'bg-gray-100' : '',
-                      'flex w-full items-start text-left px-4 py-2 text-sm gap-2',
-                      n.is_read ? 'text-gray-500' : 'font-medium'
+                      'flex w-full items-start px-4 py-2 text-sm gap-2'
                     )}
                   >
-                    <Icon className="h-4 w-4 mt-0.5" />
-                    <span className="flex-1">{n.message}</span>
-                    <span className="text-xs text-gray-400">{formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleClick(n)}
+                      className={classNames('flex-1 text-left', n.is_read ? 'text-gray-500' : 'font-medium')}
+                    >
+                      <span className="flex items-start gap-2">
+                        <Icon className="h-4 w-4 mt-0.5" />
+                        <span className="flex-1">{n.message}</span>
+                      </span>
+                      <span className="block text-xs text-gray-400">
+                        {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => markRead(n.id)}
+                      className="text-xs text-indigo-600 hover:underline ml-2"
+                      aria-label={n.is_read ? 'Mark unread' : 'Mark read'}
+                    >
+                      {n.is_read ? 'Unread' : 'Read'}
+                    </button>
+                  </div>
                 );
               }}
             </Menu.Item>
