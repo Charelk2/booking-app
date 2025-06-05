@@ -1,11 +1,11 @@
 'use client';
-import { Controller } from 'react-hook-form';
+import { Controller, Control, FieldValues } from 'react-hook-form';
 import { GoogleMap, Marker, useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { useRef, useState, useEffect } from 'react';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
 
 interface Props {
-  control: any;
+  control: Control<FieldValues>;
   artistLocation?: string | null;
   setWarning: (w: string | null) => void;
 }

@@ -1,8 +1,8 @@
 'use client';
-import { Controller } from 'react-hook-form';
+import { Controller, Control, FieldValues } from 'react-hook-form';
 
 interface Props {
-  control: any;
+  control: Control<FieldValues>;
 }
 
 export default function NotesStep({ control }: Props) {
