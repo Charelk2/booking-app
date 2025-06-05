@@ -16,6 +16,7 @@ import {
   deleteService,
 } from "@/lib/api";
 import { format } from "date-fns";
+import { normalizeService } from "@/lib/utils";
 import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import Link from "next/link";
@@ -58,17 +59,7 @@ export default function DashboardPage() {
           setBookingRequests(requestsData.data);
 
           const processedServices = servicesDataResponse.data
-            .map((service: Service) => ({
-              ...service,
-              price:
-                typeof service.price === "string"
-                  ? parseFloat(service.price)
-                  : service.price,
-              duration_minutes:
-                typeof service.duration_minutes === "string"
-                  ? parseInt(service.duration_minutes, 10)
-                  : service.duration_minutes,
-            }))
+            .map((service: Service) => normalizeService(service))
             .sort((a, b) => a.display_order - b.display_order);
           setServices(processedServices);
           setArtistProfile(artistProfileData.data);
@@ -92,17 +83,7 @@ export default function DashboardPage() {
   }, [user, router]);
 
   const handleServiceAdded = (newService: Service) => {
-    const processedService = {
-      ...newService,
-      price:
-        typeof newService.price === "string"
-          ? parseFloat(newService.price)
-          : newService.price,
-      duration_minutes:
-        typeof newService.duration_minutes === "string"
-          ? parseInt(newService.duration_minutes, 10)
-          : newService.duration_minutes,
-    };
+    const processedService = normalizeService(newService);
     setServices((prevServices) =>
       [...prevServices, processedService].sort(
         (a, b) => a.display_order - b.display_order,
@@ -111,9 +92,10 @@ export default function DashboardPage() {
   };
 
   const handleServiceUpdated = (updated: Service) => {
+    const normalized = normalizeService(updated);
     setServices((prev) =>
       prev
-        .map((s) => (s.id === updated.id ? { ...updated } : s))
+        .map((s) => (s.id === normalized.id ? normalized : s))
         .sort((a, b) => a.display_order - b.display_order),
     );
   };
