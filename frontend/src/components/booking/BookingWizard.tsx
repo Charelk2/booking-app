@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -44,6 +45,7 @@ const schema = yup.object({
 
 export default function BookingWizard({ artistId }: { artistId: number }) {
   const { step, setStep, details, setDetails, requestId, setRequestId } = useBooking();
+  const router = useRouter();
   const [unavailable, setUnavailable] = useState<string[]>([]);
   const [artistLocation, setArtistLocation] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -159,6 +161,7 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
         message_type: 'system',
       });
       alert('Request submitted');
+      router.push(`/booking-requests/${idToUse}`);
     } catch (e) {
       setError('Failed to submit request');
     } finally {
