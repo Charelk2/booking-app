@@ -13,9 +13,11 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface MessageThreadProps {
   bookingRequestId: number;
+  /** Optional callback invoked after a message is successfully sent */
+  onMessageSent?: () => void;
 }
 
-export default function MessageThread({ bookingRequestId }: MessageThreadProps) {
+export default function MessageThread({ bookingRequestId, onMessageSent }: MessageThreadProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [quotes, setQuotes] = useState<Record<number, Quote>>({});
@@ -71,6 +73,7 @@ export default function MessageThread({ bookingRequestId }: MessageThreadProps) 
       setNewMessage('');
       setFile(null);
       fetchMessages();
+      if (onMessageSent) onMessageSent();
     } catch (err) {
       console.error('Failed to send message', err);
     }
@@ -89,6 +92,7 @@ export default function MessageThread({ bookingRequestId }: MessageThreadProps) 
       setQuotePrice('');
       fetchMessages();
       fetchQuotes();
+      if (onMessageSent) onMessageSent();
     } catch (err) {
       console.error('Failed to send quote', err);
     }
