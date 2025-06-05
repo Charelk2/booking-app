@@ -10,18 +10,28 @@ export default function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const limit = 20;
 
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
-    getNotifications()
-      .then((res) => setNotifications(res.data))
-      .catch((err) => {
-        console.error('Failed to fetch notifications:', err);
-        setError('Failed to load notifications.');
-      })
-      .finally(() => setLoading(false));
+    loadMore();
   }, [user]);
+
+  const loadMore = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const res = await getNotifications(page * limit, limit);
+      setNotifications((prev) => [...prev, ...res.data]);
+      setPage((p) => p + 1);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+      setError('Failed to load notifications.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
@@ -43,5 +53,7 @@ export default function useNotifications() {
     loading,
     error,
     markRead,
+    loadMore,
+    hasMore: notifications.length % limit === 0,
   };
 }

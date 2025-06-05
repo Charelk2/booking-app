@@ -8,6 +8,7 @@ from app.models import (
     BookingRequest,
     BookingRequestStatus,
     MessageType,
+    NotificationType,
 )
 from app.models.base import BaseModel
 from app.api import api_message, api_booking_request
@@ -61,3 +62,44 @@ def test_booking_request_creates_notification():
     assert len(notifs) == 1
     assert notifs[0].type.value == 'new_booking_request'
     assert notifs[0].link.startswith('/booking-requests/')
+
+
+def test_get_notifications_pagination_and_grouping():
+    db = setup_db()
+    user = User(
+        email='u@test.com',
+        password='x',
+        first_name='T',
+        last_name='User',
+        user_type=UserType.ARTIST,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    # create 5 notifications, alternating types
+    for i in range(5):
+        crud_notification.create_notification(
+            db,
+            user_id=user.id,
+            type=(
+                NotificationType.NEW_MESSAGE
+                if i % 2 == 0
+                else NotificationType.NEW_BOOKING_REQUEST
+            ),
+            message=f'msg {i}',
+            link=f'/x/{i}',
+        )
+
+    # pagination
+    first_two = crud_notification.get_notifications_for_user(db, user.id, limit=2)
+    assert len(first_two) == 2
+    second_two = crud_notification.get_notifications_for_user(db, user.id, skip=2, limit=2)
+    assert len(second_two) == 2
+    assert first_two[0].id != second_two[0].id
+
+    # grouping
+    grouped = crud_notification.get_notifications_grouped_by_type(db, user.id)
+    assert set(grouped.keys()) == {'new_message', 'new_booking_request'}
+    total = sum(len(v) for v in grouped.values())
+    assert total == 5

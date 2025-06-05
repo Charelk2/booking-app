@@ -274,8 +274,13 @@ export const calculateQuote = (params: {
 }) => api.post<QuoteCalculationResponse>(`${API_V1}/quotes/calculate`, params);
 
 // ─── NOTIFICATIONS ───────────────────────────────────────────────────────────
-export const getNotifications = () =>
-  api.get<Notification[]>(`${API_V1}/notifications`);
+export const getNotifications = (skip = 0, limit = 20) =>
+  api.get<Notification[]>(
+    `${API_V1}/notifications?skip=${skip}&limit=${limit}`,
+  );
+
+export const getGroupedNotifications = () =>
+  api.get<Record<string, Notification[]>>(`${API_V1}/notifications/grouped`);
 
 export const markNotificationRead = (id: number) =>
   api.put<Notification>(`${API_V1}/notifications/${id}/read`);
