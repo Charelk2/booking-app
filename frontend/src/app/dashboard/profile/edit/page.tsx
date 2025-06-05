@@ -108,6 +108,7 @@ export default function EditArtistProfilePage() {
 
   // Business‐form fields
   const [businessNameInput, setBusinessNameInput] = useState('');
+  const [customSubtitleInput, setCustomSubtitleInput] = useState('');
   const [descriptionInput, setDescriptionInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
   const [hourlyRateInput, setHourlyRateInput] = useState<string | number>('');
@@ -158,6 +159,7 @@ export default function EditArtistProfilePage() {
 
         // Initialize form inputs
         setBusinessNameInput(fetchedProfile.business_name || '');
+        setCustomSubtitleInput(fetchedProfile.custom_subtitle || '');
         setDescriptionInput(fetchedProfile.description || '');
         setLocationInput(fetchedProfile.location || '');
         setHourlyRateInput(fetchedProfile.hourly_rate?.toString() || '');
@@ -203,6 +205,7 @@ export default function EditArtistProfilePage() {
       setLoading(true);
       const dataToUpdate: Partial<ArtistProfile> = {
         business_name: businessNameInput.trim(),
+        custom_subtitle: customSubtitleInput.trim() || undefined,
         description: descriptionInput.trim(),
         location: locationInput.trim(),
         hourly_rate: hourlyRateInput
@@ -547,6 +550,19 @@ export default function EditArtistProfilePage() {
                     className={inputClasses}
                     placeholder="e.g., Your Awesome Studio"
                     required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="customSubtitle" className={labelClasses}>
+                    Subtitle / Tagline
+                  </label>
+                  <input
+                    type="text"
+                    id="customSubtitle"
+                    value={customSubtitleInput}
+                    onChange={(e) => setCustomSubtitleInput(e.target.value)}
+                    className={inputClasses}
+                    placeholder="e.g., Indie Rock Band"
                   />
                 </div>
                 <div>

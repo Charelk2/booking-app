@@ -14,6 +14,7 @@ from .db_utils import (
     ensure_service_type_column,
     ensure_display_order_column,
     ensure_notification_link_column,
+    ensure_custom_subtitle_column,
 )
 from .models.user import User
 from .models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
@@ -50,6 +51,7 @@ ensure_attachment_url_column(engine)
 ensure_service_type_column(engine)
 ensure_display_order_column(engine)
 ensure_notification_link_column(engine)
+ensure_custom_subtitle_column(engine)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Artist Booking API")
