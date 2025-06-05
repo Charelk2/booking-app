@@ -9,6 +9,14 @@ import useNotifications from '@/hooks/useNotifications';
 import type { Notification } from '@/types';
 
 // TODO: load notifications incrementally (pagination or infinite scroll)
+// NOTE: The backend API does not yet support pagination (see
+// `backend/app/api/api_notification.py`). Once endpoints accept page/limit
+// parameters, update this component to request pages on demand and provide
+// a "Load more" button or infinite scroll.
+
+// Displays a dropdown of recent notifications. Unread counts update via the
+// `useNotifications` hook. When backend pagination arrives this file will handle
+// incremental loading for better performance on large accounts.
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
