@@ -13,6 +13,12 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 Install dependencies using `pip install -r requirements.txt` first if needed.
 
+### Service type enum
+
+`services.service_type` stores the enum's string values such as "Live Performance".
+If you see lookup errors when reading services, check that the `Service` model
+uses `SQLAlchemyEnum(ServiceType, values_callable=lambda e: [v.value for v in e])`.
+
 ### CORS configuration
 
 The backend reads allowed origins from the `.env` file. By default it
