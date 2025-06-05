@@ -1,8 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Service } from '@/types';
 import { Button, Card } from '@/components/ui';
+import { getService } from '@/lib/api';
 
-// TODO: replace local state with fetched data so updates reflect server values
+// This component was updated to fetch the latest service data whenever the card
+// is expanded. It ensures pricing or descriptions changed on the server are
+// reflected immediately without a full page refresh.
+
+// Service details may change often. Fetch the latest data when expanded so
+// displayed information always reflects server values.
 
 interface ArtistServiceCardProps {
   service: Service;
@@ -11,6 +17,23 @@ interface ArtistServiceCardProps {
 
 export default function ArtistServiceCard({ service, onBook }: ArtistServiceCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [currentService, setCurrentService] = useState<Service>(service);
+
+  // keep local copy in sync with parent prop
+  useEffect(() => {
+    setCurrentService(service);
+  }, [service]);
+
+  // fetch latest details when card is expanded
+  useEffect(() => {
+    if (!expanded) return;
+    getService(service.id)
+      .then((res) => setCurrentService(res.data))
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error('Failed to refresh service:', err);
+      });
+  }, [expanded, service.id]);
 
   const toggle = () => setExpanded((e) => !e);
 
@@ -36,14 +59,14 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
       </div>
       {expanded && (
         <div className="mt-2 text-sm text-gray-600" role="region">
-          {service.description && <p className="mb-2">{service.description}</p>}
-          <p className="text-sm text-gray-500">Type: {service.service_type}</p>
+          {currentService.description && <p className="mb-2">{currentService.description}</p>}
+          <p className="text-sm text-gray-500">Type: {currentService.service_type}</p>
           <div className="mt-2 flex flex-wrap justify-between">
             <span className="text-lg font-bold text-gray-800">
-              {Number(service.price).toFixed(2)}
+              {Number(currentService.price).toFixed(2)}
             </span>
             <span className="text-sm text-gray-500">
-              {service.duration_minutes} minutes
+              {currentService.duration_minutes} minutes
             </span>
           </div>
         </div>
