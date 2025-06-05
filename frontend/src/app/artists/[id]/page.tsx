@@ -237,13 +237,13 @@ export default function ArtistProfilePage() {
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900 truncate md:break-words">
                   {artist.business_name || `${artist.user.first_name} ${artist.user.last_name}`}
                 </h1>
-                {artist.business_name && (
+                {(artist.custom_subtitle || (!artist.custom_subtitle && artist.location)) && (
                   <p className="text-md text-gray-600">
-                    {artist.user.first_name} {artist.user.last_name}
+                    {artist.custom_subtitle || artist.location}
                   </p>
                 )}
                 <div className="mt-2 flex flex-wrap items-center justify-center md:justify-start gap-x-3 gap-y-1 text-sm text-gray-500">
-                  {artist.location && (
+                  {artist.location && !artist.custom_subtitle && (
                     <span className="flex items-center">
                       <MapPinIcon className="h-4 w-4 mr-1" /> {artist.location}
                     </span>
@@ -263,7 +263,7 @@ export default function ArtistProfilePage() {
           <div className="space-y-8">
               {/* “About” Section */}
               <section>
-                <h2 className="text-xl font-semibold text-gray-800 mb-3">About {artist.user.first_name}</h2>
+                <h2 className="text-xl font-semibold text-gray-800 mb-3">About</h2>
                 {artist.description ? (
                   <p className="text-gray-600 whitespace-pre-line">{artist.description}</p>
                 ) : (
