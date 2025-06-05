@@ -1,4 +1,5 @@
-import { extractErrorMessage, normalizeService } from '../utils';
+import { extractErrorMessage, normalizeService, getNextAvailableDates } from '../utils';
+import { format } from 'date-fns';
 import type { Service, ArtistProfile } from '@/types';
 
 describe('extractErrorMessage', () => {
@@ -40,5 +41,17 @@ describe('normalizeService', () => {
     expect(typeof normalized.duration_minutes).toBe('number');
     expect(normalized.price).toBeCloseTo(12.5);
     expect(normalized.duration_minutes).toBe(30);
+  });
+});
+
+describe('getNextAvailableDates', () => {
+  it('returns the next available dates skipping unavailable ones', () => {
+    const start = new Date('2024-06-10');
+    const unavailable = ['2024-06-10', '2024-06-12'];
+    const dates = getNextAvailableDates(unavailable, 3, 5, start);
+    expect(dates.length).toBe(3);
+    expect(format(dates[0], 'yyyy-MM-dd')).toBe('2024-06-11');
+    expect(format(dates[1], 'yyyy-MM-dd')).toBe('2024-06-13');
+    expect(format(dates[2], 'yyyy-MM-dd')).toBe('2024-06-14');
   });
 });

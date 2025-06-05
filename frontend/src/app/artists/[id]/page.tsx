@@ -14,6 +14,7 @@ import {
   getArtists,
   getArtistServices,
   getArtistReviews,
+  getArtistAvailability,
   createBookingRequest,
 } from '@/lib/api';
 
@@ -27,12 +28,12 @@ import {
   GlobeAltIcon,
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
-import '@/styles/custom-calendar.css';
 import { format } from 'date-fns';
-import { enUS } from 'date-fns/locale';
-import { getFullImageUrl, normalizeService } from '@/lib/utils';
+import {
+  getFullImageUrl,
+  normalizeService,
+  getNextAvailableDates,
+} from '@/lib/utils';
 
 export default function ArtistProfilePage() {
   const params = useParams();
@@ -46,9 +47,7 @@ export default function ArtistProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [calendarDate, setCalendarDate] = useState<Date | null>(new Date());
-  const formatLongDate = (_locale: string | undefined, date: Date) =>
-    format(date, 'MMMM d, yyyy', { locale: enUS });
+  const [nextAvailableDates, setNextAvailableDates] = useState<Date[]>([]);
 
   useEffect(() => {
     if (!artistId) return;
@@ -56,11 +55,18 @@ export default function ArtistProfilePage() {
     const fetchPageData = async () => {
       setLoading(true);
       try {
-        const [artistRes, servicesRes, reviewsRes, allArtistsRes] = await Promise.all([
+        const [
+          artistRes,
+          servicesRes,
+          reviewsRes,
+          allArtistsRes,
+          availabilityRes,
+        ] = await Promise.all([
           getArtist(artistId),
           getArtistServices(artistId),
           getArtistReviews(artistId),
           getArtists(),
+          getArtistAvailability(artistId),
         ]);
         setArtist(artistRes.data);
         const processedServices = servicesRes.data.map((service: Service) =>
@@ -68,6 +74,12 @@ export default function ArtistProfilePage() {
         );
         setServices(processedServices);
         setReviews(reviewsRes.data);
+
+        const nextDates = getNextAvailableDates(
+          availabilityRes.data.unavailable_dates,
+          5,
+        );
+        setNextAvailableDates(nextDates);
 
         // pick up to 3 other artists (excluding this one)
         const filtered = allArtistsRes.data
@@ -345,8 +357,16 @@ export default function ArtistProfilePage() {
 
             {/* ── Right-third: Contact & Booking Form ───────────────────────────────────── */}
             <aside id="booking-contact-sidebar" className="lg:col-span-1 mt-12 lg:mt-0">
-              <div className="sticky top-24 space-y-6 p-6 bg-white rounded-lg shadow-lg border border-gray-200">
+              <div className="sticky top-24 space-y-6 p-6 bg-white rounded-2xl shadow-md border border-gray-200">
                 <h3 className="text-xl font-semibold text-gray-800 border-b pb-3">Contact & Booking</h3>
+                {averageRating ? (
+                  <div className="flex items-center text-sm text-gray-700">
+                    <StarIcon className="h-5 w-5 text-yellow-400 mr-1" />
+                    {averageRating} ({reviews.length})
+                  </div>
+                ) : (
+                  <div className="h-5" />
+                )}
 
                 <p className="text-gray-600 text-sm flex items-center">
                   <EnvelopeIcon className="h-5 w-5 mr-2 text-gray-500" /> Email: {artist.user.email}
@@ -361,17 +381,21 @@ export default function ArtistProfilePage() {
                   <h4 className="text-md font-medium text-gray-700 mb-3 flex items-center">
                     <CalendarDaysIcon className="h-5 w-5 mr-2 text-gray-500" /> Availability
                   </h4>
-                  <Calendar
-                    onChange={(value) => setCalendarDate(value as Date | null)}
-                    value={calendarDate}
-                    className="rounded-md border border-gray-300 shadow-sm w-full"
-                    tileClassName="text-sm p-1 md:p-2"
-                    view="month"
-                    locale="en-US"
-                    formatLongDate={formatLongDate}
-                  />
-                  <p className="mt-3 text-xs text-gray-500 text-center">
-                    (Select a date/time then click Start Booking)
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {nextAvailableDates.map((d) => (
+                      <span
+                        key={d.toISOString()}
+                        className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full text-sm"
+                      >
+                        {format(d, 'MMM d')}
+                      </span>
+                    ))}
+                    {nextAvailableDates.length === 0 && (
+                      <span className="text-sm text-gray-500">No upcoming availability</span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    See full calendar and select your date during booking.
                   </p>
                 </div>
 
