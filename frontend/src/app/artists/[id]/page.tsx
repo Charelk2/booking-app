@@ -102,7 +102,6 @@ export default function ArtistProfilePage() {
       const res = await createBookingRequest({
         artist_id: artistId,
         service_id: service.id,
-        message: `Requesting ${service.title} (${service.service_type})`,
       });
       router.push(`/booking-requests/${res.data.id}`);
     } catch (err) {

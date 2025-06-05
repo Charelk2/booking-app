@@ -48,15 +48,9 @@ def create_booking_request(
             message_type=models.MessageType.TEXT,
             attachment_url=None,
         )
-    crud.crud_message.create_message(
-        db=db,
-        booking_request_id=new_request.id,
-        sender_id=current_user.id,
-        sender_type=models.SenderType.CLIENT,
-        content="Booking request sent",
-        message_type=models.MessageType.SYSTEM,
-        attachment_url=None,
-    )
+    # The chat thread used to include a generic "Booking request sent" system
+    # message immediately after creation. This extra message cluttered the
+    # conversation view, so it has been removed.
     notify_user_new_booking_request(artist_user, new_request.id)
     return new_request
 
