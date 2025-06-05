@@ -10,6 +10,7 @@ from app.models import (
     MessageType,
     NotificationType,
 )
+from app import models
 from app.models.base import BaseModel
 from app.api import api_message, api_booking_request
 from app.schemas import MessageCreate, BookingRequestCreate
@@ -179,8 +180,49 @@ def test_thread_notification_summary():
     t = threads[0]
     assert t["booking_request_id"] == br.id
     assert t["unread_count"] == 5
+    assert t["name"] == "C User"
 
     # mark thread read
     crud_notification.mark_thread_read(db, artist.id, br.id)
     threads_after = crud_notification.get_message_thread_notifications(db, artist.id)
     assert threads_after == []
+
+
+def test_thread_notification_uses_business_name_for_artist():
+    db = setup_db()
+    client = User(
+        email="c2@test.com",
+        password="x",
+        first_name="C2",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="a2@test.com",
+        password="x",
+        first_name="A2",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    profile = models.ArtistProfile(user_id=artist.id, business_name="The Band")
+    db.add_all([client, artist, profile])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+    db.refresh(profile)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    msg_in = MessageCreate(content="hello", message_type=MessageType.TEXT)
+    api_message.create_message(br.id, msg_in, db, current_user=artist)
+
+    threads = crud_notification.get_message_thread_notifications(db, client.id)
+    assert len(threads) == 1
+    assert threads[0]["name"] == "The Band"

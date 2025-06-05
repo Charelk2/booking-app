@@ -110,9 +110,8 @@ export default function NotificationBell() {
                       >
                         <span className="flex items-start gap-2">
                           <ChatBubbleOvalLeftEllipsisIcon className="h-4 w-4 mt-0.5" />
-                          <span className="flex-1 font-medium">{t.name}</span>
-                          <span className="ml-auto text-xs bg-indigo-600 text-white rounded-full px-1">
-                            {t.unread_count}
+                          <span className="flex-1 font-medium">
+                            {t.name} — {t.unread_count} new messages
                           </span>
                         </span>
                         <span className="block text-xs text-gray-400 truncate">
@@ -131,7 +130,7 @@ export default function NotificationBell() {
           {Object.entries(grouped).map(([type, items]) => (
             <div key={type} className="py-1">
               <p className="px-4 pt-2 text-xs font-semibold text-gray-500">
-                {type === 'new_message' ? 'Messages' : type === 'booking_update' ? 'Bookings' : 'Other'}
+                {type === 'booking_update' ? 'Bookings' : 'Other'}
               </p>
               {items.map((n) => (
                 <Menu.Item key={n.id}>
