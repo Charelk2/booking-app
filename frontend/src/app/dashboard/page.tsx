@@ -376,6 +376,7 @@ export default function DashboardPage() {
                       <div className="focus:outline-none">
                         <p className="text-sm font-medium text-gray-900">{service.title}</p>
                         <p className="truncate text-sm text-gray-500">{service.description}</p>
+                        <p className="text-xs text-gray-500">{service.service_type}</p>
                         <div className="mt-2 flex items-center justify-between">
                           <span className="text-sm font-medium text-gray-900">
                             ${service.price.toFixed(2)}

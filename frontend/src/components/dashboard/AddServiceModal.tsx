@@ -13,10 +13,20 @@ interface AddServiceModalProps {
   onServiceAdded: (newService: Service) => void;
 }
 
-type ServiceFormData = Pick<Service, 'title' | 'description' | 'price' | 'duration_minutes'>;
+type ServiceFormData = Pick<
+  Service,
+  'title' | 'description' | 'price' | 'duration_minutes' | 'service_type'
+>;
 
 export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: AddServiceModalProps) {
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ServiceFormData>();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ServiceFormData>({
+    defaultValues: { service_type: 'Live Performance' },
+  });
   const [serverError, setServerError] = useState<string | null>(null);
 
   const onSubmit: SubmitHandler<ServiceFormData> = async (data) => {
@@ -73,6 +83,22 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               />
               {errors.description && <p className="mt-1 text-xs text-red-600">{errors.description.message}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="service_type" className="block text-sm font-medium text-gray-700">Service Type</label>
+              <select
+                id="service_type"
+                {...register('service_type', { required: 'Service type is required' })}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              >
+                <option value="Live Performance">Live Performance</option>
+                <option value="Virtual Appearance">Virtual Appearance</option>
+                <option value="Personalized Video">Personalized Video</option>
+                <option value="Custom Song">Custom Song</option>
+                <option value="Other">Other</option>
+              </select>
+              {errors.service_type && <p className="mt-1 text-xs text-red-600">{errors.service_type.message}</p>}
             </div>
 
             <div>
