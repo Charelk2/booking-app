@@ -6,6 +6,7 @@ from .. import models, schemas, crud
 from .dependencies import get_db, get_current_user
 
 router = APIRouter(tags=["notifications"])
+# TODO: add pagination and grouping endpoints to reduce payload size
 
 
 @router.get("/notifications", response_model=List[schemas.NotificationResponse])
