@@ -31,7 +31,7 @@ const steps = [
 
 const schema = yup.object({
   date: yup.date().required().min(new Date(), 'Pick a future date'),
-  time: yup.string().required('Time is required'),
+  time: yup.string().optional(),
   location: yup.string().required('Location is required'),
   guests: yup.number().min(1).required(),
   venueType: yup
