@@ -1,10 +1,13 @@
 'use client';
+// TODO: Use a shared stepper component and extract form logic into hooks
+// for better reusability across booking flows.
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { format } from 'date-fns';
+import Button from '../ui/Button';
 import {
   getArtistAvailability,
   createBookingRequest,
@@ -210,7 +213,13 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
             </div>
           ))}
         </div>
-        <div className="w-full bg-gray-200 rounded h-2" aria-hidden="true">
+        <div
+          className="w-full bg-gray-200 rounded h-2"
+          role="progressbar"
+          aria-valuenow={step}
+          aria-valuemin={0}
+          aria-valuemax={steps.length - 1}
+        >
           <div
             className="bg-indigo-600 h-2 rounded"
             style={{ width: `${(step / (steps.length - 1)) * 100}%` }}
@@ -224,35 +233,27 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <div className="flex justify-between pt-2">
           {step > 0 && (
-            <button type="button" onClick={prev} className="px-4 py-2 bg-gray-200 rounded">
+            <Button variant="secondary" type="button" onClick={prev}>
               Back
-            </button>
+            </Button>
           )}
           {step < steps.length - 1 ? (
-            <button
-              type="button"
-              onClick={next}
-              className="ml-auto px-4 py-2 bg-indigo-600 text-white rounded"
-            >
+            <Button type="button" onClick={next} className="ml-auto">
               Next
-            </button>
+            </Button>
           ) : (
             <div className="flex space-x-2 ml-auto">
-              <button
-                type="button"
-                onClick={saveDraft}
-                className="px-4 py-2 bg-gray-200 rounded"
-              >
+              <Button variant="secondary" type="button" onClick={saveDraft}>
                 Save Draft
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={submitRequest}
                 disabled={submitting}
-                className="px-4 py-2 bg-green-600 text-white rounded disabled:opacity-50"
+                className="bg-green-600 hover:bg-green-700 focus:ring-green-500"
               >
                 {submitting ? 'Submitting...' : 'Submit Request'}
-              </button>
+              </Button>
             </div>
           )}
         </div>
