@@ -30,11 +30,23 @@ def create_message(request_id: int, message_in: schemas.MessageCreate, db: Sessi
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking request not found")
     if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to send message")
-    sender_type = models.SenderType.CLIENT if current_user.id == booking_request.client_id else models.SenderType.ARTIST
+    sender_type = (
+        models.SenderType.CLIENT
+        if current_user.id == booking_request.client_id
+        else models.SenderType.ARTIST
+    )
+
+    sender_id = current_user.id
+    # System messages are automated questions. They should appear from the
+    # artist, not the client who triggered the flow.
+    if message_in.message_type == models.MessageType.SYSTEM:
+        sender_type = models.SenderType.ARTIST
+        sender_id = booking_request.artist_id
+
     msg = crud.crud_message.create_message(
         db,
         booking_request_id=request_id,
-        sender_id=current_user.id,
+        sender_id=sender_id,
         sender_type=sender_type,
         content=message_in.content,
         message_type=message_in.message_type,
