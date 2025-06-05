@@ -77,6 +77,7 @@ After submitting a booking request, clients are redirected straight to the assoc
 The chat now auto-scrolls after each message, shows image previews before sending, and keeps the input bar fixed above the keyboard on mobile. A subtle timestamp appears inside each bubble, avatars display initials, and the Personalized Video flow shows a progress bar like "1/3 questions answered" with a typing indicator when waiting for the client. Once all questions are answered the progress bar disappears automatically.
 - The Personalized Video progress bar now disappears once all questions are answered.
 The latest update refines the chat bubbles even further: each message now shows its send time inside the bubble. The timestamp sits beneath the text in a tiny gray font and the input field still highlights when focused for better accessibility.
+- When artists are logged in, their own messages now appear in blue bubbles just like the client view, while the other person's messages show in gray.
 
 ### Service Types
 
