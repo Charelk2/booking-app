@@ -27,7 +27,9 @@ export default function DateTimeStep({ control, unavailable, watch }: Props) {
           <Calendar
             {...field}
             locale="en-US"
+            1664e3-codex/fix-aria-label-mismatch-warning
             formatLongDate={formatLongDate}
+
             onChange={field.onChange}
             tileDisabled={tileDisabled}
           />
