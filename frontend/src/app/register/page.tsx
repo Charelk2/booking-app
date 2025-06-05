@@ -1,5 +1,6 @@
 'use client';
-// TODO: Add password strength meter and better success feedback
+
+import toast from 'react-hot-toast';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -23,14 +24,23 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<RegisterForm>();
 
-  const password = watch('password');
+  const password = watch('password', '');
+
+  const getPasswordStrength = (pass: string) => {
+    let score = 0;
+    if (pass.length >= 8) score += 1;
+    if (/[A-Z]/.test(pass)) score += 1;
+    if (/[0-9]/.test(pass)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
+    return score;
+  };
 
   const onSubmit = async (data: RegisterForm) => {
     try {
       const { confirmPassword, ...userData } = data;
       void confirmPassword;
       await registerUser(userData);
-      alert('Registration successful! Please log in.');
+      toast.success('Registration successful! Please log in.');
       router.push('/login');
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -179,6 +189,21 @@ export default function RegisterPage() {
                 />
                 {errors.password && (
                   <p className="mt-2 text-sm text-red-600">{errors.password.message}</p>
+                )}
+                {password && (
+                  <>
+                    <div className="mt-2 h-2 w-full rounded bg-gray-200">
+                      <div
+                        className={`h-full rounded ${
+                          ['bg-red-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-600'][Math.max(getPasswordStrength(password) - 1, 0)]
+                        }`}
+                        style={{ width: `${(getPasswordStrength(password) / 4) * 100}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-sm text-gray-700">
+                      {['Weak', 'Fair', 'Good', 'Strong'][Math.max(getPasswordStrength(password) - 1, 0)]}
+                    </p>
+                  </>
                 )}
               </div>
             </div>
