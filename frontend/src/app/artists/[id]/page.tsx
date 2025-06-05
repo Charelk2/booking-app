@@ -20,7 +20,6 @@ import {
 import {
   StarIcon,
   MapPinIcon,
-  BriefcaseIcon,
   UserIcon,
   GlobeAltIcon,
   ListBulletIcon,
@@ -31,7 +30,6 @@ import {
   normalizeService,
 } from '@/lib/utils';
 import ArtistServiceCard from '@/components/artist/ArtistServiceCard';
-import { formatDistanceToNow } from 'date-fns';
 
 export default function ArtistProfilePage() {
   const params = useParams();
@@ -160,12 +158,14 @@ export default function ArtistProfilePage() {
           <div className="-mt-12 sm:-mt-16 md:-mt-20 lg:-mt-24 pb-8">
             <div className="flex flex-col md:flex-row items-center md:items-end space-y-4 md:space-y-0 md:space-x-5">
               {profilePictureUrl ? (
-                {/* TODO: replace with next/image and preload for performance */}
-                <img
-                  className="h-32 w-32 md:h-40 md:w-40 rounded-full ring-4 ring-white object-cover shadow-lg"
-                  src={profilePictureUrl}
-                  alt={artist.business_name || 'Artist'}
-                />
+                <>
+                  {/* TODO: replace with next/image and preload for performance */}
+                  <img
+                    className="h-32 w-32 md:h-40 md:w-40 rounded-full ring-4 ring-white object-cover shadow-lg"
+                    src={profilePictureUrl}
+                    alt={artist.business_name || 'Artist'}
+                  />
+                </>
               ) : (
                 <div className="h-32 w-32 md:h-40 md:w-40 rounded-full ring-4 ring-white bg-gray-300 flex items-center justify-center text-gray-500 shadow-lg">
                   <UserIcon className="h-16 w-16 text-gray-400" />
@@ -371,15 +371,17 @@ export default function ArtistProfilePage() {
                       <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl">
                         <div className="h-48 bg-gray-200 flex items-center justify-center overflow-hidden">
                           {otherProfilePicUrl ? (
-                            {/* TODO: use responsive <Image> with priority */}
-                            <img
-                              src={otherProfilePicUrl}
-                              alt={
-                                otherArtist.business_name ||
-                                otherArtist.user.first_name
-                              }
-                              className="w-full h-full object-cover"
-                            />
+                            <>
+                              {/* TODO: use responsive <Image> with priority */}
+                              <img
+                                src={otherProfilePicUrl}
+                                alt={
+                                  otherArtist.business_name ||
+                                  otherArtist.user.first_name
+                                }
+                                className="w-full h-full object-cover"
+                              />
+                            </>
                           ) : (
                             <UserIcon className="h-16 w-16 text-gray-400" />
                           )}
