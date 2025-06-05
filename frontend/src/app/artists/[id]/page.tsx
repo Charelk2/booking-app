@@ -30,6 +30,7 @@ import {
   normalizeService,
 } from '@/lib/utils';
 import ArtistServiceCard from '@/components/artist/ArtistServiceCard';
+import Button from '@/components/ui/Button';
 
 export default function ArtistProfilePage() {
   const params = useParams();
@@ -49,6 +50,7 @@ export default function ArtistProfilePage() {
     if (!artistId) return;
 
     const fetchPageData = async () => {
+      // TODO: split API calls so sections can lazy load independently
       setLoading(true);
       try {
         const [
@@ -336,28 +338,30 @@ export default function ArtistProfilePage() {
 
 
           {/* ── “Explore Other Artists” Section ─────────────────────────────────────────── */}
-          {otherArtists.length > 0 && (
+          {otherArtists.length > 0 ? (
             <section className="mt-16 pt-8 border-t border-gray-200" aria-labelledby="other-artists-heading" role="region">
               <h2 id="other-artists-heading" className="text-2xl font-bold text-gray-800 mb-8 text-center">
                 Explore Other Artists
               </h2>
               <div className="flex justify-end mb-4">
-                <button
+                <Button
                   type="button"
                   onClick={() => setOtherView('grid')}
-                  className={`p-2 rounded-md mr-2 ${otherView === 'grid' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500'} transition-colors`}
+                  variant={otherView === 'grid' ? 'primary' : 'secondary'}
+                  className="mr-2 p-2"
                   aria-label="Grid view"
                 >
                   <Squares2X2Icon className="h-5 w-5" />
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={() => setOtherView('list')}
-                  className={`p-2 rounded-md ${otherView === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500'} transition-colors`}
+                  variant={otherView === 'list' ? 'primary' : 'secondary'}
+                  className="p-2"
                   aria-label="List view"
                 >
                   <ListBulletIcon className="h-5 w-5" />
-                </button>
+                </Button>
               </div>
               <div className={otherView === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8' : 'space-y-4'}>
                 {otherArtists.map((otherArtist) => {
@@ -422,6 +426,10 @@ export default function ArtistProfilePage() {
                 })}
               </div>
             </section>
+          ) : (
+            <p className="mt-16 text-center text-gray-600" role="status">
+              No other artists to explore at the moment.
+            </p>
           )}
         </div>
       </div>
