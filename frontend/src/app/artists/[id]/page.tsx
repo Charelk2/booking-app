@@ -23,11 +23,15 @@ import {
   BriefcaseIcon,
   UserIcon,
   GlobeAltIcon,
+  ListBulletIcon,
+  Squares2X2Icon,
 } from '@heroicons/react/24/outline';
 import {
   getFullImageUrl,
   normalizeService,
 } from '@/lib/utils';
+import ArtistServiceCard from '@/components/artist/ArtistServiceCard';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function ArtistProfilePage() {
   const params = useParams();
@@ -40,6 +44,7 @@ export default function ArtistProfilePage() {
   const [otherArtists, setOtherArtists] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [otherView, setOtherView] = useState<'grid' | 'list'>('grid');
 
 
   useEffect(() => {
@@ -111,7 +116,7 @@ export default function ArtistProfilePage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex justify-center items-center min-h-[80vh]">
+        <div className="flex justify-center items-center min-h-[80vh]" role="status" aria-label="Loading">
           <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600" />
         </div>
       </MainLayout>
@@ -121,7 +126,7 @@ export default function ArtistProfilePage() {
   if (error || !artist) {
     return (
       <MainLayout>
-        <div className="text-center py-20">
+        <div className="text-center py-20" role="alert">
           <h2 className="text-2xl font-semibold text-gray-700">{error || 'Artist not found'}</h2>
         </div>
       </MainLayout>
@@ -139,6 +144,9 @@ export default function ArtistProfilePage() {
         <div
           className={`h-64 md:h-96 bg-gray-300 ${coverPhotoUrl ? 'bg-cover bg-center' : ''}`}
           style={{ backgroundImage: coverPhotoUrl ? `url(${coverPhotoUrl})` : 'none' }}
+          /* TODO: preload cover photo and generate responsive sizes */
+          role="img"
+          aria-label="Cover photo"
         >
           {!coverPhotoUrl && (
             <div className="h-full flex items-center justify-center text-gray-500">
@@ -152,6 +160,7 @@ export default function ArtistProfilePage() {
           <div className="-mt-12 sm:-mt-16 md:-mt-20 lg:-mt-24 pb-8">
             <div className="flex flex-col md:flex-row items-center md:items-end space-y-4 md:space-y-0 md:space-x-5">
               {profilePictureUrl ? (
+                {/* TODO: replace with next/image and preload for performance */}
                 <img
                   className="h-32 w-32 md:h-40 md:w-40 rounded-full ring-4 ring-white object-cover shadow-lg"
                   src={profilePictureUrl}
@@ -201,26 +210,29 @@ export default function ArtistProfilePage() {
               )}
 
               {/* “Specialties” Section */}
-              {artist.specialties && artist.specialties.length > 0 && (
-                <section>
-                  <h2 className="text-xl font-semibold text-gray-800 mb-3">Specialties</h2>
-                  <div className="flex flex-wrap gap-2">
+              <section aria-labelledby="specialties-heading" role="region">
+                <h2 id="specialties-heading" className="text-xl font-semibold text-gray-800 mb-3">Specialties</h2>
+                {artist.specialties && artist.specialties.length > 0 ? (
+                  <div className="flex flex-wrap gap-2" role="list">
                     {artist.specialties.map((specialty) => (
                       <span
                         key={`${artist.id}-spec-${specialty}`}
                         className="px-3 py-1 text-sm rounded-full bg-indigo-100 text-indigo-700 font-medium"
+                        role="listitem"
                       >
                         {specialty}
                       </span>
                     ))}
                   </div>
-                </section>
-              )}
+                ) : (
+                  <p className="text-gray-600" role="status">No specialties listed.</p>
+                )}
+              </section>
 
               {/* “Portfolio / Links” Section */}
-              {artist.portfolio_urls && artist.portfolio_urls.length > 0 && (
-                <section>
-                  <h2 className="text-xl font-semibold text-gray-800 mb-3">Links & Portfolio</h2>
+              <section aria-labelledby="links-heading" role="region">
+                <h2 id="links-heading" className="text-xl font-semibold text-gray-800 mb-3">Links & Portfolio</h2>
+                {artist.portfolio_urls && artist.portfolio_urls.length > 0 ? (
                   <div className="flex flex-wrap gap-x-4 gap-y-3">
                     {artist.portfolio_urls.map((url, idx) => {
                       // Decide label/icon by URL domain
@@ -260,53 +272,37 @@ export default function ArtistProfilePage() {
                       );
                     })}
                   </div>
-                </section>
-              )}
+                ) : (
+                  <p className="text-gray-600" role="status">No links added yet.</p>
+                )}
+              </section>
 
               {/* “Services” Section */}
-              <section id="services">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">Services Offered</h2>
+              <section id="services" aria-labelledby="services-heading" role="region">
+                <h2 id="services-heading" className="text-2xl font-bold text-gray-800 mb-6">Services Offered</h2>
                 {services.length > 0 ? (
-                  <div className="space-y-6">
+                  <ul className="space-y-6" role="list">
                     {services.map((service) => (
-                      <div
-                        key={`service-${service.id}`}
-                        className="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow"
-                      >
-                        <h3 className="text-xl font-semibold text-gray-900">{service.title}</h3>
-                        {service.description && (
-                          <p className="mt-2 text-gray-600 text-sm">{service.description}</p>
-                        )}
-                        <p className="mt-1 text-sm text-gray-500">Type: {service.service_type}</p>
-                        <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-2xl font-bold text-gray-800">${Number(service.price).toFixed(2)}</p>
-                          <p className="text-sm text-gray-500">
-                            <BriefcaseIcon className="h-4 w-4 inline mr-1" /> {service.duration_minutes} minutes
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleBookService(service)}
-                          className="mt-6 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
-                        >
-                          Book Now
-                        </button>
-                      </div>
+                      <li key={`service-${service.id}`}>
+                        <ArtistServiceCard service={service} onBook={handleBookService} />
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 ) : (
-                  <p className="text-gray-600">This artist currently has no services listed.</p>
+                  <p className="text-gray-600" role="status">This artist currently has no services listed.</p>
                 )}
               </section>
 
               {/* “Reviews” Section */}
-              <section id="reviews">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">Reviews ({reviews.length})</h2>
+              <section id="reviews" aria-labelledby="reviews-heading" role="region">
+                <h2 id="reviews-heading" className="text-2xl font-bold text-gray-800 mb-4">Reviews ({reviews.length})</h2>
                 {reviews.length > 0 ? (
-                  <div className="space-y-6">
+                  <ul className="space-y-6" role="list">
                     {reviews.map((review) => (
-                      <div
+                      <li
                         key={`review-${review.id}`}
                         className="bg-white p-4 rounded-lg shadow border border-gray-200"
+                        role="listitem"
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center">
@@ -329,11 +325,11 @@ export default function ArtistProfilePage() {
                         <p className="mt-2 text-xs text-gray-400">
                           Reviewed on: {new Date(review.created_at).toLocaleDateString()}
                         </p>
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 ) : (
-                  <p className="text-gray-600">No reviews yet for this artist.</p>
+                  <p className="text-gray-600" role="status">No reviews yet for this artist.</p>
                 )}
               </section>
             </div>
@@ -341,11 +337,29 @@ export default function ArtistProfilePage() {
 
           {/* ── “Explore Other Artists” Section ─────────────────────────────────────────── */}
           {otherArtists.length > 0 && (
-            <section className="mt-16 pt-8 border-t border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-800 mb-8 text-center">
+            <section className="mt-16 pt-8 border-t border-gray-200" aria-labelledby="other-artists-heading" role="region">
+              <h2 id="other-artists-heading" className="text-2xl font-bold text-gray-800 mb-8 text-center">
                 Explore Other Artists
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="flex justify-end mb-4">
+                <button
+                  type="button"
+                  onClick={() => setOtherView('grid')}
+                  className={`p-2 rounded-md mr-2 ${otherView === 'grid' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500'} transition-colors`}
+                  aria-label="Grid view"
+                >
+                  <Squares2X2Icon className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOtherView('list')}
+                  className={`p-2 rounded-md ${otherView === 'list' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-500'} transition-colors`}
+                  aria-label="List view"
+                >
+                  <ListBulletIcon className="h-5 w-5" />
+                </button>
+              </div>
+              <div className={otherView === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8' : 'space-y-4'}>
                 {otherArtists.map((otherArtist) => {
                   const otherProfilePicUrl = getFullImageUrl(otherArtist.profile_picture_url);
                   return (
@@ -357,6 +371,7 @@ export default function ArtistProfilePage() {
                       <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl">
                         <div className="h-48 bg-gray-200 flex items-center justify-center overflow-hidden">
                           {otherProfilePicUrl ? (
+                            {/* TODO: use responsive <Image> with priority */}
                             <img
                               src={otherProfilePicUrl}
                               alt={
