@@ -118,7 +118,7 @@ export default function NotificationBell() {
                             {t.unread_count > 0 && ` — ${t.unread_count} new messages`}
                           </span>
                         </span>
-                        <span className="block text-xs text-gray-400 truncate">
+                        <span className="block w-full text-xs text-gray-400 truncate break-words">
                           {t.last_message}
                         </span>
                         <span className="block text-xs text-gray-400">
@@ -160,14 +160,20 @@ export default function NotificationBell() {
                             {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
                           </span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => markRead(n.id)}
-                          className="text-xs text-indigo-600 hover:underline ml-2"
-                          aria-label={n.is_read ? 'Mark unread' : 'Mark read'}
-                        >
-                          {n.is_read ? 'Unread' : 'Read'}
-                        </button>
+                        {!n.is_read ? (
+                          <button
+                            type="button"
+                            onClick={() => markRead(n.id)}
+                            className="text-xs text-indigo-600 hover:underline ml-2"
+                            aria-label="Mark read"
+                          >
+                            Mark read
+                          </button>
+                        ) : (
+                          <span className="ml-2 text-xs text-gray-400" aria-label="Read">
+                            Read
+                          </span>
+                        )}
                       </div>
                     );
                   }}
