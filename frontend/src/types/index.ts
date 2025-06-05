@@ -15,6 +15,7 @@ export interface ArtistProfile {
   id: number;
   user_id: number;
   business_name: string;
+  custom_subtitle?: string | null;
   description?: string | null;
   location?: string | null;
   hourly_rate?: number | string | null;
