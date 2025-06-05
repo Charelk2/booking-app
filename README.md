@@ -45,6 +45,8 @@ The booking wizard also features a new **Review** step. This shows a preview of 
 Artist profile pages now link to this wizard via a "Start Booking" button which navigates to `/booking?artist_id={id}`.
 After submitting a booking request, clients are redirected straight to the associated chat thread so they can continue the conversation. The chat interface uses polished message bubbles and aligns your own messages on the right, similar to Airbnb's inbox. The automatic "Requesting ..." and "Booking request sent" entries that previously appeared at the top of each conversation have been removed so the thread begins with meaningful details.
 
+The chat now auto-scrolls after each message, shows image previews before sending, and keeps the input bar fixed above the keyboard on mobile. A subtle timestamp appears under each bubble, avatars display initials, and the Personalized Video flow shows a progress bar like "1/3 questions answered" with a typing indicator when waiting for the client.
+
 ### Service Types
 
 Services now include a required **service_type** field with the following options:
