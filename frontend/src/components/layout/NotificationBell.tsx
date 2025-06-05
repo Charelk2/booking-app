@@ -8,22 +8,22 @@ import { formatDistanceToNow } from 'date-fns';
 import useNotifications from '@/hooks/useNotifications';
 import type { Notification } from '@/types';
 
-// TODO: load notifications incrementally (pagination or infinite scroll)
-// NOTE: The backend API does not yet support pagination (see
-// `backend/app/api/api_notification.py`). Once endpoints accept page/limit
-// parameters, update this component to request pages on demand and provide
-// a "Load more" button or infinite scroll.
-
 // Displays a dropdown of recent notifications. Unread counts update via the
-// `useNotifications` hook. When backend pagination arrives this file will handle
-// incremental loading for better performance on large accounts.
+// `useNotifications` hook. Notifications are loaded incrementally for better
+// performance on large accounts.
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
 }
 
 export default function NotificationBell() {
-  const { notifications, unreadCount, markRead } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markRead,
+    loadMore,
+    hasMore,
+  } = useNotifications();
   const router = useRouter();
 
   const handleClick = async (n: Notification) => {
@@ -126,6 +126,17 @@ export default function NotificationBell() {
               ))}
             </div>
           ))}
+          {hasMore && (
+            <div className="px-4 py-2 border-t border-gray-200 text-center">
+              <button
+                type="button"
+                onClick={loadMore}
+                className="text-xs text-indigo-600 hover:underline focus:outline-none"
+              >
+                Load more
+              </button>
+            </div>
+          )}
         </Menu.Items>
       </Transition>
     </Menu>
