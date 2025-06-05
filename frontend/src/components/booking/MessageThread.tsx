@@ -180,6 +180,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             minute: '2-digit',
             hour12: false,
           });
+          const timeClass = `ml-3 text-[10px] font-light ${isClientMessage ? 'text-white' : 'text-black'}`;
 
           return (
             <div
@@ -215,9 +216,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                       View attachment
                     </a>
                   )}
-                  <span className="ml-1 text-xs font-light text-white">
-                    {timeString}
-                  </span>
+                  <span className={timeClass}>{timeString}</span>
                 </div>
                 {isSelf && (
                   <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
