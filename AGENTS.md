@@ -14,7 +14,7 @@ This file documents the key automation, agent modules, and service components in
 | **Quote Generator**              | Gathers performance, provider, travel, and accommodation costs for client | backend/app/api/api_quote.py, frontend/components/QuoteSummary.tsx                 | Runs after all booking info is entered         |
 | **Quote Preview Agent**          | Shows estimated total during final booking step | frontend/components/booking/steps/ReviewStep.tsx | On review step before submitting request |
 | **Payment Agent**                | Manages payment workflows, booking status update, confirmation            | backend/app/api/api_payment.py (planned), frontend/components/PaymentForm.tsx      | On payment page/booking confirmation           |
-| **Notification Agent**           | Sends emails, chat alerts, and booking status updates                     | backend/app/notifications/ (if implemented), frontend/hooks/useNotifications.ts     | Triggered on status changes, messages, actions |
+| **Notification Agent**           | Sends emails, chat alerts, and booking status updates                     | backend/app/api/api_notification.py, backend/app/utils/notifications.py, frontend/hooks/useNotifications.ts | Triggered on status changes, messages, actions |
 | **Chat Agent**                   | Manages client-artist/support chat, delivers new message notifications    | backend/app/api/api_chat.py, frontend/components/Chat.tsx                          | Always-on for active bookings                  |
 | **Availability Agent**           | Handles real-time artist/service availability checks                      | backend/app/api/v1/api_artist.py, frontend/components/booking/BookingWizard.tsx                | On date/service selection, booking start       |
 | **Form State Agent**             | Maintains progress, handles multi-step UX, restores unfinished bookings   | frontend/components/booking/BookingWizard.tsx, frontend/contexts/BookingContext.tsx         | Throughout user session                        |
@@ -64,7 +64,7 @@ This file documents the key automation, agent modules, and service components in
 
 * **Purpose:** Sends transactional emails, booking updates, reminders, and chat alerts.
 * **Frontend:** `useNotifications.ts` for popups/toasts, badge updates.
-* **Backend:** Notification module or function (email/SMS integration planned or present in `notifications/`).
+* **Backend:** `api_notification.py` exposes CRUD endpoints while `utils/notifications.py` persists alerts in the `notifications` table.
 
 ### 8. Chat Agent
 

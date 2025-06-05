@@ -51,7 +51,7 @@ def create_booking_request(
     # The chat thread used to include a generic "Booking request sent" system
     # message immediately after creation. This extra message cluttered the
     # conversation view, so it has been removed.
-    notify_user_new_booking_request(artist_user, new_request.id)
+    notify_user_new_booking_request(db, artist_user, new_request.id)
     return new_request
 
 @router.get("/me/client", response_model=List[schemas.BookingRequestResponse])
