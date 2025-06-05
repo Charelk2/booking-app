@@ -167,3 +167,12 @@ export interface ArtistSoundPreference {
   created_at?: string;
   updated_at?: string;
 }
+
+export interface Notification {
+  id: number;
+  user_id: number;
+  type: 'new_message' | 'new_booking_request';
+  message: string;
+  is_read: boolean;
+  timestamp: string;
+}

@@ -6,6 +6,7 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import NotificationBell from './NotificationBell';
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -52,6 +53,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   </div>
                 </div>
                 <div className="hidden sm:ml-6 sm:flex sm:items-center">
+                  {user && <NotificationBell />}
                   {user ? (
                     <Menu as="div" className="relative ml-3">
                       <div>
