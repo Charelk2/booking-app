@@ -26,6 +26,7 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterForm) => {
     try {
       const { confirmPassword, ...userData } = data;
+      void confirmPassword;
       await registerUser(userData);
       alert('Registration successful! Please log in.');
       router.push('/login');
