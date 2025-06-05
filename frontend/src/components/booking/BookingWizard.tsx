@@ -17,9 +17,17 @@ import LocationStep from './steps/LocationStep';
 import GuestsStep from './steps/GuestsStep';
 import VenueStep from './steps/VenueStep';
 import NotesStep from './steps/NotesStep';
+import ReviewStep from './steps/ReviewStep';
 import SummarySidebar from './SummarySidebar';
 
-const steps = ['Date & Time', 'Location', 'Attendees', 'Venue Type', 'Notes'];
+const steps = [
+  'Date & Time',
+  'Location',
+  'Attendees',
+  'Venue Type',
+  'Notes',
+  'Review',
+];
 
 const schema = yup.object({
   date: yup.date().required().min(new Date(), 'Pick a future date'),
@@ -90,6 +98,28 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
     }
   });
 
+  const submitRequest = handleSubmit(async (vals) => {
+    const payload: BookingRequestCreate = {
+      artist_id: artistId,
+      proposed_datetime_1:
+        vals.date && vals.time
+          ? new Date(`${format(vals.date, 'yyyy-MM-dd')}T${vals.time}`).toISOString()
+          : undefined,
+      message: vals.notes,
+      status: 'pending_quote',
+    };
+    try {
+      if (requestId) {
+        await updateBookingRequest(requestId, payload);
+      } else {
+        await createBookingRequest(payload);
+      }
+      alert('Request submitted');
+    } catch (e) {
+      setError('Failed to submit request');
+    }
+  });
+
   const renderStep = () => {
     switch (step) {
       case 0:
@@ -106,21 +136,28 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
         return <GuestsStep control={control} />;
       case 3:
         return <VenueStep control={control} />;
-      default:
+      case 4:
         return <NotesStep control={control} />;
+      default:
+        return <ReviewStep />;
     }
   };
 
   return (
     <div className="lg:flex lg:space-x-4">
       <div className="flex-1 space-y-4">
-        <div className="flex" aria-label="Progress">
+        <div className="flex items-center" aria-label="Progress">
           {steps.map((label, i) => (
-            <div
-              key={label}
-              className={`flex-1 text-center p-2 text-sm ${i === step ? 'bg-indigo-600 text-white' : 'bg-gray-200'}`}
-            >
-              {label}
+            <div key={label} className="flex items-center flex-1">
+              <div
+                className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium ${i <= step ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}
+              >
+                {i + 1}
+              </div>
+              <span className="ml-2 text-sm">{label}</span>
+              {i < steps.length - 1 && (
+                <div className="flex-1 border-t border-gray-200 mx-2" />
+              )}
             </div>
           ))}
         </div>
@@ -137,13 +174,30 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
             </button>
           )}
           {step < steps.length - 1 ? (
-            <button type="button" onClick={next} className="ml-auto px-4 py-2 bg-indigo-600 text-white rounded">
+            <button
+              type="button"
+              onClick={next}
+              className="ml-auto px-4 py-2 bg-indigo-600 text-white rounded"
+            >
               Next
             </button>
           ) : (
-            <button type="button" onClick={saveDraft} className="ml-auto px-4 py-2 bg-green-600 text-white rounded">
-              Save Draft
-            </button>
+            <div className="flex space-x-2 ml-auto">
+              <button
+                type="button"
+                onClick={saveDraft}
+                className="px-4 py-2 bg-gray-200 rounded"
+              >
+                Save Draft
+              </button>
+              <button
+                type="button"
+                onClick={submitRequest}
+                className="px-4 py-2 bg-green-600 text-white rounded"
+              >
+                Submit Request
+              </button>
+            </div>
           )}
         </div>
       </div>
