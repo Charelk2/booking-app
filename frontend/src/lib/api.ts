@@ -58,7 +58,9 @@ export const login = (email: string, password: string) => {
 const API_V1 = '/api/v1';
 
 // Helper to ensure API responses always include `user_id`
-const normalizeArtistProfile = (profile: any): ArtistProfile => ({
+const normalizeArtistProfile = (
+  profile: Partial<ArtistProfile> | ArtistProfile
+): ArtistProfile => ({
   ...profile,
   user_id: profile.user_id ?? profile.id,
 });
