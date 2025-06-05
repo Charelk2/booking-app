@@ -52,6 +52,7 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
   const {
     control,
     handleSubmit,
+    trigger,
     watch,
     formState: { errors },
   } = useForm<EventDetails>({
@@ -75,7 +76,30 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
       .catch(() => setArtistLocation(null));
   }, [artistId]);
 
-  const next = handleSubmit(() => setStep(step + 1));
+  // Validate only the fields relevant to the current step. This prevents
+  // "Please fix the errors above" from appearing when later steps haven't
+  // been filled out yet.
+  const next = async () => {
+    let fields: (keyof EventDetails)[] = [];
+    switch (step) {
+      case 0:
+        fields = ['date', 'time'];
+        break;
+      case 1:
+        fields = ['location'];
+        break;
+      case 2:
+        fields = ['guests'];
+        break;
+      case 3:
+        fields = ['venueType'];
+        break;
+      default:
+        fields = [];
+    }
+    const valid = await trigger(fields);
+    if (valid) setStep(step + 1);
+  };
   const prev = () => setStep(step - 1);
 
   const saveDraft = handleSubmit(async (vals) => {
