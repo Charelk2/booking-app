@@ -42,6 +42,8 @@ npm run dev
 ```
 
 The frontend expects the backend to be running on `http://localhost:8000`.
+If the backend or WebSocket server runs elsewhere, set `NEXT_PUBLIC_API_URL` and
+`NEXT_PUBLIC_WS_URL` in `.env.local` accordingly.
 ## Development
 
 ### Setup
@@ -83,6 +85,7 @@ Artist profile pages now link to this wizard via a "Start Booking" button which 
 After submitting a booking request, clients are redirected straight to the associated chat thread so they can continue the conversation. The chat interface uses polished message bubbles and aligns your own messages on the right, similar to Airbnb's inbox. The automatic "Requesting ..." and "Booking request sent" entries that previously appeared at the top of each conversation have been removed so the thread begins with meaningful details.
 
 The chat now auto-scrolls after each message, shows image previews before sending, and keeps the input bar fixed above the keyboard on mobile. A subtle timestamp appears inside each bubble, avatars display initials, and the Personalized Video flow shows a progress bar like "1/3 questions answered" with a typing indicator when waiting for the client. Once all questions are answered the progress bar disappears automatically.
+- Chat updates are now delivered over a WebSocket connection for real-time conversations without polling.
 - The Personalized Video progress bar now disappears once all questions are answered.
 The latest update refines the chat bubbles even further: each message now shows its send time inside the bubble. The timestamp sits beneath the text in a tiny gray font and the input field still highlights when focused for better accessibility.
 - When artists are logged in, their own messages now appear in blue bubbles just like the client view, while the other person's messages show in gray.
