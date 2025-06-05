@@ -1,6 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import {
+  useEffect,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
 import { Message, MessageCreate, Quote } from '@/types';
 import {
   getMessagesForBookingRequest,
@@ -11,13 +16,18 @@ import {
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
+export interface MessageThreadHandle {
+  refreshMessages: () => void;
+}
+
 interface MessageThreadProps {
   bookingRequestId: number;
   /** Optional callback invoked after a message is successfully sent */
   onMessageSent?: () => void;
 }
 
-export default function MessageThread({ bookingRequestId, onMessageSent }: MessageThreadProps) {
+const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
+  function MessageThread({ bookingRequestId, onMessageSent }: MessageThreadProps, ref) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [quotes, setQuotes] = useState<Record<number, Quote>>({});
@@ -48,6 +58,13 @@ export default function MessageThread({ bookingRequestId, onMessageSent }: Messa
       console.error('Failed to fetch quotes', err);
     }
   };
+
+  useImperativeHandle(ref, () => ({
+    refreshMessages: async () => {
+      await fetchMessages();
+      await fetchQuotes();
+    },
+  }));
 
   useEffect(() => {
     fetchMessages();
@@ -197,4 +214,6 @@ export default function MessageThread({ bookingRequestId, onMessageSent }: Messa
       )}
     </div>
   );
-}
+});
+
+export default MessageThread;
