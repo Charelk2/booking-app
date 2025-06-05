@@ -134,6 +134,9 @@ are patched on startup to add this column if it's missing.
 From the artist dashboard you can now edit, delete, and rearrange your offered
 services. Use the up/down arrows next to a service to change its display order.
 
+Deleting a service now cascades removal to any related booking requests and
+their messages. Existing conversations will be cleaned up automatically.
+
 ### Artist Availability
 
 You can now query an artist's unavailable dates via:

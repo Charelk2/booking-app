@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Text, DateTime, Enum, ForeignKey, String
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from datetime import datetime
 import enum
 
@@ -28,6 +28,9 @@ class Message(BaseModel):
     attachment_url = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
-    booking_request = relationship("BookingRequest", backref="messages")
+    booking_request = relationship(
+        "BookingRequest",
+        backref=backref("messages", cascade="all, delete-orphan"),
+    )
     sender = relationship("User")
     quote = relationship("Quote")
