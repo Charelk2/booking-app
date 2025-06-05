@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import axios from 'axios';
 import MainLayout from '@/components/layout/MainLayout';
 import {
   ArtistProfile,
@@ -67,8 +68,6 @@ export default function ArtistProfilePage() {
     null
   );
 
-  // TODO: replace with your actual Auth logic to get current client’s ID
-  const currentUserId =  123;
 
   const [calendarDate, setCalendarDate] = useState<Date | null>(new Date());
   const bookingSectionRef = useRef<HTMLElement>(null);
@@ -201,12 +200,18 @@ export default function ArtistProfilePage() {
           router.push(`/booking-requests/${res.data.id}`);
         }
       }, 1000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating booking request:', err);
-      if (err.response?.data?.detail) {
+      if (
+        axios.isAxiosError(err) &&
+        err.response?.data?.detail
+      ) {
         setRequestError(extractErrorMessage(err.response.data.detail));
       } else {
-        const msg = err.message || 'Failed to send booking request. Please try again.';
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'Failed to send booking request. Please try again.';
         setRequestError(msg);
       }
     } finally {
@@ -332,7 +337,7 @@ export default function ArtistProfilePage() {
                     {artist.portfolio_urls.map((url, idx) => {
                       // Decide label/icon by URL domain
                       let text = 'Website';
-                      let IconComponent = GlobeAltIcon;
+                      const IconComponent = GlobeAltIcon;
                       const cleaned = url.toLowerCase();
                       if (cleaned.includes('instagram.com')) text = 'Instagram';
                       else if (cleaned.includes('youtube') || cleaned.includes('youtu.be')) text = 'YouTube';

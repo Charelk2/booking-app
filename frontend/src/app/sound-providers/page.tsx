@@ -41,7 +41,7 @@ export default function SoundProvidersPage() {
       setPrice('');
       setError(null);
       fetchProviders();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('Failed to create provider');
       console.error(err);
     }
