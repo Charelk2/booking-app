@@ -1,4 +1,5 @@
 'use client';
+// TODO: Replace interval polling with WebSocket updates for real-time chat
 
 import {
   useEffect,
@@ -16,6 +17,7 @@ import {
   createQuoteForRequest,
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import Button from '../ui/Button';
 
 export interface MessageThreadHandle {
   refreshMessages: () => void;
@@ -44,6 +46,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [quotes, setQuotes] = useState<Record<number, Quote>>({});
+  const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -65,9 +68,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       );
       setMessages(filtered);
       setErrorMsg(null);
+      setLoading(false);
     } catch (err) {
       console.error('Failed to fetch messages', err);
       setErrorMsg('Failed to load messages');
+      setLoading(false);
     }
   };
 
@@ -79,9 +84,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         map[q.id] = q;
       });
       setQuotes(map);
+      setLoading(false);
     } catch (err) {
       console.error('Failed to fetch quotes', err);
       setErrorMsg('Failed to load quotes');
+      setLoading(false);
     }
   };
 
@@ -93,6 +100,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   }));
 
   useEffect(() => {
+    setLoading(true);
     fetchMessages();
     fetchQuotes();
     const interval = setInterval(() => {
@@ -163,8 +171,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   return (
     <div className="border rounded-md p-4 bg-white flex flex-col h-96 space-y-2">
       <div className="flex-1 overflow-y-auto space-y-3">
-        {messages.length === 0 && !isSystemTyping && (
-          <p className="text-sm text-gray-500">No messages yet. Start the conversation below.</p>
+        {loading ? (
+          <div className="flex justify-center py-4" aria-label="Loading messages">
+            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-600" />
+          </div>
+        ) : (
+          messages.length === 0 && !isSystemTyping && (
+            <p className="text-sm text-gray-500">No messages yet. Start the conversation below.</p>
+          )
         )}
         {messages.map((msg) => {
           const isSystem = msg.message_type === 'system';
@@ -285,9 +299,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               placeholder="Type a message"
             />
             <input type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} />
-            <button type="submit" className="px-4 py-1 bg-indigo-600 text-white rounded-md">
+            <Button type="submit" className="px-4 py-1">
               Send
-            </button>
+            </Button>
           </form>
           {user.user_type === 'artist' && (
             <div>
@@ -307,26 +321,27 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                     onChange={(e) => setQuotePrice(e.target.value)}
                   />
                   <div className="flex gap-2">
-                    <button type="submit" className="px-3 py-1 bg-green-600 text-white rounded-md">
+                    <Button type="submit" className="px-3 py-1 bg-green-600 hover:bg-green-700 focus:ring-green-500 text-white">
                       Send Quote
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="secondary"
                       onClick={() => setShowQuoteForm(false)}
-                      className="px-3 py-1 rounded-md border"
+                      className="px-3 py-1"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </form>
               ) : (
-                <button
+                <Button
                   type="button"
                   onClick={() => setShowQuoteForm(true)}
                   className="mt-2 text-sm text-indigo-600 underline"
                 >
                   Send Quote
-                </button>
+                </Button>
               )}
             </div>
           )}
