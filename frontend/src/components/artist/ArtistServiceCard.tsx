@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Service } from '@/types';
-import Button from '@/components/ui/Button';
+import { Button, Card } from '@/components/ui';
 
 // TODO: replace local state with fetched data so updates reflect server values
 
@@ -15,10 +15,10 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
   const toggle = () => setExpanded((e) => !e);
 
   return (
-    <div
-      className="bg-white p-4 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow cursor-pointer"
+    <Card
       onClick={toggle}
       role="listitem"
+      className="p-4 cursor-pointer"
     >
       <div className="flex justify-between items-center" aria-expanded={expanded}>
         <h3 className="text-lg font-semibold text-gray-900 pr-2">{service.title}</h3>
@@ -48,6 +48,6 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
