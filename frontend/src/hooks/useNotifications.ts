@@ -1,8 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getNotifications, markNotificationRead } from '@/lib/api';
-import type { Notification } from '@/types';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  getNotifications,
+  getMessageThreads,
+  markNotificationRead,
+  markThreadRead,
+} from '@/lib/api';
+import type { Notification, ThreadNotification } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function useNotifications() {
@@ -13,12 +18,15 @@ export default function useNotifications() {
   const [page, setPage] = useState(0);
   const limit = 20;
 
+  const [threads, setThreads] = useState<ThreadNotification[]>([]);
+
   useEffect(() => {
     if (!user) return;
     loadMore();
-  }, [user]);
+    loadThreads();
+  }, [user, loadMore, loadThreads]);
 
-  const loadMore = async () => {
+  const loadMore = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -31,9 +39,22 @@ export default function useNotifications() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, page]);
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const loadThreads = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await getMessageThreads();
+      setThreads(res.data);
+    } catch (err) {
+      console.error('Failed to fetch threads:', err);
+      setError('Failed to load notifications.');
+    }
+  }, [user]);
+
+  const unreadCount =
+    notifications.filter((n) => !n.is_read).length +
+    threads.reduce((acc, t) => acc + t.unread_count, 0);
 
   const markRead = async (id: number) => {
     try {
@@ -47,12 +68,24 @@ export default function useNotifications() {
     }
   };
 
+  const markThread = async (requestId: number) => {
+    try {
+      await markThreadRead(requestId);
+      setThreads((prev) => prev.filter((t) => t.booking_request_id !== requestId));
+    } catch (err) {
+      console.error('Failed to mark thread read:', err);
+      setError('Failed to update notification.');
+    }
+  };
+
   return {
     notifications,
+    threads,
     unreadCount,
     loading,
     error,
     markRead,
+    markThread,
     loadMore,
     hasMore: notifications.length % limit === 0,
   };
