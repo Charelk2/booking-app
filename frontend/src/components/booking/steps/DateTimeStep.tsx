@@ -1,6 +1,5 @@
 diff --git a/frontend/src/app/artists/[id]/page.tsx b/frontend/src/app/artists/[id]/page.tsx
 index 0b22270e0f68d00317aa8f9a05e9cf503bc9fa08..71c9e9d39a4f9e742d663b5eb43903e8c43f24de 100644
-
     b/frontend/src/app/artists/[id]/page.tsx
 @@ -7,65 +7,69 @@ import MainLayout from '@/components/layout/MainLayout';
  import {
