@@ -1,6 +1,6 @@
 'use client';
-import { useCallback, useEffect } from 'react';
-import MessageThread from './MessageThread';
+import { useCallback, useEffect, useRef } from 'react';
+import MessageThread, { MessageThreadHandle } from './MessageThread';
 import { getMessagesForBookingRequest, postMessageToBookingRequest } from '@/lib/api';
 import { computeVideoProgress, videoQuestions } from '@/lib/videoFlow';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +16,7 @@ interface Props {
  */
 export default function PersonalizedVideoFlow({ bookingRequestId }: Props) {
   const { user } = useAuth();
+  const threadRef = useRef<MessageThreadHandle>(null);
 
   const refreshFlow = useCallback(async () => {
     try {
@@ -24,6 +25,7 @@ export default function PersonalizedVideoFlow({ bookingRequestId }: Props) {
       const progress = computeVideoProgress(msgs);
 
       if (user?.user_type === 'client') {
+        let sent = false;
         if (progress < videoQuestions.length) {
           const next = videoQuestions[progress];
           const alreadyAsked = msgs.some(
@@ -34,6 +36,7 @@ export default function PersonalizedVideoFlow({ bookingRequestId }: Props) {
               content: next,
               message_type: 'system',
             });
+            sent = true;
           }
         } else {
           const done = msgs.some(
@@ -44,7 +47,11 @@ export default function PersonalizedVideoFlow({ bookingRequestId }: Props) {
               content: READY_MESSAGE,
               message_type: 'system',
             });
+            sent = true;
           }
+        }
+        if (sent) {
+          threadRef.current?.refreshMessages();
         }
       }
     } catch (err) {
@@ -60,5 +67,11 @@ export default function PersonalizedVideoFlow({ bookingRequestId }: Props) {
     return () => clearInterval(id);
   }, [refreshFlow]);
 
-  return <MessageThread bookingRequestId={bookingRequestId} onMessageSent={refreshFlow} />;
+  return (
+    <MessageThread
+      ref={threadRef}
+      bookingRequestId={bookingRequestId}
+      onMessageSent={refreshFlow}
+    />
+  );
 }
