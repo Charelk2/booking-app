@@ -207,13 +207,28 @@ export default function DashboardPage() {
                 <table className="min-w-full divide-y divide-gray-300">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                      <th
+                        scope="col"
+                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
+                      >
                         {user.user_type === 'artist' ? 'Client' : 'Artist'}
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
+                        Service
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
                         Status
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th
+                        scope="col"
+                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                      >
                         Created
                       </th>
                     </tr>
@@ -222,9 +237,20 @@ export default function DashboardPage() {
                     {bookingRequests.map((req) => (
                       <tr key={req.id}>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                          <Link href={`/booking-requests/${req.id}`} className="text-indigo-600 hover:underline">
+                          <div className="font-medium text-gray-900">
+                            {user.user_type === 'artist'
+                              ? `${req.client?.first_name} ${req.client?.last_name}`
+                              : `${req.artist?.first_name} ${req.artist?.last_name}`}
+                          </div>
+                          <Link
+                            href={`/booking-requests/${req.id}`}
+                            className="text-indigo-600 hover:underline text-sm"
+                          >
                             View Chat
                           </Link>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {req.service?.title || '—'}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{req.status}</td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
