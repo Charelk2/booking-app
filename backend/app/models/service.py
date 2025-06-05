@@ -1,7 +1,17 @@
 # backend/app/models/service.py
-from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, Text, Enum as SQLAlchemyEnum
 from sqlalchemy.orm import relationship
 from .base import BaseModel
+import enum
+
+
+class ServiceType(str, enum.Enum):
+    """Allowed service categories."""
+    LIVE_PERFORMANCE = "Live Performance"
+    VIRTUAL_APPEARANCE = "Virtual Appearance"
+    PERSONALIZED_VIDEO = "Personalized Video"
+    CUSTOM_SONG = "Custom Song"
+    OTHER = "Other"
 
 class Service(BaseModel):
     __tablename__ = "services"
@@ -12,6 +22,11 @@ class Service(BaseModel):
     description = Column(Text, nullable=True)
     price       = Column(Numeric(10, 2), nullable=False)
     duration_minutes = Column(Integer, nullable=False)
+    service_type = Column(
+        SQLAlchemyEnum(ServiceType),
+        nullable=False,
+        default=ServiceType.LIVE_PERFORMANCE,
+    )
 
     # Link back to the ArtistProfileV2
     artist = relationship("ArtistProfileV2", back_populates="services")

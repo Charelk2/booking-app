@@ -32,6 +32,7 @@ export interface Service {
   artist_id: number;
   title: string;
   description: string;
+  service_type: 'Live Performance' | 'Virtual Appearance' | 'Personalized Video' | 'Custom Song' | 'Other';
   duration_minutes: number;
   price: number;
   artist: ArtistProfile;

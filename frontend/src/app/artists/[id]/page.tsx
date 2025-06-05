@@ -14,6 +14,7 @@ import {
   getArtists,
   getArtistServices,
   getArtistReviews,
+  createBookingRequest,
 } from '@/lib/api';
 
 import {
@@ -97,8 +98,25 @@ export default function ArtistProfilePage() {
       ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
       : null;
 
-  const handleScrollToBooking = () => {
-    router.push(`/booking?artist_id=${artistId}`);
+  const handleBookService = async (service: Service) => {
+    if (
+      service.service_type === 'Live Performance' ||
+      service.service_type === 'Virtual Appearance'
+    ) {
+      router.push(`/booking?artist_id=${artistId}&service_id=${service.id}`);
+      return;
+    }
+    try {
+      const res = await createBookingRequest({
+        artist_id: artistId,
+        service_id: service.id,
+        message: `Requesting ${service.title} (${service.service_type})`,
+      });
+      router.push(`/booking-requests/${res.data.id}`);
+    } catch (err) {
+      console.error('Failed to create request', err);
+      alert('Failed to create request');
+    }
   };
 
 
@@ -273,6 +291,7 @@ export default function ArtistProfilePage() {
                         {service.description && (
                           <p className="mt-2 text-gray-600 text-sm">{service.description}</p>
                         )}
+                        <p className="mt-1 text-sm text-gray-500">Type: {service.service_type}</p>
                         <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
                           <p className="text-2xl font-bold text-gray-800">${Number(service.price).toFixed(2)}</p>
                           <p className="text-sm text-gray-500">
@@ -280,7 +299,7 @@ export default function ArtistProfilePage() {
                           </p>
                         </div>
                         <button
-                          onClick={handleScrollToBooking}
+                          onClick={() => handleBookService(service)}
                           className="mt-6 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
                         >
                           Book {service.title}
