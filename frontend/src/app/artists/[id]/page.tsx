@@ -32,7 +32,7 @@ import 'react-calendar/dist/Calendar.css';
 import '@/styles/custom-calendar.css';
 import { format } from 'date-fns';
 import { enUS } from 'date-fns/locale';
-import { getFullImageUrl } from '@/lib/utils';
+import { getFullImageUrl, normalizeService } from '@/lib/utils';
 
 export default function ArtistProfilePage() {
   const params = useParams();
@@ -63,17 +63,9 @@ export default function ArtistProfilePage() {
           getArtists(),
         ]);
         setArtist(artistRes.data);
-        const processedServices = servicesRes.data.map((service: Service) => ({
-          ...service,
-          price:
-            typeof service.price === 'string'
-              ? parseFloat(service.price)
-              : service.price,
-          duration_minutes:
-            typeof service.duration_minutes === 'string'
-              ? parseInt(service.duration_minutes as unknown as string, 10)
-              : service.duration_minutes,
-        }));
+        const processedServices = servicesRes.data.map((service: Service) =>
+          normalizeService(service)
+        );
         setServices(processedServices);
         setReviews(reviewsRes.data);
 
