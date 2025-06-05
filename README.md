@@ -111,6 +111,8 @@ The chat thread now displays a friendly placeholder when no messages are present
 - Artist profile sections now load independently for faster page rendering and show loading states per section.
 - Cover and profile images use Next.js `<Image>` for responsive sizing and better performance.
 - Service cards refresh their data when expanded so pricing stays accurate.
+- Fixed a crash in the notification dropdown caused by calling hooks before they
+  were initialized.
 
 The registration page now includes a password strength meter and shows a toast notification once an account is created successfully.
 Both auth pages use new shared form components and include optional Google and GitHub sign-in buttons.
