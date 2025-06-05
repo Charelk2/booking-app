@@ -32,6 +32,7 @@ from .api import (
     api_booking_request,
     api_quote,
     api_sound_provider,
+    api_ws,
     api_message,
     api_notification,
 )
@@ -100,6 +101,7 @@ async def catch_exceptions(request: Request, call_next):
             content={"detail": "Internal Server Error"},
         )
 
+
 api_prefix = settings.API_V1_STR  # usually something like "/api/v1"
 
 
@@ -146,6 +148,12 @@ app.include_router(
     api_message.router,
     prefix=f"{api_prefix}",
     tags=["messages"],
+)
+
+app.include_router(
+    api_ws.router,
+    prefix=f"{api_prefix}",
+    tags=["ws"],
 )
 
 # ─── NOTIFICATION ROUTES (under /api/v1) ───────────────────────────────────────
