@@ -83,15 +83,19 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
 
   return (
     <div className="space-y-2">
-      <div className="text-sm text-gray-600">
-        {progress}/{videoQuestions.length} questions answered
-      </div>
-      <div className="w-full bg-gray-200 rounded h-2" aria-hidden="true">
-        <div
-          className="bg-indigo-600 h-2 rounded"
-          style={{ width: `${(progress / videoQuestions.length) * 100}%` }}
-        />
-      </div>
+      {progress < videoQuestions.length && (
+        <>
+          <div className="text-sm text-gray-600">
+            {progress}/{videoQuestions.length} questions answered
+          </div>
+          <div className="w-full bg-gray-200 rounded h-2" aria-hidden="true">
+            <div
+              className="bg-indigo-600 h-2 rounded"
+              style={{ width: `${(progress / videoQuestions.length) * 100}%` }}
+            />
+          </div>
+        </>
+      )}
       <MessageThread
         ref={threadRef}
         bookingRequestId={bookingRequestId}
