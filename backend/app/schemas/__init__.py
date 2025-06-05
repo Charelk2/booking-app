@@ -27,6 +27,7 @@ from .request_quote import (
 )
 from .message import MessageCreate, MessageResponse
 from .notification import NotificationCreate, NotificationResponse
+from .notification import ThreadNotificationResponse
 
 __all__ = [
     "UserBase",
@@ -65,6 +66,7 @@ __all__ = [
     "MessageResponse",
     "NotificationCreate",
     "NotificationResponse",
+    "ThreadNotificationResponse",
     "SoundProviderBase",
     "SoundProviderCreate",
     "SoundProviderUpdate",
