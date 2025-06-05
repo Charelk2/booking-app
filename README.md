@@ -22,8 +22,10 @@ uses `SQLAlchemyEnum(ServiceType, values_callable=lambda e: [v.value for v in e]
 ### CORS configuration
 
 The backend reads allowed origins from the `.env` file. By default it
-includes both `http://localhost:3000` and `http://localhost:3002`. If your
-frontend runs on another origin, update the `CORS_ORIGINS` entry in `.env`.
+includes both `http://localhost:3000` and `http://localhost:3002`.
+The value can be provided as a JSON array or a comma separated string.
+If your frontend runs on another origin, update the `CORS_ORIGINS` entry
+in `.env`.
 
 ## Frontend
 

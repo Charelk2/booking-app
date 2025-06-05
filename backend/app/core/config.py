@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from pydantic import field_validator
 from typing import Any
+import json
 
 
 class Settings(BaseSettings):
@@ -22,7 +23,14 @@ class Settings(BaseSettings):
 
     @field_validator("CORS_ORIGINS", mode="before")
     def split_origins(cls, v: Any) -> list[str]:
+        """Parse comma-separated or JSON list of origins from environment."""
         if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
+            except json.JSONDecodeError:
+                pass
             return [s.strip() for s in v.split(",") if s.strip()]
         return v
 
