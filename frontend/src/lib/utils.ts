@@ -1,4 +1,5 @@
 import api from './api';
+import { Service } from '@/types';
 
 export const getFullImageUrl = (relativePath: string | undefined | null): string | null => {
   if (!relativePath) return null;
@@ -30,3 +31,15 @@ export const extractErrorMessage = (detail: unknown): string => {
   }
   return String(detail);
 };
+
+export const normalizeService = (service: Service): Service => ({
+  ...service,
+  price:
+    typeof service.price === 'string'
+      ? parseFloat(service.price)
+      : service.price,
+  duration_minutes:
+    typeof service.duration_minutes === 'string'
+      ? parseInt(service.duration_minutes as unknown as string, 10)
+      : service.duration_minutes,
+});
