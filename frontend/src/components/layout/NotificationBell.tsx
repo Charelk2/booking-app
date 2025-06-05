@@ -3,7 +3,8 @@
 import { Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { Menu, Transition } from '@headlessui/react';
-import { BellIcon } from '@heroicons/react/24/outline';
+import { BellIcon, ChatBubbleOvalLeftEllipsisIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { formatDistanceToNow } from 'date-fns';
 import useNotifications from '@/hooks/useNotifications';
 import type { Notification } from '@/types';
 
@@ -48,19 +49,24 @@ export default function NotificationBell() {
           )}
           {notifications.map((n) => (
             <Menu.Item key={n.id}>
-              {({ active }) => (
-                <button
-                  type="button"
-                  onClick={() => handleClick(n)}
-                  className={classNames(
-                    active ? 'bg-gray-100' : '',
-                    'block w-full text-left px-4 py-2 text-sm',
-                    n.is_read ? 'text-gray-500' : 'font-medium'
-                  )}
-                >
-                  {n.message}
-                </button>
-              )}
+              {({ active }) => {
+                const Icon = n.type === 'new_message' ? ChatBubbleOvalLeftEllipsisIcon : CalendarIcon;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => handleClick(n)}
+                    className={classNames(
+                      active ? 'bg-gray-100' : '',
+                      'flex w-full items-start text-left px-4 py-2 text-sm gap-2',
+                      n.is_read ? 'text-gray-500' : 'font-medium'
+                    )}
+                  >
+                    <Icon className="h-4 w-4 mt-0.5" />
+                    <span className="flex-1">{n.message}</span>
+                    <span className="text-xs text-gray-400">{formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}</span>
+                  </button>
+                );
+              }}
             </Menu.Item>
           ))}
         </Menu.Items>

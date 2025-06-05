@@ -98,6 +98,13 @@ The frontend now shows a notification bell in the top navigation. Clicking it re
 Each notification links directly to the related booking request so you can jump straight into the conversation.
 The chat thread now displays a friendly placeholder when no messages are present and formats quote prices with the appropriate currency symbol. Any errors fetching or sending messages appear below the input field so problems can be spotted quickly.
 
+### Artist profile polish (2025-06)
+- Added ARIA roles and clearer empty states for better accessibility.
+- Service cards collapse on mobile with larger tap areas.
+- Explore Other Artists offers grid/list toggles and shows specialties.
+- Notification dropdown now displays icons and timestamps.
+- Buttons and modals include subtle scale animations.
+
 The registration page now includes a password strength meter and shows a toast notification once an account is created successfully.
 Both auth pages use new shared form components and include optional Google and GitHub sign-in buttons.
 
