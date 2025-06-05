@@ -204,7 +204,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                     </div>
                   ) : (
                     msg.content
-                  )}
+                  )}{' '}
                   {msg.attachment_url && (
                     <a
                       href={msg.attachment_url}
@@ -215,12 +215,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                       View attachment
                     </a>
                   )}
-                  {/* Client messages display time inside the bubble */}
-                  {isClientMessage && !isSystem && (
-                    <div className="text-xs font-light text-white mt-1 text-right">
-                      {timeString}
-                    </div>
-                  )}
+                  <span className="ml-1 text-xs font-light text-white">
+                    {timeString}
+                  </span>
                 </div>
                 {isSelf && (
                   <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
@@ -228,12 +225,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   </div>
                 )}
               </div>
-              {/* Artist and system messages show time below the bubble */}
-              {!isClientMessage && (
-                <div className="text-xs font-light text-gray-500 mt-1 px-8">
-                  {timeString}
-                </div>
-              )}
+              {/* Artist and system messages previously displayed time below the bubble. Now shown inside bubble. */}
             </div>
           );
         })}
@@ -269,13 +261,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           )}
           <form
             onSubmit={handleSend}
-            className="sticky bottom-0 flex items-center gap-2 border rounded-md p-2 bg-white"
+            className="sticky bottom-0 flex items-center gap-2 border rounded-md p-2 bg-white focus-within:ring-2 focus-within:ring-indigo-300"
           >
             <input
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              className="flex-grow border rounded-md px-2 py-1"
+              className="flex-grow border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-300"
               placeholder="Type a message"
             />
             <input type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} />
