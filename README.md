@@ -94,6 +94,8 @@ The frontend now shows a notification bell in the top navigation. Clicking it re
 Each notification links directly to the related booking request so you can jump straight into the conversation.
 The chat thread now displays a friendly placeholder when no messages are present and formats quote prices with the appropriate currency symbol. Any errors fetching or sending messages appear below the input field so problems can be spotted quickly.
 
+The registration page now includes a password strength meter and shows a toast notification once an account is created successfully.
+
 ### Service Types
 
 Services now include a required **service_type** field with the following options:
