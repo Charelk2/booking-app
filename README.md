@@ -81,6 +81,10 @@ This version introduces basic management of sound providers and an API for quick
 
 The booking wizard also features a new **Review** step. This shows a preview of the calculated quote and summarizes all entered details with an improved progress indicator and clearer submit buttons.
 
+### Shared stepper and form hook
+
+The wizard now uses a reusable `Stepper` component along with a `useBookingForm` hook to manage form state. These utilities live under `src/components/ui` and `src/hooks` and can be reused by other multi-step forms.
+
 Artist profile pages now link to this wizard via a "Start Booking" button which navigates to `/booking?artist_id={id}`.
 After submitting a booking request, clients are redirected straight to the associated chat thread so they can continue the conversation. The chat interface uses polished message bubbles and aligns your own messages on the right, similar to Airbnb's inbox. The automatic "Requesting ..." and "Booking request sent" entries that previously appeared at the top of each conversation have been removed so the thread begins with meaningful details.
 
