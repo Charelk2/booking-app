@@ -8,6 +8,7 @@ import {
   getArtistAvailability,
   createBookingRequest,
   updateBookingRequest,
+  postMessageToBookingRequest,
   getArtist,
 } from '@/lib/api';
 import { BookingRequestCreate } from '@/types';
@@ -138,11 +139,25 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
       status: 'pending_quote',
     };
     try {
+      let res;
       if (requestId) {
-        await updateBookingRequest(requestId, payload);
+        res = await updateBookingRequest(requestId, payload);
       } else {
-        await createBookingRequest(payload);
+        res = await createBookingRequest(payload);
+        setRequestId(res.data.id);
       }
+      const idToUse = requestId || res.data.id;
+      const detailLines = [
+        `Date: ${format(vals.date, 'yyyy-MM-dd')}${vals.time ? ` ${vals.time}` : ''}`,
+        `Location: ${vals.location}`,
+        `Guests: ${vals.guests}`,
+        `Venue Type: ${vals.venueType}`,
+        vals.notes ? `Notes: ${vals.notes}` : null,
+      ].filter(Boolean).join('\n');
+      await postMessageToBookingRequest(idToUse, {
+        content: `Booking details:\n${detailLines}`,
+        message_type: 'system',
+      });
       alert('Request submitted');
     } catch (e) {
       setError('Failed to submit request');
