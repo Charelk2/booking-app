@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -316,12 +317,13 @@ export default function EditArtistProfilePage() {
       setShowCropper(false);
       setOriginalImageSrc(null);
       setCompletedCrop(undefined);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to crop or upload image:', err);
-      if (err.response?.data?.detail) {
+      if (axios.isAxiosError(err) && err.response?.data?.detail) {
         setError(extractErrorMessage(err.response.data.detail));
       } else {
-        const msg = err.message || 'Failed to upload image.';
+        const msg =
+          err instanceof Error ? err.message : 'Failed to upload image.';
         setError(msg);
       }
     } finally {
@@ -342,12 +344,13 @@ export default function EditArtistProfilePage() {
       setCoverPhotoUrl(getFullImageUrl(newRelativeCoverUrl));
       setProfile((prev) => ({ ...prev, cover_photo_url: newRelativeCoverUrl || undefined }));
       setCoverPhotoSuccessMessage('Cover photo uploaded successfully!');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to upload cover photo:', err);
-      if (err.response?.data?.detail) {
+      if (axios.isAxiosError(err) && err.response?.data?.detail) {
         setCoverPhotoError(extractErrorMessage(err.response.data.detail));
       } else {
-        const msg = err.message || 'Failed to upload cover photo.';
+        const msg =
+          err instanceof Error ? err.message : 'Failed to upload cover photo.';
         setCoverPhotoError(msg);
       }
     } finally {

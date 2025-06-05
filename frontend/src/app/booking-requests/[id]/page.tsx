@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import MessageThread from '@/components/booking/MessageThread';
 import { getBookingRequestById } from '@/lib/api';
@@ -10,7 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function BookingRequestDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = Number(params.id);
   const { user } = useAuth();
   const [request, setRequest] = useState<BookingRequest | null>(null);
