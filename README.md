@@ -85,7 +85,7 @@ The booking wizard also features a new **Review** step. This shows a preview of 
 
 The wizard now uses a reusable `Stepper` component along with a `useBookingForm` hook to manage form state. These utilities live under `src/components/ui` and `src/hooks` and can be reused by other multi-step forms.
 
-Artist profile pages now link to this wizard via a "Start Booking" button which navigates to `/booking?artist_id={id}`.
+Each service on an artist profile now includes a "Book Now" button. This opens the booking wizard (or request chat) for that specific service via `/booking?artist_id={id}&service_id={serviceId}` when applicable.
 After submitting a booking request, clients are redirected straight to the associated chat thread so they can continue the conversation. The chat interface uses polished message bubbles and aligns your own messages on the right, similar to Airbnb's inbox. The automatic "Requesting ..." and "Booking request sent" entries that previously appeared at the top of each conversation have been removed so the thread begins with meaningful details.
 
 The chat now auto-scrolls after each message, shows image previews before sending, and keeps the input bar fixed above the keyboard on mobile. A subtle timestamp appears inside each bubble, avatars display initials, and the Personalized Video flow shows a progress bar like "1/3 questions answered" with a typing indicator when waiting for the client. Once all questions are answered the progress bar disappears automatically.
