@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import type { Service } from '@/types';
+import Button from '@/components/ui/Button';
+
+// TODO: replace local state with fetched data so updates reflect server values
 
 interface ArtistServiceCardProps {
   service: Service;
@@ -19,16 +22,17 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
     >
       <div className="flex justify-between items-center" aria-expanded={expanded}>
         <h3 className="text-lg font-semibold text-gray-900 pr-2">{service.title}</h3>
-        <button
+        <Button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onBook(service);
           }}
-          className="ml-auto bg-indigo-600 text-white px-3 py-1 rounded-md text-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-transform transform active:scale-95"
+          className="ml-auto"
+          fullWidth={false}
         >
           Book Now
-        </button>
+        </Button>
       </div>
       {expanded && (
         <div className="mt-2 text-sm text-gray-600" role="region">
