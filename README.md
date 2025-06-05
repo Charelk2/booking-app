@@ -97,6 +97,7 @@ The backend now persists notifications when a new booking request or message is 
 Message alerts are additionally summarized per chat thread using `/api/v1/notifications/message-threads`. This endpoint returns the other user's name, the number of unread messages, the latest snippet, and a link to the conversation. Threads can be marked read via `/api/v1/notifications/message-threads/{booking_request_id}/read`.
 The frontend now shows a notification bell in the top navigation. Clicking it reveals recent alerts, loads more on demand, and automatically marks them as read.
 Each notification links directly to the related booking request so you can jump straight into the conversation.
+Unread message alerts are grouped by conversation so you may see entries like `Charel Kleinhans — 4 new messages`. Selecting one marks the entire thread read and opens the chat.
 The chat thread now displays a friendly placeholder when no messages are present and formats quote prices with the appropriate currency symbol. Any errors fetching or sending messages appear below the input field so problems can be spotted quickly.
 
 ### Artist profile polish (2025-06)
