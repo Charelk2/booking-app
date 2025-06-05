@@ -12,6 +12,7 @@ This file documents the key automation, agent modules, and service components in
 | **Provider Matching Agent**      | Matches user with artist’s preferred sound/accommodation providers        | backend/app/crud/crud_service.py, backend/app/api/api_service.py                  | Invoked during booking and quote steps         |
 | **Travel & Accommodation Agent** | Calculates travel needs, handles accommodation logic and user prompts     | backend/app/api/api_booking_request.py, frontend/components/AccommodationStep.tsx | Called if event is outside radius/needs travel |
 | **Quote Generator**              | Gathers performance, provider, travel, and accommodation costs for client | backend/app/api/api_quote.py, frontend/components/QuoteSummary.tsx                 | Runs after all booking info is entered         |
+| **Quote Preview Agent**          | Shows estimated total during final booking step | frontend/components/booking/steps/ReviewStep.tsx | On review step before submitting request |
 | **Payment Agent**                | Manages payment workflows, booking status update, confirmation            | backend/app/api/api_payment.py (planned), frontend/components/PaymentForm.tsx      | On payment page/booking confirmation           |
 | **Notification Agent**           | Sends emails, chat alerts, and booking status updates                     | backend/app/notifications/ (if implemented), frontend/hooks/useNotifications.ts     | Triggered on status changes, messages, actions |
 | **Chat Agent**                   | Manages client-artist/support chat, delivers new message notifications    | backend/app/api/api_chat.py, frontend/components/Chat.tsx                          | Always-on for active bookings                  |
@@ -94,7 +95,7 @@ This file documents the key automation, agent modules, and service components in
 
 ## Last Updated
 
-2024-06-06
+2025-06-05
 
 ---
 
