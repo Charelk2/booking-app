@@ -5,6 +5,7 @@ import {
   useState,
   forwardRef,
   useImperativeHandle,
+  useRef,
 } from 'react';
 import { Message, MessageCreate, Quote } from '@/types';
 import {
@@ -24,18 +25,32 @@ interface MessageThreadProps {
   bookingRequestId: number;
   /** Optional callback invoked after a message is successfully sent */
   onMessageSent?: () => void;
+  clientName?: string;
+  artistName?: string;
+  isSystemTyping?: boolean;
 }
 
 const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
-  function MessageThread({ bookingRequestId, onMessageSent }: MessageThreadProps, ref) {
+  function MessageThread(
+    {
+      bookingRequestId,
+      onMessageSent,
+      clientName = 'Client',
+      artistName = 'Artist',
+      isSystemTyping = false,
+    }: MessageThreadProps,
+    ref,
+  ) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [quotes, setQuotes] = useState<Record<number, Quote>>({});
   const [newMessage, setNewMessage] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showQuoteForm, setShowQuoteForm] = useState(false);
   const [quoteDetails, setQuoteDetails] = useState('');
   const [quotePrice, setQuotePrice] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const fetchMessages = async () => {
     try {
@@ -83,6 +98,22 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     return () => clearInterval(interval);
   }, [bookingRequestId]);
 
+  // Create a preview URL whenever the file changes
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setPreviewUrl(null);
+    return () => {};
+  }, [file]);
+
+  // Auto-scroll when messages or typing indicator change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isSystemTyping]);
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() && !file) return;
@@ -96,6 +127,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       await postMessageToBookingRequest(bookingRequestId, payload);
       setNewMessage('');
       setFile(null);
+      setPreviewUrl(null);
       fetchMessages();
       if (onMessageSent) onMessageSent();
     } catch (err) {
@@ -123,48 +155,94 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   };
 
   return (
-    <div className="border rounded-md p-4 bg-white space-y-3">
-      <div className="h-80 overflow-y-auto mb-2 space-y-3">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex flex-col ${msg.sender_id === user?.id ? 'items-end text-right' : 'items-start'}`}
-          >
-            <span className="text-xs text-gray-500 mb-1">
-              {msg.sender_type === 'artist' ? 'Artist' : 'Client'} •{' '}
-              {new Date(msg.timestamp).toLocaleString()}
-            </span>
-            {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
-              <div className="bg-yellow-50 p-2 rounded-md border max-w-xs">
-                <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
-                <p className="text-sm text-gray-700 mt-1">
-                  ${Number(quotes[msg.quote_id].price).toFixed(2)}{' '}
-                  {quotes[msg.quote_id].currency}
-                </p>
+    <div className="border rounded-md p-4 bg-white flex flex-col h-96 space-y-2">
+      <div className="flex-1 overflow-y-auto space-y-3">
+        {messages.map((msg) => {
+          const isSelf = msg.sender_id === user?.id;
+          const isSystem = msg.message_type === 'system';
+          const avatar = isSelf
+            ? clientName?.charAt(0)
+            : msg.sender_type === 'artist'
+            ? artistName?.charAt(0)
+            : clientName?.charAt(0);
+          return (
+            <div key={msg.id} className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
+              {!isSelf && (
+                <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
+                  {avatar}
+                </div>
+              )}
+              <div
+                className={`max-w-xs rounded-2xl px-3 py-2 whitespace-pre-wrap ${
+                  isSelf ? 'bg-indigo-500 text-white' : isSystem ? 'bg-gray-200' : 'bg-gray-100'
+                }`}
+              >
+                {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
+                  <div className="text-gray-800">
+                    <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
+                    <p className="text-sm mt-1">
+                      ${Number(quotes[msg.quote_id].price).toFixed(2)} {quotes[msg.quote_id].currency}
+                    </p>
+                  </div>
+                ) : (
+                  msg.content
+                )}
+                {msg.attachment_url && (
+                  <a
+                    href={msg.attachment_url}
+                    target="_blank"
+                    className="block text-blue-600 underline mt-1 text-sm"
+                    rel="noopener noreferrer"
+                  >
+                    View attachment
+                  </a>
+                )}
+                <div className="text-[10px] text-gray-500 mt-1 text-right">
+                  {new Date(msg.timestamp).toLocaleTimeString()}
+                </div>
               </div>
-            ) : (
-              <span
-                className={`px-3 py-2 rounded-lg whitespace-pre-wrap max-w-xs ${msg.sender_id === user?.id ? 'bg-indigo-100' : 'bg-gray-100'}`}
-              >
-                {msg.content}
-              </span>
-            )}
-            {msg.attachment_url && (
-              <a
-                href={msg.attachment_url}
-                target="_blank"
-                className="text-blue-600 underline mt-1 text-sm"
-                rel="noopener noreferrer"
-              >
-                View attachment
-              </a>
-            )}
+              {isSelf && (
+                <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
+                  {avatar}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {isSystemTyping && (
+          <div className="flex items-end gap-2">
+            <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
+              {artistName?.charAt(0)}
+            </div>
+            <div className="bg-gray-200 rounded-2xl px-3 py-2">
+              <div className="flex space-x-1 animate-pulse">
+                <span className="block w-2 h-2 bg-gray-500 rounded-full" />
+                <span className="block w-2 h-2 bg-gray-500 rounded-full" />
+                <span className="block w-2 h-2 bg-gray-500 rounded-full" />
+              </div>
+            </div>
           </div>
-        ))}
+        )}
+        <div ref={messagesEndRef} />
       </div>
       {user && (
         <>
-          <form onSubmit={handleSend} className="flex items-center gap-2 border rounded-md p-2">
+          {previewUrl && (
+            <div className="flex items-center gap-2 mb-1">
+              {file && file.type.startsWith('image/') ? (
+                <img src={previewUrl} alt="preview" className="w-10 h-10 object-cover rounded" />
+              ) : (
+                <span className="text-sm">{file?.name}</span>
+              )}
+              <button type="button" onClick={() => setFile(null)} className="text-sm text-red-600">
+                Remove
+              </button>
+            </div>
+          )}
+          <form
+            onSubmit={handleSend}
+            className="sticky bottom-0 flex items-center gap-2 border rounded-md p-2 bg-white"
+          >
             <input
               type="text"
               value={newMessage}
@@ -172,10 +250,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               className="flex-grow border rounded-md px-2 py-1"
               placeholder="Type a message"
             />
-            <input
-              type="file"
-              onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
-            />
+            <input type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} />
             <button type="submit" className="px-4 py-1 bg-indigo-600 text-white rounded-md">
               Send
             </button>
@@ -201,7 +276,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                     <button type="submit" className="px-3 py-1 bg-green-600 text-white rounded-md">
                       Send Quote
                     </button>
-                    <button type="button" onClick={() => setShowQuoteForm(false)} className="px-3 py-1 rounded-md border">
+                    <button
+                      type="button"
+                      onClick={() => setShowQuoteForm(false)}
+                      className="px-3 py-1 rounded-md border"
+                    >
                       Cancel
                     </button>
                   </div>
