@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import Button from '@/components/ui/Button';
+import AuthInput from '@/components/auth/AuthInput';
 import { User } from '@/types';
 import axios from 'axios';
 import { extractErrorMessage } from '@/lib/utils';
@@ -64,90 +65,54 @@ export default function RegisterPage() {
 
         <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900">
-                Email address
-              </label>
-              <div className="mt-2">
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  {...register('email', {
-                    required: 'Email is required',
-                    pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: 'Invalid email address',
-                    },
-                  })}
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                />
-                {errors.email && (
-                  <p className="mt-2 text-sm text-red-600">{errors.email.message}</p>
-                )}
-              </div>
-            </div>
+            <AuthInput
+              id="email"
+              type="email"
+              label="Email address"
+              autoComplete="email"
+              registration={register('email', {
+                required: 'Email is required',
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: 'Invalid email address',
+                },
+              })}
+              error={errors.email}
+            />
 
-            <div>
-              <label htmlFor="first_name" className="block text-sm font-medium leading-6 text-gray-900">
-                First name
-              </label>
-              <div className="mt-2">
-                <input
-                  id="first_name"
-                  type="text"
-                  autoComplete="given-name"
-                  {...register('first_name', { required: 'First name is required' })}
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                />
-                {errors.first_name && (
-                  <p className="mt-2 text-sm text-red-600">{errors.first_name.message}</p>
-                )}
-              </div>
-            </div>
+            <AuthInput
+              id="first_name"
+              type="text"
+              autoComplete="given-name"
+              label="First name"
+              registration={register('first_name', { required: 'First name is required' })}
+              error={errors.first_name}
+            />
 
-            <div>
-              <label htmlFor="last_name" className="block text-sm font-medium leading-6 text-gray-900">
-                Last name
-              </label>
-              <div className="mt-2">
-                <input
-                  id="last_name"
-                  type="text"
-                  autoComplete="family-name"
-                  {...register('last_name', { required: 'Last name is required' })}
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                />
-                {errors.last_name && (
-                  <p className="mt-2 text-sm text-red-600">{errors.last_name.message}</p>
-                )}
-              </div>
-            </div>
+            <AuthInput
+              id="last_name"
+              type="text"
+              autoComplete="family-name"
+              label="Last name"
+              registration={register('last_name', { required: 'Last name is required' })}
+              error={errors.last_name}
+            />
 
-            <div>
-              <label htmlFor="phone_number" className="block text-sm font-medium leading-6 text-gray-900">
-                Phone number
-              </label>
-              <div className="mt-2">
-                <input
-                  id="phone_number"
-                  type="tel"
-                  autoComplete="tel"
-                  placeholder="+27 82 123 4567"
-                  {...register('phone_number', {
-                    required: 'Phone number is required',
-                    pattern: {
-                      value: /^\+?[0-9\s-]{10,}$/,
-                      message: 'Please enter a valid phone number',
-                    },
-                  })}
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                />
-                {errors.phone_number && (
-                  <p className="mt-2 text-sm text-red-600">{errors.phone_number.message}</p>
-                )}
-              </div>
-            </div>
+            <AuthInput
+              id="phone_number"
+              type="tel"
+              autoComplete="tel"
+              placeholder="+27 82 123 4567"
+              label="Phone number"
+              registration={register('phone_number', {
+                required: 'Phone number is required',
+                pattern: {
+                  value: /^\+?[0-9\s-]{10,}$/,
+                  message: 'Please enter a valid phone number',
+                },
+              })}
+              error={errors.phone_number}
+            />
 
             <div>
               <label htmlFor="user_type" className="block text-sm font-medium leading-6 text-gray-900">
@@ -170,64 +135,48 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-900">
-                Password
-              </label>
-              <div className="mt-2">
-                <input
-                  id="password"
-                  type="password"
-                  autoComplete="new-password"
-                  {...register('password', {
-                    required: 'Password is required',
-                    minLength: {
-                      value: 6,
-                      message: 'Password must be at least 6 characters',
-                    },
-                  })}
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                />
-                {errors.password && (
-                  <p className="mt-2 text-sm text-red-600">{errors.password.message}</p>
-                )}
-                {password && (
-                  <>
-                    <div className="mt-2 h-2 w-full rounded bg-gray-200">
-                      <div
-                        className={`h-full rounded ${
-                          ['bg-red-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-600'][Math.max(getPasswordStrength(password) - 1, 0)]
-                        }`}
-                        style={{ width: `${(getPasswordStrength(password) / 4) * 100}%` }}
-                      />
-                    </div>
-                    <p className="mt-1 text-sm text-gray-700">
-                      {['Weak', 'Fair', 'Good', 'Strong'][Math.max(getPasswordStrength(password) - 1, 0)]}
-                    </p>
-                  </>
-                )}
-              </div>
+              <AuthInput
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                label="Password"
+                registration={register('password', {
+                  required: 'Password is required',
+                  minLength: {
+                    value: 6,
+                    message: 'Password must be at least 6 characters',
+                  },
+                })}
+                error={errors.password}
+              />
+              {password && (
+                <>
+                  <div className="mt-2 h-2 w-full rounded bg-gray-200">
+                    <div
+                      className={`h-full rounded ${
+                        ['bg-red-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-600'][Math.max(getPasswordStrength(password) - 1, 0)]
+                      }`}
+                      style={{ width: `${(getPasswordStrength(password) / 4) * 100}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-sm text-gray-700">
+                    {['Weak', 'Fair', 'Good', 'Strong'][Math.max(getPasswordStrength(password) - 1, 0)]}
+                  </p>
+                </>
+              )}
             </div>
 
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium leading-6 text-gray-900">
-                Confirm password
-              </label>
-              <div className="mt-2">
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  autoComplete="new-password"
-                  {...register('confirmPassword', {
-                    required: 'Please confirm your password',
-                    validate: value => value === password || 'Passwords do not match',
-                  })}
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                />
-                {errors.confirmPassword && (
-                  <p className="mt-2 text-sm text-red-600">{errors.confirmPassword.message}</p>
-                )}
-              </div>
-            </div>
+            <AuthInput
+              id="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              label="Confirm password"
+              registration={register('confirmPassword', {
+                required: 'Please confirm your password',
+                validate: value => value === password || 'Passwords do not match',
+              })}
+              error={errors.confirmPassword}
+            />
 
             {error && (
               <div className="rounded-md bg-red-50 p-4">
