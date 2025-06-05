@@ -51,7 +51,7 @@ export default function ArtistProfilePage() {
 
   // ── “Request to Book” form state ─────────────────────────
   const [isRequesting, setIsRequesting] = useState(false);
-  const [selectedServiceId, setSelectedServiceId] = useState<number | ''>('');
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [proposedDateTime, setProposedDateTime] = useState<string>(''); // e.g. "2025-06-10T14:30"
   const [requestMessage, setRequestMessage] = useState<string>('');
   const [requestLoading, setRequestLoading] = useState(false);
@@ -60,7 +60,7 @@ export default function ArtistProfilePage() {
   const [soundProviders, setSoundProviders] = useState<ArtistSoundPreference[]>(
     []
   );
-  const [selectedProviderId, setSelectedProviderId] = useState<number | ''>('');
+  const [selectedProviderId, setSelectedProviderId] = useState<number | null>(null);
   const [distanceKm, setDistanceKm] = useState('');
   const [accommodationCost, setAccommodationCost] = useState('');
   const [quoteResult, setQuoteResult] = useState<QuoteCalculationResponse | null>(
@@ -128,10 +128,10 @@ export default function ArtistProfilePage() {
   const onOpenRequestForm = () => {
     setRequestError(null);
     setRequestSuccess(null);
-    setSelectedServiceId('');
+    setSelectedServiceId(null);
     setProposedDateTime('');
     setRequestMessage('');
-    setSelectedProviderId('');
+    setSelectedProviderId(null);
     setDistanceKm('');
     setAccommodationCost('');
     setQuoteResult(null);
@@ -144,7 +144,7 @@ export default function ArtistProfilePage() {
   };
 
   const onCalculateQuote = async () => {
-    if (!artist || selectedServiceId === '' || distanceKm === '') return;
+    if (!artist || selectedServiceId === null || distanceKm === '') return;
     const service = services.find((s) => s.id === Number(selectedServiceId));
     if (!service) return;
     try {
@@ -171,7 +171,7 @@ export default function ArtistProfilePage() {
       setRequestError('Artist data not loaded.');
       return;
     }
-    if (selectedServiceId === '') {
+    if (selectedServiceId === null) {
       setRequestError('Please select a service to request.');
       return;
     }
@@ -181,7 +181,7 @@ export default function ArtistProfilePage() {
       const payload: BookingRequestCreate = {
         artist_id: artist.user_id,
       };
-      if (selectedServiceId !== '') {
+      if (selectedServiceId !== null) {
         payload.service_id = Number(selectedServiceId);
       }
       if (requestMessage.trim() !== '') {
@@ -487,9 +487,11 @@ export default function ArtistProfilePage() {
                     <select
                       id="service-select"
                       name="service"
-                      value={selectedServiceId}
+                      value={selectedServiceId ?? ''}
                       onChange={(e) =>
-                        setSelectedServiceId(e.target.value === '' ? '' : Number(e.target.value))
+                        setSelectedServiceId(
+                          e.target.value === '' ? null : Number(e.target.value)
+                        )
                       }
                       className="block w-full border border-gray-300 bg-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
                       required
@@ -530,10 +532,10 @@ export default function ArtistProfilePage() {
                       Preferred Sound Provider
                     </label>
                     <select
-                      value={selectedProviderId}
+                      value={selectedProviderId ?? ''}
                       onChange={(e) =>
                         setSelectedProviderId(
-                          e.target.value === '' ? '' : Number(e.target.value)
+                          e.target.value === '' ? null : Number(e.target.value)
                         )
                       }
                       className="block w-full border border-gray-300 bg-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
