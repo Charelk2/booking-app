@@ -1,4 +1,5 @@
 'use client';
+// TODO: Extract common auth form components and add social login options
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -6,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
+import Button from '@/components/ui/Button';
 
 interface LoginForm {
   email: string;
@@ -104,13 +106,9 @@ export default function LoginPage() {
             )}
 
             <div>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"
-              >
+              <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting ? 'Signing in...' : 'Sign in'}
-              </button>
+              </Button>
             </div>
           </form>
 
