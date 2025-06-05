@@ -74,9 +74,9 @@ The booking wizard also features a new **Review** step. This shows a preview of 
 Artist profile pages now link to this wizard via a "Start Booking" button which navigates to `/booking?artist_id={id}`.
 After submitting a booking request, clients are redirected straight to the associated chat thread so they can continue the conversation. The chat interface uses polished message bubbles and aligns your own messages on the right, similar to Airbnb's inbox. The automatic "Requesting ..." and "Booking request sent" entries that previously appeared at the top of each conversation have been removed so the thread begins with meaningful details.
 
-The chat now auto-scrolls after each message, shows image previews before sending, and keeps the input bar fixed above the keyboard on mobile. A subtle timestamp appears under each bubble, avatars display initials, and the Personalized Video flow shows a progress bar like "1/3 questions answered" with a typing indicator when waiting for the client. Once all questions are answered the progress bar disappears automatically.
+The chat now auto-scrolls after each message, shows image previews before sending, and keeps the input bar fixed above the keyboard on mobile. A subtle timestamp appears inside each bubble, avatars display initials, and the Personalized Video flow shows a progress bar like "1/3 questions answered" with a typing indicator when waiting for the client. Once all questions are answered the progress bar disappears automatically.
 - The Personalized Video progress bar now disappears once all questions are answered.
-The latest update refines the chat bubbles even further: each message now shows its send time just to the right of the bubble. The timestamp uses a tiny gray font with a bit of margin so the message text never bumps against it, while the input field still highlights when focused for better accessibility.
+The latest update refines the chat bubbles even further: each message now shows its send time inside the bubble. The timestamp sits beneath the text in a tiny gray font and the input field still highlights when focused for better accessibility.
 
 ### Service Types
 
