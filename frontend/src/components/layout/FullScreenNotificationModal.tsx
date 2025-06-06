@@ -2,7 +2,7 @@
 
 import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, BellIcon, CalendarIcon } from '@heroicons/react/24/outline';
 import { formatDistanceToNow } from 'date-fns';
 import type { Notification, ThreadNotification } from '@/types';
 
@@ -79,6 +79,9 @@ export default function FullScreenNotificationModal({
                 <p className="px-4 pt-2 text-xs font-semibold text-gray-500">Messages</p>
                 {threads.map((t) => (
                   <div key={`thread-${t.booking_request_id}`} className="flex w-full items-start px-4 py-3 text-base gap-3">
+                    <div className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                      {t.name.split(' ').map((n) => n[0]).join('')}
+                    </div>
                     <button
                       type="button"
                       onClick={() => markThread(t.booking_request_id)}
@@ -106,6 +109,13 @@ export default function FullScreenNotificationModal({
                 </p>
                 {items.map((n) => (
                   <div key={`notif-${n.id}`} className="flex w-full items-start px-4 py-3 text-base gap-3">
+                    <div className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                      {type === 'booking_update' ? (
+                        <CalendarIcon className="h-5 w-5" aria-hidden="true" />
+                      ) : (
+                        <BellIcon className="h-5 w-5" aria-hidden="true" />
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => markRead(n.id)}
