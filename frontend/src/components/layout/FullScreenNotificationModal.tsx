@@ -2,6 +2,8 @@
 
 import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
+import { SwipeableList, SwipeableListItem } from 'react-swipeable-list';
+import 'react-swipeable-list/dist/styles.css';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { formatDistanceToNow } from 'date-fns';
 import type { Notification, ThreadNotification } from '@/types';
@@ -77,32 +79,45 @@ export default function FullScreenNotificationModal({
                 <div className="sticky top-0 bg-white px-4 py-2 z-10 border-b font-sans text-xs text-gray-600">
                   Messages
                 </div>
-                {threads.map((t) => (
-                  <button
-                    key={`mobile-thread-${t.booking_request_id}`}
-                    type="button"
-                    onClick={() => markThread(t.booking_request_id)}
-                    className="group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50"
-                  >
-                    {/* Avatar circle */}
-                    <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
-                      {t.name.split(' ').map((w) => w[0]).join('')}
-                    </div>
+                <SwipeableList>
+                  {threads.map((t) => (
+                    <SwipeableListItem
+                      key={`mobile-thread-${t.booking_request_id}`}
+                      swipeLeft={{
+                        content: (
+                          <div className="bg-indigo-600 text-white px-4 flex items-center justify-end h-full">
+                            Mark Read
+                          </div>
+                        ),
+                        action: () => markThread(t.booking_request_id),
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => markThread(t.booking_request_id)}
+                        className="group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50"
+                      >
+                        {/* Avatar circle */}
+                        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                          {t.name.split(' ').map((w) => w[0]).join('')}
+                        </div>
 
-                    {/* Rest of row */}
-                    <div className="flex-1 text-left">
-                      <span className="block font-medium text-gray-900">
-                        {t.name}
-                      </span>
-                      <span className="block mt-0.5 text-sm text-gray-700 whitespace-pre-wrap break-words">
-                        {t.last_message}
-                      </span>
-                      <span className="block mt-1 text-sm text-gray-400">
-                        {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                        {/* Rest of row */}
+                        <div className="flex-1 text-left">
+                          <span className="block font-medium text-gray-900">
+                            {t.name}
+                          </span>
+                          <span className="block mt-0.5 text-sm text-gray-700 whitespace-pre-wrap break-words">
+                            {t.last_message}
+                          </span>
+                          <span className="block mt-1 text-sm text-gray-400">
+                            {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
+                          </span>
+                        </div>
+                      </button>
+                    </SwipeableListItem>
+                  ))}
+                </SwipeableList>
               </div>
             )}
             {Object.entries(grouped).map(([type, items]) => (
@@ -110,27 +125,40 @@ export default function FullScreenNotificationModal({
                 <div className="sticky top-0 bg-white px-4 py-2 z-10 border-b font-sans text-xs text-gray-600">
                   {type === 'new_booking_request' ? 'Bookings' : 'Other'}
                 </div>
-                {items.map((n) => (
-                  <button
-                    key={`mobile-notif-${n.id}`}
-                    type="button"
-                    onClick={() => markRead(n.id)}
-                    className="group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50"
-                  >
-                    <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
-                      🔔
-                    </div>
+                <SwipeableList>
+                  {items.map((n) => (
+                    <SwipeableListItem
+                      key={`mobile-notif-${n.id}`}
+                      swipeLeft={{
+                        content: (
+                          <div className="bg-indigo-600 text-white px-4 flex items-center justify-end h-full">
+                            Mark Read
+                          </div>
+                        ),
+                        action: () => markRead(n.id),
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => markRead(n.id)}
+                        className="group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50"
+                      >
+                        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                          🔔
+                        </div>
 
-                    <div className="flex-1 text-left">
-                      <span className="block font-medium text-gray-900 whitespace-pre-wrap break-words">
-                        {n.message}
-                      </span>
-                      <span className="block mt-1 text-sm text-gray-400">
-                        {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                        <div className="flex-1 text-left">
+                          <span className="block font-medium text-gray-900 whitespace-pre-wrap break-words">
+                            {n.message}
+                          </span>
+                          <span className="block mt-1 text-sm text-gray-400">
+                            {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
+                          </span>
+                        </div>
+                      </button>
+                    </SwipeableListItem>
+                  ))}
+                </SwipeableList>
               </div>
             ))}
             {hasMore && (
