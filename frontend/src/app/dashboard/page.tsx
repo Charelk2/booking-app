@@ -214,25 +214,34 @@ export default function DashboardPage() {
           {/* Stats */}
           <div className="mt-8">
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+              <Link
+                href="/bookings"
+                className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+              >
                 <dt className="truncate text-sm font-medium text-gray-500">
                   Total Bookings
                 </dt>
                 <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                   {bookings.length}
                 </dd>
-              </div>
+              </Link>
               {user.user_type === "artist" && (
                 <>
-                  <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+                  <Link
+                    href="/services"
+                    className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                  >
                     <dt className="truncate text-sm font-medium text-gray-500">
                       Total Services
                     </dt>
                     <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                       {services.length}
                     </dd>
-                  </div>
-                  <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+                  </Link>
+                  <Link
+                    href="/earnings"
+                    className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                  >
                     <dt className="truncate text-sm font-medium text-gray-500">
                       Total Earnings
                     </dt>
@@ -243,7 +252,7 @@ export default function DashboardPage() {
                         .reduce((acc, booking) => acc + booking.total_price, 0)
                         .toFixed(2)}
                     </dd>
-                  </div>
+                  </Link>
                 </>
               )}
             </div>
