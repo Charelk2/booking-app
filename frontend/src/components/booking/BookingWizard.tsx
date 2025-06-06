@@ -224,6 +224,9 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
       <div className="hidden lg:block w-64">
         <SummarySidebar />
       </div>
+      <div className="lg:hidden mt-4">
+        <SummarySidebar />
+      </div>
     </div>
   );
 }
