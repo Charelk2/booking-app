@@ -53,7 +53,7 @@ export default function FullScreenNotificationModal({
           <div className="fixed inset-0 bg-gray-600 bg-opacity-75" />
         </Transition.Child>
 
-        <div className="flex h-full w-full flex-col bg-white">
+        <Dialog.Panel className="flex h-full w-full flex-col bg-white">
           <div className="sticky top-0 z-20 flex items-center justify-between bg-white border-b px-4 py-3">
             <h2 className="text-lg font-semibold">Notifications</h2>
             <div className="flex items-center gap-2">
@@ -144,7 +144,7 @@ export default function FullScreenNotificationModal({
               </div>
             )}
           </div>
-        </div>
+        </Dialog.Panel>
       </Dialog>
     </Transition.Root>
   );
