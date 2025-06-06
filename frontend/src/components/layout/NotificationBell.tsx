@@ -58,11 +58,7 @@ export default function NotificationBell() {
     }
     await markThread(id);
     setOpen(false);
-    if (thread.link) {
-      router.push(thread.link);
-    } else {
-      console.warn('Thread notification missing link', thread);
-    }
+    router.push(`/messages/thread/${id}`);
   };
 
   const markAllRead = async () => {
