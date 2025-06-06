@@ -127,6 +127,8 @@ The chat thread now displays a friendly placeholder when no messages are present
 - Each notification row is a single button with a fixed avatar circle, making the entire row clickable and accessible.
 - Message threads and grouped notifications now keep their headers visible while scrolling on mobile.
 - Duplicate notifications are now removed when loading additional pages.
+- Mobile detection for the notification bell now uses a responsive hook so the
+  full-screen modal displays reliably on small screens.
 - Artist profile sections now load independently for faster page rendering and show loading states per section.
 - Cover and profile images use Next.js `<Image>` for responsive sizing and better performance.
 - Service cards refresh their data when expanded so pricing stays accurate.
