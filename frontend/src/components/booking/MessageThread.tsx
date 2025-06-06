@@ -204,6 +204,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     }
   };
 
+  // Filter out very short or empty messages before rendering
+  const visibleMessages = messages.filter(
+    (m) => m.content && m.content.trim().length > 5,
+  );
+
   return (
     <div
       className="border rounded-md p-4 bg-white flex flex-col min-h-[70vh] space-y-2"
@@ -216,18 +221,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto space-y-3"
+        className="flex-1 overflow-y-auto space-y-3 px-4 py-2 h-[calc(100vh-60px)]"
       >
         {loading ? (
           <div className="flex justify-center py-4" aria-label="Loading messages">
             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-600" />
           </div>
         ) : (
-          messages.length === 0 && !isSystemTyping && (
+          visibleMessages.length === 0 && !isSystemTyping && (
             <p className="text-sm text-gray-500">No messages yet. Start the conversation below.</p>
           )
         )}
-        {messages.map((msg) => {
+        {visibleMessages.map((msg) => {
           const isSystem = msg.message_type === 'system';
           // Bubble alignment still depends on the logged in user
           const isSelf = !isSystem && msg.sender_id === user?.id;
