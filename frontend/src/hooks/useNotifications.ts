@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   getNotifications,
   getMessageThreads,
@@ -16,7 +16,7 @@ export default function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
+  const pageRef = useRef(0);
   const limit = 20;
 
   const [threads, setThreads] = useState<ThreadNotification[]>([]);
@@ -25,17 +25,17 @@ export default function useNotifications() {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await getNotifications(page * limit, limit);
+      const res = await getNotifications(pageRef.current * limit, limit);
       const filtered = res.data.filter((n) => n.type !== 'new_message');
       setNotifications((prev) => mergeNotifications(prev, filtered));
-      setPage((p) => p + 1);
+      pageRef.current += 1;
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
       setError('Failed to load notifications.');
     } finally {
       setLoading(false);
     }
-  }, [user, page]);
+  }, [user]);
 
   const loadThreads = useCallback(async () => {
     if (!user) return;
