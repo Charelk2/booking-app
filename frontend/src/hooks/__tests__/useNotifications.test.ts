@@ -5,7 +5,7 @@ describe('mergeNotifications', () => {
   const base: Notification = {
     id: 0,
     user_id: 1,
-    type: 'booking_update',
+    type: 'new_booking_request',
     message: '',
     link: '/foo',
     is_read: false,
