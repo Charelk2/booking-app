@@ -139,6 +139,7 @@ Unread message alerts are grouped by conversation so you may see entries like `C
 The chat thread now displays a friendly placeholder when no messages are present and formats quote prices with the appropriate currency symbol. Any errors fetching or sending messages appear below the input field so problems can be spotted quickly.
 
 - The message input bar has been redesigned for mobile: the file upload button now uses a compact icon and the text field shares the outer border so there are no double lines. Attachments stay inside the chatbox without overlapping other elements.
+- The chat box now stretches to roughly 70% of the viewport height on mobile and the Send button uses standard spacing so it's easier to tap.
 
 ### Artist profile polish (2025-06)
 - Added ARIA roles and clearer empty states for better accessibility.
