@@ -14,7 +14,6 @@ interface BookingPreview {
   guests?: string;
   venueType?: string;
   notes?: string;
-  link: string;
   unread: number;
 }
 
@@ -63,7 +62,6 @@ export default function InboxPage() {
                 senderName: t.name,
                 formattedDate: new Date(bookingMsg.timestamp).toLocaleDateString(),
                 ...details,
-                link: t.link,
                 unread: t.unread_count,
               });
             } else {
@@ -87,9 +85,9 @@ export default function InboxPage() {
     }
   }, [threads]);
 
-  const handleClick = async (id: number, link: string) => {
+  const handleClick = async (id: number) => {
     await markThread(id);
-    router.push(link);
+    router.push(`/bookings/${id}`);
   };
 
   const renderBookings = () => (
@@ -98,8 +96,8 @@ export default function InboxPage() {
         <li key={b.id}>
           <button
             type="button"
-            onClick={() => handleClick(b.id, b.link)}
-            className="w-full text-left"
+            onClick={() => handleClick(b.id)}
+            className="w-full text-left cursor-pointer active:bg-gray-100"
           >
             <div className="bg-white shadow rounded-lg p-4 space-y-2">
               <div className="flex justify-between items-center">
@@ -130,8 +128,8 @@ export default function InboxPage() {
           <li key={t.booking_request_id} className="py-2">
             <button
               type="button"
-              onClick={() => handleClick(t.booking_request_id, t.link)}
-              className="flex items-center space-x-3 w-full text-left hover:bg-gray-50 p-2 rounded-md"
+              onClick={() => handleClick(t.booking_request_id)}
+              className="flex items-center space-x-3 w-full text-left hover:bg-gray-50 p-2 rounded-md cursor-pointer active:bg-gray-100"
             >
               <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm">
                 {initials}
