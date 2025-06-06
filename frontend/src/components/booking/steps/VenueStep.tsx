@@ -1,13 +1,17 @@
 'use client';
 import { Controller, Control, FieldValues } from 'react-hook-form';
+import useIsMobile from '@/hooks/useIsMobile';
+import Button from '../../ui/Button';
 
 interface Props {
   control: Control<FieldValues>;
+  onNext: () => void;
 }
 
-export default function VenueStep({ control }: Props) {
+export default function VenueStep({ control, onNext }: Props) {
+  const isMobile = useIsMobile();
   return (
-    <div>
+    <div className="space-y-2">
       <label className="block text-sm font-medium">Venue type</label>
       <Controller
         name="venueType"
@@ -20,6 +24,11 @@ export default function VenueStep({ control }: Props) {
           </select>
         )}
       />
+      {isMobile && (
+        <Button data-testid="venue-next-button" onClick={onNext} fullWidth>
+          Next
+        </Button>
+      )}
     </div>
   );
 }

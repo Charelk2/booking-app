@@ -63,4 +63,23 @@ describe('BookingWizard mobile scrolling', () => {
     const confirm = container.querySelector('[data-testid="location-next-button"]');
     expect(confirm).not.toBeNull();
   });
+
+  it('shows inline buttons for all remaining steps', async () => {
+    const click = async (testId: string) => {
+      const btn = container.querySelector(`[data-testid="${testId}"]`) as HTMLButtonElement;
+      await act(async () => {
+        btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+    };
+
+    await click('date-next-button');
+    await click('location-next-button');
+    expect(container.querySelector('[data-testid="guests-next-button"]')).not.toBeNull();
+    await click('guests-next-button');
+    expect(container.querySelector('[data-testid="venue-next-button"]')).not.toBeNull();
+    await click('venue-next-button');
+    expect(container.querySelector('[data-testid="notes-next-button"]')).not.toBeNull();
+    await click('notes-next-button');
+    expect(container.querySelector('[data-testid="review-submit-button"]')).not.toBeNull();
+  });
 });
