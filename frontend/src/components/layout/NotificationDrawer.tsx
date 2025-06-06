@@ -97,41 +97,36 @@ export default function NotificationDrawer({
                       <div className="py-1" key="threads">
                         <p className="sticky top-0 z-10 bg-white px-4 pt-2 pb-1 border-b text-xs font-semibold text-gray-500">Messages</p>
                         {threads.map((t) => (
-                          <div
+                          <button
                             key={`thread-${t.booking_request_id}`}
-                            className="flex w-full items-start px-4 py-3 text-base gap-3"
+                            type="button"
+                            onClick={() => markThread(t.booking_request_id)}
+                            className={classNames(
+                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300',
+                              t.unread_count > 0 ? 'font-medium' : 'text-gray-500',
+                            )}
                           >
-                            {/* Avatar circle: 40×40 with user initials */}
-                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                            <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
                               {t.name
                                 .split(' ')
                                 .map((word) => word[0])
                                 .join('')}
                             </div>
-
-                            {/* The rest of the row remains clickable */}
-                            <button
-                              type="button"
-                              onClick={() => markThread(t.booking_request_id)}
-                              className={classNames(
-                                'flex-1 text-left',
-                                t.unread_count > 0 ? 'font-medium' : 'text-gray-500',
-                              )}
-                            >
+                            <div className="flex-1 text-left">
                               <span className="flex items-start gap-2">
                                 <span className="flex-1">
                                   {t.name}
                                   {t.unread_count > 0 && ` — ${t.unread_count} new messages`}
                                 </span>
                               </span>
-                              <span className="block w-full text-xs text-gray-400 truncate break-words">
+                              <span className="block w-full text-xs text-gray-400 whitespace-pre-wrap break-words">
                                 {t.last_message}
                               </span>
                               <span className="block text-xs text-gray-400">
                                 {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
                               </span>
-                            </button>
-                          </div>
+                            </div>
+                          </button>
                         ))}
                       </div>
                     )}
@@ -141,44 +136,27 @@ export default function NotificationDrawer({
                           {type === 'booking_update' ? 'Bookings' : 'Other'}
                         </p>
                         {items.map((n) => (
-                          <div
+                          <button
                             key={`notif-${n.id}`}
-                            className="flex w-full items-start px-4 py-3 text-base gap-3"
+                            type="button"
+                            onClick={() => markRead(n.id)}
+                            className={classNames(
+                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300',
+                              n.is_read ? 'text-gray-500' : 'font-medium',
+                            )}
                           >
-                            {/* Avatar circle for notification */}
-                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
-                              {/* If you have a sender name for this n, use initials; or use a bell icon? */}
+                            <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
                               🔔
                             </div>
-
-                            {/* Notification message + timestamp */}
-                            <button
-                              type="button"
-                              onClick={() => markRead(n.id)}
-                              className={classNames('flex-1 text-left', n.is_read ? 'text-gray-500' : 'font-medium')}
-                            >
+                            <div className="flex-1 text-left">
                               <span className="flex items-start gap-2">
-                                <span className="flex-1">{n.message}</span>
+                                <span className="flex-1 whitespace-pre-wrap break-words">{n.message}</span>
                               </span>
                               <span className="block text-xs text-gray-400">
                                 {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
                               </span>
-                            </button>
-                            {!n.is_read ? (
-                              <button
-                                type="button"
-                                onClick={() => markRead(n.id)}
-                                className="text-xs text-indigo-600 hover:underline ml-2"
-                                aria-label="Mark read"
-                              >
-                                Mark read
-                              </button>
-                            ) : (
-                              <span className="ml-2 text-xs text-gray-400" aria-label="Read">
-                                Read
-                              </span>
-                            )}
-                          </div>
+                            </div>
+                          </button>
                         ))}
                       </div>
                     ))}

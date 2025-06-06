@@ -110,41 +110,25 @@ export default function FullScreenNotificationModal({
                   {type === 'booking_update' ? 'Bookings' : 'Other'}
                 </div>
                 {items.map((n) => (
-                  <div key={`mobile-notif-${n.id}`} className="flex items-start">
-                    <button
-                      type="button"
-                      onClick={() => markRead(n.id)}
-                      className="group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
-                    >
-                      {/* Avatar circle for each notification */}
-                      <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
-                        🔔
-                      </div>
+                  <button
+                    key={`mobile-notif-${n.id}`}
+                    type="button"
+                    onClick={() => markRead(n.id)}
+                    className="group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+                  >
+                    <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                      🔔
+                    </div>
 
-                      <div className="flex-1 text-left text-gray-500">
-                        <span className="flex items-start gap-2">
-                          <span className="flex-1">{n.message}</span>
-                        </span>
-                        <span className="block text-sm text-gray-400">
-                          {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
-                        </span>
-                      </div>
-                    </button>
-                    {!n.is_read ? (
-                      <button
-                        type="button"
-                        onClick={() => markRead(n.id)}
-                        className="text-xs text-indigo-600 hover:underline ml-2"
-                        aria-label="Mark read"
-                      >
-                        Mark read
-                      </button>
-                    ) : (
-                      <span className="ml-2 text-xs text-gray-400" aria-label="Read">
-                        Read
+                    <div className="flex-1 text-left text-gray-500">
+                      <span className="flex items-start gap-2">
+                        <span className="flex-1 whitespace-pre-wrap break-words">{n.message}</span>
                       </span>
-                    )}
-                  </div>
+                      <span className="block text-sm text-gray-400">
+                        {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
+                      </span>
+                    </div>
+                  </button>
                 ))}
               </div>
             ))}
