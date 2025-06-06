@@ -50,7 +50,8 @@ export default function FullScreenNotificationModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" />
+          {/* Hide overlay on small screens so it doesn't block clicks */}
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-75 hidden sm:block" />
         </Transition.Child>
 
         <Dialog.Panel className="flex h-full w-full flex-col bg-white">
