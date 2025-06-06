@@ -1,5 +1,5 @@
 'use client';
-import type { ButtonHTMLAttributes } from 'react';
+import React, { type ButtonHTMLAttributes } from 'react';
 import clsx from 'clsx';
 import { buttonVariants, type ButtonVariant } from '@/styles/buttonVariants';
 
