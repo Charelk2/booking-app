@@ -69,7 +69,7 @@ export default function NotificationDrawer({
                 leaveTo="translate-x-full"
               >
                 <Dialog.Panel className="pointer-events-auto w-screen max-w-sm bg-white shadow-xl flex flex-col">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+                  <div className="sticky top-0 z-20 flex items-center justify-between bg-white px-4 py-3 border-b border-gray-200">
                     <Dialog.Title className="text-lg font-medium text-gray-900">Notifications</Dialog.Title>
                     <div className="flex items-center gap-2">
                       <button
@@ -95,7 +95,7 @@ export default function NotificationDrawer({
                     )}
                     {hasThreads && (
                       <div className="py-1" key="threads">
-                        <p className="px-4 pt-2 text-xs font-semibold text-gray-500">Messages</p>
+                        <p className="sticky top-0 z-10 bg-white px-4 pt-2 pb-1 border-b text-xs font-semibold text-gray-500">Messages</p>
                         {threads.map((t) => (
                           <div key={`thread-${t.booking_request_id}`} className="flex w-full items-start px-4 py-3 text-base gap-3">
                             <button
@@ -117,7 +117,7 @@ export default function NotificationDrawer({
                     )}
                     {Object.entries(grouped).map(([type, items]) => (
                       <div key={type} className="py-1">
-                        <p className="px-4 pt-2 text-xs font-semibold text-gray-500">
+                        <p className="sticky top-0 z-10 bg-white px-4 pt-2 pb-1 border-b text-xs font-semibold text-gray-500">
                           {type === 'booking_update' ? 'Bookings' : 'Other'}
                         </p>
                         {items.map((n) => (

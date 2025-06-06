@@ -195,6 +195,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
 
   return (
     <div className="border rounded-md p-4 bg-white flex flex-col h-96 space-y-2">
+      <div className="sticky top-0 z-10 bg-white border-b pb-2 mb-2">
+        <span className="text-sm font-medium">
+          {clientName} ↔ {artistName}
+        </span>
+      </div>
       <div className="flex-1 overflow-y-auto space-y-3">
         {loading ? (
           <div className="flex justify-center py-4" aria-label="Loading messages">
