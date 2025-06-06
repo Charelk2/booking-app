@@ -13,7 +13,12 @@ from app.models import (
 from app import models
 from app.models.base import BaseModel
 from app.api import api_message, api_booking_request
-from app.schemas import MessageCreate, BookingRequestCreate
+from app.schemas import (
+    MessageCreate,
+    BookingRequestCreate,
+    BookingRequestUpdateByArtist,
+    BookingRequestUpdateByClient,
+)
 from app.crud import crud_notification
 
 
@@ -259,3 +264,79 @@ def test_mark_all_notifications_read():
     assert updated == 3
     all_after = crud_notification.get_notifications_for_user(db, user.id)
     assert all(n.is_read for n in all_after)
+
+
+def test_status_update_creates_notification_for_client():
+    db = setup_db()
+    client = User(
+        email="client@test.com",
+        password="x",
+        first_name="Client",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="artist@test.com",
+        password="x",
+        first_name="Artist",
+        last_name="User",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    update = BookingRequestUpdateByArtist(status=BookingRequestStatus.REQUEST_DECLINED)
+    api_booking_request.update_booking_request_by_artist(br.id, update, db, current_artist=artist)
+
+    notifs = crud_notification.get_notifications_for_user(db, client.id)
+    assert len(notifs) == 1
+    assert notifs[0].type == NotificationType.BOOKING_STATUS_UPDATED
+
+
+def test_status_update_creates_notification_for_artist():
+    db = setup_db()
+    client = User(
+        email="client2@test.com",
+        password="x",
+        first_name="Client2",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="artist2@test.com",
+        password="x",
+        first_name="Artist2",
+        last_name="User",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    update = BookingRequestUpdateByClient(status=BookingRequestStatus.REQUEST_WITHDRAWN)
+    api_booking_request.update_booking_request_by_client(br.id, update, db, current_user=client)
+
+    notifs = crud_notification.get_notifications_for_user(db, artist.id)
+    assert len(notifs) == 1
+    assert notifs[0].type == NotificationType.BOOKING_STATUS_UPDATED

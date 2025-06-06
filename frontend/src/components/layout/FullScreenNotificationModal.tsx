@@ -123,7 +123,11 @@ export default function FullScreenNotificationModal({
             {Object.entries(grouped).map(([type, items]) => (
               <div key={type} className="mt-4">
                 <div className="sticky top-0 bg-white px-4 py-2 z-10 border-b font-sans text-xs text-gray-600">
-                  {type === 'new_booking_request' ? 'Bookings' : 'Other'}
+                  {type === 'new_booking_request'
+                    ? 'Bookings'
+                    : type === 'booking_status_updated'
+                      ? 'Bookings'
+                      : 'Other'}
                 </div>
                 <SwipeableList>
                   {items.map((n) => (
