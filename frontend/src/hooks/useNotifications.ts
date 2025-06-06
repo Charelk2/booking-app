@@ -9,7 +9,17 @@ import {
 } from '@/lib/api';
 import type { Notification, ThreadNotification } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { mergeNotifications } from './notificationUtils';
+
+export function mergeNotifications(
+  existing: Notification[],
+  incoming: Notification[],
+): Notification[] {
+  const map = new Map<number, Notification>();
+  [...existing, ...incoming].forEach((n) => map.set(n.id, n));
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+  );
+}
 
 export default function useNotifications() {
   const { user } = useAuth();
