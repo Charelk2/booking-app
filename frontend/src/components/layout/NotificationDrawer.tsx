@@ -75,7 +75,7 @@ export default function NotificationDrawer({
                       <button
                         type="button"
                         onClick={markAllRead}
-                        className="text-xs text-indigo-600 hover:underline"
+                        className="text-sm text-indigo-600 hover:underline"
                       >
                         Mark all read
                       </button>
@@ -97,7 +97,7 @@ export default function NotificationDrawer({
                       <div className="py-1" key="threads">
                         <p className="px-4 pt-2 text-xs font-semibold text-gray-500">Messages</p>
                         {threads.map((t) => (
-                          <div key={`thread-${t.booking_request_id}`} className="flex w-full items-start px-4 py-2 text-sm gap-2">
+                          <div key={`thread-${t.booking_request_id}`} className="flex w-full items-start px-4 py-3 text-base gap-3">
                             <button
                               type="button"
                               onClick={() => markThread(t.booking_request_id)}
@@ -106,8 +106,8 @@ export default function NotificationDrawer({
                               <span className="flex items-start gap-2">
                                 <span className="flex-1">{t.name}{t.unread_count > 0 && ` — ${t.unread_count} new messages`}</span>
                               </span>
-                              <span className="block w-full text-xs text-gray-400 truncate break-words">{t.last_message}</span>
-                              <span className="block text-xs text-gray-400">
+                              <span className="block w-full text-sm text-gray-400 truncate break-words">{t.last_message}</span>
+                              <span className="block text-sm text-gray-400">
                                 {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
                               </span>
                             </button>
@@ -121,7 +121,7 @@ export default function NotificationDrawer({
                           {type === 'booking_update' ? 'Bookings' : 'Other'}
                         </p>
                         {items.map((n) => (
-                          <div key={`notif-${n.id}`} className="flex w-full items-start px-4 py-2 text-sm gap-2">
+                          <div key={`notif-${n.id}`} className="flex w-full items-start px-4 py-3 text-base gap-3">
                             <button
                               type="button"
                               onClick={() => markRead(n.id)}
@@ -130,7 +130,7 @@ export default function NotificationDrawer({
                               <span className="flex items-start gap-2">
                                 <span className="flex-1">{n.message}</span>
                               </span>
-                              <span className="block text-xs text-gray-400">
+                              <span className="block text-sm text-gray-400">
                                 {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
                               </span>
                             </button>
@@ -138,13 +138,13 @@ export default function NotificationDrawer({
                               <button
                                 type="button"
                                 onClick={() => markRead(n.id)}
-                                className="text-xs text-indigo-600 hover:underline ml-2"
+                                className="text-sm text-indigo-600 hover:underline ml-2"
                                 aria-label="Mark read"
                               >
                                 Mark read
                               </button>
                             ) : (
-                              <span className="ml-2 text-xs text-gray-400" aria-label="Read">
+                              <span className="ml-2 text-sm text-gray-400" aria-label="Read">
                                 Read
                               </span>
                             )}
@@ -157,7 +157,7 @@ export default function NotificationDrawer({
                         <button
                           type="button"
                           onClick={loadMore}
-                          className="text-xs text-indigo-600 hover:underline focus:outline-none"
+                          className="text-sm text-indigo-600 hover:underline focus:outline-none"
                         >
                           Load more
                         </button>
