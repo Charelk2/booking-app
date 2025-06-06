@@ -97,17 +97,37 @@ export default function NotificationDrawer({
                       <div className="py-1" key="threads">
                         <p className="sticky top-0 z-10 bg-white px-4 pt-2 pb-1 border-b text-xs font-semibold text-gray-500">Messages</p>
                         {threads.map((t) => (
-                          <div key={`thread-${t.booking_request_id}`} className="flex w-full items-start px-4 py-3 text-base gap-3">
+                          <div
+                            key={`thread-${t.booking_request_id}`}
+                            className="flex w-full items-start px-4 py-3 text-base gap-3"
+                          >
+                            {/* Avatar circle: 40×40 with user initials */}
+                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                              {t.name
+                                .split(' ')
+                                .map((word) => word[0])
+                                .join('')}
+                            </div>
+
+                            {/* The rest of the row remains clickable */}
                             <button
                               type="button"
                               onClick={() => markThread(t.booking_request_id)}
-                              className={classNames('flex-1 text-left', t.unread_count > 0 ? 'font-medium' : 'text-gray-500')}
+                              className={classNames(
+                                'flex-1 text-left',
+                                t.unread_count > 0 ? 'font-medium' : 'text-gray-500',
+                              )}
                             >
                               <span className="flex items-start gap-2">
-                                <span className="flex-1">{t.name}{t.unread_count > 0 && ` — ${t.unread_count} new messages`}</span>
+                                <span className="flex-1">
+                                  {t.name}
+                                  {t.unread_count > 0 && ` — ${t.unread_count} new messages`}
+                                </span>
                               </span>
-                              <span className="block w-full text-sm text-gray-400 truncate break-words">{t.last_message}</span>
-                              <span className="block text-sm text-gray-400">
+                              <span className="block w-full text-xs text-gray-400 truncate break-words">
+                                {t.last_message}
+                              </span>
+                              <span className="block text-xs text-gray-400">
                                 {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
                               </span>
                             </button>
@@ -121,7 +141,17 @@ export default function NotificationDrawer({
                           {type === 'booking_update' ? 'Bookings' : 'Other'}
                         </p>
                         {items.map((n) => (
-                          <div key={`notif-${n.id}`} className="flex w-full items-start px-4 py-3 text-base gap-3">
+                          <div
+                            key={`notif-${n.id}`}
+                            className="flex w-full items-start px-4 py-3 text-base gap-3"
+                          >
+                            {/* Avatar circle for notification */}
+                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                              {/* If you have a sender name for this n, use initials; or use a bell icon? */}
+                              🔔
+                            </div>
+
+                            {/* Notification message + timestamp */}
                             <button
                               type="button"
                               onClick={() => markRead(n.id)}
@@ -130,7 +160,7 @@ export default function NotificationDrawer({
                               <span className="flex items-start gap-2">
                                 <span className="flex-1">{n.message}</span>
                               </span>
-                              <span className="block text-sm text-gray-400">
+                              <span className="block text-xs text-gray-400">
                                 {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
                               </span>
                             </button>
@@ -138,13 +168,13 @@ export default function NotificationDrawer({
                               <button
                                 type="button"
                                 onClick={() => markRead(n.id)}
-                                className="text-sm text-indigo-600 hover:underline ml-2"
+                                className="text-xs text-indigo-600 hover:underline ml-2"
                                 aria-label="Mark read"
                               >
                                 Mark read
                               </button>
                             ) : (
-                              <span className="ml-2 text-sm text-gray-400" aria-label="Read">
+                              <span className="ml-2 text-xs text-gray-400" aria-label="Read">
                                 Read
                               </span>
                             )}
