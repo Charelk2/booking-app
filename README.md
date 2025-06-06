@@ -161,6 +161,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - The booking wizard now shows a compact progress bar on small screens so steps remain readable.
 - A sticky action bar keeps Back/Next buttons visible on small screens so users can easily navigate each step.
 - Steps now automatically scroll to the top when moving between steps on mobile, keeping the next form field in view.
+- An inline Next button now appears after selecting a date on mobile so users can quickly continue to the next step.
 - Duplicate notifications are now removed when loading additional pages.
 - Mobile detection for the notification bell now uses a responsive hook so the
   full-screen modal displays reliably on small screens.
