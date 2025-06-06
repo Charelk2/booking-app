@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { BellIcon } from '@heroicons/react/24/outline';
 import NotificationDrawer from './NotificationDrawer';
 import FullScreenNotificationModal from './FullScreenNotificationModal';
-import isMobileScreen from '@/lib/isMobile';
+import useIsMobile from '@/hooks/useIsMobile';
 import useNotifications from '@/hooks/useNotifications';
 import type { Notification } from '@/types';
 
@@ -25,6 +25,7 @@ export default function NotificationBell() {
   } = useNotifications();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleClick = async (n: Notification) => {
     if (!n.is_read) {
@@ -67,7 +68,7 @@ export default function NotificationBell() {
           </span>
         )}
       </button>
-      {isMobileScreen() ? (
+      {isMobile ? (
         <FullScreenNotificationModal
           open={open}
           onClose={() => setOpen(false)}
