@@ -6,6 +6,7 @@ import {
   getMessageThreads,
   markNotificationRead,
   markThreadRead,
+  markAllNotificationsRead,
 } from '@/lib/api';
 import type { Notification, ThreadNotification } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -100,6 +101,17 @@ export default function useNotifications() {
     }
   };
 
+  const markAll = async () => {
+    try {
+      await markAllNotificationsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      setThreads((prev) => prev.map((t) => ({ ...t, unread_count: 0 })));
+    } catch (err) {
+      console.error('Failed to mark all notifications read:', err);
+      setError('Failed to update notification.');
+    }
+  };
+
   return {
     notifications,
     threads,
@@ -108,6 +120,7 @@ export default function useNotifications() {
     error,
     markRead,
     markThread,
+    markAll,
     loadMore,
     hasMore: notifications.length % limit === 0,
   };
