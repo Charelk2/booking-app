@@ -9,6 +9,7 @@ import {
 } from '@/lib/api';
 import type { Notification, ThreadNotification } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { mergeNotifications } from './notificationUtils';
 
 export default function useNotifications() {
   const { user } = useAuth();
@@ -26,7 +27,7 @@ export default function useNotifications() {
     try {
       const res = await getNotifications(page * limit, limit);
       const filtered = res.data.filter((n) => n.type !== 'new_message');
-      setNotifications((prev) => [...prev, ...filtered]);
+      setNotifications((prev) => mergeNotifications(prev, filtered));
       setPage((p) => p + 1);
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
