@@ -1,12 +1,13 @@
 'use client';
 
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { Disclosure, Menu, Transition } from '@headlessui/react';
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import NotificationBell from './NotificationBell';
+import MobileMenuDrawer from './MobileMenuDrawer';
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -21,11 +22,12 @@ function classNames(...classes: string[]) {
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-100">
       <Disclosure as="nav" className="bg-white shadow-sm">
-        {({ open }) => (
+        {() => (
           <>
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
               <div className="flex h-16 justify-between">
@@ -139,105 +141,30 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 </div>
                 <div className="flex items-center sm:hidden">
                   {user && <NotificationBell />}
-                  <Disclosure.Button className="-mr-2 ml-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500">
+                  <button
+                    type="button"
+                    onClick={() => setMenuOpen(true)}
+                    className="-mr-2 ml-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+                  >
                     <span className="sr-only">Open main menu</span>
-                    {open ? (
-                      <XMarkIcon className="block h-6 w-6" aria-hidden="true" />
-                    ) : (
-                      <Bars3Icon className="block h-6 w-6" aria-hidden="true" />
-                    )}
-                  </Disclosure.Button>
+                    <Bars3Icon className="block h-6 w-6" aria-hidden="true" />
+                  </button>
                 </div>
               </div>
             </div>
 
-            <Disclosure.Panel className="sm:hidden">
-              <div className="space-y-1 pb-3 pt-2">
-                {navigation.map((item) => (
-                  <Disclosure.Button
-                    key={item.name}
-                    as={Link}
-                    href={item.href}
-                    className={classNames(
-                      pathname === item.href
-                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
-                        : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700',
-                      'block border-l-4 py-2 pl-3 pr-4 text-base font-medium'
-                    )}
-                  >
-                    {item.name}
-                  </Disclosure.Button>
-                ))}
-              </div>
-              <div className="border-t border-gray-200 pb-3 pt-4">
-                {user ? (
-                  <>
-                    <div className="flex items-center px-4">
-                      <div className="flex-shrink-0">
-                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                          <span className="text-indigo-600 font-medium">
-                            {user.first_name?.[0] || user.email[0]}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="ml-3">
-                        <div className="text-base font-medium text-gray-800">
-                          {user.first_name} {user.last_name}
-                        </div>
-                        <div className="text-sm font-medium text-gray-500">
-                          {user.email}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 space-y-1">
-                      <Disclosure.Button
-                        as={Link}
-                        href="/dashboard"
-                        className="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                      >
-                        Dashboard
-                      </Disclosure.Button>
-                      {user && user.user_type === 'artist' && (
-                        <Disclosure.Button
-                          as={Link}
-                          href="/dashboard/profile/edit"
-                          className="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                        >
-                          Edit Profile
-                        </Disclosure.Button>
-                      )}
-                      <Disclosure.Button
-                        as="button"
-                        onClick={logout}
-                        className="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                      >
-                        Sign out
-                      </Disclosure.Button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="mt-3 space-y-1">
-                    <Disclosure.Button
-                      as={Link}
-                      href="/login"
-                      className="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                    >
-                      Sign in
-                    </Disclosure.Button>
-                    <Disclosure.Button
-                      as={Link}
-                      href="/register"
-                      className="block px-4 py-2 text-base font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                    >
-                      Sign up
-                    </Disclosure.Button>
-                  </div>
-                )}
-              </div>
-            </Disclosure.Panel>
           </>
+
         )}
       </Disclosure>
+      <MobileMenuDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        navigation={navigation}
+        user={user}
+        logout={logout}
+        pathname={pathname}
+      />
 
       <main className="py-10">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
