@@ -131,7 +131,7 @@ export default function NotificationDrawer({
                     {Object.entries(grouped).map(([type, items]) => (
                       <div key={type} className="py-1">
                         <p className="sticky top-0 z-10 bg-white px-4 pt-2 pb-1 border-b text-xs font-semibold text-gray-500">
-                          {type === 'booking_update' ? 'Bookings' : 'Other'}
+                          {type === 'new_booking_request' ? 'Bookings' : 'Other'}
                         </p>
                         {items.map((n) => (
                           <button
