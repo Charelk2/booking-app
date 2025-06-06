@@ -271,9 +271,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           return (
             <div
               key={msg.id}
-              className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} gap-1`}
+              className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} gap-1 ${msg.unread ? 'bg-purple-50' : ''}`}
             >
-              <span className="text-sm font-medium">{senderDisplayName}</span>
+              <span className={`text-sm ${msg.unread ? 'font-semibold' : 'font-medium'}`}>{senderDisplayName}</span>
               <div className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
                 {!isSelf && (
                   <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
