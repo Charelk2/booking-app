@@ -325,10 +325,36 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              className="flex-grow border rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              className="flex-grow border-none rounded-md px-2 py-1 focus:outline-none focus:ring-0"
               placeholder="Type a message"
             />
-            <input type="file" onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)} />
+            <input
+              id="file-upload"
+              type="file"
+              className="hidden"
+              onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+            />
+            <label htmlFor="file-upload" className="p-1 text-gray-600 rounded hover:bg-gray-100">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-5 h-5"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 12.857v4.286A2.857 2.857 0 0 1 18.143 20H5.857A2.857 2.857 0 0 1 3 17.143V6.857A2.857 2.857 0 0 1 5.857 4h4.286"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 3h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            </label>
             <Button type="submit" className="px-4 py-1">
               Send
             </Button>
