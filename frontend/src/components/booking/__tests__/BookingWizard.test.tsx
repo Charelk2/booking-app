@@ -54,4 +54,13 @@ describe('BookingWizard mobile scrolling', () => {
     const inline = container.querySelector('[data-testid="date-next-button"]');
     expect(inline).not.toBeNull();
   });
+
+  it('shows confirm location button after advancing', async () => {
+    const inline = container.querySelector('[data-testid="date-next-button"]') as HTMLButtonElement;
+    await act(async () => {
+      inline.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    const confirm = container.querySelector('[data-testid="location-next-button"]');
+    expect(confirm).not.toBeNull();
+  });
 });
