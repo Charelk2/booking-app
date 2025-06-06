@@ -64,6 +64,14 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
     errors,
   } = useBookingForm(schema, details, setDetails);
 
+  // Keep the start of each step visible on small screens
+  // so navigation feels smooth on mobile devices.
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [step]);
+
   useEffect(() => {
     if (!artistId) return;
     getArtistAvailability(artistId)
