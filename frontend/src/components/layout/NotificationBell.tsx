@@ -1,20 +1,15 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BellIcon, ChatBubbleOvalLeftEllipsisIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { BellIcon } from '@heroicons/react/24/outline';
 import NotificationDrawer from './NotificationDrawer';
-import { formatDistanceToNow } from 'date-fns';
 import useNotifications from '@/hooks/useNotifications';
-import type { Notification, ThreadNotification } from '@/types';
+import type { Notification } from '@/types';
 
 // Displays a dropdown of recent notifications. Unread counts update via the
 // `useNotifications` hook. Notifications are loaded incrementally for better
 // performance on large accounts.
-
-function classNames(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
-}
 
 export default function NotificationBell() {
   const {
@@ -37,10 +32,15 @@ export default function NotificationBell() {
     router.push(n.link);
   };
 
-  const handleThreadClick = async (t: ThreadNotification) => {
-    await markThread(t.booking_request_id);
+  const handleThreadClick = async (id: number) => {
+    const thread = threads.find((t) => t.booking_request_id === id);
+    if (!thread) {
+      console.error('Thread not found for id', id);
+      return;
+    }
+    await markThread(id);
     setOpen(false);
-    router.push(t.link);
+    router.push(thread.link);
   };
 
   const markAllRead = async () => {
@@ -49,14 +49,6 @@ export default function NotificationBell() {
     );
   };
 
-  const hasThreads = threads.length > 0;
-
-  const grouped = notifications.reduce<Record<string, Notification[]>>((acc, n) => {
-    const key = n.type || 'other';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(n);
-    return acc;
-  }, {});
 
   return (
     <div className="relative ml-3" aria-live="polite">
