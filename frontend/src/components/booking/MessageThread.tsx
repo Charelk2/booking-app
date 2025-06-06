@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import {
   useEffect,
   useState,
@@ -240,8 +241,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           const avatar = isSystem
             ? artistName?.charAt(0)
             : msg.sender_type === 'artist'
-            ? artistName?.charAt(0)
-            : clientName?.charAt(0);
+              ? artistName?.charAt(0)
+              : clientName?.charAt(0);
+
+          const senderDisplayName = isSystem
+            ? artistName
+            : msg.sender_type === 'artist'
+              ? artistName
+              : clientName;
+
+          const relativeTime = formatDistanceToNow(new Date(msg.timestamp), {
+            addSuffix: true,
+          });
 
           const timeString = new Date(msg.timestamp).toLocaleTimeString([], {
             hour: '2-digit',
@@ -257,6 +268,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               key={msg.id}
               className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} gap-1`}
             >
+              <span className="text-sm font-medium">{senderDisplayName}</span>
               <div className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
                 {!isSelf && (
                   <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
@@ -299,6 +311,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   </div>
                 )}
               </div>
+              <span className="text-xs text-gray-400 mt-1">{relativeTime}</span>
               {/* Timestamps now appear inside each bubble instead of beside it. */}
             </div>
           );
