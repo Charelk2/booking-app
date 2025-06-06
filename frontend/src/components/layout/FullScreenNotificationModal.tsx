@@ -58,6 +58,11 @@ export default function FullScreenNotificationModal({
     if (link) router.push(link);
   };
 
+  const handleThreadClick = async (id: number) => {
+    await markThread(id);
+    router.push(`/messages/thread/${id}`);
+  };
+
   return (
     <Transition.Root show={open} as={Fragment}>
       <Dialog as="div" className="fixed inset-0 z-50" onClose={onClose}>
@@ -103,9 +108,9 @@ export default function FullScreenNotificationModal({
                         key={`thread-${t.booking_request_id}`}
                         role="button"
                         tabIndex={0}
-                        onClick={() => navigateToBooking(t.link, t.booking_request_id, markThread)}
-                        onKeyPress={() => navigateToBooking(t.link, t.booking_request_id, markThread)}
-                        className="relative bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50"
+                        onClick={() => handleThreadClick(t.booking_request_id)}
+                        onKeyPress={() => handleThreadClick(t.booking_request_id)}
+                        className="relative bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50 cursor-pointer active:bg-gray-100 rounded"
                       >
                         {status && (
                           <span className="absolute top-2 right-2 rounded-full bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5">
