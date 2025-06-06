@@ -53,4 +53,28 @@ describe('MessageThread scroll button', () => {
     const button = container.querySelector('button[aria-label="Scroll to latest message"]');
     expect(button).not.toBeNull();
   });
+
+  it('highlights unread messages', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Hello',
+          message_type: 'text',
+          timestamp: new Date().toISOString(),
+          unread: true,
+        },
+      ],
+    });
+    await act(async () => {
+      root.render(React.createElement(MessageThread, { bookingRequestId: 1 }));
+    });
+    const row = container.querySelector('.bg-purple-50');
+    const name = container.querySelector('span.font-semibold');
+    expect(row).not.toBeNull();
+    expect(name?.textContent).toBe('Artist');
+  });
 });
