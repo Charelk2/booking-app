@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { formatDistanceToNow } from 'date-fns';
 import MainLayout from '@/components/layout/MainLayout';
 import useNotifications from '@/hooks/useNotifications';
 import { getMessagesForBookingRequest } from '@/lib/api';
@@ -118,34 +119,35 @@ export default function InboxPage() {
   );
 
   const renderChats = () => (
-    <ul className="divide-y divide-gray-200">
+    <div>
       {chats.map((t) => {
         const initials = t.name
           .split(' ')
           .map((w) => w[0])
           .join('');
         return (
-          <li key={t.booking_request_id} className="py-2">
-            <button
-              type="button"
-              onClick={() => handleClick(t.booking_request_id)}
-              className="flex items-center space-x-3 w-full text-left hover:bg-gray-50 p-2 rounded-md cursor-pointer active:bg-gray-100"
-            >
-              <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm">
-                {initials}
-              </div>
-              <div className="flex-1">
-                <div className="font-medium text-sm">{t.name}</div>
-                <div className="text-xs text-gray-500 truncate">{t.last_message}</div>
-              </div>
-              <div className="text-xs text-gray-400">
-                {new Date(t.timestamp).toLocaleDateString()}
-              </div>
-            </button>
-          </li>
+          <div
+            key={t.booking_request_id}
+            role="button"
+            tabIndex={0}
+            onClick={() => handleClick(t.booking_request_id)}
+            onKeyPress={() => handleClick(t.booking_request_id)}
+            className="flex items-center space-x-3 px-4 py-3 border-b cursor-pointer hover:bg-gray-50 active:bg-gray-100"
+          >
+            <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm">
+              {initials}
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <div className="font-medium text-sm">{t.name}</div>
+              <div className="text-xs text-gray-500 truncate">{t.last_message}</div>
+            </div>
+            <div className="text-xs text-gray-400">
+              {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
+            </div>
+          </div>
         );
       })}
-    </ul>
+    </div>
   );
 
   return (
