@@ -175,7 +175,14 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
   const renderStep = () => {
     switch (step) {
       case 0:
-        return <DateTimeStep control={control} unavailable={unavailable} watch={watch} />;
+        return (
+          <DateTimeStep
+            control={control}
+            unavailable={unavailable}
+            watch={watch}
+            onNext={next}
+          />
+        );
       case 1:
         return (
           <LocationStep
