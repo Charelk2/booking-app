@@ -134,6 +134,7 @@ The latest update refines the chat bubbles even further: each message now shows 
 The backend now persists notifications when a new booking request or message is created. Clients and artists can fetch unread notifications from `/api/v1/notifications` and mark them read with `/api/v1/notifications/{id}/read`. Notifications may also be fetched in pages using the `skip` and `limit` query parameters or grouped by type via `/api/v1/notifications/grouped`.
 All notifications for the current user can be marked read at once via `/api/v1/notifications/read-all`.
 Message alerts are additionally summarized per chat thread using `/api/v1/notifications/message-threads`. This endpoint returns the other user's name, the number of unread messages, the latest snippet, and a link to the conversation. Threads are returned even once read&mdash;`unread_count` simply becomes `0`. Threads can be marked read via `/api/v1/notifications/message-threads/{booking_request_id}/read`.
+Booking status changes now trigger a `booking_status_updated` notification so both parties know when a request is withdrawn or declined.
 The frontend now shows a notification bell in the top navigation. Clicking it reveals recent alerts, loads more on demand, and automatically marks them as read.
 Each notification links directly to the related booking request so you can jump straight into the conversation.
 Unread message alerts are grouped by conversation so you may see entries like `Charel Kleinhans — 4 new messages`. Selecting one marks the entire thread read and opens the chat.
