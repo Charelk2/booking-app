@@ -27,3 +27,22 @@ def notify_user_new_booking_request(db: Session, user: User, request_id: int) ->
         link=f"/booking-requests/{request_id}",
     )
     print(f"Notify {user.email}: new booking request #{request_id}")
+
+
+def notify_booking_status_update(
+    db: Session,
+    user: User,
+    request_id: int,
+    status: str,
+) -> None:
+    """Create a notification for a booking status change."""
+    crud_notification.create_notification(
+        db,
+        user_id=user.id,
+        type=NotificationType.BOOKING_STATUS_UPDATED,
+        message=f"Booking request #{request_id} status updated to {status}",
+        link=f"/booking-requests/{request_id}",
+    )
+    print(
+        f"Notify {user.email}: booking request #{request_id} status updated to {status}"
+    )
