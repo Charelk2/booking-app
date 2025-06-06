@@ -7,7 +7,6 @@ import NotificationDrawer from './NotificationDrawer';
 import FullScreenNotificationModal from './FullScreenNotificationModal';
 import useIsMobile from '@/hooks/useIsMobile';
 import useNotifications from '@/hooks/useNotifications';
-import type { Notification } from '@/types';
 
 // Displays a dropdown of recent notifications. Unread counts update via the
 // `useNotifications` hook. Notifications are loaded incrementally for better
@@ -27,15 +26,26 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
 
-  const handleClick = async (n: Notification) => {
-    if (!n.is_read) {
-      await markRead(n.id);
+  /**
+   * Mark a notification as read and navigate to its link.
+   *
+   * NotificationDrawer only provides the notification ID, so we
+   * lookup the full object here before acting.
+   */
+  const handleClick = async (id: number) => {
+    const notif = notifications.find((n) => n.id === id);
+    if (!notif) {
+      console.error('Notification not found for id', id);
+      return;
+    }
+    if (!notif.is_read) {
+      await markRead(id);
     }
     setOpen(false);
-    if (n.link && typeof n.link === 'string') {
-      router.push(n.link);
+    if (notif.link && typeof notif.link === 'string') {
+      router.push(notif.link);
     } else {
-      console.warn('Notification missing link', n);
+      console.warn('Notification missing link', notif);
     }
   };
 
