@@ -36,6 +36,7 @@ function classNames(...classes: string[]) {
 export default function MobileBottomNav({ user, pathname }: MobileBottomNavProps) {
   const { threads } = useNotifications();
   const unreadMessages = threads.reduce((acc, t) => acc + t.unread_count, 0);
+  const badgeCount = unreadMessages > 99 ? '99+' : unreadMessages;
 
   return (
     <nav
@@ -59,8 +60,8 @@ export default function MobileBottomNav({ user, pathname }: MobileBottomNavProps
                 <item.icon className="h-6 w-6" aria-hidden="true" />
                 <span>{item.name}</span>
                 {showBadge && (
-                  <span className="absolute -top-1 right-0 inline-flex items-center justify-center px-1 py-0.5 text-[10px] font-bold leading-none text-white bg-red-600 rounded-full">
-                    {unreadMessages}
+                  <span className="absolute -top-2 -right-2 inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full">
+                    {badgeCount}
                   </span>
                 )}
               </Link>
