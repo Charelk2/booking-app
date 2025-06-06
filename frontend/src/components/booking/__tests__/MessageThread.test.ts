@@ -18,7 +18,7 @@ class StubSocket {
 // @ts-expect-error jsdom does not implement WebSocket
 global.WebSocket = StubSocket;
 
-describe('MessageThread scroll button', () => {
+describe('MessageThread component', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -39,19 +39,49 @@ describe('MessageThread scroll button', () => {
     container.remove();
   });
 
-  it('shows button when scrolled away from bottom', async () => {
+  it('shows scroll-to-latest button when scrolled away from bottom', async () => {
     await act(async () => {
-      root.render(React.createElement(MessageThread, { bookingRequestId: 1 }));
+      root.render(<MessageThread bookingRequestId={1} />);
     });
     const scrollContainer = container.querySelector('.overflow-y-auto') as HTMLElement;
+
+    // Simulate a scrollable container
     Object.defineProperty(scrollContainer, 'scrollHeight', { value: 200, configurable: true });
     Object.defineProperty(scrollContainer, 'clientHeight', { value: 100, configurable: true });
     scrollContainer.scrollTop = 0;
+
     act(() => {
       scrollContainer.dispatchEvent(new Event('scroll'));
     });
+
     const button = container.querySelector('button[aria-label="Scroll to latest message"]');
     expect(button).not.toBeNull();
+  });
+
+  it('highlights unread messages', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Hello',
+          message_type: 'text',
+          timestamp: new Date().toISOString(),
+          unread: true,
+        },
+      ],
+    });
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+
+    const highlightedRow = container.querySelector('.bg-purple-50');
+    const senderName = container.querySelector('span.font-semibold');
+    expect(highlightedRow).not.toBeNull();
+    expect(senderName?.textContent).toBe('Artist');
   });
 
   it('filters out short messages', async () => {
@@ -79,11 +109,11 @@ describe('MessageThread scroll button', () => {
     });
 
     await act(async () => {
-      root.render(React.createElement(MessageThread, { bookingRequestId: 1 }));
+      root.render(<MessageThread bookingRequestId={1} />);
     });
 
-    const bubbles = container.querySelectorAll('.whitespace-pre-wrap');
-    expect(bubbles.length).toBe(1);
-    expect(bubbles[0].textContent).toContain('Hello there');
+    const messageBubbles = container.querySelectorAll('.whitespace-pre-wrap');
+    expect(messageBubbles.length).toBe(1);
+    expect(messageBubbles[0].textContent).toContain('Hello there');
   });
 });
