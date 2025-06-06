@@ -216,7 +216,12 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                 <dt className="truncate text-sm font-medium text-gray-500">
-                  Total Bookings
+                  <div className="flex items-center space-x-2">
+                    <span role="img" aria-label="calendar">
+                      🗓
+                    </span>
+                    <span>Total Bookings</span>
+                  </div>
                 </dt>
                 <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                   {bookings.length}
@@ -226,7 +231,12 @@ export default function DashboardPage() {
                 <>
                   <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                     <dt className="truncate text-sm font-medium text-gray-500">
-                      Total Services
+                      <div className="flex items-center space-x-2">
+                        <span role="img" aria-label="microphone">
+                          🎤
+                        </span>
+                        <span>Total Services</span>
+                      </div>
                     </dt>
                     <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                       {services.length}
@@ -234,7 +244,12 @@ export default function DashboardPage() {
                   </div>
                   <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                     <dt className="truncate text-sm font-medium text-gray-500">
-                      Total Earnings
+                      <div className="flex items-center space-x-2">
+                        <span role="img" aria-label="money">
+                          💰
+                        </span>
+                        <span>Total Earnings</span>
+                      </div>
                     </dt>
                     <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                       $
