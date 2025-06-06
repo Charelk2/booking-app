@@ -321,13 +321,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           )}
           <form
             onSubmit={handleSend}
-            className="sticky bottom-0 flex items-center gap-2 border rounded-md p-2 bg-white focus-within:ring-2 focus-within:ring-indigo-300"
+            className="sticky bottom-0 relative flex items-center border rounded-md bg-white focus-within:ring-2 focus-within:ring-indigo-300"
           >
             <input
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              className="flex-grow border-none rounded-md px-2 py-1 focus:outline-none focus:ring-0"
+              className="flex-grow border-none rounded-md py-2 pl-10 pr-12 focus:outline-none focus:ring-0"
               placeholder="Type a message"
             />
             <input
@@ -336,7 +336,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               className="hidden"
               onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
             />
-            <label htmlFor="file-upload" className="p-1 text-gray-600 rounded hover:bg-gray-100">
+            <label
+              htmlFor="file-upload"
+              className="absolute left-2 p-1 text-gray-600 rounded hover:bg-gray-100"
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
@@ -357,7 +360,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 />
               </svg>
             </label>
-            <Button type="submit">Send</Button>
+            <Button type="submit" className="absolute right-2 p-1">Send</Button>
           </form>
           {user.user_type === 'artist' && (
             <div>
