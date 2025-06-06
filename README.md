@@ -47,10 +47,13 @@ If the backend or WebSocket server runs elsewhere, set `NEXT_PUBLIC_API_URL` and
 ## Development
 
 ### Setup
-Install frontend and Python dev dependencies with the provided helper script:
+Install all Node and Python requirements using the helper script:
 ```bash
 ./setup.sh
 ```
+This installs `frontend/node_modules` along with the packages from
+`backend/requirements.txt` and `requirements-dev.txt` so both the API and tests
+run correctly.
 
 ### Linting
 Run ESLint after installing dependencies:
