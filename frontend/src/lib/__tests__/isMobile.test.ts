@@ -4,12 +4,12 @@ describe('isMobileScreen', () => {
   const g = global as unknown as { window?: { innerWidth: number } };
 
   it('returns true when window width is below 640', () => {
-    g.window = { innerWidth: 500 };
+    Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
     expect(isMobileScreen()).toBe(true);
   });
 
   it('returns false when window width is 640 or more', () => {
-    g.window = { innerWidth: 800 };
+    Object.defineProperty(window, 'innerWidth', { value: 800, writable: true });
     expect(isMobileScreen()).toBe(false);
   });
 

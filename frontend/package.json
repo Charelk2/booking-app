@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "pretest": "npm install",
     "test": "jest"
   },
   "dependencies": {
@@ -46,6 +47,7 @@
     "babel-jest": "^29.7.0",
     "@babel/preset-env": "^7.23.9",
     "@babel/preset-react": "^7.23.3",
-    "@babel/preset-typescript": "^7.23.3"
+    "@babel/preset-typescript": "^7.23.3",
+    "jest-environment-jsdom": "^29.7.0"
   }
 }

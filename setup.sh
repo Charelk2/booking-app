@@ -5,5 +5,6 @@ set -e
 cd "$(dirname "$0")/frontend" && npm install
 cd ..
 
-# install python dev dependencies
+# install backend and dev Python dependencies
+pip install -r backend/requirements.txt
 pip install -r requirements-dev.txt
