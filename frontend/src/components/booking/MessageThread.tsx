@@ -221,7 +221,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto space-y-3"
+        className="flex-1 overflow-y-auto space-y-3 px-4 py-2 h-[calc(100vh-60px)]"
       >
         {loading ? (
           <div className="flex justify-center py-4" aria-label="Loading messages">
