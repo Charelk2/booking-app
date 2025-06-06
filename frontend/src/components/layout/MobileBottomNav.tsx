@@ -1,8 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { HomeIcon, UsersIcon, ChatBubbleLeftRightIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import {
+  HomeIcon,
+  UsersIcon,
+  ChatBubbleLeftRightIcon,
+  UserCircleIcon,
+} from '@heroicons/react/24/outline';
 import type { User } from '@/types';
+import useNotifications from '@/hooks/useNotifications';
 
 interface MobileBottomNavProps {
   user: User | null;
@@ -28,6 +34,9 @@ function classNames(...classes: string[]) {
 }
 
 export default function MobileBottomNav({ user, pathname }: MobileBottomNavProps) {
+  const { threads } = useNotifications();
+  const unreadMessages = threads.reduce((acc, t) => acc + t.unread_count, 0);
+
   return (
     <nav
       className="fixed bottom-0 inset-x-0 z-40 bg-white border-t shadow sm:hidden"
@@ -37,8 +46,9 @@ export default function MobileBottomNav({ user, pathname }: MobileBottomNavProps
         {items.map((item) => {
           if (item.auth && !user) return null;
           const active = pathname === item.href;
+          const showBadge = item.name === 'Messages' && unreadMessages > 0;
           return (
-            <li key={item.name}>
+            <li key={item.name} className="relative">
               <Link
                 href={item.href}
                 className={classNames(
@@ -48,6 +58,11 @@ export default function MobileBottomNav({ user, pathname }: MobileBottomNavProps
               >
                 <item.icon className="h-6 w-6" aria-hidden="true" />
                 <span>{item.name}</span>
+                {showBadge && (
+                  <span className="absolute -top-1 right-0 inline-flex items-center justify-center px-1 py-0.5 text-[10px] font-bold leading-none text-white bg-red-600 rounded-full">
+                    {unreadMessages}
+                  </span>
+                )}
               </Link>
             </li>
           );
