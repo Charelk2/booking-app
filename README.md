@@ -36,6 +36,10 @@ origin as well, for example:
 ```
 CORS_ORIGINS=["http://localhost:3000", "http://localhost:3002", "http://192.168.3.203:3000"]
 ```
+When loading the site on a phone or other device, use your computer's IP
+address for both the frontend and backend URLs. Add the address to
+`CORS_ORIGINS` and reference it from the frontend's `.env.local` as shown
+below so the API requests are allowed across origins.
 Start the backend so it listens on all interfaces:
 
 ```bash
