@@ -263,7 +263,7 @@ Cached results expire after about one minute. If Redis is unavailable the
 endpoint falls back to querying the database normally.
 ## Common Errors
 
-- **jest: not found**: Run `npm install` inside `frontend/` to install dev dependencies.
+- **jest: not found**: Dependencies are missing. `npm test` now automatically installs them via a `pretest` script.
 
 
 ## Local Test Instructions
@@ -274,7 +274,7 @@ Run backend tests from the project root:
 pytest
 ```
 
-Run linting from the `frontend` directory. Install dependencies with `npm install` first if needed:
+Run linting from the `frontend` directory:
 
 ```bash
 cd frontend
