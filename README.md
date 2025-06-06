@@ -174,6 +174,10 @@ The chat thread now displays a friendly placeholder when no messages are present
 - A persistent bottom navigation bar on small screens provides quick access to key pages. Unread message counts now appear over the Messages icon so conversations are never missed.
 - A dedicated **Inbox** page lists all message threads and is accessible from the bottom navigation so opening conversations never results in a 404.
 
+### Inbox Page
+
+Open `/inbox` from the Messages icon in the mobile bottom navigation to see all your conversations. Each row shows the latest message snippet and a badge with the number of unread messages. Selecting a thread marks it read and jumps directly to the chat.
+
 The registration page now includes a password strength meter and shows a toast notification once an account is created successfully.
 Both auth pages use new shared form components and include optional Google and GitHub sign-in buttons.
 
