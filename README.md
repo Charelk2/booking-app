@@ -154,6 +154,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - Notification rows now have larger padding and text sizes so they're easier to tap on mobile screens.
 - Each notification row is a single button with a fixed avatar circle, making the entire row clickable and accessible.
 - Message threads and grouped notifications now keep their headers visible while scrolling on mobile.
+- The booking wizard now shows a compact progress bar on small screens so steps remain readable.
 - Duplicate notifications are now removed when loading additional pages.
 - Mobile detection for the notification bell now uses a responsive hook so the
   full-screen modal displays reliably on small screens.

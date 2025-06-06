@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import useIsMobile from '@/hooks/useIsMobile';
 
 interface StepperProps {
   steps: string[];
@@ -7,6 +8,34 @@ interface StepperProps {
 }
 
 export default function Stepper({ steps, currentStep }: StepperProps) {
+  const isMobile = useIsMobile();
+  const progress = (currentStep / (steps.length - 1)) * 100;
+
+  if (isMobile) {
+    return (
+      <div className="space-y-1">
+        <div className="flex justify-between text-sm">
+          <span>{steps[currentStep]}</span>
+          <span>
+            {currentStep + 1}/{steps.length}
+          </span>
+        </div>
+        <div
+          className="w-full bg-gray-200 rounded h-2"
+          role="progressbar"
+          aria-valuenow={currentStep}
+          aria-valuemin={0}
+          aria-valuemax={steps.length - 1}
+        >
+          <div
+            className="bg-indigo-600 h-2 rounded"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex items-center" aria-label="Progress">
@@ -33,7 +62,7 @@ export default function Stepper({ steps, currentStep }: StepperProps) {
       >
         <div
           className="bg-indigo-600 h-2 rounded"
-          style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}
+          style={{ width: `${progress}%` }}
         />
       </div>
     </div>
