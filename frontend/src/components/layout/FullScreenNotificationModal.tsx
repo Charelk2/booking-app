@@ -1,9 +1,10 @@
 'use client';
 
 import { Fragment } from 'react';
+import { useRouter } from 'next/navigation';
 import { Dialog, Transition } from '@headlessui/react';
-import { SwipeableList, SwipeableListItem } from 'react-swipeable-list';
-import 'react-swipeable-list/dist/styles.css';
+// Mobile layout previously used swipe actions. Cards are easier to read on
+// small screens so we now display a scrollable list of cards instead.
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { formatDistanceToNow } from 'date-fns';
 import type { Notification, ThreadNotification } from '@/types';
@@ -32,6 +33,7 @@ export default function FullScreenNotificationModal({
   loadMore,
   hasMore,
 }: FullScreenNotificationModalProps) {
+  const router = useRouter();
   const hasThreads = threads.length > 0;
   const grouped = notifications.reduce<Record<string, Notification[]>>((acc, n) => {
     const key = n.type || 'other';
@@ -39,6 +41,15 @@ export default function FullScreenNotificationModal({
     acc[key].push(n);
     return acc;
   }, {});
+
+  const navigateToBooking = async (
+    link: string,
+    id: number,
+    markFn: (targetId: number) => Promise<void>,
+  ) => {
+    await markFn(id);
+    if (link) router.push(link);
+  };
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -61,7 +72,7 @@ export default function FullScreenNotificationModal({
             <h2 className="text-lg font-semibold">Notifications</h2>
             <div className="flex items-center gap-2">
               <button type="button" onClick={markAllRead} className="text-sm text-indigo-600">
-                Mark All Read
+                Mark All as Read
               </button>
               <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
                 <span className="sr-only">Close panel</span>
@@ -70,110 +81,70 @@ export default function FullScreenNotificationModal({
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
-            {notifications.length === 0 && !hasThreads && (
-              <div className="px-4 py-2 text-sm text-gray-500">No notifications</div>
-            )}
-            {hasThreads && (
-              <div className="mt-2" key="threads">
-                <div className="sticky top-0 bg-white px-4 py-2 z-10 border-b font-sans text-xs text-gray-600">
-                  Messages
-                </div>
-                <SwipeableList>
-                  {threads.map((t) => (
-                    <SwipeableListItem
-                      key={`mobile-thread-${t.booking_request_id}`}
-                      swipeLeft={{
-                        content: (
-                          <div className="bg-indigo-600 text-white px-4 flex items-center justify-end h-full">
-                            Mark Read
-                          </div>
-                        ),
-                        action: () => markThread(t.booking_request_id),
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => markThread(t.booking_request_id)}
-                        className="group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50"
-                      >
-                        {/* Avatar circle */}
-                        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
-                          {t.name.split(' ').map((w) => w[0]).join('')}
-                        </div>
-
-                        {/* Rest of row */}
-                        <div className="flex-1 text-left">
-                          <span className="block font-medium text-gray-900">
-                            {t.name}
-                          </span>
-                          <span className="block mt-0.5 text-sm text-gray-700 whitespace-pre-wrap break-words">
-                            {t.last_message}
-                          </span>
-                          <span className="block mt-1 text-sm text-gray-400">
-                            {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
-                          </span>
-                        </div>
-                      </button>
-                    </SwipeableListItem>
-                  ))}
-                </SwipeableList>
+          <div className="flex-1 overflow-y-auto p-4">
+            {notifications.length === 0 && !hasThreads ? (
+              <div className="flex h-full items-center justify-center text-gray-500 text-center">
+                🎉 You&apos;re all caught up!
               </div>
-            )}
-            {Object.entries(grouped).map(([type, items]) => (
-              <div key={type} className="mt-4">
-                <div className="sticky top-0 bg-white px-4 py-2 z-10 border-b font-sans text-xs text-gray-600">
-                  {type === 'new_booking_request'
-                    ? 'Bookings'
-                    : type === 'booking_status_updated'
-                      ? 'Bookings'
-                      : 'Other'}
-                </div>
-                <SwipeableList>
-                  {items.map((n) => (
-                    <SwipeableListItem
-                      key={`mobile-notif-${n.id}`}
-                      swipeLeft={{
-                        content: (
-                          <div className="bg-indigo-600 text-white px-4 flex items-center justify-end h-full">
-                            Mark Read
-                          </div>
-                        ),
-                        action: () => markRead(n.id),
-                      }}
+            ) : (
+              <div className="space-y-4">
+                {hasThreads &&
+                  threads.map((t) => (
+                    <div
+                      key={`thread-${t.booking_request_id}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigateToBooking(t.link, t.booking_request_id, markThread)}
+                      onKeyPress={() => navigateToBooking(t.link, t.booking_request_id, markThread)}
+                      className="bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50"
                     >
-                      <button
-                        type="button"
-                        onClick={() => markRead(n.id)}
-                        className="group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50"
-                      >
-                        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
-                          🔔
-                        </div>
-
-                        <div className="flex-1 text-left">
-                          <span className="block font-medium text-gray-900 whitespace-pre-wrap break-words">
-                            {n.message}
-                          </span>
-                          <span className="block mt-1 text-sm text-gray-400">
-                            {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
-                          </span>
-                        </div>
-                      </button>
-                    </SwipeableListItem>
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">{t.name}</span>
+                        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+                          {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-700 truncate">{t.last_message}</div>
+                      <span className="text-xs self-start bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                        {t.unread_count > 0 ? 'New' : 'Seen'}
+                      </span>
+                    </div>
                   ))}
-                </SwipeableList>
-              </div>
-            ))}
-            {hasMore && (
-              <div className="px-4 py-2 border-t border-gray-200 text-center">
-                <button
-                  type="button"
-                  onClick={loadMore}
-                  className="text-sm text-indigo-600 hover:underline focus:outline-none"
-                >
-                  Load more
-                </button>
+                {Object.entries(grouped).map(([key, items]) =>
+                  items.map((n) => (
+                    <div
+                      key={`notif-${n.id}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigateToBooking(n.link, n.id, markRead)}
+                      onKeyPress={() => navigateToBooking(n.link, n.id, markRead)}
+                      className="bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold whitespace-pre-wrap break-words">
+                          {n.message}
+                        </span>
+                        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+                          {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
+                        </span>
+                      </div>
+                      <span className="text-xs self-start bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                        {n.is_read ? 'Seen' : 'New'}
+                      </span>
+                    </div>
+                  ))
+                )}
+                {hasMore && (
+                  <div className="text-center pt-2">
+                    <button
+                      type="button"
+                      onClick={loadMore}
+                      className="text-sm text-indigo-600 hover:underline focus:outline-none"
+                    >
+                      Load more
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
