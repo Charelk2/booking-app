@@ -168,6 +168,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - Guests, venue, notes and review steps now also include inline buttons on mobile so progress is consistent through step six.
 - Each step now displays a clear heading and automatically focuses the first field for faster entry.
 - Duplicate notifications are now removed when loading additional pages.
+- Notification merging now uses a shared utility function so the code stays DRY.
 - The Load More button now disappears once all notifications have been fetched.
 - Mobile detection for the notification bell now uses a responsive hook so the
   full-screen modal displays reliably on small screens.
