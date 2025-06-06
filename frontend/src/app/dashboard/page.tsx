@@ -166,11 +166,11 @@ export default function DashboardPage() {
 
   return (
     <MainLayout>
-      <div className="py-6">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="px-4 py-4 space-y-4 overflow-y-auto">
+        <div className="mx-auto max-w-7xl">
           <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
         </div>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
+        <div className="mx-auto max-w-7xl space-y-4">
           {/* Location Prompt for Artists */}
           {showLocationPrompt && (
             <div className="mt-4 rounded-md bg-yellow-50 p-4">
@@ -213,7 +213,7 @@ export default function DashboardPage() {
 
           {/* Stats */}
           <div className="mt-8">
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
                 <dt className="truncate text-sm font-medium text-gray-500">
                   Total Bookings
@@ -435,7 +435,7 @@ export default function DashboardPage() {
                   Add Service
                 </button>
               </div>
-              <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {services.map((service, idx) => (
                   <div
                     key={service.id}
