@@ -47,6 +47,7 @@ export default function InboxPage() {
     const fetchData = async () => {
       const bookingList: BookingPreview[] = [];
       const chatList: typeof threads = [];
+
       await Promise.all(
         threads.map(async (t) => {
           try {
@@ -69,11 +70,16 @@ export default function InboxPage() {
               chatList.push(t);
             }
           } catch (err) {
-            console.error('Failed to fetch messages for thread', t.booking_request_id, err);
+            console.error(
+              'Failed to fetch messages for thread',
+              t.booking_request_id,
+              err
+            );
             chatList.push(t);
           }
         })
       );
+
       setBookings(bookingList);
       setChats(chatList);
     };
@@ -88,7 +94,12 @@ export default function InboxPage() {
 
   const handleClick = async (id: number) => {
     await markThread(id);
-    router.push(`/booking-requests/${id}`);
+
+    if (activeTab === 'requests') {
+      router.push(`/booking-requests/${id}`);
+    } else {
+      router.push(`/messages/thread/${id}`);
+    }
   };
 
   const renderBookings = () => (
@@ -98,7 +109,7 @@ export default function InboxPage() {
           <button
             type="button"
             onClick={() => handleClick(b.id)}
-            className="w-full text-left cursor-pointer active:bg-gray-100"
+            className="w-full text-left cursor-pointer active:bg-gray-100 rounded"
           >
             <div className="bg-white shadow rounded-lg p-4 space-y-2">
               <div className="flex justify-between items-center">
@@ -158,14 +169,18 @@ export default function InboxPage() {
           <button
             type="button"
             onClick={() => setActiveTab('requests')}
-            className={`pb-2 font-medium ${activeTab === 'requests' ? 'border-b-2 border-indigo-600' : 'text-gray-500'}`}
+            className={`pb-2 font-medium ${
+              activeTab === 'requests' ? 'border-b-2 border-indigo-600' : 'text-gray-500'
+            }`}
           >
             Booking Requests
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('chats')}
-            className={`pb-2 font-medium ${activeTab === 'chats' ? 'border-b-2 border-indigo-600' : 'text-gray-500'}`}
+            className={`pb-2 font-medium ${
+              activeTab === 'chats' ? 'border-b-2 border-indigo-600' : 'text-gray-500'
+            }`}
           >
             Chats
           </button>
