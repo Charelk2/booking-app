@@ -189,6 +189,7 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
             control={control}
             artistLocation={artistLocation || undefined}
             setWarning={setWarning}
+            onNext={next}
           />
         );
       case 2:
