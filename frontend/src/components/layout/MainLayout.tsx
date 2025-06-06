@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import NotificationBell from './NotificationBell';
 import MobileMenuDrawer from './MobileMenuDrawer';
+import MobileBottomNav from './MobileBottomNav';
 
 const navigation = [
   { name: 'Home', href: '/' },
@@ -166,11 +167,12 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         pathname={pathname}
       />
 
-      <main className="py-10">
+      <main className="py-10 pb-20">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           {children}
         </div>
       </main>
+      <MobileBottomNav user={user} pathname={pathname} />
     </div>
   );
-} 
+}

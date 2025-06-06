@@ -29,6 +29,9 @@ describe('MessageThread scroll button', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+    // jsdom lacks scrollIntoView which is used by the component
+    // @ts-ignore
+    window.HTMLElement.prototype.scrollIntoView = jest.fn();
   });
 
   afterEach(() => {
