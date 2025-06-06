@@ -81,7 +81,7 @@ export default function FullScreenNotificationModal({
                     key={`mobile-thread-${t.booking_request_id}`}
                     type="button"
                     onClick={() => markThread(t.booking_request_id)}
-                    className="group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+                    className="group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50"
                   >
                     {/* Avatar circle */}
                     <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
@@ -89,14 +89,14 @@ export default function FullScreenNotificationModal({
                     </div>
 
                     {/* Rest of row */}
-                    <div className="flex-1 text-left text-gray-500">
-                      <span className="flex items-start gap-2">
-                        <span className="flex-1">{t.name}</span>
+                    <div className="flex-1 text-left">
+                      <span className="block font-medium text-gray-900">
+                        {t.name}
                       </span>
-                      <span className="block w-full text-sm text-gray-400 whitespace-pre-wrap break-words">
+                      <span className="block mt-0.5 text-sm text-gray-700 whitespace-pre-wrap break-words">
                         {t.last_message}
                       </span>
-                      <span className="block text-sm text-gray-400">
+                      <span className="block mt-1 text-sm text-gray-400">
                         {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
                       </span>
                     </div>
@@ -114,17 +114,17 @@ export default function FullScreenNotificationModal({
                     key={`mobile-notif-${n.id}`}
                     type="button"
                     onClick={() => markRead(n.id)}
-                    className="group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+                    className="group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50"
                   >
                     <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
                       🔔
                     </div>
 
-                    <div className="flex-1 text-left text-gray-500">
-                      <span className="flex items-start gap-2">
-                        <span className="flex-1 whitespace-pre-wrap break-words">{n.message}</span>
+                    <div className="flex-1 text-left">
+                      <span className="block font-medium text-gray-900 whitespace-pre-wrap break-words">
+                        {n.message}
                       </span>
-                      <span className="block text-sm text-gray-400">
+                      <span className="block mt-1 text-sm text-gray-400">
                         {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
                       </span>
                     </div>
