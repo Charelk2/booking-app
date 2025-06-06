@@ -31,15 +31,19 @@ export default function useNotifications() {
   const limit = 20;
 
   const [threads, setThreads] = useState<ThreadNotification[]>([]);
+  const [hasMore, setHasMore] = useState(true);
 
   const loadMore = useCallback(async () => {
-    if (!user) return;
+    if (!user || !hasMore) return;
     setLoading(true);
     try {
       const res = await getNotifications(pageRef.current * limit, limit);
       const filtered = res.data.filter((n) => n.type !== 'new_message');
       setNotifications((prev) => mergeNotifications(prev, filtered));
       pageRef.current += 1;
+      if (res.data.length < limit) {
+        setHasMore(false);
+      }
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
       setError('Failed to load notifications.');
@@ -122,6 +126,6 @@ export default function useNotifications() {
     markThread,
     markAll,
     loadMore,
-    hasMore: notifications.length % limit === 0,
+    hasMore,
   };
 }
