@@ -97,7 +97,7 @@ export default function NotificationDrawer({
                       <div className="py-1" key="threads">
                         <p className="px-4 pt-2 text-xs font-semibold text-gray-500">Messages</p>
                         {threads.map((t) => (
-                          <div key={t.booking_request_id} className="flex w-full items-start px-4 py-2 text-sm gap-2">
+                          <div key={`thread-${t.booking_request_id}`} className="flex w-full items-start px-4 py-2 text-sm gap-2">
                             <button
                               type="button"
                               onClick={() => markThread(t.booking_request_id)}
@@ -121,7 +121,7 @@ export default function NotificationDrawer({
                           {type === 'booking_update' ? 'Bookings' : 'Other'}
                         </p>
                         {items.map((n) => (
-                          <div key={n.id} className="flex w-full items-start px-4 py-2 text-sm gap-2">
+                          <div key={`notif-${n.id}`} className="flex w-full items-start px-4 py-2 text-sm gap-2">
                             <button
                               type="button"
                               onClick={() => markRead(n.id)}
