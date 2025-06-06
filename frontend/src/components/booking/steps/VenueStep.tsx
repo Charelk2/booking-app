@@ -17,7 +17,7 @@ export default function VenueStep({ control, onNext }: Props) {
         name="venueType"
         control={control}
         render={({ field }) => (
-          <select className="border p-2 rounded w-full" {...field}>
+          <select className="border p-2 rounded w-full" {...field} autoFocus>
             <option value="indoor">Indoor</option>
             <option value="outdoor">Outdoor</option>
             <option value="hybrid">Hybrid</option>

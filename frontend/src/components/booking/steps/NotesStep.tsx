@@ -17,7 +17,12 @@ export default function NotesStep({ control, onNext }: Props) {
         name="notes"
         control={control}
         render={({ field }) => (
-          <textarea rows={3} className="border p-2 rounded w-full" {...field} />
+          <textarea
+            rows={3}
+            className="border p-2 rounded w-full"
+            {...field}
+            autoFocus
+          />
         )}
       />
       {isMobile && (

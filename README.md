@@ -164,6 +164,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - An inline Next button now appears after selecting a date on mobile so users can quickly continue to the next step.
 - The location step now shows a mobile-only Confirm Location button so stage two is easy to advance.
 - Guests, venue, notes and review steps now also include inline buttons on mobile so progress is consistent through step six.
+- Each step now displays a clear heading and automatically focuses the first field for faster entry.
 - Duplicate notifications are now removed when loading additional pages.
 - Mobile detection for the notification bell now uses a responsive hook so the
   full-screen modal displays reliably on small screens.
