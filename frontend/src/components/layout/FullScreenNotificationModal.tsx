@@ -2,7 +2,7 @@
 
 import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, BellIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 import { formatDistanceToNow } from 'date-fns';
 import type { Notification, ThreadNotification } from '@/types';
 
@@ -18,9 +18,6 @@ interface FullScreenNotificationModalProps {
   hasMore: boolean;
 }
 
-function classNames(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
-}
 
 export default function FullScreenNotificationModal({
   open,
@@ -80,22 +77,27 @@ export default function FullScreenNotificationModal({
                   Messages
                 </div>
                 {threads.map((t) => (
-                  <div key={`thread-${t.booking_request_id}`} className="flex w-full items-start px-4 py-3 text-base gap-3">
-                    <div className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
-                      {t.name.split(' ').map((n) => n[0]).join('')}
+                  <div
+                    key={`mobile-thread-${t.booking_request_id}`}
+                    className="flex w-full items-start px-4 py-3 text-base gap-3"
+                  >
+                    {/* Avatar circle */}
+                    <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                      {t.name.split(' ').map((w) => w[0]).join('')}
                     </div>
+
+                    {/* Rest of row */}
                     <button
                       type="button"
                       onClick={() => markThread(t.booking_request_id)}
-                      className={classNames('flex-1 text-left', t.unread_count > 0 ? 'font-medium' : 'text-gray-500')}
+                      className="flex-1 text-left text-gray-500"
                     >
                       <span className="flex items-start gap-2">
-                        <span className="flex-1">
-                          {t.name}
-                          {t.unread_count > 0 && ` — ${t.unread_count} new messages`}
-                        </span>
+                        <span className="flex-1">{t.name}</span>
                       </span>
-                      <span className="block w-full text-sm text-gray-400 truncate break-words">{t.last_message}</span>
+                      <span className="block w-full text-sm text-gray-400 truncate break-words">
+                        {t.last_message}
+                      </span>
                       <span className="block text-sm text-gray-400">
                         {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
                       </span>
@@ -110,18 +112,19 @@ export default function FullScreenNotificationModal({
                   {type === 'booking_update' ? 'Bookings' : 'Other'}
                 </div>
                 {items.map((n) => (
-                  <div key={`notif-${n.id}`} className="flex w-full items-start px-4 py-3 text-base gap-3">
-                    <div className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
-                      {type === 'booking_update' ? (
-                        <CalendarIcon className="h-5 w-5" aria-hidden="true" />
-                      ) : (
-                        <BellIcon className="h-5 w-5" aria-hidden="true" />
-                      )}
+                  <div
+                    key={`mobile-notif-${n.id}`}
+                    className="flex w-full items-start px-4 py-3 text-base gap-3"
+                  >
+                    {/* Avatar circle for each notification */}
+                    <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                      🔔
                     </div>
+
                     <button
                       type="button"
                       onClick={() => markRead(n.id)}
-                      className={classNames('flex-1 text-left', n.is_read ? 'text-gray-500' : 'font-medium')}
+                      className="flex-1 text-left text-gray-500"
                     >
                       <span className="flex items-start gap-2">
                         <span className="flex-1">{n.message}</span>
@@ -134,13 +137,13 @@ export default function FullScreenNotificationModal({
                       <button
                         type="button"
                         onClick={() => markRead(n.id)}
-                        className="ml-2 text-sm text-indigo-600 hover:underline"
+                        className="text-xs text-indigo-600 hover:underline ml-2"
                         aria-label="Mark read"
                       >
                         Mark read
                       </button>
                     ) : (
-                      <span className="ml-2 text-sm text-gray-400" aria-label="Read">
+                      <span className="ml-2 text-xs text-gray-400" aria-label="Read">
                         Read
                       </span>
                     )}
