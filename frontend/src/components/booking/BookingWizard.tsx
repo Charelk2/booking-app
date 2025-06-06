@@ -213,6 +213,9 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
     <div className="lg:flex lg:space-x-4">
       <div className="flex-1 space-y-4 pb-16 lg:pb-0">
         <Stepper steps={steps} currentStep={step} />
+        <h2 className="text-xl font-semibold" data-testid="step-heading">
+          {steps[step]}
+        </h2>
         {renderStep()}
         {warning && <p className="text-orange-600 text-sm">{warning}</p>}
         {Object.values(errors).length > 0 && (

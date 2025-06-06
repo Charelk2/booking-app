@@ -22,6 +22,7 @@ export default function GuestsStep({ control, onNext }: Props) {
             min={1}
             className="border p-2 rounded w-full"
             {...field}
+            autoFocus
           />
         )}
       />
