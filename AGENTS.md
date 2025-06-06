@@ -72,7 +72,7 @@ This file documents the key automation, agent modules, and service components in
 
 * **Purpose:** Sends transactional emails, booking updates, reminders, and chat alerts.
 * **Frontend:** `useNotifications.ts` for popups/toasts, badge updates.
-* **Backend:** `api_notification.py` exposes CRUD endpoints while `utils/notifications.py` persists alerts in the `notifications` table.
+* **Backend:** `api_notification.py` exposes CRUD endpoints while `utils/notifications.py` persists alerts in the `notifications` table. A new `/notifications/read-all` endpoint marks every notification read in one request.
 
 ### 9. Chat Agent
 

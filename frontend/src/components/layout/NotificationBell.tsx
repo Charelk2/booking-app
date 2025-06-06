@@ -19,6 +19,7 @@ export default function NotificationBell() {
     unreadCount,
     markRead,
     markThread,
+    markAll,
     loadMore,
     hasMore,
   } = useNotifications();
@@ -65,9 +66,7 @@ export default function NotificationBell() {
   };
 
   const markAllRead = async () => {
-    await Promise.all(
-      notifications.filter((n) => !n.is_read).map((n) => markRead(n.id)),
-    );
+    await markAll();
   };
 
 
