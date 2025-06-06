@@ -5,6 +5,8 @@ import * as yup from 'yup';
 import { format } from 'date-fns';
 import Button from '../ui/Button';
 import Stepper from '../ui/Stepper';
+import useIsMobile from '@/hooks/useIsMobile';
+import MobileActionBar from './MobileActionBar';
 import {
   getArtistAvailability,
   createBookingRequest,
@@ -52,6 +54,7 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const isMobile = useIsMobile();
 
   const {
     control,
@@ -186,7 +189,7 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
 
   return (
     <div className="lg:flex lg:space-x-4">
-      <div className="flex-1 space-y-4">
+      <div className="flex-1 space-y-4 pb-16 lg:pb-0">
         <Stepper steps={steps} currentStep={step} />
         {renderStep()}
         {warning && <p className="text-orange-600 text-sm">{warning}</p>}
@@ -194,32 +197,34 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
           <p className="text-red-600 text-sm">Please fix the errors above.</p>
         )}
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div className="flex justify-between pt-2">
-          {step > 0 && (
-            <Button variant="secondary" type="button" onClick={prev}>
-              Back
-            </Button>
-          )}
-          {step < steps.length - 1 ? (
-            <Button type="button" onClick={next} className="ml-auto">
-              Next
-            </Button>
-          ) : (
-            <div className="flex space-x-2 ml-auto">
-              <Button variant="secondary" type="button" onClick={saveDraft}>
-                Save Draft
+        {!isMobile && (
+          <div className="flex justify-between pt-2">
+            {step > 0 && (
+              <Button variant="secondary" type="button" onClick={prev}>
+                Back
               </Button>
-              <Button
-                type="button"
-                onClick={submitRequest}
-                disabled={submitting}
-                className="bg-green-600 hover:bg-green-700 focus:ring-green-500"
-              >
-                {submitting ? 'Submitting...' : 'Submit Request'}
+            )}
+            {step < steps.length - 1 ? (
+              <Button type="button" onClick={next} className="ml-auto">
+                Next
               </Button>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="flex space-x-2 ml-auto">
+                <Button variant="secondary" type="button" onClick={saveDraft}>
+                  Save Draft
+                </Button>
+                <Button
+                  type="button"
+                  onClick={submitRequest}
+                  disabled={submitting}
+                  className="bg-green-600 hover:bg-green-700 focus:ring-green-500"
+                >
+                  {submitting ? 'Submitting...' : 'Submit Request'}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <div className="hidden lg:block w-64">
         <SummarySidebar />
@@ -227,6 +232,17 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
       <div className="lg:hidden mt-4">
         <SummarySidebar />
       </div>
+      {isMobile && (
+        <MobileActionBar
+          showBack={step > 0}
+          onBack={prev}
+          showNext={step < steps.length - 1}
+          onNext={next}
+          onSaveDraft={saveDraft}
+          onSubmit={submitRequest}
+          submitting={submitting}
+        />
+      )}
     </div>
   );
 }
