@@ -269,12 +269,22 @@ export default function DashboardPage() {
                     </dd>
                   </Link>
                 </>
-              )}
-            </div>
-          </div>
+          )}
+        </div>
+      </div>
 
-          {/* Booking Requests */}
-          <div className="mt-8">
+      {user.user_type === "artist" && (
+        <button
+          type="button"
+          onClick={() => router.push("/services/new")}
+          className="w-full bg-purple-600 text-white text-sm py-3 rounded-lg mt-4"
+        >
+          Add Service
+        </button>
+      )}
+
+      {/* Booking Requests */}
+      <div className="mt-8">
             <h2 className="text-lg font-medium text-gray-900">
               Booking Requests
             </h2>
