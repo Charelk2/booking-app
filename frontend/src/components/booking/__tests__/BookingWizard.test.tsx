@@ -20,6 +20,7 @@ describe('BookingWizard mobile scrolling', () => {
   let root: ReturnType<typeof createRoot>;
 
   beforeEach(async () => {
+    Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
     (api.getArtistAvailability as jest.Mock).mockResolvedValue({ data: { unavailable_dates: [] } });
     (api.getArtist as jest.Mock).mockResolvedValue({ data: { location: 'NYC' } });
 
@@ -27,7 +28,7 @@ describe('BookingWizard mobile scrolling', () => {
     document.body.appendChild(container);
     root = createRoot(container);
     // jsdom does not implement scrollTo, so provide a stub
-    // @ts-ignore
+    // @ts-expect-error - jsdom does not implement scrollTo
     window.scrollTo = jest.fn();
 
     await act(async () => {
@@ -47,5 +48,10 @@ describe('BookingWizard mobile scrolling', () => {
       nextButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(window.scrollTo).toHaveBeenCalled();
+  });
+
+  it('renders inline next button on mobile', () => {
+    const inline = container.querySelector('[data-testid="date-next-button"]');
+    expect(inline).not.toBeNull();
   });
 });
