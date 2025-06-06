@@ -1,5 +1,4 @@
 # AGENTS.md
-
 This file documents the key automation, agent modules, and service components in the Bookamuso booking-app project.
 
 ---
@@ -13,9 +12,11 @@ This file documents the key automation, agent modules, and service components in
 | **Travel & Accommodation Agent** | Calculates travel needs, handles accommodation logic and user prompts     | backend/app/api/api_booking_request.py, frontend/components/AccommodationStep.tsx | Called if event is outside radius/needs travel |
 | **Quote Generator**              | Gathers performance, provider, travel, and accommodation costs for client | backend/app/api/api_quote.py, frontend/components/QuoteSummary.tsx                 | Runs after all booking info is entered         |
 | **Quote Preview Agent**          | Shows estimated total during final booking step | frontend/components/booking/steps/ReviewStep.tsx | On review step before submitting request |
-| **Payment Agent**                | Manages payment workflows, booking status update, confirmation            | backend/app/api/api_payment.py (planned), frontend/components/PaymentForm.tsx      | On payment page/booking confirmation           |
+| **Payment Agent** | Planned payment workflows, not yet implemented | N/A | Coming soon |
 | **Notification Agent**           | Sends emails, chat alerts, and booking status updates                     | backend/app/api/api_notification.py, backend/app/utils/notifications.py, frontend/hooks/useNotifications.ts | Triggered on status changes, messages, actions |
-| **Chat Agent**                   | Manages client-artist/support chat, delivers new message notifications    | backend/app/api/api_chat.py, frontend/components/Chat.tsx                          | Always-on for active bookings                  |
+| **Chat Agent** | Manages client-artist/support chat and WebSocket updates | backend/app/api/api_message.py, backend/app/api/api_ws.py, frontend/components/booking/MessageThread.tsx | Always-on for active bookings |
+| **Caching Agent** | Caches artist lists using Redis | backend/app/utils/redis_cache.py, backend/app/api/v1/api_artist.py | On artist list requests |
+| **Personalized Video Agent** | Manages automated Q&A for custom videos | frontend/components/booking/PersonalizedVideoFlow.tsx, frontend/src/lib/videoFlow.ts | When service_type is Personalized Video |
 | **Availability Agent**           | Handles real-time artist/service availability checks                      | backend/app/api/v1/api_artist.py, frontend/components/booking/BookingWizard.tsx                | On date/service selection, booking start       |
 | **Form State Agent**             | Maintains progress, handles multi-step UX, restores unfinished bookings   | frontend/components/booking/BookingWizard.tsx, frontend/contexts/BookingContext.tsx         | Throughout user session                        |
 | **Validation Agent**             | Validates all user input (dates, contact info, logic rules)               | frontend/components/booking/BookingWizard.tsx, backend/app/schemas/                           | At every form step and backend endpoint        |
@@ -56,9 +57,9 @@ This file documents the key automation, agent modules, and service components in
 
 ### 6. Payment Agent
 
-* **Purpose:** Handles payment workflow—collects payment, updates status, triggers contract/invoice.
-* **Frontend:** `PaymentForm.tsx` (or equivalent page/component) takes payment and handles callbacks.
-* **Backend:** `api_payment.py` (if implemented) processes payment, updates booking.
+* **Purpose:** Planned payment workflow (not yet implemented).
+* **Frontend:** `PaymentForm.tsx` is a placeholder.
+* **Backend:** Payment API pending.
 
 ### 7. Notification Agent
 
@@ -69,22 +70,30 @@ This file documents the key automation, agent modules, and service components in
 ### 8. Chat Agent
 
 * **Purpose:** Delivers real-time or async chat, manages unread notifications, logs chat history.
-* **Frontend:** `Chat.tsx` for UI, message sending, badge.
-* **Backend:** `api_chat.py` for storing/sending messages and push notifications.
-* **Features:** Auto-scrolls on new messages, mobile-friendly input bar, avatars, image previews, and a progress bar with typing indicator for Q&A flows.
+* **Frontend:** `MessageThread.tsx` and related components handle sending and displaying messages.
+* **Backend:** `api_message.py` stores messages and `api_ws.py` pushes updates via WebSocket.
+* **Features:** Auto-scroll, mobile-friendly input, avatars, image previews, and typing indicator.
+### 9. Caching Agent
 
-### 9. Availability Agent
+* **Purpose:** Cache heavy artist list responses using Redis.
+* **Backend:** `redis_cache.py` stores serialized profiles; used in `api_artist.py`.
+### 10. Personalized Video Agent
 
+* **Purpose:** Automates question prompts for personalized video requests.
+* **Frontend:** `PersonalizedVideoFlow.tsx` orchestrates Q&A using `videoFlow.ts`.
+
+
+### 11. Availability Agent
 * **Purpose:** Checks/updates in real time which artists and providers are available for a user’s event date and needs.
 * **Frontend:** When client picks date/artist, disables blocked dates, shows live availability.
 * **Backend:** `api_artist.py` logic for checking calendars, marking bookings.
 
-### 10. Form State Agent
+### 12. Form State Agent
 
 * **Purpose:** Manages progress through multi-step booking, “save for later,” restores session on reload or login.
 * **Frontend:** Uses React context/state in `booking/BookingWizard.tsx` and `contexts/BookingContext.tsx`.
 
-### 11. Validation Agent
+### 13. Validation Agent
 
 * **Purpose:** Ensures all inputs are correct (dates, emails, phone, logic like “accommodation required if >X km”).
 * **Frontend:** Inline validation on form steps, helpful error messages.
@@ -102,7 +111,7 @@ This file documents the key automation, agent modules, and service components in
 
 ## Last Updated
 
-2025-06-06
+2025-06-07
 
 ---
 
