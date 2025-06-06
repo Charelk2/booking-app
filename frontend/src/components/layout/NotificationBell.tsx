@@ -32,7 +32,11 @@ export default function NotificationBell() {
       await markRead(n.id);
     }
     setOpen(false);
-    router.push(n.link);
+    if (n.link && typeof n.link === 'string') {
+      router.push(n.link);
+    } else {
+      console.warn('Notification missing link', n);
+    }
   };
 
   const handleThreadClick = async (id: number) => {
@@ -43,7 +47,11 @@ export default function NotificationBell() {
     }
     await markThread(id);
     setOpen(false);
-    router.push(thread.link);
+    if (thread.link) {
+      router.push(thread.link);
+    } else {
+      console.warn('Thread notification missing link', thread);
+    }
   };
 
   const markAllRead = async () => {
