@@ -193,13 +193,19 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
           />
         );
       case 2:
-        return <GuestsStep control={control} />;
+        return <GuestsStep control={control} onNext={next} />;
       case 3:
-        return <VenueStep control={control} />;
+        return <VenueStep control={control} onNext={next} />;
       case 4:
-        return <NotesStep control={control} />;
+        return <NotesStep control={control} onNext={next} />;
       default:
-        return <ReviewStep />;
+        return (
+          <ReviewStep
+            onSaveDraft={saveDraft}
+            onSubmit={submitRequest}
+            submitting={submitting}
+          />
+        );
     }
   };
 
