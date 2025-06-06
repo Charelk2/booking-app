@@ -261,6 +261,10 @@ redis-server
 
 Cached results expire after about one minute. If Redis is unavailable the
 endpoint falls back to querying the database normally.
+## Common Errors
+
+- **jest: not found**: Run `npm install` inside `frontend/` to install dev dependencies.
+
 
 ## Local Test Instructions
 
