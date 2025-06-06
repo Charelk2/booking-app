@@ -338,6 +338,7 @@ endpoint falls back to querying the database normally.
 
 - **jest: not found**: Dependencies are missing. `npm test` now automatically installs them via a `pretest` script.
 - **Missing package.json**: Run `npm test` or `npm run lint` from the `frontend` directory, not the repo root.
+- **next: not found / ENOTEMPTY rename node_modules**: The `next` binary and other packages live in `frontend/node_modules`. Run `./setup.sh` or `npm install` inside `frontend` to reinstall dependencies if they are missing or partially installed.
 
 
 ## Local Test Instructions
