@@ -87,7 +87,7 @@ export default function InboxPage() {
 
   const handleClick = async (id: number) => {
     await markThread(id);
-    router.push(`/bookings/${id}`);
+    router.push(`/booking-requests/${id}`);
   };
 
   const renderBookings = () => (
