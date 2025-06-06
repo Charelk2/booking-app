@@ -3,22 +3,31 @@ import { Controller, Control, FieldValues } from 'react-hook-form';
 import { GoogleMap, Marker, useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { useRef, useState, useEffect } from 'react';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
+import useIsMobile from '@/hooks/useIsMobile';
+import Button from '../../ui/Button';
 
 interface Props {
   control: Control<FieldValues>;
   artistLocation?: string | null;
   setWarning: (w: string | null) => void;
+  onNext: () => void;
 }
 
 const containerStyle = { width: '100%', height: '250px' };
 
-export default function LocationStep({ control, artistLocation, setWarning }: Props) {
+export default function LocationStep({
+  control,
+  artistLocation,
+  setWarning,
+  onNext,
+}: Props) {
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: ['places'],
   });
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [marker, setMarker] = useState<LatLng | null>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     (async () => {
@@ -78,6 +87,11 @@ export default function LocationStep({ control, artistLocation, setWarning }: Pr
       >
         Use my location
       </button>
+      {isMobile && (
+        <Button data-testid="location-next-button" onClick={onNext} fullWidth>
+          Confirm Location
+        </Button>
+      )}
     </div>
   );
 }
