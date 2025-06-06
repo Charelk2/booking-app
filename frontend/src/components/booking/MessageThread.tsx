@@ -60,6 +60,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [quotePrice, setQuotePrice] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   const fetchMessages = async () => {
     try {
@@ -151,6 +153,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isSystemTyping]);
 
+  // Show scroll-to-bottom button when not viewing the latest message
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    const atBottom = scrollHeight - scrollTop - clientHeight < 20;
+    setShowScrollButton(!atBottom);
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() && !file) return;
@@ -202,7 +212,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           {clientName} ↔ {artistName}
         </span>
       </div>
-      <div className="flex-1 overflow-y-auto space-y-3">
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto space-y-3"
+      >
         {loading ? (
           <div className="flex justify-center py-4" aria-label="Loading messages">
             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-600" />
@@ -305,6 +319,31 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         )}
         <div ref={messagesEndRef} />
       </div>
+      {showScrollButton && (
+        <button
+          type="button"
+          aria-label="Scroll to latest message"
+          onClick={() =>
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+          }
+          className="fixed bottom-20 right-4 z-50 md:hidden rounded-full bg-indigo-600 p-2 text-white shadow"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="h-5 w-5"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.5 8.25L12 15.75 4.5 8.25"
+            />
+          </svg>
+        </button>
+      )}
       {user && (
         <>
           {previewUrl && (
