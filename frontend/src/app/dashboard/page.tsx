@@ -27,7 +27,7 @@ export default function DashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(
-    null,
+    null
   );
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,8 +86,8 @@ export default function DashboardPage() {
     const processedService = normalizeService(newService);
     setServices((prevServices) =>
       [...prevServices, processedService].sort(
-        (a, b) => a.display_order - b.display_order,
-      ),
+        (a, b) => a.display_order - b.display_order
+      )
     );
   };
 
@@ -96,7 +96,7 @@ export default function DashboardPage() {
     setServices((prev) =>
       prev
         .map((s) => (s.id === normalized.id ? normalized : s))
-        .sort((a, b) => a.display_order - b.display_order),
+        .sort((a, b) => a.display_order - b.display_order)
     );
   };
 
@@ -111,7 +111,7 @@ export default function DashboardPage() {
 
   const moveService = async (id: number, direction: "up" | "down") => {
     const sorted = [...services].sort(
-      (a, b) => a.display_order - b.display_order,
+      (a, b) => a.display_order - b.display_order
     );
     const index = sorted.findIndex((s) => s.id === id);
     const newIndex = direction === "up" ? index - 1 : index + 1;
@@ -123,8 +123,8 @@ export default function DashboardPage() {
     try {
       await Promise.all(
         reordered.map((s) =>
-          updateService(s.id, { display_order: s.display_order }),
-        ),
+          updateService(s.id, { display_order: s.display_order })
+        )
       );
     } catch (err) {
       console.error("Service reorder error:", err);
@@ -213,28 +213,52 @@ export default function DashboardPage() {
 
           {/* Stats */}
           <div className="mt-8">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <Link
+                href="/bookings"
+                className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+              >
                 <dt className="truncate text-sm font-medium text-gray-500">
-                  Total Bookings
+                  <div className="flex items-center space-x-2">
+                    <span role="img" aria-label="calendar">
+                      🗓
+                    </span>
+                    <span>Total Bookings</span>
+                  </div>
                 </dt>
                 <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                   {bookings.length}
                 </dd>
-              </div>
+              </Link>
               {user.user_type === "artist" && (
                 <>
-                  <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+                  <Link
+                    href="/services"
+                    className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                  >
                     <dt className="truncate text-sm font-medium text-gray-500">
-                      Total Services
+                      <div className="flex items-center space-x-2">
+                        <span role="img" aria-label="microphone">
+                          🎤
+                        </span>
+                        <span>Total Services</span>
+                      </div>
                     </dt>
                     <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                       {services.length}
                     </dd>
-                  </div>
-                  <div className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+                  </Link>
+                  <Link
+                    href="/earnings"
+                    className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                  >
                     <dt className="truncate text-sm font-medium text-gray-500">
-                      Total Earnings
+                      <div className="flex items-center space-x-2">
+                        <span role="img" aria-label="money">
+                          💰
+                        </span>
+                        <span>Total Earnings</span>
+                      </div>
                     </dt>
                     <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                       $
@@ -243,11 +267,21 @@ export default function DashboardPage() {
                         .reduce((acc, booking) => acc + booking.total_price, 0)
                         .toFixed(2)}
                     </dd>
-                  </div>
+                  </Link>
                 </>
               )}
             </div>
           </div>
+
+          {user.user_type === "artist" && (
+            <button
+              type="button"
+              onClick={() => router.push("/services/new")}
+              className="w-full bg-purple-600 text-white text-sm py-3 rounded-lg mt-4"
+            >
+              Add Service
+            </button>
+          )}
 
           {/* Booking Requests */}
           <div className="mt-8">
@@ -392,7 +426,7 @@ export default function DashboardPage() {
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                         {format(
                           new Date(booking.start_time),
-                          "MMM d, yyyy h:mm a",
+                          "MMM d, yyyy h:mm a"
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm">
@@ -401,10 +435,10 @@ export default function DashboardPage() {
                             booking.status === "completed"
                               ? "bg-green-100 text-green-800"
                               : booking.status === "cancelled"
-                                ? "bg-red-100 text-red-800"
-                                : booking.status === "confirmed"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-yellow-100 text-yellow-800"
+                              ? "bg-red-100 text-red-800"
+                              : booking.status === "confirmed"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-yellow-100 text-yellow-800"
                           }`}
                         >
                           {booking.status}
