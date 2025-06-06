@@ -111,6 +111,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - Profile pages now generate Open Graph meta tags for easier sharing and show a fallback avatar image with an edit overlay for artists.
 - Notifications are grouped by type in a dropdown with options to mark each as read or preview the related item.
 - The notification dropdown has been replaced with a slide-out drawer that offers more room and a single click to mark all notifications read.
+- The notification bell now appears on mobile screens so alerts can be accessed anywhere.
 - Duplicate notifications are now removed when loading additional pages.
 - Artist profile sections now load independently for faster page rendering and show loading states per section.
 - Cover and profile images use Next.js `<Image>` for responsive sizing and better performance.
