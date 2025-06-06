@@ -162,6 +162,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - A sticky action bar keeps Back/Next buttons visible on small screens so users can easily navigate each step.
 - Steps now automatically scroll to the top when moving between steps on mobile, keeping the next form field in view.
 - An inline Next button now appears after selecting a date on mobile so users can quickly continue to the next step.
+- The location step now shows a mobile-only Confirm Location button so stage two is easy to advance.
 - Duplicate notifications are now removed when loading additional pages.
 - Mobile detection for the notification bell now uses a responsive hook so the
   full-screen modal displays reliably on small screens.
