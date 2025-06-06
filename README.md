@@ -140,6 +140,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 
 - The message input bar has been redesigned for mobile: the file upload button now uses a compact icon and the text field shares the outer border so there are no double lines. Attachments stay inside the chatbox without overlapping other elements.
 - The chat box now stretches to roughly 70% of the viewport height on mobile and the Send button uses standard spacing so it's easier to tap.
+- A floating "scroll to latest" button appears on mobile when you scroll up so you can quickly jump back to the newest message.
 
 ### Artist profile polish (2025-06)
 - Added ARIA roles and clearer empty states for better accessibility.
