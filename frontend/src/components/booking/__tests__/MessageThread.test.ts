@@ -11,11 +11,11 @@ jest.mock('@/contexts/AuthContext');
 // Minimal WebSocket stub
 class StubSocket {
   onopen: (() => void) | null = null;
-  onmessage: ((e: any) => void) | null = null;
+  onmessage: ((e: unknown) => void) | null = null;
   onerror: (() => void) | null = null;
   close() {}
 }
-// @ts-ignore
+// @ts-expect-error jsdom does not implement WebSocket
 global.WebSocket = StubSocket;
 
 describe('MessageThread scroll button', () => {
@@ -30,7 +30,7 @@ describe('MessageThread scroll button', () => {
     document.body.appendChild(container);
     root = createRoot(container);
     // jsdom lacks scrollIntoView which is used by the component
-    // @ts-ignore
+    // @ts-expect-error jsdom lacks scrollIntoView
     window.HTMLElement.prototype.scrollIntoView = jest.fn();
   });
 
