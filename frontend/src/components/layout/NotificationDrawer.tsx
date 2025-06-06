@@ -102,7 +102,7 @@ export default function NotificationDrawer({
                             type="button"
                             onClick={() => markThread(t.booking_request_id)}
                             className={classNames(
-                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300',
+                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50',
                               t.unread_count > 0 ? 'font-medium' : 'text-gray-500',
                             )}
                           >
@@ -113,16 +113,14 @@ export default function NotificationDrawer({
                                 .join('')}
                             </div>
                             <div className="flex-1 text-left">
-                              <span className="flex items-start gap-2">
-                                <span className="flex-1">
-                                  {t.name}
-                                  {t.unread_count > 0 && ` — ${t.unread_count} new messages`}
-                                </span>
+                              <span className="block font-medium text-gray-900">
+                                {t.name}
+                                {t.unread_count > 0 && ` — ${t.unread_count} new messages`}
                               </span>
-                              <span className="block w-full text-xs text-gray-400 whitespace-pre-wrap break-words">
+                              <span className="block mt-0.5 text-sm text-gray-700 whitespace-pre-wrap break-words">
                                 {t.last_message}
                               </span>
-                              <span className="block text-xs text-gray-400">
+                              <span className="block mt-1 text-xs text-gray-400">
                                 {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
                               </span>
                             </div>
@@ -141,7 +139,7 @@ export default function NotificationDrawer({
                             type="button"
                             onClick={() => markRead(n.id)}
                             className={classNames(
-                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300',
+                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50',
                               n.is_read ? 'text-gray-500' : 'font-medium',
                             )}
                           >
@@ -149,10 +147,10 @@ export default function NotificationDrawer({
                               🔔
                             </div>
                             <div className="flex-1 text-left">
-                              <span className="flex items-start gap-2">
-                                <span className="flex-1 whitespace-pre-wrap break-words">{n.message}</span>
+                              <span className="block font-medium text-gray-900 whitespace-pre-wrap break-words">
+                                {n.message}
                               </span>
-                              <span className="block text-xs text-gray-400">
+                              <span className="block mt-1 text-xs text-gray-400">
                                 {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
                               </span>
                             </div>
