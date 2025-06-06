@@ -230,3 +230,32 @@ def test_thread_notification_uses_business_name_for_artist():
     threads = crud_notification.get_message_thread_notifications(db, client.id)
     assert len(threads) == 1
     assert threads[0]["name"] == "The Band"
+
+
+def test_mark_all_notifications_read():
+    db = setup_db()
+    user = User(
+        email="u3@test.com",
+        password="x",
+        first_name="T3",
+        last_name="User",
+        user_type=UserType.ARTIST,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    # create unread notifications
+    for i in range(3):
+        crud_notification.create_notification(
+            db,
+            user_id=user.id,
+            type=NotificationType.NEW_BOOKING_REQUEST,
+            message=f"msg {i}",
+            link=f"/x/{i}",
+        )
+
+    updated = crud_notification.mark_all_read(db, user.id)
+    assert updated == 3
+    all_after = crud_notification.get_notifications_for_user(db, user.id)
+    assert all(n.is_read for n in all_after)
