@@ -246,6 +246,17 @@ message summarizing the selected date, location, guest count, venue type and
 any notes into the request's chat thread. This ensures both the artist and
 client can easily review all event details from the conversation view.
 
+## Review API
+
+Clients can rate completed bookings using these endpoints:
+
+- `POST /api/v1/bookings/{booking_id}/reviews` – Submit a review.
+- `GET /api/v1/reviews/{booking_id}` – Fetch a single review.
+- `GET /api/v1/artist-profiles/{artist_id}/reviews` – List reviews for an artist.
+- `GET /api/v1/services/{service_id}/reviews` – List reviews for a service.
+
+Only the client who made the booking can create a review and only after the booking status is `completed`.
+
 ## Caching with Redis
 
 The artist list endpoint (`/api/v1/artist-profiles/`) now caches its GET
@@ -265,6 +276,7 @@ endpoint falls back to querying the database normally.
 ## Common Errors
 
 - **jest: not found**: Dependencies are missing. `npm test` now automatically installs them via a `pretest` script.
+- **Missing package.json**: Run `npm test` or `npm run lint` from the `frontend` directory, not the repo root.
 
 
 ## Local Test Instructions
