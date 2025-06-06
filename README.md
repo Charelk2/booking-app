@@ -130,6 +130,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - Mobile detection for the notification bell now uses a responsive hook so the
   full-screen modal displays reliably on small screens.
 - The dark overlay is hidden on small screens so notification links remain clickable.
+- Notification rows now support swipe left to mark them read thanks to `react-swipeable-list`.
 - Artist profile sections now load independently for faster page rendering and show loading states per section.
 - Cover and profile images use Next.js `<Image>` for responsive sizing and better performance.
 - Service cards refresh their data when expanded so pricing stays accurate.
