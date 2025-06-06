@@ -55,6 +55,17 @@ describe('BookingWizard mobile scrolling', () => {
     expect(inline).not.toBeNull();
   });
 
+  it('shows step heading and updates on next', async () => {
+    const heading = () =>
+      container.querySelector('[data-testid="step-heading"]')?.textContent;
+    expect(heading()).toContain('Date & Time');
+    const next = container.querySelector('[data-testid="date-next-button"]') as HTMLButtonElement;
+    await act(async () => {
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(heading()).toContain('Location');
+  });
+
   it('shows confirm location button after advancing', async () => {
     const inline = container.querySelector('[data-testid="date-next-button"]') as HTMLButtonElement;
     await act(async () => {
