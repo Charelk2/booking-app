@@ -169,6 +169,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - Service cards refresh their data when expanded so pricing stays accurate.
 - Fixed a crash in the notification dropdown caused by calling hooks before they were initialized.
 - Fixed an infinite notifications fetch loop that caused excessive API requests.
+- Mobile navigation now slides in from the left with a smooth animation.
 
 The registration page now includes a password strength meter and shows a toast notification once an account is created successfully.
 Both auth pages use new shared form components and include optional Google and GitHub sign-in buttons.
