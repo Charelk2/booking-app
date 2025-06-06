@@ -56,6 +56,13 @@ The frontend is in `frontend/`. After installing dependencies with `npm install`
 npm run dev
 ```
 
+When testing on another device, run the dev server so it listens on all
+network interfaces:
+
+```bash
+npm run dev -- -H 0.0.0.0
+```
+
 The frontend expects the backend to be running on `http://localhost:8000`.
 If the backend or WebSocket server runs elsewhere, set `NEXT_PUBLIC_API_URL` and
 `NEXT_PUBLIC_WS_URL` in `.env.local` accordingly. When accessing the app from

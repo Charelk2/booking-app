@@ -70,7 +70,9 @@ const normalizeArtistProfile = (
 // ─── ARTISTS ───────────────────────────────────────────────────────────────────
 
 export const getArtists = async () => {
-  const res = await api.get<ArtistProfile[]>(`${API_V1}/artist-profiles`);
+  // FastAPI defines the listing route with a trailing slash. Avoid a redirect
+  // on mobile devices by requesting the exact path.
+  const res = await api.get<ArtistProfile[]>(`${API_V1}/artist-profiles/`);
   return { ...res, data: res.data.map(normalizeArtistProfile) };
 };
 
