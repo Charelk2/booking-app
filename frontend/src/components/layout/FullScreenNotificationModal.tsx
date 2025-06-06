@@ -43,7 +43,7 @@ export default function FullScreenNotificationModal({
 
   return (
     <Transition.Root show={open} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
+      <Dialog as="div" className="fixed inset-0 z-50" onClose={onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -53,118 +53,100 @@ export default function FullScreenNotificationModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity" />
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" />
         </Transition.Child>
 
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <Dialog.Panel className="relative w-full transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-                  <Dialog.Title className="text-lg font-medium text-gray-900">Notifications</Dialog.Title>
-                  <div className="flex items-center gap-2">
+        <div className="flex h-full w-full flex-col bg-white">
+          <div className="sticky top-0 z-20 flex items-center justify-between bg-white border-b px-4 py-3">
+            <h2 className="text-lg font-semibold">Notifications</h2>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={markAllRead} className="text-sm text-indigo-600">
+                Mark All Read
+              </button>
+              <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <span className="sr-only">Close panel</span>
+                <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            {notifications.length === 0 && !hasThreads && (
+              <div className="px-4 py-2 text-sm text-gray-500">No notifications</div>
+            )}
+            {hasThreads && (
+              <div className="py-1" key="threads">
+                <p className="px-4 pt-2 text-xs font-semibold text-gray-500">Messages</p>
+                {threads.map((t) => (
+                  <div key={`thread-${t.booking_request_id}`} className="flex w-full items-start px-4 py-2 text-sm gap-2">
                     <button
                       type="button"
-                      onClick={markAllRead}
-                      className="text-xs text-indigo-600 hover:underline"
+                      onClick={() => markThread(t.booking_request_id)}
+                      className={classNames('flex-1 text-left', t.unread_count > 0 ? 'font-medium' : 'text-gray-500')}
                     >
-                      Mark all read
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-md text-gray-400 hover:text-gray-600 focus:outline-none"
-                      onClick={onClose}
-                    >
-                      <span className="sr-only">Close panel</span>
-                      <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                      <span className="flex items-start gap-2">
+                        <span className="flex-1">
+                          {t.name}
+                          {t.unread_count > 0 && ` — ${t.unread_count} new messages`}
+                        </span>
+                      </span>
+                      <span className="block w-full text-xs text-gray-400 truncate break-words">{t.last_message}</span>
+                      <span className="block text-xs text-gray-400">
+                        {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
+                      </span>
                     </button>
                   </div>
-                </div>
-                <div className="max-h-[calc(100vh-4rem)] overflow-y-auto">
-                  {notifications.length === 0 && !hasThreads && (
-                    <div className="px-4 py-2 text-sm text-gray-500">No notifications</div>
-                  )}
-                  {hasThreads && (
-                    <div className="py-1" key="threads">
-                      <p className="px-4 pt-2 text-xs font-semibold text-gray-500">Messages</p>
-                      {threads.map((t) => (
-                        <div key={`thread-${t.booking_request_id}`} className="flex w-full items-start px-4 py-2 text-sm gap-2">
-                          <button
-                            type="button"
-                            onClick={() => markThread(t.booking_request_id)}
-                            className={classNames('flex-1 text-left', t.unread_count > 0 ? 'font-medium' : 'text-gray-500')}
-                          >
-                            <span className="flex items-start gap-2">
-                              <span className="flex-1">{t.name}{t.unread_count > 0 && ` — ${t.unread_count} new messages`}</span>
-                            </span>
-                            <span className="block w-full text-xs text-gray-400 truncate break-words">{t.last_message}</span>
-                            <span className="block text-xs text-gray-400">
-                              {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
-                            </span>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {Object.entries(grouped).map(([type, items]) => (
-                    <div key={type} className="py-1">
-                      <p className="px-4 pt-2 text-xs font-semibold text-gray-500">
-                        {type === 'booking_update' ? 'Bookings' : 'Other'}
-                      </p>
-                      {items.map((n) => (
-                        <div key={`notif-${n.id}`} className="flex w-full items-start px-4 py-2 text-sm gap-2">
-                          <button
-                            type="button"
-                            onClick={() => markRead(n.id)}
-                            className={classNames('flex-1 text-left', n.is_read ? 'text-gray-500' : 'font-medium')}
-                          >
-                            <span className="flex items-start gap-2">
-                              <span className="flex-1">{n.message}</span>
-                            </span>
-                            <span className="block text-xs text-gray-400">
-                              {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
-                            </span>
-                          </button>
-                          {!n.is_read ? (
-                            <button
-                              type="button"
-                              onClick={() => markRead(n.id)}
-                              className="text-xs text-indigo-600 hover:underline ml-2"
-                              aria-label="Mark read"
-                            >
-                              Mark read
-                            </button>
-                          ) : (
-                            <span className="ml-2 text-xs text-gray-400" aria-label="Read">
-                              Read
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                  {hasMore && (
-                    <div className="px-4 py-2 border-t border-gray-200 text-center">
+                ))}
+              </div>
+            )}
+            {Object.entries(grouped).map(([type, items]) => (
+              <div key={type} className="py-1">
+                <p className="px-4 pt-2 text-xs font-semibold text-gray-500">
+                  {type === 'booking_update' ? 'Bookings' : 'Other'}
+                </p>
+                {items.map((n) => (
+                  <div key={`notif-${n.id}`} className="flex w-full items-start px-4 py-2 text-sm gap-2">
+                    <button
+                      type="button"
+                      onClick={() => markRead(n.id)}
+                      className={classNames('flex-1 text-left', n.is_read ? 'text-gray-500' : 'font-medium')}
+                    >
+                      <span className="flex items-start gap-2">
+                        <span className="flex-1">{n.message}</span>
+                      </span>
+                      <span className="block text-xs text-gray-400">
+                        {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
+                      </span>
+                    </button>
+                    {!n.is_read ? (
                       <button
                         type="button"
-                        onClick={loadMore}
-                        className="text-xs text-indigo-600 hover:underline focus:outline-none"
+                        onClick={() => markRead(n.id)}
+                        className="ml-2 text-xs text-indigo-600 hover:underline"
+                        aria-label="Mark read"
                       >
-                        Load more
+                        Mark read
                       </button>
-                    </div>
-                  )}
-                </div>
-              </Dialog.Panel>
-            </Transition.Child>
+                    ) : (
+                      <span className="ml-2 text-xs text-gray-400" aria-label="Read">
+                        Read
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+            {hasMore && (
+              <div className="px-4 py-2 border-t border-gray-200 text-center">
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  className="text-xs text-indigo-600 hover:underline focus:outline-none"
+                >
+                  Load more
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </Dialog>
