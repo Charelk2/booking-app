@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BellIcon } from '@heroicons/react/24/outline';
 import NotificationDrawer from './NotificationDrawer';
+import FullScreenNotificationModal from './FullScreenNotificationModal';
+import isMobileScreen from '@/lib/isMobile';
 import useNotifications from '@/hooks/useNotifications';
 import type { Notification } from '@/types';
 
@@ -65,17 +67,31 @@ export default function NotificationBell() {
           </span>
         )}
       </button>
-      <NotificationDrawer
-        open={open}
-        onClose={() => setOpen(false)}
-        notifications={notifications}
-        threads={threads}
-        markRead={handleClick}
-        markThread={handleThreadClick}
-        markAllRead={markAllRead}
-        loadMore={loadMore}
-        hasMore={hasMore}
-      />
+      {isMobileScreen() ? (
+        <FullScreenNotificationModal
+          open={open}
+          onClose={() => setOpen(false)}
+          notifications={notifications}
+          threads={threads}
+          markRead={handleClick}
+          markThread={handleThreadClick}
+          markAllRead={markAllRead}
+          loadMore={loadMore}
+          hasMore={hasMore}
+        />
+      ) : (
+        <NotificationDrawer
+          open={open}
+          onClose={() => setOpen(false)}
+          notifications={notifications}
+          threads={threads}
+          markRead={handleClick}
+          markThread={handleThreadClick}
+          markAllRead={markAllRead}
+          loadMore={loadMore}
+          hasMore={hasMore}
+        />
+      )}
     </div>
   );
 }
