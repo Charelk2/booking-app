@@ -30,6 +30,17 @@ includes both `http://localhost:3000` and `http://localhost:3002`.
 The value can be provided as a JSON array or a comma separated string.
 If your frontend runs on another origin, update the `CORS_ORIGINS` entry
 in `.env`.
+To access the API from another device on the same Wi‑Fi network add that
+origin as well, for example:
+
+```
+CORS_ORIGINS=["http://localhost:3000", "http://localhost:3002", "http://192.168.3.203:3000"]
+```
+Start the backend so it listens on all interfaces:
+
+```bash
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 Unhandled exceptions are wrapped in a middleware that returns JSON
 `500` responses so the configured CORS headers are always included.
 
@@ -43,7 +54,13 @@ npm run dev
 
 The frontend expects the backend to be running on `http://localhost:8000`.
 If the backend or WebSocket server runs elsewhere, set `NEXT_PUBLIC_API_URL` and
-`NEXT_PUBLIC_WS_URL` in `.env.local` accordingly.
+`NEXT_PUBLIC_WS_URL` in `.env.local` accordingly. When accessing the app from
+another device, create `frontend/.env.local` with your computer's IP address:
+
+```bash
+NEXT_PUBLIC_API_URL=http://192.168.3.203:8000
+NEXT_PUBLIC_WS_URL=ws://192.168.3.203:8000
+```
 ## Development
 
 ### Setup
