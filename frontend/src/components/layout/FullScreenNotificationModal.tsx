@@ -7,6 +7,13 @@ import { Dialog, Transition } from '@headlessui/react';
 // small screens so we now display a scrollable list of cards instead.
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { formatDistanceToNow } from 'date-fns';
+
+const getStatusFromMessage = (message: string): string | null => {
+  const match = message.match(/status updated to (\w+)/i);
+  if (match) return match[1].replace(/_/g, ' ');
+  if (/new booking request/i.test(message)) return 'new';
+  return null;
+};
 import type { Notification, ThreadNotification } from '@/types';
 
 interface FullScreenNotificationModalProps {
@@ -89,50 +96,66 @@ export default function FullScreenNotificationModal({
             ) : (
               <div className="space-y-4">
                 {hasThreads &&
-                  threads.map((t) => (
-                    <div
-                      key={`thread-${t.booking_request_id}`}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => navigateToBooking(t.link, t.booking_request_id, markThread)}
-                      onKeyPress={() => navigateToBooking(t.link, t.booking_request_id, markThread)}
-                      className="bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold">{t.name}</span>
-                        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
-                          {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
+                  threads.map((t) => {
+                    const status = getStatusFromMessage(t.last_message);
+                    return (
+                      <div
+                        key={`thread-${t.booking_request_id}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => navigateToBooking(t.link, t.booking_request_id, markThread)}
+                        onKeyPress={() => navigateToBooking(t.link, t.booking_request_id, markThread)}
+                        className="relative bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50"
+                      >
+                        {status && (
+                          <span className="absolute top-2 right-2 rounded-full bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5">
+                            {status}
+                          </span>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold">{t.name}</span>
+                          <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+                            {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-700 truncate">{t.last_message}</div>
+                        <span className="text-xs self-start bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                          {t.unread_count > 0 ? 'New' : 'Seen'}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-700 truncate">{t.last_message}</div>
-                      <span className="text-xs self-start bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                        {t.unread_count > 0 ? 'New' : 'Seen'}
-                      </span>
-                    </div>
-                  ))}
-                {Object.entries(grouped).map(([key, items]) =>
-                  items.map((n) => (
-                    <div
-                      key={`notif-${n.id}`}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => navigateToBooking(n.link, n.id, markRead)}
-                      onKeyPress={() => navigateToBooking(n.link, n.id, markRead)}
-                      className="bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold whitespace-pre-wrap break-words">
-                          {n.message}
-                        </span>
-                        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
-                          {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
+                    );
+                  })}
+                {Object.values(grouped).map((items) =>
+                  items.map((n) => {
+                    const status = getStatusFromMessage(n.message);
+                    return (
+                      <div
+                        key={`notif-${n.id}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => navigateToBooking(n.link, n.id, markRead)}
+                        onKeyPress={() => navigateToBooking(n.link, n.id, markRead)}
+                        className="relative bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50"
+                      >
+                        {status && (
+                          <span className="absolute top-2 right-2 rounded-full bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5">
+                            {status}
+                          </span>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold whitespace-pre-wrap break-words">
+                            {n.message}
+                          </span>
+                          <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+                            {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
+                          </span>
+                        </div>
+                        <span className="text-xs self-start bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                          {n.is_read ? 'Seen' : 'New'}
                         </span>
                       </div>
-                      <span className="text-xs self-start bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                        {n.is_read ? 'Seen' : 'New'}
-                      </span>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
                 {hasMore && (
                   <div className="text-center pt-2">
