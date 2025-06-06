@@ -47,20 +47,21 @@ If the backend or WebSocket server runs elsewhere, set `NEXT_PUBLIC_API_URL` and
 ## Development
 
 ### Setup
+Install frontend and Python dev dependencies with the provided helper script:
 ```bash
-cd backend
-pip install -r requirements.txt
-cd ../frontend
-npm install
+./setup.sh
 ```
 
 ### Linting
+Run ESLint after installing dependencies:
 ```bash
+./setup.sh   # run once
 cd frontend
 npm run lint
 ```
 
 ### Testing
+Be sure dependencies are installed via `./setup.sh` before running tests.
 ```bash
 pytest
 cd frontend
