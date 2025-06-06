@@ -129,7 +129,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - Duplicate notifications are now removed when loading additional pages.
 - Mobile detection for the notification bell now uses a responsive hook so the
   full-screen modal displays reliably on small screens.
-- Fixed an overlay blocking notification clicks on narrow screens.
+- The dark overlay is hidden on small screens so notification links remain clickable.
 - Artist profile sections now load independently for faster page rendering and show loading states per section.
 - Cover and profile images use Next.js `<Image>` for responsive sizing and better performance.
 - Service cards refresh their data when expanded so pricing stays accurate.
