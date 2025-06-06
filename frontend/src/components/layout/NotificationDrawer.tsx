@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment } from 'react';
+import { useRouter } from 'next/navigation';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { formatDistanceToNow } from 'date-fns';
@@ -33,6 +34,7 @@ export default function NotificationDrawer({
   loadMore,
   hasMore,
 }: NotificationDrawerProps) {
+  const router = useRouter();
   const hasThreads = threads.length > 0;
   const grouped = notifications.reduce<Record<string, Notification[]>>((acc, n) => {
     const key = n.type || 'other';
@@ -40,6 +42,11 @@ export default function NotificationDrawer({
     acc[key].push(n);
     return acc;
   }, {});
+
+  const handleThreadClick = async (id: number) => {
+    await markThread(id);
+    router.push(`/messages/thread/${id}`);
+  };
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -100,9 +107,9 @@ export default function NotificationDrawer({
                           <button
                             key={`thread-${t.booking_request_id}`}
                             type="button"
-                            onClick={() => markThread(t.booking_request_id)}
+                            onClick={() => handleThreadClick(t.booking_request_id)}
                             className={classNames(
-                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50',
+                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50 cursor-pointer active:bg-gray-100 rounded',
                               t.unread_count > 0 ? 'font-medium' : 'text-gray-500',
                             )}
                           >
