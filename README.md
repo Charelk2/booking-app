@@ -186,7 +186,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 
 ### Inbox Page
 
-Open `/inbox` from the Messages icon in the mobile bottom navigation to see all your conversations. Each row shows the latest message snippet and a badge with the number of unread messages. Selecting a thread marks it read and jumps directly to the chat.
+Open `/inbox` from the Messages icon in the mobile bottom navigation to see all your conversations. Each row shows the latest message snippet and a badge with the number of unread messages. Selecting a thread marks it read and jumps directly to the chat. The inbox now separates **Booking Requests** and **Chats** into tabs for quicker access.
 
 The registration page now includes a password strength meter and shows a toast notification once an account is created successfully.
 Both auth pages use new shared form components and include optional Google and GitHub sign-in buttons.
