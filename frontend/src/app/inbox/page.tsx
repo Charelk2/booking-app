@@ -87,7 +87,7 @@ export default function InboxPage() {
 
   const handleClick = async (id: number) => {
     await markThread(id);
-    router.push(`/bookings/${id}`);
+    router.push(`/messages/thread/${id}`);
   };
 
   const renderBookings = () => (
@@ -97,7 +97,7 @@ export default function InboxPage() {
           <button
             type="button"
             onClick={() => handleClick(b.id)}
-            className="w-full text-left cursor-pointer active:bg-gray-100"
+            className="w-full text-left cursor-pointer active:bg-gray-100 rounded"
           >
             <div className="bg-white shadow rounded-lg p-4 space-y-2">
               <div className="flex justify-between items-center">
