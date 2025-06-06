@@ -8,6 +8,7 @@ from .base import BaseModel
 class NotificationType(str, enum.Enum):
     NEW_MESSAGE = "new_message"
     NEW_BOOKING_REQUEST = "new_booking_request"
+    BOOKING_STATUS_UPDATED = "booking_status_updated"
 
 class Notification(BaseModel):
     __tablename__ = "notifications"
