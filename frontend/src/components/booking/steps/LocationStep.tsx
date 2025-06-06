@@ -66,6 +66,7 @@ export default function LocationStep({
               {...field}
               className="border p-2 rounded w-full"
               placeholder="Search address"
+              autoFocus
             />
           )}
         />
