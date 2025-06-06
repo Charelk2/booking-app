@@ -143,3 +143,20 @@ def mark_thread_read(db: Session, user_id: int, booking_request_id: int) -> None
     for n in notifs:
         n.is_read = True
     db.commit()
+
+
+def mark_all_read(db: Session, user_id: int) -> int:
+    """Mark all notifications for a user as read.
+
+    Returns the number of notifications updated.
+    """
+    updated = (
+        db.query(models.Notification)
+        .filter(
+            models.Notification.user_id == user_id,
+            models.Notification.is_read == False,
+        )
+        .update({"is_read": True}, synchronize_session="fetch")
+    )
+    db.commit()
+    return int(updated)
