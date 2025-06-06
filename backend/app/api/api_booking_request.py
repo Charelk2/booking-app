@@ -4,7 +4,10 @@ from typing import List
 
 from .. import crud, models, schemas
 from .dependencies import get_db, get_current_user, get_current_active_client, get_current_active_artist
-from ..utils.notifications import notify_user_new_booking_request
+from ..utils.notifications import (
+    notify_user_new_booking_request,
+    notify_booking_status_update,
+)
 
 # Prefix is added when this router is included in `app/main.py`.
 router = APIRouter(
@@ -125,10 +128,19 @@ def update_booking_request_by_client(
     # Validate status change if present
     if request_update.status and request_update.status not in [models.BookingRequestStatus.REQUEST_WITHDRAWN, models.BookingRequestStatus.PENDING_QUOTE, models.BookingRequestStatus.DRAFT]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status update by client.")
-
-    return crud.crud_booking_request.update_booking_request(
+    prev_status = db_request.status
+    updated = crud.crud_booking_request.update_booking_request(
         db=db, db_booking_request=db_request, request_update=request_update
     )
+
+    if request_update.status and request_update.status != prev_status:
+        artist_user = db.query(models.User).filter(models.User.id == db_request.artist_id).first()
+        if artist_user:
+            notify_booking_status_update(
+                db, artist_user, updated.id, updated.status.value
+            )
+
+    return updated
 
 @router.put("/{request_id}/artist", response_model=schemas.BookingRequestResponse)
 def update_booking_request_by_artist(
@@ -158,6 +170,16 @@ def update_booking_request_by_artist(
     # If artist is declining a request that already has a quote, this logic might need adjustment based on product decision
     # For now, assume declining the request means any existing quotes are implicitly void.
 
-    return crud.crud_booking_request.update_booking_request(
+    prev_status = db_request.status
+    updated = crud.crud_booking_request.update_booking_request(
         db=db, db_booking_request=db_request, request_update=request_update
-    ) 
+    )
+
+    if request_update.status and request_update.status != prev_status:
+        client_user = db.query(models.User).filter(models.User.id == db_request.client_id).first()
+        if client_user:
+            notify_booking_status_update(
+                db, client_user, updated.id, updated.status.value
+            )
+
+    return updated
