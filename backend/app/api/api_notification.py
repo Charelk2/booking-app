@@ -72,3 +72,13 @@ def mark_thread_read(
     """Mark all message notifications for the thread as read."""
     crud.crud_notification.mark_thread_read(db, current_user.id, booking_request_id)
     return {"booking_request_id": booking_request_id}
+
+
+@router.put("/notifications/read-all")
+def mark_all_notifications_read(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Mark all notifications as read for the current user."""
+    updated = crud.crud_notification.mark_all_read(db, current_user.id)
+    return {"updated": updated}

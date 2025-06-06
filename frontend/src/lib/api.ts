@@ -288,6 +288,9 @@ export const getGroupedNotifications = () =>
 export const markNotificationRead = (id: number) =>
   api.put<Notification>(`${API_V1}/notifications/${id}/read`);
 
+export const markAllNotificationsRead = () =>
+  api.put<{ updated: number }>(`${API_V1}/notifications/read-all`);
+
 export const getMessageThreads = () =>
   api.get<ThreadNotification[]>(`${API_V1}/notifications/message-threads`);
 
