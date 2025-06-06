@@ -138,6 +138,8 @@ Each notification links directly to the related booking request so you can jump 
 Unread message alerts are grouped by conversation so you may see entries like `Charel Kleinhans — 4 new messages`. Selecting one marks the entire thread read and opens the chat.
 The chat thread now displays a friendly placeholder when no messages are present and formats quote prices with the appropriate currency symbol. Any errors fetching or sending messages appear below the input field so problems can be spotted quickly.
 
+- The message input bar has been redesigned for mobile: the file upload button now uses a compact icon and the text field shares the outer border so there are no double lines. Attachments stay inside the chatbox without overlapping other elements.
+
 ### Artist profile polish (2025-06)
 - Added ARIA roles and clearer empty states for better accessibility.
 - Service cards collapse on mobile with larger tap areas.
