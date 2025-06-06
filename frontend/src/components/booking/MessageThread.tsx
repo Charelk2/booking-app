@@ -204,6 +204,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     }
   };
 
+  // Filter out very short or empty messages before rendering
+  const visibleMessages = messages.filter(
+    (m) => m.content && m.content.trim().length > 5,
+  );
+
   return (
     <div
       className="border rounded-md p-4 bg-white flex flex-col min-h-[70vh] space-y-2"
@@ -223,11 +228,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-600" />
           </div>
         ) : (
-          messages.length === 0 && !isSystemTyping && (
+          visibleMessages.length === 0 && !isSystemTyping && (
             <p className="text-sm text-gray-500">No messages yet. Start the conversation below.</p>
           )
         )}
-        {messages.map((msg) => {
+        {visibleMessages.map((msg) => {
           const isSystem = msg.message_type === 'system';
           // Bubble alignment still depends on the logged in user
           const isSelf = !isSystem && msg.sender_id === user?.id;

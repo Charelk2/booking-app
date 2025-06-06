@@ -53,4 +53,37 @@ describe('MessageThread scroll button', () => {
     const button = container.querySelector('button[aria-label="Scroll to latest message"]');
     expect(button).not.toBeNull();
   });
+
+  it('filters out short messages', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Hi',
+          message_type: 'text',
+          timestamp: '2024-01-01T00:00:00Z',
+        },
+        {
+          id: 2,
+          booking_request_id: 1,
+          sender_id: 1,
+          sender_type: 'client',
+          content: 'Hello there',
+          message_type: 'text',
+          timestamp: '2024-01-01T00:00:01Z',
+        },
+      ],
+    });
+
+    await act(async () => {
+      root.render(React.createElement(MessageThread, { bookingRequestId: 1 }));
+    });
+
+    const bubbles = container.querySelectorAll('.whitespace-pre-wrap');
+    expect(bubbles.length).toBe(1);
+    expect(bubbles[0].textContent).toContain('Hello there');
+  });
 });
