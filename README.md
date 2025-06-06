@@ -171,7 +171,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - Fixed a crash in the notification dropdown caused by calling hooks before they were initialized.
 - Fixed an infinite notifications fetch loop that caused excessive API requests.
 - Mobile navigation now slides in from the left with a smooth animation.
-- A persistent bottom navigation bar on small screens provides quick access to key pages.
+- A persistent bottom navigation bar on small screens provides quick access to key pages. Unread message counts now appear over the Messages icon so conversations are never missed.
 
 The registration page now includes a password strength meter and shows a toast notification once an account is created successfully.
 Both auth pages use new shared form components and include optional Google and GitHub sign-in buttons.
