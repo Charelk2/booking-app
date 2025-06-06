@@ -75,8 +75,10 @@ export default function FullScreenNotificationModal({
               <div className="px-4 py-2 text-sm text-gray-500">No notifications</div>
             )}
             {hasThreads && (
-              <div className="py-1" key="threads">
-                <p className="px-4 pt-2 text-xs font-semibold text-gray-500">Messages</p>
+              <div className="mt-2" key="threads">
+                <div className="sticky top-0 bg-white px-4 py-2 z-10 border-b font-sans text-xs text-gray-600">
+                  Messages
+                </div>
                 {threads.map((t) => (
                   <div key={`thread-${t.booking_request_id}`} className="flex w-full items-start px-4 py-3 text-base gap-3">
                     <div className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
@@ -103,10 +105,10 @@ export default function FullScreenNotificationModal({
               </div>
             )}
             {Object.entries(grouped).map(([type, items]) => (
-              <div key={type} className="py-1">
-                <p className="px-4 pt-2 text-xs font-semibold text-gray-500">
+              <div key={type} className="mt-4">
+                <div className="sticky top-0 bg-white px-4 py-2 z-10 border-b font-sans text-xs text-gray-600">
                   {type === 'booking_update' ? 'Bookings' : 'Other'}
-                </p>
+                </div>
                 {items.map((n) => (
                   <div key={`notif-${n.id}`} className="flex w-full items-start px-4 py-3 text-base gap-3">
                     <div className="h-10 w-10 sm:h-8 sm:w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
