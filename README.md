@@ -117,6 +117,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - The notification dropdown has been replaced with a slide-out drawer that offers more room and a single click to mark all notifications read.
 - The notification bell now appears on mobile screens so alerts can be accessed anywhere.
 - On small screens, notifications open in a full-screen modal built with `@headlessui/react`'s `Dialog` for easier reading.
+- Notification rows now have larger padding and text sizes so they're easier to tap on mobile screens.
 - Duplicate notifications are now removed when loading additional pages.
 - Artist profile sections now load independently for faster page rendering and show loading states per section.
 - Cover and profile images use Next.js `<Image>` for responsive sizing and better performance.
