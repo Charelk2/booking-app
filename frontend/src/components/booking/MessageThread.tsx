@@ -194,7 +194,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   };
 
   return (
-    <div className="border rounded-md p-4 bg-white flex flex-col h-96 space-y-2">
+    <div
+      className="border rounded-md p-4 bg-white flex flex-col min-h-[70vh] space-y-2"
+    >
       <div className="sticky top-0 z-10 bg-white border-b pb-2 mb-2">
         <span className="text-sm font-medium">
           {clientName} ↔ {artistName}
@@ -355,9 +357,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 />
               </svg>
             </label>
-            <Button type="submit" className="px-4 py-1">
-              Send
-            </Button>
+            <Button type="submit">Send</Button>
           </form>
           {user.user_type === 'artist' && (
             <div>
