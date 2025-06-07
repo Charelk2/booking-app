@@ -230,6 +230,7 @@ GET /api/v1/artist-profiles/{artist_id}/availability
 * **jest: not found**: Run `npm test` in `frontend/` (auto-installs via `pretest`).
 * **Missing package.json**: Ensure you’re in `frontend/` before running `npm test` or `npm run lint`.
 * **next: not found / ENOTEMPTY**: Reinstall in `frontend/` with `npm install` or `./setup.sh`.
+* **Module not found: Can't resolve 'framer-motion'**: Run `npm install` in `frontend/` to pull the latest dependencies.
 
 ---
 
