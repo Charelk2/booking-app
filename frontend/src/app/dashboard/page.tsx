@@ -255,7 +255,7 @@ export default function DashboardPage() {
                   cards.push(
                     <Link
                       key="services"
-                      href="/services"
+                      href={user ? `/services?artist=${user.id}` : '/services'}
                       className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white shadow-sm min-h-[64px] overflow-hidden cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
                     >
                       <div className="flex items-center space-x-2">
