@@ -137,6 +137,7 @@ npm run build
 * Shared `Card`, `Tag`, `TextInput` components.
 * Open Graph meta tags and fallback avatars.
 * Accessibility and animation improvements.
+* Dashboard stats now animate on load using **framer-motion**.
 
 ### Service Management (Artist Dashboard)
 
