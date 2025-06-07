@@ -1,6 +1,7 @@
 export const buttonVariants = {
-  primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500',
-  secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-400',
+  primary: 'bg-brand text-white hover:bg-brand-dark focus:ring-brand-dark',
+  secondary:
+    'bg-brand-light text-brand-dark hover:bg-brand focus:ring-brand-dark',
   danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
 } as const;
 

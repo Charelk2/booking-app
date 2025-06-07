@@ -238,11 +238,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           const isSelf = !isSystem && msg.sender_id === user?.id;
 
           const bubbleClass = isSelf
-            ? 'bg-purple-600 text-white self-end'
+            ? 'bg-brand text-white self-end'
             : isSystem
               ? 'bg-gray-200 text-gray-900 self-start'
-              : 'bg-gray-100 text-gray-900 self-start';
-          const bubbleBase = 'rounded-xl px-4 py-2 max-w-[75%] text-sm';
+              : 'bg-brand-light text-brand-dark self-start';
+          const bubbleBase = 'rounded-xl px-4 py-2 max-w-[80%] sm:max-w-[70%] text-sm';
 
           const avatar = isSystem
             ? artistName?.charAt(0)

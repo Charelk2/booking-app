@@ -4,6 +4,9 @@
 
 :root {
   --font-sans: var(--font-inter);
+  --brand-color: #7c3aed;
+  --brand-color-dark: #6d28d9;
+  --brand-color-light: #c084fc;
 }
 
 @layer base {
