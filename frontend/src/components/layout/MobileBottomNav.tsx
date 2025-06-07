@@ -35,8 +35,8 @@ function classNames(...classes: (string | false | undefined)[]) {
 
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const router = useRouter();
-  // Next.js App Router doesn’t expose pathname in its types
-  const pathname = (router as unknown as { pathname?: string }).pathname;
+  // Next.js App Router doesn’t expose pathname in its types, so we use a type assertion
+  const pathname = (router as unknown as { pathname?: string }).pathname || '';
 
   const { threads } = useNotifications();
   const unreadMessages = threads.reduce((sum, t) => sum + t.unread_count, 0);
