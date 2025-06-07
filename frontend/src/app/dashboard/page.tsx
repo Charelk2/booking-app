@@ -152,9 +152,8 @@ export default function DashboardPage() {
     event.preventDefault();
     // persist the event so we can use it after the long‑press delay
     event.persist();
-    const nativeEvent = event.nativeEvent;
     const timer = setTimeout(() => {
-      dragControls.start(nativeEvent);
+      dragControls.start(event);
     }, 300);
     setPressTimer(timer);
   };
