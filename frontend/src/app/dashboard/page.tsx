@@ -329,7 +329,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => router.push("/services/new")}
-              className="w-full bg-purple-600 text-white text-sm py-3 rounded-lg mt-4"
+              className="w-full sm:w-auto bg-brand text-white text-base py-3 rounded-lg mt-4 shadow-md hover:bg-brand-dark"
             >
               Add Service
             </button>
@@ -609,7 +609,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setIsAddServiceModalOpen(true)}
-                  className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                  className="w-full sm:w-auto rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   Add Service
                 </button>
