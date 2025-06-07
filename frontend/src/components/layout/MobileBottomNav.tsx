@@ -35,15 +35,18 @@ function classNames(...classes: (string | false | undefined)[]) {
 
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const router = useRouter();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // Next.js App Router doesn’t expose pathname, so cast router to any
   const pathname = (router as any).pathname as string | undefined;
 
   const { threads } = useNotifications();
-  const unreadMessages = threads.reduce((acc, t) => acc + t.unread_count, 0);
+  const unreadMessages = threads.reduce((sum, t) => sum + t.unread_count, 0);
   const badgeCount = unreadMessages > 99 ? '99+' : String(unreadMessages);
 
   return (
-    <nav className="fixed bottom-0 w-full bg-white border-t shadow z-50 sm:hidden" aria-label="Mobile navigation">
+    <nav
+      className="fixed bottom-0 w-full bg-white border-t shadow z-50 sm:hidden"
+      aria-label="Mobile navigation"
+    >
       <ul className="flex justify-around">
         {items.map((item) => {
           if (item.auth && !user) return null;
@@ -51,23 +54,20 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
           const showBadge = item.name === 'Messages' && unreadMessages > 0;
 
           return (
-            <li key={item.name} className="relative flex-1">
+            <li key={item.name} className="flex-1">
               <Link
                 href={item.href}
                 className={classNames(
-                  'flex flex-col items-center px-3 py-2 text-xs transition duration-150 ease-in-out active:bg-gray-100',
+                  'flex flex-col items-center text-xs',
                   active ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'
                 )}
               >
-                <div
-                  className={classNames(
-                    'relative',
-                    active && 'bg-purple-50 rounded-full p-2'
-                  )}
-                >
+                <div className="min-w-[64px] min-h-[44px] flex flex-col items-center justify-center relative rounded active:bg-gray-100 transition">
                   <item.icon className="h-6 w-6" aria-hidden="true" />
                   {showBadge && (
-                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white">
+                    <span
+                      className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white"
+                    >
                       {badgeCount}
                     </span>
                   )}
