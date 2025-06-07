@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { normalizeService } from "@/lib/utils";
 import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
+import RecentActivity from "@/components/dashboard/RecentActivity";
 import Link from "next/link";
 
 export default function DashboardPage() {
@@ -34,6 +35,8 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  // Future activity feed will populate this array with events
+  const [events] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) {
@@ -282,6 +285,9 @@ export default function DashboardPage() {
               Add Service
             </button>
           )}
+
+          {/* Recent Activity */}
+          <RecentActivity events={events} />
 
           {/* Booking Requests */}
           <div className="mt-8">
