@@ -27,6 +27,7 @@ import { motion } from "framer-motion";
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
+
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
@@ -65,7 +66,9 @@ export default function DashboardPage() {
           ]);
           setBookings(bData.data);
           setServices(
-            sData.data.map(normalizeService).sort((a, b) => a.display_order - b.display_order)
+            sData.data
+              .map(normalizeService)
+              .sort((a, b) => a.display_order - b.display_order)
           );
           setArtistProfile(pData.data);
           setBookingRequests(rData.data);
@@ -90,7 +93,9 @@ export default function DashboardPage() {
 
   const handleServiceAdded = (newService: Service) => {
     setServices((prev) =>
-      [...prev, normalizeService(newService)].sort((a, b) => a.display_order - b.display_order)
+      [...prev, normalizeService(newService)].sort(
+        (a, b) => a.display_order - b.display_order
+      )
     );
   };
 
@@ -113,7 +118,9 @@ export default function DashboardPage() {
   };
 
   const moveService = async (id: number, dir: "up" | "down") => {
-    const sorted = [...services].sort((a, b) => a.display_order - b.display_order);
+    const sorted = [...services].sort(
+      (a, b) => a.display_order - b.display_order
+    );
     const idx = sorted.findIndex((s) => s.id === id);
     const ni = dir === "up" ? idx - 1 : idx + 1;
     if (ni < 0 || ni >= sorted.length) return;
@@ -122,7 +129,9 @@ export default function DashboardPage() {
     const updated = sorted.map((s, i) => ({ ...s, display_order: i + 1 }));
     setServices(updated);
     try {
-      await Promise.all(updated.map((s) => updateService(s.id, { display_order: s.display_order })));
+      await Promise.all(
+        updated.map((s) => updateService(s.id, { display_order: s.display_order }))
+      );
     } catch (e) {
       console.error(e);
     }
@@ -158,7 +167,8 @@ export default function DashboardPage() {
     );
   }
 
-  const showLocationPrompt = user.user_type === "artist" && artistProfile?.location === undefined;
+  const showLocationPrompt =
+    user.user_type === "artist" && artistProfile?.location === undefined;
 
   return (
     <MainLayout>
@@ -169,7 +179,10 @@ export default function DashboardPage() {
           <div className="p-4 bg-yellow-50 rounded-md">
             <p className="text-yellow-800">
               Please add your location to your profile.{' '}
-              <Link href="/dashboard/profile/edit" className="underline">
+              <Link
+                href="/dashboard/profile/edit"
+                className="underline"
+              >
                 Update now
               </Link>
             </p>
@@ -237,7 +250,7 @@ export default function DashboardPage() {
 
         {/* Booking Requests */}
         <section className="mt-8">
-          <h2 className="text-lg font-medium">Booking Requests</n
+          <h2 className="text-lg font-medium">Booking Requests</h2>
           {bookingRequests.length === 0 ? (
             <p className="text-gray-500">No booking requests yet.</p>
           ) : (
@@ -254,12 +267,69 @@ export default function DashboardPage() {
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {displayedRequests.map((req) => (
                     <tr key={req.id}>
-                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{
-                        user.user_type === 'artist'
-                          ? `${req.client?.first_name} ${req.client?.last_name}`
-                          : `${req.artist?.first_name} ${req.artist?.last_name}`
-                      }</td>
+                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{user.user_type === 'artist' ? `${req.client?.first_name} ${req.client?.last_name}` : `${req.artist?.first_name} ${req.artist?.last_name}`}</td>
                       <td className="px-4 py-2 text-sm text-gray-500">{req.service?.title || '—'}</td>
                       <td className="px-4 py-2 text-sm text-gray-500">{req.status}</td>
                       <td className="px-4 py-2 text-sm text-gray-500">{new Date(req.created_at).toLocaleDateString()}</td>
-                    ```
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {bookingRequests.length > 5 && (
+                <div className="bg-gray-50 px-4 py-2 text-center">
+                  <button
+                    className="text-indigo-600 hover:underline text-sm"
+                    onClick={() => setShowAllRequests((prev) => !prev)}
+                  >
+                    {showAllRequests ? 'Collapse' : 'Show All'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* Recent Bookings */}
+        <section className="mt-8">
+          <h2 className="text-lg font-medium">Recent Bookings</h2>
+          <div className="overflow-auto mt-4">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-sm font-semibold">	Client</th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold">	Service</th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold">	Date</th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold">	Status</th>
+                  <th className="px-4 py-2 text-left text-sm font-semibold">	Amount</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {bookings.map((b) => (
+                  <tr key={b.id}>
+                    <td className="px-4 py-2 text-sm flex items-center">
+                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
+                        {b.client.first_name.charAt(0)}
+                      </div>
+                      <span>{`${b.client.first_name} ${b.client.last_name}`}</span>
+                    </td>
+                    <td className="px-4 py-2 text-sm text-gray-500">{b.service.title}</td>
+                    <td className="px-4 py-2 text-sm text-gray-500">{format(new Date(b.start_time), 'MMM d, yyyy h:mm a')}</td>
+                    <td className="px-4 py-2 text-sm">
+                      <span className={
+                        `inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          b.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          b.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                          b.status === 'confirmed' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}
+                        }`
+                      >
+                        {b.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-sm text-gray-500">${b.total_price.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+```
