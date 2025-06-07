@@ -244,7 +244,7 @@ export default function DashboardPage() {
                   >
                     <div className="flex items-center space-x-2">
                       <span role="img" aria-label="calendar">
-                        🗓
+                        
                       </span>
                       <span className="text-sm font-medium text-gray-500">Total Bookings</span>
                     </div>
@@ -259,7 +259,7 @@ export default function DashboardPage() {
                       className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white shadow-sm min-h-[64px] overflow-hidden cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
                     >
                       <div className="flex items-center space-x-2">
-                        <span role="img" aria-label="microphone">🎤</span>
+                        <span role="img" aria-label="microphone"></span>
                         <span className="text-sm font-medium text-gray-500">Total Services</span>
                       </div>
                       <span className="text-2xl font-semibold text-gray-900">{servicesCount}</span>
@@ -273,7 +273,7 @@ export default function DashboardPage() {
                       className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white shadow-sm min-h-[64px] overflow-hidden cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
                     >
                       <div className="flex items-center space-x-2">
-                        <span role="img" aria-label="money">💰</span>
+                        <span role="img" aria-label="money"></span>
                         <span className="text-sm font-medium text-gray-500">Total Earnings</span>
                       </div>
                       <span className="text-2xl font-semibold text-gray-900">
@@ -289,7 +289,7 @@ export default function DashboardPage() {
                       className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white shadow-sm min-h-[64px] overflow-hidden cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
                     >
                       <div className="flex items-center space-x-2">
-                        <span role="img" aria-label="calendar-money">📅</span>
+                        <span role="img" aria-label="calendar-money"></span>
                         <span className="text-sm font-medium text-gray-500">Earnings This Month</span>
                       </div>
                       <span className="text-2xl font-semibold text-gray-900">
