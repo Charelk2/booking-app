@@ -138,7 +138,6 @@ npm run build
 * Open Graph meta tags and fallback avatars.
 * Accessibility and animation improvements.
 * Dashboard stats now animate on load using **framer-motion**.
-* Booking Requests list collapses to five items with a **Show All**/Collapse toggle.
 
 ### Service Management (Artist Dashboard)
 
