@@ -53,11 +53,11 @@ export default function MobileBottomNav({ user, pathname }: MobileBottomNavProps
               <Link
                 href={item.href}
                 className={classNames(
-                  'flex flex-col items-center px-3 py-2 text-xs',
+                  'flex flex-col items-center px-3 py-2 text-xs cursor-pointer transition duration-150 ease-in-out active:bg-gray-100',
                   active ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'
                 )}
               >
-                <div className="relative">
+                <div className="relative rounded">
                   <item.icon className="h-6 w-6" aria-hidden="true" />
                   {showBadge && (
                     <span
