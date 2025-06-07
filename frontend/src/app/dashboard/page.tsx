@@ -83,7 +83,7 @@ function ServiceCard({
       dragControls={dragControls}
       dragConstraints={dragConstraints}
       data-testid="service-item"
-      className={`relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400 ${pressing ? "select-none" : ""}`}
+      className={`relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400 transition-colors ${pressing ? "select-none ring-2 ring-indigo-400 bg-indigo-50" : ""}`}
     >
       <div
         className="absolute right-2 top-2 cursor-grab active:cursor-grabbing text-gray-400 touch-none"
