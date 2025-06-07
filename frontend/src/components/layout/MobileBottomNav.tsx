@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   HomeIcon,
   UsersIcon,
@@ -12,7 +13,6 @@ import useNotifications from '@/hooks/useNotifications';
 
 interface MobileBottomNavProps {
   user: User | null;
-  pathname: string;
 }
 
 interface Item {
@@ -33,7 +33,12 @@ function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-export default function MobileBottomNav({ user, pathname }: MobileBottomNavProps) {
+export default function MobileBottomNav({ user }: MobileBottomNavProps) {
+  const router = useRouter();
+  // router.pathname is used to identify the active tab
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pathname = (router as any).pathname as string | undefined;
+
   const { threads } = useNotifications();
   const unreadMessages = threads.reduce((acc, t) => acc + t.unread_count, 0);
   const badgeCount = unreadMessages > 99 ? '99+' : unreadMessages;
@@ -57,7 +62,12 @@ export default function MobileBottomNav({ user, pathname }: MobileBottomNavProps
                   active ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'
                 )}
               >
-                <div className="relative">
+                <div
+                  className={classNames(
+                    'relative',
+                    active ? 'bg-purple-50 rounded-full p-2' : ''
+                  )}
+                >
                   <item.icon className="h-6 w-6" aria-hidden="true" />
                   {showBadge && (
                     <span
