@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
+import MobileSaveBar from '@/components/dashboard/MobileSaveBar';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArtistProfile } from '@/types';
 import {
@@ -122,6 +123,7 @@ export default function EditArtistProfilePage() {
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [aspect] = useState<number | undefined>(1);
   const imgRef = useRef<HTMLImageElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [showCropper, setShowCropper] = useState(false);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -237,6 +239,10 @@ export default function EditArtistProfilePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveClick = () => {
+    formRef.current?.requestSubmit();
   };
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -533,7 +539,11 @@ export default function EditArtistProfilePage() {
           </div>
         </section>
 
-        <form onSubmit={handleSubmit} className="space-y-8 divide-y divide-gray-200">
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className="space-y-8 divide-y divide-gray-200"
+        >
           <div className="space-y-6 pt-8 sm:space-y-5">
             <section>
               <h2 className="text-xl font-medium text-gray-700 mb-6">Business Details</h2>
@@ -642,7 +652,7 @@ export default function EditArtistProfilePage() {
             </section>
           </div>
 
-          <div className="pt-8 flex justify-end">
+          <div className="pt-8 hidden sm:flex justify-end">
             <button
               type="submit"
               className={primaryButtonClasses}
@@ -653,6 +663,7 @@ export default function EditArtistProfilePage() {
           </div>
         </form>
       </div>
+      <MobileSaveBar onSave={handleSaveClick} isSaving={loading} />
     </MainLayout>
   );
 }
