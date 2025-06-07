@@ -147,6 +147,7 @@ export default function DashboardPage() {
   const [isReordering, setIsReordering] = useState(false);
   const dragControls = useDragControls();
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
+  const [isPressing, setIsPressing] = useState(false);
 
   const startDrag = (event: React.PointerEvent) => {
     event.preventDefault();
@@ -156,6 +157,7 @@ export default function DashboardPage() {
     const nativeEvent = event.nativeEvent;
     // capture pointer so other handlers don't interfere
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    setIsPressing(true);
     const timer = setTimeout(() => {
       dragControls.start(nativeEvent);
     }, 300);
@@ -170,6 +172,7 @@ export default function DashboardPage() {
     if (event) {
       (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
     }
+    setIsPressing(false);
   };
 
   const persistServiceOrder = async (ordered: Service[]) => {
@@ -657,7 +660,8 @@ export default function DashboardPage() {
                     onDragEnd={handleDragEnd}
                     dragListener={false}
                     dragControls={dragControls}
-                    className="select-none relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400"
+                    data-testid="service-item"
+                    className={`relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400 ${isPressing ? 'select-none' : ''}`}
                   >
                     <div
                       className="absolute right-2 top-2 cursor-grab active:cursor-grabbing text-gray-400 touch-none"
