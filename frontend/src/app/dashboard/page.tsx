@@ -335,7 +335,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => router.push("/services/new")}
-              className="w-full sm:w-auto bg-brand text-white text-base py-3 rounded-lg mt-4 shadow-md hover:bg-brand-dark"
+              className="hidden sm:inline-flex bg-brand text-white text-base py-3 rounded-lg mt-4 shadow-md hover:bg-brand-dark"
             >
               Add Service
             </button>
@@ -612,13 +612,6 @@ export default function DashboardPage() {
                 <h2 className="text-lg font-medium text-gray-900">
                   Your Services
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => setIsAddServiceModalOpen(true)}
-                  className="w-full sm:w-auto rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                >
-                  Add Service
-                </button>
               </div>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {services.map((service, idx) => (
@@ -694,6 +687,13 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
+              <button
+                type="button"
+                onClick={() => router.push('/services/new')}
+                className="mt-4 w-full sm:hidden bg-brand text-white text-base py-3 rounded-lg shadow-md hover:bg-brand-dark"
+              >
+                Add Service
+              </button>
             </div>
           )}
         </div>
