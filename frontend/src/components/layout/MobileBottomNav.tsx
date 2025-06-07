@@ -34,6 +34,9 @@ function classNames(...classes: (string | false | undefined)[]) {
 }
 
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
+  if (!user) {
+    return null;
+  }
   const router = useRouter();
   // Next.js App Router doesn’t expose pathname in its types, so we use a type assertion
   const pathname = (router as unknown as { pathname?: string }).pathname || '';
@@ -49,7 +52,6 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
     >
       <ul className="flex justify-around h-full">
         {items.map((item) => {
-          if (item.auth && !user) return null;
           const active = pathname === item.href;
           const showBadge = item.name === 'Messages' && unreadMessages > 0;
 
