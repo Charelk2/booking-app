@@ -157,3 +157,47 @@ describe('DashboardPage list toggles', () => {
     expect(toggleBtn.textContent).toContain('Collapse');
   });
 });
+
+describe('Service card drag handle', () => {
+  let container: HTMLDivElement;
+  let root: ReturnType<typeof createRoot>;
+  const service: Service = {
+    id: 1,
+    artist_id: 2,
+    title: 'Gig',
+    description: 'desc',
+    service_type: 'Live Performance',
+    duration_minutes: 60,
+    display_order: 1,
+    price: 100,
+    artist: {} as ArtistProfile,
+  };
+
+  beforeEach(async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });
+    (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [service] });
+    (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
+    (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [] });
+
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root.render(<DashboardPage />);
+    });
+  });
+
+  afterEach(() => {
+    root.unmount();
+    container.remove();
+    jest.clearAllMocks();
+  });
+
+  it('applies select-none to service items', () => {
+    const card = container.querySelector('.select-none');
+    expect(card).toBeTruthy();
+  });
+});
