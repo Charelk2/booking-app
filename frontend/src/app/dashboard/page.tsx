@@ -156,6 +156,9 @@ export default function DashboardPage() {
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
     setIsPressing(true);
     const timer = setTimeout(() => {
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(10);
+      }
       dragControls.start(event);
     }, 300);
     setPressTimer(timer);
@@ -667,7 +670,6 @@ export default function DashboardPage() {
                       aria-hidden="true"
                       onPointerDown={startDrag}
                       onPointerUp={cancelDrag}
-                      onPointerLeave={cancelDrag}
                       onPointerCancel={cancelDrag}
                       onContextMenu={(e) => e.preventDefault()}
                     >
