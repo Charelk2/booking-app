@@ -215,11 +215,12 @@ POST   /api/v1/sound-providers/artist/{artist_id}
 
 ```
 POST /api/v1/booking-requests/
-  Required: artist_id (int)
+ Required: artist_id (int)
   Optional: service_id, message, proposed_datetime_1, proposed_datetime_2
 ```
 
 422 responses indicate schema mismatches—ensure numeric fields are numbers and datetimes are valid ISO-8601 strings. Omit empty strings entirely.
+Validation errors are now logged server-side and returned as structured JSON so you can quickly debug bad requests.
 
 ### Reviews
 
