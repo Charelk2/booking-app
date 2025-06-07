@@ -141,7 +141,7 @@ npm run build
 
 ### Service Management (Artist Dashboard)
 
-* Edit, delete, and reorder services with up/down arrows.
+* Edit, delete, and reorder services by dragging each card using the handle in the top-right corner (press and hold on mobile).
 * Service deletion now requires confirmation to prevent mistakes.
 * **Add Service** button now appears after your services list on mobile (still below stats on larger screens) linking to `/services/new`.
 * "Total Services" card now links to `/services?artist=<your_id>` so you only see your listings.
