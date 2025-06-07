@@ -1,4 +1,4 @@
-`use client`;
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -40,7 +40,7 @@ export default function InboxPage() {
             );
             if (bookingMsg) {
               // Parse system message lines for details
-              const [_, ...lines] = bookingMsg.content.split('\n');
+              const [, ...lines] = bookingMsg.content.split('\n');
               const details = lines.reduce<Record<string,string>>((acc, line) => {
                 const [key, ...rest] = line.split(':');
                 if (key && rest.length) {
@@ -191,4 +191,3 @@ export default function InboxPage() {
     </MainLayout>
   );
 }
-```
