@@ -183,6 +183,7 @@ npm run build
 * `ChatThreadView` component for mobile-friendly chat threads.
 * Tap a booking request card to open `/bookings/[id]`.
 * Unread booking requests are highlighted in indigo so they stand out.
+* Cards no longer display a "1 new message" label to keep the list concise.
 
 ### Auth & Registration
 
