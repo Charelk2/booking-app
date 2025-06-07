@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   HomeIcon,
   UsersIcon,
@@ -12,7 +13,6 @@ import useNotifications from '@/hooks/useNotifications';
 
 interface MobileBottomNavProps {
   user: User | null;
-  pathname: string;
 }
 
 interface Item {
@@ -29,45 +29,50 @@ const items: Item[] = [
   { name: 'Dashboard', href: '/dashboard', icon: UserCircleIcon, auth: true },
 ];
 
-function classNames(...classes: string[]) {
+function classNames(...classes: (string | false | undefined)[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-export default function MobileBottomNav({ user, pathname }: MobileBottomNavProps) {
+export default function MobileBottomNav({ user }: MobileBottomNavProps) {
+  const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pathname = (router as any).pathname as string | undefined;
+
   const { threads } = useNotifications();
   const unreadMessages = threads.reduce((acc, t) => acc + t.unread_count, 0);
-  const badgeCount = unreadMessages > 99 ? '99+' : unreadMessages;
+  const badgeCount = unreadMessages > 99 ? '99+' : String(unreadMessages);
 
   return (
-    <nav
-      className="fixed bottom-0 inset-x-0 z-40 bg-white border-t shadow sm:hidden"
-      aria-label="Mobile navigation"
-    >
+    <nav className="fixed bottom-0 w-full bg-white border-t shadow z-50 sm:hidden" aria-label="Mobile navigation">
       <ul className="flex justify-around">
         {items.map((item) => {
           if (item.auth && !user) return null;
           const active = pathname === item.href;
           const showBadge = item.name === 'Messages' && unreadMessages > 0;
+
           return (
             <li key={item.name} className="relative flex-1">
               <Link
                 href={item.href}
                 className={classNames(
-                  'flex flex-col items-center px-3 py-2 text-xs cursor-pointer transition duration-150 ease-in-out active:bg-gray-100',
+                  'flex flex-col items-center px-3 py-2 text-xs transition duration-150 ease-in-out active:bg-gray-100',
                   active ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'
                 )}
               >
-                <div className="relative rounded">
+                <div
+                  className={classNames(
+                    'relative',
+                    active && 'bg-purple-50 rounded-full p-2'
+                  )}
+                >
                   <item.icon className="h-6 w-6" aria-hidden="true" />
                   {showBadge && (
-                    <span
-                      className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white"
-                    >
+                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white">
                       {badgeCount}
                     </span>
                   )}
                 </div>
-                <span>{item.name}</span>
+                <span className="mt-1">{item.name}</span>
               </Link>
             </li>
           );
@@ -76,4 +81,3 @@ export default function MobileBottomNav({ user, pathname }: MobileBottomNavProps
     </nav>
   );
 }
-
