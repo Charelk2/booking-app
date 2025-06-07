@@ -638,6 +638,7 @@ export default function DashboardPage() {
                 axis="y"
                 values={services}
                 onReorder={handleReorder}
+                layoutScroll
                 className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
                 {services.map((service) => (
@@ -647,7 +648,7 @@ export default function DashboardPage() {
                     onDragEnd={handleDragEnd}
                     dragListener={false}
                     dragControls={dragControls}
-                    className="relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400"
+                    className="select-none relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400"
                   >
                     <div
                       className="absolute right-2 top-2 cursor-grab active:cursor-grabbing text-gray-400"
