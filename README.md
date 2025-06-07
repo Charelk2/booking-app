@@ -92,6 +92,9 @@ npm run lint
 ```
 
 This runs `pytest`, `npm test`, and `npm run lint`. You can also run each step manually.
+Make sure you've run `./setup.sh` at least once beforehand so all Node and Python
+packages are installed; otherwise the tests may fail with `next not found` or
+similar dependency errors.
 
 ### Build
 
