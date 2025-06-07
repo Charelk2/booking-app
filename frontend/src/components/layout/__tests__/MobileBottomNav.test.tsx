@@ -72,4 +72,26 @@ describe('MobileBottomNav', () => {
     const activeLink = container.querySelector('a.text-brand-dark');
     expect(activeLink).not.toBeNull();
   });
+
+  it('hides on scroll down and shows on scroll up', () => {
+    mockUseRouter.mockReturnValue({ pathname: '/' });
+    Object.defineProperty(window, 'scrollY', { value: 0, writable: true });
+    act(() => {
+      root.render(React.createElement(MobileBottomNav, { user: {} as User }));
+    });
+    const nav = container.querySelector('nav');
+    expect(nav?.className).toContain('translate-y-0');
+
+    Object.defineProperty(window, 'scrollY', { value: 100, writable: true });
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+    expect(nav?.className).toContain('translate-y-full');
+
+    Object.defineProperty(window, 'scrollY', { value: 20, writable: true });
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+    expect(nav?.className).toContain('translate-y-0');
+  });
 });
