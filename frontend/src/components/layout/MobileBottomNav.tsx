@@ -34,14 +34,13 @@ function classNames(...classes: (string | false | undefined)[]) {
 }
 
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
+  const router = useRouter();
+  const { threads } = useNotifications();
   if (!user) {
     return null;
   }
-  const router = useRouter();
   // Next.js App Router doesn’t expose pathname in its types, so we use a type assertion
   const pathname = (router as unknown as { pathname?: string }).pathname || '';
-
-  const { threads } = useNotifications();
   const unreadMessages = threads.reduce((sum, t) => sum + t.unread_count, 0);
   const badgeCount = unreadMessages > 99 ? '99+' : String(unreadMessages);
 
@@ -59,9 +58,12 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
             <li key={item.name} className="flex-1">
               <Link
                 href={item.href}
+                aria-current={active ? 'page' : undefined}
                 className={classNames(
-                  'flex flex-col items-center justify-center gap-1 py-0.5',
-                  active ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'
+                  'flex flex-col items-center justify-center gap-1 py-0.5 transition-colors',
+                  active
+                    ? 'text-brand-dark border-b-2 border-brand-dark'
+                    : 'text-gray-500 hover:text-gray-700'
                 )}
               >
                 <div className="flex flex-col items-center space-y-0.5">
