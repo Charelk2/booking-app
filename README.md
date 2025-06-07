@@ -181,7 +181,8 @@ npm run build
 
 ### Mobile Navigation & Inbox
 
-* Persistent bottom nav on small screens (visible only when logged in) with compact 56px height so content isn’t hidden.
+* Persistent bottom nav on small screens (visible only when logged in) with compact 56px height.
+* Bottom nav auto-hides when you scroll down and reappears when scrolling up.
 * Unread message counts badge on Messages icon. Badge now sits snugly over the icon on all devices.
 * Tap feedback on icons via `active:bg-gray-100`.
 * **Inbox** page at `/inbox` separates Booking Requests and Chats into tabs.
