@@ -44,6 +44,17 @@ export default function DashboardPage() {
   const totalEarnings = bookings
     .filter((booking) => booking.status === "completed")
     .reduce((acc, booking) => acc + booking.total_price, 0);
+  const earningsThisMonth = bookings
+    .filter((booking) => {
+      if (booking.status !== "completed") return false;
+      const date = new Date(booking.start_time);
+      const now = new Date();
+      return (
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear()
+      );
+    })
+    .reduce((acc, booking) => acc + booking.total_price, 0);
 
   useEffect(() => {
     if (!user) {
@@ -222,8 +233,8 @@ export default function DashboardPage() {
           )}
 
           {/* Stats */}
-          <div className="mt-8">
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8">
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {(() => {
                 const cards = [
                   <Link
@@ -279,11 +290,29 @@ export default function DashboardPage() {
                           <span>Total Earnings</span>
                         </div>
                       </dt>
-                      <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
+                    <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
                         ${totalEarnings.toFixed(2)}
-                      </dd>
-                      {totalEarnings === 0 && (
+                    </dd>
+                    {totalEarnings === 0 && (
                         <p className="text-xs text-gray-400 mt-2">No earnings this month</p>
+                    )}
+                    </Link>,
+                    <Link
+                      key="earnings-month"
+                      href="/earnings"
+                      className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                    >
+                      <dt className="truncate text-sm font-medium text-gray-500">
+                        <div className="flex items-center space-x-2">
+                          <span role="img" aria-label="calendar-money">📅</span>
+                          <span>Earnings This Month</span>
+                        </div>
+                      </dt>
+                      <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
+                        ${earningsThisMonth.toFixed(2)}
+                      </dd>
+                      {earningsThisMonth === 0 && (
+                        <p className="text-xs text-gray-400 mt-2">No earnings yet</p>
                       )}
                     </Link>
                   );
