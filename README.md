@@ -175,7 +175,7 @@ npm run build
 ### Mobile Navigation & Inbox
 
 * Persistent bottom nav on small screens with extra padding so content isn’t hidden.
-* Unread message counts badge on Messages icon.
+* Unread message counts badge on Messages icon. Badge now sits snugly over the icon on all devices.
 * Tap feedback on icons via `active:bg-gray-100`.
 * **Inbox** page at `/inbox` separates Booking Requests and Chats into tabs.
 * `ChatThreadView` component for mobile-friendly chat threads.

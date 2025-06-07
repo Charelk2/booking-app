@@ -66,7 +66,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
                   <item.icon className="h-6 w-6" aria-hidden="true" />
                   {showBadge && (
                     <span
-                      className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white"
+                      className="absolute top-0 right-0 inline-flex translate-x-1/2 -translate-y-1/2 items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white"
                     >
                       {badgeCount}
                     </span>
