@@ -209,4 +209,20 @@ describe('Service card drag handle', () => {
     });
     expect(card.className).not.toMatch('select-none');
   });
+
+  it('vibrates when reordering starts', async () => {
+    jest.useFakeTimers();
+    const card = container.querySelector('[data-testid="service-item"]') as HTMLElement;
+    const handle = card.querySelector('div[aria-hidden="true"]') as HTMLElement;
+    const vibrateSpy = jest.fn();
+    Object.defineProperty(navigator, 'vibrate', { value: vibrateSpy, configurable: true });
+    await act(async () => {
+      handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+    expect(vibrateSpy).toHaveBeenCalled();
+    jest.useRealTimers();
+  });
 });
