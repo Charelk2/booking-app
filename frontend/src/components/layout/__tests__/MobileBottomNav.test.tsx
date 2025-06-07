@@ -69,7 +69,7 @@ describe('MobileBottomNav', () => {
         React.createElement(MobileBottomNav, { user: null })
       );
     });
-    const activeIconWrapper = container.querySelector('div.bg-purple-50');
-    expect(activeIconWrapper).not.toBeNull();
+    const activeLink = container.querySelector('a.text-indigo-600');
+    expect(activeLink).not.toBeNull();
   });
 });

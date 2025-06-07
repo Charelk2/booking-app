@@ -44,10 +44,10 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
 
   return (
     <nav
-      className="fixed bottom-0 w-full bg-white border-t shadow z-50 sm:hidden"
+      className="fixed bottom-0 w-full h-[56px] py-1 bg-white border-t shadow z-50 sm:hidden"
       aria-label="Mobile navigation"
     >
-      <ul className="flex justify-around">
+      <ul className="flex justify-around h-full">
         {items.map((item) => {
           if (item.auth && !user) return null;
           const active = pathname === item.href;
@@ -58,21 +58,23 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
               <Link
                 href={item.href}
                 className={classNames(
-                  'flex flex-col items-center text-xs',
+                  'flex flex-col items-center justify-center gap-1 py-0.5',
                   active ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'
                 )}
               >
-                <div className="min-w-[64px] min-h-[44px] flex flex-col items-center justify-center relative rounded active:bg-gray-100 transition">
-                  <item.icon className="h-6 w-6" aria-hidden="true" />
-                  {showBadge && (
-                    <span
-                      className="absolute top-0 right-0 inline-flex translate-x-1/2 -translate-y-1/2 items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white"
-                    >
-                      {badgeCount}
-                    </span>
-                  )}
+                <div className="flex flex-col items-center space-y-0.5">
+                  <div className="relative flex items-center justify-center">
+                    <item.icon className="h-6 w-6" aria-hidden="true" />
+                    {showBadge && (
+                      <span
+                        className="absolute top-0 right-0 inline-flex translate-x-1/2 -translate-y-1/2 items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white"
+                      >
+                        {badgeCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px]">{item.name}</span>
                 </div>
-                <span className="mt-1">{item.name}</span>
               </Link>
             </li>
           );
