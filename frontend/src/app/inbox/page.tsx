@@ -123,11 +123,6 @@ export default function InboxPage() {
               <span className="font-semibold text-sm">{b.senderName}</span>
               <span className="text-xs text-gray-500">{b.formattedDate}</span>
             </div>
-            {b.unread > 0 && (
-              <span className="text-xs text-indigo-600 font-semibold">
-                {b.unread} new message{b.unread > 1 && 's'}
-              </span>
-            )}
             <div className="text-sm text-gray-600">
               📍 {b.location || '—'} | 👥 {b.guests || '—'} | 🏠 {b.venueType || '—'}
             </div>
