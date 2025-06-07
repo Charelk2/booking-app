@@ -322,9 +322,11 @@ export default function DashboardPage() {
               Booking Requests
             </h2>
             {bookingRequests.length === 0 ? (
-              <p className="mt-2 text-sm text-gray-500">
-                No booking requests yet.
-              </p>
+              <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                <div className="text-sm text-gray-500 px-4 py-6 text-center">
+                  No bookings yet
+                </div>
+              </div>
             ) : (
               <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
                 <table className="min-w-full divide-y divide-gray-300">
