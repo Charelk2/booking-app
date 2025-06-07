@@ -143,7 +143,7 @@ npm run build
 
 * Edit, delete, and reorder services by long‑pressing the handle in the top-right corner and dragging the card. Text selection is disabled for smoother reordering.
 * Service deletion now requires confirmation to prevent mistakes.
-* **Add Service** button now appears after your services list on mobile (still below stats on larger screens) linking to `/services/new`.
+* **Add Service** button now opens a modal to create a new service. It appears after your services list on mobile and below stats on larger screens.
 * "Total Services" card now links to `/services?artist=<your_id>` so you only see your listings.
 * Mobile-friendly dashboard cards for bookings and requests with larger service action buttons.
 * Booking request and booking lists collapse after five items with a **Show All** toggle.

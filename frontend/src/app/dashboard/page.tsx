@@ -357,7 +357,7 @@ export default function DashboardPage() {
           {user.user_type === "artist" && (
             <button
               type="button"
-              onClick={() => router.push("/services/new")}
+              onClick={() => setIsAddServiceModalOpen(true)}
               className="hidden sm:inline-flex bg-brand text-white text-base py-3 rounded-lg mt-4 shadow-md hover:bg-brand-dark"
             >
               Add Service
@@ -713,7 +713,7 @@ export default function DashboardPage() {
               </Reorder.Group>
               <button
                 type="button"
-                onClick={() => router.push('/services/new')}
+                onClick={() => setIsAddServiceModalOpen(true)}
                 className="mt-4 w-full sm:hidden bg-brand text-white text-base py-3 rounded-lg shadow-md hover:bg-brand-dark"
               >
                 Add Service
