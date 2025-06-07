@@ -1,265 +1,194 @@
-```tsx
-'use client';
+`use client`;
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import MainLayout from "@/components/layout/MainLayout";
-import { useAuth } from "@/contexts/AuthContext";
-import { Booking, Service, ArtistProfile, BookingRequest } from "@/types";
-import {
-  getMyClientBookings,
-  getMyArtistBookings,
-  getArtistServices,
-  getArtistProfileMe,
-  getMyBookingRequests,
-  getBookingRequestsForArtist,
-  updateService,
-  deleteService,
-} from "@/lib/api";
-import { format } from "date-fns";
-import { normalizeService } from "@/lib/utils";
-import AddServiceModal from "@/components/dashboard/AddServiceModal";
-import EditServiceModal from "@/components/dashboard/EditServiceModal";
-import RecentActivity from "@/components/dashboard/RecentActivity";
-import Link from "next/link";
-import { motion } from "framer-motion";
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { formatDistanceToNow } from 'date-fns';
+import MainLayout from '@/components/layout/MainLayout';
+import useNotifications from '@/hooks/useNotifications';
+import { getMessagesForBookingRequest } from '@/lib/api';
 
-export default function DashboardPage() {
-  const { user } = useAuth();
+interface BookingPreview {
+  id: number;
+  senderName: string;
+  formattedDate: string;
+  location?: string;
+  guests?: string;
+  venueType?: string;
+  notes?: string;
+  unread: number;
+}
+
+export default function InboxPage() {
+  const { threads, loading, error, markThread } = useNotifications();
   const router = useRouter();
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
-  const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
-  const [showAllRequests, setShowAllRequests] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
-  const [editingService, setEditingService] = useState<Service | null>(null);
-  const [events] = useState<{ id: string | number; timestamp: string; description: string }[]>([]);
+  const [activeTab, setActiveTab] = useState<'requests' | 'chats'>('requests');
+  const [bookings, setBookings] = useState<BookingPreview[]>([]);
+  const [chats, setChats] = useState<typeof threads>([]);
 
-  // Aggregate stats
-  const servicesCount = services.length;
-  const totalEarnings = bookings
-    .filter((b) => b.status === "completed")
-    .reduce((sum, b) => sum + b.total_price, 0);
-
-  const displayedRequests = showAllRequests
-    ? bookingRequests
-    : bookingRequests.slice(0, 5);
-
+  // Load and categorize threads into booking requests vs chats
   useEffect(() => {
-    if (!user) {
-      router.push("/login");
-      return;
+    async function loadThreads() {
+      const reqs: BookingPreview[] = [];
+      const chs: typeof threads = [];
+
+      await Promise.all(
+        threads.map(async (t) => {
+          try {
+            const res = await getMessagesForBookingRequest(t.booking_request_id);
+            const bookingMsg = res.data.find(
+              (m) => m.message_type === 'system' && m.content.startsWith('Booking details:')
+            );
+            if (bookingMsg) {
+              // Parse system message lines for details
+              const [_, ...lines] = bookingMsg.content.split('\n');
+              const details = lines.reduce<Record<string,string>>((acc, line) => {
+                const [key, ...rest] = line.split(':');
+                if (key && rest.length) {
+                  acc[key.trim().toLowerCase()] = rest.join(':').trim();
+                }
+                return acc;
+              }, {});
+              reqs.push({
+                id: t.booking_request_id,
+                senderName: t.name,
+                formattedDate: new Date(bookingMsg.timestamp).toLocaleDateString(),
+                location: details.location,
+                guests: details.guests,
+                venueType: details['venue type'],
+                notes: details.notes,
+                unread: t.unread_count,
+              });
+            } else {
+              chs.push(t);
+            }
+          } catch {
+            chs.push(t);
+          }
+        })
+      );
+
+      setBookings(reqs);
+      setChats(chs);
     }
 
-    async function fetchData() {
-      try {
-        if (user.user_type === "artist") {
-          const [bData, sData, pData, rData] = await Promise.all([
-            getMyArtistBookings(),
-            getArtistServices(user.id),
-            getArtistProfileMe(),
-            getBookingRequestsForArtist(),
-          ]);
-          setBookings(bData.data);
-          setServices(
-            sData.data.map(normalizeService).sort((a, b) => a.display_order - b.display_order)
-          );
-          setArtistProfile(pData.data);
-          setBookingRequests(rData.data);
-        } else {
-          const [bData, rData] = await Promise.all([
-            getMyClientBookings(),
-            getMyBookingRequests(),
-          ]);
-          setBookings(bData.data);
-          setBookingRequests(rData.data);
-        }
-      } catch (e) {
-        console.error(e);
-        setError("Failed to load dashboard data. Please try again.");
-      } finally {
-        setLoading(false);
-      }
+    if (!loading && threads.length) {
+      loadThreads();
+    } else if (threads.length === 0) {
+      setBookings([]);
+      setChats([]);
     }
+  }, [threads, loading]);
 
-    fetchData();
-  }, [user, router]);
-
-  const handleServiceAdded = (newService: Service) => {
-    setServices((prev) =>
-      [...prev, normalizeService(newService)].sort((a, b) => a.display_order - b.display_order)
-    );
+  // Navigate to selected thread
+  const navigateToThread = async (id: number) => {
+    await markThread(id);
+    const path = activeTab === 'requests' ? `/bookings/${id}` : `/messages/thread/${id}`;
+    router.push(path);
   };
-
-  const handleServiceUpdated = (updated: Service) => {
-    const norm = normalizeService(updated);
-    setServices((prev) =>
-      prev
-        .map((s) => (s.id === norm.id ? norm : s))
-        .sort((a, b) => a.display_order - b.display_order)
-    );
-  };
-
-  const handleDeleteService = async (id: number) => {
-    try {
-      await deleteService(id);
-      setServices((prev) => prev.filter((s) => s.id !== id));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const moveService = async (id: number, dir: "up" | "down") => {
-    const sorted = [...services].sort((a, b) => a.display_order - b.display_order);
-    const idx = sorted.findIndex((s) => s.id === id);
-    const ni = dir === "up" ? idx - 1 : idx + 1;
-    if (ni < 0 || ni >= sorted.length) return;
-    const [item] = sorted.splice(idx, 1);
-    sorted.splice(ni, 0, item);
-    const updated = sorted.map((s, i) => ({ ...s, display_order: i + 1 }));
-    setServices(updated);
-    try {
-      await Promise.all(updated.map((s) => updateService(s.id, { display_order: s.display_order })));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  if (!user) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <p>Loading...</p>
-        </div>
-      </MainLayout>
-    );
-  }
-
-  if (loading) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin h-16 w-16 border-b-2 border-indigo-600 rounded-full" />
-        </div>
-      </MainLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <p className="text-red-600">{error}</p>
-        </div>
-      </MainLayout>
-    );
-  }
-
-  const showLocationPrompt = user.user_type === "artist" && artistProfile?.location === undefined;
 
   return (
     <MainLayout>
-      <div className="px-4 py-6 space-y-6 overflow-auto">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        <h1 className="text-xl font-semibold mb-4">Inbox</h1>
 
-        {showLocationPrompt && (
-          <div className="p-4 bg-yellow-50 rounded-md">
-            <p className="text-yellow-800">
-              Please add your location to your profile.{' '}
-              <Link href="/dashboard/profile/edit" className="underline">
-                Update now
-              </Link>
-            </p>
-          </div>
-        )}
-
-        {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[
-            {
-              key: 'bookings',
-              href: '/bookings',
-              icon: '🗓',
-              label: 'Total Bookings',
-              value: bookings.length,
-            },
-            ...(user.user_type === 'artist'
-              ? [
-                  {
-                    key: 'services',
-                    href: '/services',
-                    icon: '🎤',
-                    label: 'Total Services',
-                    value: servicesCount,
-                  },
-                  {
-                    key: 'earnings',
-                    href: '/earnings',
-                    icon: '💰',
-                    label: 'Total Earnings',
-                    value: totalEarnings.toFixed(2),
-                  },
-                ]
-              : []),
-          ].map(({ key, href, icon, label, value }, i) => (
-            <Link href={href} key={key} className="block">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="p-5 bg-white rounded-lg shadow hover:bg-gray-50 active:bg-gray-100 cursor-pointer"
-              >
-                <dt className="text-sm text-gray-500 flex items-center space-x-2">
-                  <span>{icon}</span>
-                  <span>{label}</span>
-                </dt>
-                <dd className="mt-2 text-2xl font-semibold text-gray-900">
-                  {value}
-                </dd>
-              </motion.div>
-            </Link>
-          ))}
+        {/* Tabs */}
+        <div className="flex border-b mb-4">
+          <button
+            type="button"
+            onClick={() => setActiveTab('requests')}
+            className={`flex-1 py-2 text-center font-medium ${
+              activeTab === 'requests'
+                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                : 'text-gray-500'
+            }`}
+          >
+            Booking Requests
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('chats')}
+            className={`flex-1 py-2 text-center font-medium ${
+              activeTab === 'chats'
+                ? 'border-b-2 border-indigo-600 text-indigo-600'
+                : 'text-gray-500'
+            }`}
+          >
+            Chats
+          </button>
         </div>
 
-        {user.user_type === 'artist' && (
-          <button
-            onClick={() => router.push('/services/new')}
-            className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-500"
-          >
-            Add Service
-          </button>
+        {/* Status Messages */}
+        {loading && <p>Loading...</p>}
+        {error && <p className="text-red-600">{error}</p>}
+        {!loading && !error && !bookings.length && !chats.length && (
+          <p className="text-gray-500">No messages yet.</p>
         )}
 
-        <RecentActivity events={events} />
+        {/* Booking Requests Tab */}
+        {activeTab === 'requests' && (
+          <section>
+            <h2 className="text-base font-semibold text-gray-800 mb-2">
+              🧾 Booking Requests
+            </h2>
+            <ul className="space-y-3">
+              {bookings.map((b) => (
+                <li key={b.id}>
+                  <button
+                    type="button"
+                    onClick={() => navigateToThread(b.id)}
+                    className="w-full text-left bg-white shadow rounded-lg p-4 space-y-2 hover:bg-gray-50 active:bg-gray-100 transition"
+                  >
+                    <div className="flex justify-between">
+                      <span className="font-semibold text-sm">{b.senderName}</span>
+                      <span className="text-xs text-gray-500">{b.formattedDate}</span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      📍 {b.location ?? '—'} | 👥 {b.guests ?? '—'} | 🏠 {b.venueType ?? '—'}
+                    </div>
+                    {b.notes && (
+                      <div className="text-xs text-gray-500 truncate">
+                        📝 {b.notes}
+                      </div>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-        {/* Booking Requests */}
-        <section className="mt-8">
-          <h2 className="text-lg font-medium">Booking Requests</n
-          {bookingRequests.length === 0 ? (
-            <p className="text-gray-500">No booking requests yet.</p>
-          ) : (
-            <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-sm font-semibold">{user.user_type === 'artist' ? 'Client' : 'Artist'}</th>
-                    <th className="px-4 py-2 text-left text-sm font-semibold">Service</th>
-                    <th className="px-4 py-2 text-left text-sm font-semibold">Status</th>
-                    <th className="px-4 py-2 text-left text-sm font-semibold">Created</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {displayedRequests.map((req) => (
-                    <tr key={req.id}>
-                      <td className="px-4 py-2 text-sm font-medium text-gray-900">{
-                        user.user_type === 'artist'
-                          ? `${req.client?.first_name} ${req.client?.last_name}`
-                          : `${req.artist?.first_name} ${req.artist?.last_name}`
-                      }</td>
-                      <td className="px-4 py-2 text-sm text-gray-500">{req.service?.title || '—'}</td>
-                      <td className="px-4 py-2 text-sm text-gray-500">{req.status}</td>
-                      <td className="px-4 py-2 text-sm text-gray-500">{new Date(req.created_at).toLocaleDateString()}</td>
-                    ```
+        {/* Chats Tab */}
+        {activeTab === 'chats' && (
+          <section className="space-y-2">
+            {chats.map((t) => {
+              const initials = t.name
+                .split(' ')
+                .map((w) => w[0])
+                .join('');
+              return (
+                <button
+                  key={t.booking_request_id}
+                  type="button"
+                  onClick={() => navigateToThread(t.booking_request_id)}
+                  className="flex items-center space-x-3 p-3 bg-white rounded-lg shadow hover:bg-gray-50 active:bg-gray-100 w-full text-left transition"
+                >
+                  <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm">
+                    {initials}
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <p className="font-medium text-sm truncate">{t.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{t.last_message}</p>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
+                  </p>
+                </button>
+              );
+            })}
+          </section>
+        )}
+      </div>
+    </MainLayout>
+  );
+}
+```
