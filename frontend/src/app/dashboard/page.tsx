@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -146,6 +146,7 @@ export default function DashboardPage() {
 
   const [isReordering, setIsReordering] = useState(false);
   const dragControls = useDragControls();
+  const listRef = useRef<HTMLDivElement>(null);
   const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
   const [isPressing, setIsPressing] = useState(false);
 
@@ -643,6 +644,7 @@ export default function DashboardPage() {
                 </h2>
               </div>
               <Reorder.Group
+                ref={listRef}
                 axis="y"
                 values={services}
                 onReorder={handleReorder}
@@ -656,6 +658,7 @@ export default function DashboardPage() {
                     onDragEnd={handleDragEnd}
                     dragListener={false}
                     dragControls={dragControls}
+                    dragConstraints={listRef}
                     data-testid="service-item"
                     className={`relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400 ${isPressing ? 'select-none' : ''}`}
                   >
