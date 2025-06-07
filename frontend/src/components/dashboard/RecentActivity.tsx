@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface RecentActivityProps {
-  events: any[];
+  events: unknown[];
 }
 
 export default function RecentActivity({ events }: RecentActivityProps) {
