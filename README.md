@@ -236,6 +236,7 @@ GET /api/v1/artist-profiles/{artist_id}/availability
    ```bash
    pytest
    ```
+
 2. **Frontend lint**:
 
    ```bash
