@@ -240,19 +240,15 @@ export default function DashboardPage() {
                   <Link
                     key="bookings"
                     href="/bookings"
-                    className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                    className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white shadow-sm min-h-[64px] overflow-hidden cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
                   >
-                    <dt className="truncate text-sm font-medium text-gray-500">
-                      <div className="flex items-center space-x-2">
-                        <span role="img" aria-label="calendar">
-                          🗓
-                        </span>
-                        <span>Total Bookings</span>
-                      </div>
-                    </dt>
-                    <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                      {bookings.length}
-                    </dd>
+                    <div className="flex items-center space-x-2">
+                      <span role="img" aria-label="calendar">
+                        🗓
+                      </span>
+                      <span className="text-sm font-medium text-gray-500">Total Bookings</span>
+                    </div>
+                    <span className="text-2xl font-semibold text-gray-900">{bookings.length}</span>
                   </Link>,
                 ];
                 if (user.user_type === "artist") {
@@ -260,61 +256,49 @@ export default function DashboardPage() {
                     <Link
                       key="services"
                       href="/services"
-                      className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                      className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white shadow-sm min-h-[64px] overflow-hidden cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
                     >
-                      <dt className="truncate text-sm font-medium text-gray-500">
-                        <div className="flex items-center space-x-2">
-                          <span role="img" aria-label="microphone">
-                            🎤
-                          </span>
-                          <span>Total Services</span>
-                        </div>
-                      </dt>
-                      <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                        {servicesCount}
-                      </dd>
-                      {servicesCount === 0 && (
-                        <p className="text-xs text-gray-400 mt-2">No services added yet</p>
-                      )}
+                      <div className="flex items-center space-x-2">
+                        <span role="img" aria-label="microphone">🎤</span>
+                        <span className="text-sm font-medium text-gray-500">Total Services</span>
+                      </div>
+                      <span className="text-2xl font-semibold text-gray-900">{servicesCount}</span>
                     </Link>,
+                    servicesCount === 0 && (
+                      <p className="text-xs text-gray-400 mt-2">No services added yet</p>
+                    ),
                     <Link
                       key="earnings"
                       href="/earnings"
-                      className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                      className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white shadow-sm min-h-[64px] overflow-hidden cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
                     >
-                      <dt className="truncate text-sm font-medium text-gray-500">
-                        <div className="flex items-center space-x-2">
-                          <span role="img" aria-label="money">
-                            💰
-                          </span>
-                          <span>Total Earnings</span>
-                        </div>
-                      </dt>
-                    <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                        ${totalEarnings.toFixed(2)}
-                    </dd>
-                    {totalEarnings === 0 && (
-                        <p className="text-xs text-gray-400 mt-2">No earnings this month</p>
-                    )}
+                      <div className="flex items-center space-x-2">
+                        <span role="img" aria-label="money">💰</span>
+                        <span className="text-sm font-medium text-gray-500">Total Earnings</span>
+                      </div>
+                      <span className="text-2xl font-semibold text-gray-900">
+                        {'$' + totalEarnings.toFixed(2)}
+                      </span>
                     </Link>,
+                    totalEarnings === 0 && (
+                      <p className="text-xs text-gray-400 mt-2">No earnings this month</p>
+                    ),
                     <Link
                       key="earnings-month"
                       href="/earnings"
-                      className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                      className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white shadow-sm min-h-[64px] overflow-hidden cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
                     >
-                      <dt className="truncate text-sm font-medium text-gray-500">
-                        <div className="flex items-center space-x-2">
-                          <span role="img" aria-label="calendar-money">📅</span>
-                          <span>Earnings This Month</span>
-                        </div>
-                      </dt>
-                      <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                        ${earningsThisMonth.toFixed(2)}
-                      </dd>
-                      {earningsThisMonth === 0 && (
-                        <p className="text-xs text-gray-400 mt-2">No earnings yet</p>
-                      )}
-                    </Link>
+                      <div className="flex items-center space-x-2">
+                        <span role="img" aria-label="calendar-money">📅</span>
+                        <span className="text-sm font-medium text-gray-500">Earnings This Month</span>
+                      </div>
+                      <span className="text-2xl font-semibold text-gray-900">
+                        {'$' + earningsThisMonth.toFixed(2)}
+                      </span>
+                    </Link>,
+                    earningsThisMonth === 0 && (
+                      <p className="text-xs text-gray-400 mt-2">No earnings yet</p>
+                    )
                   );
                 }
                 return cards.map((card, i) => (
