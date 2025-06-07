@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import type { User } from '@/types';
 import useNotifications from '@/hooks/useNotifications';
+import useScrollDirection from '@/hooks/useScrollDirection';
 
 interface MobileBottomNavProps {
   user: User | null;
@@ -36,6 +37,7 @@ function classNames(...classes: (string | false | undefined)[]) {
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const router = useRouter();
   const { threads } = useNotifications();
+  const scrollDir = useScrollDirection();
   if (!user) {
     return null;
   }
@@ -46,7 +48,10 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
 
   return (
     <nav
-      className="fixed bottom-0 w-full h-[56px] py-1 bg-white border-t shadow z-50 sm:hidden"
+      className={classNames(
+        'fixed bottom-0 w-full h-[56px] py-1 bg-white border-t shadow z-50 sm:hidden transition-transform',
+        scrollDir === 'down' ? 'translate-y-full' : 'translate-y-0',
+      )}
       aria-label="Mobile navigation"
     >
       <ul className="flex justify-around h-full">
