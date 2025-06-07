@@ -103,30 +103,35 @@ export default function InboxPage() {
   };
 
   const renderBookings = () => (
-    <ul className="space-y-3">
-      {bookings.map((b) => (
-        <li key={b.id}>
-          <button
-            type="button"
-            onClick={() => handleClick(b.id)}
-            className="w-full text-left cursor-pointer active:bg-gray-100 rounded"
-          >
-            <div className="bg-white shadow rounded-lg p-4 space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="font-semibold text-sm">{b.senderName}</span>
-                <span className="text-xs text-gray-500">{b.formattedDate}</span>
+    <>
+      <h2 className="text-base font-semibold text-gray-800 px-4 mt-6 mb-2">
+        🧾 Booking Requests
+      </h2>
+      <ul className="space-y-3">
+        {bookings.map((b) => (
+          <li key={b.id}>
+            <button
+              type="button"
+              onClick={() => handleClick(b.id)}
+              className="w-full text-left cursor-pointer active:bg-gray-100 rounded"
+            >
+              <div className="bg-white shadow rounded-lg p-4 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-sm">{b.senderName}</span>
+                  <span className="text-xs text-gray-500">{b.formattedDate}</span>
+                </div>
+                <div className="text-sm text-gray-600">
+                  📍 {b.location || '—'} | 👥 {b.guests || '—'} | 🏠 {b.venueType || '—'}
+                </div>
+                {b.notes && (
+                  <div className="text-xs text-gray-500 truncate">📝 {b.notes}</div>
+                )}
               </div>
-              <div className="text-sm text-gray-600">
-                📍 {b.location || '—'} | 👥 {b.guests || '—'} | 🏠 {b.venueType || '—'}
-              </div>
-              {b.notes && (
-                <div className="text-xs text-gray-500 truncate">📝 {b.notes}</div>
-              )}
-            </div>
-          </button>
-        </li>
-      ))}
-    </ul>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 
   const renderChats = () => (
