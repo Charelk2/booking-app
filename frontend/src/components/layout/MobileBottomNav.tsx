@@ -53,21 +53,23 @@ export default function MobileBottomNav({ user, pathname }: MobileBottomNavProps
               <Link
                 href={item.href}
                 className={classNames(
-                  'flex flex-col items-center px-3 py-2 text-xs',
+                  'flex flex-col items-center text-xs',
                   active ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'
                 )}
               >
-                <div className="relative">
-                  <item.icon className="h-6 w-6" aria-hidden="true" />
-                  {showBadge && (
-                    <span
-                      className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white"
-                    >
-                      {badgeCount}
-                    </span>
-                  )}
+                <div className="min-w-[64px] min-h-[44px] flex flex-col items-center justify-center">
+                  <div className="relative">
+                    <item.icon className="h-6 w-6" aria-hidden="true" />
+                    {showBadge && (
+                      <span
+                        className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white"
+                      >
+                        {badgeCount}
+                      </span>
+                    )}
+                  </div>
+                  <span>{item.name}</span>
                 </div>
-                <span>{item.name}</span>
               </Link>
             </li>
           );
