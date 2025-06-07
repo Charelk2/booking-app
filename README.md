@@ -181,7 +181,7 @@ The chat thread now displays a friendly placeholder when no messages are present
 - Fixed a crash in the notification dropdown caused by calling hooks before they were initialized.
 - Fixed an infinite notifications fetch loop that caused excessive API requests.
 - Mobile navigation now slides in from the left with a smooth animation.
-- A persistent bottom navigation bar on small screens provides quick access to key pages. Unread message counts now appear over the Messages icon so conversations are never missed.
+ - A persistent bottom navigation bar on small screens now sticks to the bottom of the screen with extra padding so content isn't hidden. Unread message counts appear over the Messages icon so conversations are never missed.
 - Dashboard stat cards are now tappable and link directly to their respective pages.
 - A dedicated **Inbox** page lists all message threads and is accessible from the bottom navigation so opening conversations never results in a 404.
 - Unread messages within a thread now highlight the sender's name in **bold** and tint the background purple so new chat activity is easier to spot.
