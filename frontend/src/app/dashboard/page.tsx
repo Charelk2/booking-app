@@ -37,7 +37,8 @@ export default function DashboardPage() {
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   // Future activity feed will populate this array with events
-  const [events] = useState<any[]>([]);
+  // Using `unknown[]` to avoid explicit any until event type is defined
+  const [events] = useState<unknown[]>([]);
 
   useEffect(() => {
     if (!user) {
