@@ -182,6 +182,7 @@ npm run build
 * **Inbox** page at `/inbox` separates Booking Requests and Chats into tabs.
 * `ChatThreadView` component for mobile-friendly chat threads.
 * Tap a booking request card to open `/bookings/[id]`.
+* Unread booking requests are highlighted in indigo so they stand out.
 
 ### Auth & Registration
 
