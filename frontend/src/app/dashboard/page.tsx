@@ -317,10 +317,10 @@ export default function DashboardPage() {
           <RecentActivity events={events} />
 
           {/* Booking Requests */}
-          <div className="mt-8">
-            <h2 className="text-lg font-medium text-gray-900">
+          <details className="mt-8" open>
+            <summary className="text-lg font-medium text-gray-900 cursor-pointer">
               Booking Requests
-            </h2>
+            </summary>
             {bookingRequests.length === 0 ? (
               <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
                 <div className="text-sm text-gray-500 px-4 py-6 text-center">
@@ -328,8 +328,37 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
+              <>
+                <div className="sm:hidden mt-4 space-y-4">
+                  {bookingRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      className="bg-white p-4 shadow rounded-lg"
+                    >
+                      <div className="font-medium text-gray-900">
+                        {user.user_type === "artist"
+                          ? `${req.client?.first_name} ${req.client?.last_name}`
+                          : `${req.artist?.first_name} ${req.artist?.last_name}`}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {req.service?.title || "—"}
+                      </div>
+                      <div className="mt-2 flex justify-between text-sm text-gray-500">
+                        <span>{req.status}</span>
+                        <span>{new Date(req.created_at).toLocaleDateString()}</span>
+                      </div>
+                      <Link
+                        href={`/booking-requests/${req.id}`}
+                        className="mt-2 inline-block text-indigo-600 hover:underline text-sm"
+                      >
+                        View Chat
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden sm:block mt-4 overflow-x-auto">
+                  <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                    <table className="min-w-full divide-y divide-gray-300">
                   <thead className="bg-gray-50">
                     <tr>
                       <th
@@ -388,16 +417,52 @@ export default function DashboardPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+            </>
             )}
-          </div>
+          </details>
 
           {/* Recent Bookings */}
-          <div className="mt-8">
-            <h2 className="text-lg font-medium text-gray-900">
+          <details className="mt-8" open>
+            <summary className="text-lg font-medium text-gray-900 cursor-pointer">
               Recent Bookings
-            </h2>
-            <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-              <table className="min-w-full divide-y divide-gray-300">
+            </summary>
+            <div className="sm:hidden mt-4 space-y-4">
+              {bookings.map((booking) => (
+                <div key={booking.id} className="bg-white p-4 shadow rounded-lg">
+                  <div className="font-medium text-gray-900">
+                    {booking.client.first_name} {booking.client.last_name}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {booking.service.title}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {format(new Date(booking.start_time), "MMM d, yyyy h:mm a")}
+                  </div>
+                  <div className="mt-2 flex justify-between items-center">
+                    <span
+                      className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                        booking.status === "completed"
+                          ? "bg-green-100 text-green-800"
+                          : booking.status === "cancelled"
+                          ? "bg-red-100 text-red-800"
+                          : booking.status === "confirmed"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-yellow-100 text-yellow-800"
+                      }`}
+                    >
+                      {booking.status}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      ${booking.total_price.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden sm:block mt-4 overflow-x-auto">
+              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                <table className="min-w-full divide-y divide-gray-300">
                 <thead className="bg-gray-50">
                   <tr>
                     <th
@@ -488,6 +553,7 @@ export default function DashboardPage() {
               </table>
             </div>
           </div>
+          </details>
 
           {/* Services (Artist Only) */}
           {user.user_type === "artist" && (
@@ -508,7 +574,7 @@ export default function DashboardPage() {
                 {services.map((service, idx) => (
                   <div
                     key={service.id}
-                    className="relative flex items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400"
+                    className="relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="focus:outline-none">
@@ -531,29 +597,29 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="ml-4 flex flex-col space-y-1">
+                    <div className="sm:ml-4 flex items-center space-x-2">
                       <button
-                        className="text-xs text-indigo-600"
+                        className="text-sm text-indigo-600"
                         onClick={() => setEditingService(service)}
                       >
                         Edit
                       </button>
                       <button
-                        className="text-xs text-red-600"
+                        className="text-sm text-red-600"
                         onClick={() => handleDeleteService(service.id)}
                       >
                         Delete
                       </button>
                       <div className="flex space-x-1">
                         <button
-                          className="text-xs"
+                          className="text-sm"
                           onClick={() => moveService(service.id, "up")}
                           disabled={idx === 0}
                         >
                           ↑
                         </button>
                         <button
-                          className="text-xs"
+                          className="text-sm"
                           onClick={() => moveService(service.id, "down")}
                           disabled={idx === services.length - 1}
                         >
