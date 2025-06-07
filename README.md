@@ -138,6 +138,7 @@ npm run build
 * Open Graph meta tags and fallback avatars.
 * Accessibility and animation improvements.
 * Dashboard stats now animate on load using **framer-motion**.
+* Booking Requests list collapses to five items with a **Show All**/Collapse toggle.
 
 ### Service Management (Artist Dashboard)
 
@@ -177,6 +178,7 @@ npm run build
 * **Inbox** page at `/inbox` separates Booking Requests and Chats into tabs.
 * Booking Requests tab shows a "🧾 Booking Requests" heading above the list.
 * `ChatThreadView` component for mobile-friendly chat threads.
+* Tap a booking request card to open `/bookings/[id]`.
 
 ### Auth & Registration
 
