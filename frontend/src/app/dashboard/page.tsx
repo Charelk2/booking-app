@@ -612,14 +612,24 @@ export default function DashboardPage() {
                     </div>
                     <div className="sm:ml-4 flex items-center space-x-2">
                       <button
-                        className="text-sm text-indigo-600"
+                        type="button"
+                        className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
                         onClick={() => setEditingService(service)}
                       >
                         Edit
                       </button>
                       <button
-                        className="text-sm text-red-600"
-                        onClick={() => handleDeleteService(service.id)}
+                        type="button"
+                        className="text-sm font-medium text-red-600 hover:text-red-800"
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              'Delete this service? This action cannot be undone.'
+                            )
+                          ) {
+                            handleDeleteService(service.id);
+                          }
+                        }}
                       >
                         Delete
                       </button>
