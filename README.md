@@ -142,6 +142,7 @@ npm run build
 ### Service Management (Artist Dashboard)
 
 * Edit, delete, and reorder services with up/down arrows.
+* Service deletion now requires confirmation to prevent mistakes.
 * **Add Service** button below stats linking to `/services/new`.
 * Mobile-friendly dashboard cards for bookings and requests with larger service action buttons.
 * Improved dashboard stats layout with monthly earnings card.
