@@ -37,7 +37,13 @@ export default function DashboardPage() {
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   // Future activity feed will populate this array with events
-  const [events] = useState<any[]>([]);
+  const [events] = useState<unknown[]>([]);
+
+  // Aggregated totals for dashboard statistics
+  const servicesCount = services.length;
+  const totalEarnings = bookings
+    .filter((booking) => booking.status === "completed")
+    .reduce((acc, booking) => acc + booking.total_price, 0);
 
   useEffect(() => {
     if (!user) {
@@ -254,8 +260,11 @@ export default function DashboardPage() {
                         </div>
                       </dt>
                       <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                        {services.length}
+                        {servicesCount}
                       </dd>
+                      {servicesCount === 0 && (
+                        <p className="text-xs text-gray-400 mt-2">No services added yet</p>
+                      )}
                     </Link>,
                     <Link
                       key="earnings"
@@ -271,12 +280,11 @@ export default function DashboardPage() {
                         </div>
                       </dt>
                       <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                        $
-                        {bookings
-                          .filter((booking) => booking.status === "completed")
-                          .reduce((acc, booking) => acc + booking.total_price, 0)
-                          .toFixed(2)}
+                        ${totalEarnings.toFixed(2)}
                       </dd>
+                      {totalEarnings === 0 && (
+                        <p className="text-xs text-gray-400 mt-2">No earnings this month</p>
+                      )}
                     </Link>
                   );
                 }
