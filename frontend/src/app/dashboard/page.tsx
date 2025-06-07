@@ -21,7 +21,7 @@ import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import RecentActivity from "@/components/dashboard/RecentActivity";
 import Link from "next/link";
-import { motion, Reorder } from "framer-motion";
+import { motion, Reorder, useDragControls } from "framer-motion";
 import {
   PencilIcon,
   TrashIcon,
@@ -145,6 +145,23 @@ export default function DashboardPage() {
   };
 
   const [isReordering, setIsReordering] = useState(false);
+  const dragControls = useDragControls();
+  const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
+
+  const startDrag = (event: React.PointerEvent) => {
+    event.preventDefault();
+    const timer = setTimeout(() => {
+      dragControls.start(event);
+    }, 300);
+    setPressTimer(timer);
+  };
+
+  const cancelDrag = () => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      setPressTimer(null);
+    }
+  };
 
   const persistServiceOrder = async (ordered: Service[]) => {
     try {
@@ -628,9 +645,17 @@ export default function DashboardPage() {
                     key={service.id}
                     value={service}
                     onDragEnd={handleDragEnd}
+                    dragListener={false}
+                    dragControls={dragControls}
                     className="relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400"
                   >
-                    <div className="absolute left-2 top-2 cursor-grab active:cursor-grabbing text-gray-400" aria-hidden="true">
+                    <div
+                      className="absolute right-2 top-2 cursor-grab active:cursor-grabbing text-gray-400"
+                      aria-hidden="true"
+                      onPointerDown={startDrag}
+                      onPointerUp={cancelDrag}
+                      onPointerLeave={cancelDrag}
+                    >
                       <Bars3Icon className="h-5 w-5" />
                     </div>
                     <div className="min-w-0 flex-1">
