@@ -196,8 +196,17 @@ describe('Service card drag handle', () => {
     jest.clearAllMocks();
   });
 
-  it('applies select-none to service items', () => {
-    const card = container.querySelector('.select-none');
-    expect(card).toBeTruthy();
+  it('temporarily disables text selection during long press', async () => {
+    const card = container.querySelector('[data-testid="service-item"]') as HTMLElement;
+    const handle = card.querySelector('div[aria-hidden="true"]') as HTMLElement;
+    expect(card.className).not.toMatch('select-none');
+    await act(async () => {
+      handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    });
+    expect(card.className).toMatch('select-none');
+    await act(async () => {
+      handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    });
+    expect(card.className).not.toMatch('select-none');
   });
 });
