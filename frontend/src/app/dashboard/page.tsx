@@ -152,14 +152,10 @@ export default function DashboardPage() {
   const startDrag = (event: React.PointerEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    // persist the event so it survives the long‑press delay
-    event.persist();
-    const nativeEvent = event.nativeEvent;
-    // capture pointer so other handlers don't interfere
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
     setIsPressing(true);
     const timer = setTimeout(() => {
-      dragControls.start(nativeEvent);
+      dragControls.start(event);
     }, 300);
     setPressTimer(timer);
   };
@@ -668,6 +664,9 @@ export default function DashboardPage() {
                       aria-hidden="true"
                       onPointerDown={startDrag}
                       onPointerUp={cancelDrag}
+                      onPointerLeave={cancelDrag}
+                      onPointerCancel={cancelDrag}
+                      onContextMenu={(e) => e.preventDefault()}
                     >
                       <Bars3Icon className="h-5 w-5" />
                     </div>
