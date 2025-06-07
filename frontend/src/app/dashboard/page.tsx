@@ -38,6 +38,8 @@ export default function DashboardPage() {
   const [editingService, setEditingService] = useState<Service | null>(null);
   // Future activity feed will populate this array with events
   const [events] = useState<unknown[]>([]);
+  const [showAllRequests, setShowAllRequests] = useState(false);
+  const [showAllBookings, setShowAllBookings] = useState(false);
 
   // Aggregated totals for dashboard statistics
   const servicesCount = services.length;
@@ -55,6 +57,13 @@ export default function DashboardPage() {
       );
     })
     .reduce((acc, booking) => acc + booking.total_price, 0);
+
+  const visibleRequests = showAllRequests
+    ? bookingRequests
+    : bookingRequests.slice(0, 5);
+  const visibleBookings = showAllBookings
+    ? bookings
+    : bookings.slice(0, 5);
 
   useEffect(() => {
     if (!user) {
@@ -343,7 +352,7 @@ export default function DashboardPage() {
             ) : (
               <>
                 <div className="sm:hidden mt-4 space-y-4">
-                  {bookingRequests.map((req) => (
+                  {visibleRequests.map((req) => (
                     <div
                       key={req.id}
                       className="bg-white p-4 shadow rounded-lg"
@@ -401,7 +410,7 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {bookingRequests.map((req) => (
+                    {visibleRequests.map((req) => (
                       <tr key={req.id}>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                           <div className="font-medium text-gray-900">
@@ -431,6 +440,17 @@ export default function DashboardPage() {
                 </table>
               </div>
             </div>
+            {bookingRequests.length > 5 && (
+              <div className="mt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowAllRequests((s) => !s)}
+                  className="text-sm text-indigo-600 hover:underline"
+                >
+                  {showAllRequests ? "Collapse" : "Show All"}
+                </button>
+              </div>
+            )}
             </>
             )}
           </details>
@@ -441,7 +461,7 @@ export default function DashboardPage() {
               Recent Bookings
             </summary>
             <div className="sm:hidden mt-4 space-y-4">
-              {bookings.map((booking) => (
+              {visibleBookings.map((booking) => (
                 <div key={booking.id} className="bg-white p-4 shadow rounded-lg">
                   <div className="font-medium text-gray-900">
                     {booking.client.first_name} {booking.client.last_name}
@@ -511,7 +531,7 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {bookings.map((booking) => (
+                  {visibleBookings.map((booking) => (
                     <tr key={booking.id}>
                       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                         <div className="flex items-center">
@@ -566,6 +586,17 @@ export default function DashboardPage() {
               </table>
             </div>
           </div>
+          {bookings.length > 5 && (
+            <div className="mt-2 text-center">
+              <button
+                type="button"
+                onClick={() => setShowAllBookings((s) => !s)}
+                className="text-sm text-indigo-600 hover:underline"
+              >
+                {showAllBookings ? "Collapse" : "Show All"}
+              </button>
+            </div>
+          )}
           </details>
 
           {/* Services (Artist Only) */}
