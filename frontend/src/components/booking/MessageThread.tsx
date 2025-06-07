@@ -238,10 +238,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           const isSelf = !isSystem && msg.sender_id === user?.id;
 
           const bubbleClass = isSelf
-            ? 'bg-indigo-500 text-white'
+            ? 'bg-purple-600 text-white self-end'
             : isSystem
-              ? 'bg-gray-200'
-              : 'bg-gray-100';
+              ? 'bg-gray-200 text-gray-900 self-start'
+              : 'bg-gray-100 text-gray-900 self-start';
+          const bubbleBase = 'rounded-xl px-4 py-2 max-w-[75%] text-sm';
 
           const avatar = isSystem
             ? artistName?.charAt(0)
@@ -271,7 +272,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           return (
             <div
               key={msg.id}
-              className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} gap-1 ${msg.unread ? 'bg-purple-50' : ''}`}
+              className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} gap-1 mb-2 ${msg.unread ? 'bg-purple-50' : ''}`}
             >
               <span className={`text-sm ${msg.unread ? 'font-semibold' : 'font-medium'}`}>{senderDisplayName}</span>
               <div className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
@@ -281,7 +282,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   </div>
                 )}
                 <div
-                  className={`max-w-xs rounded-2xl px-3 py-2 whitespace-pre-wrap flex ${bubbleClass}`}
+                  className={`${bubbleBase} whitespace-pre-wrap flex ${bubbleClass}`}
                 >
                   <div className="flex-1">
                     {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
