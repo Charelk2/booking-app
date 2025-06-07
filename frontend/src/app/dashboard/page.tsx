@@ -37,7 +37,7 @@ export default function DashboardPage() {
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   // Future activity feed will populate this array with events
-  const [events] = useState<any[]>([]);
+  const [events] = useState<Record<string, unknown>[]>([]);
 
   useEffect(() => {
     if (!user) {
@@ -220,77 +220,79 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {(() => {
                 const cards = [
-                  <Link
-                    key="bookings"
-                    href="/bookings"
-                    className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
-                  >
-                    <dt className="truncate text-sm font-medium text-gray-500">
-                      <div className="flex items-center space-x-2">
-                        <span role="img" aria-label="calendar">
-                          🗓
-                        </span>
-                        <span>Total Bookings</span>
-                      </div>
-                    </dt>
-                    <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                      {bookings.length}
-                    </dd>
-                  </Link>,
-                ];
-                if (user.user_type === "artist") {
-                  cards.push(
-                    <Link
-                      key="services"
-                      href="/services"
-                      className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
-                    >
-                      <dt className="truncate text-sm font-medium text-gray-500">
-                        <div className="flex items-center space-x-2">
-                          <span role="img" aria-label="microphone">
-                            🎤
-                          </span>
-                          <span>Total Services</span>
-                        </div>
-                      </dt>
-                      <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                        {services.length}
-                      </dd>
-                    </Link>,
-                    <Link
-                      key="earnings"
-                      href="/earnings"
-                      className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
-                    >
-                      <dt className="truncate text-sm font-medium text-gray-500">
-                        <div className="flex items-center space-x-2">
-                          <span role="img" aria-label="money">
-                            💰
-                          </span>
-                          <span>Total Earnings</span>
-                        </div>
-                      </dt>
-                      <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                        $
-                        {bookings
-                          .filter((booking) => booking.status === "completed")
-                          .reduce((acc, booking) => acc + booking.total_price, 0)
-                          .toFixed(2)}
-                      </dd>
-                    </Link>
-                  );
-                }
-                return cards.map((card, i) => (
-                  <motion.div
-                    /* eslint react/no-array-index-key: 0 */
-                    key={card.key || i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: i * 0.1 }}
-                  >
-                    {card}
-                  </motion.div>
-                ));
+  {
+    key: "bookings",
+    href: "/bookings",
+    content: (
+      <>
+        <dt className="truncate text-sm font-medium text-gray-500">
+          <div className="flex items-center space-x-2">
+            <span role="img" aria-label="calendar">🗓</span>
+            <span>Total Bookings</span>
+          </div>
+        </dt>
+        <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
+          {bookings.length}
+        </dd>
+      </>
+    ),
+  },
+];
+if (user.user_type === "artist") {
+  cards.push(
+    {
+      key: "services",
+      href: "/services",
+      content: (
+        <>
+          <dt className="truncate text-sm font-medium text-gray-500">
+            <div className="flex items-center space-x-2">
+              <span role="img" aria-label="microphone">🎤</span>
+              <span>Total Services</span>
+            </div>
+          </dt>
+          <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
+            {services.length}
+          </dd>
+        </>
+      ),
+    },
+    {
+      key: "earnings",
+      href: "/earnings",
+      content: (
+        <>
+          <dt className="truncate text-sm font-medium text-gray-500">
+            <div className="flex items-center space-x-2">
+              <span role="img" aria-label="money">💰</span>
+              <span>Total Earnings</span>
+            </div>
+          </dt>
+          <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
+            $
+            {bookings
+              .filter((booking) => booking.status === "completed")
+              .reduce((acc, booking) => acc + booking.total_price, 0)
+              .toFixed(2)}
+          </dd>
+        </>
+      ),
+    },
+  );
+}
+return cards.map(({ key, href, content }, i) => (
+  <Link href={href} key={key} className="block">
+    <motion.div
+      /* eslint react/no-array-index-key: 0 */
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: i * 0.1 }}
+      className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-100 active:bg-gray-200 transition"
+    >
+      {content}
+    </motion.div>
+  </Link>
+));
               })()}
             </div>
           </div>
