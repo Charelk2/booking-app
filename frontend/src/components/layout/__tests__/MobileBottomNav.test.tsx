@@ -30,25 +30,25 @@ describe('MobileBottomNav', () => {
     container.remove();
   });
 
-  it('renders navigation links', () => {
+  it('does not render when not logged in', () => {
     mockUseRouter.mockReturnValue({ pathname: '/' });
     act(() => {
       root.render(
         React.createElement(MobileBottomNav, { user: null })
+      );
+    });
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('renders navigation links when logged in', () => {
+    mockUseRouter.mockReturnValue({ pathname: '/' });
+    act(() => {
+      root.render(
+        React.createElement(MobileBottomNav, { user: {} as User })
       );
     });
     expect(container.textContent).toContain('Home');
     expect(container.textContent).toContain('Artists');
-  });
-
-  it('hides auth-only links when not logged in', () => {
-    mockUseRouter.mockReturnValue({ pathname: '/' });
-    act(() => {
-      root.render(
-        React.createElement(MobileBottomNav, { user: null })
-      );
-    });
-    expect(container.textContent).not.toContain('Dashboard');
   });
 
   it('shows unread message count badge', () => {
@@ -66,7 +66,7 @@ describe('MobileBottomNav', () => {
     mockUseRouter.mockReturnValue({ pathname: '/' });
     act(() => {
       root.render(
-        React.createElement(MobileBottomNav, { user: null })
+        React.createElement(MobileBottomNav, { user: {} as User })
       );
     });
     const activeLink = container.querySelector('a.text-indigo-600');
