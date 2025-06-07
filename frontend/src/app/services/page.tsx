@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { Service } from '@/types';
-import { getAllServices } from '@/lib/api';
+import { getAllServices, getArtistServices } from '@/lib/api';
 
 export default function ServicesPage() {
+  const params = useSearchParams();
+  const artistIdParam = params.get('artist');
+  const artistId = artistIdParam ? Number(artistIdParam) : null;
   const [services, setServices] = useState<Service[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -14,7 +18,9 @@ export default function ServicesPage() {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await getAllServices();
+        const res = artistId
+          ? await getArtistServices(artistId)
+          : await getAllServices();
         setServices(res.data);
       } catch (err) {
         console.error('Failed to load services', err);
@@ -23,7 +29,7 @@ export default function ServicesPage() {
       }
     };
     fetch();
-  }, []);
+  }, [artistId]);
 
   const filtered = services.filter((s) =>
     s.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -33,7 +39,9 @@ export default function ServicesPage() {
   return (
     <MainLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Explore Services</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+          {artistId ? 'My Services' : 'Explore Services'}
+        </h1>
         <input
           type="text"
           placeholder="Search by title or location"
