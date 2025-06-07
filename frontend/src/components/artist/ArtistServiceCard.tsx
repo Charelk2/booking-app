@@ -61,7 +61,7 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
         <div className="mt-2 text-sm text-gray-600" role="region">
           {currentService.description && <p className="mb-2">{currentService.description}</p>}
           <p className="text-sm text-gray-500">Type: {currentService.service_type}</p>
-          <div className="mt-2 flex flex-wrap justify-between">
+          <div className="mt-2 flex items-center space-x-2">
             <span className="text-lg font-bold text-gray-800">
               {Number(currentService.price).toFixed(2)}
             </span>
