@@ -96,7 +96,7 @@ export default function InboxPage() {
     await markThread(id);
 
     if (activeTab === 'requests') {
-      router.push(`/booking-requests/${id}`);
+      router.push(`/bookings/${id}`);
     } else {
       router.push(`/messages/thread/${id}`);
     }
@@ -106,24 +106,24 @@ export default function InboxPage() {
     <ul className="space-y-3">
       {bookings.map((b) => (
         <li key={b.id}>
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             onClick={() => handleClick(b.id)}
-            className="w-full text-left cursor-pointer active:bg-gray-100 rounded"
+            onKeyPress={() => handleClick(b.id)}
+            className="bg-white shadow rounded-lg p-4 space-y-2 cursor-pointer active:bg-gray-100 transition"
           >
-            <div className="bg-white shadow rounded-lg p-4 space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="font-semibold text-sm">{b.senderName}</span>
-                <span className="text-xs text-gray-500">{b.formattedDate}</span>
-              </div>
-              <div className="text-sm text-gray-600">
-                📍 {b.location || '—'} | 👥 {b.guests || '—'} | 🏠 {b.venueType || '—'}
-              </div>
-              {b.notes && (
-                <div className="text-xs text-gray-500 truncate">📝 {b.notes}</div>
-              )}
+            <div className="flex justify-between items-center">
+              <span className="font-semibold text-sm">{b.senderName}</span>
+              <span className="text-xs text-gray-500">{b.formattedDate}</span>
             </div>
-          </button>
+            <div className="text-sm text-gray-600">
+              📍 {b.location || '—'} | 👥 {b.guests || '—'} | 🏠 {b.venueType || '—'}
+            </div>
+            {b.notes && (
+              <div className="text-xs text-gray-500 truncate">📝 {b.notes}</div>
+            )}
+          </div>
         </li>
       ))}
     </ul>
