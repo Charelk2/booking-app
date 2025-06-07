@@ -144,6 +144,7 @@ npm run build
 * Edit, delete, and reorder services with up/down arrows.
 * Service deletion now requires confirmation to prevent mistakes.
 * **Add Service** button below stats linking to `/services/new`.
+* "Total Services" card now links to `/services?artist=<your_id>` so you only see your listings.
 * Mobile-friendly dashboard cards for bookings and requests with larger service action buttons.
 * Improved dashboard stats layout with monthly earnings card.
 
