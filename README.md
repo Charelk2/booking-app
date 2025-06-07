@@ -142,8 +142,8 @@ npm run build
 ### Service Management (Artist Dashboard)
 
 * Edit, delete, and reorder services by long‑pressing the handle in the top-right corner and dragging the card. Text selection is disabled for smoother reordering.
-* Drag handle now reliably activates on mobile by disabling default touch actions, capturing the pointer, and persisting the event during the long press until pointer up.
-* Text selection is disabled only while reordering so you can still highlight service details normally.
+* Drag handle now reliably activates on mobile by disabling default touch actions, capturing the pointer, and persisting the event during the long press until pointer up or cancel.
+* The handle blocks the context menu so long presses don't select text, applying `user-select: none` only during drag so you can still highlight service details normally.
 * Service deletion now requires confirmation to prevent mistakes.
 * **Add Service** button now opens a modal to create a new service. It appears after your services list on mobile and below stats on larger screens.
 * "Total Services" card now links to `/services?artist=<your_id>` so you only see your listings.
