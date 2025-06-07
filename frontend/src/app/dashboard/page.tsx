@@ -28,6 +28,114 @@ import {
 } from "@heroicons/react/24/solid";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 
+interface ServiceCardProps {
+  service: Service;
+  dragConstraints: React.RefObject<HTMLDivElement>;
+  onEdit: (service: Service) => void;
+  onDelete: (id: number) => void;
+  onDragEnd: () => void;
+}
+
+function ServiceCard({
+  service,
+  dragConstraints,
+  onEdit,
+  onDelete,
+  onDragEnd,
+}: ServiceCardProps) {
+  const dragControls = useDragControls();
+  const pressTimer = useRef<NodeJS.Timeout | null>(null);
+  const [pressing, setPressing] = useState(false);
+
+  const startDrag = (event: React.PointerEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.persist();
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    setPressing(true);
+    pressTimer.current = setTimeout(() => {
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(10);
+      }
+      dragControls.start(event);
+    }, 300);
+  };
+
+  const cancelDrag = (event?: React.PointerEvent) => {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+    if (event) {
+      (event.currentTarget as HTMLElement).releasePointerCapture?.(
+        event.pointerId
+      );
+    }
+    setPressing(false);
+  };
+
+  return (
+    <Reorder.Item
+      key={service.id}
+      value={service}
+      onDragEnd={onDragEnd}
+      dragListener={false}
+      dragControls={dragControls}
+      dragConstraints={dragConstraints}
+      data-testid="service-item"
+      className={`relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400 ${pressing ? "select-none" : ""}`}
+    >
+      <div
+        className="absolute right-2 top-2 cursor-grab active:cursor-grabbing text-gray-400 touch-none"
+        aria-hidden="true"
+        onPointerDown={startDrag}
+        onPointerUp={cancelDrag}
+        onPointerCancel={cancelDrag}
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        <Bars3Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="focus:outline-none">
+          <p className="text-sm font-medium text-gray-900">{service.title}</p>
+          <p className="truncate text-sm text-gray-500">{service.description}</p>
+          <p className="text-xs text-gray-500">{service.service_type}</p>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-sm font-medium text-gray-900">
+              ${service.price.toFixed(2)}
+            </span>
+            <span className="text-sm text-gray-500">{service.duration_minutes} min</span>
+          </div>
+        </div>
+      </div>
+      <div className="sm:ml-4 flex items-center space-x-2">
+        <button
+          type="button"
+          className="p-1 text-indigo-600 hover:text-indigo-800"
+          onClick={() => onEdit(service)}
+          aria-label="Edit"
+        >
+          <PencilIcon className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          className="p-1 text-red-600 hover:text-red-800"
+          onClick={() => {
+            if (
+              window.confirm('Delete this service? This action cannot be undone.')
+            ) {
+              onDelete(service.id);
+            }
+          }}
+          aria-label="Delete"
+        >
+          <TrashIcon className="h-5 w-5" />
+        </button>
+      </div>
+    </Reorder.Item>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -145,35 +253,7 @@ export default function DashboardPage() {
   };
 
   const [isReordering, setIsReordering] = useState(false);
-  const dragControls = useDragControls();
   const listRef = useRef<HTMLDivElement>(null);
-  const [pressTimer, setPressTimer] = useState<NodeJS.Timeout | null>(null);
-  const [isPressing, setIsPressing] = useState(false);
-
-  const startDrag = (event: React.PointerEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-    setIsPressing(true);
-    const timer = setTimeout(() => {
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(10);
-      }
-      dragControls.start(event);
-    }, 300);
-    setPressTimer(timer);
-  };
-
-  const cancelDrag = (event?: React.PointerEvent) => {
-    if (pressTimer) {
-      clearTimeout(pressTimer);
-      setPressTimer(null);
-    }
-    if (event) {
-      (event.currentTarget as HTMLElement).releasePointerCapture?.(event.pointerId);
-    }
-    setIsPressing(false);
-  };
 
   const persistServiceOrder = async (ordered: Service[]) => {
     try {
@@ -655,74 +735,14 @@ export default function DashboardPage() {
                 className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
               >
                 {services.map((service) => (
-                  <Reorder.Item
+                  <ServiceCard
                     key={service.id}
-                    value={service}
-                    onDragEnd={handleDragEnd}
-                    dragListener={false}
-                    dragControls={dragControls}
+                    service={service}
                     dragConstraints={listRef}
-                    data-testid="service-item"
-                    className={`relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400 ${isPressing ? 'select-none' : ''}`}
-                  >
-                    <div
-                      className="absolute right-2 top-2 cursor-grab active:cursor-grabbing text-gray-400 touch-none"
-                      aria-hidden="true"
-                      onPointerDown={startDrag}
-                      onPointerUp={cancelDrag}
-                      onPointerCancel={cancelDrag}
-                      onContextMenu={(e) => e.preventDefault()}
-                    >
-                      <Bars3Icon className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="focus:outline-none">
-                        <p className="text-sm font-medium text-gray-900">
-                          {service.title}
-                        </p>
-                        <p className="truncate text-sm text-gray-500">
-                          {service.description}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {service.service_type}
-                        </p>
-                        <div className="mt-2 flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-900">
-                            ${service.price.toFixed(2)}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            {service.duration_minutes} min
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="sm:ml-4 flex items-center space-x-2">
-                      <button
-                        type="button"
-                        className="p-1 text-indigo-600 hover:text-indigo-800"
-                        onClick={() => setEditingService(service)}
-                        aria-label="Edit"
-                      >
-                        <PencilIcon className="h-5 w-5" />
-                      </button>
-                      <button
-                        type="button"
-                        className="p-1 text-red-600 hover:text-red-800"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              'Delete this service? This action cannot be undone.'
-                            )
-                          ) {
-                            handleDeleteService(service.id);
-                          }
-                        }}
-                        aria-label="Delete"
-                      >
-                        <TrashIcon className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </Reorder.Item>
+                    onEdit={(s) => setEditingService(s)}
+                    onDelete={handleDeleteService}
+                    onDragEnd={handleDragEnd}
+                  />
                 ))}
               </Reorder.Group>
               <button
