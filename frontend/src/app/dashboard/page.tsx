@@ -21,6 +21,7 @@ import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import RecentActivity from "@/components/dashboard/RecentActivity";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -217,62 +218,80 @@ export default function DashboardPage() {
           {/* Stats */}
           <div className="mt-8">
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              <Link
-                href="/bookings"
-                className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
-              >
-                <dt className="truncate text-sm font-medium text-gray-500">
-                  <div className="flex items-center space-x-2">
-                    <span role="img" aria-label="calendar">
-                      🗓
-                    </span>
-                    <span>Total Bookings</span>
-                  </div>
-                </dt>
-                <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                  {bookings.length}
-                </dd>
-              </Link>
-              {user.user_type === "artist" && (
-                <>
+              {(() => {
+                const cards = [
                   <Link
-                    href="/services"
+                    key="bookings"
+                    href="/bookings"
                     className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
                   >
                     <dt className="truncate text-sm font-medium text-gray-500">
                       <div className="flex items-center space-x-2">
-                        <span role="img" aria-label="microphone">
-                          🎤
+                        <span role="img" aria-label="calendar">
+                          🗓
                         </span>
-                        <span>Total Services</span>
+                        <span>Total Bookings</span>
                       </div>
                     </dt>
                     <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                      {services.length}
+                      {bookings.length}
                     </dd>
-                  </Link>
-                  <Link
-                    href="/earnings"
-                    className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                  </Link>,
+                ];
+                if (user.user_type === "artist") {
+                  cards.push(
+                    <Link
+                      key="services"
+                      href="/services"
+                      className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                    >
+                      <dt className="truncate text-sm font-medium text-gray-500">
+                        <div className="flex items-center space-x-2">
+                          <span role="img" aria-label="microphone">
+                            🎤
+                          </span>
+                          <span>Total Services</span>
+                        </div>
+                      </dt>
+                      <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
+                        {services.length}
+                      </dd>
+                    </Link>,
+                    <Link
+                      key="earnings"
+                      href="/earnings"
+                      className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
+                    >
+                      <dt className="truncate text-sm font-medium text-gray-500">
+                        <div className="flex items-center space-x-2">
+                          <span role="img" aria-label="money">
+                            💰
+                          </span>
+                          <span>Total Earnings</span>
+                        </div>
+                      </dt>
+                      <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
+                        $
+                        {bookings
+                          .filter((booking) => booking.status === "completed")
+                          .reduce((acc, booking) => acc + booking.total_price, 0)
+                          .toFixed(2)}
+                      </dd>
+                    </Link>
+                  );
+                }
+                return cards.map((card, i) => (
+                  <motion.div
+                    /* eslint react/no-array-index-key: 0 */
+                    key={card.key || i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: i * 0.1 }}
                   >
-                    <dt className="truncate text-sm font-medium text-gray-500">
-                      <div className="flex items-center space-x-2">
-                        <span role="img" aria-label="money">
-                          💰
-                        </span>
-                        <span>Total Earnings</span>
-                      </div>
-                    </dt>
-                    <dd className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">
-                      $
-                      {bookings
-                        .filter((booking) => booking.status === "completed")
-                        .reduce((acc, booking) => acc + booking.total_price, 0)
-                        .toFixed(2)}
-                    </dd>
-                  </Link>
-                </>
-              )}
+                    {card}
+                  </motion.div>
+                ));
+              })()}
             </div>
           </div>
 
