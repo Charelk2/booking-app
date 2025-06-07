@@ -45,7 +45,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-40 bg-white border-t shadow sm:hidden"
+      className="fixed bottom-0 w-full bg-white border-t shadow z-50 sm:hidden"
       aria-label="Mobile navigation"
     >
       <ul className="flex justify-around">

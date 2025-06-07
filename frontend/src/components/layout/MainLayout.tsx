@@ -167,7 +167,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         pathname={pathname}
       />
 
-      <main className="py-10 pb-20">
+      {/* bottom padding prevents content from being hidden behind the fixed bottom nav */}
+      <main className="py-10 pb-24">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           {children}
         </div>
