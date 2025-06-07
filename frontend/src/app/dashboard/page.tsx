@@ -151,11 +151,13 @@ export default function DashboardPage() {
   const startDrag = (event: React.PointerEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    // persist the event so it survives the long‑press delay
+    event.persist();
+    const nativeEvent = event.nativeEvent;
     // capture pointer so other handlers don't interfere
     (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-    const e = event;
     const timer = setTimeout(() => {
-      dragControls.start(e);
+      dragControls.start(nativeEvent);
     }, 300);
     setPressTimer(timer);
   };
