@@ -22,6 +22,12 @@ import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import RecentActivity from "@/components/dashboard/RecentActivity";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import {
+  PencilIcon,
+  TrashIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+} from "@heroicons/react/24/solid";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -644,14 +650,15 @@ export default function DashboardPage() {
                     <div className="sm:ml-4 flex items-center space-x-2">
                       <button
                         type="button"
-                        className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                        className="p-1 text-indigo-600 hover:text-indigo-800"
                         onClick={() => setEditingService(service)}
+                        aria-label="Edit"
                       >
-                        Edit
+                        <PencilIcon className="h-5 w-5" />
                       </button>
                       <button
                         type="button"
-                        className="text-sm font-medium text-red-600 hover:text-red-800"
+                        className="p-1 text-red-600 hover:text-red-800"
                         onClick={() => {
                           if (
                             window.confirm(
@@ -661,23 +668,26 @@ export default function DashboardPage() {
                             handleDeleteService(service.id);
                           }
                         }}
+                        aria-label="Delete"
                       >
-                        Delete
+                        <TrashIcon className="h-5 w-5" />
                       </button>
                       <div className="flex space-x-1">
                         <button
-                          className="text-sm"
-                          onClick={() => moveService(service.id, "up")}
+                          className="p-1"
+                          onClick={() => moveService(service.id, 'up')}
                           disabled={idx === 0}
+                          aria-label="Move up"
                         >
-                          ↑
+                          <ArrowUpIcon className="h-5 w-5" />
                         </button>
                         <button
-                          className="text-sm"
-                          onClick={() => moveService(service.id, "down")}
+                          className="p-1"
+                          onClick={() => moveService(service.id, 'down')}
                           disabled={idx === services.length - 1}
+                          aria-label="Move down"
                         >
-                          ↓
+                          <ArrowDownIcon className="h-5 w-5" />
                         </button>
                       </div>
                     </div>
