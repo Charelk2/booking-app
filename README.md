@@ -143,6 +143,7 @@ npm run build
 
 * Edit, delete, and reorder services with up/down arrows.
 * **Add Service** button below stats linking to `/services/new`.
+* Mobile-friendly dashboard cards for bookings and requests with larger service action buttons.
 
 ### Artist Availability
 
