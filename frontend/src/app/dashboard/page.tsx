@@ -664,7 +664,6 @@ export default function DashboardPage() {
                       aria-hidden="true"
                       onPointerDown={startDrag}
                       onPointerUp={cancelDrag}
-                      onPointerLeave={cancelDrag}
                     >
                       <Bars3Icon className="h-5 w-5" />
                     </div>
