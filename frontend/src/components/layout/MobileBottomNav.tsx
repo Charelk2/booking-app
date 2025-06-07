@@ -36,6 +36,7 @@ function classNames(...classes: (string | false | undefined)[]) {
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const router = useRouter();
   // Next.js App Router doesn’t expose pathname, so cast router to any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pathname = (router as any).pathname as string | undefined;
 
   const { threads } = useNotifications();
