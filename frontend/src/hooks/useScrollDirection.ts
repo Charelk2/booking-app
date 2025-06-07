@@ -12,6 +12,12 @@ export default function useScrollDirection(): 'up' | 'down' {
 
     const handleScroll = () => {
       const y = window.scrollY;
+      if (y <= 0) {
+        // Stay visible at the top of the page even if scroll "bounces"
+        setDirection('up');
+        lastY = 0;
+        return;
+      }
       if (Math.abs(y - lastY) < 5) return;
       setDirection(y > lastY ? 'down' : 'up');
       lastY = y;
