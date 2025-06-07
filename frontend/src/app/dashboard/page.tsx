@@ -32,6 +32,7 @@ export default function DashboardPage() {
     null
   );
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
+  const [showAllRequests, setShowAllRequests] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
@@ -44,6 +45,9 @@ export default function DashboardPage() {
   const totalEarnings = bookings
     .filter((booking) => booking.status === "completed")
     .reduce((acc, booking) => acc + booking.total_price, 0);
+  const displayedRequests = showAllRequests
+    ? bookingRequests
+    : bookingRequests.slice(0, 5);
 
   useEffect(() => {
     if (!user) {
@@ -357,7 +361,7 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {bookingRequests.map((req) => (
+                    {displayedRequests.map((req) => (
                       <tr key={req.id}>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
                           <div className="font-medium text-gray-900">
@@ -385,6 +389,18 @@ export default function DashboardPage() {
                     ))}
                   </tbody>
                 </table>
+                {bookingRequests.length > 5 && (
+                  <div className="bg-gray-50 px-4 py-2 text-center">
+                    <button
+                      type="button"
+                      data-testid="requests-toggle"
+                      className="text-indigo-600 hover:underline text-sm"
+                      onClick={() => setShowAllRequests((prev) => !prev)}
+                    >
+                      {showAllRequests ? "Collapse" : "Show All"}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
