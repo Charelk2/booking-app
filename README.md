@@ -146,6 +146,7 @@ npm run build
 * **Add Service** button below stats linking to `/services/new`.
 * "Total Services" card now links to `/services?artist=<your_id>` so you only see your listings.
 * Mobile-friendly dashboard cards for bookings and requests with larger service action buttons.
+* Booking request and booking lists collapse after five items with a **Show All** toggle.
 * Improved dashboard stats layout with monthly earnings card.
 
 ### Artist Availability

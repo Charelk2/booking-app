@@ -90,3 +90,70 @@ describe('DashboardPage artist stats', () => {
     expect(container.textContent).toContain('120');
   });
 });
+
+describe('DashboardPage list toggles', () => {
+  let container: HTMLDivElement;
+  let root: ReturnType<typeof createRoot>;
+
+  beforeEach(async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });
+
+    const bookings = Array.from({ length: 6 }).map((_, i) => ({
+      id: i,
+      artist_id: 2,
+      client_id: 3,
+      service_id: 4,
+      start_time: new Date().toISOString(),
+      end_time: new Date().toISOString(),
+      status: 'completed',
+      total_price: 100,
+      notes: '',
+      artist: {} as ArtistProfile,
+      client: {} as User,
+      service: {} as Service,
+    }));
+
+    const requests = Array.from({ length: 6 }).map((_, i) => ({
+      id: i,
+      artist_id: 2,
+      client_id: 3,
+      service_id: 4,
+      created_at: new Date().toISOString(),
+      status: 'new',
+      artist: {} as ArtistProfile,
+      client: {} as User,
+      service: {} as Service,
+    }));
+
+    (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: bookings });
+    (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
+    (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: requests });
+
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root.render(<DashboardPage />);
+    });
+  });
+
+  afterEach(() => {
+    root.unmount();
+    container.remove();
+    jest.clearAllMocks();
+  });
+
+  it('toggles booking request list', async () => {
+    const toggleBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Show All'
+    ) as HTMLButtonElement;
+    expect(toggleBtn).toBeTruthy();
+    await act(async () => {
+      toggleBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(toggleBtn.textContent).toContain('Collapse');
+  });
+});
