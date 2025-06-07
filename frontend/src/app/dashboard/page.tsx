@@ -36,7 +36,7 @@ export default function DashboardPage() {
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [events] = useState<{ id: string | number; timestamp: string; description: string }[]>([]);
 
-  // Stats
+  // Dashboard stats
   const servicesCount = services.length;
   const totalEarnings = bookings
     .filter((b) => b.status === 'completed')
@@ -51,7 +51,6 @@ export default function DashboardPage() {
       router.push('/login');
       return;
     }
-
     (async () => {
       try {
         if (user.user_type === 'artist') {
@@ -88,9 +87,7 @@ export default function DashboardPage() {
 
   const handleServiceAdded = (newService: Service) => {
     setServices((prev) =>
-      [...prev, normalizeService(newService)].sort(
-        (a, b) => a.display_order - b.display_order
-      )
+      [...prev, normalizeService(newService)].sort((a, b) => a.display_order - b.display_order)
     );
   };
 
@@ -160,8 +157,7 @@ export default function DashboardPage() {
     );
   }
 
-  const showLocationPrompt =
-    user.user_type === 'artist' && !artistProfile?.location;
+  const showLocationPrompt = user.user_type === 'artist' && !artistProfile?.location;
 
   return (
     <MainLayout>
@@ -224,9 +220,7 @@ export default function DashboardPage() {
           <h2 className="text-lg font-medium">Booking Requests</h2>
           {bookingRequests.length === 0 ? (
             <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-              <div className="text-sm text-gray-500 px-4 py-6 text-center">
-                No bookings yet
-              </div>
+              <div className="text-sm text-gray-500 px-4 py-6 text-center">No bookings yet</div>
             </div>
           ) : (
             <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
@@ -240,77 +234,7 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {bookingRequests.map((req) => (
+                  {displayedRequests.map((req) => (
                     <tr key={req.id}>
                       <td className="px-4 py-2 text-sm font-medium text-gray-900">{
-                        user.user_type === 'artist'
-                          ? `${req.client?.first_name} ${req.client?.last_name}`
-                          : `${req.artist?.first_name} ${req.artist?.last_name}`
-                      }</td>
-                      <td className="px-4 py-2 text-sm text-gray-500">{req.service?.title || '—'}</td>
-                      <td className="px-4 py-2 text-sm text-gray-500">{req.status}</td>
-                      <td className="px-4 py-2 text-sm text-gray-500">{new Date(req.created_at).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-
-        {/* Recent Bookings */}
-        <section className="mt-8">
-          <h2 className="text-lg font-medium">Recent Bookings</h2>
-          <div className="overflow-auto mt-4">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Client</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Service</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Date</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Status</th>
-                  <th className="px-4 py-2 text-left text-sm font-semibold">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {bookings.map((b) => (
-                  <tr key={b.id}>
-                    <td className="px-4 py-2 text-sm flex items-center">
-                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
-                        {b.client.first_name.charAt(0)}
-                      </div>
-                      <span>{`${b.client.first_name} ${b.client.last_name}`}</span>
-                    </td>
-                    <td className="px-4 py-2 text-sm text-gray-500">{b.service.title}</td>
-                    <td className="px-4 py-2 text-sm text-gray-500">{format(new Date(b.start_time), 'MMM d, yyyy h:mm a')}</td>
-                    <td className="px-4 py-2 text-sm">
-                      <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
-                        b.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        b.status === 'cancelled'  ? 'bg-red-100 text-red-800'   :
-                        b.status === 'confirmed'  ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>{b.status}</span>
-                    </td>
-                    <td className="px-4 py-2 text-sm text-gray-500">${b.total_price.toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
-      {/* Service Modals */}
-      <AddServiceModal
-        isOpen={isAddServiceModalOpen}
-        onClose={() => setIsAddServiceModalOpen(false)}
-        onServiceAdded={handleServiceAdded}
-      />
-      {editingService && (
-        <EditServiceModal
-          isOpen={!!editingService}
-          service={editingService}
-          onClose={() => setEditingService(null)}
-          onServiceUpdated={handleServiceUpdated}
-        />
-      )}
-    </MainLayout>
+                        user
