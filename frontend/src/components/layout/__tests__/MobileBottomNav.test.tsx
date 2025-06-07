@@ -69,7 +69,7 @@ describe('MobileBottomNav', () => {
         React.createElement(MobileBottomNav, { user: {} as User })
       );
     });
-    const activeLink = container.querySelector('a.text-indigo-600');
+    const activeLink = container.querySelector('a.text-brand-dark');
     expect(activeLink).not.toBeNull();
   });
 });
