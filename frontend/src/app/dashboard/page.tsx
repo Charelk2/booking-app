@@ -21,13 +21,12 @@ import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import RecentActivity from "@/components/dashboard/RecentActivity";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, Reorder } from "framer-motion";
 import {
   PencilIcon,
   TrashIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
 } from "@heroicons/react/24/solid";
+import { Bars3Icon } from "@heroicons/react/24/outline";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -145,25 +144,30 @@ export default function DashboardPage() {
     }
   };
 
-  const moveService = async (id: number, direction: "up" | "down") => {
-    const sorted = [...services].sort(
-      (a, b) => a.display_order - b.display_order
-    );
-    const index = sorted.findIndex((s) => s.id === id);
-    const newIndex = direction === "up" ? index - 1 : index + 1;
-    if (index === -1 || newIndex < 0 || newIndex >= sorted.length) return;
-    const [item] = sorted.splice(index, 1);
-    sorted.splice(newIndex, 0, item);
-    const reordered = sorted.map((s, i) => ({ ...s, display_order: i + 1 }));
-    setServices(reordered);
+  const [isReordering, setIsReordering] = useState(false);
+
+  const persistServiceOrder = async (ordered: Service[]) => {
     try {
       await Promise.all(
-        reordered.map((s) =>
+        ordered.map((s) =>
           updateService(s.id, { display_order: s.display_order })
         )
       );
     } catch (err) {
       console.error("Service reorder error:", err);
+    }
+  };
+
+  const handleReorder = (newOrder: Service[]) => {
+    const updated = newOrder.map((s, i) => ({ ...s, display_order: i + 1 }));
+    setServices(updated);
+    setIsReordering(true);
+  };
+
+  const handleDragEnd = () => {
+    if (isReordering) {
+      setIsReordering(false);
+      persistServiceOrder(services);
     }
   };
 
@@ -613,12 +617,22 @@ export default function DashboardPage() {
                   Your Services
                 </h2>
               </div>
-              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {services.map((service, idx) => (
-                  <div
+              <Reorder.Group
+                axis="y"
+                values={services}
+                onReorder={handleReorder}
+                className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+              >
+                {services.map((service) => (
+                  <Reorder.Item
                     key={service.id}
-                    className="relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400"
+                    value={service}
+                    onDragEnd={handleDragEnd}
+                    className="relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400"
                   >
+                    <div className="absolute left-2 top-2 cursor-grab active:cursor-grabbing text-gray-400" aria-hidden="true">
+                      <Bars3Icon className="h-5 w-5" />
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="focus:outline-none">
                         <p className="text-sm font-medium text-gray-900">
@@ -665,28 +679,10 @@ export default function DashboardPage() {
                       >
                         <TrashIcon className="h-5 w-5" />
                       </button>
-                      <div className="flex space-x-1">
-                        <button
-                          className="p-1"
-                          onClick={() => moveService(service.id, 'up')}
-                          disabled={idx === 0}
-                          aria-label="Move up"
-                        >
-                          <ArrowUpIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          className="p-1"
-                          onClick={() => moveService(service.id, 'down')}
-                          disabled={idx === services.length - 1}
-                          aria-label="Move down"
-                        >
-                          <ArrowDownIcon className="h-5 w-5" />
-                        </button>
-                      </div>
                     </div>
-                  </div>
+                  </Reorder.Item>
                 ))}
-              </div>
+              </Reorder.Group>
               <button
                 type="button"
                 onClick={() => router.push('/services/new')}
