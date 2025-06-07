@@ -123,6 +123,7 @@ npm run build
 * Fixed input bar & auto-scroll on mobile.
 * Floating “scroll to latest” button on small screens.
 * Personalized Video flow: multi-step prompts, typing indicators, progress bar.
+* Sticky input demo at `/demo/sticky-input` shows local message appending.
 
 ### Notifications
 
