@@ -74,11 +74,16 @@ function ServiceCard({
     setPressing(false);
   };
 
+  const handleDragEndItem = () => {
+    cancelDrag();
+    onDragEnd();
+  };
+
   return (
     <Reorder.Item
       key={service.id}
       value={service}
-      onDragEnd={onDragEnd}
+      onDragEnd={handleDragEndItem}
       dragListener={false}
       dragControls={dragControls}
       dragConstraints={dragConstraints}
