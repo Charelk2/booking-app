@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import MainLayout from '@/components/layout/MainLayout';
@@ -111,12 +112,22 @@ export default function InboxPage() {
             tabIndex={0}
             onClick={() => handleClick(b.id)}
             onKeyPress={() => handleClick(b.id)}
-            className="bg-white shadow rounded-lg p-4 space-y-2 cursor-pointer active:bg-gray-100 transition"
+            className={clsx(
+              'shadow rounded-lg p-4 space-y-2 cursor-pointer active:bg-gray-100 transition',
+              b.unread > 0
+                ? 'bg-indigo-50 border-l-4 border-indigo-500'
+                : 'bg-white'
+            )}
           >
             <div className="flex justify-between items-center">
               <span className="font-semibold text-sm">{b.senderName}</span>
               <span className="text-xs text-gray-500">{b.formattedDate}</span>
             </div>
+            {b.unread > 0 && (
+              <span className="text-xs text-indigo-600 font-semibold">
+                {b.unread} new message{b.unread > 1 && 's'}
+              </span>
+            )}
             <div className="text-sm text-gray-600">
               📍 {b.location || '—'} | 👥 {b.guests || '—'} | 🏠 {b.venueType || '—'}
             </div>
