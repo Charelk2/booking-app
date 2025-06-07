@@ -174,6 +174,7 @@ npm run build
 * Unread message counts badge on Messages icon.
 * Tap feedback on icons via `active:bg-gray-100`.
 * **Inbox** page at `/inbox` separates Booking Requests and Chats into tabs.
+* `ChatThreadView` component for mobile-friendly chat threads.
 
 ### Auth & Registration
 
