@@ -172,7 +172,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           {children}
         </div>
       </main>
-      <MobileBottomNav user={user} pathname={pathname} />
+      <MobileBottomNav user={user} />
     </div>
   );
 }
