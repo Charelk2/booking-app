@@ -298,3 +298,7 @@ The frontend uses a small **brand** palette defined in `tailwind.config.js`. The
 primary hue is purple (`#7c3aed`), with `brand-dark` and `brand-light` variants.
 Components reference these via utility classes such as `bg-brand` and
 `bg-brand-dark`.
+
+Update these colors in `frontend/tailwind.config.js` and
+`frontend/src/app/globals.css` to adjust the site's look and feel. See
+`frontend/README.md` for detailed theming instructions.
