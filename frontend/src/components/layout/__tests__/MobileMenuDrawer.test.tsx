@@ -5,7 +5,7 @@ import MobileMenuDrawer from '../MobileMenuDrawer';
 
 const nav = [{ name: 'Home', href: '/' }, { name: 'Artists', href: '/artists' }];
 
-describe.skip('MobileMenuDrawer', () => {
+describe('MobileMenuDrawer', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -20,8 +20,8 @@ describe.skip('MobileMenuDrawer', () => {
     container.remove();
   });
 
-  it('renders navigation items when open', () => {
-    act(() => {
+  it('renders navigation items when open', async () => {
+    await act(async () => {
       root.render(
         React.createElement(MobileMenuDrawer, {
           open: true,
@@ -33,7 +33,11 @@ describe.skip('MobileMenuDrawer', () => {
         }),
       );
     });
-    expect(container.textContent).toContain('Home');
-    expect(container.textContent).toContain('Artists');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const bodyText = document.body.textContent || '';
+    expect(bodyText).toContain('Home');
+    expect(bodyText).toContain('Artists');
   });
 });
