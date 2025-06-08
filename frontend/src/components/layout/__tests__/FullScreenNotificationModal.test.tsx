@@ -15,7 +15,7 @@ const baseProps = {
   hasMore: false,
 };
 
-describe.skip('FullScreenNotificationModal', () => {
+describe('FullScreenNotificationModal', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -34,13 +34,13 @@ describe.skip('FullScreenNotificationModal', () => {
     act(() => {
       root.render(React.createElement(FullScreenNotificationModal, baseProps));
     });
-    expect(container.textContent).toContain("You're all caught up!");
+    expect(document.body.textContent).toContain("You're all caught up!");
   });
 
   it('renders mark all button', () => {
     act(() => {
       root.render(React.createElement(FullScreenNotificationModal, baseProps));
     });
-    expect(container.textContent).toContain('Mark All as Read');
+    expect(document.body.textContent).toContain('Mark All as Read');
   });
 });
