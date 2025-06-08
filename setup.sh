@@ -10,3 +10,5 @@ pip install -r "$ROOT_DIR/requirements-dev.txt"
 
 echo "Installing frontend Node dependencies..."
 cd "$ROOT_DIR/frontend" && npm install
+
+echo "Setup complete."
