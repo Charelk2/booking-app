@@ -21,6 +21,7 @@ class BookingRequestCreate(BookingRequestBase):
     status: Optional[BookingRequestStatus] = BookingRequestStatus.PENDING_QUOTE
 
 class BookingRequestUpdateByClient(BaseModel): # Client can withdraw or update message/times
+    service_id: Optional[int] = None
     message: Optional[str] = None
     proposed_datetime_1: Optional[datetime] = None
     proposed_datetime_2: Optional[datetime] = None

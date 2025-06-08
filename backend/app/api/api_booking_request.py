@@ -128,6 +128,17 @@ def update_booking_request_by_client(
     # Validate status change if present
     if request_update.status and request_update.status not in [models.BookingRequestStatus.REQUEST_WITHDRAWN, models.BookingRequestStatus.PENDING_QUOTE, models.BookingRequestStatus.DRAFT]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status update by client.")
+
+    if request_update.service_id:
+        service = db.query(models.Service).filter(
+            models.Service.id == request_update.service_id,
+            models.Service.artist_id == db_request.artist_id,
+        ).first()
+        if not service:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Service ID does not match the specified artist or does not exist.",
+            )
     prev_status = db_request.status
     updated = crud.crud_booking_request.update_booking_request(
         db=db, db_booking_request=db_request, request_update=request_update
