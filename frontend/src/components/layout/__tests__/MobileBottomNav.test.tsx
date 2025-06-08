@@ -8,6 +8,7 @@ const mockUseRouter = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => mockUseRouter(),
+  usePathname: () => '/',
 }));
 
 jest.mock('../../../hooks/useNotifications', () => ({
