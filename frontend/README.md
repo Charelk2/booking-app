@@ -25,6 +25,16 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 Reusable style constants are defined in `src/styles`. Button variants come from
 `buttonVariants.ts` so colors stay consistent across the app.
 
+### Booking Wizard URL Parameters
+
+The `/booking` page requires an `artist_id` query parameter and accepts an optional `service_id` to pre-select a service.
+
+```
+/booking?artist_id=123&service_id=456
+```
+
+Passing `service_id` skips the service selection step when a user clicks "Book Now" on a service card.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
