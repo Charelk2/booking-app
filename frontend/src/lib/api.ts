@@ -242,6 +242,13 @@ export const uploadMessageAttachment = (
   );
 };
 
+export const uploadBookingAttachment = (formData: FormData) =>
+  api.post<{ url: string }>(
+    `${API_V1}/booking-requests/attachments`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+
 
 // ─── SOUND PROVIDERS ─────────────────────────────────────────────────────────
 export const getSoundProviders = () =>

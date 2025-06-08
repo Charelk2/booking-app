@@ -136,6 +136,7 @@ npm run build
 * Persisted via `/api/v1/notifications` & `/api/v1/notifications/message-threads`.
 * Bell icon in header; slide-out drawer on mobile.
 * Grouped by type, mark-as-read endpoints, and “Mark All as Read”.
+* Optional SMS alerts when `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` are set in the backend environment.
 
 ### Artist Profile Enhancements
 
@@ -241,6 +242,20 @@ GET  /api/v1/services/{service_id}/reviews
 
 ```
 GET /api/v1/artist-profiles/{artist_id}/availability
+```
+
+### Calendar Export
+
+```
+GET /api/v1/bookings/{booking_id}/calendar.ics
+```
+
+### Payments
+
+```
+POST /api/v1/payments
+ Required: booking_request_id, amount
+ Optional: full (bool)
 ```
 
 ---

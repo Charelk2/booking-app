@@ -16,6 +16,7 @@ from .db_utils import (
     ensure_display_order_column,
     ensure_notification_link_column,
     ensure_custom_subtitle_column,
+    ensure_request_attachment_column,
 )
 from .models.user import User
 from .models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
@@ -37,6 +38,7 @@ from .api import (
     api_ws,
     api_message,
     api_notification,
+    api_payment,
 )
 
 # The “artist‐profiles” router lives under app/api/v1/
@@ -49,6 +51,7 @@ logger = logging.getLogger(__name__)
 # ─── Ensure database schema is up-to-date ──────────────────────────────────
 ensure_message_type_column(engine)
 ensure_attachment_url_column(engine)
+ensure_request_attachment_column(engine)
 ensure_service_type_column(engine)
 ensure_display_order_column(engine)
 ensure_notification_link_column(engine)
@@ -181,6 +184,13 @@ app.include_router(
     api_sound_provider.router,
     prefix=f"{api_prefix}/sound-providers",
     tags=["sound-providers"],
+)
+
+# ─── PAYMENT ROUTES (under /api/v1/payments) ─────────────────────────────
+app.include_router(
+    api_payment.router,
+    prefix=f"{api_prefix}/payments",
+    tags=["payments"],
 )
 
 

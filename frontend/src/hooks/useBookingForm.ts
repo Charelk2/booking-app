@@ -15,6 +15,7 @@ export default function useBookingForm(
     handleSubmit,
     trigger,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<EventDetails>({
     defaultValues,
@@ -27,5 +28,5 @@ export default function useBookingForm(
     return () => sub.unsubscribe();
   }, [watch, setDetails]);
 
-  return { control, handleSubmit, trigger, watch, errors };
+  return { control, handleSubmit, trigger, watch, setValue, errors };
 }

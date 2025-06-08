@@ -48,6 +48,17 @@ def ensure_attachment_url_column(engine: Engine) -> None:
     )
 
 
+def ensure_request_attachment_column(engine: Engine) -> None:
+    """Add the ``attachment_url`` column to ``booking_requests`` if missing."""
+
+    add_column_if_missing(
+        engine,
+        "booking_requests",
+        "attachment_url",
+        "attachment_url VARCHAR",
+    )
+
+
 def ensure_display_order_column(engine: Engine) -> None:
     """Add the ``display_order`` column to ``services`` if it's missing."""
 
