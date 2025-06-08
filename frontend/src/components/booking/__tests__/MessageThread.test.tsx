@@ -25,7 +25,7 @@ describe('MessageThread component', () => {
   beforeEach(() => {
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
     (api.getQuotesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client', email: 'c@example.com' } });
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
