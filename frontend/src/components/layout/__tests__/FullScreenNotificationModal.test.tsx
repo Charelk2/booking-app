@@ -15,7 +15,7 @@ const baseProps = {
   hasMore: false,
 };
 
-describe.skip('FullScreenNotificationModal', () => {
+describe('FullScreenNotificationModal', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
