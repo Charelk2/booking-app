@@ -13,6 +13,7 @@ from .service import ServiceResponse # For nesting service details
 class BookingRequestBase(BaseModel):
     service_id: Optional[int] = None
     message: Optional[str] = None
+    attachment_url: Optional[str] = None
     proposed_datetime_1: Optional[datetime] = None
     proposed_datetime_2: Optional[datetime] = None
 
@@ -23,6 +24,7 @@ class BookingRequestCreate(BookingRequestBase):
 class BookingRequestUpdateByClient(BaseModel): # Client can withdraw or update message/times
     service_id: Optional[int] = None
     message: Optional[str] = None
+    attachment_url: Optional[str] = None
     proposed_datetime_1: Optional[datetime] = None
     proposed_datetime_2: Optional[datetime] = None
     status: Optional[BookingRequestStatus] = None # e.g. REQUEST_WITHDRAWN

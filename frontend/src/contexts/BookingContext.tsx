@@ -7,6 +7,7 @@ export interface EventDetails {
   guests: number;
   venueType: 'indoor' | 'outdoor' | 'hybrid';
   notes?: string;
+  attachment_url?: string;
 }
 
 interface BookingContextValue {
@@ -30,6 +31,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
     location: '',
     guests: 1,
     venueType: 'indoor',
+    attachment_url: '',
   });
   const [serviceId, setServiceId] = useState<number | undefined>(undefined);
   const [requestId, setRequestId] = useState<number | undefined>(undefined);
