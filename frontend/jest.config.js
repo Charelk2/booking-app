@@ -1,13 +1,22 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
-  testMatch: ['<rootDir>/src/**/*.test.ts'],
+  testMatch: ['<rootDir>/src/**/*.test.ts?(x)'],
   transform: {
-    '^.+\\.(ts|tsx)$': [
+    '^.+\\.[jt]sx?$': [
       'babel-jest',
-      { presets: ['@babel/preset-env', '@babel/preset-react', '@babel/preset-typescript'] },
+      {
+        presets: [
+          '@babel/preset-env',
+          ['@babel/preset-react', { runtime: 'automatic' }],
+          '@babel/preset-typescript',
+        ],
+      },
     ],
   },
+  transformIgnorePatterns: [
+    '/node_modules/(?!(react-calendar|@wojtekmaj/date-utils|get-user-locale|warning|memoize|mimic-function)/)',
+  ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.(css|less|scss|sass)$': '<rootDir>/__mocks__/styleMock.js',
