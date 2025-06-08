@@ -34,6 +34,6 @@ describe('ChatThreadView', () => {
     expect(header?.textContent).toBe('Alice');
     expect(messageContainer).not.toBeNull();
     expect(inputBar).not.toBeNull();
-    expect(container.firstChild).toHaveClass('h-screen');
+    expect((container.firstChild as HTMLElement)?.className).toContain('h-screen');
   });
 });
