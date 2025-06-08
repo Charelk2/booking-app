@@ -13,7 +13,7 @@ This file documents the key automation, agent modules, and service components in
 | **Quote Generator**              | Gathers performance, provider, travel, and accommodation costs for client | backend/app/api/api_quote.py, frontend/src/components/booking/MessageThread.tsx                 | Runs after all booking info is entered         |
 | **Quote Preview Agent**          | Shows estimated total during final booking step | frontend/src/components/booking/steps/ReviewStep.tsx | On review step before submitting request |
 | **Review Agent**                 | Manages star ratings and comments for completed bookings                  | backend/app/api/api_review.py, frontend/src/app/artists/[id]/page.tsx             | After a booking is marked completed        |
-| **Payment Agent** | Planned payment workflows, not yet implemented | N/A | Coming soon |
+| **Payment Agent** | Handles deposit or full payments via `/api/v1/payments` | backend/app/api/api_payment.py | After quote is accepted |
 | **Notification Agent**           | Sends emails, chat alerts, and booking status updates                     | backend/app/api/api_notification.py, backend/app/utils/notifications.py, frontend/hooks/useNotifications.ts | Triggered on status changes, messages, actions |
 | **Chat Agent** | Manages client-artist/support chat and WebSocket updates | backend/app/api/api_message.py, backend/app/api/api_ws.py, frontend/src/components/booking/MessageThread.tsx | Always-on for active bookings |
 | **Caching Agent** | Caches artist lists using Redis | backend/app/utils/redis_cache.py, backend/app/api/v1/api_artist.py | On artist list requests |
@@ -64,15 +64,15 @@ This file documents the key automation, agent modules, and service components in
 
 ### 7. Payment Agent
 
-* **Purpose:** Planned payment workflow (not yet implemented).
-* **Frontend:** Placeholder UI coming later.
-* **Backend:** Payment API pending.
+* **Purpose:** Collects deposits or full payments when a quote is accepted.
+* **Frontend:** Payment form appears after quote approval.
+* **Backend:** `api_payment.py` creates and confirms payments (currently a stub).
 
 ### 8. Notification Agent
 
 * **Purpose:** Sends transactional emails, booking updates, reminders, and chat alerts.
 * **Frontend:** `useNotifications.ts` for popups/toasts, badge updates.
-* **Backend:** `api_notification.py` exposes CRUD endpoints while `utils/notifications.py` persists alerts in the `notifications` table. A new `/notifications/read-all` endpoint marks every notification read in one request.
+* **Backend:** `api_notification.py` exposes CRUD endpoints while `utils/notifications.py` persists alerts in the `notifications` table and can send SMS via Twilio if credentials are configured. A new `/notifications/read-all` endpoint marks every notification read in one request.
 
 ### 9. Chat Agent
 

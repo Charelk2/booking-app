@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -8,11 +8,33 @@ from ..utils.notifications import (
     notify_user_new_booking_request,
     notify_booking_status_update,
 )
+import os, uuid, shutil
 
 # Prefix is added when this router is included in `app/main.py`.
 router = APIRouter(
     tags=["Booking Requests"],
 )
+
+ATTACHMENTS_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "static", "attachments")
+)
+os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
+
+
+@router.post("/attachments", status_code=status.HTTP_201_CREATED)
+async def upload_booking_attachment(file: UploadFile = File(...)):
+    """Upload a temporary attachment prior to creating a booking request."""
+
+    _, ext = os.path.splitext(file.filename)
+    unique_filename = f"{uuid.uuid4()}{ext}"
+    save_path = os.path.join(ATTACHMENTS_DIR, unique_filename)
+    try:
+        with open(save_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    finally:
+        file.file.close()
+    url = f"/static/attachments/{unique_filename}"
+    return {"url": url}
 
 @router.post("/", response_model=schemas.BookingRequestResponse)
 def create_booking_request(
@@ -49,7 +71,7 @@ def create_booking_request(
             sender_type=models.SenderType.CLIENT,
             content=request_in.message,
             message_type=models.MessageType.TEXT,
-            attachment_url=None,
+            attachment_url=request_in.attachment_url,
         )
     # The chat thread used to include a generic "Booking request sent" system
     # message immediately after creation. This extra message cluttered the
