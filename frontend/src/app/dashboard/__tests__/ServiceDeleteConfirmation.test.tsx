@@ -56,9 +56,7 @@ describe('Service deletion confirmation', () => {
   it('asks for confirmation before deleting', async () => {
     const originalConfirm = window.confirm;
     window.confirm = jest.fn(() => true);
-    const deleteBtn = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Delete'
-    ) as HTMLButtonElement;
+    const deleteBtn = container.querySelector('button[aria-label="Delete"]') as HTMLButtonElement;
     expect(deleteBtn).toBeTruthy();
     await act(async () => {
       deleteBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
