@@ -14,7 +14,12 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn(() => '/dashboard'),
 }));
 
-describe.skip('DashboardPage empty state', () => {
+if (typeof global.PointerEvent === 'undefined') {
+  // @ts-ignore
+  global.PointerEvent = window.MouseEvent;
+}
+
+describe('DashboardPage empty state', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -44,7 +49,7 @@ describe.skip('DashboardPage empty state', () => {
   });
 });
 
-describe.skip('DashboardPage artist stats', () => {
+describe('DashboardPage artist stats', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -64,8 +69,27 @@ describe.skip('DashboardPage artist stats', () => {
           total_price: 120,
           notes: '',
           artist: {} as ArtistProfile,
-          client: {} as User,
-          service: {} as Service,
+          client: {
+            id: 3,
+            email: 'client@example.com',
+            user_type: 'client',
+            first_name: 'Client',
+            last_name: 'User',
+            phone_number: '',
+            is_active: true,
+            is_verified: true,
+          } as User,
+          service: {
+            id: 4,
+            artist_id: 2,
+            title: 'Service',
+            description: 'desc',
+            service_type: 'Live Performance',
+            duration_minutes: 60,
+            display_order: 1,
+            price: 120,
+            artist: {} as ArtistProfile,
+          } as Service,
         },
       ],
     });
@@ -94,7 +118,7 @@ describe.skip('DashboardPage artist stats', () => {
   });
 });
 
-describe.skip('DashboardPage list toggles', () => {
+describe('DashboardPage list toggles', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -113,8 +137,27 @@ describe.skip('DashboardPage list toggles', () => {
       total_price: 100,
       notes: '',
       artist: {} as ArtistProfile,
-      client: {} as User,
-      service: {} as Service,
+      client: {
+        id: 3,
+        email: 'client@example.com',
+        user_type: 'client',
+        first_name: 'Client',
+        last_name: 'User',
+        phone_number: '',
+        is_active: true,
+        is_verified: true,
+      } as User,
+      service: {
+        id: 4,
+        artist_id: 2,
+        title: 'Service',
+        description: 'desc',
+        service_type: 'Live Performance',
+        duration_minutes: 60,
+        display_order: 1,
+        price: 100,
+        artist: {} as ArtistProfile,
+      } as Service,
     }));
 
     const requests = Array.from({ length: 6 }).map((_, i) => ({
@@ -124,9 +167,44 @@ describe.skip('DashboardPage list toggles', () => {
       service_id: 4,
       created_at: new Date().toISOString(),
       status: 'new',
-      artist: {} as ArtistProfile,
-      client: {} as User,
-      service: {} as Service,
+      artist: {
+        id: 2,
+        user_id: 2,
+        business_name: '',
+        user: {
+          id: 2,
+          email: 'artist@example.com',
+          user_type: 'artist',
+          first_name: 'Artist',
+          last_name: 'User',
+          phone_number: '',
+          is_active: true,
+          is_verified: true,
+        },
+        created_at: '',
+        updated_at: '',
+      } as ArtistProfile,
+      client: {
+        id: 3,
+        email: 'client@example.com',
+        user_type: 'client',
+        first_name: 'Client',
+        last_name: 'User',
+        phone_number: '',
+        is_active: true,
+        is_verified: true,
+      } as User,
+      service: {
+        id: 4,
+        artist_id: 2,
+        title: 'Service',
+        description: 'desc',
+        service_type: 'Live Performance',
+        duration_minutes: 60,
+        display_order: 1,
+        price: 100,
+        artist: {} as ArtistProfile,
+      } as Service,
     }));
 
     (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: bookings });
@@ -161,7 +239,7 @@ describe.skip('DashboardPage list toggles', () => {
   });
 });
 
-describe.skip('Service card drag handle', () => {
+describe('Service card drag handle', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
   const service: Service = {
@@ -203,17 +281,17 @@ describe.skip('Service card drag handle', () => {
     const card = container.querySelector('[data-testid="service-item"]') as HTMLElement;
     const handle = card.querySelector('div[aria-hidden="true"]') as HTMLElement;
     expect(card.className).not.toMatch('select-none');
-    expect(card.className).not.toMatch('ring-2');
+    expect(card.className).not.toMatch('ring-indigo-400');
     await act(async () => {
       handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     });
     expect(card.className).toMatch('select-none');
-    expect(card.className).toMatch('ring-2');
+    expect(card.className).toMatch('ring-indigo-400');
     await act(async () => {
       handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
     });
     expect(card.className).not.toMatch('select-none');
-    expect(card.className).not.toMatch('ring-2');
+    expect(card.className).not.toMatch('ring-indigo-400');
   });
 
   it('vibrates when reordering starts', async () => {
