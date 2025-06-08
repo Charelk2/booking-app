@@ -77,8 +77,8 @@ from any directory and automatically installs backend and frontend packages:
 ./setup.sh
 ```
 
-It installs Python requirements from `backend/requirements.txt` and
-JavaScript dependencies under `frontend/`.
+This script installs Python requirements from `backend/requirements.txt` **and**
+`requirements-dev.txt`, then runs `npm install` inside `frontend/`.
 
 ### Linting
 
