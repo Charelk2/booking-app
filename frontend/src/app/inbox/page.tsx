@@ -97,7 +97,7 @@ export default function InboxPage() {
     await markThread(id);
 
     if (activeTab === 'requests') {
-      router.push(`/bookings/${id}`);
+      router.push(`/booking-requests/${id}`);
     } else {
       router.push(`/messages/thread/${id}`);
     }
