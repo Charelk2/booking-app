@@ -25,6 +25,40 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 Reusable style constants are defined in `src/styles`. Button variants come from
 `buttonVariants.ts` so colors stay consistent across the app.
 
+### Customizing Brand Colors
+
+Brand colors are declared in `tailwind.config.js` and exposed as CSS variables in
+`globals.css`. Modify these values to change the entire palette:
+
+```javascript
+// tailwind.config.js
+colors: {
+  brand: {
+    DEFAULT: '#7c3aed',
+    dark: '#6d28d9',
+    light: '#c084fc',
+  },
+}
+```
+
+```css
+/* globals.css */
+:root {
+  --brand-color: #7c3aed;
+  --brand-color-dark: #6d28d9;
+  --brand-color-light: #c084fc;
+}
+```
+
+Updating these values automatically updates button variants and any classes such
+as `bg-brand` or `bg-brand-dark`.
+
+### Fonts & Global Styles
+
+`globals.css` also defines the base font family using CSS variables. The default
+font (`--font-inter`) is provided by `next/font`. Replace this variable to use a
+different typeface across the site.
+
 ### Booking Wizard URL Parameters
 
 The `/booking` page requires an `artist_id` query parameter and accepts an optional `service_id` to pre-select a service.
