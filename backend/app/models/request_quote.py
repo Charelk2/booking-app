@@ -33,6 +33,7 @@ class BookingRequest(Base):
     service_id = Column(Integer, ForeignKey("services.id"), nullable=True) # Optional
 
     message = Column(Text, nullable=True)
+    attachment_url = Column(String, nullable=True)
     proposed_datetime_1 = Column(DateTime, nullable=True)
     proposed_datetime_2 = Column(DateTime, nullable=True)
     
