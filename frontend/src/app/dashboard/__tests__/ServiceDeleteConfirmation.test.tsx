@@ -9,7 +9,10 @@ import { Service } from '@/types';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
-jest.mock('next/navigation', () => ({ useRouter: jest.fn() }));
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(),
+  usePathname: jest.fn(() => '/dashboard'),
+}));
 
 describe('Service deletion confirmation', () => {
   let container: HTMLDivElement;
@@ -28,7 +31,7 @@ describe('Service deletion confirmation', () => {
 
   beforeEach(async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
     (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
     (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [service] });
     (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
