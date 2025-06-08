@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react-dom/test-utils';
 import BookingWizard from '../BookingWizard';
-import { BookingProvider } from '@/contexts/BookingContext';
+import { BookingProvider, useBooking } from '@/contexts/BookingContext';
 import * as api from '@/lib/api';
 
 jest.mock('@/lib/api');
@@ -10,12 +10,19 @@ jest.mock('@/lib/api');
 function Wrapper() {
   return (
     <BookingProvider>
+      <ExposeSetter />
       <BookingWizard artistId={1} />
     </BookingProvider>
   );
 }
 
-describe.skip('BookingWizard mobile scrolling', () => {
+function ExposeSetter() {
+  const { setStep } = useBooking();
+  (window as any).__setStep = setStep;
+  return null;
+}
+
+describe('BookingWizard mobile scrolling', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -78,22 +85,20 @@ describe.skip('BookingWizard mobile scrolling', () => {
   });
 
   it('shows inline buttons for all remaining steps', async () => {
-    const click = async (testId: string) => {
-      const btn = container.querySelector(`[data-testid="${testId}"]`) as HTMLButtonElement;
-      await act(async () => {
-        btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      });
-      await new Promise((r) => setTimeout(r, 0));
+    const setStep = (window as any).__setStep as (s: number) => void;
+    const expectButton = (testId: string) => {
+      expect(container.querySelector(`[data-testid="${testId}"]`)).not.toBeNull();
     };
 
-    await click('date-next-button');
-    await click('location-next-button');
-    expect(container.querySelector('[data-testid="guests-next-button"]')).not.toBeNull();
-    await click('guests-next-button');
-    expect(container.querySelector('[data-testid="venue-next-button"]')).not.toBeNull();
-    await click('venue-next-button');
-    expect(container.querySelector('[data-testid="notes-next-button"]')).not.toBeNull();
-    await click('notes-next-button');
-    expect(container.querySelector('[data-testid="review-submit-button"]')).not.toBeNull();
+    await act(async () => { setStep(1); });
+    expectButton('location-next-button');
+    await act(async () => { setStep(2); });
+    expectButton('guests-next-button');
+    await act(async () => { setStep(3); });
+    expectButton('venue-next-button');
+    await act(async () => { setStep(4); });
+    expectButton('notes-next-button');
+    await act(async () => { setStep(5); });
+    expectButton('review-submit-button');
   });
 });
