@@ -22,3 +22,11 @@ jest.mock('@/contexts/AuthContext', () => {
   }));
   return { useAuth: mock };
 });
+
+// JSDOM lacks ResizeObserver; provide a minimal stub
+class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+(window as any).ResizeObserver = window.ResizeObserver || ResizeObserver;
