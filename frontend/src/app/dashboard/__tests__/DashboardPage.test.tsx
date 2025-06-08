@@ -15,7 +15,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 if (typeof global.PointerEvent === 'undefined') {
-  // @ts-ignore
+  // @ts-expect-error - jsdom lacks PointerEvent so we fall back to MouseEvent
   global.PointerEvent = window.MouseEvent;
 }
 
