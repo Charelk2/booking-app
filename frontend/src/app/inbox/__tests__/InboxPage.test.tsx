@@ -4,9 +4,11 @@ import { act } from 'react-dom/test-utils';
 import InboxPage from '../page';
 import * as api from '@/lib/api';
 import useNotifications from '@/hooks/useNotifications';
+import { useRouter } from 'next/navigation';
 
 jest.mock('@/lib/api');
 jest.mock('@/hooks/useNotifications');
+jest.mock('next/navigation', () => ({ useRouter: jest.fn() }));
 
 function setup(unread = 0) {
   (useNotifications as jest.Mock).mockReturnValue({
@@ -50,6 +52,28 @@ describe('InboxPage unread badge', () => {
     const card = container.querySelector('li div');
     expect(card?.className).toContain('bg-indigo-50');
     expect(container.textContent).not.toContain('new message');
+    root.unmount();
+    container.remove();
+  });
+});
+
+describe('InboxPage navigation', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('opens booking request detail when card clicked', async () => {
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push, pathname: '/inbox' });
+    const { container, root } = setup();
+    await act(async () => {
+      root.render(<InboxPage />);
+    });
+    const card = container.querySelector('li div') as HTMLDivElement;
+    await act(async () => {
+      card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(push).toHaveBeenCalledWith('/booking-requests/1');
     root.unmount();
     container.remove();
   });
