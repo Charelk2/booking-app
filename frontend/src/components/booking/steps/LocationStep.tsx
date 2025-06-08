@@ -27,6 +27,7 @@ export default function LocationStep({
   });
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [marker, setMarker] = useState<LatLng | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -80,14 +81,21 @@ export default function LocationStep({
         type="button"
         className="mt-2 text-sm text-indigo-600 underline"
         onClick={() => {
-          navigator.geolocation.getCurrentPosition((pos) => {
-            const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            setMarker(loc);
-          });
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+              setMarker(loc);
+              setGeoError(null);
+            },
+            () => {
+              setGeoError('Unable to fetch your location');
+            },
+          );
         }}
       >
         Use my location
       </button>
+      {geoError && <p className="text-red-600 text-sm">{geoError}</p>}
       {isMobile && (
         <Button data-testid="location-next-button" onClick={onNext} fullWidth>
           Confirm Location
