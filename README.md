@@ -78,7 +78,7 @@ from any directory and automatically installs backend and frontend packages:
 ```
 
 This script installs Python requirements from `backend/requirements.txt` **and**
-`requirements-dev.txt`, then runs `npm install` inside `frontend/`.
+`requirements-dev.txt`, then runs `npm ci` inside `frontend/` using `pushd`/`popd` so your working directory is restored afterward.
 
 ### Linting
 
