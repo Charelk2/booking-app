@@ -77,6 +77,7 @@ export interface BookingRequestCreate {
   artist_id: number;
   service_id?: number;
   message?: string;
+  attachment_url?: string;
   proposed_datetime_1?: string; // ISO‐formatted date‐time string
   status?: string;
 }
@@ -88,6 +89,7 @@ export interface BookingRequest {
   artist_id: number;
   service_id?: number;
   message?: string | null;
+  attachment_url?: string | null;
   proposed_datetime_1?: string | null;
   proposed_datetime_2?: string | null;
   status: string; // e.g. "pending_quote", "quote_provided", etc.

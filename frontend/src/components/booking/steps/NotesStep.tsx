@@ -2,14 +2,26 @@
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import useIsMobile from '@/hooks/useIsMobile';
 import Button from '../../ui/Button';
+import { uploadBookingAttachment } from '@/lib/api';
 
 interface Props {
   control: Control<FieldValues>;
+  setValue: (name: string, value: unknown) => void;
   onNext: () => void;
 }
 
-export default function NotesStep({ control, onNext }: Props) {
+export default function NotesStep({ control, setValue, onNext }: Props) {
   const isMobile = useIsMobile();
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await uploadBookingAttachment(formData);
+    if (res?.url) {
+      setValue('attachment_url', res.url);
+    }
+  }
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium">Extra notes</label>
@@ -25,6 +37,13 @@ export default function NotesStep({ control, onNext }: Props) {
           />
         )}
       />
+      <Controller
+        name="attachment_url"
+        control={control}
+        render={({ field }) => <input type="hidden" {...field} />}
+      />
+      <label className="block text-sm font-medium">Attachment (optional)</label>
+      <input type="file" onChange={handleFileChange} />
       {isMobile && (
         <Button data-testid="notes-next-button" onClick={onNext} fullWidth>
           Next
