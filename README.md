@@ -70,13 +70,15 @@ NEXT_PUBLIC_WS_URL=ws://192.168.3.203:8000
 
 ### One-time setup
 
-Install **both** Python and Node dependencies:
+Install **both** Python and Node dependencies. The `setup.sh` script can be run
+from any directory and automatically installs backend and frontend packages:
 
 ```bash
 ./setup.sh
 ```
 
-This script runs `pip install -r backend/requirements.txt` and `npm install` in `frontend/`.
+It installs Python requirements from `backend/requirements.txt` and
+JavaScript dependencies under `frontend/`.
 
 ### Linting
 
