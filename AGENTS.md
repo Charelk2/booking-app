@@ -1,26 +1,27 @@
 # AGENTS.md
-This file documents the key automation, agent modules, and service components in the Bookamuso booking-app project.
+Documentation for the automation modules ("agents") that power the booking application.
+For setup instructions see [README.md](README.md).
 
 ---
 
 ## Agents Overview
 
-| Agent Name                       | Description                                                               | Code Location                                                                       | How it Works / When Triggered                  |
-| -------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------- |
-| **Booking Request Agent**        | Handles booking wizard data, booking flow logic, and business rules         | backend/app/api/api_booking_request.py, frontend/src/components/booking/BookingWizard.tsx       | When user submits or updates a booking request |
-| **Provider Matching Agent**      | Matches user with artist’s preferred sound/accommodation providers        | backend/app/crud/crud_service.py, backend/app/api/api_service.py                  | Invoked during booking and quote steps         |
-| **Travel & Accommodation Agent** | Calculates travel needs and accommodation costs     | backend/app/services/booking_quote.py, frontend/src/app/quote-calculator/page.tsx | Used when estimating travel or lodging expenses |
-| **Quote Generator**              | Gathers performance, provider, travel, and accommodation costs for client | backend/app/api/api_quote.py, frontend/src/components/booking/MessageThread.tsx                 | Runs after all booking info is entered         |
-| **Quote Preview Agent**          | Shows estimated total during final booking step | frontend/src/components/booking/steps/ReviewStep.tsx | On review step before submitting request |
-| **Review Agent**                 | Manages star ratings and comments for completed bookings                  | backend/app/api/api_review.py, frontend/src/app/artists/[id]/page.tsx             | After a booking is marked completed        |
-| **Payment Agent** | Handles deposit or full payments via `/api/v1/payments` | backend/app/api/api_payment.py | After quote is accepted |
-| **Notification Agent**           | Sends emails, chat alerts, and booking status updates                     | backend/app/api/api_notification.py, backend/app/utils/notifications.py, frontend/hooks/useNotifications.ts | Triggered on status changes, messages, actions |
-| **Chat Agent** | Manages client-artist/support chat and WebSocket updates | backend/app/api/api_message.py, backend/app/api/api_ws.py, frontend/src/components/booking/MessageThread.tsx | Always-on for active bookings |
-| **Caching Agent** | Caches artist lists using Redis | backend/app/utils/redis_cache.py, backend/app/api/v1/api_artist.py | On artist list requests |
-| **Personalized Video Agent** | Manages automated Q&A for custom videos | frontend/src/components/booking/PersonalizedVideoFlow.tsx, frontend/src/lib/videoFlow.ts | When service_type is Personalized Video |
-| **Availability Agent**           | Handles real-time artist/service availability checks                      | backend/app/api/v1/api_artist.py, frontend/src/components/booking/BookingWizard.tsx                | On date/service selection, booking start       |
-| **Form State Agent**             | Maintains progress, handles multi-step UX, restores unfinished bookings   | frontend/src/components/booking/BookingWizard.tsx, frontend/src/contexts/BookingContext.tsx         | Throughout user session                        |
-| **Validation Agent**             | Validates all user input (dates, contact info, logic rules)               | frontend/src/components/booking/BookingWizard.tsx, backend/app/schemas/                           | At every form step and backend endpoint        |
+| Agent | Purpose | Key files | Trigger |
+|-------|---------|-----------|---------|
+| **Booking Request** | Orchestrates the booking wizard and business rules | `backend/app/api/api_booking_request.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | When a client submits or updates a booking |
+| **Provider Matching** | Selects sound and accommodation providers | `backend/app/crud/crud_service.py`<br>`backend/app/api/api_service.py` | During booking and quote steps |
+| **Travel & Accommodation** | Calculates travel distance and lodging costs | `backend/app/services/booking_quote.py`<br>`frontend/src/app/quote-calculator/page.tsx` | When estimating travel or lodging expenses |
+| **Quote Generator** | Gathers performance, provider, travel, and accommodation costs | `backend/app/api/api_quote.py`<br>`frontend/src/components/booking/MessageThread.tsx` | After all booking info is entered |
+| **Quote Preview** | Shows an estimated total during the review step | `frontend/src/components/booking/steps/ReviewStep.tsx` | Right before submitting a booking request |
+| **Review** | Manages star ratings and comments for completed bookings | `backend/app/api/api_review.py`<br>`frontend/src/app/artists/[id]/page.tsx` | After a booking is marked completed |
+| **Payment** | Handles deposit or full payments via `/api/v1/payments` | `backend/app/api/api_payment.py` | After quote acceptance |
+| **Notification** | Sends emails, chat alerts, and booking status updates | `backend/app/api/api_notification.py`<br>`backend/app/utils/notifications.py`<br>`frontend/hooks/useNotifications.ts` | On status changes, messages, actions |
+| **Chat** | Manages client–artist chat and WebSocket updates | `backend/app/api/api_message.py`<br>`backend/app/api/api_ws.py`<br>`frontend/src/components/booking/MessageThread.tsx` | Always on for active bookings |
+| **Caching** | Caches artist lists using Redis | `backend/app/utils/redis_cache.py`<br>`backend/app/api/v1/api_artist.py` | On artist list requests |
+| **Personalized Video** | Automates Q&A for custom video requests | `frontend/src/components/booking/PersonalizedVideoFlow.tsx`<br>`frontend/src/lib/videoFlow.ts` | When `service_type` is Personalized Video |
+| **Availability** | Checks artist/service availability in real time | `backend/app/api/v1/api_artist.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | On date selection and booking start |
+| **Form State** | Maintains booking progress across steps | `frontend/src/components/booking/BookingWizard.tsx`<br>`frontend/src/contexts/BookingContext.tsx` | Throughout the user session |
+| **Validation** | Validates user input and business logic | `frontend/src/components/booking/BookingWizard.tsx`<br>`backend/app/schemas/` | At every form step and backend endpoint |
 
 ---
 
@@ -113,12 +114,13 @@ This file documents the key automation, agent modules, and service components in
 * Place new logic in an appropriate backend API/service or frontend component/hook/context.
 * Update this file to keep documentation current for all automation and agent logic.
 * Ensure each new agent is integrated with relevant booking, notification, or chat workflows as needed.
+* Run `./scripts/test-all.sh` before committing changes to ensure backend and frontend tests pass.
 
 ---
 
 ## Last Updated
 
-2025-06-10
+2025-06-08
 
 ---
 

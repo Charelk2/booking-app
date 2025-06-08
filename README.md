@@ -3,6 +3,8 @@
 
 This repository contains a FastAPI backend and a Next.js frontend.
 
+For a map of all booking agents, see [AGENTS.md](AGENTS.md).
+
 ## Backend
 
 Run the API from the `backend` directory so Python can find the `app` package:
@@ -67,6 +69,8 @@ NEXT_PUBLIC_WS_URL=ws://192.168.3.203:8000
 ---
 
 ## Development
+
+See [AGENTS.md](AGENTS.md) for a reference to the automation modules that may require updates when adding features.
 
 ### One-time setup
 
