@@ -9,7 +9,10 @@ import { ArtistProfile, User, Service } from '@/types';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
-jest.mock('next/navigation', () => ({ useRouter: jest.fn() }));
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(),
+  usePathname: jest.fn(() => '/dashboard'),
+}));
 
 describe('DashboardPage empty state', () => {
   let container: HTMLDivElement;
@@ -17,7 +20,7 @@ describe('DashboardPage empty state', () => {
 
   beforeEach(async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client', email: 'c@example.com' } });
     (api.getMyClientBookings as jest.Mock).mockResolvedValue({ data: [] });
     (api.getMyBookingRequests as jest.Mock).mockResolvedValue({ data: [] });
 
@@ -47,7 +50,7 @@ describe('DashboardPage artist stats', () => {
 
   beforeEach(async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
     (api.getMyArtistBookings as jest.Mock).mockResolvedValue({
       data: [
         {
@@ -97,7 +100,7 @@ describe('DashboardPage list toggles', () => {
 
   beforeEach(async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
 
     const bookings = Array.from({ length: 6 }).map((_, i) => ({
       id: i,
@@ -175,7 +178,7 @@ describe('Service card drag handle', () => {
 
   beforeEach(async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
     (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
     (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [service] });
     (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
