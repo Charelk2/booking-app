@@ -1,10 +1,12 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-# install frontend dependencies
-cd "$(dirname "$0")/frontend" && npm install
-cd ..
+# Determine the repository root so the script works from any directory.
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# install backend and dev Python dependencies
-pip install -r backend/requirements.txt
-pip install -r requirements-dev.txt
+echo "Installing backend Python dependencies..."
+pip install -r "$ROOT_DIR/backend/requirements.txt"
+pip install -r "$ROOT_DIR/requirements-dev.txt"
+
+echo "Installing frontend Node dependencies..."
+cd "$ROOT_DIR/frontend" && npm install
