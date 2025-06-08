@@ -18,7 +18,7 @@ class StubSocket {
 // @ts-expect-error jsdom does not implement WebSocket
 global.WebSocket = StubSocket;
 
-describe.skip('MessageThread component', () => {
+describe('MessageThread component', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -44,7 +44,10 @@ describe.skip('MessageThread component', () => {
       root.render(<MessageThread bookingRequestId={1} />);
     });
     await new Promise((r) => setTimeout(r, 0));
-    const scrollContainer = container.querySelector('.overflow-y-auto') as HTMLElement;
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const scrollContainer = document.querySelector('.overflow-y-auto') as HTMLElement;
 
     // Simulate a scrollable container
     Object.defineProperty(scrollContainer, 'scrollHeight', { value: 200, configurable: true });
@@ -67,7 +70,7 @@ describe.skip('MessageThread component', () => {
           booking_request_id: 1,
           sender_id: 2,
           sender_type: 'artist',
-          content: 'Hello',
+          content: 'Hello there',
           message_type: 'text',
           timestamp: new Date().toISOString(),
           unread: true,
@@ -78,7 +81,10 @@ describe.skip('MessageThread component', () => {
     await act(async () => {
       root.render(<MessageThread bookingRequestId={1} />);
     });
-
+    
+    await act(async () => {
+      await Promise.resolve();
+    });
     const highlightedRow = container.querySelector('.bg-purple-50');
     const senderName = container.querySelector('span.font-semibold');
     expect(highlightedRow).not.toBeNull();
