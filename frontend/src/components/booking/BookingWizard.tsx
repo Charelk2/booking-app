@@ -45,6 +45,7 @@ const schema = yup.object({
     .oneOf(['indoor', 'outdoor', 'hybrid'])
     .required(),
   notes: yup.string().optional(),
+  attachment_url: yup.string().optional(),
 });
 
 export default function BookingWizard({
@@ -77,6 +78,7 @@ export default function BookingWizard({
     handleSubmit,
     trigger,
     watch,
+    setValue,
     errors,
   } = useBookingForm(schema, details, setDetails);
 
@@ -137,6 +139,7 @@ export default function BookingWizard({
           ? new Date(`${format(vals.date, 'yyyy-MM-dd')}T${vals.time}`).toISOString()
           : undefined,
       message: vals.notes,
+      attachment_url: vals.attachment_url,
       status: 'draft',
     };
     try {
@@ -163,6 +166,7 @@ export default function BookingWizard({
           ? new Date(`${format(vals.date, 'yyyy-MM-dd')}T${vals.time}`).toISOString()
           : undefined,
       message: vals.notes,
+      attachment_url: vals.attachment_url,
       status: 'pending_quote',
     };
     try {
@@ -219,7 +223,7 @@ export default function BookingWizard({
       case 3:
         return <VenueStep control={control} onNext={next} />;
       case 4:
-        return <NotesStep control={control} onNext={next} />;
+        return <NotesStep control={control} setValue={setValue} onNext={next} />;
       default:
         return (
           <ReviewStep

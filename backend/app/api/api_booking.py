@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, selectinload
+from fastapi.responses import Response
 from typing import List, Any
 from decimal import Decimal
 
@@ -221,3 +222,50 @@ def read_booking_details(
         )
 
     return booking
+
+
+@router.get("/{booking_id}/calendar.ics")
+def download_booking_calendar(
+    *,
+    db: Session = Depends(get_db),
+    booking_id: int,
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """Return an ICS file for a confirmed booking."""
+
+    booking = (
+        db.query(Booking)
+        .options(selectinload(Booking.service))
+        .filter(Booking.id == booking_id)
+        .first()
+    )
+    if not booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found.")
+
+    if not (
+        booking.client_id == current_user.id
+        or (
+            current_user.user_type == UserType.ARTIST and booking.artist_id == current_user.id
+        )
+    ):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    if booking.status != BookingStatus.CONFIRMED:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Booking is not confirmed")
+
+    def fmt(dt):
+        return dt.strftime("%Y%m%dT%H%M%SZ")
+
+    ics = (
+        "BEGIN:VCALENDAR\n"
+        "VERSION:2.0\n"
+        "BEGIN:VEVENT\n"
+        f"SUMMARY:{booking.service.title}\n"
+        f"DTSTART:{fmt(booking.start_time)}\n"
+        f"DTEND:{fmt(booking.end_time)}\n"
+        "END:VEVENT\n"
+        "END:VCALENDAR"
+    )
+
+    headers = {"Content-Disposition": f"attachment; filename=booking-{booking_id}.ics"}
+    return Response(ics, media_type="text/calendar", headers=headers)
