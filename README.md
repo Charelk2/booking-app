@@ -120,6 +120,7 @@ npm run build
 * Reusable `Stepper` and `useBookingForm` hook.
 * “Book Now” buttons on service cards.
 * New **Review** step showing cost breakdown and selections.
+* Success toasts when saving a draft or submitting a request.
 
 ### Real-time Chat
 

@@ -34,7 +34,7 @@ import {
   normalizeService,
 } from '@/lib/utils';
 import ArtistServiceCard from '@/components/artist/ArtistServiceCard';
-import { Button, Tag } from '@/components/ui';
+import { Button, Tag, Toast } from '@/components/ui';
 
 // This profile page now lazy loads each section (services, reviews, other
 // artists) separately so the main artist info appears faster. Images use the
@@ -144,7 +144,7 @@ export default function ArtistProfilePage() {
       router.push(`/booking-requests/${res.data.id}`);
     } catch (err) {
       console.error('Failed to create request', err);
-      alert('Failed to create request');
+      Toast.error('Failed to create request');
     }
   };
 
