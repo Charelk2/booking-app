@@ -5,6 +5,7 @@ import * as yup from 'yup';
 import { format } from 'date-fns';
 import Button from '../ui/Button';
 import Stepper from '../ui/Stepper';
+import toast from '../ui/Toast';
 import useIsMobile from '@/hooks/useIsMobile';
 import MobileActionBar from './MobileActionBar';
 import {
@@ -146,7 +147,7 @@ export default function BookingWizard({
         setRequestId(res.data.id);
       }
       setError(null);
-      alert('Draft saved');
+      toast.success('Draft saved');
     } catch (e) {
       setError('Failed to save draft');
     }
@@ -184,7 +185,7 @@ export default function BookingWizard({
         content: `Booking details:\n${detailLines}`,
         message_type: 'system',
       });
-      alert('Request submitted');
+      toast.success('Request submitted');
       router.push(`/booking-requests/${idToUse}`);
     } catch (e) {
       setError('Failed to submit request');
