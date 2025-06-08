@@ -46,8 +46,23 @@ const schema = yup.object({
   notes: yup.string().optional(),
 });
 
-export default function BookingWizard({ artistId }: { artistId: number }) {
-  const { step, setStep, details, setDetails, requestId, setRequestId } = useBooking();
+export default function BookingWizard({
+  artistId,
+  serviceId,
+}: {
+  artistId: number;
+  serviceId?: number;
+}) {
+  const {
+    step,
+    setStep,
+    details,
+    setDetails,
+    serviceId: contextServiceId,
+    setServiceId,
+    requestId,
+    setRequestId,
+  } = useBooking();
   const router = useRouter();
   const [unavailable, setUnavailable] = useState<string[]>([]);
   const [artistLocation, setArtistLocation] = useState<string | null>(null);
@@ -82,6 +97,10 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
       .catch(() => setArtistLocation(null));
   }, [artistId]);
 
+  useEffect(() => {
+    if (serviceId) setServiceId(serviceId);
+  }, [serviceId, setServiceId]);
+
   // Validate only the fields relevant to the current step. This prevents
   // "Please fix the errors above" from appearing when later steps haven't
   // been filled out yet.
@@ -111,6 +130,7 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
   const saveDraft = handleSubmit(async (vals) => {
     const payload: BookingRequestCreate = {
       artist_id: artistId,
+      service_id: contextServiceId,
       proposed_datetime_1:
         vals.date && vals.time
           ? new Date(`${format(vals.date, 'yyyy-MM-dd')}T${vals.time}`).toISOString()
@@ -136,6 +156,7 @@ export default function BookingWizard({ artistId }: { artistId: number }) {
     setSubmitting(true);
     const payload: BookingRequestCreate = {
       artist_id: artistId,
+      service_id: contextServiceId,
       proposed_datetime_1:
         vals.date && vals.time
           ? new Date(`${format(vals.date, 'yyyy-MM-dd')}T${vals.time}`).toISOString()
