@@ -1,3 +1,4 @@
+import React from "react";
 
 jest.mock('next/navigation', () => {
   return {
@@ -30,3 +31,14 @@ class ResizeObserver {
   disconnect() {}
 }
 (window as any).ResizeObserver = window.ResizeObserver || ResizeObserver;
+
+// Mock Google Maps components used in tests
+jest.mock('@react-google-maps/api', () => {
+  const React = require('react');
+  return {
+    useLoadScript: () => ({ isLoaded: true }),
+    GoogleMap: (props: any) => React.createElement('div', null, props.children),
+    Marker: () => React.createElement('div'),
+    Autocomplete: (props: any) => React.createElement('div', null, props.children),
+  };
+});
