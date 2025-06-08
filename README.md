@@ -78,7 +78,8 @@ from any directory and automatically installs backend and frontend packages:
 ```
 
 This script installs Python requirements from `backend/requirements.txt` **and**
-`requirements-dev.txt`, then runs `npm install` inside `frontend/`.
+`requirements-dev.txt`, then runs `npm ci` inside `frontend/`.
+`pushd`/`popd` are used so the working directory returns to where you invoked the script.
 
 ### Linting
 
@@ -264,7 +265,7 @@ POST /api/v1/payments
 
 * **jest: not found**: Run `npm test` in `frontend/` (auto-installs via `pretest`).
 * **Missing package.json**: Ensure you’re in `frontend/` before running `npm test` or `npm run lint`.
-* **next: not found / ENOTEMPTY**: Reinstall in `frontend/` with `npm install` or `./setup.sh`.
+* **next: not found / ENOTEMPTY**: Reinstall in `frontend/` with `npm ci` or `./setup.sh`.
 * **Module not found: Can't resolve 'framer-motion'**: Run `npm install` in `frontend/` to pull the latest dependencies.
 
 ---

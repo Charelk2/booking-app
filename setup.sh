@@ -9,6 +9,10 @@ pip install -r "$ROOT_DIR/backend/requirements.txt"
 pip install -r "$ROOT_DIR/requirements-dev.txt"
 
 echo "Installing frontend Node dependencies..."
-cd "$ROOT_DIR/frontend" && npm install
+# Temporarily change to the frontend directory so npm can install packages.
+# pushd/popd ensure we return to the original working directory.
+pushd "$ROOT_DIR/frontend" >/dev/null
+npm ci
+popd >/dev/null
 
 echo "Setup complete."
