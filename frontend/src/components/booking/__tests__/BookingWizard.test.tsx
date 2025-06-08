@@ -16,11 +16,12 @@ function Wrapper() {
   );
 }
 
-function ExposeSetter() {
-  const { setStep } = useBooking();
-  (window as any).__setStep = setStep;
-  return null;
-}
+  function ExposeSetter() {
+    const { setStep } = useBooking();
+    // Cast to unknown first to avoid eslint no-explicit-any complaint
+    (window as unknown as { __setStep: (step: number) => void }).__setStep = setStep;
+    return null;
+  }
 
 describe('BookingWizard mobile scrolling', () => {
   let container: HTMLDivElement;
@@ -85,7 +86,7 @@ describe('BookingWizard mobile scrolling', () => {
   });
 
   it('shows inline buttons for all remaining steps', async () => {
-    const setStep = (window as any).__setStep as (s: number) => void;
+      const setStep = (window as unknown as { __setStep: (s: number) => void }).__setStep;
     const expectButton = (testId: string) => {
       expect(container.querySelector(`[data-testid="${testId}"]`)).not.toBeNull();
     };
