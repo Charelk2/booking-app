@@ -8,7 +8,10 @@ import { useRouter } from 'next/navigation';
 
 jest.mock('@/lib/api');
 jest.mock('@/hooks/useNotifications');
-jest.mock('next/navigation', () => ({ useRouter: jest.fn() }));
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(),
+  usePathname: jest.fn(() => '/inbox'),
+}));
 
 function setup(unread = 0) {
   (useNotifications as jest.Mock).mockReturnValue({
