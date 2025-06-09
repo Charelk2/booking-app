@@ -1,5 +1,6 @@
 import React from 'react';
 import Button from '../ui/Button';
+import useScrollDirection from '@/hooks/useScrollDirection';
 
 interface Props {
   showBack: boolean;
@@ -20,8 +21,12 @@ export default function MobileActionBar({
   onSubmit,
   submitting,
 }: Props) {
+  const scrollDir = useScrollDirection();
+  const bottomClass = scrollDir === 'down' ? 'bottom-0' : 'bottom-14';
   return (
-    <div className="fixed bottom-14 left-0 right-0 md:hidden bg-white border-t p-2 flex justify-between space-x-2 z-[70]">
+    <div
+      className={`fixed ${bottomClass} left-0 right-0 md:hidden bg-white border-t p-2 pb-safe flex justify-between space-x-2 z-[70]`}
+    >
       {showBack ? (
         <Button variant="secondary" onClick={onBack} fullWidth data-testid="mobile-back-button">
           Back
