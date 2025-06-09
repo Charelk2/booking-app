@@ -1,19 +1,8 @@
 'use client';
 import { useBooking } from '@/contexts/BookingContext';
 import { format } from 'date-fns';
-import Button from '../../ui/Button';
 
-interface Props {
-  onSaveDraft: () => void;
-  onSubmit: () => void;
-  submitting: boolean;
-}
-
-export default function ReviewStep({
-  onSaveDraft,
-  onSubmit,
-  submitting,
-}: Props) {
+export default function ReviewStep() {
   const { details } = useBooking();
   return (
     <div className="space-y-2">
