@@ -152,6 +152,9 @@ modules, and Playwright browsers so `test-all.sh` can run entirely offline:
 docker build -t booking-app:latest .  # build once with connectivity
 docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 ```
+When running tests from this pre-built image, `setup.sh` detects the cached
+Python packages, Node modules, and Playwright browsers and therefore skips
+any downloads. This allows repeated test executions without network access.
 
 ### Build
 
