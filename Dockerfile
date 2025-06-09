@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir -r requirements-dev.txt
 
 # Install Node dependencies
-RUN cd frontend && npm ci && npm cache clean --force
+RUN cd frontend && npm ci --no-progress && npm cache clean --force
 
 # Copy source code
 COPY . .

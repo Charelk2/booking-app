@@ -112,11 +112,13 @@ npm run lint
 ```bash
 ./scripts/test-all.sh
 ```
-This script runs `pytest`, `npm test`, `npx playwright test`, and `npm run lint`.
-`setup.sh` now skips dependency installation when `frontend/node_modules` and the
-required Python packages are already present, so repeated test runs are much
-faster. End-to-end tests in `frontend/e2e` use [Playwright](https://playwright.dev/)
-to launch the Next.js development server and walk through the Booking Wizard.
+This script runs `pytest`, executes Jest and Playwright using Node, and finally
+`npm run lint`. Running the CLIs directly avoids missing binary errors when
+`node_modules/.bin` links are not created. `setup.sh` skips dependency
+installation when packages are already present so repeated test runs are much
+faster. End-to-end tests in `frontend/e2e` use
+[Playwright](https://playwright.dev/) to launch the Next.js development server
+and walk through the Booking Wizard.
 
 You can also run the tests inside the Docker image if you prefer not to install
 anything locally:

@@ -11,10 +11,15 @@ if ! python -c "import fastapi" >/dev/null 2>&1; then
 fi
 
 echo "Installing frontend Node dependencies..."
-if [ ! -d "$ROOT_DIR/frontend/node_modules" ]; then
+if [ ! -d "$ROOT_DIR/frontend/node_modules/.bin" ]; then
   pushd "$ROOT_DIR/frontend" > /dev/null
-  npm ci
+  npm ci --silent
   popd > /dev/null
+fi
+
+if [ ! -d "$HOME/.cache/ms-playwright" ]; then
+  echo "Installing Playwright browsers..."
+  npx --prefix "$ROOT_DIR/frontend" playwright install --with-deps >/dev/null
 fi
 
 echo "Setup complete."
