@@ -64,7 +64,7 @@ const normalizeArtistProfile = (
   profile: Partial<ArtistProfile> | ArtistProfile
 ): ArtistProfile => ({
   ...profile,
-  user_id: profile.user_id ?? profile.id,
+  user_id: (profile.user_id ?? profile.id) as number,
 });
 
 // ─── ARTISTS ───────────────────────────────────────────────────────────────────

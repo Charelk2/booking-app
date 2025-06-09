@@ -19,7 +19,7 @@ interface MobileBottomNavProps {
 interface Item {
   name: string;
   href: string;
-  icon: (props: React.SVGProps<SVGSVGElement>) => JSX.Element;
+  icon: React.FC<React.SVGProps<SVGSVGElement>>;
   auth?: boolean;
 }
 
