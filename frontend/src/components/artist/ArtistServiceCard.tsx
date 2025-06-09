@@ -30,7 +30,6 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
     getService(service.id)
       .then((res) => setCurrentService(res.data))
       .catch((err) => {
-        // eslint-disable-next-line no-console
         console.error('Failed to refresh service:', err);
       });
   }, [expanded, service.id]);
