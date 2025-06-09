@@ -3,8 +3,16 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BellIcon } from '@heroicons/react/24/outline';
-import NotificationDrawer from './NotificationDrawer';
-import FullScreenNotificationModal from './FullScreenNotificationModal';
+import dynamic from 'next/dynamic';
+
+const NotificationDrawer = dynamic(() => import('./NotificationDrawer'), {
+  loading: () => <div className="p-4">Loading...</div>,
+});
+
+const FullScreenNotificationModal = dynamic(
+  () => import('./FullScreenNotificationModal'),
+  { loading: () => <div className="p-4">Loading...</div>, ssr: false },
+);
 import useIsMobile from '@/hooks/useIsMobile';
 import useNotifications from '@/hooks/useNotifications';
 
@@ -12,7 +20,7 @@ import useNotifications from '@/hooks/useNotifications';
 // `useNotifications` hook. Notifications are loaded incrementally for better
 // performance on large accounts.
 
-export default function NotificationBell() {
+export default function NotificationBell(): JSX.Element {
   const {
     notifications,
     threads,
