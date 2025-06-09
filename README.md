@@ -84,6 +84,11 @@ NEXT_PUBLIC_API_URL=http://192.168.3.203:8000
 NEXT_PUBLIC_WS_URL=ws://192.168.3.203:8000
 ```
 
+The frontend automatically attaches an `Authorization` header when a token
+exists in the browser's `localStorage`. The request interceptor now verifies
+`typeof window !== 'undefined'` before accessing `localStorage`, so server-side
+rendering and tests that lack a `window` object no longer fail.
+
 ---
 
 ## Development
