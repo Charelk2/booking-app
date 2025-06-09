@@ -21,21 +21,21 @@ export default function MobileActionBar({
   submitting,
 }: Props) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t p-2 flex justify-between space-x-2 z-[60]">
+    <div className="fixed bottom-14 left-0 right-0 md:hidden bg-white border-t p-2 flex justify-between space-x-2 z-[70]">
       {showBack ? (
-        <Button variant="secondary" onClick={onBack} fullWidth>
+        <Button variant="secondary" onClick={onBack} fullWidth data-testid="mobile-back-button">
           Back
         </Button>
       ) : (
         <div className="flex-1" />
       )}
       {showNext ? (
-        <Button onClick={onNext} fullWidth>
+        <Button onClick={onNext} fullWidth data-testid="mobile-next-button">
           Next
         </Button>
       ) : (
         <div className="flex flex-1 space-x-2">
-          <Button variant="secondary" onClick={onSaveDraft} fullWidth>
+          <Button variant="secondary" onClick={onSaveDraft} fullWidth data-testid="mobile-save-button">
             Save Draft
           </Button>
           <Button
@@ -43,6 +43,7 @@ export default function MobileActionBar({
             disabled={submitting}
             className="bg-green-600 hover:bg-green-700 focus:ring-green-500"
             fullWidth
+            data-testid="mobile-submit-button"
           >
             {submitting ? 'Submitting...' : 'Submit'}
           </Button>
