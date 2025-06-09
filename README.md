@@ -112,14 +112,19 @@ npm run lint
 ```bash
 ./scripts/test-all.sh
 ```
+This script runs `pytest`, `npm test`, `npx playwright test`, and `npm run lint`.
+`setup.sh` now skips dependency installation when `frontend/node_modules` and the
+required Python packages are already present, so repeated test runs are much
+faster. End-to-end tests in `frontend/e2e` use [Playwright](https://playwright.dev/)
+to launch the Next.js development server and walk through the Booking Wizard.
 
-This runs `pytest`, `npm test`, `npm run test:e2e`, and `npm run lint`. You can also run each step manually.
+You can also run the tests inside the Docker image if you prefer not to install
+anything locally:
 
-End-to-end tests live in `frontend/e2e` and are powered by [Playwright](https://playwright.dev/). They launch the Next.js development server in a mobile viewport and walk through the Booking Wizard.
-
-Make sure you've run `./setup.sh` at least once beforehand so all Node and Python
-packages are installed; otherwise the tests may fail with `next not found` or
-similar dependency errors.
+```bash
+docker build -t booking-app:latest .
+docker run --rm booking-app:latest ./scripts/test-all.sh
+```
 
 ### Build
 
