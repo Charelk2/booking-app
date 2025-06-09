@@ -58,16 +58,16 @@ describe('BookingWizard mobile scrolling', () => {
     expect(window.scrollTo).toHaveBeenCalled();
   });
 
-  it('renders inline next button on mobile', () => {
+  it('does not render inline next button on mobile', () => {
     const inline = container.querySelector('[data-testid="date-next-button"]');
-    expect(inline).not.toBeNull();
+    expect(inline).toBeNull();
   });
 
   it('shows step heading and updates on next', async () => {
     const heading = () =>
       container.querySelector('[data-testid="step-heading"]')?.textContent;
     expect(heading()).toContain('Date & Time');
-    const next = container.querySelector('[data-testid="date-next-button"]') as HTMLButtonElement;
+    const next = container.querySelector('button') as HTMLButtonElement;
     await act(async () => {
       next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
@@ -75,31 +75,32 @@ describe('BookingWizard mobile scrolling', () => {
     expect(heading()).toContain('Location');
   });
 
-  it('shows confirm location button after advancing', async () => {
-    const inline = container.querySelector('[data-testid="date-next-button"]') as HTMLButtonElement;
+  it('advances to the location step without inline button', async () => {
+    const next = container.querySelector('button') as HTMLButtonElement;
     await act(async () => {
-      inline.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await new Promise((r) => setTimeout(r, 0));
-    const confirm = container.querySelector('[data-testid="location-next-button"]');
-    expect(confirm).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="location-next-button"]'),
+    ).toBeNull();
   });
 
-  it('shows inline buttons for all remaining steps', async () => {
-      const setStep = (window as unknown as { __setStep: (s: number) => void }).__setStep;
-    const expectButton = (testId: string) => {
-      expect(container.querySelector(`[data-testid="${testId}"]`)).not.toBeNull();
+  it('no inline action buttons exist for any step', async () => {
+    const setStep = (window as unknown as { __setStep: (s: number) => void }).__setStep;
+    const expectNoButton = (testId: string) => {
+      expect(container.querySelector(`[data-testid="${testId}"]`)).toBeNull();
     };
 
     await act(async () => { setStep(1); });
-    expectButton('location-next-button');
+    expectNoButton('location-next-button');
     await act(async () => { setStep(2); });
-    expectButton('guests-next-button');
+    expectNoButton('guests-next-button');
     await act(async () => { setStep(3); });
-    expectButton('venue-next-button');
+    expectNoButton('venue-next-button');
     await act(async () => { setStep(4); });
-    expectButton('notes-next-button');
+    expectNoButton('notes-next-button');
     await act(async () => { setStep(5); });
-    expectButton('review-submit-button');
+    expectNoButton('review-submit-button');
   });
 });

@@ -1,7 +1,6 @@
 'use client';
 import { useBooking } from '@/contexts/BookingContext';
 import { format } from 'date-fns';
-import useIsMobile from '@/hooks/useIsMobile';
 import Button from '../../ui/Button';
 
 interface Props {
@@ -16,7 +15,6 @@ export default function ReviewStep({
   submitting,
 }: Props) {
   const { details } = useBooking();
-  const isMobile = useIsMobile();
   return (
     <div className="space-y-2">
       <h3 className="text-lg font-medium">Review Details</h3>
@@ -51,27 +49,7 @@ export default function ReviewStep({
       <p className="text-gray-600 text-sm">
         Please confirm the information above before sending your request.
       </p>
-      {isMobile && (
-        <div className="flex space-x-2">
-          <Button
-            data-testid="review-save-button"
-            variant="secondary"
-            onClick={onSaveDraft}
-            fullWidth
-          >
-            Save Draft
-          </Button>
-          <Button
-            data-testid="review-submit-button"
-            onClick={onSubmit}
-            fullWidth
-            disabled={submitting}
-            className="bg-green-600 hover:bg-green-700 focus:ring-green-500"
-          >
-            {submitting ? 'Submitting...' : 'Submit'}
-          </Button>
-        </div>
-      )}
+      {/* Mobile action buttons are handled by MobileActionBar */}
     </div>
   );
 }
