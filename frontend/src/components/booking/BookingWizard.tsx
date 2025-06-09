@@ -287,9 +287,6 @@ export default function BookingWizard({
       <div className="hidden lg:block w-64">
         <SummarySidebar />
       </div>
-      <div className="lg:hidden mt-4">
-        <SummarySidebar />
-      </div>
       {isMobile && (
         <MobileActionBar
           showBack={step > 0}
@@ -301,6 +298,9 @@ export default function BookingWizard({
           submitting={submitting}
         />
       )}
+      <div className="lg:hidden mt-4">
+        <SummarySidebar />
+      </div>
     </div>
   );
 }
