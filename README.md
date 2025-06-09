@@ -8,7 +8,15 @@ For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
 ## Docker Setup
 
-Build the image and run the development servers inside a container:
+Pull the pre-built image or build it yourself, then run the development
+servers inside a container:
+
+```bash
+docker pull ghcr.io/example-org/booking-app-ci:latest # optional pre-built image
+docker run --rm -p 3000:3000 -p 8000:8000 ghcr.io/example-org/booking-app-ci:latest
+```
+
+If you prefer to build locally instead, run:
 
 ```bash
 docker build -t booking-app:latest .
@@ -162,9 +170,11 @@ docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 ### Offline Testing with Docker
 
 If `setup.sh` fails because dependencies cannot be installed (such as in an
-isolated CI environment), build the Docker image once with network access and
-reuse it for subsequent test runs. The image caches Python packages and Node
-modules so `test-all.sh` can run entirely offline:
+isolated CI environment), you can pull a pre-built image that already contains
+all Python and Node dependencies. This avoids the slow `npm ci` step.
+Alternatively, build the image once with network access and reuse it for
+subsequent test runs. The image caches Python packages and Node modules so
+`test-all.sh` can run entirely offline:
 
 ```bash
 docker build -t booking-app:latest .  # build once with connectivity
@@ -173,6 +183,15 @@ docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 When running tests from this pre-built image, `setup.sh` detects the cached
 Python packages and Node modules and therefore skips any downloads. This
 allows repeated test executions without network access.
+
+You can also pull a pre-built image from our container registry and run the
+test script in one step:
+
+```bash
+./scripts/docker-test.sh
+```
+Set the `BOOKING_APP_IMAGE` environment variable if you want to use a different
+tag or registry location.
 
 ### Build
 
