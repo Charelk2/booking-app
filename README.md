@@ -235,7 +235,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * “Book Now” buttons on service cards.
 * New **Review** step showing cost breakdown and selections.
 * Success toasts when saving a draft or submitting a request.
-* Mobile action bar now adapts to scroll direction, staying above the bottom nav when visible and sliding down when the nav hides.
+* Mobile action bar now adapts to scroll direction, staying above the bottom nav when visible, sliding down when the nav hides, and respecting safe-area insets via the `.pb-safe` utility.
 
 ### Real-time Chat
 
