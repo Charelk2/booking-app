@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import type { Control, FieldValues } from 'react-hook-form';
+import type { Control, FieldValues, UseFormWatch } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
 import { format } from 'date-fns';
@@ -206,7 +206,7 @@ export default function BookingWizard({
           <DateTimeStep
             control={control as unknown as Control<FieldValues>}
             unavailable={unavailable}
-            watch={watch}
+            watch={watch as unknown as UseFormWatch<FieldValues>}
             onNext={next}
           />
         );
@@ -227,7 +227,7 @@ export default function BookingWizard({
         return (
           <NotesStep
             control={control as unknown as Control<FieldValues>}
-            setValue={setValue}
+            setValue={setValue as unknown as (name: string, value: unknown) => void}
             onNext={next}
           />
         );
