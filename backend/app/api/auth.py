@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from typing import Optional
 import os
+import logging
 from dotenv import load_dotenv
 
 from ..database import get_db
@@ -14,6 +15,8 @@ from ..models.user import User, UserType
 from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
 from ..schemas.user import UserCreate, UserResponse, TokenData
 from ..utils.auth import get_password_hash, verify_password
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables from .env
 load_dotenv()
@@ -70,7 +73,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         return db_user
     except Exception as e:
         db.rollback()
-        print(f"Error during registration: {e}")
+        logger.exception("Error during registration: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not register user"
