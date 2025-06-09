@@ -94,4 +94,41 @@ describe('MobileActionBar', () => {
     const bar = container.querySelector('div');
     expect(bar?.className).toContain('pb-safe');
   });
+
+  it('translates up when the keyboard is visible', () => {
+    const resizeHandlers: Record<string, (() => void)[]> = {};
+    const vv = {
+      height: 800,
+      offsetTop: 0,
+      addEventListener: (event: string, cb: () => void) => {
+        resizeHandlers[event] = resizeHandlers[event] || [];
+        resizeHandlers[event].push(cb);
+      },
+      removeEventListener: () => {},
+    } as any;
+    Object.defineProperty(window, 'innerHeight', { value: 800, writable: true });
+    Object.defineProperty(window, 'visualViewport', { value: vv, writable: true });
+
+    act(() => {
+      root.render(
+        React.createElement(MobileActionBar, {
+          showBack: false,
+          onBack: () => {},
+          showNext: true,
+          onNext: () => {},
+          onSaveDraft: () => {},
+          onSubmit: () => {},
+          submitting: false,
+        }),
+      );
+    });
+    const bar = container.querySelector('div') as HTMLDivElement;
+    expect(bar.style.transform).toBe('');
+
+    vv.height = 500;
+    resizeHandlers.resize.forEach((cb) => cb());
+    act(() => {}); // flush useEffect
+
+    expect(bar.style.transform).toBe('translateY(-300px)');
+  });
 });
