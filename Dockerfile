@@ -6,6 +6,10 @@ RUN apt-get update && apt-get install -y curl gnupg && \
     apt-get install -y nodejs && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Disable Next.js telemetry and Playwright downloads for offline CI
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
 WORKDIR /app
 
 # Copy package manifests separately for caching

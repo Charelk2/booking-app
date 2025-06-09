@@ -128,6 +128,14 @@ docker build -t booking-app:latest .
 docker run --rm booking-app:latest ./scripts/test-all.sh
 ```
 
+If your CI environment has no external network access, build the image ahead of
+time with connectivity so all dependencies and Playwright browsers are cached.
+You can then run the tests offline:
+
+```bash
+docker run --rm --network none booking-app:latest ./scripts/test-all.sh
+```
+
 ### Build
 
 ```bash
