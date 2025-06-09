@@ -19,7 +19,9 @@ import { format } from "date-fns";
 import { normalizeService } from "@/lib/utils";
 import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
-import RecentActivity from "@/components/dashboard/RecentActivity";
+import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
+import SectionList from "@/components/dashboard/SectionList";
+import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import Link from "next/link";
 import { motion, Reorder, useDragControls } from "framer-motion";
 import {
@@ -161,8 +163,7 @@ export default function DashboardPage() {
     timestamp: string;
     description: string;
   }>>([]);
-  const [showAllRequests, setShowAllRequests] = useState(false);
-  const [showAllBookings, setShowAllBookings] = useState(false);
+  const [activeTab, setActiveTab] = useState<'requests' | 'bookings' | 'services'>('requests');
 
   // Aggregated totals for dashboard statistics
   const servicesCount = services.length;
@@ -181,12 +182,8 @@ export default function DashboardPage() {
     })
     .reduce((acc, booking) => acc + booking.total_price, 0);
 
-  const visibleRequests = showAllRequests
-    ? bookingRequests
-    : bookingRequests.slice(0, 5);
-  const visibleBookings = showAllBookings
-    ? bookings
-    : bookings.slice(0, 5);
+  const visibleRequests = bookingRequests.slice(0, 5);
+  const visibleBookings = bookings.slice(0, 5);
 
   useEffect(() => {
     if (!user) {
@@ -371,102 +368,20 @@ export default function DashboardPage() {
           )}
 
           {/* Stats */}
-        <div className="mt-8">
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {(() => {
-                const cards = [
-                  <Link
-                    key="bookings"
-                    href="/bookings"
-                    className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white shadow-sm min-h-[64px] overflow-hidden cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span role="img" aria-label="calendar">
-                        
-                      </span>
-                      <span className="text-sm font-medium text-gray-500">Total Bookings</span>
-                    </div>
-                    <span className="text-2xl font-semibold text-gray-900">{bookings.length}</span>
-                  </Link>,
-                ];
-                if (user.user_type === "artist") {
-                  cards.push(
-                    <Link
-                      key="services"
-                      href={user ? `/services?artist=${user.id}` : '/services'}
-                      className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white shadow-sm min-h-[64px] overflow-hidden cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <span role="img" aria-label="microphone"></span>
-                        <span className="text-sm font-medium text-gray-500">Total Services</span>
-                      </div>
-                      <span className="text-2xl font-semibold text-gray-900">{servicesCount}</span>
-                    </Link>,
-                  );
-                  if (servicesCount === 0) {
-                    cards.push(
-                      <p key="services-empty" className="text-xs text-gray-400 mt-2">No services added yet</p>,
-                    );
-                  }
-
-                  cards.push(
-                    <Link
-                      key="earnings"
-                      href="/earnings"
-                      className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white shadow-sm min-h-[64px] overflow-hidden cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <span role="img" aria-label="money"></span>
-                        <span className="text-sm font-medium text-gray-500">Total Earnings</span>
-                      </div>
-                      <span className="text-2xl font-semibold text-gray-900">
-                        {'$' + totalEarnings.toFixed(2)}
-                      </span>
-                    </Link>,
-                  );
-                  if (totalEarnings === 0) {
-                    cards.push(
-                      <p key="earnings-empty" className="text-xs text-gray-400 mt-2">No earnings this month</p>,
-                    );
-                  }
-
-                  cards.push(
-                    <Link
-                      key="earnings-month"
-                      href="/earnings"
-                      className="flex items-center justify-between gap-4 p-4 rounded-lg bg-white shadow-sm min-h-[64px] overflow-hidden cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <span role="img" aria-label="calendar-money"></span>
-                        <span className="text-sm font-medium text-gray-500">Earnings This Month</span>
-                      </div>
-                      <span className="text-2xl font-semibold text-gray-900">
-                        {'$' + earningsThisMonth.toFixed(2)}
-                      </span>
-                    </Link>,
-                  );
-                  if (earningsThisMonth === 0) {
-                    cards.push(
-                      <p key="earnings-month-empty" className="text-xs text-gray-400 mt-2">No earnings yet</p>,
-                    );
-                  }
-                }
-                return cards.map((card, i) => (
-                  <motion.div
-                    /* eslint react/no-array-index-key: 0 */
-                    key={card.key || i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: i * 0.1 }}
-                  >
-                    {card}
-                  </motion.div>
-                ));
-              })()}
-            </div>
+          <div className="mt-8">
+            <OverviewAccordion
+              primaryStats={[
+                { label: 'Total Bookings', value: bookings.length },
+                { label: 'Total Earnings', value: `$${totalEarnings.toFixed(2)}` },
+              ]}
+              secondaryStats={[
+                { label: 'Total Services', value: servicesCount },
+                { label: 'Earnings This Month', value: `$${earningsThisMonth.toFixed(2)}` },
+              ]}
+            />
           </div>
 
-          {user.user_type === "artist" && (
+          {user.user_type === "artist" && activeTab === 'services' && (
             <button
               type="button"
               onClick={() => setIsAddServiceModalOpen(true)}
@@ -476,133 +391,65 @@ export default function DashboardPage() {
             </button>
           )}
 
-          {/* Recent Activity */}
-          <RecentActivity events={events} />
-
-          {/* Booking Requests */}
-          <details className="mt-8" open>
-            <summary className="text-lg font-medium text-gray-900 cursor-pointer">
-              Booking Requests
-            </summary>
-            {bookingRequests.length === 0 ? (
-              <div className="mt-4 overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-                <div className="text-sm text-gray-500 px-4 py-6 text-center">
-                  No bookings yet
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="sm:hidden mt-4 space-y-4">
-                  {visibleRequests.map((req) => (
-                    <div
-                      key={req.id}
-                      className="bg-white p-4 shadow rounded-lg"
-                    >
-                      <div className="font-medium text-gray-900">
-                        {user.user_type === "artist"
-                          ? `${req.client?.first_name} ${req.client?.last_name}`
-                          : `${req.artist?.first_name} ${req.artist?.last_name}`}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {req.service?.title || "—"}
-                      </div>
-                      <div className="mt-2 flex justify-between text-sm text-gray-500">
-                        <span>{req.status}</span>
-                        <span>{new Date(req.created_at).toLocaleDateString()}</span>
-                      </div>
-                      <Link
-                        href={`/booking-requests/${req.id}`}
-                        className="mt-2 inline-block text-indigo-600 hover:underline text-sm"
-                      >
-                        View Chat
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-                <div className="hidden sm:block mt-4 overflow-x-auto">
-                  <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-                    <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th
-                        scope="col"
-                        className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
-                      >
-                        {user.user_type === "artist" ? "Client" : "Artist"}
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                      >
-                        Service
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                      >
-                        Status
-                      </th>
-                      <th
-                        scope="col"
-                        className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                      >
-                        Created
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {visibleRequests.map((req) => (
-                      <tr key={req.id}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                          <div className="font-medium text-gray-900">
-                            {user.user_type === "artist"
-                              ? `${req.client?.first_name} ${req.client?.last_name}`
-                              : `${req.artist?.first_name} ${req.artist?.last_name}`}
-                          </div>
-                          <Link
-                            href={`/booking-requests/${req.id}`}
-                            className="text-indigo-600 hover:underline text-sm"
-                          >
-                            View Chat
-                          </Link>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {req.service?.title || "—"}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {req.status}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {new Date(req.created_at).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            {bookingRequests.length > 5 && (
-              <div className="mt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => setShowAllRequests((s) => !s)}
-                  className="text-sm text-indigo-600 hover:underline"
-                >
-                  {showAllRequests ? "Collapse" : "Show All"}
-                </button>
-              </div>
+          <div className="mt-4">
+            <DashboardTabs
+              tabs={[
+                { id: 'requests', label: 'Requests' },
+                { id: 'bookings', label: 'Bookings' },
+                { id: 'services', label: 'Services' },
+              ]}
+              active={activeTab}
+              onChange={setActiveTab}
+            />
+          </div>
+          <SectionList
+            title="Recent Activity"
+            data={events}
+            defaultOpen={events.length > 0}
+            emptyState={<span>You have no recent activity yet.</span>}
+            renderItem={(e) => (
+              <div className="text-sm text-gray-700">{e.description}</div>
             )}
-            </>
-            )}
-          </details>
+          />
 
-          {/* Recent Bookings */}
-          <details className="mt-8" open>
-            <summary className="text-lg font-medium text-gray-900 cursor-pointer">
-              Recent Bookings
-            </summary>
-            <div className="sm:hidden mt-4 space-y-4">
-              {visibleBookings.map((booking) => (
+          {activeTab === 'requests' && (
+            <SectionList
+              title="Booking Requests"
+              data={visibleRequests}
+              defaultOpen={bookingRequests.length > 0}
+              emptyState={<span>No bookings yet</span>}
+              renderItem={(req) => (
+                <div key={req.id} className="bg-white p-4 shadow rounded-lg">
+                  <div className="font-medium text-gray-900">
+                    {user.user_type === 'artist'
+                      ? `${req.client?.first_name} ${req.client?.last_name}`
+                      : `${req.artist?.first_name} ${req.artist?.last_name}`}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {req.service?.title || '—'}
+                  </div>
+                  <div className="mt-2 flex justify-between text-sm text-gray-500">
+                    <span>{req.status}</span>
+                    <span>{new Date(req.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <Link
+                    href={`/booking-requests/${req.id}`}
+                    className="mt-2 inline-block text-indigo-600 hover:underline text-sm"
+                  >
+                    View Chat
+                  </Link>
+                </div>
+              )}
+            />
+          )}
+
+          {activeTab === 'bookings' && (
+            <SectionList
+              title="Recent Bookings"
+              data={visibleBookings}
+              defaultOpen={bookings.length > 0}
+              emptyState={<span>No bookings yet</span>}
+              renderItem={(booking) => (
                 <div key={booking.id} className="bg-white p-4 shadow rounded-lg">
                   <div className="font-medium text-gray-900">
                     {booking.client.first_name} {booking.client.last_name}
@@ -611,18 +458,18 @@ export default function DashboardPage() {
                     {booking.service.title}
                   </div>
                   <div className="text-sm text-gray-500">
-                    {format(new Date(booking.start_time), "MMM d, yyyy h:mm a")}
+                    {format(new Date(booking.start_time), 'MMM d, yyyy h:mm a')}
                   </div>
                   <div className="mt-2 flex justify-between items-center">
                     <span
                       className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                        booking.status === "completed"
-                          ? "bg-green-100 text-green-800"
-                          : booking.status === "cancelled"
-                          ? "bg-red-100 text-red-800"
-                          : booking.status === "confirmed"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-yellow-100 text-yellow-800"
+                        booking.status === 'completed'
+                          ? 'bg-green-100 text-green-800'
+                          : booking.status === 'cancelled'
+                          ? 'bg-red-100 text-red-800'
+                          : booking.status === 'confirmed'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-yellow-100 text-yellow-800'
                       }`}
                     >
                       {booking.status}
@@ -632,115 +479,9 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 </div>
-              ))}
-            </div>
-            <div className="hidden sm:block mt-4 overflow-x-auto">
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
-                    >
-                      Client
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Service
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Date
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Status
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Amount
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {visibleBookings.map((booking) => (
-                    <tr key={booking.id}>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 flex-shrink-0">
-                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                              <span className="text-indigo-600 font-medium">
-                                {booking.client.first_name[0]}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="ml-4">
-                            <div className="font-medium text-gray-900">
-                              {booking.client.first_name}{" "}
-                              {booking.client.last_name}
-                            </div>
-                            <div className="text-gray-500">
-                              {booking.client.email}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {booking.service.title}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {format(
-                          new Date(booking.start_time),
-                          "MMM d, yyyy h:mm a"
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm">
-                        <span
-                          className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                            booking.status === "completed"
-                              ? "bg-green-100 text-green-800"
-                              : booking.status === "cancelled"
-                              ? "bg-red-100 text-red-800"
-                              : booking.status === "confirmed"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
-                        >
-                          {booking.status}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        ${booking.total_price.toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          {bookings.length > 5 && (
-            <div className="mt-2 text-center">
-              <button
-                type="button"
-                onClick={() => setShowAllBookings((s) => !s)}
-                className="text-sm text-indigo-600 hover:underline"
-              >
-                {showAllBookings ? "Collapse" : "Show All"}
-              </button>
-            </div>
+              )}
+            />
           )}
-          </details>
-
-          {/* Services (Artist Only) */}
           {user.user_type === "artist" && (
             <div className="mt-8">
               <div className="flex items-center justify-between">
