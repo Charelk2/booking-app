@@ -40,15 +40,20 @@ export default function MobileActionBar({
       ) : (
         <div className="flex-1" />
       )}
-      {showNext ? (
-        <Button onClick={onNext} fullWidth data-testid="mobile-next-button">
-          Next
+      <div className="flex flex-1 space-x-2">
+        <Button
+          variant="secondary"
+          onClick={onSaveDraft}
+          fullWidth
+          data-testid="mobile-save-button"
+        >
+          Save Draft
         </Button>
-      ) : (
-        <div className="flex flex-1 space-x-2">
-          <Button variant="secondary" onClick={onSaveDraft} fullWidth data-testid="mobile-save-button">
-            Save Draft
+        {showNext ? (
+          <Button onClick={onNext} fullWidth data-testid="mobile-next-button">
+            Next
           </Button>
+        ) : (
           <Button
             onClick={onSubmit}
             disabled={submitting}
@@ -58,8 +63,8 @@ export default function MobileActionBar({
           >
             {submitting ? 'Submitting...' : 'Submit'}
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -26,6 +26,7 @@ export default function NotesStep({ control, setValue }: Props) {
   }
   return (
     <div className="space-y-2">
+      <p className="text-sm text-gray-600">Anything else we should know?</p>
       <button
         type="button"
         className="text-sm text-indigo-600 underline"
