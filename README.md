@@ -145,8 +145,10 @@ docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 
 If `setup.sh` fails because dependencies cannot be installed (such as in an
 isolated CI environment), build the Docker image once with network access and
-reuse it for subsequent test runs. The image caches Python packages, Node
-modules, and Playwright browsers so `test-all.sh` can run entirely offline:
+reuse it for subsequent test runs. `setup.sh` now checks for network access and
+aborts with a clear message if packages are missing. A pre-built image caches
+Python packages, Node modules, and Playwright browsers so `test-all.sh` can run
+entirely offline:
 
 ```bash
 docker build -t booking-app:latest .  # build once with connectivity
