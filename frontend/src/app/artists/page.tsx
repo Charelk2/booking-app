@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import MainLayout from '@/components/layout/MainLayout';
 import { ArtistProfile } from '@/types';
 import { getArtists } from '@/lib/api';
@@ -66,9 +67,11 @@ export default function ArtistsPage() {
               <Card key={`artistCard-${artist.id}`} className="overflow-hidden">
                 <div className="aspect-w-16 aspect-h-9 bg-gray-200 flex items-center justify-center">
                   {imageUrl ? (
-                    <img
+                    <Image
                       src={imageUrl}
                       alt={`${artist.user.first_name} ${artist.user.last_name}`}
+                      width={512}
+                      height={270}
                       className="object-cover w-full h-48"
                     />
                   ) : (
