@@ -1,11 +1,14 @@
 'use client';
+// Main wizard component controlling the multi-step booking flow. Comments
+// marked TODO highlight planned mobile UX enhancements like collapsible
+// sections and sticky progress indicators.
 import { useEffect, useState } from 'react';
 import type { Control, FieldValues, UseFormWatch } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
 import { format } from 'date-fns';
 import Button from '../ui/Button';
-import Stepper from '../ui/Stepper';
+import Stepper from '../ui/Stepper'; // progress indicator
 import toast from '../ui/Toast';
 import useIsMobile from '@/hooks/useIsMobile';
 import MobileActionBar from './MobileActionBar';
@@ -245,6 +248,7 @@ export default function BookingWizard({
   return (
     <div className="lg:flex lg:space-x-4">
       <div className="flex-1 space-y-4 pb-32 lg:pb-0">
+        {/* TODO: Make stepper sticky on mobile to clarify progress */}
         <Stepper steps={steps} currentStep={step} />
         <h2 className="text-xl font-semibold" data-testid="step-heading">
           {steps[step]}

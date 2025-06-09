@@ -1,4 +1,6 @@
 'use client';
+// TODO: Make this stepper stick to the top on mobile so progress is always
+// visible.
 import React from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
 
