@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 
+// TODO: Add additional request stubs here when new endpoints are introduced.
+// Keeping tests fully offline ensures they run in restricted Docker networks.
+
 test.describe('Booking Wizard mobile flow', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/v1/artists/1', async (route) => {

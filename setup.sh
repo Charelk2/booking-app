@@ -17,6 +17,14 @@ if [ ! -d "$ROOT_DIR/frontend/node_modules/.bin" ]; then
   popd > /dev/null
 fi
 
+# Build Next.js once so Playwright can run offline
+if [ ! -d "$ROOT_DIR/frontend/.next" ]; then
+  echo "Building frontend..."
+  pushd "$ROOT_DIR/frontend" > /dev/null
+  NEXT_TELEMETRY_DISABLED=1 npm run build --silent
+  popd > /dev/null
+fi
+
 if [ ! -d "$HOME/.cache/ms-playwright" ]; then
   echo "Installing Playwright browsers..."
   npx --prefix "$ROOT_DIR/frontend" playwright install --with-deps >/dev/null

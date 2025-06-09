@@ -12,5 +12,9 @@ export default defineConfig({
     port: 3000,
     timeout: 120 * 1000,
     reuseExistingServer: true,
+    env: {
+      NEXT_TELEMETRY_DISABLED: '1',
+    },
+    // TODO: verify no external calls are made during tests when CI blocks network
   },
 });
