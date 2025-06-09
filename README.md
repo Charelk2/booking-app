@@ -297,6 +297,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Mobile-friendly dashboard cards for bookings and requests with larger service action buttons.
 * Booking request and booking lists collapse after five items with a **Show All** toggle.
 * Improved dashboard stats layout with monthly earnings card.
+* Streamlined mobile dashboard with collapsible overview and sticky tabs.
+  ![Mobile dashboard states](docs/mobile_dashboard_states.svg)
 
 ### Artist Availability
 
