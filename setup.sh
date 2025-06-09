@@ -25,9 +25,10 @@ if [ ! -d "$ROOT_DIR/frontend/.next" ]; then
   popd > /dev/null
 fi
 
-if [ ! -d "$HOME/.cache/ms-playwright" ]; then
+PLAYWRIGHT_SHELL="$(ls -d "$HOME"/.cache/ms-playwright/chromium* 2>/dev/null | head -n 1)/chrome-linux/headless_shell"
+if [ ! -f "$PLAYWRIGHT_SHELL" ]; then
   echo "Installing Playwright browsers..."
-  npx --prefix "$ROOT_DIR/frontend" playwright install --with-deps >/dev/null
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 npx --prefix "$ROOT_DIR/frontend" playwright install --with-deps >/dev/null
 fi
 
 echo "Setup complete."
