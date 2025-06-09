@@ -88,6 +88,8 @@ The frontend automatically attaches an `Authorization` header when a token
 exists in the browser's `localStorage`. The request interceptor now verifies
 `typeof window !== 'undefined'` before accessing `localStorage`, so server-side
 rendering and tests that lack a `window` object no longer fail.
+`useIsMobile` also initializes to `false` and updates on mount so mobile devices
+avoid hydration errors when rendering responsive components.
 
 ---
 
