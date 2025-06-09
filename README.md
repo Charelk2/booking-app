@@ -235,6 +235,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * “Book Now” buttons on service cards.
 * New **Review** step showing cost breakdown and selections.
 * Success toasts when saving a draft or submitting a request.
+* Mobile action bar now adapts to scroll direction, staying above the bottom nav when visible and sliding down when the nav hides.
 
 ### Real-time Chat
 

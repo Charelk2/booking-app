@@ -52,4 +52,28 @@ describe('MobileActionBar', () => {
     expect(container.textContent).toContain('Save Draft');
     expect(container.textContent).toContain('Submit');
   });
+
+  it('moves to bottom when scrolling down', () => {
+    Object.defineProperty(window, 'scrollY', { value: 0, writable: true });
+    act(() => {
+      root.render(
+        React.createElement(MobileActionBar, {
+          showBack: false,
+          onBack: () => {},
+          showNext: true,
+          onNext: () => {},
+          onSaveDraft: () => {},
+          onSubmit: () => {},
+          submitting: false,
+        }),
+      );
+    });
+    const bar = container.querySelector('div');
+    expect(bar?.className).toContain('bottom-14');
+    Object.defineProperty(window, 'scrollY', { value: 100, writable: true });
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+    expect(bar?.className).toContain('bottom-0');
+  });
 });
