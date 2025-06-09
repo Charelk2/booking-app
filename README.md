@@ -122,7 +122,10 @@ This script runs `pytest`, executes Jest using Node, and finally
 `npm run lint`. Running the CLIs directly avoids missing binary errors when
 `node_modules/.bin` links are not created. `setup.sh` skips dependency
 installation when packages are already present so repeated test runs are much
-faster.
+faster. The test script now verifies that `node` and `npm` are available,
+logs their versions, prints the full path and version of the Jest binary, and
+exits with a helpful message if the binary is missing (for example, when
+`npm ci` was interrupted).
 The script drops a marker file `frontend/node_modules/.install_complete` after a
 successful `npm ci` so subsequent runs skip reinstalling dependencies unless
 that file is removed.
