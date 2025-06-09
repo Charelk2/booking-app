@@ -1,4 +1,6 @@
 'use client';
+// TODO: Collapse calendar and time inputs into sections so the step
+// requires minimal scrolling on mobile.
 import { Controller, Control, UseFormWatch, FieldValues } from 'react-hook-form';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';

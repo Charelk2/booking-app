@@ -1,4 +1,6 @@
 'use client';
+// TODO: Replace select with a bottom-sheet style picker to prevent keyboard
+// overlap on mobile devices.
 import { Controller, Control, FieldValues } from 'react-hook-form';
 
 interface Props {
