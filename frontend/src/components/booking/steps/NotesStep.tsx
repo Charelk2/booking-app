@@ -1,4 +1,6 @@
 'use client';
+// TODO: Hide the notes textarea behind a toggle so the step is optional and
+// shorter for most users. Provide a success toast when a file uploads.
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import { uploadBookingAttachment } from '@/lib/api';
 
