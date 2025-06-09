@@ -10,7 +10,6 @@ RUN pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 WORKDIR /app/frontend
 RUN npm ci --silent && npm run build --silent
-RUN npx playwright install --with-deps
 
 # final stage
 FROM python:3.11-slim
