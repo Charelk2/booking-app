@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import isMobileScreen from '@/lib/isMobile';
 
 export default function useIsMobile(): boolean {
-  const [isMobile, setIsMobile] = useState<boolean>(isMobileScreen());
+  // Initialize to false so server and client render the same markup.
+  const [isMobile, setIsMobile] = useState<boolean>(false);
 
   useEffect(() => {
     const check = () => setIsMobile(isMobileScreen());

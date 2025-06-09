@@ -24,19 +24,21 @@ describe('useIsMobile', () => {
     container.remove();
   });
 
-  it('returns true when window width is below 640', () => {
+  it('returns true when window width is below 640', async () => {
     Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
-    act(() => {
+    await act(async () => {
       root.render(React.createElement(Test));
     });
+    await act(async () => {}); // flush useEffect
     expect(result).toBe(true);
   });
 
-  it('returns false when window width is 640 or more', () => {
+  it('returns false when window width is 640 or more', async () => {
     Object.defineProperty(window, 'innerWidth', { value: 800, writable: true });
-    act(() => {
+    await act(async () => {
       root.render(React.createElement(Test));
     });
+    await act(async () => {});
     expect(result).toBe(false);
   });
 });
