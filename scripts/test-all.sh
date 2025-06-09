@@ -10,4 +10,6 @@ node node_modules/jest/bin/jest.js --runInBand --silent
 npm run lint >/dev/null
 cd ..
 # Run Playwright with NODE_PATH so the config can import the package
-NODE_PATH="$(pwd)/frontend/node_modules" npx --prefix frontend playwright test -c playwright.config.ts
+NODE_PATH="$(pwd)/frontend/node_modules" \
+NEXT_TELEMETRY_DISABLED=1 \
+  npx --prefix frontend playwright test -c playwright.config.ts
