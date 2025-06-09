@@ -2,6 +2,13 @@
 Documentation for the automation modules ("agents") that power the booking application.
 For setup instructions see [README.md](README.md).
 
+## Table of Contents
+
+1. [Agents Overview](#agents-overview)
+2. [Details](#details)
+3. [How to Add or Modify an Agent](#how-to-add-or-modify-an-agent)
+4. [Last Updated](#last-updated)
+
 ---
 
 ## Agents Overview
@@ -122,7 +129,7 @@ For setup instructions see [README.md](README.md).
 
 ## Last Updated
 
-2025-06-09
+2025-06-10
 
 ---
 
