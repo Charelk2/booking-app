@@ -1,13 +1,11 @@
 'use client';
 import { Controller, Control, FieldValues } from 'react-hook-form';
-import Button from '../../ui/Button';
 
 interface Props {
   control: Control<FieldValues>;
-  onNext: () => void;
 }
 
-export default function GuestsStep({ control, onNext }: Props) {
+export default function GuestsStep({ control }: Props) {
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium">Number of guests</label>

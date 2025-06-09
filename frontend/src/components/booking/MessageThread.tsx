@@ -9,6 +9,7 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
+import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { Message, MessageCreate, Quote } from '@/types';
 import {
@@ -138,7 +139,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     return () => {
       socket.close();
     };
-  }, [bookingRequestId]);
+  }, [bookingRequestId, fetchMessages, fetchQuotes]);
 
   // Create a preview URL whenever the file changes
   useEffect(() => {
@@ -387,7 +388,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           {previewUrl && (
             <div className="flex items-center gap-2 mb-1">
               {file && file.type.startsWith('image/') ? (
-                <img src={previewUrl} alt="preview" className="w-10 h-10 object-cover rounded" />
+                <Image
+                  src={previewUrl}
+                  alt="preview"
+                  width={40}
+                  height={40}
+                  className="w-10 h-10 object-cover rounded"
+                />
               ) : (
                 <span className="text-sm">{file?.name}</span>
               )}
