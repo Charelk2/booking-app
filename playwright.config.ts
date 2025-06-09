@@ -2,13 +2,16 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './frontend/e2e',
-  use: {
-    browserName: 'chromium',
-    viewport: devices['Pixel 5'].viewport,
-  },
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'firefox',  use: { browserName: 'firefox'  } },
+    { name: 'webkit',   use: { browserName: 'webkit'   } },
+  ],
+  workers: 2,
+  use: { headless: true, video: 'off', screenshot: 'off' },
   webServer: {
-    // Use the dev server so type errors don't stop tests.
-    command: 'npm run dev -- -p 3000',
+    // Use a production build for reliable offline testing.
+    command: 'npm run build && npm run start -- -p 3000',
     cwd: './frontend',
     port: 3000,
     timeout: 60 * 1000,
