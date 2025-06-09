@@ -155,7 +155,11 @@ export default function DashboardPage() {
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   // Future activity feed will populate this array with events
-  const [events] = useState<unknown[]>([]);
+  const [events] = useState<Array<{
+    id: string | number;
+    timestamp: string;
+    description: string;
+  }>>([]);
   const [showAllRequests, setShowAllRequests] = useState(false);
   const [showAllBookings, setShowAllBookings] = useState(false);
 
@@ -397,9 +401,14 @@ export default function DashboardPage() {
                       </div>
                       <span className="text-2xl font-semibold text-gray-900">{servicesCount}</span>
                     </Link>,
-                    servicesCount === 0 && (
-                      <p className="text-xs text-gray-400 mt-2">No services added yet</p>
-                    ),
+                  );
+                  if (servicesCount === 0) {
+                    cards.push(
+                      <p key="services-empty" className="text-xs text-gray-400 mt-2">No services added yet</p>,
+                    );
+                  }
+
+                  cards.push(
                     <Link
                       key="earnings"
                       href="/earnings"
@@ -413,9 +422,14 @@ export default function DashboardPage() {
                         {'$' + totalEarnings.toFixed(2)}
                       </span>
                     </Link>,
-                    totalEarnings === 0 && (
-                      <p className="text-xs text-gray-400 mt-2">No earnings this month</p>
-                    ),
+                  );
+                  if (totalEarnings === 0) {
+                    cards.push(
+                      <p key="earnings-empty" className="text-xs text-gray-400 mt-2">No earnings this month</p>,
+                    );
+                  }
+
+                  cards.push(
                     <Link
                       key="earnings-month"
                       href="/earnings"
@@ -429,10 +443,12 @@ export default function DashboardPage() {
                         {'$' + earningsThisMonth.toFixed(2)}
                       </span>
                     </Link>,
-                    earningsThisMonth === 0 && (
-                      <p className="text-xs text-gray-400 mt-2">No earnings yet</p>
-                    )
                   );
+                  if (earningsThisMonth === 0) {
+                    cards.push(
+                      <p key="earnings-month-empty" className="text-xs text-gray-400 mt-2">No earnings yet</p>,
+                    );
+                  }
                 }
                 return cards.map((card, i) => (
                   <motion.div
