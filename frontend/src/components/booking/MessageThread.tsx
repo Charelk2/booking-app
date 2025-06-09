@@ -1,14 +1,15 @@
 'use client';
 
-import React from 'react';
-import { formatDistanceToNow } from 'date-fns';
-import {
+import React, {
   useEffect,
   useState,
   forwardRef,
   useImperativeHandle,
   useRef,
+  useMemo,
+  useCallback,
 } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import { Message, MessageCreate, Quote } from '@/types';
 import {
   getMessagesForBookingRequest,
@@ -64,7 +65,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       const res = await getMessagesForBookingRequest(bookingRequestId);
       const filtered = res.data.filter(
@@ -82,9 +83,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       setErrorMsg('Failed to load messages');
       setLoading(false);
     }
-  };
+  }, [bookingRequestId]);
 
-  const fetchQuotes = async () => {
+  const fetchQuotes = useCallback(async () => {
     try {
       const res = await getQuotesForBookingRequest(bookingRequestId);
       const map: Record<number, Quote> = {};
@@ -98,7 +99,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       setErrorMsg('Failed to load quotes');
       setLoading(false);
     }
-  };
+  }, [bookingRequestId]);
 
   useImperativeHandle(ref, () => ({
     refreshMessages: async () => {
@@ -123,7 +124,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
 
     socket.onmessage = (event) => {
       const msg: Message = JSON.parse(event.data);
-      setMessages((prev) => [...prev, msg]);
+      // keep only the latest 200 messages to avoid excessive memory usage
+      setMessages((prev) => [...prev.slice(-199), msg]);
       if (msg.message_type === 'quote') {
         fetchQuotes();
       }
@@ -155,58 +157,75 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   }, [messages, isSystemTyping]);
 
   // Show scroll-to-bottom button when not viewing the latest message
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
     const atBottom = scrollHeight - scrollTop - clientHeight < 20;
     setShowScrollButton(!atBottom);
-  };
+  }, []);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() && !file) return;
-    try {
-      let attachment_url: string | undefined;
-      if (file) {
-        const res = await uploadMessageAttachment(bookingRequestId, file);
-        attachment_url = res.data.url;
+  const handleSend = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!newMessage.trim() && !file) return;
+      try {
+        let attachment_url: string | undefined;
+        if (file) {
+          const res = await uploadMessageAttachment(bookingRequestId, file);
+          attachment_url = res.data.url;
+        }
+        const payload: MessageCreate = {
+          content: newMessage.trim(),
+          attachment_url,
+        };
+        await postMessageToBookingRequest(bookingRequestId, payload);
+        setNewMessage('');
+        setFile(null);
+        setPreviewUrl(null);
+        fetchMessages();
+        if (onMessageSent) onMessageSent();
+      } catch (err) {
+        console.error('Failed to send message', err);
+        setErrorMsg('Failed to send message');
       }
-      const payload: MessageCreate = { content: newMessage.trim(), attachment_url };
-      await postMessageToBookingRequest(bookingRequestId, payload);
-      setNewMessage('');
-      setFile(null);
-      setPreviewUrl(null);
-      fetchMessages();
-      if (onMessageSent) onMessageSent();
-    } catch (err) {
-      console.error('Failed to send message', err);
-      setErrorMsg('Failed to send message');
-    }
-  };
+    },
+    [newMessage, file, bookingRequestId, fetchMessages, onMessageSent],
+  );
 
-  const handleSendQuote = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await createQuoteForRequest(bookingRequestId, {
-        booking_request_id: bookingRequestId,
-        quote_details: quoteDetails,
-        price: Number(quotePrice),
-      });
-      setShowQuoteForm(false);
-      setQuoteDetails('');
-      setQuotePrice('');
-      fetchMessages();
-      fetchQuotes();
-      if (onMessageSent) onMessageSent();
-    } catch (err) {
-      console.error('Failed to send quote', err);
-      setErrorMsg('Failed to send quote');
-    }
-  };
+  const handleSendQuote = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      try {
+        await createQuoteForRequest(bookingRequestId, {
+          booking_request_id: bookingRequestId,
+          quote_details: quoteDetails,
+          price: Number(quotePrice),
+        });
+        setShowQuoteForm(false);
+        setQuoteDetails('');
+        setQuotePrice('');
+        fetchMessages();
+        fetchQuotes();
+        if (onMessageSent) onMessageSent();
+      } catch (err) {
+        console.error('Failed to send quote', err);
+        setErrorMsg('Failed to send quote');
+      }
+    },
+    [
+      bookingRequestId,
+      quoteDetails,
+      quotePrice,
+      fetchMessages,
+      fetchQuotes,
+      onMessageSent,
+    ],
+  );
 
   // Filter out very short or empty messages before rendering
-  const visibleMessages = messages.filter(
-    (m) => m.content && m.content.trim().length > 5,
+  const visibleMessages = useMemo(
+    () => messages.filter((m) => m.content && m.content.trim().length > 5),
+    [messages],
   );
 
   return (
@@ -473,4 +492,4 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   );
 });
 
-export default MessageThread;
+export default React.memo(MessageThread);
