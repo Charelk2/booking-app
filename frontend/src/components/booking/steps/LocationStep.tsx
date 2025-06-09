@@ -1,6 +1,10 @@
 'use client';
 import { Controller, Control, FieldValues } from 'react-hook-form';
-import { GoogleMap, Marker, useLoadScript, Autocomplete } from '@react-google-maps/api';
+import dynamic from 'next/dynamic';
+import { useLoadScript } from '@react-google-maps/api';
+const GoogleMap = dynamic(() => import('@react-google-maps/api').then((m) => m.GoogleMap), { ssr: false });
+const Marker = dynamic(() => import('@react-google-maps/api').then((m) => m.Marker), { ssr: false });
+const Autocomplete = dynamic(() => import('@react-google-maps/api').then((m) => m.Autocomplete), { ssr: false });
 import { useRef, useState, useEffect } from 'react';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
 
@@ -16,7 +20,7 @@ export default function LocationStep({
   control,
   artistLocation,
   setWarning,
-}: Props) {
+}: Props): JSX.Element {
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: ['places'],

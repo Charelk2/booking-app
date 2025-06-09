@@ -32,7 +32,7 @@ describe('useKeyboardOffset', () => {
       offsetTop: 0,
       addEventListener: (_: string, cb: () => void) => { handlers.push(cb); },
       removeEventListener: () => {},
-    } as any;
+    } as unknown as VisualViewport;
 
     Object.defineProperty(window, 'innerHeight', { value: 800, writable: true });
     Object.defineProperty(window, 'visualViewport', { value: vv, writable: true });
