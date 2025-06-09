@@ -156,13 +156,6 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  // Future activity feed will populate this array with events
-  // TODO: Display artist analytics like monthly bookings and earnings trends
-  const [events] = useState<Array<{
-    id: string | number;
-    timestamp: string;
-    description: string;
-  }>>([]);
   const [activeTab, setActiveTab] = useState<'requests' | 'bookings' | 'services'>('requests');
 
   // Aggregated totals for dashboard statistics
@@ -402,15 +395,6 @@ export default function DashboardPage() {
               onChange={setActiveTab}
             />
           </div>
-          <SectionList
-            title="Recent Activity"
-            data={events}
-            defaultOpen={events.length > 0}
-            emptyState={<span>You have no recent activity yet.</span>}
-            renderItem={(e) => (
-              <div className="text-sm text-gray-700">{e.description}</div>
-            )}
-          />
 
           {activeTab === 'requests' && (
             <SectionList
@@ -482,40 +466,47 @@ export default function DashboardPage() {
               )}
             />
           )}
-          {user.user_type === "artist" && (
-            <div className="mt-8">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium text-gray-900">
-                  Your Services
-                </h2>
+          {user.user_type === "artist" && activeTab === 'services' && (
+            <details
+              className="mt-8 border border-gray-200 rounded-md bg-white shadow-sm"
+              open={services.length > 0}
+            >
+              <summary className="px-3 py-2 text-sm font-medium text-gray-700 cursor-pointer select-none">
+                Your Services
+              </summary>
+              <div className="px-3 pb-3">
+                {services.length === 0 ? (
+                  <div className="text-sm text-gray-500 py-2">No services yet</div>
+                ) : (
+                  <Reorder.Group
+                    ref={listRef}
+                    axis="y"
+                    values={services}
+                    onReorder={handleReorder}
+                    layoutScroll
+                    className="mt-2 space-y-2"
+                  >
+                    {services.map((service) => (
+                      <ServiceCard
+                        key={service.id}
+                        service={service}
+                        dragConstraints={listRef}
+                        onEdit={(s) => setEditingService(s)}
+                        onDelete={handleDeleteService}
+                        onDragEnd={handleDragEnd}
+                      />
+                    ))}
+                  </Reorder.Group>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsAddServiceModalOpen(true)}
+                  className="mt-4 w-full sm:hidden bg-brand text-white text-base py-3 rounded-lg shadow-md hover:bg-brand-dark"
+                >
+                  Add Service
+                </button>
               </div>
-              <Reorder.Group
-                ref={listRef}
-                axis="y"
-                values={services}
-                onReorder={handleReorder}
-                layoutScroll
-                className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
-              >
-                {services.map((service) => (
-                  <ServiceCard
-                    key={service.id}
-                    service={service}
-                    dragConstraints={listRef}
-                    onEdit={(s) => setEditingService(s)}
-                    onDelete={handleDeleteService}
-                    onDragEnd={handleDragEnd}
-                  />
-                ))}
-              </Reorder.Group>
-              <button
-                type="button"
-                onClick={() => setIsAddServiceModalOpen(true)}
-                className="mt-4 w-full sm:hidden bg-brand text-white text-base py-3 rounded-lg shadow-md hover:bg-brand-dark"
-              >
-                Add Service
-              </button>
-            </div>
+            </details>
           )}
         </div>
       </div>
