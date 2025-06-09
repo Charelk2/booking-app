@@ -1,8 +1,10 @@
 'use client';
-// TODO: Hide the notes textarea behind a toggle so the step is optional and
-// shorter for most users. Provide a success toast when a file uploads.
+// Optional notes are collapsed by default so the step stays short. A toast
+// confirms when an attachment uploads successfully.
 import { Controller, Control, FieldValues } from 'react-hook-form';
+import { useState } from 'react';
 import { uploadBookingAttachment } from '@/lib/api';
+import toast from '../../ui/Toast';
 
 interface Props {
   control: Control<FieldValues>;
@@ -10,6 +12,7 @@ interface Props {
 }
 
 export default function NotesStep({ control, setValue }: Props) {
+  const [showNotes, setShowNotes] = useState(false);
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -18,23 +21,35 @@ export default function NotesStep({ control, setValue }: Props) {
     const res = await uploadBookingAttachment(formData);
     if (res?.data?.url) {
       setValue('attachment_url', res.data.url);
+      toast.success('Attachment uploaded');
     }
   }
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium">Extra notes</label>
-      <Controller
-        name="notes"
-        control={control}
-        render={({ field }) => (
-          <textarea
-            rows={3}
-            className="border p-2 rounded w-full"
-            {...field}
-            autoFocus
+      <button
+        type="button"
+        className="text-sm text-indigo-600 underline"
+        onClick={() => setShowNotes(!showNotes)}
+      >
+        {showNotes ? 'Hide notes' : 'Add notes'}
+      </button>
+      {showNotes && (
+        <>
+          <label className="block text-sm font-medium">Extra notes</label>
+          <Controller
+            name="notes"
+            control={control}
+            render={({ field }) => (
+              <textarea
+                rows={3}
+                className="border p-2 rounded w-full"
+                {...field}
+                autoFocus
+              />
+            )}
           />
-        )}
-      />
+        </>
+      )}
       <Controller
         name="attachment_url"
         control={control}

@@ -255,6 +255,9 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * New **Review** step showing cost breakdown and selections.
 * Success toasts when saving a draft or submitting a request.
 * Mobile action bar now adapts to scroll direction and lifts above the on-screen keyboard when inputs are focused, staying above the bottom nav when visible, sliding down when the nav hides, and respecting safe-area insets via the `.pb-safe` utility.
+* Collapsible sections for date/time and notes keep steps short on phones.
+* Stepper sticks below the header so progress is always visible while scrolling.
+* Venue picker uses a bottom-sheet on small screens to avoid keyboard overlap.
 
 ### Real-time Chat
 
