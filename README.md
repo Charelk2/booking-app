@@ -15,8 +15,7 @@ docker build -t booking-app:latest .
 docker run --rm -p 3000:3000 -p 8000:8000 booking-app:latest
 ```
 
-The container installs all Python and Node dependencies. Playwright browsers are
-downloaded during the image build so tests can run offline. Use a volume mount
+The container installs all Python and Node dependencies. Use a volume mount
 to iterate locally:
 
 ```bash
@@ -119,13 +118,11 @@ npm run lint
 ```bash
 ./scripts/test-all.sh
 ```
-This script runs `pytest`, executes Jest and Playwright using Node, and finally
+This script runs `pytest`, executes Jest using Node, and finally
 `npm run lint`. Running the CLIs directly avoids missing binary errors when
 `node_modules/.bin` links are not created. `setup.sh` skips dependency
 installation when packages are already present so repeated test runs are much
-faster. End-to-end tests in `frontend/e2e` use
-[Playwright](https://playwright.dev/) to launch the Next.js development server
-and walk through the Booking Wizard.
+faster.
 
 You can also run the tests inside the Docker image if you prefer not to install
 anything locally:
@@ -136,11 +133,9 @@ docker run --rm booking-app:latest ./scripts/test-all.sh
 ```
 
 If your CI environment has no external network access, build the image ahead of
-time with connectivity so all dependencies and Playwright browsers are cached.
-The Dockerfile explicitly installs browsers during the build by overriding
-`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD`, so offline containers have everything
-needed. The `setup.sh` script installs browsers only when missing, so repeat runs
-are fast even when network access is blocked. You can then run the tests offline:
+time with connectivity so all dependencies are cached. The `setup.sh` script
+skips downloads when packages are already present, so repeat runs are fast even
+when network access is blocked. You can then run the tests offline:
 
 ```bash
 docker run --rm --network none booking-app:latest ./scripts/test-all.sh
@@ -150,16 +145,16 @@ docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 
 If `setup.sh` fails because dependencies cannot be installed (such as in an
 isolated CI environment), build the Docker image once with network access and
-reuse it for subsequent test runs. The image caches Python packages, Node
-modules, and Playwright browsers so `test-all.sh` can run entirely offline:
+reuse it for subsequent test runs. The image caches Python packages and Node
+modules so `test-all.sh` can run entirely offline:
 
 ```bash
 docker build -t booking-app:latest .  # build once with connectivity
 docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 ```
 When running tests from this pre-built image, `setup.sh` detects the cached
-Python packages, Node modules, and Playwright browsers and therefore skips
-any downloads. This allows repeated test executions without network access.
+Python packages and Node modules and therefore skips any downloads. This
+allows repeated test executions without network access.
 
 ### Build
 
