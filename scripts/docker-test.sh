@@ -4,6 +4,14 @@ IMAGE=${BOOKING_APP_IMAGE:-ghcr.io/example-org/booking-app-ci:latest}
 SCRIPT=${TEST_SCRIPT:-./scripts/test-all.sh}
 NETWORK=${DOCKER_TEST_NETWORK:-none}
 
+# Fallback to local tests when Docker is not installed. This allows CI
+# environments without Docker to still execute the full test suite.
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Docker command not found. Running tests on the host instead." >&2
+  bash "$SCRIPT"
+  exit $?
+fi
+
 echo "Pulling $IMAGE"
 docker pull "$IMAGE"
 
