@@ -26,6 +26,15 @@ describe('Stepper responsive layout', () => {
     expect(container.textContent).toContain('1/2');
   });
 
+  it('is sticky on mobile', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
+    act(() => {
+      root.render(<Stepper steps={["One", "Two"]} currentStep={0} />);
+    });
+    const div = container.querySelector('div');
+    expect(div?.className).toContain('sticky');
+  });
+
   it('renders desktop layout when width >= 640px', () => {
     Object.defineProperty(window, 'innerWidth', { value: 800, writable: true });
     act(() => {
