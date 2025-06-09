@@ -51,7 +51,7 @@ describe('BookingWizard mobile scrolling', () => {
   });
 
   it('scrolls to top when advancing steps', async () => {
-    const nextButton = container.querySelector('button') as HTMLButtonElement;
+    const nextButton = container.querySelector('[data-testid="mobile-next-button"]') as HTMLButtonElement;
     await act(async () => {
       nextButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
@@ -67,7 +67,7 @@ describe('BookingWizard mobile scrolling', () => {
     const heading = () =>
       container.querySelector('[data-testid="step-heading"]')?.textContent;
     expect(heading()).toContain('Date & Time');
-    const next = container.querySelector('button') as HTMLButtonElement;
+    const next = container.querySelector('[data-testid="mobile-next-button"]') as HTMLButtonElement;
     await act(async () => {
       next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
@@ -76,7 +76,7 @@ describe('BookingWizard mobile scrolling', () => {
   });
 
   it('advances to the location step without inline button', async () => {
-    const next = container.querySelector('button') as HTMLButtonElement;
+    const next = container.querySelector('[data-testid="mobile-next-button"]') as HTMLButtonElement;
     await act(async () => {
       next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
