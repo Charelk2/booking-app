@@ -1,6 +1,5 @@
 'use client';
 import { Controller, Control, FieldValues } from 'react-hook-form';
-import useIsMobile from '@/hooks/useIsMobile';
 import Button from '../../ui/Button';
 
 interface Props {
@@ -9,7 +8,6 @@ interface Props {
 }
 
 export default function GuestsStep({ control, onNext }: Props) {
-  const isMobile = useIsMobile();
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium">Number of guests</label>
@@ -26,11 +24,7 @@ export default function GuestsStep({ control, onNext }: Props) {
           />
         )}
       />
-      {isMobile && (
-        <Button data-testid="guests-next-button" onClick={onNext} fullWidth>
-          Next
-        </Button>
-      )}
+      {/* Mobile action buttons are handled by MobileActionBar */}
     </div>
   );
 }
