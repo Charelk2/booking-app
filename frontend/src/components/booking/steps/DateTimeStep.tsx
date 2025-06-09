@@ -4,16 +4,14 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { format } from 'date-fns';
 import { enUS } from 'date-fns/locale';
-import Button from '../../ui/Button';
 
 interface Props {
   control: Control<FieldValues>;
   unavailable: string[];
   watch: UseFormWatch<FieldValues>;
-  onNext: () => void;
 }
 
-export default function DateTimeStep({ control, unavailable, watch, onNext }: Props) {
+export default function DateTimeStep({ control, unavailable, watch }: Props) {
   const tileDisabled = ({ date }: { date: Date }) => {
     const day = format(date, 'yyyy-MM-dd');
     return unavailable.includes(day) || date < new Date();
