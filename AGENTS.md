@@ -114,13 +114,15 @@ For setup instructions see [README.md](README.md).
 * Place new logic in an appropriate backend API/service or frontend component/hook/context.
 * Update this file to keep documentation current for all automation and agent logic.
 * Ensure each new agent is integrated with relevant booking, notification, or chat workflows as needed.
-* Run `./scripts/test-all.sh` before committing changes to ensure backend and frontend tests pass.
+* Run `./scripts/test-all.sh` before committing changes to ensure backend and
+  frontend tests pass. The script now calls Jest and Playwright via Node so it
+  works even when `node_modules/.bin` is missing.
 
 ---
 
 ## Last Updated
 
-2025-06-08
+2025-06-09
 
 ---
 
