@@ -119,7 +119,8 @@ For setup instructions see [README.md](README.md).
   `node_modules/.bin` is missing.
 * If network access is limited, use the pre-built Docker image by running
   `./scripts/docker-test.sh`. Set `BOOKING_APP_IMAGE` to override the default
-  registry path.
+  registry path. The script runs the container with `--network none` by default;
+  export `DOCKER_TEST_NETWORK=bridge` if tests require connectivity.
 
 ---
 
