@@ -1,4 +1,6 @@
 'use client';
+// TODO: Implement a sticky summary header with collapsible line items and
+// show success/failure toasts after submission.
 import { useBooking } from '@/contexts/BookingContext';
 import { format } from 'date-fns';
 

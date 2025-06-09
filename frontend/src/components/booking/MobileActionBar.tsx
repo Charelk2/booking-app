@@ -1,4 +1,6 @@
 import React from 'react';
+// Action bar anchored to the bottom of the screen. Keeping primary actions
+// within thumb reach supports one-handed usage on small devices.
 import Button from '../ui/Button';
 import useScrollDirection from '@/hooks/useScrollDirection';
 import useKeyboardOffset from '@/hooks/useKeyboardOffset';
