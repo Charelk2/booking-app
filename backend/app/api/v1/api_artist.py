@@ -6,6 +6,7 @@ from datetime import datetime
 import re, shutil
 from pathlib import Path
 from typing import List, Optional
+import logging
 
 from app.utils.redis_cache import get_cached_artist_list, cache_artist_list
 
@@ -20,6 +21,8 @@ from app.schemas.artist import (
     ArtistAvailabilityResponse,
 )
 from app.api.auth import get_current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -141,7 +144,7 @@ async def upload_artist_profile_picture_me(
                 try:
                     old_file.unlink()
                 except OSError as e:
-                    print(f"Error deleting old profile picture {old_file}: {e}")
+                    logger.warning("Error deleting old profile picture %s: %s", old_file, e)
 
         artist_profile.profile_picture_url = f"/static/profile_pics/{unique_filename}"
         db.add(artist_profile)
@@ -155,7 +158,7 @@ async def upload_artist_profile_picture_me(
             try:
                 file_path.unlink()
             except OSError as cleanup_err:
-                print(f"Error cleaning up profile picture {file_path}: {cleanup_err}")
+                logger.warning("Error cleaning up profile picture %s: %s", file_path, cleanup_err)
         raise HTTPException(status_code=500, detail=f"Could not upload profile picture: {e}")
 
     finally:
@@ -208,7 +211,7 @@ async def upload_artist_cover_photo_me(
                 try:
                     old_file.unlink()
                 except OSError as e:
-                    print(f"Error deleting old cover photo {old_file}: {e}")
+                    logger.warning("Error deleting old cover photo %s: %s", old_file, e)
 
         artist_profile.cover_photo_url = f"/static/cover_photos/{unique_filename}"
         db.add(artist_profile)
@@ -222,7 +225,7 @@ async def upload_artist_cover_photo_me(
             try:
                 file_path.unlink()
             except OSError as cleanup_err:
-                print(f"Error cleaning up cover photo {file_path}: {cleanup_err}")
+                logger.warning("Error cleaning up cover photo %s: %s", file_path, cleanup_err)
         raise HTTPException(status_code=500, detail=f"Could not upload cover photo: {e}")
 
     finally:
