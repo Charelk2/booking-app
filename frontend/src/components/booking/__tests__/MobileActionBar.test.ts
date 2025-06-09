@@ -33,6 +33,7 @@ describe('MobileActionBar', () => {
       );
     });
     expect(container.textContent).toContain('Next');
+    expect(container.textContent).toContain('Save Draft');
   });
 
   it('shows submit actions when showNext is false', () => {

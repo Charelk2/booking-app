@@ -22,6 +22,7 @@ export default function DateTimeStep({ control, unavailable, watch }: Props) {
     format(date, 'MMMM d, yyyy', { locale: enUS });
   return (
     <div className="space-y-4">
+      <p className="text-sm text-gray-600">When should we perform?</p>
       <details open className="space-y-2">
         <summary className="cursor-pointer font-medium">Select date</summary>
         <Controller
