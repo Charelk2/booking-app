@@ -31,9 +31,13 @@ const api = axios.create({
 // Automatically attach the bearer token (if present) to every request
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else if (config.headers && 'Authorization' in config.headers) {
+        delete config.headers.Authorization;
+      }
     }
     return config;
   },
