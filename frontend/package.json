@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "pretest": "npm install",
+    "pretest": "test -d node_modules || npm install",
     "test": "jest",
     "test:e2e": "playwright test"
   },
