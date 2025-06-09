@@ -123,6 +123,9 @@ This script runs `pytest`, executes Jest using Node, and finally
 `node_modules/.bin` links are not created. `setup.sh` skips dependency
 installation when packages are already present so repeated test runs are much
 faster.
+The script drops a marker file `frontend/node_modules/.install_complete` after a
+successful `npm ci` so subsequent runs skip reinstalling dependencies unless
+that file is removed.
 
 You can also run the tests inside the Docker image if you prefer not to install
 anything locally:
