@@ -304,6 +304,16 @@ POST /api/v1/booking-requests/
 422 responses indicate schema mismatches—ensure numeric fields are numbers and datetimes are valid ISO-8601 strings. Omit empty strings entirely.
 Validation errors are now logged server-side and returned as structured JSON so you can quickly debug bad requests.
 
+### Quote Confirmation
+
+```
+POST /api/v1/quotes/{quote_id}/confirm-booking
+```
+
+Confirms a client-accepted quote and creates a formal booking. Validation
+errors such as invalid quote status or missing `service_id` now return
+descriptive 422 responses so clients can correct issues.
+
 ### Reviews
 
 ```
