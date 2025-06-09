@@ -80,6 +80,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         )
 
 
+# TODO: Add rate limiting and lockout after repeated failures
 @router.post("/login")
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
