@@ -15,7 +15,9 @@ docker build -t booking-app:latest .
 docker run --rm -p 3000:3000 -p 8000:8000 booking-app:latest
 ```
 
-The container installs all Python and Node dependencies, including Playwright browsers. Use a volume mount to iterate locally:
+The container installs all Python and Node dependencies. Playwright browsers are
+downloaded during the image build so tests can run offline. Use a volume mount
+to iterate locally:
 
 ```bash
 docker run --rm -v "$(pwd)":/app -p 3000:3000 -p 8000:8000 booking-app:latest
@@ -130,7 +132,9 @@ docker run --rm booking-app:latest ./scripts/test-all.sh
 
 If your CI environment has no external network access, build the image ahead of
 time with connectivity so all dependencies and Playwright browsers are cached.
-You can then run the tests offline:
+The Dockerfile explicitly installs browsers during the build by overriding
+`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD`, so offline containers have everything
+needed. You can then run the tests offline:
 
 ```bash
 docker run --rm --network none booking-app:latest ./scripts/test-all.sh
