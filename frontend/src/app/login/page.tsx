@@ -1,4 +1,7 @@
+
 'use client';
+
+// TODO: Add multi-factor auth and "remember me" option for persistent sessions
 
 // Login form uses shared auth components and offers optional social login
 
