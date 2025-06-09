@@ -141,6 +141,18 @@ are fast even when network access is blocked. You can then run the tests offline
 docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 ```
 
+### Offline Testing with Docker
+
+If `setup.sh` fails because dependencies cannot be installed (such as in an
+isolated CI environment), build the Docker image once with network access and
+reuse it for subsequent test runs. The image caches Python packages, Node
+modules, and Playwright browsers so `test-all.sh` can run entirely offline:
+
+```bash
+docker build -t booking-app:latest .  # build once with connectivity
+docker run --rm --network none booking-app:latest ./scripts/test-all.sh
+```
+
 ### Build
 
 ```bash
