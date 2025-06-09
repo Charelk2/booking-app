@@ -134,7 +134,8 @@ If your CI environment has no external network access, build the image ahead of
 time with connectivity so all dependencies and Playwright browsers are cached.
 The Dockerfile explicitly installs browsers during the build by overriding
 `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD`, so offline containers have everything
-needed. You can then run the tests offline:
+needed. The `setup.sh` script installs browsers only when missing, so repeat runs
+are fast even when network access is blocked. You can then run the tests offline:
 
 ```bash
 docker run --rm --network none booking-app:latest ./scripts/test-all.sh
