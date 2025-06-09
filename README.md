@@ -163,6 +163,18 @@ cd frontend
 npm run build
 ```
 
+## Docker CI
+
+```bash
+# Build once (with network)
+docker build -t booking-app:ci .
+
+# Run all tests offline (unit & e2e, Chrome/Firefox/WebKit)
+docker run --rm --network none booking-app:ci
+```
+
+Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
+
 ---
 
 ## New Features

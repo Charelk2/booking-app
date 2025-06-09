@@ -1,36 +1,21 @@
-FROM python:3.11-slim
-
-# Install Node.js 20
-RUN apt-get update && apt-get install -y curl gnupg && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Disable Next.js telemetry and Playwright downloads for offline CI
-ENV NEXT_TELEMETRY_DISABLED=1 \
-    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-
+# builder stage
+FROM python:3.11-slim AS builder
 WORKDIR /app
-
-# Copy package manifests separately for caching
-COPY backend/requirements.txt requirements-dev.txt ./
+RUN apt-get update && apt-get install -y curl gnupg ca-certificates \
+    libnss3 libatk1.0-0 libcups2 libdrm2 libgbm1 libgtk-3-0 libasound2 \
+    libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libxkbcommon0 \
+    libxshmfence1 libdbus-1-3 libxss1 libxtst6 && rm -rf /var/lib/apt/lists/*
+COPY backend/requirements*.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
 COPY frontend/package.json frontend/package-lock.json ./frontend/
+WORKDIR /app/frontend
+RUN npm ci --silent && npm run build --silent
+RUN npx playwright install --with-deps
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir -r requirements-dev.txt
-
-# Install Node dependencies
-RUN cd frontend && npm ci --no-progress && npm cache clean --force
-
-# Copy source code
-COPY . .
-
-# Install Playwright browsers once at build time. PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD
-# is normally set to skip downloads in CI, so override it here. The setup script
-# will reuse this cache if browsers are already present.
-RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 npx playwright install --with-deps
-
-EXPOSE 8000 3000
-
-CMD ["bash"]
+# final stage
+FROM python:3.11-slim
+WORKDIR /app
+COPY --from=builder /app /app
+COPY setup.sh scripts/test-all.sh ./
+RUN chmod +x setup.sh scripts/test-all.sh
+ENTRYPOINT ["bash","-lc","./setup.sh && ./scripts/test-all.sh"]
