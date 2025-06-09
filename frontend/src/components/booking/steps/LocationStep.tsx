@@ -1,4 +1,6 @@
 'use client';
+// TODO: Hide the map preview until a location is chosen and add a tooltip
+// explaining distance warnings. This keeps the step short on mobile.
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import dynamic from 'next/dynamic';
 import { useLoadScript } from '@react-google-maps/api';
