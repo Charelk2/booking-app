@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
-set -euxo pipefail
-echo "--- STARTING setup.sh ---"
+set -euo pipefail
 
-# Determine the repository root so the script works from any directory.
+# Determine repo root
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-echo "Installing backend Python dependencies..."
-if ! python -c "import fastapi" >/dev/null 2>&1; then
-  pip install -r "$ROOT_DIR/backend/requirements.txt"
-  pip install -r "$ROOT_DIR/requirements-dev.txt"
+echo "Setting up Python virtual environment…"
+VENV_DIR="$ROOT_DIR/backend/venv"
+if [ ! -d "$VENV_DIR" ]; then
+  python3 -m venv "$VENV_DIR"
 fi
+# Activate venv
+# shellcheck source=/dev/null
+source "$VENV_DIR/bin/activate"
 
-echo "Node version: $(node --version), npm version: $(npm --version)"
-echo "Installing frontend Node dependencies..."
-if [ ! -f "$ROOT_DIR/frontend/node_modules/.install_complete" ]; then
-  pushd "$ROOT_DIR/frontend" > /dev/null
-  rm -rf node_modules
-  npm ci --no-progress
-  touch node_modules/.install_complete
-  popd > /dev/null
-fi
+echo "Installing backend Python dependencies…"
+pip install -r "$ROOT_DIR/backend/requirements.txt"
+pip install -r "$ROOT_DIR/requirements-dev.txt"
 
-
+echo "Installing frontend Node dependencies…"
+pushd "$ROOT_DIR/frontend" > /dev/null
+npm config set install-links true
+npm ci --no-progress
+popd > /dev/null
 
 echo "Setup complete."
