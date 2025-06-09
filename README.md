@@ -295,6 +295,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * **Add Service** button now opens a modal to create a new service. It appears after your services list on mobile and below stats on larger screens.
 * "Total Services" card now links to `/services?artist=<your_id>` so you only see your listings.
 * Mobile-friendly dashboard cards for bookings and requests with larger service action buttons.
+* "Your Services" now appears in a collapsible section just like booking requests, keeping the dashboard tidy.
+* Removed the unused "Recent Activity" block.
 * Booking request and booking lists collapse after five items with a **Show All** toggle.
 * Improved dashboard stats layout with monthly earnings card.
 * Streamlined mobile dashboard with collapsible overview and sticky tabs.

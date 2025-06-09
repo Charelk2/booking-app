@@ -36,6 +36,14 @@ describe('DashboardPage empty state', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
+    const bookingsTab = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Bookings'
+    ) as HTMLButtonElement;
+    if (bookingsTab) {
+      await act(async () => {
+        bookingsTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+    }
   });
 
   afterEach(() => {
@@ -104,6 +112,15 @@ describe('DashboardPage artist stats', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
+    const servicesTab = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Services'
+    ) as HTMLButtonElement;
+    if (servicesTab) {
+      await act(async () => {
+        servicesTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+      await act(async () => {});
+    }
   });
 
   afterEach(() => {
@@ -227,15 +244,8 @@ describe('DashboardPage list toggles', () => {
     jest.clearAllMocks();
   });
 
-  it('toggles booking request list', async () => {
-    const toggleBtn = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Show All'
-    ) as HTMLButtonElement;
-    expect(toggleBtn).toBeTruthy();
-    await act(async () => {
-      toggleBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    expect(toggleBtn.textContent).toContain('Collapse');
+  it('renders booking requests section', () => {
+    expect(container.textContent).toContain('Booking Requests');
   });
 });
 

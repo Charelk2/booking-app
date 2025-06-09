@@ -45,6 +45,14 @@ describe('Service deletion confirmation', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
+    const tabBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Services'
+    ) as HTMLButtonElement;
+    if (tabBtn) {
+      await act(async () => {
+        tabBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+    }
   });
 
   afterEach(() => {
