@@ -3,7 +3,6 @@ import { Controller, Control, FieldValues } from 'react-hook-form';
 import { GoogleMap, Marker, useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { useRef, useState, useEffect } from 'react';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
-import useIsMobile from '@/hooks/useIsMobile';
 import Button from '../../ui/Button';
 
 interface Props {
@@ -28,7 +27,6 @@ export default function LocationStep({
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [marker, setMarker] = useState<LatLng | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     (async () => {
@@ -96,11 +94,7 @@ export default function LocationStep({
         Use my location
       </button>
       {geoError && <p className="text-red-600 text-sm">{geoError}</p>}
-      {isMobile && (
-        <Button data-testid="location-next-button" onClick={onNext} fullWidth>
-          Confirm Location
-        </Button>
-      )}
+      {/* Mobile action buttons are handled by MobileActionBar */}
     </div>
   );
 }
