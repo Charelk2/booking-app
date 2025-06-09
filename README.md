@@ -97,7 +97,10 @@ npm run lint
 ./scripts/test-all.sh
 ```
 
-This runs `pytest`, `npm test`, and `npm run lint`. You can also run each step manually.
+This runs `pytest`, `npm test`, `npm run test:e2e`, and `npm run lint`. You can also run each step manually.
+
+End-to-end tests live in `frontend/e2e` and are powered by [Playwright](https://playwright.dev/). They launch the Next.js development server in a mobile viewport and walk through the Booking Wizard.
+
 Make sure you've run `./setup.sh` at least once beforehand so all Node and Python
 packages are installed; otherwise the tests may fail with `next not found` or
 similar dependency errors.
