@@ -5,6 +5,22 @@ This repository contains a FastAPI backend and a Next.js frontend.
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
+
+## Docker Setup
+
+Build the image and run the development servers inside a container:
+
+```bash
+docker build -t booking-app:latest .
+docker run --rm -p 3000:3000 -p 8000:8000 booking-app:latest
+```
+
+The container installs all Python and Node dependencies, including Playwright browsers. Use a volume mount to iterate locally:
+
+```bash
+docker run --rm -v "$(pwd)":/app -p 3000:3000 -p 8000:8000 booking-app:latest
+```
+
 ## Backend
 
 Run the API from the `backend` directory so Python can find the `app` package:
