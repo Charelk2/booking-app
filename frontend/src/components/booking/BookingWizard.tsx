@@ -248,7 +248,6 @@ export default function BookingWizard({
   return (
     <div className="lg:flex lg:space-x-4">
       <div className="flex-1 space-y-4 pb-32 lg:pb-0">
-        {/* TODO: Make stepper sticky on mobile to clarify progress */}
         <Stepper steps={steps} currentStep={step} />
         <h2 className="text-xl font-semibold" data-testid="step-heading">
           {steps[step]}
