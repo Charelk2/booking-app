@@ -1,4 +1,5 @@
 'use client';
+// TODO: Increase touch target size and show helper text about max capacity.
 import { Controller, Control, FieldValues } from 'react-hook-form';
 
 interface Props {
