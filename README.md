@@ -81,6 +81,7 @@ By default it calls `http://localhost:8000`. To point elsewhere, create `fronten
 ```env
 NEXT_PUBLIC_API_URL=http://192.168.3.203:8000
 NEXT_PUBLIC_WS_URL=ws://192.168.3.203:8000
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDm-BKmMtzMSMd-XUdfapjEUU6O5mYy2bk
 ```
 
 The frontend automatically attaches an `Authorization` header when a token
