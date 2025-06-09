@@ -1,5 +1,6 @@
-#!/bin/bash
-set -euo pipefail
+#!/usr/bin/env bash
+set -euxo pipefail
+echo "--- STARTING setup.sh ---"
 
 # Determine the repository root so the script works from any directory.
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
