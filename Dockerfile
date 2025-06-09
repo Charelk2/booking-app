@@ -26,8 +26,9 @@ RUN cd frontend && npm ci --no-progress && npm cache clean --force
 # Copy source code
 COPY . .
 
-# Install Playwright browsers
-RUN npx playwright install --with-deps
+# Install Playwright browsers once at build time. PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD
+# is normally set to skip downloads in CI, so override it here.
+RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 npx playwright install --with-deps
 
 EXPOSE 8000 3000
 
