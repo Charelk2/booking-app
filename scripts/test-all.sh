@@ -54,7 +54,9 @@ fi
 JEST_PATH=$(realpath "$JEST")
 echo "Using Jest at $JEST_PATH"
 node "$JEST_PATH" --version
-node "$JEST_PATH" --maxWorkers=50%
+JEST_WORKERS=${JEST_WORKERS:-50%}
+echo "Running frontend tests with --maxWorkers=$JEST_WORKERS"
+node "$JEST_PATH" --maxWorkers="$JEST_WORKERS"
 npm run lint >/dev/null
 popd >/dev/null
 fi
