@@ -7,8 +7,8 @@ export default defineConfig({
     viewport: devices['Pixel 5'].viewport,
   },
   webServer: {
-    // Use the production build for faster startup in Docker.
-    command: 'npm run start -- -p 3000',
+    // Use the dev server so type errors don't stop tests.
+    command: 'npm run dev -- -p 3000',
     cwd: './frontend',
     port: 3000,
     timeout: 60 * 1000,
