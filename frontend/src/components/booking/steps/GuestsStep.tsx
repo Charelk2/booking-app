@@ -10,6 +10,7 @@ export default function GuestsStep({ control }: Props) {
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium">Number of guests</label>
+      <p className="text-sm text-gray-600">How many people?</p>
       <Controller
         name="guests"
         control={control}

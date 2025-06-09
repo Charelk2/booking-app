@@ -33,8 +33,8 @@ import SummarySidebar from './SummarySidebar';
 const steps = [
   'Date & Time',
   'Location',
-  'Attendees',
   'Venue Type',
+  'Attendees',
   'Notes',
   'Review',
 ];
@@ -121,10 +121,10 @@ export default function BookingWizard({
         fields = ['location'];
         break;
       case 2:
-        fields = ['guests'];
+        fields = ['venueType'];
         break;
       case 3:
-        fields = ['venueType'];
+        fields = ['guests'];
         break;
       default:
         fields = [];
@@ -223,9 +223,9 @@ export default function BookingWizard({
           />
         );
       case 2:
-        return <GuestsStep control={control as unknown as Control<FieldValues>} onNext={next} />;
-      case 3:
         return <VenueStep control={control as unknown as Control<FieldValues>} onNext={next} />;
+      case 3:
+        return <GuestsStep control={control as unknown as Control<FieldValues>} onNext={next} />;
       case 4:
         return (
           <NotesStep
@@ -265,15 +265,15 @@ export default function BookingWizard({
                 Back
               </Button>
             )}
-            {step < steps.length - 1 ? (
-              <Button type="button" onClick={next} className="ml-auto">
-                Next
+            <div className="flex space-x-2 ml-auto">
+              <Button variant="secondary" type="button" onClick={saveDraft}>
+                Save Draft
               </Button>
-            ) : (
-              <div className="flex space-x-2 ml-auto">
-                <Button variant="secondary" type="button" onClick={saveDraft}>
-                  Save Draft
+              {step < steps.length - 1 ? (
+                <Button type="button" onClick={next}>
+                  Next
                 </Button>
+              ) : (
                 <Button
                   type="button"
                   onClick={submitRequest}
@@ -282,8 +282,8 @@ export default function BookingWizard({
                 >
                   {submitting ? 'Submitting...' : 'Submit Request'}
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -20,6 +20,7 @@ export default function VenueStep({ control }: Props) {
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium">Venue type</label>
+      <p className="text-sm text-gray-600">What kind of space?</p>
       <Controller
         name="venueType"
         control={control}
