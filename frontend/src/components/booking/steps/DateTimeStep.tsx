@@ -4,7 +4,6 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { format } from 'date-fns';
 import { enUS } from 'date-fns/locale';
-import useIsMobile from '@/hooks/useIsMobile';
 import Button from '../../ui/Button';
 
 interface Props {
@@ -15,7 +14,6 @@ interface Props {
 }
 
 export default function DateTimeStep({ control, unavailable, watch, onNext }: Props) {
-  const isMobile = useIsMobile();
   const tileDisabled = ({ date }: { date: Date }) => {
     const day = format(date, 'yyyy-MM-dd');
     return unavailable.includes(day) || date < new Date();
@@ -46,13 +44,7 @@ export default function DateTimeStep({ control, unavailable, watch, onNext }: Pr
           )}
         />
       )}
-      {isMobile && (
-        <div>
-          <Button data-testid="date-next-button" onClick={onNext} fullWidth>
-            Next
-          </Button>
-        </div>
-      )}
+      {/* Mobile action buttons are handled by MobileActionBar */}
     </div>
   );
 }
