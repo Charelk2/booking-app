@@ -6,4 +6,5 @@ cd "$DIR"
 pytest -q
 cd frontend
 npm test
+npm run test:e2e
 npm run lint >/dev/null
