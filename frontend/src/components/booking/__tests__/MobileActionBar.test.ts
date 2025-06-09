@@ -76,4 +76,22 @@ describe('MobileActionBar', () => {
     });
     expect(bar?.className).toContain('bottom-0');
   });
+
+  it('applies pb-safe padding', () => {
+    act(() => {
+      root.render(
+        React.createElement(MobileActionBar, {
+          showBack: false,
+          onBack: () => {},
+          showNext: true,
+          onNext: () => {},
+          onSaveDraft: () => {},
+          onSubmit: () => {},
+          submitting: false,
+        }),
+      );
+    });
+    const bar = container.querySelector('div');
+    expect(bar?.className).toContain('pb-safe');
+  });
 });
