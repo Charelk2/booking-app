@@ -47,6 +47,7 @@ export default function LocationStep({
   if (!isLoaded) return <p>Loading map...</p>;
   return (
     <div className="space-y-2">
+      <p className="text-sm text-gray-600">Where is the show?</p>
       <Autocomplete
         onLoad={(a) => (autocompleteRef.current = a)}
         onPlaceChanged={async () => {
