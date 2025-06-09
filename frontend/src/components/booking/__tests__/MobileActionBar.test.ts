@@ -105,7 +105,7 @@ describe('MobileActionBar', () => {
         resizeHandlers[event].push(cb);
       },
       removeEventListener: () => {},
-    } as any;
+    } as unknown as VisualViewport;
     Object.defineProperty(window, 'innerHeight', { value: 800, writable: true });
     Object.defineProperty(window, 'visualViewport', { value: vv, writable: true });
 

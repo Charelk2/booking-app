@@ -17,14 +17,18 @@ import {
 } from '@/lib/api';
 import { getFullImageUrl, extractErrorMessage } from '@/lib/utils';
 
+import dynamic from 'next/dynamic';
 import {
-  ReactCrop,
   centerCrop,
   makeAspectCrop,
-  Crop,
-  PixelCrop,
+  type Crop,
+  type PixelCrop,
 } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
+
+const ReactCrop = dynamic(() => import('react-image-crop').then((m) => m.ReactCrop), {
+  ssr: false,
+});
 
 
 // Helper function to generate a centered aspect‐ratio crop
@@ -102,7 +106,7 @@ async function getCroppedImg(
   });
 }
 
-export default function EditArtistProfilePage() {
+export default function EditArtistProfilePage(): JSX.Element {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
