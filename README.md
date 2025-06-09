@@ -365,6 +365,11 @@ Payment processing now emits structured logs instead of printing to stdout so tr
 * **Missing package.json**: Ensure you’re in `frontend/` before running `npm test` or `npm run lint`.
 * **next: not found / ENOTEMPTY**: Reinstall in `frontend/` with `npm install` or `./setup.sh`.
 * **Module not found: Can't resolve 'framer-motion'**: Run `npm install` in `frontend/` to pull the latest dependencies.
+* **npm ci fails with `ECONNRESET`**: Check your proxy configuration. Run
+  `npm config set proxy http://proxy:8080` and
+  `npm config set https-proxy http://proxy:8080` if your environment requires a
+  proxy. Without these settings you may see `ENETUNREACH` or other network
+  errors when running `setup.sh` or `npm ci`.
 
 ---
 
