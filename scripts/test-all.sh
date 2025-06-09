@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euxo pipefail
 echo "--- STARTING test-all.sh ---"
+echo "Using Node $(node --version) and npm $(npm --version)"
 DIR=$(dirname "$0")/..
 cd "$DIR"
 ./setup.sh
