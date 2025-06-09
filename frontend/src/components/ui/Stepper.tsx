@@ -1,6 +1,7 @@
 'use client';
-// TODO: Make this stepper stick to the top on mobile so progress is always
-// visible.
+// Keep progress visible on small screens by sticking the stepper below the
+// header. This helps users understand where they are in the flow while
+// scrolling.
 import React from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
 
@@ -15,7 +16,7 @@ export default function Stepper({ steps, currentStep }: StepperProps) {
 
   if (isMobile) {
     return (
-      <div className="space-y-1">
+      <div className="space-y-1 sticky top-16 z-30 bg-white py-2">
         <div className="flex justify-between text-sm">
           <span>{steps[currentStep]}</span>
           <span>

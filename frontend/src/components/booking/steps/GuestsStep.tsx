@@ -1,5 +1,5 @@
 'use client';
-// TODO: Increase touch target size and show helper text about max capacity.
+// Larger touch targets and contextual help improve usability on mobile.
 import { Controller, Control, FieldValues } from 'react-hook-form';
 
 interface Props {
@@ -17,12 +17,13 @@ export default function GuestsStep({ control }: Props) {
           <input
             type="number"
             min={1}
-            className="border p-2 rounded w-full"
+            className="border p-3 rounded w-full text-lg"
             {...field}
             autoFocus
           />
         )}
       />
+      <p className="text-xs text-gray-600">Max capacity is 200 guests.</p>
       {/* Mobile action buttons are handled by MobileActionBar */}
     </div>
   );
