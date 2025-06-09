@@ -18,8 +18,8 @@ export default function NotesStep({ control, setValue, onNext }: Props) {
     const formData = new FormData();
     formData.append('file', file);
     const res = await uploadBookingAttachment(formData);
-    if (res?.url) {
-      setValue('attachment_url', res.url);
+    if (res?.data?.url) {
+      setValue('attachment_url', res.data.url);
     }
   }
   return (
