@@ -117,6 +117,9 @@ For setup instructions see [README.md](README.md).
 * Run `./scripts/test-all.sh` before committing changes to ensure backend and
   frontend tests pass. The script calls Jest via Node so it works even when
   `node_modules/.bin` is missing.
+* If network access is limited, use the pre-built Docker image by running
+  `./scripts/docker-test.sh`. Set `BOOKING_APP_IMAGE` to override the default
+  registry path.
 
 ---
 
