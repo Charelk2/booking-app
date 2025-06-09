@@ -132,6 +132,13 @@ that file is removed. It also detects which files changed in Git and only runs
 the backend or frontend tests when necessary; documentation-only changes cause
 the script to exit immediately without running any tests.
 
+You can override the number of parallel Jest workers by setting the
+`JEST_WORKERS` environment variable:
+
+```bash
+JEST_WORKERS=75% ./scripts/test-all.sh
+```
+
 You can also run the tests inside the Docker image if you prefer not to install
 anything locally:
 
