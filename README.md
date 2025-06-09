@@ -16,6 +16,12 @@ docker pull ghcr.io/example-org/booking-app-ci:latest # optional pre-built image
 docker run --rm -p 3000:3000 -p 8000:8000 ghcr.io/example-org/booking-app-ci:latest
 ```
 
+To develop using the pre-built image without reinstalling dependencies, mount the repository and expose the ports:
+
+```bash
+docker run --rm -v "$(pwd)":/app -p 3000:3000 -p 8000:8000 ghcr.io/example-org/booking-app-ci:latest
+```
+
 If you prefer to build locally instead, run:
 
 ```bash
@@ -191,7 +197,8 @@ test script in one step:
 ./scripts/docker-test.sh
 ```
 Set the `BOOKING_APP_IMAGE` environment variable if you want to use a different
-tag or registry location.
+tag or registry location. Pass `DOCKER_TEST_NETWORK=bridge` if network access is
+needed during the test run.
 
 ### Build
 
