@@ -7,6 +7,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import MobileSaveBar from '@/components/dashboard/MobileSaveBar';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArtistProfile } from '@/types';
+// TODO: allow multiple portfolio images with drag-and-drop reordering
 import {
   getArtistProfileMe,
   updateMyArtistProfile,
