@@ -126,8 +126,9 @@ describe('MobileActionBar', () => {
     expect(bar.style.transform).toBe('');
 
     vv.height = 500;
-    resizeHandlers.resize.forEach((cb) => cb());
-    act(() => {}); // flush useEffect
+    act(() => {
+      resizeHandlers.resize.forEach((cb) => cb());
+    });
 
     expect(bar.style.transform).toBe('translateY(-300px)');
   });
