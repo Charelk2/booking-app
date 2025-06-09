@@ -2,7 +2,12 @@ import api from '../api';
 import type { AxiosRequestConfig } from 'axios';
 
 describe('request interceptor', () => {
-  const handler = (api as any).interceptors.request.handlers[0].fulfilled;
+  const typedApi = api as unknown as {
+    interceptors: {
+      request: { handlers: { fulfilled: (c: AxiosRequestConfig) => AxiosRequestConfig }[] };
+    };
+  };
+  const handler = typedApi.interceptors.request.handlers[0].fulfilled;
 
   beforeEach(() => {
     localStorage.clear();
@@ -22,7 +27,7 @@ describe('request interceptor', () => {
   });
 
   it('returns config when window is undefined', () => {
-    const g = global as any;
+    const g = global as unknown as { window?: unknown };
     const win = g.window;
     delete g.window;
     const config: AxiosRequestConfig = { headers: {} };

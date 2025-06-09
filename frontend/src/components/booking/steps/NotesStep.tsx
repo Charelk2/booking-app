@@ -1,15 +1,13 @@
 'use client';
 import { Controller, Control, FieldValues } from 'react-hook-form';
-import Button from '../../ui/Button';
 import { uploadBookingAttachment } from '@/lib/api';
 
 interface Props {
   control: Control<FieldValues>;
   setValue: (name: string, value: unknown) => void;
-  onNext: () => void;
 }
 
-export default function NotesStep({ control, setValue, onNext }: Props) {
+export default function NotesStep({ control, setValue }: Props) {
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
