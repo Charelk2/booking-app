@@ -1,6 +1,6 @@
 'use client';
-// TODO: Hide the map preview until a location is chosen and add a tooltip
-// explaining distance warnings. This keeps the step short on mobile.
+// The map only appears after a location is selected. A tooltip explains any
+// distance warnings so users understand why we show them.
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import dynamic from 'next/dynamic';
 import { useLoadScript } from '@react-google-maps/api';
@@ -96,6 +96,12 @@ export default function LocationStep({
       >
         Use my location
       </button>
+      <span
+        className="ml-1 text-gray-400 cursor-help"
+        title="A warning appears if this address is over 100km from the artist."
+      >
+        ?
+      </span>
       {geoError && <p className="text-red-600 text-sm">{geoError}</p>}
       {/* Mobile action buttons are handled by MobileActionBar */}
     </div>
