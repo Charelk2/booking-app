@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
@@ -426,9 +427,11 @@ export default function EditArtistProfilePage() {
               </label>
               <div className="flex flex-col items-center space-y-3">
                 {imagePreviewUrl ? (
-                  <img
+                  <Image
                     src={imagePreviewUrl}
                     alt="Profile Preview"
+                    width={128}
+                    height={128}
                     className="w-32 h-32 rounded-full object-cover border-2 border-gray-300 shadow-sm"
                   />
                 ) : (
@@ -481,11 +484,13 @@ export default function EditArtistProfilePage() {
                       minWidth={100}
                       minHeight={100}
                     >
-                      <img
+                      <Image
                         ref={imgRef}
                         src={originalImageSrc}
                         alt="Crop me"
                         onLoad={onImageLoad}
+                        width={300}
+                        height={300}
                         style={{ maxHeight: '300px', objectFit: 'contain' }}
                       />
                     </ReactCrop>
@@ -509,9 +514,11 @@ export default function EditArtistProfilePage() {
               </label>
               <div className="flex flex-col items-center space-y-3">
                 {coverPhotoUrl ? (
-                  <img
+                  <Image
                     src={coverPhotoUrl}
                     alt="Cover Photo Preview"
+                    width={400}
+                    height={192}
                     className="w-full h-48 object-cover rounded-md border-2 border-gray-300 shadow-sm"
                   />
                 ) : (

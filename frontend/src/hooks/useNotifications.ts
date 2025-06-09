@@ -40,7 +40,7 @@ export default function useNotifications() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, hasMore]);
 
   const loadThreads = useCallback(async () => {
     if (!user) return;
