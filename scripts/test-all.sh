@@ -45,10 +45,17 @@ if [ -n "$NEEDS_FRONTEND" ]; then
 # Use node directly so tests run even when node_modules/.bin is missing
 JEST=node_modules/jest/bin/jest.js
 if [ ! -f "$JEST" ]; then
-  echo "Jest binary not found. Was 'npm ci' interrupted?" >&2
+  echo "Jest binary not found. Attempting to reinstall dependencies" >&2
   echo "Looking for $JEST in $(pwd)" >&2
   ls -al node_modules | head >&2 || true
-  exit 1
+  popd >/dev/null
+  rm -f frontend/node_modules/.install_complete
+  ./setup.sh
+  pushd frontend >/dev/null
+  if [ ! -f "$JEST" ]; then
+    echo "Jest binary still missing after reinstall. Was 'npm ci' interrupted?" >&2
+    exit 1
+  fi
 fi
 
 JEST_PATH=$(realpath "$JEST")
