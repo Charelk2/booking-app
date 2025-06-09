@@ -28,6 +28,7 @@ describe('OverviewAccordion', () => {
       );
     });
     expect(container.textContent).toContain('A');
-    expect(container.textContent).not.toContain('B');
+    const detailsEl = container.querySelector('details');
+    expect(detailsEl?.hasAttribute('open')).toBe(false);
   });
 });
