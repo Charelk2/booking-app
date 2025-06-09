@@ -155,6 +155,7 @@ export default function DashboardPage() {
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   // Future activity feed will populate this array with events
+  // TODO: Display artist analytics like monthly bookings and earnings trends
   const [events] = useState<Array<{
     id: string | number;
     timestamp: string;
