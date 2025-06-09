@@ -1,6 +1,5 @@
 'use client';
 import { Controller, Control, FieldValues } from 'react-hook-form';
-import useIsMobile from '@/hooks/useIsMobile';
 import Button from '../../ui/Button';
 import { uploadBookingAttachment } from '@/lib/api';
 
@@ -11,7 +10,6 @@ interface Props {
 }
 
 export default function NotesStep({ control, setValue, onNext }: Props) {
-  const isMobile = useIsMobile();
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -44,11 +42,7 @@ export default function NotesStep({ control, setValue, onNext }: Props) {
       />
       <label className="block text-sm font-medium">Attachment (optional)</label>
       <input type="file" onChange={handleFileChange} />
-      {isMobile && (
-        <Button data-testid="notes-next-button" onClick={onNext} fullWidth>
-          Next
-        </Button>
-      )}
+      {/* Mobile action buttons are handled by MobileActionBar */}
     </div>
   );
 }

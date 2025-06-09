@@ -21,7 +21,7 @@ export default function MobileActionBar({
   submitting,
 }: Props) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t p-2 flex justify-between space-x-2">
+    <div className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t p-2 flex justify-between space-x-2 z-[60]">
       {showBack ? (
         <Button variant="secondary" onClick={onBack} fullWidth>
           Back
