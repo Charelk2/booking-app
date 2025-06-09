@@ -300,6 +300,7 @@ POST /api/v1/payments
  Required: booking_request_id, amount
  Optional: full (bool)
 ```
+Payment processing now emits structured logs instead of printing to stdout so transactions can be traced in production.
 
 ---
 
