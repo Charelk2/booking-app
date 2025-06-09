@@ -1,7 +1,7 @@
 import json
-import redis
-from typing import Any, List
 import logging
+import redis
+from typing import List
 from app.core.config import settings
 from .json_utils import dumps
 
@@ -36,3 +36,5 @@ def cache_artist_list(data: List[dict], expire: int = 60) -> None:
         client.setex(ARTIST_LIST_KEY, expire, dumps(data))
     except redis.exceptions.ConnectionError as exc:
         logging.warning("Could not cache artist list: %s", exc)
+        return None
+    return None
