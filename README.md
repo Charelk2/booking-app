@@ -202,6 +202,23 @@ needed during the test run.
 If Docker is not available, the script now automatically falls back to running
 `./scripts/test-all.sh` on the host.
 
+### Dependency Caching
+
+To speed up CI builds and local Docker runs, reuse package caches between
+invocations whenever possible.
+
+- **Node**: share `~/.npm` or `~/.cache/yarn` across runs. When calling `npm ci`,
+  add `--prefer-offline --no-audit --progress=false` to minimize network access
+  and log noise. In Dockerfiles, copy `package*.json` into their own layer and
+  run `npm ci` so cached layers are reused until the lock file changes.
+- **Python**: set `pip`'s cache directory via `--cache-dir=/pipcache` and consider
+  pointing to a local wheelhouse or mirror. Installing `requirements.txt` in its
+  own Docker layer lets subsequent builds skip downloads when the file is
+  unchanged.
+- **Images**: build a “fat” base image that already contains `node_modules/` and
+  the Python virtual environment. CI can pull this image and run tests without
+  reinstalling dependencies each time.
+
 ### Build
 
 ```bash
