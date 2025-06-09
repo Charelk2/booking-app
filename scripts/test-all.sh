@@ -15,9 +15,33 @@ fi
 echo "Using Node $(node --version) and npm $(npm --version)"
 DIR=$(dirname "$0")/..
 cd "$DIR"
+
+# Determine which tests need to run based on changed files.
+CHANGED_FILES=$(git diff --name-only HEAD)
+# Filter out docs and other non-code assets.
+NON_DOC_CHANGES=$(echo "$CHANGED_FILES" | grep -vE '\.(md|rst|txt)$|^docs/' || true)
+if [ -z "$NON_DOC_CHANGES" ]; then
+  echo "Only documentation changes detected. Skipping tests."
+  exit 0
+fi
+
+NEEDS_BACKEND=$(echo "$NON_DOC_CHANGES" | grep -E '^(backend/|requirements)' || true)
+NEEDS_FRONTEND=$(echo "$NON_DOC_CHANGES" | grep -E '^(frontend/|package.json|playwright.config.ts)' || true)
+
+# Changes to helper scripts trigger full test runs
+if echo "$NON_DOC_CHANGES" | grep -q '^scripts/'; then
+  NEEDS_BACKEND=1
+  NEEDS_FRONTEND=1
+fi
+
 ./setup.sh
-pytest -q
-cd frontend
+[ -z "$NEEDS_BACKEND" ] && [ -z "$NEEDS_FRONTEND" ] && {
+  echo "No backend or frontend changes detected. Skipping tests.";
+  exit 0;
+}
+[ -n "$NEEDS_BACKEND" ] && pytest -q
+if [ -n "$NEEDS_FRONTEND" ]; then
+  pushd frontend >/dev/null
 # Use node directly so tests run even when node_modules/.bin is missing
 JEST=node_modules/jest/bin/jest.js
 if [ ! -f "$JEST" ]; then
@@ -32,4 +56,5 @@ echo "Using Jest at $JEST_PATH"
 node "$JEST_PATH" --version
 node "$JEST_PATH" --maxWorkers=50%
 npm run lint >/dev/null
-cd ..
+popd >/dev/null
+fi
