@@ -1,6 +1,7 @@
 import React from 'react';
 import Button from '../ui/Button';
 import useScrollDirection from '@/hooks/useScrollDirection';
+import useKeyboardOffset from '@/hooks/useKeyboardOffset';
 
 interface Props {
   showBack: boolean;
@@ -22,10 +23,13 @@ export default function MobileActionBar({
   submitting,
 }: Props) {
   const scrollDir = useScrollDirection();
+  const keyboardOffset = useKeyboardOffset();
   const bottomClass = scrollDir === 'down' ? 'bottom-0' : 'bottom-14';
+  const style = keyboardOffset > 0 ? { transform: `translateY(-${keyboardOffset}px)` } : undefined;
   return (
     <div
       className={`fixed ${bottomClass} left-0 right-0 md:hidden bg-white border-t p-2 pb-safe flex justify-between space-x-2 z-[70]`}
+      style={style}
     >
       {showBack ? (
         <Button variant="secondary" onClick={onBack} fullWidth data-testid="mobile-back-button">
