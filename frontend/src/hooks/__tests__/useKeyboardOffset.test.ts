@@ -44,8 +44,9 @@ describe('useKeyboardOffset', () => {
     expect(result).toBe(0);
 
     vv.height = 600;
-    handlers.forEach((cb) => cb());
-    act(() => {});
+    act(() => {
+      handlers.forEach((cb) => cb());
+    });
     expect(result).toBe(200);
   });
 });
