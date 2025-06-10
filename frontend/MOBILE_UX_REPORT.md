@@ -24,6 +24,8 @@ This document outlines key friction points in the current booking wizard and pro
 * **Pain Points:** Drop‑down overlaps with keyboard.
 * **Improvements:**
   - Convert to bottom sheet style selector on mobile.
+  - Trap focus inside the sheet and close it with Escape or by tapping the
+    overlay.
 
 ## Notes
 * **Pain Points:** Large textarea forces users to scroll.

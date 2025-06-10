@@ -4,6 +4,7 @@
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import { useState } from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
+import useFocusTrap from '@/hooks/useFocusTrap';
 
 interface Props {
   control: Control<FieldValues>;
@@ -12,6 +13,7 @@ interface Props {
 export default function VenueStep({ control }: Props) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const sheetRef = useFocusTrap(open, () => setOpen(false));
   const options = [
     { label: 'Indoor', value: 'indoor' },
     { label: 'Outdoor', value: 'outdoor' },
@@ -37,8 +39,17 @@ export default function VenueStep({ control }: Props) {
                 </button>
                 {open && (
                   <div className="fixed inset-0 z-50 flex flex-col">
-                    <div className="flex-1 bg-black/30" onClick={() => setOpen(false)} />
-                    <div className="bg-white p-4 space-y-2 rounded-t-lg">
+                    <div
+                      className="flex-1 bg-black/30"
+                      onClick={() => setOpen(false)}
+                      data-testid="overlay"
+                    />
+                    <div
+                      ref={sheetRef}
+                      role="dialog"
+                      aria-modal="true"
+                      className="bg-white p-4 space-y-2 rounded-t-lg"
+                    >
                       {options.map((o) => (
                         <button
                           key={o.value}
