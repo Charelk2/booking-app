@@ -76,3 +76,18 @@ docker run --rm --network "$NETWORK" -v "$(pwd)":$WORKDIR "$IMAGE" \
                fi; \
              fi && \
              cd $WORKDIR && ./setup.sh && $SCRIPT"
+
+# After the Docker run completes, archive the dependency caches so future
+# offline runs can extract them without Docker. Archives are compressed using
+# `zstd` for speed and smaller size.
+compress_cache() {
+  local src=$1
+  local archive=$2
+  if [ -d "$src" ]; then
+    echo "Archiving $(basename "$src") to $(basename "$archive")"
+    tar -C "$(dirname "$src")" --use-compress-program=zstd -cf "$archive" "$(basename "$src")"
+  fi
+}
+
+compress_cache "$HOST_REPO/backend/venv" "$HOST_REPO/backend/venv.tar.zst"
+compress_cache "$HOST_REPO/frontend/node_modules" "$HOST_REPO/frontend/node_modules.tar.zst"
