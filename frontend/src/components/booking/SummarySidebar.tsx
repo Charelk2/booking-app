@@ -7,36 +7,36 @@ export default function SummarySidebar() {
   const dateValue =
     typeof details.date === 'string' ? parseISO(details.date) : details.date;
   return (
-    <div className="p-4 bg-white shadow rounded space-y-2">
+    <div className="space-y-4">
       <h2 className="text-lg font-medium">Summary</h2>
-      <ul className="text-sm space-y-1">
+      <div className="bg-gray-100 p-4 rounded-md space-y-2 text-sm">
         {details.date && isValid(dateValue) && (
-          <li>
+          <p>
             <strong>Date:</strong> {format(dateValue, 'PP')}
             {details.time && ` ${details.time}`}
-          </li>
+          </p>
         )}
         {details.location && (
-          <li>
+          <p>
             <strong>Location:</strong> {details.location}
-          </li>
+          </p>
         )}
         {details.guests && (
-          <li>
+          <p>
             <strong>Guests:</strong> {details.guests}
-          </li>
+          </p>
         )}
         {details.venueType && (
-          <li>
+          <p>
             <strong>Venue:</strong> {details.venueType}
-          </li>
+          </p>
         )}
         {details.notes && (
-          <li>
+          <p>
             <strong>Notes:</strong> {details.notes}
-          </li>
+          </p>
         )}
-      </ul>
+      </div>
     </div>
   );
 }

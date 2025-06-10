@@ -392,13 +392,14 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 
 ### Booking Wizard
 
-* Reusable progress bar and `useBookingForm` hook.
+* Reusable, centered progress bar and `useBookingForm` hook.
 * “Book Now” buttons on service cards.
 * New **Review** step showing cost breakdown and selections.
 * Success toasts when saving a draft or submitting a request.
-* Simplified buttons are inline below each step instead of a floating action bar.
+* Simplified buttons sit below each step in a responsive button group.
 * Collapsible sections for date/time and notes keep steps short on phones.
 * Mobile devices use native date and time pickers for faster input.
+* Each step appears in a white card with rounded corners and a subtle shadow.
 * The progress bar sticks below the header so progress is always visible while scrolling.
 * Venue picker uses a bottom-sheet on small screens to avoid keyboard overlap.
   The sheet now traps focus for accessibility and closes when you press
