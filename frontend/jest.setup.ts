@@ -45,12 +45,20 @@ jest.mock('@react-google-maps/api', () => {
   };
 });
 
-jest.mock('@googlemaps/places', () => {
-  return {
-    PlaceAutocompleteElement: function () {
-      const doc = (globalThis as any).document;
-      return doc ? doc.createElement('input') : {};
-    },
-  };
+
+// Stub Places Autocomplete used by LocationStep
+const mockAutocomplete = jest.fn(function Autocomplete(this: any) {
+  this.getPlace = jest.fn();
+  this.addListener = jest.fn((evt: string, cb: () => void) => {
+    if (evt === 'place_changed') this._cb = cb;
+  });
 });
+(globalThis as any).google = {
+  maps: {
+    places: {
+      Autocomplete: mockAutocomplete,
+    },
+  },
+};
+(globalThis as any).mockAutocomplete = mockAutocomplete;
 
