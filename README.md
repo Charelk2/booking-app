@@ -46,7 +46,9 @@ so that `npm ci` runs reliably during the build.
 
    This pulls (or builds) the testing image and copies `backend/venv` and
    `frontend/node_modules` from the container. If only the `*.tar.zst` archives
-   exist, the script extracts them so the directories are restored.
+   exist, the script extracts them so the directories are restored. This first
+   run is mandatory&mdash;`./scripts/test-all.sh` will fail until these caches
+   are populated.
 
 2. **Run tests offline**
 
@@ -171,6 +173,16 @@ npm run lint
 ```
 
 ### Testing
+
+Before using the regular test runner, populate the dependency caches by running
+
+```bash
+DOCKER_TEST_NETWORK=bridge ./scripts/docker-test.sh
+```
+
+This command copies `backend/venv` and `frontend/node_modules` from the Docker
+image. Running `./scripts/test-all.sh` alone will fail if these directories do
+not exist because `setup.sh` cannot install packages offline.
 
 ```bash
 ./scripts/test-all.sh
