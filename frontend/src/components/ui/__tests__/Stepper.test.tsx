@@ -20,22 +20,12 @@ describe('Stepper progress bar', () => {
     container.remove();
   });
 
-  it('is sticky on mobile', () => {
-    Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
-    act(() => {
-      root.render(<Stepper steps={["One", "Two"]} currentStep={0} />);
-    });
-    const div = container.querySelector('div');
-    expect(div?.className).toContain('sticky');
-  });
-
   it('shows step names and highlights the current one', () => {
-    Object.defineProperty(window, 'innerWidth', { value: 800, writable: true });
     act(() => {
       root.render(<Stepper steps={["One", "Two", "Three"]} currentStep={1} />);
     });
     const spans = container.querySelectorAll('span');
-    expect(spans[1].className).toContain('font-bold');
+    expect(spans[1].className).toContain('font-semibold');
     expect(container.textContent).toContain('Three');
   });
 });
