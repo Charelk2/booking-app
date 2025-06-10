@@ -27,7 +27,6 @@ export default function GuestsStep({ control }: Props) {
         )}
       />
       <p className="text-xs text-gray-600">Max capacity is 200 guests.</p>
-      {/* Mobile action buttons are handled by MobileActionBar */}
     </div>
   );
 }
