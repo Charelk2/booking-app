@@ -1,4 +1,3 @@
-````markdown
 # Booking App
 
 This repository contains a FastAPI backend and a Next.js frontend.
@@ -77,7 +76,7 @@ Run the API from the `backend` directory so Python can find the `app` package:
 cd backend
 pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-````
+```
 
 The SQLite database path is automatically resolved to the project root, so you can start the backend from either the repo root or the `backend/` folder without creating duplicate database files.
 
