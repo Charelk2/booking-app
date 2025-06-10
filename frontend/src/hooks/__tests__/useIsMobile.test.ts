@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import useIsMobile from '../useIsMobile';
 import React from 'react';
 

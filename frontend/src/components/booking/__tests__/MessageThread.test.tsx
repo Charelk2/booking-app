@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import MessageThread from '../MessageThread';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
