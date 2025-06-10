@@ -30,6 +30,12 @@ echo "npm $(npm --version)"
 BACKEND_CHANGES=$(echo "$NON_DOC_CHANGES" | grep -E '^(backend/|requirements)' || true)
 FRONTEND_CHANGES=$(echo "$NON_DOC_CHANGES" | grep -E '^(frontend/|package.json|package-lock.json)' || true)
 
+# 3a. Force tests for both backend and frontend when requested
+if [ "${FORCE_TESTS:-}" = "1" ]; then
+  BACKEND_CHANGES=1
+  FRONTEND_CHANGES=1
+fi
+
 # 4. If helper scripts changed, run everything
 if echo "$NON_DOC_CHANGES" | grep -q '^scripts/'; then
   BACKEND_CHANGES=1
