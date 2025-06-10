@@ -170,6 +170,15 @@ required packages. The marker files (`.install_complete`, `.req_hash`, and
 `.pkg_hash`) are written only after successful installs so failed downloads do
 not pollute the cache.
 
+If the virtual environment cache (`backend/venv/.install_complete`) is missing
+and no internet connection is available, `setup.sh` aborts before running
+`pip install` and prints:
+
+```
+❌ Dependencies missing and network unavailable.
+Run ./scripts/docker-test.sh with DOCKER_TEST_NETWORK=bridge to fetch packages.
+```
+
 **Important:** run `./setup.sh` or `./scripts/docker-test.sh` once with network
 access so these marker files are created. Subsequent offline runs reuse the
 cached `backend/venv` and `frontend/node_modules` directories.
