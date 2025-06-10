@@ -7,7 +7,16 @@ import LocationStep from '../LocationStep';
 function Wrapper() {
   const { control } = useForm();
   return (
-    <LocationStep control={control as unknown as Control<FieldValues>} setWarning={() => {}} />
+    <LocationStep
+      control={control as unknown as Control<FieldValues>}
+      setWarning={() => {}}
+      step={1}
+      steps={['one', 'two']}
+      artistLocation={null}
+      onBack={() => {}}
+      onSaveDraft={() => {}}
+      onNext={() => {}}
+    />
   );
 }
 

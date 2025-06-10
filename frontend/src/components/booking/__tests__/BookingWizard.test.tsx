@@ -52,8 +52,14 @@ describe('BookingWizard flow', () => {
     jest.clearAllMocks();
   });
 
+  function getButton(label: string): HTMLButtonElement {
+    return Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes(label),
+    ) as HTMLButtonElement;
+  }
+
   it('scrolls to top when advancing steps', async () => {
-    const nextButton = container.querySelectorAll('button[type="button"]')[1] as HTMLButtonElement;
+    const nextButton = getButton('Next');
     await act(async () => {
       nextButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
@@ -64,7 +70,7 @@ describe('BookingWizard flow', () => {
     const heading = () =>
       container.querySelector('[data-testid="step-heading"]')?.textContent;
     expect(heading()).toContain('Date & Time');
-    const next = container.querySelectorAll('button[type="button"]')[1] as HTMLButtonElement;
+    const next = getButton('Next');
     await act(async () => {
       next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
