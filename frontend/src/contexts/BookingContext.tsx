@@ -2,10 +2,9 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 
 export interface EventDetails {
   date: Date;
-  time?: string;
   location: string;
-  guests: number;
   venueType: 'indoor' | 'outdoor' | 'hybrid';
+  sound: 'yes' | 'no';
   notes?: string;
   attachment_url?: string;
 }
@@ -27,10 +26,9 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
   const [step, setStep] = useState(0);
   const [details, setDetails] = useState<EventDetails>({
     date: new Date(),
-    time: '',
     location: '',
-    guests: 1,
     venueType: 'indoor',
+    sound: 'yes',
     attachment_url: '',
   });
   const [serviceId, setServiceId] = useState<number | undefined>(undefined);
