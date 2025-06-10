@@ -207,21 +207,29 @@ docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 ### Offline Testing with Docker
 
 If `setup.sh` cannot install dependencies (for example in an isolated CI
-environment), build or pull the Docker image once with network access:
+environment), build or pull the Docker image once with network access so the
+cached dependencies are copied into your repository:
 
 ```bash
 docker build -t booking-app:latest .  # build once with connectivity
 docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 ```
 
-The image already contains `backend/venv` and `frontend/node_modules`.
-Running `./scripts/docker-test.sh` for the first time copies these cached
-directories into your repository so subsequent tests can run offline. The
-script also copies the `.req_hash` and `.pkg_hash` files so it can detect when
-the lock files change. Set `BOOKING_APP_IMAGE` to override the tag, use
+The image already contains `backend/venv` and `frontend/node_modules`. Running
+`./scripts/docker-test.sh` or `docker build` for the first time **must** have
+network access so these directories populate `backend/venv/.install_complete`
+and `frontend/node_modules/.install_complete`. Subsequent runs with
+`--network none` reuse those caches and skip all downloads. The script also
+copies the `.req_hash` and `.pkg_hash` files so it can detect when the lock
+files change. Set `BOOKING_APP_IMAGE` to override the tag, use
 `BOOKING_APP_SKIP_PULL=1` to skip pulling when the image is local, and pass
 `DOCKER_TEST_NETWORK=bridge` if network access is needed. The script
 automatically falls back to `./scripts/test-all.sh` when Docker is unavailable.
+
+If `setup.sh` still tries to run `pip install` or `npm ci`, it means the marker
+files were not copied correctly. Rerun `scripts/docker-test.sh` with
+`DOCKER_TEST_NETWORK=bridge` so the setup step can download the dependencies
+and recreate the caches.
 
 If you update `requirements.txt` or `package-lock.json`, rebuild the image or
 delete the cached directories so `setup.sh` can reinstall them. The script
