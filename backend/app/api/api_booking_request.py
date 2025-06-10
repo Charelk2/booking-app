@@ -8,7 +8,9 @@ from ..utils.notifications import (
     notify_user_new_booking_request,
     notify_booking_status_update,
 )
-import os, uuid, shutil
+import os
+import uuid
+import shutil
 
 # Prefix is added when this router is included in `app/main.py`.
 router = APIRouter(
