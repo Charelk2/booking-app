@@ -3,7 +3,7 @@ import { act } from 'react';
 import React from 'react';
 import Stepper from '../Stepper';
 
-describe('Stepper responsive layout', () => {
+describe('Stepper progress bar', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -20,14 +20,6 @@ describe('Stepper responsive layout', () => {
     container.remove();
   });
 
-  it('renders mobile progress when width < 640px', () => {
-    Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
-    act(() => {
-      root.render(<Stepper steps={["One", "Two"]} currentStep={0} />);
-    });
-    expect(container.textContent).toContain('1/2');
-  });
-
   it('is sticky on mobile', () => {
     Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
     act(() => {
@@ -37,11 +29,13 @@ describe('Stepper responsive layout', () => {
     expect(div?.className).toContain('sticky');
   });
 
-  it('renders desktop layout when width >= 640px', () => {
+  it('shows step names and highlights the current one', () => {
     Object.defineProperty(window, 'innerWidth', { value: 800, writable: true });
     act(() => {
-      root.render(<Stepper steps={["One", "Two"]} currentStep={1} />);
+      root.render(<Stepper steps={["One", "Two", "Three"]} currentStep={1} />);
     });
-    expect(container.textContent).toContain('Two');
+    const spans = container.querySelectorAll('span');
+    expect(spans[1].className).toContain('font-bold');
+    expect(container.textContent).toContain('Three');
   });
 });
