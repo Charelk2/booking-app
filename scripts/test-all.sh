@@ -13,6 +13,19 @@ if [ -z "$NON_DOC_CHANGES" ] && [ "${FORCE_TESTS:-}" != "1" ]; then
   exit 0
 fi
 
+# 2a. Ensure Node and npm are available
+if ! command -v node >/dev/null; then
+  echo "❌ node not found in PATH" >&2
+  exit 1
+fi
+echo "node $(node --version)"
+
+if ! command -v npm >/dev/null; then
+  echo "❌ npm not found in PATH" >&2
+  exit 1
+fi
+echo "npm $(npm --version)"
+
 # 3. Figure out if we need backend/frontend
 BACKEND_CHANGES=$(echo "$NON_DOC_CHANGES" | grep -E '^(backend/|requirements)' || true)
 FRONTEND_CHANGES=$(echo "$NON_DOC_CHANGES" | grep -E '^(frontend/|package.json|package-lock.json)' || true)
@@ -53,6 +66,16 @@ if [ -n "$FRONTEND_CHANGES" ]; then
     npm ci --prefer-offline --no-audit --progress=false
     touch node_modules/.install_complete
   fi
+
+  JEST_BIN="node_modules/.bin/jest"
+  if [ ! -x "$JEST_BIN" ]; then
+    JEST_BIN="$(command -v jest 2>/dev/null || true)"
+  fi
+  if [ ! -x "$JEST_BIN" ]; then
+    echo "❌ Jest binary not found. Did npm ci finish successfully?" >&2
+    exit 1
+  fi
+  echo "Jest $($JEST_BIN --version) at $JEST_BIN"
 
   npm test
   npm run lint --silent
