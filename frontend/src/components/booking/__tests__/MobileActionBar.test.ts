@@ -14,7 +14,9 @@ describe('MobileActionBar', () => {
   });
 
   afterEach(() => {
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
     container.remove();
   });
 

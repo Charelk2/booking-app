@@ -55,7 +55,9 @@ describe('InboxPage unread badge', () => {
     const card = container.querySelector('li div');
     expect(card?.className).toContain('bg-indigo-50');
     expect(container.textContent).not.toContain('new message');
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
     container.remove();
   });
 });
@@ -77,7 +79,9 @@ describe('InboxPage navigation', () => {
       card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(push).toHaveBeenCalledWith('/booking-requests/1');
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
     container.remove();
   });
 });
