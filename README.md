@@ -153,7 +153,8 @@ that file is removed. After installing Python requirements, `setup.sh` creates
 `backend/venv/.install_complete` so it can skip `pip install` on future runs.
 It also detects which files changed in Git and only runs
 the backend or frontend tests when necessary; documentation-only changes cause
-the script to exit immediately without running any tests.
+the script to exit immediately without running any tests. Set `FORCE_TESTS=1`
+to run the full suite even when only documentation files have changed.
 
 You can override the number of parallel Jest workers by setting the
 `JEST_WORKERS` environment variable:
