@@ -163,6 +163,13 @@ Each cache also stores a SHA256 hash of its lock file
 these hashes to the current files and reinstalls the dependencies only when the
 hashes differ.
 
+`setup.sh` now verifies that both `pip install` and `npm ci` succeed before any
+marker files are created. If either step fails, the script prints an error and
+suggests running `./scripts/docker-test.sh` with network access to fetch the
+required packages. The marker files (`.install_complete`, `.req_hash`, and
+`.pkg_hash`) are written only after successful installs so failed downloads do
+not pollute the cache.
+
 **Important:** run `./setup.sh` or `./scripts/docker-test.sh` once with network
 access so these marker files are created. Subsequent offline runs reuse the
 cached `backend/venv` and `frontend/node_modules` directories.
