@@ -9,6 +9,22 @@ NETWORK=${DOCKER_TEST_NETWORK:-none}
 WORKDIR=/workspace
 HOST_REPO=$(pwd)
 
+# Unpack compressed caches when directories are missing. This allows
+# environments without a prepopulated repository to restore the
+# dependencies from a tarball created during a previous Docker run.
+decompress_cache() {
+  local archive=$1
+  local dest=$2
+  if [ ! -d "$dest" ] && [ -f "$archive" ]; then
+    mkdir -p "$dest"
+    echo "Extracting $(basename "$archive") to $dest"
+    tar --use-compress-program=zstd -xf "$archive" -C "$(dirname "$dest")"
+  fi
+}
+
+decompress_cache "$HOST_REPO/backend/venv.tar.zst" "$HOST_REPO/backend/venv"
+decompress_cache "$HOST_REPO/frontend/node_modules.tar.zst" "$HOST_REPO/frontend/node_modules"
+
 # Fallback to local tests when Docker is not installed. This allows CI
 # environments without Docker to still execute the full test suite.
 if ! command -v docker >/dev/null 2>&1; then
