@@ -26,16 +26,26 @@ if [ -f "$INSTALL_MARKER" ]; then
     echo "Python dependencies already installed and up to date; skipping pip install."
   else
     echo "Requirements changed; reinstalling Python dependencies…"
-    pip install -r "$ROOT_DIR/backend/requirements.txt"
-    pip install -r "$ROOT_DIR/requirements-dev.txt"
-    echo "$CURRENT_REQ_HASH" > "$REQ_HASH_FILE"
+    if pip install -r "$ROOT_DIR/backend/requirements.txt" \
+        && pip install -r "$ROOT_DIR/requirements-dev.txt"; then
+      echo "$CURRENT_REQ_HASH" > "$REQ_HASH_FILE"
+    else
+      echo "\n❌ pip install failed. Check your internet connection or pre-built cache." >&2
+      echo "For offline environments, try running ./scripts/docker-test.sh with network access first." >&2
+      exit 1
+    fi
   fi
 else
   echo "Installing backend Python dependencies…"
-  pip install -r "$ROOT_DIR/backend/requirements.txt"
-  pip install -r "$ROOT_DIR/requirements-dev.txt"
-  echo "$CURRENT_REQ_HASH" > "$REQ_HASH_FILE"
-  touch "$INSTALL_MARKER"
+  if pip install -r "$ROOT_DIR/backend/requirements.txt" \
+       && pip install -r "$ROOT_DIR/requirements-dev.txt"; then
+    echo "$CURRENT_REQ_HASH" > "$REQ_HASH_FILE"
+    touch "$INSTALL_MARKER"
+  else
+    echo "\n❌ pip install failed. Check your internet connection or pre-built cache." >&2
+    echo "For offline environments, try running ./scripts/docker-test.sh with network access first." >&2
+    exit 1
+  fi
 fi
 
 echo "Installing frontend Node dependencies…"
@@ -59,7 +69,7 @@ if [ -f "$FRONTEND_MARKER" ]; then
       touch "$FRONTEND_MARKER"
     else
       echo "\n❌ npm ci failed. Ensure network access or a pre-built npm cache is available." >&2
-      echo "For offline environments, consider running ./scripts/docker-test.sh." >&2
+      echo "For offline environments, try running ./scripts/docker-test.sh with network access first." >&2
       popd > /dev/null
       exit 1
     fi
@@ -73,7 +83,7 @@ else
     touch "$FRONTEND_MARKER"
   else
     echo "\n❌ npm ci failed. Ensure network access or a pre-built npm cache is available." >&2
-    echo "For offline environments, consider running ./scripts/docker-test.sh." >&2
+    echo "For offline environments, try running ./scripts/docker-test.sh with network access first." >&2
     popd > /dev/null
     exit 1
   fi
