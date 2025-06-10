@@ -361,6 +361,10 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Input fields no longer auto-focus on mobile so the on-screen keyboard stays hidden until tapped.
 * Summary sidebar collapses into a `<details>` section on phones so you can hide the order overview.
 
+### Open Tasks
+
+- Review cross-browser support for the new collapsible summary sidebar and consider a custom toggle for non-standard browsers.
+
 ### Real-time Chat
 
 * WebSocket-powered updates.
