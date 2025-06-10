@@ -23,7 +23,7 @@ import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
 import SectionList from "@/components/dashboard/SectionList";
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import Link from "next/link";
-import { motion, Reorder, useDragControls } from "framer-motion";
+import { Reorder, useDragControls } from "framer-motion";
 import {
   PencilIcon,
   TrashIcon,
