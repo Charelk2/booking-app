@@ -33,6 +33,8 @@ If you prefer to build locally instead, run:
 docker build -t booking-app:latest .
 docker run --rm -p 3000:3000 -p 8000:8000 booking-app:latest
 ```
+The Dockerfile installs Node.js via the official NodeSource setup script
+so that `npm ci` runs reliably during the build.
 
 ### docker-test.sh quickstart
 
