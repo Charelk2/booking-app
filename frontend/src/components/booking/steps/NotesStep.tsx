@@ -24,7 +24,7 @@ export default function NotesStep({ control, setValue }: Props) {
     }
   }
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       <p className="text-sm text-gray-600">Anything else we should know?</p>
       <label className="block text-sm font-medium">Extra notes</label>
       <Controller
