@@ -35,6 +35,29 @@ docker build -t booking-app:latest .
 docker run --rm -p 3000:3000 -p 8000:8000 booking-app:latest
 ```
 
+### docker-test.sh quickstart
+
+1. **Populate caches with network access**
+
+   ```bash
+   DOCKER_TEST_NETWORK=bridge ./scripts/docker-test.sh
+   ```
+
+   This pulls (or builds) the testing image and copies `backend/venv` and
+   `frontend/node_modules` from the container. If only the `*.tar.zst` archives
+   exist, the script extracts them so the directories are restored.
+
+2. **Run tests offline**
+
+   ```bash
+   BOOKING_APP_SKIP_PULL=1 DOCKER_TEST_NETWORK=none ./scripts/docker-test.sh
+   ```
+
+   Subsequent runs reuse the cached dependencies and pass `--network none` to
+   avoid downloading packages, making the tests start much faster. Rebuild the
+   image or delete the caches whenever `requirements.txt` or `package-lock.json`
+   changes so the updated packages are installed.
+
 The container installs all Python and Node dependencies. During the build
 step it creates `backend/venv` and installs the requirements into that
 virtual environment. A marker file `backend/venv/.install_complete` is also
