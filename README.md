@@ -357,6 +357,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Collapsible sections for date/time and notes keep steps short on phones.
 * Stepper sticks below the header so progress is always visible while scrolling.
 * Venue picker uses a bottom-sheet on small screens to avoid keyboard overlap.
+* Input fields no longer auto-focus on mobile so the on-screen keyboard stays hidden until tapped.
 
 ### Real-time Chat
 
