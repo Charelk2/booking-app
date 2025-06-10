@@ -32,21 +32,15 @@ describe('LocationStep selection', () => {
     await act(async () => {
       root.render(React.createElement(Wrapper));
     });
-    const input = container.querySelector('input') as HTMLInputElement;
-    const event = new Event('gmp-select') as Event & {
-      placePrediction?: { toPlace: () => { fetchFields: jest.Mock; formattedAddress: string; location: { lat: number; lng: number } } };
-    };
-    event.placePrediction = {
-      toPlace: () => ({
-        fetchFields: jest.fn().mockResolvedValue(undefined),
-        formattedAddress: 'Test',
-        location: { lat: 1, lng: 2 },
-      }),
-    };
-    await act(async () => {
-      input.dispatchEvent(event);
+    const mock = (global as { mockAutocomplete: jest.Mock }).mockAutocomplete;
+    const instance = mock.mock.instances[0];
+    instance.getPlace.mockReturnValue({
+      geometry: { location: { lat: () => 1, lng: () => 2 } },
+      formatted_address: 'Test',
     });
-    await act(async () => {});
+    await act(async () => {
+      instance._cb();
+    });
     expect(container.querySelector('[data-testid="map"]')).not.toBeNull();
   });
 });
