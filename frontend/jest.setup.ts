@@ -1,3 +1,6 @@
+// Enable React 18 act() environment
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+
 import React from "react";
 
 jest.mock('next/navigation', () => {
@@ -42,3 +45,4 @@ jest.mock('@react-google-maps/api', () => {
     Autocomplete: (props: any) => React.createElement('div', null, props.children),
   };
 });
+
