@@ -45,7 +45,9 @@ describe('BookingWizard mobile scrolling', () => {
   });
 
   afterEach(() => {
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
     container.remove();
     jest.clearAllMocks();
   });

@@ -48,7 +48,9 @@ describe('DashboardPage empty state', () => {
   });
 
   afterEach(() => {
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
     container.remove();
     jest.clearAllMocks();
   });
@@ -135,7 +137,9 @@ describe('DashboardPage artist stats', () => {
   });
 
   afterEach(() => {
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
     container.remove();
     jest.clearAllMocks();
   });
@@ -269,7 +273,9 @@ describe('DashboardPage list toggles', () => {
   });
 
   afterEach(() => {
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
     container.remove();
     jest.clearAllMocks();
   });
@@ -322,7 +328,9 @@ describe('Service card drag handle', () => {
   });
 
   afterEach(() => {
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
     container.remove();
     jest.clearAllMocks();
   });
