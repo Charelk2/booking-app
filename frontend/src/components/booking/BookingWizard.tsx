@@ -268,11 +268,17 @@ export default function BookingWizard({
             Save Draft
           </Button>
           {step < steps.length - 1 ? (
-            <Button type="button" onClick={next} className="w-full sm:w-auto">
+            <Button
+              variant="primary"
+              type="button"
+              onClick={next}
+              className="w-full sm:w-auto"
+            >
               Next
             </Button>
           ) : (
             <Button
+              variant="primary"
               type="button"
               onClick={submitRequest}
               disabled={submitting}
