@@ -554,9 +554,6 @@ Payment processing now emits structured logs instead of printing to stdout so tr
    npx eslint src
    ```
 
-```
-```
-
 ### Brand Colors
 
 The frontend uses a small **brand** palette defined in `tailwind.config.js`. The
