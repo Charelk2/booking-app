@@ -8,7 +8,7 @@ CHANGED_FILES=$(git diff --name-only HEAD)
 
 # 2. Drop docs-only changes
 NON_DOC_CHANGES=$(echo "$CHANGED_FILES" | grep -vE '\.(md|rst|txt)$|^docs/' || true)
-if [ -z "$NON_DOC_CHANGES" ]; then
+if [ -z "$NON_DOC_CHANGES" ] && [ "${FORCE_TESTS:-}" != "1" ]; then
   echo "📄 Only docs changed. Skipping setup and tests."
   exit 0
 fi
