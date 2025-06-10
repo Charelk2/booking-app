@@ -181,7 +181,12 @@ Run ./scripts/docker-test.sh with DOCKER_TEST_NETWORK=bridge to fetch packages.
 
 **Important:** run `./setup.sh` or `./scripts/docker-test.sh` once with network
 access so these marker files are created. Subsequent offline runs reuse the
-cached `backend/venv` and `frontend/node_modules` directories.
+cached `backend/venv` and `frontend/node_modules` directories. When using
+`docker-test.sh` for the first time, allow network access (for example by
+setting `DOCKER_TEST_NETWORK=bridge`) so the script can copy the cached
+dependencies from the image. After they exist, export
+`BOOKING_APP_SKIP_PULL=1` and pass `--network none` to keep the environment
+offline while reusing the caches.
 It also detects which files changed in Git and only runs
 the backend or frontend tests when necessary; documentation-only changes and
 commits with no code updates cause the script to exit immediately without
@@ -227,8 +232,9 @@ docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 The image already contains `backend/venv` and `frontend/node_modules`. Running
 `./scripts/docker-test.sh` or `docker build` for the first time **must** have
 network access so these directories populate `backend/venv/.install_complete`
-and `frontend/node_modules/.install_complete`. Subsequent runs with
-`--network none` reuse those caches and skip all downloads. The script also
+and `frontend/node_modules/.install_complete`. Subsequent runs can export
+`BOOKING_APP_SKIP_PULL=1` and pass `--network none` to reuse those caches and
+skip all downloads. The script also
 copies the `.req_hash` and `.pkg_hash` files so it can detect when the lock
 files change. Set `BOOKING_APP_IMAGE` to override the tag, use
 `BOOKING_APP_SKIP_PULL=1` to skip pulling when the image is local, and set
