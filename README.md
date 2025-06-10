@@ -609,5 +609,7 @@ Components reference these via utility classes such as `bg-brand` and
 `bg-brand-dark`.
 
 Update these colors in `frontend/tailwind.config.js` and
-`frontend/src/app/globals.css` to adjust the site's look and feel. See
-`frontend/README.md` for detailed theming instructions.
+`frontend/src/app/globals.css` to adjust the site's look and feel. The Tailwind
+config also scans `src/styles/**/*` so constants like `buttonVariants.ts` are
+included in the final build. See `frontend/README.md` for detailed theming
+instructions.
