@@ -36,6 +36,7 @@ describe('DashboardPage empty state', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
+    await act(async () => {});
     const bookingsTab = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Bookings'
     ) as HTMLButtonElement;
@@ -112,6 +113,7 @@ describe('DashboardPage artist stats', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
+    await act(async () => {});
     const servicesTab = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Services'
     ) as HTMLButtonElement;
@@ -236,6 +238,16 @@ describe('DashboardPage list toggles', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
+    await act(async () => {});
+    const servicesTab = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Services'
+    ) as HTMLButtonElement;
+    if (servicesTab) {
+      await act(async () => {
+        servicesTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+      await act(async () => {});
+    }
   });
 
   afterEach(() => {
@@ -279,6 +291,7 @@ describe('Service card drag handle', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
+    await act(async () => {});
   });
 
   afterEach(() => {
