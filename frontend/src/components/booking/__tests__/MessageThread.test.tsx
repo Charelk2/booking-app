@@ -35,7 +35,9 @@ describe('MessageThread component', () => {
   });
 
   afterEach(() => {
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
     container.remove();
   });
 

@@ -17,7 +17,9 @@ describe('StickyInputDemo', () => {
   });
 
   afterEach(() => {
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
     container.remove();
     jest.clearAllMocks();
   });
