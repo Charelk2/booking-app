@@ -302,7 +302,14 @@ export default function BookingWizard({
         />
       )}
       <div className="lg:hidden mt-4">
-        <SummarySidebar />
+        {isMobile ? (
+          <details open className="space-y-2">
+            <summary className="cursor-pointer text-sm underline">Booking Summary</summary>
+            <SummarySidebar />
+          </details>
+        ) : (
+          <SummarySidebar />
+        )}
       </div>
     </div>
   );
