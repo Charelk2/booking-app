@@ -22,6 +22,18 @@ fi
 
 echo "Running tests in $IMAGE"
 docker run --rm --network "$NETWORK" -v "$(pwd)":$WORKDIR "$IMAGE" \
-  bash -lc "if [ ! -f $WORKDIR/backend/venv/.install_complete ]; then cp -a /app/backend/venv $WORKDIR/backend/venv; fi && \
-             if [ ! -f $WORKDIR/frontend/node_modules/.install_complete ]; then cp -a /app/frontend/node_modules $WORKDIR/frontend/node_modules; fi && \
+  bash -lc "if [ ! -f $WORKDIR/backend/venv/.install_complete ]; then \
+               cp -a /app/backend/venv $WORKDIR/backend/venv; \
+             else \
+               if [ -f /app/backend/venv/.req_hash ] && [ ! -f $WORKDIR/backend/venv/.req_hash ]; then \
+                 cp /app/backend/venv/.req_hash $WORKDIR/backend/venv/.req_hash; \
+               fi; \
+             fi && \
+             if [ ! -f $WORKDIR/frontend/node_modules/.install_complete ]; then \
+               cp -a /app/frontend/node_modules $WORKDIR/frontend/node_modules; \
+             else \
+               if [ -f /app/frontend/node_modules/.pkg_hash ] && [ ! -f $WORKDIR/frontend/node_modules/.pkg_hash ]; then \
+                 cp /app/frontend/node_modules/.pkg_hash $WORKDIR/frontend/node_modules/.pkg_hash; \
+               fi; \
+             fi && \
              cd $WORKDIR && ./setup.sh && $SCRIPT"

@@ -11,12 +11,14 @@ COPY backend/requirements.txt backend/
 COPY requirements-dev.txt ./
 RUN python -m venv backend/venv \
     && backend/venv/bin/pip install --no-cache-dir -r backend/requirements.txt -r requirements-dev.txt \
+    && sha256sum backend/requirements.txt | awk '{print $1}' > backend/venv/.req_hash \
     && touch backend/venv/.install_complete
 
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 WORKDIR /app/frontend
 RUN npm ci --silent \
     && npm run build --silent \
+    && sha256sum package-lock.json | awk '{print $1}' > node_modules/.pkg_hash \
     && touch node_modules/.install_complete
 
 # final stage
