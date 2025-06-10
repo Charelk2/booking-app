@@ -2,7 +2,7 @@
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import useIsMobile from '@/hooks/useIsMobile';
 
@@ -25,24 +25,33 @@ export default function DateTimeStep({ control, unavailable }: Props) {
       <Controller
         name="date"
         control={control}
-        render={({ field }) => (
-          isMobile ? (
+        render={({ field }) => {
+          const currentValue =
+            field.value && typeof field.value === 'string'
+              ? parseISO(field.value)
+              : field.value;
+          return isMobile ? (
             <input
               type="date"
               className="border p-2 rounded w-full"
               min={format(new Date(), 'yyyy-MM-dd')}
-              {...field}
+              name={field.name}
+              ref={field.ref}
+              onBlur={field.onBlur}
+              value={currentValue ? format(currentValue, 'yyyy-MM-dd') : ''}
+              onChange={(e) => field.onChange(e.target.value)}
             />
           ) : (
             <Calendar
               {...field}
+              value={currentValue}
               locale="en-US"
               formatLongDate={formatLongDate}
-              onChange={field.onChange}
+              onChange={(date) => field.onChange(date as Date)}
               tileDisabled={tileDisabled}
             />
-          )
-        )}
+          );
+        }}
       />
     </div>
   );
