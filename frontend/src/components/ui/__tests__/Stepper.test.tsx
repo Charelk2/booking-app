@@ -14,7 +14,9 @@ describe('Stepper responsive layout', () => {
   });
 
   afterEach(() => {
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
     container.remove();
   });
 
