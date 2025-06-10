@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-// TODO: Add additional request stubs here when new endpoints are introduced.
-// Keeping tests fully offline ensures they run in restricted Docker networks.
+// Stubs for all external requests keep the tests fully offline. Update as new
+// endpoints are added so CI can run without network access.
 
 test.describe('Booking Wizard mobile flow', () => {
   test.beforeEach(async ({ page }) => {
@@ -17,6 +17,39 @@ test.describe('Booking Wizard mobile flow', () => {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ unavailable_dates: [] }),
+      });
+    });
+    // Catch any other backend API calls and respond with an empty object
+    await page.route('**/api/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+    });
+    // Stub Google Maps scripts and geocoding so the tests run without network
+    await page.route('https://maps.googleapis.com/maps/api/js*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript',
+        body: 'window.google = window.google || { maps: {} };',
+      });
+    });
+    await page.route('https://maps.googleapis.com/maps/api/geocode/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'OK',
+          results: [{ geometry: { location: { lat: 0, lng: 0 } } }],
+        }),
+      });
+    });
+    await page.route('https://maps.gstatic.com/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript',
+        body: '',
       });
     });
   });

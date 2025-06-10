@@ -241,6 +241,17 @@ when network access is blocked. You can then run the tests offline:
 docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 ```
 
+### Playwright E2E Tests
+
+The end-to-end tests live under `frontend/e2e` and run against a production
+build of the Next.js app. A lightweight stub server and request interceptors
+simulate all backend and external APIs so the tests work offline. Execute them
+with:
+
+```bash
+npx playwright test
+```
+
 ### Offline Testing with Docker
 
 If `setup.sh` cannot install dependencies (for example in an isolated CI
