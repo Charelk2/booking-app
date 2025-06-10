@@ -28,4 +28,23 @@ describe('Stepper progress bar', () => {
     expect(spans[1].className).toContain('font-medium');
     expect(container.textContent).toContain('Three');
   });
+
+  it('calls onStepClick for previous steps', () => {
+    const clickSpy = jest.fn();
+    act(() => {
+      root.render(
+        <Stepper
+          steps={["One", "Two", "Three"]}
+          currentStep={2}
+          onStepClick={clickSpy}
+        />,
+      );
+    });
+    const buttons = container.querySelectorAll('button');
+    expect(buttons).toHaveLength(2);
+    act(() => {
+      buttons[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(clickSpy).toHaveBeenCalledWith(0);
+  });
 });
