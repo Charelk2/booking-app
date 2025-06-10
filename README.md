@@ -222,26 +222,32 @@ docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 
 If `setup.sh` cannot install dependencies (for example in an isolated CI
 environment), build or pull the Docker image once with network access so the
-cached dependencies are copied into your repository:
+cached dependencies are copied into your repository.
+
+1. **Populate caches with connectivity**
 
 ```bash
-docker build -t booking-app:latest .  # build once with connectivity
-docker run --rm --network none booking-app:latest ./scripts/test-all.sh
+DOCKER_TEST_NETWORK=bridge BOOKING_APP_BUILD=1 ./scripts/docker-test.sh
 ```
 
-The image already contains `backend/venv` and `frontend/node_modules`. Running
-`./scripts/docker-test.sh` or `docker build` for the first time **must** have
-network access so these directories populate `backend/venv/.install_complete`
-and `frontend/node_modules/.install_complete`. Subsequent runs can export
-`BOOKING_APP_SKIP_PULL=1` and pass `--network none` to reuse those caches and
-skip all downloads. The script also
-copies the `.req_hash` and `.pkg_hash` files so it can detect when the lock
-files change. Set `BOOKING_APP_IMAGE` to override the tag, use
-`BOOKING_APP_SKIP_PULL=1` to skip pulling when the image is local, and set
-`BOOKING_APP_BUILD=1` so the script will automatically build the image when it
-isn't found locally. Use `DOCKER_TEST_NETWORK=bridge` if network access is
-needed. The script automatically falls back to `./scripts/test-all.sh` when
-Docker is unavailable.
+This command builds (or pulls) the image and copies `backend/venv` and
+`frontend/node_modules` from the container. After it finishes you should have
+`backend/venv/.install_complete` and
+`frontend/node_modules/.install_complete` in your working tree.
+
+2. **Run tests offline**
+
+```bash
+BOOKING_APP_SKIP_PULL=1 DOCKER_TEST_NETWORK=none ./scripts/docker-test.sh
+```
+
+The script detects the marker files and skips all installation steps. Set
+`BOOKING_APP_IMAGE` to override the tag or `BOOKING_APP_BUILD=1` to build the
+image when it is not found locally. The script automatically falls back to
+`./scripts/test-all.sh` when Docker is unavailable.
+
+The `.req_hash` and `.pkg_hash` files are copied along with the caches so the
+setup script can detect when lock files change.
 
 When run with `DOCKER_TEST_NETWORK=none`, the script now checks that the
 dependency caches already contain `.install_complete` markers before launching
