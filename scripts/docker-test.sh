@@ -13,8 +13,12 @@ if ! command -v docker >/dev/null 2>&1; then
   exit $?
 fi
 
-echo "Pulling $IMAGE"
-docker pull "$IMAGE"
+if [ -z "${BOOKING_APP_SKIP_PULL:-}" ]; then
+  echo "Pulling $IMAGE"
+  docker pull "$IMAGE"
+else
+  echo "Skipping docker pull because BOOKING_APP_SKIP_PULL is set"
+fi
 
 echo "Running tests in $IMAGE"
 docker run --rm --network "$NETWORK" -v "$(pwd)":$WORKDIR "$IMAGE" \
