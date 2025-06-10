@@ -25,9 +25,16 @@ else
 fi
 
 echo "Installing frontend Node dependencies…"
-pushd "$ROOT_DIR/frontend" > /dev/null
-npm config set install-links true
-npm ci --no-progress
-popd > /dev/null
+FRONTEND_DIR="$ROOT_DIR/frontend"
+FRONTEND_MARKER="$FRONTEND_DIR/node_modules/.install_complete"
+if [ -f "$FRONTEND_MARKER" ]; then
+  echo "Node dependencies already installed; skipping npm ci."
+else
+  pushd "$FRONTEND_DIR" > /dev/null
+  npm config set install-links true
+  npm ci --no-progress
+  touch "$FRONTEND_MARKER"
+  popd > /dev/null
+fi
 
 echo "Setup complete."
