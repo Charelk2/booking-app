@@ -76,7 +76,7 @@ if [ -f "$FRONTEND_MARKER" ]; then
     echo "package-lock.json changed; reinstalling Node dependencies…"
     pushd "$FRONTEND_DIR" > /dev/null
     npm config set install-links true
-    if npm ci --no-progress; then
+    if npm ci --prefer-offline --no-audit --progress=false; then
       echo "$CURRENT_PKG_HASH" > "$PKG_HASH_FILE"
       touch "$FRONTEND_MARKER"
     else
@@ -90,7 +90,7 @@ if [ -f "$FRONTEND_MARKER" ]; then
 else
   pushd "$FRONTEND_DIR" > /dev/null
   npm config set install-links true
-  if npm ci --no-progress; then
+  if npm ci --prefer-offline --no-audit --progress=false; then
     echo "$CURRENT_PKG_HASH" > "$PKG_HASH_FILE"
     touch "$FRONTEND_MARKER"
   else
