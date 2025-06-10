@@ -46,3 +46,5 @@ jest.mock('@react-google-maps/api', () => {
   };
 });
 
+// Enable React 18 act() support in tests
+(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
