@@ -12,6 +12,11 @@ function Wrapper() {
     <DateTimeStep
       control={control as unknown as Control<FieldValues>}
       unavailable={[]}
+      step={0}
+      steps={['one']}
+      onBack={() => {}}
+      onSaveDraft={() => {}}
+      onNext={() => {}}
     />
   );
 }

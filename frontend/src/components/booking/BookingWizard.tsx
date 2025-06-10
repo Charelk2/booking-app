@@ -3,11 +3,10 @@
 // marked TODO highlight planned mobile UX enhancements like collapsible
 // sections and sticky progress indicators.
 import { useEffect, useState } from 'react';
-import type { Control, FieldValues, UseFormWatch } from 'react-hook-form';
+import type { Control, FieldValues } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
 import { format } from 'date-fns';
-import Button from '../ui/Button';
 import Stepper from '../ui/Stepper'; // progress indicator
 import toast from '../ui/Toast';
 import {
@@ -76,7 +75,6 @@ export default function BookingWizard({
     control,
     handleSubmit,
     trigger,
-    watch,
     setValue,
     errors,
   } = useBookingForm(schema, details, setDetails);
@@ -198,7 +196,10 @@ export default function BookingWizard({
           <DateTimeStep
             control={control as unknown as Control<FieldValues>}
             unavailable={unavailable}
-            watch={watch as unknown as UseFormWatch<FieldValues>}
+            step={step}
+            steps={steps}
+            onBack={prev}
+            onSaveDraft={saveDraft}
             onNext={next}
           />
         );
@@ -208,24 +209,53 @@ export default function BookingWizard({
             control={control as unknown as Control<FieldValues>}
             artistLocation={artistLocation || undefined}
             setWarning={setWarning}
+            step={step}
+            steps={steps}
+            onBack={prev}
+            onSaveDraft={saveDraft}
             onNext={next}
           />
         );
       case 2:
-        return <VenueStep control={control as unknown as Control<FieldValues>} onNext={next} />;
+        return (
+          <VenueStep
+            control={control as unknown as Control<FieldValues>}
+            step={step}
+            steps={steps}
+            onBack={prev}
+            onSaveDraft={saveDraft}
+            onNext={next}
+          />
+        );
       case 3:
-        return <SoundStep control={control as unknown as Control<FieldValues>} onNext={next} />;
+        return (
+          <SoundStep
+            control={control as unknown as Control<FieldValues>}
+            step={step}
+            steps={steps}
+            onBack={prev}
+            onSaveDraft={saveDraft}
+            onNext={next}
+          />
+        );
       case 4:
         return (
           <NotesStep
             control={control as unknown as Control<FieldValues>}
             setValue={setValue as unknown as (name: string, value: unknown) => void}
+            step={step}
+            steps={steps}
+            onBack={prev}
+            onSaveDraft={saveDraft}
             onNext={next}
           />
         );
       default:
         return (
           <ReviewStep
+            step={step}
+            steps={steps}
+            onBack={prev}
             onSaveDraft={saveDraft}
             onSubmit={submitRequest}
             submitting={submitting}
@@ -248,48 +278,6 @@ export default function BookingWizard({
           <p className="text-red-600 text-sm">Please fix the errors above.</p>
         )}
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div className="flex justify-between items-center mt-6">
-          {step > 0 && (
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={prev}
-              className="w-full sm:w-auto"
-            >
-              Back
-            </Button>
-          )}
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={saveDraft}
-              className="w-full sm:w-auto"
-            >
-              Save Draft
-            </Button>
-            {step < steps.length - 1 ? (
-              <Button
-                variant="primary"
-                type="button"
-                onClick={next}
-                className="w-full sm:w-auto"
-              >
-                Next
-              </Button>
-            ) : (
-              <Button
-                variant="primary"
-                type="button"
-                onClick={submitRequest}
-                disabled={submitting}
-                className="w-full sm:w-auto"
-              >
-                {submitting ? 'Submitting...' : 'Submit Request'}
-              </Button>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
