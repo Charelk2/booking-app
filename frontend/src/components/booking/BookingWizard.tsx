@@ -248,7 +248,7 @@ export default function BookingWizard({
           <p className="text-red-600 text-sm">Please fix the errors above.</p>
         )}
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div className="flex flex-col sm:flex-row justify-between gap-2 pt-4">
+        <div className="flex justify-between items-center mt-6">
           {step > 0 && (
             <Button
               variant="secondary"
@@ -259,32 +259,36 @@ export default function BookingWizard({
               Back
             </Button>
           )}
-          <Button
-            variant="secondary"
-            type="button"
-            onClick={saveDraft}
-            className="w-full sm:w-auto"
-          >
-            Save Draft
-          </Button>
-          {step < steps.length - 1 ? (
+          <div className="flex gap-2">
             <Button
+              variant="secondary"
               type="button"
-              onClick={next}
-              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+              onClick={saveDraft}
+              className="w-full sm:w-auto"
             >
-              Next
+              Save Draft
             </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={submitRequest}
-              disabled={submitting}
-              className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
-            >
-              {submitting ? 'Submitting...' : 'Submit Request'}
-            </Button>
-          )}
+            {step < steps.length - 1 ? (
+              <Button
+                variant="primary"
+                type="button"
+                onClick={next}
+                className="w-full sm:w-auto"
+              >
+                Next
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                type="button"
+                onClick={submitRequest}
+                disabled={submitting}
+                className="w-full sm:w-auto"
+              >
+                {submitting ? 'Submitting...' : 'Submit Request'}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
