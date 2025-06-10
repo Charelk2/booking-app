@@ -105,4 +105,11 @@ describe('BookingWizard mobile scrolling', () => {
     await act(async () => { setStep(5); });
     expectNoButton('review-submit-button');
   });
+
+  it('wraps the summary sidebar in a details element on mobile', () => {
+    const details = container.querySelector('details');
+    const summary = container.querySelector('details summary');
+    expect(details).not.toBeNull();
+    expect(summary?.textContent).toContain('Booking Summary');
+  });
 });
