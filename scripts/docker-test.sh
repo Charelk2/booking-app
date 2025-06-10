@@ -29,6 +29,15 @@ decompress_cache() {
 decompress_cache "$HOST_REPO/backend/venv.tar.zst" "$HOST_REPO/backend/venv"
 decompress_cache "$HOST_REPO/frontend/node_modules.tar.zst" "$HOST_REPO/frontend/node_modules"
 
+# Automatically enable network access when dependency caches are missing and
+# DOCKER_TEST_NETWORK wasn't specified by the user. This helps first-time runs
+# populate `backend/venv` and `frontend/node_modules` without failing.
+if [ -z "${DOCKER_TEST_NETWORK+x}" ] && { [ ! -f "$HOST_REPO/backend/venv/.install_complete" ] || \ 
+     [ ! -f "$HOST_REPO/frontend/node_modules/.install_complete" ]; }; then
+  NETWORK=bridge
+  echo "Dependency caches missing. Using --network bridge to populate them."
+fi
+
 # Fallback to local tests when Docker is not installed. This allows CI
 # environments without Docker to still execute the full test suite.
 if ! command -v docker >/dev/null 2>&1; then
