@@ -4,6 +4,7 @@ IMAGE=${BOOKING_APP_IMAGE:-ghcr.io/example-org/booking-app-ci:latest}
 SCRIPT=${TEST_SCRIPT:-./scripts/test-all.sh}
 NETWORK=${DOCKER_TEST_NETWORK:-none}
 WORKDIR=/workspace
+HOST_REPO=$(pwd)
 
 # Fallback to local tests when Docker is not installed. This allows CI
 # environments without Docker to still execute the full test suite.
@@ -18,6 +19,14 @@ if [ -z "${BOOKING_APP_SKIP_PULL:-}" ]; then
   docker pull "$IMAGE"
 else
   echo "Skipping docker pull because BOOKING_APP_SKIP_PULL is set"
+fi
+
+if [ "$NETWORK" = "none" ]; then
+  if [ ! -f "$HOST_REPO/backend/venv/.install_complete" ] || \
+     [ ! -f "$HOST_REPO/frontend/node_modules/.install_complete" ]; then
+    echo "❌ Cached dependencies missing. Run again with DOCKER_TEST_NETWORK=bridge to populate caches." >&2
+    exit 1
+  fi
 fi
 
 echo "Running tests in $IMAGE"
