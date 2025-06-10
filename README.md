@@ -217,7 +217,8 @@ test script in one step:
 ```
 Set the `BOOKING_APP_IMAGE` environment variable if you want to use a different
 tag or registry location. Pass `DOCKER_TEST_NETWORK=bridge` if network access is
-needed during the test run.
+needed during the test run. Set `BOOKING_APP_SKIP_PULL=1` when the image is
+already available locally to skip the `docker pull` step.
 The script copies the image's pre-built `backend/venv` and `frontend/node_modules`
 into your working directory on first run so subsequent executions can run
 without network access.
