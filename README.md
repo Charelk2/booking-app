@@ -233,7 +233,9 @@ DOCKER_TEST_NETWORK=bridge BOOKING_APP_BUILD=1 ./scripts/docker-test.sh
 This command builds (or pulls) the image and copies `backend/venv` and
 `frontend/node_modules` from the container. After it finishes you should have
 `backend/venv/.install_complete` and
-`frontend/node_modules/.install_complete` in your working tree.
+`frontend/node_modules/.install_complete` in your working tree. It also
+compresses these directories into `backend/venv.tar.zst` and
+`frontend/node_modules.tar.zst` so they can be restored later without Docker.
 
 2. **Run tests offline**
 
@@ -260,7 +262,15 @@ the cached directories are reused.
 If `setup.sh` still tries to run `pip install` or `npm ci`, it means the marker
 files were not copied correctly. Rerun `scripts/docker-test.sh` with
 `DOCKER_TEST_NETWORK=bridge` so the setup step can download the dependencies
-and recreate the caches.
+and recreate the caches. When the caches are missing but the `.tar.zst` archives
+exist, `docker-test.sh` extracts them automatically before running tests so the
+marker files are preserved.
+
+Each run of `docker-test.sh` also updates these archives if the directories
+exist. Subsequent offline runs look for `backend/venv.tar.zst` and
+`frontend/node_modules.tar.zst`; if the directories are missing but the archives
+are present, the script unpacks them with `tar --use-compress-program=unzstd -xf`
+before calling `setup.sh`.
 
 If you update `requirements.txt` or `package-lock.json`, run
 `BOOKING_APP_BUILD=1 ./scripts/docker-test.sh` (or rebuild the image manually)
