@@ -13,9 +13,15 @@ fi
 # shellcheck source=/dev/null
 source "$VENV_DIR/bin/activate"
 
-echo "Installing backend Python dependencies…"
-pip install -r "$ROOT_DIR/backend/requirements.txt"
-pip install -r "$ROOT_DIR/requirements-dev.txt"
+INSTALL_MARKER="$VENV_DIR/.install_complete"
+if [ -f "$INSTALL_MARKER" ]; then
+  echo "Python dependencies already installed; skipping pip install."
+else
+  echo "Installing backend Python dependencies…"
+  pip install -r "$ROOT_DIR/backend/requirements.txt"
+  pip install -r "$ROOT_DIR/requirements-dev.txt"
+  touch "$INSTALL_MARKER"
+fi
 
 echo "Installing frontend Node dependencies…"
 pushd "$ROOT_DIR/frontend" > /dev/null
