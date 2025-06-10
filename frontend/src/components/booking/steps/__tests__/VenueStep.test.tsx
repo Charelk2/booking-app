@@ -6,7 +6,16 @@ import VenueStep from '../VenueStep';
 
 function Wrapper() {
   const { control } = useForm({ defaultValues: { venueType: 'indoor' } });
-  return <VenueStep control={control as unknown as Control<FieldValues>} />;
+  return (
+    <VenueStep
+      control={control as unknown as Control<FieldValues>}
+      step={2}
+      steps={['one', 'two', 'three']}
+      onBack={() => {}}
+      onSaveDraft={() => {}}
+      onNext={() => {}}
+    />
+  );
 }
 
 describe('VenueStep radio buttons', () => {

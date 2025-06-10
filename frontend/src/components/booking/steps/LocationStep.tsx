@@ -17,6 +17,11 @@ interface Props {
   control: Control<FieldValues>;
   artistLocation?: string | null;
   setWarning: (w: string | null) => void;
+  step: number;
+  steps: string[];
+  onBack: () => void;
+  onSaveDraft: () => void;
+  onNext: () => void;
 }
 
 const containerStyle = { width: '100%', height: '250px' };
@@ -73,6 +78,11 @@ export default function LocationStep({
   control,
   artistLocation,
   setWarning,
+  step,
+  steps,
+  onBack,
+  onSaveDraft,
+  onNext,
 }: Props): JSX.Element {
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
@@ -145,6 +155,34 @@ export default function LocationStep({
         ?
       </span>
       {geoError && <p className="text-red-600 text-sm">{geoError}</p>}
+      <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
+        {step > 0 && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+          >
+            Back
+          </button>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
+          <button
+            type="button"
+            onClick={onSaveDraft}
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+          >
+            Save Draft
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+          >
+            {step === steps.length - 1 ? 'Submit Request' : 'Next'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
