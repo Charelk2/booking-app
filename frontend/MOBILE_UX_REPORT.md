@@ -39,7 +39,7 @@ This document outlines key friction points in the current booking wizard and pro
   - Confirm submission with toast and inline message.
 
 ## Global Recommendations
-* Keep the progress <code>Stepper</code> fixed below the header for quick navigation.
+* Show a simple progress bar above the form steps. The bar scrolls naturally with the page instead of sticking under the header.
 * Ensure all buttons have at least 44×44 px tappable area and sufficient contrast.
 * Defer maps and heavy images until after the initial step loads.
 * Provide skeleton loaders for availability checks and quote calculations.
