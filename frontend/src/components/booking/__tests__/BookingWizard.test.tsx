@@ -23,7 +23,7 @@ function Wrapper() {
     return null;
   }
 
-describe('BookingWizard mobile scrolling', () => {
+describe('BookingWizard flow', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -53,23 +53,18 @@ describe('BookingWizard mobile scrolling', () => {
   });
 
   it('scrolls to top when advancing steps', async () => {
-    const nextButton = container.querySelector('[data-testid="mobile-next-button"]') as HTMLButtonElement;
+    const nextButton = container.querySelectorAll('button[type="button"]')[1] as HTMLButtonElement;
     await act(async () => {
       nextButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(window.scrollTo).toHaveBeenCalled();
   });
 
-  it('does not render inline next button on mobile', () => {
-    const inline = container.querySelector('[data-testid="date-next-button"]');
-    expect(inline).toBeNull();
-  });
-
   it('shows step heading and updates on next', async () => {
     const heading = () =>
       container.querySelector('[data-testid="step-heading"]')?.textContent;
     expect(heading()).toContain('Date & Time');
-    const next = container.querySelector('[data-testid="mobile-next-button"]') as HTMLButtonElement;
+    const next = container.querySelectorAll('button[type="button"]')[1] as HTMLButtonElement;
     await act(async () => {
       next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
@@ -77,39 +72,13 @@ describe('BookingWizard mobile scrolling', () => {
     expect(heading()).toContain('Location');
   });
 
-  it('advances to the location step without inline button', async () => {
-    const next = container.querySelector('[data-testid="mobile-next-button"]') as HTMLButtonElement;
-    await act(async () => {
-      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    await new Promise((r) => setTimeout(r, 0));
-    expect(
-      container.querySelector('[data-testid="location-next-button"]'),
-    ).toBeNull();
-  });
-
-  it('no inline action buttons exist for any step', async () => {
+  it('shows summary only on the review step', async () => {
+    expect(container.querySelector('h2')?.textContent).toContain('Date & Time');
+    expect(container.textContent).not.toContain('Summary');
     const setStep = (window as unknown as { __setStep: (s: number) => void }).__setStep;
-    const expectNoButton = (testId: string) => {
-      expect(container.querySelector(`[data-testid="${testId}"]`)).toBeNull();
-    };
-
-    await act(async () => { setStep(1); });
-    expectNoButton('location-next-button');
-    await act(async () => { setStep(2); });
-    expectNoButton('guests-next-button');
-    await act(async () => { setStep(3); });
-    expectNoButton('venue-next-button');
-    await act(async () => { setStep(4); });
-    expectNoButton('notes-next-button');
     await act(async () => { setStep(5); });
-    expectNoButton('review-submit-button');
-  });
-
-  it('wraps the summary sidebar in a details element on mobile', () => {
-    const details = container.querySelector('details');
-    const summary = container.querySelector('details summary');
-    expect(details).not.toBeNull();
-    expect(summary?.textContent).toContain('Booking Summary');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container.querySelector('h2')?.textContent).toContain('Review');
+    expect(container.textContent).toContain('Summary');
   });
 });
