@@ -6,9 +6,7 @@ import dynamic from 'next/dynamic';
 import { useLoadScript } from '@react-google-maps/api';
 const GoogleMap = dynamic(() => import('@react-google-maps/api').then((m) => m.GoogleMap), { ssr: false });
 const Marker = dynamic(() => import('@react-google-maps/api').then((m) => m.Marker), { ssr: false });
-const Autocomplete = dynamic(() => import('@react-google-maps/api').then((m) => m.Autocomplete), { ssr: false });
 import { useRef, useState, useEffect } from 'react';
-import useIsMobile from '@/hooks/useIsMobile';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
 
 // Keeping the libraries array stable avoids unnecessary re-renders from
@@ -23,17 +21,70 @@ interface Props {
 
 const containerStyle = { width: '100%', height: '250px' };
 
+interface AutocompleteProps {
+  value: string | undefined;
+  onChange: (v: string) => void;
+  onSelect: (loc: LatLng) => void;
+  isLoaded: boolean;
+}
+
+interface GmpSelectEvent {
+  placePrediction?: { toPlace: () => { fetchFields: (o: { fields: string[] }) => Promise<void>; formattedAddress?: string; location?: { lat: number; lng: number }; } };
+}
+
+function AutocompleteInput({ value, onChange, onSelect, isLoaded }: AutocompleteProps) {
+  const divRef = useRef<HTMLDivElement | null>(null);
+  const elementRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!isLoaded || elementRef.current || !divRef.current) return;
+    let el: HTMLElement;
+    (async () => {
+      const mod = await import('@googlemaps/places');
+      el = new mod.PlaceAutocompleteElement();
+      el.setAttribute('placeholder', 'Search address');
+      if (value) el.setAttribute('value', value);
+      divRef.current!.appendChild(el);
+      elementRef.current = el;
+      el.addEventListener('gmp-select', async (event: GmpSelectEvent) => {
+        const pred = event.placePrediction;
+        if (pred) {
+          const place = pred.toPlace();
+          await place.fetchFields({ fields: ['formattedAddress', 'location'] });
+          if (place.location) {
+            onSelect({ lat: place.location.lat, lng: place.location.lng });
+          }
+          if (place.formattedAddress) onChange(place.formattedAddress);
+        }
+      });
+      el.addEventListener('input', (e) => {
+        onChange((e.target as HTMLInputElement).value);
+      });
+    })();
+    return () => {
+      if (el) el.remove();
+      elementRef.current = null;
+    };
+  }, [isLoaded, onChange, onSelect, value]);
+
+  useEffect(() => {
+    if (elementRef.current && value !== undefined) {
+      elementRef.current.setAttribute('value', value);
+    }
+  }, [value]);
+
+  return <div ref={divRef} data-testid="autocomplete-container" />;
+}
+
 export default function LocationStep({
   control,
   artistLocation,
   setWarning,
 }: Props): JSX.Element {
-  const isMobile = useIsMobile();
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: MAP_LIBRARIES,
   });
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [marker, setMarker] = useState<LatLng | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
 
@@ -54,34 +105,25 @@ export default function LocationStep({
   return (
     <div className="space-y-2">
       <p className="text-sm text-gray-600">Where is the show?</p>
-      <Autocomplete
-        onLoad={(a) => (autocompleteRef.current = a)}
-        onPlaceChanged={async () => {
-          const place = autocompleteRef.current?.getPlace();
-          if (place && place.geometry?.location) {
-            const loc = {
-              lat: place.geometry.location.lat(),
-              lng: place.geometry.location.lng(),
-            };
-            setMarker(loc);
-          }
-        }}
-      >
-        <Controller
-          name="location"
-          control={control}
-          render={({ field }) => (
-            <input
-              {...field}
-              className="border p-2 rounded w-full"
-              placeholder="Search address"
-              autoFocus={!isMobile}
-            />
-          )}
-        />
-      </Autocomplete>
+      <Controller
+        name="location"
+        control={control}
+        render={({ field }) => (
+          <AutocompleteInput
+            value={field.value}
+            onChange={field.onChange}
+            onSelect={(loc) => setMarker(loc)}
+            isLoaded={isLoaded}
+          />
+        )}
+      />
       {marker && (
-        <GoogleMap center={marker} zoom={14} mapContainerStyle={containerStyle}>
+        <GoogleMap
+          center={marker}
+          zoom={14}
+          mapContainerStyle={containerStyle}
+          data-testid="map"
+        >
           <Marker position={marker} />
         </GoogleMap>
       )}

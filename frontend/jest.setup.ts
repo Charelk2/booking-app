@@ -40,9 +40,17 @@ jest.mock('@react-google-maps/api', () => {
   const React = require('react');
   return {
     useLoadScript: () => ({ isLoaded: true }),
-    GoogleMap: (props: any) => React.createElement('div', null, props.children),
+    GoogleMap: (props: any) => React.createElement('div', props, props.children),
     Marker: () => React.createElement('div'),
-    Autocomplete: (props: any) => React.createElement('div', null, props.children),
+  };
+});
+
+jest.mock('@googlemaps/places', () => {
+  return {
+    PlaceAutocompleteElement: function () {
+      const doc = (globalThis as any).document;
+      return doc ? doc.createElement('input') : {};
+    },
   };
 });
 
