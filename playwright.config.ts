@@ -19,7 +19,7 @@ export default defineConfig({
     env: {
       NEXT_TELEMETRY_DISABLED: '1',
     },
-    // TODO: verify no external calls are made during tests when CI blocks network
-    // TODO: stub all API requests here to keep tests fully offline
   },
+  globalSetup: './scripts/playwright-global-setup.js',
+  globalTeardown: './scripts/playwright-global-teardown.js',
 });
