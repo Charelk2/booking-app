@@ -8,9 +8,22 @@ import toast from '../../ui/Toast';
 interface Props {
   control: Control<FieldValues>;
   setValue: (name: string, value: unknown) => void;
+  step: number;
+  steps: string[];
+  onBack: () => void;
+  onSaveDraft: () => void;
+  onNext: () => void;
 }
 
-export default function NotesStep({ control, setValue }: Props) {
+export default function NotesStep({
+  control,
+  setValue,
+  step,
+  steps,
+  onBack,
+  onSaveDraft,
+  onNext,
+}: Props) {
   const isMobile = useIsMobile();
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -46,6 +59,34 @@ export default function NotesStep({ control, setValue }: Props) {
       />
       <label className="block text-sm font-medium">Attachment (optional)</label>
       <input type="file" onChange={handleFileChange} />
+      <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
+        {step > 0 && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+          >
+            Back
+          </button>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
+          <button
+            type="button"
+            onClick={onSaveDraft}
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+          >
+            Save Draft
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+          >
+            {step === steps.length - 1 ? 'Submit Request' : 'Next'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

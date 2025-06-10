@@ -9,9 +9,22 @@ import useIsMobile from '@/hooks/useIsMobile';
 interface Props {
   control: Control<FieldValues>;
   unavailable: string[];
+  step: number;
+  steps: string[];
+  onBack: () => void;
+  onSaveDraft: () => void;
+  onNext: () => void;
 }
 
-export default function DateTimeStep({ control, unavailable }: Props) {
+export default function DateTimeStep({
+  control,
+  unavailable,
+  step,
+  steps,
+  onBack,
+  onSaveDraft,
+  onNext,
+}: Props) {
   const isMobile = useIsMobile();
   const tileDisabled = ({ date }: { date: Date }) => {
     const day = format(date, 'yyyy-MM-dd');
@@ -53,6 +66,34 @@ export default function DateTimeStep({ control, unavailable }: Props) {
           );
         }}
       />
+      <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
+        {step > 0 && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+          >
+            Back
+          </button>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
+          <button
+            type="button"
+            onClick={onSaveDraft}
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+          >
+            Save Draft
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+          >
+            {step === steps.length - 1 ? 'Submit Request' : 'Next'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
