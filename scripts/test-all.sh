@@ -77,7 +77,12 @@ if [ -n "$FRONTEND_CHANGES" ]; then
   fi
   echo "Jest $($JEST_BIN --version) at $JEST_BIN"
 
-  npm test
+  if [ -n "${JEST_WORKERS:-}" ]; then
+    echo "▶️  Using JEST_WORKERS=$JEST_WORKERS"
+    npm test -- --maxWorkers="$JEST_WORKERS"
+  else
+    npm test
+  fi
   npm run lint --silent
   popd >/dev/null
 else
