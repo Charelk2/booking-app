@@ -28,52 +28,45 @@ interface AutocompleteProps {
   isLoaded: boolean;
 }
 
-interface GmpSelectEvent {
-  placePrediction?: { toPlace: () => { fetchFields: (o: { fields: string[] }) => Promise<void>; formattedAddress?: string; location?: { lat: number; lng: number }; } };
-}
-
 function AutocompleteInput({ value, onChange, onSelect, isLoaded }: AutocompleteProps) {
-  const divRef = useRef<HTMLDivElement | null>(null);
-  const elementRef = useRef<HTMLElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const instanceRef = useRef<google.maps.places.Autocomplete | null>(null);
 
   useEffect(() => {
-    if (!isLoaded || elementRef.current || !divRef.current) return;
-    let el: HTMLElement;
-    (async () => {
-      const mod = await import('@googlemaps/places');
-      el = new mod.PlaceAutocompleteElement();
-      el.setAttribute('placeholder', 'Search address');
-      if (value) el.setAttribute('value', value);
-      divRef.current!.appendChild(el);
-      elementRef.current = el;
-      el.addEventListener('gmp-select', async (event: GmpSelectEvent) => {
-        const pred = event.placePrediction;
-        if (pred) {
-          const place = pred.toPlace();
-          await place.fetchFields({ fields: ['formattedAddress', 'location'] });
-          if (place.location) {
-            onSelect({ lat: place.location.lat, lng: place.location.lng });
-          }
-          if (place.formattedAddress) onChange(place.formattedAddress);
-        }
-      });
-      el.addEventListener('input', (e) => {
-        onChange((e.target as HTMLInputElement).value);
-      });
-    })();
+    if (!isLoaded || instanceRef.current || !inputRef.current) return;
+    // eslint-disable-next-line no-undef
+    const autocomplete = new google.maps.places.Autocomplete(inputRef.current!);
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (place.geometry && place.geometry.location) {
+        onSelect({
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng(),
+        });
+      }
+      if (place.formatted_address) onChange(place.formatted_address);
+    });
+    instanceRef.current = autocomplete;
     return () => {
-      if (el) el.remove();
-      elementRef.current = null;
+      instanceRef.current = null;
     };
-  }, [isLoaded, onChange, onSelect, value]);
+  }, [isLoaded, onChange, onSelect]);
 
   useEffect(() => {
-    if (elementRef.current && value !== undefined) {
-      elementRef.current.setAttribute('value', value);
+    if (inputRef.current && value !== undefined) {
+      inputRef.current.value = value;
     }
   }, [value]);
 
-  return <div ref={divRef} data-testid="autocomplete-container" />;
+  return (
+    <input
+      ref={inputRef}
+      className="border p-2 w-full"
+      placeholder="Search address"
+      onChange={(e) => onChange(e.target.value)}
+      data-testid="autocomplete-input"
+    />
+  );
 }
 
 export default function LocationStep({
