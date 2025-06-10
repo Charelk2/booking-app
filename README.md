@@ -275,8 +275,9 @@ This command builds (or pulls) the image and copies `backend/venv` and
 `frontend/node_modules` from the container. After it finishes you should have
 `backend/venv/.install_complete` and
 `frontend/node_modules/.install_complete` in your working tree. It also
-compresses these directories into `backend/venv.tar.zst` and
-`frontend/node_modules.tar.zst` so they can be restored later without Docker.
+archives these directories using `tar --use-compress-program=zstd` into
+`backend/venv.tar.zst` and `frontend/node_modules.tar.zst` so they can be
+restored later without Docker.
 
 2. **Run tests offline**
 
