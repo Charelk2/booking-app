@@ -64,7 +64,7 @@ export default function VenueStep({ control }: Props) {
                 )}
               </>
             ) : (
-              <select className="border p-2 rounded w-full" {...field} autoFocus>
+              <select className="border p-2 rounded w-full" {...field} autoFocus={!isMobile}>
                 {options.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}

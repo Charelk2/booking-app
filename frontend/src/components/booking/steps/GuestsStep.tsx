@@ -1,12 +1,14 @@
 'use client';
 // Larger touch targets and contextual help improve usability on mobile.
 import { Controller, Control, FieldValues } from 'react-hook-form';
+import useIsMobile from '@/hooks/useIsMobile';
 
 interface Props {
   control: Control<FieldValues>;
 }
 
 export default function GuestsStep({ control }: Props) {
+  const isMobile = useIsMobile();
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium">Number of guests</label>
@@ -20,7 +22,7 @@ export default function GuestsStep({ control }: Props) {
             min={1}
             className="border p-3 rounded w-full text-lg"
             {...field}
-            autoFocus
+            autoFocus={!isMobile}
           />
         )}
       />
