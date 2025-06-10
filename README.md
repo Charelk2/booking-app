@@ -187,51 +187,24 @@ docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 
 ### Offline Testing with Docker
 
-If `setup.sh` fails because dependencies cannot be installed (such as in an
-isolated CI environment), you can pull a pre-built image that already contains
-all Python and Node dependencies. This avoids the slow `npm ci` step.
-Alternatively, build the image once with network access and reuse it for
-subsequent test runs. Be sure to run `./scripts/docker-test.sh` with network
-access at least once so `backend/venv/.install_complete` and
-`frontend/node_modules/.install_complete` get copied into your working
-directory. The image caches Python packages and Node modules so
-`test-all.sh` can run entirely offline:
+If `setup.sh` cannot install dependencies (for example in an isolated CI
+environment), build or pull the Docker image once with network access:
 
 ```bash
 docker build -t booking-app:latest .  # build once with connectivity
 docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 ```
-The Docker image now ships with a populated virtual environment under
-`backend/venv`. When running tests from this image, `setup.sh` sees the
-`backend/venv/.install_complete` marker and therefore skips any Python
-downloads. Node modules behave the same thanks to the
-`frontend/node_modules/.install_complete` flag, which the `Dockerfile`
-creates right after `npm ci`. `setup.sh` checks for this file so repeated test
-executions can run offline without reinstalling packages.
 
-You can also pull a pre-built image from our container registry and run the
-test script in one step:
-
-```bash
-./scripts/docker-test.sh
-```
-Set the `BOOKING_APP_IMAGE` environment variable if you want to use a different
-tag or registry location. Pass `DOCKER_TEST_NETWORK=bridge` if network access is
-needed during the test run. Set `BOOKING_APP_SKIP_PULL=1` when the image is
-already available locally to skip the `docker pull` step.
-The script copies the image's pre-built `backend/venv` and `frontend/node_modules`
-into your working directory on first run so subsequent executions can run
-without network access.
-If Docker is not available, the script now automatically falls back to running
-`./scripts/test-all.sh` on the host.
-
-**First run:** run `./scripts/docker-test.sh` with `DOCKER_TEST_NETWORK=bridge`
-so the container can download Python and Node dependencies. Once
-`backend/venv/.install_complete` and `frontend/node_modules/.install_complete`
-exist, the script's default `--network none` mode works offline.
+The image already contains `backend/venv` and `frontend/node_modules`.
+Running `./scripts/docker-test.sh` for the first time copies these cached
+directories into your repository so subsequent tests can run offline. Set
+`BOOKING_APP_IMAGE` to override the tag, use `BOOKING_APP_SKIP_PULL=1` to skip
+pulling when the image is local, and pass `DOCKER_TEST_NETWORK=bridge` if
+network access is needed. The script automatically falls back to
+`./scripts/test-all.sh` when Docker is unavailable.
 
 If you update `requirements.txt` or `package-lock.json`, rebuild the image or
-remove the cached directories to pull the new packages.
+remove the cached directories to fetch new packages.
 
 ### Dependency Caching
 
