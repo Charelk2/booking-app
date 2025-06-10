@@ -400,7 +400,7 @@ export default function DashboardPage() {
             <SectionList
               title="Booking Requests"
               data={visibleRequests}
-              defaultOpen={bookingRequests.length > 0}
+              defaultOpen={false}
               emptyState={<span>No bookings yet</span>}
               renderItem={(req) => (
                 <div key={req.id} className="bg-white p-4 shadow rounded-lg">
@@ -431,7 +431,7 @@ export default function DashboardPage() {
             <SectionList
               title="Recent Bookings"
               data={visibleBookings}
-              defaultOpen={bookings.length > 0}
+              defaultOpen={false}
               emptyState={<span>No bookings yet</span>}
               renderItem={(booking) => (
                 <div key={booking.id} className="bg-white p-4 shadow rounded-lg">
@@ -469,7 +469,6 @@ export default function DashboardPage() {
           {user.user_type === "artist" && activeTab === 'services' && (
             <details
               className="mt-8 border border-gray-200 rounded-md bg-white shadow-sm"
-              open={services.length > 0}
             >
               <summary className="px-3 py-2 text-sm font-medium text-gray-700 cursor-pointer select-none">
                 Your Services
