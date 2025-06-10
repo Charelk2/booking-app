@@ -115,9 +115,12 @@ For setup instructions see [README.md](README.md).
 * Update this file to keep documentation current for all automation and agent logic.
 * Ensure each new agent is integrated with relevant booking, notification, or chat workflows as needed.
 * Run `./scripts/test-all.sh` before committing changes to ensure backend and
-  frontend tests pass. The script calls Jest via Node so it works even when
-  `node_modules/.bin` is missing. Documentation-only commits skip testing by
-  default; set `FORCE_TESTS=1` to run the full suite anyway.
+  frontend tests pass. The script verifies that `node` and `npm` are installed
+  and logs their versions. It calls Jest via Node so it works even when
+  `node_modules/.bin` is missing. The path and version of the Jest binary are
+  printed, and the script exits with a clear error if the binary cannot be
+  found. Documentation-only commits skip testing by default; set
+  `FORCE_TESTS=1` to run the full suite anyway.
 * If network access is limited, use the pre-built Docker image by running
   `./scripts/docker-test.sh`. Set `BOOKING_APP_IMAGE` to override the default
   registry path. The script runs the container with `--network none` by default;
