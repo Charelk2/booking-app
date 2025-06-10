@@ -12,16 +12,16 @@ interface StepperProps {
 export default function Stepper({ steps, currentStep }: StepperProps) {
   return (
     <div className="flex justify-center space-x-4 my-6" aria-label="Progress">
-      {steps.map((label, index) => (
-        <div key={label} className="flex flex-col items-center text-xs">
+      {steps.map((label, i) => (
+        <div key={label} className="flex flex-col items-center text-sm">
           <div
-            className={`w-4 h-4 rounded-full ${
-              index === currentStep ? 'bg-black' : 'bg-gray-300'
+            className={`w-3 h-3 rounded-full ${
+              i === currentStep ? 'bg-black' : 'bg-gray-300'
             }`}
           />
           <span
             className={`mt-1 ${
-              index === currentStep ? 'font-semibold text-black' : 'text-gray-400'
+              i === currentStep ? 'font-medium text-black' : 'text-gray-400'
             }`}
           >
             {label}
