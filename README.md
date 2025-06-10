@@ -358,6 +358,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Mobile devices use native date and time pickers for faster input.
 * Stepper sticks below the header so progress is always visible while scrolling.
 * Venue picker uses a bottom-sheet on small screens to avoid keyboard overlap.
+  The sheet now traps focus for accessibility and closes when you press
+  `Escape` or tap outside.
 * Input fields no longer auto-focus on mobile so the on-screen keyboard stays hidden until tapped.
 * Summary sidebar collapses into a `<details>` section on phones so you can hide the order overview.
 

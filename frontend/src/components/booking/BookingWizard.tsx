@@ -252,6 +252,14 @@ export default function BookingWizard({
         <h2 className="text-xl font-semibold" data-testid="step-heading">
           {steps[step]}
         </h2>
+        <div className="lg:hidden">
+          {isMobile && (
+            <details open className="space-y-2">
+              <summary className="cursor-pointer text-sm underline">Booking Summary</summary>
+              <SummarySidebar />
+            </details>
+          )}
+        </div>
         {renderStep()}
         {warning && <p className="text-orange-600 text-sm">{warning}</p>}
         {Object.values(errors).length > 0 && (
@@ -301,16 +309,6 @@ export default function BookingWizard({
           submitting={submitting}
         />
       )}
-      <div className="lg:hidden mt-4">
-        {isMobile ? (
-          <details open className="space-y-2">
-            <summary className="cursor-pointer text-sm underline">Booking Summary</summary>
-            <SummarySidebar />
-          </details>
-        ) : (
-          <SummarySidebar />
-        )}
-      </div>
     </div>
   );
 }
