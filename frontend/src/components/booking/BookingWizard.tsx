@@ -236,7 +236,7 @@ export default function BookingWizard({
 
   return (
     <div className="lg:flex lg:space-x-4">
-      <div className="flex-1 space-y-4 pb-32 lg:pb-0">
+      <div className="flex-1 space-y-4">
         <Stepper steps={steps} currentStep={step} />
         <h2 className="text-xl font-semibold" data-testid="step-heading">
           {steps[step]}
@@ -248,31 +248,39 @@ export default function BookingWizard({
           <p className="text-red-600 text-sm">Please fix the errors above.</p>
         )}
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div className="flex justify-between pt-2">
+        <div className="flex flex-col sm:flex-row justify-between gap-2 mt-6">
           {step > 0 && (
-            <Button variant="secondary" type="button" onClick={prev}>
+            <Button
+              variant="secondary"
+              type="button"
+              onClick={prev}
+              className="w-full sm:w-auto"
+            >
               Back
             </Button>
           )}
-          <div className="flex space-x-2 ml-auto">
-            <Button variant="secondary" type="button" onClick={saveDraft}>
-              Save Draft
+          <Button
+            variant="secondary"
+            type="button"
+            onClick={saveDraft}
+            className="w-full sm:w-auto"
+          >
+            Save Draft
+          </Button>
+          {step < steps.length - 1 ? (
+            <Button type="button" onClick={next} className="w-full sm:w-auto">
+              Next
             </Button>
-            {step < steps.length - 1 ? (
-              <Button type="button" onClick={next}>
-                Next
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                onClick={submitRequest}
-                disabled={submitting}
-                className="bg-green-600 hover:bg-green-700 focus:ring-green-500"
-              >
-                {submitting ? 'Submitting...' : 'Submit Request'}
-              </Button>
-            )}
-          </div>
+          ) : (
+            <Button
+              type="button"
+              onClick={submitRequest}
+              disabled={submitting}
+              className="bg-green-600 hover:bg-green-700 focus:ring-green-500 w-full sm:w-auto"
+            >
+              {submitting ? 'Submitting...' : 'Submit Request'}
+            </Button>
+          )}
         </div>
       </div>
       
