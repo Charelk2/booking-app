@@ -215,6 +215,14 @@ without network access.
 If Docker is not available, the script now automatically falls back to running
 `./scripts/test-all.sh` on the host.
 
+**First run:** run `./scripts/docker-test.sh` with `DOCKER_TEST_NETWORK=bridge`
+so the container can download Python and Node dependencies. Once
+`backend/venv/.install_complete` and `frontend/node_modules/.install_complete`
+exist, the script's default `--network none` mode works offline.
+
+If you update `requirements.txt` or `package-lock.json`, rebuild the image or
+remove the cached directories to pull the new packages.
+
 ### Dependency Caching
 
 To speed up CI builds and local Docker runs, reuse package caches between
