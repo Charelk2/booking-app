@@ -29,8 +29,12 @@ docker build -t booking-app:latest .
 docker run --rm -p 3000:3000 -p 8000:8000 booking-app:latest
 ```
 
-The container installs all Python and Node dependencies. Use a volume mount
-to iterate locally:
+The container installs all Python and Node dependencies. During the build
+step it creates `backend/venv` and installs the requirements into that
+virtual environment. A marker file `backend/venv/.install_complete` is also
+added after a successful install. `setup.sh` checks for this marker so
+repeated runs skip `pip install`, which means tests can run offline. Use a
+volume mount to iterate locally:
 
 ```bash
 docker run --rm -v "$(pwd)":/app -p 3000:3000 -p 8000:8000 booking-app:latest
@@ -188,11 +192,12 @@ subsequent test runs. The image caches Python packages and Node modules so
 docker build -t booking-app:latest .  # build once with connectivity
 docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 ```
-When running tests from this pre-built image, `setup.sh` detects the cached
-Python packages and Node modules and therefore skips any downloads. It looks
-for marker files in `backend/venv/.install_complete` and
-`frontend/node_modules/.install_complete` to know when installation can be
-skipped. This allows repeated test executions without network access.
+The Docker image now ships with a populated virtual environment under
+`backend/venv`. When running tests from this image, `setup.sh` sees the
+`backend/venv/.install_complete` marker and therefore skips any Python
+downloads. Node modules behave the same via the
+`frontend/node_modules/.install_complete` flag. This allows repeated test
+executions without network access.
 
 You can also pull a pre-built image from our container registry and run the
 test script in one step:
@@ -203,6 +208,9 @@ test script in one step:
 Set the `BOOKING_APP_IMAGE` environment variable if you want to use a different
 tag or registry location. Pass `DOCKER_TEST_NETWORK=bridge` if network access is
 needed during the test run.
+The script copies the image's pre-built `backend/venv` into your working
+directory on first run so subsequent executions can run without network
+access.
 If Docker is not available, the script now automatically falls back to running
 `./scripts/test-all.sh` on the host.
 
