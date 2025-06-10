@@ -32,9 +32,9 @@ docker run --rm -p 3000:3000 -p 8000:8000 booking-app:latest
 The container installs all Python and Node dependencies. During the build
 step it creates `backend/venv` and installs the requirements into that
 virtual environment. A marker file `backend/venv/.install_complete` is also
-added after a successful install. `setup.sh` checks for this marker so
-repeated runs skip `pip install`, which means tests can run offline. Use a
-volume mount to iterate locally:
+added after a successful install along with a hash of `requirements.txt`
+stored in `backend/venv/.req_hash`. `setup.sh` checks these files so
+repeated runs skip `pip install` when nothing changed. Node dependencies live in `frontend/node_modules` with a corresponding hash stored in `frontend/node_modules/.pkg_hash`. Use a volume mount to iterate locally:
 
 ```bash
 docker run --rm -v "$(pwd)":/app -p 3000:3000 -p 8000:8000 booking-app:latest
@@ -151,6 +151,11 @@ The script drops a marker file `frontend/node_modules/.install_complete` after a
 successful `npm ci` so subsequent runs skip reinstalling dependencies unless
 that file is removed. After installing Python requirements, `setup.sh` creates
 `backend/venv/.install_complete` so it can skip `pip install` on future runs.
+Each cache also stores a SHA256 hash of its lock file
+(`backend/venv/.req_hash` for `requirements.txt` and
+`frontend/node_modules/.pkg_hash` for `package-lock.json`). `setup.sh` compares
+these hashes to the current files and reinstalls the dependencies only when the
+hashes differ.
 
 **Important:** run `./setup.sh` or `./scripts/docker-test.sh` once with network
 access so these marker files are created. Subsequent offline runs reuse the
@@ -197,14 +202,17 @@ docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 
 The image already contains `backend/venv` and `frontend/node_modules`.
 Running `./scripts/docker-test.sh` for the first time copies these cached
-directories into your repository so subsequent tests can run offline. Set
-`BOOKING_APP_IMAGE` to override the tag, use `BOOKING_APP_SKIP_PULL=1` to skip
-pulling when the image is local, and pass `DOCKER_TEST_NETWORK=bridge` if
-network access is needed. The script automatically falls back to
-`./scripts/test-all.sh` when Docker is unavailable.
+directories into your repository so subsequent tests can run offline. The
+script also copies the `.req_hash` and `.pkg_hash` files so it can detect when
+the lock files change. Set `BOOKING_APP_IMAGE` to override the tag, use
+`BOOKING_APP_SKIP_PULL=1` to skip pulling when the image is local, and pass
+`DOCKER_TEST_NETWORK=bridge` if network access is needed. The script
+automatically falls back to `./scripts/test-all.sh` when Docker is unavailable.
 
 If you update `requirements.txt` or `package-lock.json`, rebuild the image or
-remove the cached directories to fetch new packages.
+delete the cached directories so `setup.sh` can reinstall them. The script
+stores the hashes in `.req_hash` and `.pkg_hash` and will automatically
+reinstall when those hashes no longer match the current lock files.
 
 ### Dependency Caching
 
