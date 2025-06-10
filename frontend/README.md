@@ -69,6 +69,21 @@ The `/booking` page requires an `artist_id` query parameter and accepts an optio
 
 Passing `service_id` skips the service selection step when a user clicks "Book Now" on a service card.
 
+## Testing
+
+Run `npm test` when you only want to execute the frontend Jest suite. The `pretest` script defined in
+`package.json` automatically installs dependencies if the `node_modules` directory is missing, so the
+tests can run even on a clean checkout.
+
+To run both the backend and frontend tests, use the project-wide script located one directory up:
+
+```bash
+../scripts/test-all.sh
+```
+
+That command invokes the Python unit tests and then runs the same `npm test` command as above, so you
+get full coverage across the entire application.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
