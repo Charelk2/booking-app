@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euxo pipefail
+# BOOKING_APP_IMAGE     - Docker image tag to run tests in
+# BOOKING_APP_SKIP_PULL - Skip pulling the image when set
+# BOOKING_APP_BUILD     - Build the image if it doesn't exist locally
 IMAGE=${BOOKING_APP_IMAGE:-ghcr.io/example-org/booking-app-ci:latest}
 SCRIPT=${TEST_SCRIPT:-./scripts/test-all.sh}
 NETWORK=${DOCKER_TEST_NETWORK:-none}
@@ -19,6 +22,13 @@ if [ -z "${BOOKING_APP_SKIP_PULL:-}" ]; then
   docker pull "$IMAGE"
 else
   echo "Skipping docker pull because BOOKING_APP_SKIP_PULL is set"
+fi
+
+if [ -n "${BOOKING_APP_BUILD:-}" ]; then
+  if [ -z "$(docker images -q "$IMAGE")" ]; then
+    echo "Image $IMAGE not found locally. Building it now."
+    docker build -t "$IMAGE" .
+  fi
 fi
 
 if [ "$NETWORK" = "none" ]; then
