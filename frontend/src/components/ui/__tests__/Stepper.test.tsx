@@ -25,7 +25,7 @@ describe('Stepper progress bar', () => {
       root.render(<Stepper steps={["One", "Two", "Three"]} currentStep={1} />);
     });
     const spans = container.querySelectorAll('span');
-    expect(spans[1].className).toContain('font-semibold');
+    expect(spans[1].className).toContain('font-medium');
     expect(container.textContent).toContain('Three');
   });
 });
