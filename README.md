@@ -234,6 +234,10 @@ files change. Set `BOOKING_APP_IMAGE` to override the tag, use
 `BOOKING_APP_SKIP_PULL=1` to skip pulling when the image is local, and pass
 `DOCKER_TEST_NETWORK=bridge` if network access is needed. The script
 automatically falls back to `./scripts/test-all.sh` when Docker is unavailable.
+When run with `DOCKER_TEST_NETWORK=none`, the script now checks that these
+caches already contain `.install_complete` markers before launching the
+container. If either cache is missing, it exits with an error advising you to
+rerun with `DOCKER_TEST_NETWORK=bridge` so the dependencies can be copied over.
 
 If `setup.sh` still tries to run `pip install` or `npm ci`, it means the marker
 files were not copied correctly. Rerun `scripts/docker-test.sh` with
