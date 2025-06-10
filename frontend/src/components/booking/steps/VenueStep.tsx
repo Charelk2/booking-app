@@ -8,38 +8,41 @@ interface Props {
 export default function VenueStep({ control }: Props) {
   return (
     <div className="space-y-4">
-      <label className="block text-sm font-medium mb-2">Venue Type</label>
+      <label className="block mb-2 font-medium">Venue Type</label>
       <Controller
         name="venueType"
         control={control}
         render={({ field }) => (
-          <div className="space-x-4">
-            <label className="inline-flex items-center">
+          <div className="space-y-2">
+            <label>
               <input
                 type="radio"
+                name={field.name}
                 value="indoor"
                 checked={field.value === 'indoor'}
-                onChange={() => field.onChange('indoor')}
+                onChange={(e) => field.onChange(e.target.value)}
                 className="mr-1"
               />
               Indoor
             </label>
-            <label className="inline-flex items-center">
+            <label>
               <input
                 type="radio"
+                name={field.name}
                 value="outdoor"
                 checked={field.value === 'outdoor'}
-                onChange={() => field.onChange('outdoor')}
+                onChange={(e) => field.onChange(e.target.value)}
                 className="mr-1"
               />
               Outdoor
             </label>
-            <label className="inline-flex items-center">
+            <label>
               <input
                 type="radio"
+                name={field.name}
                 value="hybrid"
                 checked={field.value === 'hybrid'}
-                onChange={() => field.onChange('hybrid')}
+                onChange={(e) => field.onChange(e.target.value)}
                 className="mr-1"
               />
               Hybrid

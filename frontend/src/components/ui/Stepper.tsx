@@ -1,9 +1,8 @@
 'use client';
 import React from 'react';
-// Simplified progress bar that highlights the current step and shows
-// past steps as semi-active. The bar sticks below the header on mobile
-// so progress stays visible while scrolling.
-import useIsMobile from '@/hooks/useIsMobile';
+// Lightweight horizontal progress indicator used by the booking wizard.
+// Each step is represented by a small circle and label. The current step
+// is highlighted in black while the remaining steps appear gray.
 
 interface StepperProps {
   steps: string[];
@@ -11,36 +10,24 @@ interface StepperProps {
 }
 
 export default function Stepper({ steps, currentStep }: StepperProps) {
-  const isMobile = useIsMobile();
-
   return (
-    <div className={`sticky top-16 z-30 bg-white py-2 ${isMobile ? '' : 'mb-4'}`}> 
-      <div className="flex items-center" aria-label="Progress">
-        {steps.map((label, i) => {
-          const state = i < currentStep ? 'past' : i === currentStep ? 'current' : 'future';
-          const circleClass =
-            state === 'current'
-              ? 'bg-indigo-600 text-white'
-              : state === 'past'
-                ? 'bg-indigo-100 text-indigo-600'
-                : 'bg-gray-200 text-gray-400';
-          const textClass =
-            state === 'current'
-              ? 'font-bold text-gray-900'
-              : state === 'past'
-                ? 'text-gray-700'
-                : 'text-gray-400';
-          return (
-            <div key={label} className="flex items-center flex-1">
-              <div className={`h-4 w-4 rounded-full ${circleClass}`} />
-              <span className={`ml-2 text-xs sm:text-sm ${textClass}`}>{label}</span>
-              {i < steps.length - 1 && (
-                <div className="flex-1 border-t border-gray-300 mx-2" />
-              )}
-            </div>
-          );
-        })}
-      </div>
+    <div className="flex justify-center space-x-4 my-6" aria-label="Progress">
+      {steps.map((label, index) => (
+        <div key={label} className="flex flex-col items-center text-xs">
+          <div
+            className={`w-4 h-4 rounded-full ${
+              index === currentStep ? 'bg-black' : 'bg-gray-300'
+            }`}
+          />
+          <span
+            className={`mt-1 ${
+              index === currentStep ? 'font-semibold text-black' : 'text-gray-400'
+            }`}
+          >
+            {label}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
