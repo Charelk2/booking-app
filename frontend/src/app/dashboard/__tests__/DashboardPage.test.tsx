@@ -36,7 +36,7 @@ describe('DashboardPage empty state', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
-    await act(async () => {});
+    await act(async () => { await Promise.resolve(); });
     const bookingsTab = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Bookings'
     ) as HTMLButtonElement;
@@ -113,7 +113,7 @@ describe('DashboardPage artist stats', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
-    await act(async () => {});
+    await act(async () => { await Promise.resolve(); });
     const servicesTab = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Services'
     ) as HTMLButtonElement;
@@ -121,7 +121,16 @@ describe('DashboardPage artist stats', () => {
       await act(async () => {
         servicesTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       });
-      await act(async () => {});
+      await act(async () => { await Promise.resolve(); });
+    }
+    const requestsTab = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Requests'
+    ) as HTMLButtonElement;
+    if (requestsTab) {
+      await act(async () => {
+        requestsTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+      await act(async () => { await Promise.resolve(); });
     }
   });
 
@@ -238,7 +247,7 @@ describe('DashboardPage list toggles', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
-    await act(async () => {});
+    await act(async () => { await Promise.resolve(); });
     const servicesTab = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Services'
     ) as HTMLButtonElement;
@@ -246,7 +255,16 @@ describe('DashboardPage list toggles', () => {
       await act(async () => {
         servicesTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       });
-      await act(async () => {});
+      await act(async () => { await Promise.resolve(); });
+    }
+    const requestsTab = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Requests'
+    ) as HTMLButtonElement;
+    if (requestsTab) {
+      await act(async () => {
+        requestsTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+      await act(async () => { await Promise.resolve(); });
     }
   });
 
@@ -291,7 +309,16 @@ describe('Service card drag handle', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
-    await act(async () => {});
+    await act(async () => { await Promise.resolve(); });
+    const servicesTab = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Services'
+    ) as HTMLButtonElement;
+    if (servicesTab) {
+      await act(async () => {
+        servicesTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+      await act(async () => { await Promise.resolve(); });
+    }
   });
 
   afterEach(() => {
@@ -301,6 +328,7 @@ describe('Service card drag handle', () => {
   });
 
   it('temporarily disables text selection during long press', async () => {
+    await act(async () => { await Promise.resolve(); });
     const card = container.querySelector('[data-testid="service-item"]') as HTMLElement;
     const handle = card.querySelector('div[aria-hidden="true"]') as HTMLElement;
     expect(card.className).not.toMatch('select-none');
@@ -319,6 +347,7 @@ describe('Service card drag handle', () => {
 
   it('vibrates when reordering starts', async () => {
     jest.useFakeTimers();
+    await act(async () => { await Promise.resolve(); });
     const card = container.querySelector('[data-testid="service-item"]') as HTMLElement;
     const handle = card.querySelector('div[aria-hidden="true"]') as HTMLElement;
     const vibrateSpy = jest.fn();
