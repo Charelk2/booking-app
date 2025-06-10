@@ -209,9 +209,9 @@ test script in one step:
 Set the `BOOKING_APP_IMAGE` environment variable if you want to use a different
 tag or registry location. Pass `DOCKER_TEST_NETWORK=bridge` if network access is
 needed during the test run.
-The script copies the image's pre-built `backend/venv` into your working
-directory on first run so subsequent executions can run without network
-access.
+The script copies the image's pre-built `backend/venv` and `frontend/node_modules`
+into your working directory on first run so subsequent executions can run
+without network access.
 If Docker is not available, the script now automatically falls back to running
 `./scripts/test-all.sh` on the host.
 
