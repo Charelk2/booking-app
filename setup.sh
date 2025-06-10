@@ -15,24 +15,61 @@ fi
 source "$VENV_DIR/bin/activate"
 
 INSTALL_MARKER="$VENV_DIR/.install_complete"
+REQ_HASH_FILE="$VENV_DIR/.req_hash"
+CURRENT_REQ_HASH=$(sha256sum "$ROOT_DIR/backend/requirements.txt" | awk '{print $1}')
+CACHED_REQ_HASH=""
+if [ -f "$REQ_HASH_FILE" ]; then
+  CACHED_REQ_HASH="$(cat "$REQ_HASH_FILE")"
+fi
 if [ -f "$INSTALL_MARKER" ]; then
-  echo "Python dependencies already installed; skipping pip install."
+  if [ "$CURRENT_REQ_HASH" = "$CACHED_REQ_HASH" ]; then
+    echo "Python dependencies already installed and up to date; skipping pip install."
+  else
+    echo "Requirements changed; reinstalling Python dependencies…"
+    pip install -r "$ROOT_DIR/backend/requirements.txt"
+    pip install -r "$ROOT_DIR/requirements-dev.txt"
+    echo "$CURRENT_REQ_HASH" > "$REQ_HASH_FILE"
+  fi
 else
   echo "Installing backend Python dependencies…"
   pip install -r "$ROOT_DIR/backend/requirements.txt"
   pip install -r "$ROOT_DIR/requirements-dev.txt"
+  echo "$CURRENT_REQ_HASH" > "$REQ_HASH_FILE"
   touch "$INSTALL_MARKER"
 fi
 
 echo "Installing frontend Node dependencies…"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 FRONTEND_MARKER="$FRONTEND_DIR/node_modules/.install_complete"
+PKG_HASH_FILE="$FRONTEND_DIR/node_modules/.pkg_hash"
+CURRENT_PKG_HASH=$(sha256sum "$FRONTEND_DIR/package-lock.json" | awk '{print $1}')
+CACHED_PKG_HASH=""
+if [ -f "$PKG_HASH_FILE" ]; then
+  CACHED_PKG_HASH="$(cat "$PKG_HASH_FILE")"
+fi
 if [ -f "$FRONTEND_MARKER" ]; then
-  echo "Node dependencies already installed; skipping npm ci."
+  if [ "$CURRENT_PKG_HASH" = "$CACHED_PKG_HASH" ]; then
+    echo "Node dependencies already installed and up to date; skipping npm ci."
+  else
+    echo "package-lock.json changed; reinstalling Node dependencies…"
+    pushd "$FRONTEND_DIR" > /dev/null
+    npm config set install-links true
+    if npm ci --no-progress; then
+      echo "$CURRENT_PKG_HASH" > "$PKG_HASH_FILE"
+      touch "$FRONTEND_MARKER"
+    else
+      echo "\n❌ npm ci failed. Ensure network access or a pre-built npm cache is available." >&2
+      echo "For offline environments, consider running ./scripts/docker-test.sh." >&2
+      popd > /dev/null
+      exit 1
+    fi
+    popd > /dev/null
+  fi
 else
   pushd "$FRONTEND_DIR" > /dev/null
   npm config set install-links true
   if npm ci --no-progress; then
+    echo "$CURRENT_PKG_HASH" > "$PKG_HASH_FILE"
     touch "$FRONTEND_MARKER"
   else
     echo "\n❌ npm ci failed. Ensure network access or a pre-built npm cache is available." >&2
