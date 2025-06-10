@@ -151,6 +151,10 @@ The script drops a marker file `frontend/node_modules/.install_complete` after a
 successful `npm ci` so subsequent runs skip reinstalling dependencies unless
 that file is removed. After installing Python requirements, `setup.sh` creates
 `backend/venv/.install_complete` so it can skip `pip install` on future runs.
+
+**Important:** run `./setup.sh` or `./scripts/docker-test.sh` once with network
+access so these marker files are created. Subsequent offline runs reuse the
+cached `backend/venv` and `frontend/node_modules` directories.
 It also detects which files changed in Git and only runs
 the backend or frontend tests when necessary; documentation-only changes cause
 the script to exit immediately without running any tests. Set `FORCE_TESTS=1`
@@ -186,7 +190,10 @@ If `setup.sh` fails because dependencies cannot be installed (such as in an
 isolated CI environment), you can pull a pre-built image that already contains
 all Python and Node dependencies. This avoids the slow `npm ci` step.
 Alternatively, build the image once with network access and reuse it for
-subsequent test runs. The image caches Python packages and Node modules so
+subsequent test runs. Be sure to run `./scripts/docker-test.sh` with network
+access at least once so `backend/venv/.install_complete` and
+`frontend/node_modules/.install_complete` get copied into your working
+directory. The image caches Python packages and Node modules so
 `test-all.sh` can run entirely offline:
 
 ```bash
