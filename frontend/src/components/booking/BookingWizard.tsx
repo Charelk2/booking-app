@@ -235,10 +235,10 @@ export default function BookingWizard({
   };
 
   return (
-    <div className="lg:flex lg:space-x-4">
-      <div className="flex-1 space-y-4">
-        <Stepper steps={steps} currentStep={step} />
-        <h2 className="text-xl font-semibold" data-testid="step-heading">
+    <div className="px-4">
+      <Stepper steps={steps} currentStep={step} />
+      <div className="max-w-md mx-auto p-4 bg-white rounded-lg shadow-sm space-y-6">
+        <h2 className="text-2xl font-bold" data-testid="step-heading">
           {steps[step]}
         </h2>
 
@@ -248,7 +248,7 @@ export default function BookingWizard({
           <p className="text-red-600 text-sm">Please fix the errors above.</p>
         )}
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div className="flex flex-col sm:flex-row justify-between gap-2 mt-6">
+        <div className="flex flex-col sm:flex-row gap-2 mt-6">
           {step > 0 && (
             <Button
               variant="secondary"
@@ -276,14 +276,13 @@ export default function BookingWizard({
               type="button"
               onClick={submitRequest}
               disabled={submitting}
-              className="bg-green-600 hover:bg-green-700 focus:ring-green-500 w-full sm:w-auto"
+              className="w-full sm:w-auto"
             >
               {submitting ? 'Submitting...' : 'Submit Request'}
             </Button>
           )}
         </div>
       </div>
-      
     </div>
   );
 }
