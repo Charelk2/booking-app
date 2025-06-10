@@ -130,6 +130,12 @@ NEXT_PUBLIC_WS_URL=ws://192.168.3.203:8000
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDm-BKmMtzMSMd-XUdfapjEUU6O5mYy2bk
 ```
 
+To expose the app on your local network, replace `192.168.3.203` with your
+machine's LAN IP. Set the same address in `backend/.env` under
+`CORS_ORIGINS=["http://<your-ip>:3000"]`, then start the backend with
+`--host 0.0.0.0` and run `npm run dev -- -H 0.0.0.0` so both servers listen on
+all interfaces.
+
 The frontend automatically attaches an `Authorization` header when a token
 exists in the browser's `localStorage`. The request interceptor now verifies
 `typeof window !== 'undefined'` before accessing `localStorage`, so server-side
