@@ -138,6 +138,11 @@ NEXT_PUBLIC_WS_URL=ws://192.168.3.203:8000
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDm-BKmMtzMSMd-XUdfapjEUU6O5mYy2bk
 ```
 
+The frontend now uses Google's `PlaceAutocompleteElement` from the
+`@googlemaps/places` package instead of the older `Autocomplete` component.
+Run `npm install` after pulling these changes so the new dependency is
+available.
+
 To expose the app on your local network, replace `192.168.3.203` with your
 machine's LAN IP. Set the same address in `backend/.env` under
 `CORS_ORIGINS=["http://<your-ip>:3000"]`, then start the backend with
