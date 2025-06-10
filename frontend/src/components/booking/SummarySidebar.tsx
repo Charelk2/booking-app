@@ -1,16 +1,18 @@
 'use client';
 import { useBooking } from '@/contexts/BookingContext';
-import { format } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 
 export default function SummarySidebar() {
   const { details } = useBooking();
+  const dateValue =
+    typeof details.date === 'string' ? parseISO(details.date) : details.date;
   return (
     <div className="p-4 bg-white shadow rounded space-y-2">
       <h2 className="text-lg font-medium">Summary</h2>
       <ul className="text-sm space-y-1">
-        {details.date && (
+        {details.date && isValid(dateValue) && (
           <li>
-            <strong>Date:</strong> {format(details.date, 'PP')}
+            <strong>Date:</strong> {format(dateValue, 'PP')}
             {details.time && ` ${details.time}`}
           </li>
         )}
