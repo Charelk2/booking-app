@@ -96,7 +96,7 @@ export default function LocationStep({
 
   if (!isLoaded) return <p>Loading map...</p>;
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       <p className="text-sm text-gray-600">Where is the show?</p>
       <Controller
         name="location"
@@ -145,7 +145,6 @@ export default function LocationStep({
         ?
       </span>
       {geoError && <p className="text-red-600 text-sm">{geoError}</p>}
-      {/* Mobile action buttons are handled by MobileActionBar */}
     </div>
   );
 }
