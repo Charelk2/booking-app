@@ -119,8 +119,9 @@ For setup instructions see [README.md](README.md).
   and logs their versions. It calls Jest via Node so it works even when
   `node_modules/.bin` is missing. The path and version of the Jest binary are
   printed, and the script exits with a clear error if the binary cannot be
-  found. Documentation-only commits skip testing by default; set
-  `FORCE_TESTS=1` to run the full suite anyway.
+  found. Documentation-only commits (or commits with no code changes) skip
+  testing by default. Set `FORCE_TESTS=1` to run the full suite regardless of
+  what changed.
 * If network access is limited, use the pre-built Docker image by running
   `./scripts/docker-test.sh`. Set `BOOKING_APP_IMAGE` to override the default
   registry path. The script runs the container with `--network none` by default;
