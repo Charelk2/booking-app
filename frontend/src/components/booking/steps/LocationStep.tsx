@@ -8,6 +8,7 @@ const GoogleMap = dynamic(() => import('@react-google-maps/api').then((m) => m.G
 const Marker = dynamic(() => import('@react-google-maps/api').then((m) => m.Marker), { ssr: false });
 const Autocomplete = dynamic(() => import('@react-google-maps/api').then((m) => m.Autocomplete), { ssr: false });
 import { useRef, useState, useEffect } from 'react';
+import useIsMobile from '@/hooks/useIsMobile';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
 
 interface Props {
@@ -23,6 +24,7 @@ export default function LocationStep({
   artistLocation,
   setWarning,
 }: Props): JSX.Element {
+  const isMobile = useIsMobile();
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: ['places'],
@@ -69,7 +71,7 @@ export default function LocationStep({
               {...field}
               className="border p-2 rounded w-full"
               placeholder="Search address"
-              autoFocus
+              autoFocus={!isMobile}
             />
           )}
         />
