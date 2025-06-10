@@ -32,8 +32,14 @@ if [ -f "$FRONTEND_MARKER" ]; then
 else
   pushd "$FRONTEND_DIR" > /dev/null
   npm config set install-links true
-  npm ci --no-progress
-  touch "$FRONTEND_MARKER"
+  if npm ci --no-progress; then
+    touch "$FRONTEND_MARKER"
+  else
+    echo "\n❌ npm ci failed. Ensure network access or a pre-built npm cache is available." >&2
+    echo "For offline environments, consider running ./scripts/docker-test.sh." >&2
+    popd > /dev/null
+    exit 1
+  fi
   popd > /dev/null
 fi
 
