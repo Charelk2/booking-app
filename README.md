@@ -195,9 +195,10 @@ docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 The Docker image now ships with a populated virtual environment under
 `backend/venv`. When running tests from this image, `setup.sh` sees the
 `backend/venv/.install_complete` marker and therefore skips any Python
-downloads. Node modules behave the same via the
-`frontend/node_modules/.install_complete` flag. This allows repeated test
-executions without network access.
+downloads. Node modules behave the same thanks to the
+`frontend/node_modules/.install_complete` flag, which the `Dockerfile`
+creates right after `npm ci`. `setup.sh` checks for this file so repeated test
+executions can run offline without reinstalling packages.
 
 You can also pull a pre-built image from our container registry and run the
 test script in one step:
