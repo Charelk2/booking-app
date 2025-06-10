@@ -7,6 +7,9 @@ __pycache__/
 
 # Ignore Node modules
 node_modules/
+# Additional ignores
+backend/venv/
+**/node_modules/
 
 # Log files
 *.log
