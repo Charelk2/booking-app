@@ -15,7 +15,9 @@ RUN python -m venv backend/venv \
 
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 WORKDIR /app/frontend
-RUN npm ci --silent && npm run build --silent
+RUN npm ci --silent \
+    && npm run build --silent \
+    && touch node_modules/.install_complete
 
 # final stage
 FROM python:3.11-slim
