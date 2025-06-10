@@ -4,7 +4,11 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y curl gnupg ca-certificates \
     libnss3 libatk1.0-0 libcups2 libdrm2 libgbm1 libgtk-3-0 libasound2 \
     libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libxkbcommon0 \
-    libxshmfence1 libdbus-1-3 libxss1 libxtst6 && rm -rf /var/lib/apt/lists/*
+    libxshmfence1 libdbus-1-3 libxss1 libxtst6 \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get update \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 # install Python dependencies into a virtual environment
 COPY backend/requirements.txt backend/
