@@ -18,4 +18,6 @@ docker pull "$IMAGE"
 
 echo "Running tests in $IMAGE"
 docker run --rm --network "$NETWORK" -v "$(pwd)":$WORKDIR "$IMAGE" \
-  bash -lc "if [ ! -f $WORKDIR/backend/venv/.install_complete ]; then cp -a /app/backend/venv $WORKDIR/backend/venv; fi && cd $WORKDIR && ./setup.sh && $SCRIPT"
+  bash -lc "if [ ! -f $WORKDIR/backend/venv/.install_complete ]; then cp -a /app/backend/venv $WORKDIR/backend/venv; fi && \
+             if [ ! -f $WORKDIR/frontend/node_modules/.install_complete ]; then cp -a /app/frontend/node_modules $WORKDIR/frontend/node_modules; fi && \
+             cd $WORKDIR && ./setup.sh && $SCRIPT"
