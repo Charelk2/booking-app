@@ -231,24 +231,30 @@ and `frontend/node_modules/.install_complete`. Subsequent runs with
 `--network none` reuse those caches and skip all downloads. The script also
 copies the `.req_hash` and `.pkg_hash` files so it can detect when the lock
 files change. Set `BOOKING_APP_IMAGE` to override the tag, use
-`BOOKING_APP_SKIP_PULL=1` to skip pulling when the image is local, pass
-`BOOKING_APP_BUILD=1` to build the image if it isn't present, and use
-`DOCKER_TEST_NETWORK=bridge` if network access is needed. The script
-automatically falls back to `./scripts/test-all.sh` when Docker is unavailable.
-When run with `DOCKER_TEST_NETWORK=none`, the script now checks that these
-caches already contain `.install_complete` markers before launching the
-container. If either cache is missing, it exits with an error advising you to
-rerun with `DOCKER_TEST_NETWORK=bridge` so the dependencies can be copied over.
+`BOOKING_APP_SKIP_PULL=1` to skip pulling when the image is local, and set
+`BOOKING_APP_BUILD=1` so the script will automatically build the image when it
+isn't found locally. Use `DOCKER_TEST_NETWORK=bridge` if network access is
+needed. The script automatically falls back to `./scripts/test-all.sh` when
+Docker is unavailable.
+
+When run with `DOCKER_TEST_NETWORK=none`, the script now checks that the
+dependency caches already contain `.install_complete` markers before launching
+the container. If either cache is missing, it prints a warning like
+`❌ Cached dependencies missing` and exits, advising you to rerun with
+`DOCKER_TEST_NETWORK=bridge` so the dependencies can be copied over. Once the
+caches are in place, future runs with `--network none` complete quickly because
+the cached directories are reused.
 
 If `setup.sh` still tries to run `pip install` or `npm ci`, it means the marker
 files were not copied correctly. Rerun `scripts/docker-test.sh` with
 `DOCKER_TEST_NETWORK=bridge` so the setup step can download the dependencies
 and recreate the caches.
 
-If you update `requirements.txt` or `package-lock.json`, rebuild the image or
-delete the cached directories so `setup.sh` can reinstall them. The script
-stores the hashes in `.req_hash` and `.pkg_hash` and will automatically
-reinstall when those hashes no longer match the current lock files.
+If you update `requirements.txt` or `package-lock.json`, run
+`BOOKING_APP_BUILD=1 ./scripts/docker-test.sh` (or rebuild the image manually)
+so the caches include the new packages. The script stores the hashes in
+`.req_hash` and `.pkg_hash` and automatically reinstalls when those hashes no
+longer match the current lock files.
 
 ### Dependency Caching
 
