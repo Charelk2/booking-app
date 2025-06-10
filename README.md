@@ -161,7 +161,8 @@ the script to exit immediately without running any tests. Set `FORCE_TESTS=1`
 to run the full suite even when only documentation files have changed.
 
 You can override the number of parallel Jest workers by setting the
-`JEST_WORKERS` environment variable:
+`JEST_WORKERS` environment variable. `test-all.sh` passes this value to
+`npm test` using Jest's `--maxWorkers` flag, so you can control concurrency:
 
 ```bash
 JEST_WORKERS=75% ./scripts/test-all.sh
