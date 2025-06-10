@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import OverviewAccordion from '../OverviewAccordion';
 
 describe('OverviewAccordion', () => {
