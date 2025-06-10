@@ -5,8 +5,14 @@ RUN apt-get update && apt-get install -y curl gnupg ca-certificates \
     libnss3 libatk1.0-0 libcups2 libdrm2 libgbm1 libgtk-3-0 libasound2 \
     libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libxkbcommon0 \
     libxshmfence1 libdbus-1-3 libxss1 libxtst6 && rm -rf /var/lib/apt/lists/*
-COPY backend/requirements*.txt ./
-RUN pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
+
+# install Python dependencies into a virtual environment
+COPY backend/requirements.txt backend/
+COPY requirements-dev.txt ./
+RUN python -m venv backend/venv \
+    && backend/venv/bin/pip install --no-cache-dir -r backend/requirements.txt -r requirements-dev.txt \
+    && touch backend/venv/.install_complete
+
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 WORKDIR /app/frontend
 RUN npm ci --silent && npm run build --silent
