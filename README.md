@@ -531,6 +531,10 @@ Payment processing now emits structured logs instead of printing to stdout so tr
   `npm config set https-proxy http://proxy:8080` if your environment requires a
   proxy. Without these settings you may see `ENETUNREACH` or other network
   errors when running `setup.sh` or `npm ci`.
+* Running `./scripts/test-all.sh` (or `./setup.sh` first) installs dependencies and
+  prints the path to the Jest binary if it is missing.
+* Use `scripts/docker-test.sh` when you need to run the tests completely offline
+  with cached dependencies.
 
 ---
 
