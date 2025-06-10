@@ -9,7 +9,7 @@ CHANGED_FILES=$(git diff --name-only HEAD)
 # 2. Drop docs-only changes
 NON_DOC_CHANGES=$(echo "$CHANGED_FILES" | grep -vE '\.(md|rst|txt)$|^docs/' || true)
 if [ -z "$NON_DOC_CHANGES" ] && [ "${FORCE_TESTS:-}" != "1" ]; then
-  echo "📄 Only docs changed. Skipping setup and tests."
+  echo "📄 Only docs changed or no changes at all. Skipping setup and tests."
   exit 0
 fi
 
@@ -36,8 +36,8 @@ if echo "$NON_DOC_CHANGES" | grep -q '^scripts/'; then
   FRONTEND_CHANGES=1
 fi
 
-# 5. If nothing to run, exit
-if [ -z "$BACKEND_CHANGES" ] && [ -z "$FRONTEND_CHANGES" ]; then
+# 5. If nothing to run, exit unless we're forcing tests
+if [ -z "$BACKEND_CHANGES" ] && [ -z "$FRONTEND_CHANGES" ] && [ "${FORCE_TESTS:-}" != "1" ]; then
   echo "✨ No backend or frontend code changed. Skipping tests."
   exit 0
 fi

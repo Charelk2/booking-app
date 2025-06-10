@@ -167,9 +167,10 @@ hashes differ.
 access so these marker files are created. Subsequent offline runs reuse the
 cached `backend/venv` and `frontend/node_modules` directories.
 It also detects which files changed in Git and only runs
-the backend or frontend tests when necessary; documentation-only changes cause
-the script to exit immediately without running any tests. Set `FORCE_TESTS=1`
-to run the full suite even when only documentation files have changed.
+the backend or frontend tests when necessary; documentation-only changes and
+commits with no code updates cause the script to exit immediately without
+running any tests. Set `FORCE_TESTS=1` to run the full suite regardless of
+what changed.
 
 You can override the number of parallel Jest workers by setting the
 `JEST_WORKERS` environment variable. `test-all.sh` passes this value to
