@@ -21,6 +21,18 @@ CACHED_REQ_HASH=""
 if [ -f "$REQ_HASH_FILE" ]; then
   CACHED_REQ_HASH="$(cat "$REQ_HASH_FILE")"
 fi
+
+# Check for network connectivity when the install marker is missing. This allows
+# CI environments without internet access to fail fast with a clear message.
+check_network() {
+  curl -s --connect-timeout 5 https://pypi.org >/dev/null 2>&1
+}
+
+if [ ! -f "$INSTALL_MARKER" ] && ! check_network; then
+  echo "\n❌ Dependencies missing and network unavailable." >&2
+  echo "Run ./scripts/docker-test.sh with DOCKER_TEST_NETWORK=bridge to fetch packages." >&2
+  exit 1
+fi
 if [ -f "$INSTALL_MARKER" ]; then
   if [ "$CURRENT_REQ_HASH" = "$CACHED_REQ_HASH" ]; then
     echo "Python dependencies already installed and up to date; skipping pip install."
