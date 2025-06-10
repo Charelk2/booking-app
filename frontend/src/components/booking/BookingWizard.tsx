@@ -10,8 +10,6 @@ import { format } from 'date-fns';
 import Button from '../ui/Button';
 import Stepper from '../ui/Stepper'; // progress indicator
 import toast from '../ui/Toast';
-import useIsMobile from '@/hooks/useIsMobile';
-import MobileActionBar from './MobileActionBar';
 import {
   getArtistAvailability,
   createBookingRequest,
@@ -24,30 +22,28 @@ import { useBooking, EventDetails } from '@/contexts/BookingContext';
 import useBookingForm from '@/hooks/useBookingForm';
 import DateTimeStep from './steps/DateTimeStep';
 import LocationStep from './steps/LocationStep';
-import GuestsStep from './steps/GuestsStep';
+import SoundStep from './steps/SoundStep';
 import VenueStep from './steps/VenueStep';
 import NotesStep from './steps/NotesStep';
 import ReviewStep from './steps/ReviewStep';
-import SummarySidebar from './SummarySidebar';
 
 const steps = [
   'Date & Time',
   'Location',
   'Venue Type',
-  'Attendees',
+  'Sound',
   'Notes',
   'Review',
 ];
 
 const schema = yup.object({
   date: yup.date().required().min(new Date(), 'Pick a future date'),
-  time: yup.string().optional(),
   location: yup.string().required('Location is required'),
-  guests: yup.number().min(1).required(),
   venueType: yup
     .mixed<'indoor' | 'outdoor' | 'hybrid'>()
     .oneOf(['indoor', 'outdoor', 'hybrid'])
     .required(),
+  sound: yup.string().oneOf(['yes', 'no']).required(),
   notes: yup.string().optional(),
   attachment_url: yup.string().optional(),
 });
@@ -75,7 +71,6 @@ export default function BookingWizard({
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const isMobile = useIsMobile();
 
   const {
     control,
@@ -115,7 +110,7 @@ export default function BookingWizard({
     let fields: (keyof EventDetails)[] = [];
     switch (step) {
       case 0:
-        fields = ['date', 'time'];
+        fields = ['date'];
         break;
       case 1:
         fields = ['location'];
@@ -124,7 +119,7 @@ export default function BookingWizard({
         fields = ['venueType'];
         break;
       case 3:
-        fields = ['guests'];
+        fields = ['sound'];
         break;
       default:
         fields = [];
@@ -138,10 +133,7 @@ export default function BookingWizard({
     const payload: BookingRequestCreate = {
       artist_id: artistId,
       service_id: contextServiceId,
-      proposed_datetime_1:
-        vals.date && vals.time
-          ? new Date(`${format(vals.date, 'yyyy-MM-dd')}T${vals.time}`).toISOString()
-          : undefined,
+      proposed_datetime_1: vals.date ? new Date(vals.date).toISOString() : undefined,
       message: vals.notes,
       attachment_url: vals.attachment_url,
       status: 'draft',
@@ -165,10 +157,7 @@ export default function BookingWizard({
     const payload: BookingRequestCreate = {
       artist_id: artistId,
       service_id: contextServiceId,
-      proposed_datetime_1:
-        vals.date && vals.time
-          ? new Date(`${format(vals.date, 'yyyy-MM-dd')}T${vals.time}`).toISOString()
-          : undefined,
+      proposed_datetime_1: vals.date ? new Date(vals.date).toISOString() : undefined,
       message: vals.notes,
       attachment_url: vals.attachment_url,
       status: 'pending_quote',
@@ -183,9 +172,9 @@ export default function BookingWizard({
       }
       const idToUse = requestId || res.data.id;
       const detailLines = [
-        `Date: ${format(vals.date, 'yyyy-MM-dd')}${vals.time ? ` ${vals.time}` : ''}`,
+        `Date: ${format(vals.date, 'yyyy-MM-dd')}`,
         `Location: ${vals.location}`,
-        `Guests: ${vals.guests}`,
+        `Sound: ${vals.sound}`,
         `Venue Type: ${vals.venueType}`,
         vals.notes ? `Notes: ${vals.notes}` : null,
       ].filter(Boolean).join('\n');
@@ -225,7 +214,7 @@ export default function BookingWizard({
       case 2:
         return <VenueStep control={control as unknown as Control<FieldValues>} onNext={next} />;
       case 3:
-        return <GuestsStep control={control as unknown as Control<FieldValues>} onNext={next} />;
+        return <SoundStep control={control as unknown as Control<FieldValues>} onNext={next} />;
       case 4:
         return (
           <NotesStep
@@ -252,63 +241,41 @@ export default function BookingWizard({
         <h2 className="text-xl font-semibold" data-testid="step-heading">
           {steps[step]}
         </h2>
-        <div className="lg:hidden">
-          {isMobile && (
-            <details open className="space-y-2">
-              <summary className="cursor-pointer text-sm underline">Booking Summary</summary>
-              <SummarySidebar />
-            </details>
-          )}
-        </div>
+
         {renderStep()}
         {warning && <p className="text-orange-600 text-sm">{warning}</p>}
         {Object.values(errors).length > 0 && (
           <p className="text-red-600 text-sm">Please fix the errors above.</p>
         )}
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        {!isMobile && (
-          <div className="flex justify-between pt-2">
-            {step > 0 && (
-              <Button variant="secondary" type="button" onClick={prev}>
-                Back
+        <div className="flex justify-between pt-2">
+          {step > 0 && (
+            <Button variant="secondary" type="button" onClick={prev}>
+              Back
+            </Button>
+          )}
+          <div className="flex space-x-2 ml-auto">
+            <Button variant="secondary" type="button" onClick={saveDraft}>
+              Save Draft
+            </Button>
+            {step < steps.length - 1 ? (
+              <Button type="button" onClick={next}>
+                Next
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={submitRequest}
+                disabled={submitting}
+                className="bg-green-600 hover:bg-green-700 focus:ring-green-500"
+              >
+                {submitting ? 'Submitting...' : 'Submit Request'}
               </Button>
             )}
-            <div className="flex space-x-2 ml-auto">
-              <Button variant="secondary" type="button" onClick={saveDraft}>
-                Save Draft
-              </Button>
-              {step < steps.length - 1 ? (
-                <Button type="button" onClick={next}>
-                  Next
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={submitRequest}
-                  disabled={submitting}
-                  className="bg-green-600 hover:bg-green-700 focus:ring-green-500"
-                >
-                  {submitting ? 'Submitting...' : 'Submit Request'}
-                </Button>
-              )}
-            </div>
           </div>
-        )}
+        </div>
       </div>
-      <div className="hidden lg:block w-64">
-        <SummarySidebar />
-      </div>
-      {isMobile && (
-        <MobileActionBar
-          showBack={step > 0}
-          onBack={prev}
-          showNext={step < steps.length - 1}
-          onNext={next}
-          onSaveDraft={saveDraft}
-          onSubmit={submitRequest}
-          submitting={submitting}
-        />
-      )}
+      
     </div>
   );
 }
