@@ -231,7 +231,8 @@ and `frontend/node_modules/.install_complete`. Subsequent runs with
 `--network none` reuse those caches and skip all downloads. The script also
 copies the `.req_hash` and `.pkg_hash` files so it can detect when the lock
 files change. Set `BOOKING_APP_IMAGE` to override the tag, use
-`BOOKING_APP_SKIP_PULL=1` to skip pulling when the image is local, and pass
+`BOOKING_APP_SKIP_PULL=1` to skip pulling when the image is local, pass
+`BOOKING_APP_BUILD=1` to build the image if it isn't present, and use
 `DOCKER_TEST_NETWORK=bridge` if network access is needed. The script
 automatically falls back to `./scripts/test-all.sh` when Docker is unavailable.
 When run with `DOCKER_TEST_NETWORK=none`, the script now checks that these
