@@ -56,7 +56,9 @@ describe('Service deletion confirmation', () => {
   });
 
   afterEach(() => {
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
     container.remove();
     jest.clearAllMocks();
   });
