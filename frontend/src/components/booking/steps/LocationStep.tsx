@@ -11,6 +11,10 @@ import { useRef, useState, useEffect } from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
 
+// Keeping the libraries array stable avoids unnecessary re-renders from
+// useLoadScript when this component rerenders.
+const MAP_LIBRARIES = ['places'] as const;
+
 interface Props {
   control: Control<FieldValues>;
   artistLocation?: string | null;
@@ -27,7 +31,7 @@ export default function LocationStep({
   const isMobile = useIsMobile();
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-    libraries: ['places'],
+    libraries: MAP_LIBRARIES,
   });
   const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
   const [marker, setMarker] = useState<LatLng | null>(null);
