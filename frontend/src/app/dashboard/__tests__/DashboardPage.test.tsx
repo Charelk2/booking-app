@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react-dom/test-utils';
+import { waitFor } from '@testing-library/react';
 import DashboardPage from '../page';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -115,7 +116,7 @@ describe('DashboardPage artist stats', () => {
     await act(async () => {
       root.render(<DashboardPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await waitFor(() => expect(api.getArtistServices).toHaveBeenCalled());
     const servicesTab = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Services'
     ) as HTMLButtonElement;
