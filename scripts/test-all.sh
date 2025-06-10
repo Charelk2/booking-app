@@ -69,7 +69,23 @@ if [ -n "$FRONTEND_CHANGES" ]; then
   # only do npm ci once per container/session
   if [ ! -f node_modules/.install_complete ]; then
     npm config set install-links true
-    npm ci --prefer-offline --no-audit --progress=false
+    if ! npm ci --prefer-offline --no-audit --progress=false 2>npm-ci.log; then
+      echo "\n❌ npm install failed. Check network access or run ./scripts/docker-test.sh" >&2
+      if [ -s npm-ci.log ]; then
+        echo "--- npm ci output ---" >&2
+        cat npm-ci.log >&2
+      fi
+      NPM_LOG_DIR="$(npm config get cache)/_logs"
+      NPM_LOG_FILE="$(ls -t "$NPM_LOG_DIR"/*-debug.log 2>/dev/null | head -n 1)"
+      if [ -f "$NPM_LOG_FILE" ]; then
+        echo "--- npm debug log ($NPM_LOG_FILE) ---" >&2
+        cat "$NPM_LOG_FILE" >&2
+      fi
+      rm -f npm-ci.log
+      popd >/dev/null
+      exit 1
+    fi
+    rm -f npm-ci.log
     touch node_modules/.install_complete
   fi
 
