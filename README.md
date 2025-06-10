@@ -44,11 +44,15 @@ so that `npm ci` runs reliably during the build.
    DOCKER_TEST_NETWORK=bridge ./scripts/docker-test.sh
    ```
 
-   This pulls (or builds) the testing image and copies `backend/venv` and
-   `frontend/node_modules` from the container. If only the `*.tar.zst` archives
-   exist, the script extracts them so the directories are restored. This first
-   run is mandatory&mdash;`./scripts/test-all.sh` will fail until these caches
-   are populated.
+This pulls (or builds) the testing image and copies `backend/venv` and
+`frontend/node_modules` from the container. If only the `*.tar.zst` archives
+exist, the script extracts them so the directories are restored. This first
+run is mandatory&mdash;`./scripts/test-all.sh` will fail until these caches
+are populated.
+
+If `DOCKER_TEST_NETWORK` isn't set and the caches are missing, the script
+now automatically uses `--network bridge` and prints a notice so the
+dependencies can be fetched.
 
 2. **Run tests offline**
 
@@ -312,6 +316,9 @@ the container. If either cache is missing, it prints a warning like
 `DOCKER_TEST_NETWORK=bridge` so the dependencies can be copied over. Once the
 caches are in place, future runs with `--network none` complete quickly because
 the cached directories are reused.
+If `DOCKER_TEST_NETWORK` isn't set and these markers are absent, `docker-test.sh`
+automatically uses `bridge` and prints a notice so the caches are populated
+without failing.
 
 If `setup.sh` still tries to run `pip install` or `npm ci`, it means the marker
 files were not copied correctly. Rerun `scripts/docker-test.sh` with
