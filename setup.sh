@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "--- STARTING setup.sh ---"
 # Determine repo root
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
