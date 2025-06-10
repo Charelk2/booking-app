@@ -9,16 +9,20 @@ NETWORK=${DOCKER_TEST_NETWORK:-none}
 WORKDIR=/workspace
 HOST_REPO=$(pwd)
 
-# Unpack compressed caches when directories are missing. This allows
-# environments without a prepopulated repository to restore the
-# dependencies from a tarball created during a previous Docker run.
+# Restore dependency caches from a previous Docker run. When running
+# offline, `docker-test.sh` saves `backend/venv.tar.zst` and
+# `frontend/node_modules.tar.zst`. If the unpacked directories are
+# absent but the archives exist, extract them before continuing so
+# `setup.sh` sees the same `.install_complete`, `.req_hash`, and
+# `.pkg_hash` markers.
 decompress_cache() {
   local archive=$1
   local dest=$2
   if [ ! -d "$dest" ] && [ -f "$archive" ]; then
     mkdir -p "$dest"
     echo "Extracting $(basename "$archive") to $dest"
-    tar --use-compress-program=zstd -xf "$archive" -C "$(dirname "$dest")"
+    # `unzstd` is used instead of `zstd` to decompress the archive.
+    tar --use-compress-program=unzstd -xf "$archive" -C "$(dirname "$dest")"
   fi
 }
 
