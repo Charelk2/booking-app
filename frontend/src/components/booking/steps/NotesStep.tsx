@@ -2,6 +2,7 @@
 // Optional notes are collapsed by default so the step stays short. A toast
 // confirms when an attachment uploads successfully.
 import { Controller, Control, FieldValues } from 'react-hook-form';
+import useIsMobile from '@/hooks/useIsMobile';
 import { useState } from 'react';
 import { uploadBookingAttachment } from '@/lib/api';
 import toast from '../../ui/Toast';
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function NotesStep({ control, setValue }: Props) {
+  const isMobile = useIsMobile();
   const [showNotes, setShowNotes] = useState(false);
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -45,7 +47,7 @@ export default function NotesStep({ control, setValue }: Props) {
                 rows={3}
                 className="border p-2 rounded w-full"
                 {...field}
-                autoFocus
+                autoFocus={!isMobile}
               />
             )}
           />
