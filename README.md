@@ -145,7 +145,9 @@ exits with a helpful message if the binary is missing (for example, when
 `npm ci` was interrupted).
 The script drops a marker file `frontend/node_modules/.install_complete` after a
 successful `npm ci` so subsequent runs skip reinstalling dependencies unless
-that file is removed. It also detects which files changed in Git and only runs
+that file is removed. After installing Python requirements, `setup.sh` creates
+`backend/venv/.install_complete` so it can skip `pip install` on future runs.
+It also detects which files changed in Git and only runs
 the backend or frontend tests when necessary; documentation-only changes cause
 the script to exit immediately without running any tests.
 
@@ -187,8 +189,10 @@ docker build -t booking-app:latest .  # build once with connectivity
 docker run --rm --network none booking-app:latest ./scripts/test-all.sh
 ```
 When running tests from this pre-built image, `setup.sh` detects the cached
-Python packages and Node modules and therefore skips any downloads. This
-allows repeated test executions without network access.
+Python packages and Node modules and therefore skips any downloads. It looks
+for marker files in `backend/venv/.install_complete` and
+`frontend/node_modules/.install_complete` to know when installation can be
+skipped. This allows repeated test executions without network access.
 
 You can also pull a pre-built image from our container registry and run the
 test script in one step:
