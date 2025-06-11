@@ -15,6 +15,7 @@ describe('parseItem', () => {
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
     expect(parsed.subtitle).toBe('sent a booking for Performance');
+    expect(parsed.bookingType).toBe('Performance');
   });
 
   it('parses booking request with alternate separator', () => {
@@ -29,6 +30,7 @@ describe('parseItem', () => {
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
     expect(parsed.subtitle).toBe('sent a booking for Personalize...');
+    expect(parsed.bookingType).toBe('Personalized Video');
   });
 
   it('parses booking request with alternate separator', () => {
@@ -43,6 +45,7 @@ describe('parseItem', () => {
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
     expect(parsed.subtitle).toBe('sent a booking for Personalize...');
+    expect(parsed.bookingType).toBe('Personalized Video');
   });
 
   it('falls back to provided fields when missing from message', () => {
@@ -59,6 +62,7 @@ describe('parseItem', () => {
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Bob');
     expect(parsed.subtitle).toBe('sent a booking for Virtual App...');
+    expect(parsed.bookingType).toBe('Virtual Appearance');
   });
 
   it('handles missing details with defaults', () => {
@@ -73,6 +77,7 @@ describe('parseItem', () => {
     const parsed = parseItem(n);
     expect(parsed.title).toBe('New booking request');
     expect(parsed.subtitle).toBe('Booking Request');
+    expect(parsed.bookingType).toBe('');
   });
 
   it('parses message notification with unread count', () => {
