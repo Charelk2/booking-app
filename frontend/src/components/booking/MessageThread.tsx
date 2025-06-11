@@ -305,45 +305,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           const firstMsg = group.messages[0];
           const isSystem = firstMsg.message_type === 'system';
           const isSelf = !isSystem && firstMsg.sender_id === user?.id;
-          const avatarUrl =
-            group.sender_type === 'artist' ? firstMsg.avatar_url : null;
-          const avatar = isSystem
-            ? artistName?.charAt(0)
-            : group.sender_type === 'artist'
-              ? artistName?.charAt(0)
-              : clientName?.charAt(0);
-          const senderDisplayName = isSystem
-            ? artistName
-            : group.sender_type === 'artist'
-              ? artistName
-              : clientName;
           const anyUnread = group.messages.some((m) => m.unread);
-          const groupClass = `${idx > 0 ? 'mt-4' : ''} ${anyUnread ? 'bg-purple-50' : ''}`;
+          const groupClass = `${idx > 0 ? 'mt-1' : ''} ${anyUnread ? 'bg-purple-50' : ''}`;
 
           return (
             <div
               key={firstMsg.id}
               className={`flex flex-col gap-0.5 ${isSelf ? 'items-end ml-auto' : 'items-start'} ${groupClass}`}
             >
-              <div className={`flex items-center gap-2 mb-1 ${isSelf ? 'justify-end' : ''}`}
-              >
-                {!isSelf && (
-                  avatarUrl ? (
-                    <Image
-                      src={getFullImageUrl(avatarUrl) as string}
-                      alt="avatar"
-                      width={24}
-                      height={24}
-                      className="h-6 w-6 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
-                      {avatar}
-                    </div>
-                  )
-                )}
-                <span className={`text-sm ${anyUnread ? 'font-semibold' : 'font-medium'}`}>{senderDisplayName}</span>
-              </div>
               {group.messages.map((msg, mIdx) => {
                 const isLast = mIdx === group.messages.length - 1;
                 const bubbleClass = isSelf
@@ -370,7 +339,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                     key={msg.id}
                     initial={{ opacity: 0, translateY: 8 }}
                     animate={{ opacity: 1, translateY: 0 }}
-                    className={`flex flex-col ${mIdx < group.messages.length - 1 ? 'mb-1' : ''}`}
+                    className={`flex flex-col ${mIdx < group.messages.length - 1 ? 'mb-0.5' : ''}`}
                   >
                     <div className={`flex items-end gap-2 ${isSelf ? 'justify-end ml-auto' : 'justify-start'}`}>
                       <div
