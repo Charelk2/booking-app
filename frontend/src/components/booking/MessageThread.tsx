@@ -23,6 +23,7 @@ import {
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '../ui/Button';
+import useWebSocket from '@/hooks/useWebSocket';
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const wsBase =
@@ -117,38 +118,31 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     setLoading(true);
     fetchMessages();
     fetchQuotes();
-
-    const token = localStorage.getItem('token');
-    const socket = new WebSocket(
-      `${wsBase}${API_V1}/ws/booking-requests/${bookingRequestId}?token=${token}`,
-    );
-
-    socket.onopen = () => {
-      setLoading(false);
-    };
-
-    socket.onmessage = (event) => {
-      const msg: Message = JSON.parse(event.data);
-      // keep only the latest 200 messages to avoid excessive memory usage
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) {
-          return prev;
-        }
-        return [...prev.slice(-199), msg];
-      });
-      if (msg.message_type === 'quote') {
-        fetchQuotes();
-      }
-    };
-
-    socket.onerror = () => {
-      setErrorMsg('WebSocket connection error');
-    };
-
-    return () => {
-      socket.close();
-    };
   }, [bookingRequestId, fetchMessages, fetchQuotes]);
+
+  const token =
+    typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+  const { onMessage: onSocketMessage } = useWebSocket(
+    `${wsBase}${API_V1}/ws/booking-requests/${bookingRequestId}?token=${token}`,
+  );
+
+  useEffect(
+    () =>
+      onSocketMessage((event) => {
+        const msg: Message = JSON.parse(event.data);
+        // keep only the latest 200 messages to avoid excessive memory usage
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === msg.id)) {
+            return prev;
+          }
+          return [...prev.slice(-199), msg];
+        });
+        if (msg.message_type === 'quote') {
+          fetchQuotes();
+        }
+      }),
+    [onSocketMessage, fetchQuotes],
+  );
 
   // Create a preview URL whenever the file changes
   useEffect(() => {
