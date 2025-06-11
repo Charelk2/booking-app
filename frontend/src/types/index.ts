@@ -177,7 +177,12 @@ export interface ArtistSoundPreference {
 export interface Notification {
   id: number;
   user_id: number;
-  type: 'new_message' | 'new_booking_request' | 'booking_status_updated';
+  type:
+    | 'new_message'
+    | 'new_booking_request'
+    | 'booking_status_updated'
+    | 'deposit_due'
+    | 'review_request';
   message: string;
   link: string;
   is_read: boolean;

@@ -12,6 +12,25 @@ TWILIO_FROM = os.getenv("TWILIO_FROM_NUMBER")
 
 logger = logging.getLogger(__name__)
 
+def format_notification_message(
+    ntype: NotificationType, **kwargs: str | int | None
+) -> str:
+    """Return a human friendly notification message."""
+    if ntype == NotificationType.NEW_MESSAGE:
+        return f"New message: {kwargs.get('content')}"
+    if ntype == NotificationType.NEW_BOOKING_REQUEST:
+        return f"New booking request #{kwargs.get('request_id')}"
+    if ntype == NotificationType.BOOKING_STATUS_UPDATED:
+        return (
+            f"Booking request #{kwargs.get('request_id')} status updated to"
+            f" {kwargs.get('status')}"
+        )
+    if ntype == NotificationType.DEPOSIT_DUE:
+        return f"Deposit payment due for booking #{kwargs.get('booking_id')}"
+    if ntype == NotificationType.REVIEW_REQUEST:
+        return f"Please review your booking #{kwargs.get('booking_id')}"
+    return str(kwargs.get('content', ''))
+
 def _send_sms(phone: Optional[str], message: str) -> None:
     if not phone or not TWILIO_SID or not TWILIO_TOKEN or not TWILIO_FROM:
         return
@@ -26,29 +45,34 @@ def notify_user_new_message(
     db: Session, user: User, booking_request_id: int, content: str
 ) -> None:
     """Create a notification for a new message."""
+    message = format_notification_message(
+        NotificationType.NEW_MESSAGE, content=content
+    )
     crud_notification.create_notification(
         db,
         user_id=user.id,
         type=NotificationType.NEW_MESSAGE,
-        message=content,
+        message=message,
         link=f"/booking-requests/{booking_request_id}",
     )
-    # Placeholder for real email or in-app push
-    logger.info("Notify %s: new message - %s", user.email, content)
-    _send_sms(user.phone_number, f"New message: {content}")
+    logger.info("Notify %s: %s", user.email, message)
+    _send_sms(user.phone_number, message)
 
 
 def notify_user_new_booking_request(db: Session, user: User, request_id: int) -> None:
     """Create a notification for a new booking request."""
+    message = format_notification_message(
+        NotificationType.NEW_BOOKING_REQUEST, request_id=request_id
+    )
     crud_notification.create_notification(
         db,
         user_id=user.id,
         type=NotificationType.NEW_BOOKING_REQUEST,
-        message=f"New booking request #{request_id}",
+        message=message,
         link=f"/booking-requests/{request_id}",
     )
-    logger.info("Notify %s: new booking request #%s", user.email, request_id)
-    _send_sms(user.phone_number, f"New booking request #{request_id}")
+    logger.info("Notify %s: %s", user.email, message)
+    _send_sms(user.phone_number, message)
 
 
 def notify_booking_status_update(
@@ -58,20 +82,17 @@ def notify_booking_status_update(
     status: str,
 ) -> None:
     """Create a notification for a booking status change."""
+    message = format_notification_message(
+        NotificationType.BOOKING_STATUS_UPDATED,
+        request_id=request_id,
+        status=status,
+    )
     crud_notification.create_notification(
         db,
         user_id=user.id,
         type=NotificationType.BOOKING_STATUS_UPDATED,
-        message=f"Booking request #{request_id} status updated to {status}",
+        message=message,
         link=f"/booking-requests/{request_id}",
     )
-    logger.info(
-        "Notify %s: booking request #%s status updated to %s",
-        user.email,
-        request_id,
-        status,
-    )
-    _send_sms(
-        user.phone_number,
-        f"Booking request #{request_id} status updated to {status}",
-    )
+    logger.info("Notify %s: %s", user.email, message)
+    _send_sms(user.phone_number, message)

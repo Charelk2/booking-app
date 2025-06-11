@@ -9,6 +9,8 @@ class NotificationType(str, enum.Enum):
     NEW_MESSAGE = "new_message"
     NEW_BOOKING_REQUEST = "new_booking_request"
     BOOKING_STATUS_UPDATED = "booking_status_updated"
+    DEPOSIT_DUE = "deposit_due"
+    REVIEW_REQUEST = "review_request"
 
 class Notification(BaseModel):
     __tablename__ = "notifications"
