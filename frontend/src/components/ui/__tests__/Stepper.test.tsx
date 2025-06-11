@@ -22,10 +22,52 @@ describe('Stepper progress bar', () => {
 
   it('shows step names and highlights the current one', () => {
     act(() => {
-      root.render(<Stepper steps={["One", "Two", "Three"]} currentStep={1} />);
+      root.render(
+        <Stepper steps={["One", "Two", "Three"]} currentStep={1} />,
+      );
     });
     const spans = container.querySelectorAll('span');
     expect(spans[1].className).toContain('font-medium');
     expect(container.textContent).toContain('Three');
+  });
+
+  it('calls onStepClick for previous steps', () => {
+    const clickSpy = jest.fn();
+    act(() => {
+      root.render(
+        <Stepper
+          steps={["One", "Two", "Three"]}
+          currentStep={2}
+          maxStepCompleted={2}
+          onStepClick={clickSpy}
+        />,
+      );
+    });
+    const buttons = container.querySelectorAll('button');
+    expect(buttons).toHaveLength(3);
+    act(() => {
+      buttons[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(clickSpy).toHaveBeenCalledWith(0);
+  });
+
+  it('allows clicking steps up to maxStepCompleted even when behind', () => {
+    const clickSpy = jest.fn();
+    act(() => {
+      root.render(
+        <Stepper
+          steps={["One", "Two", "Three"]}
+          currentStep={0}
+          maxStepCompleted={2}
+          onStepClick={clickSpy}
+        />,
+      );
+    });
+    const buttons = container.querySelectorAll('button');
+    expect(buttons).toHaveLength(3);
+    act(() => {
+      buttons[2].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(clickSpy).toHaveBeenCalledWith(2);
   });
 });
