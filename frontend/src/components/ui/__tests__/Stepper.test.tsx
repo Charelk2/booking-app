@@ -88,4 +88,15 @@ describe('Stepper progress bar', () => {
     expect((buttons[1] as HTMLButtonElement).disabled).toBe(true);
     expect((buttons[2] as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it('shows default cursor on the current step', () => {
+    act(() => {
+      root.render(
+        <Stepper steps={["One", "Two", "Three"]} currentStep={1} onStepClick={() => {}} />,
+      );
+    });
+    const buttons = container.querySelectorAll('button');
+    expect(buttons[1].className).toContain('cursor-default');
+    expect(buttons[1].className).not.toContain('cursor-not-allowed');
+  });
 });
