@@ -14,7 +14,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
-    expect(parsed.subtitle).toBe('sent a booking for Performance');
+    expect(parsed.subtitle).toBe('sent a new booking request for Perfo...');
     expect(parsed.bookingType).toBe('Performance');
   });
 
@@ -29,7 +29,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
-    expect(parsed.subtitle).toBe('sent a booking for Personalize...');
+    expect(parsed.subtitle).toBe('sent a new booking request for Perso...');
     expect(parsed.bookingType).toBe('Personalized Video');
   });
 
@@ -44,7 +44,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
-    expect(parsed.subtitle).toBe('sent a booking for Personalize...');
+    expect(parsed.subtitle).toBe('sent a new booking request for Perso...');
     expect(parsed.bookingType).toBe('Personalized Video');
   });
 
@@ -61,7 +61,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Bob');
-    expect(parsed.subtitle).toBe('sent a booking for Virtual App...');
+    expect(parsed.subtitle).toBe('sent a new booking request for Virtu...');
     expect(parsed.bookingType).toBe('Virtual Appearance');
   });
 
@@ -76,8 +76,23 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('New booking request');
-    expect(parsed.subtitle).toBe('Booking Request');
+    expect(parsed.subtitle).toBe('sent a new booking request');
     expect(parsed.bookingType).toBe('');
+  });
+
+  it('extracts metadata from details text', () => {
+    const n: UnifiedNotification = {
+      type: 'new_booking_request',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content:
+        'New booking request from Alice: Performance\nDate: 2025-01-01\nLocation: Test',
+      id: 4,
+      link: '/booking-requests/4',
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.metadata).toContain('📍 Test');
+    expect(parsed.metadata).toContain('📅');
   });
 
   it('parses message notification with unread count', () => {
