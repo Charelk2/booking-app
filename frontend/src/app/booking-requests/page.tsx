@@ -17,6 +17,10 @@ export default function BookingRequestsPage() {
   const router = useRouter();
   const { items } = useNotifications();
   const [requests, setRequests] = useState<BookingRequest[]>([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('');
+  const [sortAsc, setSortAsc] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +58,31 @@ export default function BookingRequestsPage() {
     return set;
   }, [items]);
 
+  const filtered = useMemo(() => {
+    const lowerSearch = search.toLowerCase();
+    return requests
+      .filter((r) => {
+        const name = r.client
+          ? `${r.client.first_name} ${r.client.last_name}`.toLowerCase()
+          : '';
+        const matchesSearch = name.includes(lowerSearch);
+        const matchesStatus =
+          !statusFilter || r.status === statusFilter;
+        const matchesService =
+          !serviceFilter || r.service?.service_type === serviceFilter;
+        return matchesSearch && matchesStatus && matchesService;
+      })
+      .sort((a, b) => {
+        const aDate = a.proposed_datetime_1
+          ? new Date(a.proposed_datetime_1).getTime()
+          : 0;
+        const bDate = b.proposed_datetime_1
+          ? new Date(b.proposed_datetime_1).getTime()
+          : 0;
+        return sortAsc ? aDate - bDate : bDate - aDate;
+      });
+  }, [requests, search, statusFilter, serviceFilter, sortAsc]);
+
   if (!user) {
     return (
       <MainLayout>
@@ -70,14 +99,54 @@ export default function BookingRequestsPage() {
         {error && <p className="text-red-600">{error}</p>}
         {!loading && !error && (
           <div className="bg-white rounded-md shadow overflow-hidden">
-            <div className="hidden sm:grid grid-cols-4 gap-4 bg-gray-50 p-2 text-sm font-semibold">
+            <div className="p-2 space-y-2 sm:flex sm:space-y-0 sm:space-x-2 bg-gray-50">
+              <input
+                type="text"
+                placeholder="Search by client name"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="border rounded-md p-1 text-sm flex-1"
+              />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="border rounded-md p-1 text-sm"
+              >
+                <option value="">All Statuses</option>
+                <option value="pending_quote">pending_quote</option>
+                <option value="quote_provided">quote_provided</option>
+                <option value="completed">completed</option>
+              </select>
+              <select
+                value={serviceFilter}
+                onChange={(e) => setServiceFilter(e.target.value)}
+                className="border rounded-md p-1 text-sm"
+              >
+                <option value="">All Services</option>
+                {[...new Set(requests.map((r) => r.service?.service_type))]
+                  .filter(Boolean)
+                  .map((s) => (
+                    <option key={s as string} value={s as string}>
+                      {s as string}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div className="hidden sm:grid grid-cols-4 gap-4 bg-gray-50 p-2 text-sm font-semibold border-t">
               <div>Client Name</div>
               <div>Service Type</div>
-              <div>Proposed Date</div>
+              <button
+                type="button"
+                onClick={() => setSortAsc(!sortAsc)}
+                className="text-left flex items-center"
+              >
+                <span className="mr-1">Proposed Date</span>
+                {sortAsc ? '▲' : '▼'}
+              </button>
               <div>Status</div>
             </div>
             <ul className="divide-y divide-gray-200">
-              {requests.map((r) => {
+              {filtered.map((r) => {
                 const unread = unreadIds.has(r.id);
                 return (
                   <li
@@ -106,7 +175,7 @@ export default function BookingRequestsPage() {
                   </li>
                 );
               })}
-              {requests.length === 0 && (
+              {filtered.length === 0 && (
                 <li className="p-4 text-sm text-gray-500">No requests.</li>
               )}
             </ul>
