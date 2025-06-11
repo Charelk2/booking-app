@@ -429,6 +429,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Persisted via `/api/v1/notifications` & `/api/v1/notifications/message-threads`.
 * Bell icon in header; slide-out drawer on mobile.
 * Grouped by type, mark-as-read endpoints, and “Mark All as Read”.
+* "Unread Only" toggle filters message threads and alerts in the drawer and full-screen modal.
 * Optional SMS alerts when `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` are set in the backend environment.
 
 ### Artist Profile Enhancements

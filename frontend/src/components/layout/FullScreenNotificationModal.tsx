@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, Transition } from '@headlessui/react';
 // Mobile layout previously used swipe actions. Cards are easier to read on
@@ -41,13 +41,23 @@ export default function FullScreenNotificationModal({
   hasMore,
 }: FullScreenNotificationModalProps) {
   const router = useRouter();
-  const hasThreads = threads.length > 0;
-  const grouped = notifications.reduce<Record<string, Notification[]>>((acc, n) => {
-    const key = n.type || 'other';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(n);
-    return acc;
-  }, {});
+  const [showUnread, setShowUnread] = useState(false);
+  const filteredThreads = showUnread
+    ? threads.filter((t) => t.unread_count > 0)
+    : threads;
+  const filteredNotifications = showUnread
+    ? notifications.filter((n) => !n.is_read)
+    : notifications;
+  const hasThreads = filteredThreads.length > 0;
+  const grouped = filteredNotifications.reduce<Record<string, Notification[]>>(
+    (acc, n) => {
+      const key = n.type || 'other';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(n);
+      return acc;
+    },
+    {},
+  );
 
   const navigateToBooking = async (
     link: string,
@@ -83,6 +93,14 @@ export default function FullScreenNotificationModal({
           <div className="sticky top-0 z-20 flex items-center justify-between bg-white border-b px-4 py-3">
             <h2 className="text-lg font-semibold">Notifications</h2>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowUnread((prev) => !prev)}
+                className="text-sm text-gray-600 hover:underline"
+                data-testid="toggle-unread"
+              >
+                {showUnread ? 'Show All' : 'Unread Only'}
+              </button>
               <button type="button" onClick={markAllRead} className="text-sm text-indigo-600">
                 Mark All as Read
               </button>
@@ -101,7 +119,7 @@ export default function FullScreenNotificationModal({
             ) : (
               <div className="space-y-4">
                 {hasThreads &&
-                  threads.map((t) => {
+                  filteredThreads.map((t) => {
                     const status = getStatusFromMessage(t.last_message);
                     return (
                       <div
