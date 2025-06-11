@@ -18,6 +18,8 @@ class NotificationResponse(BaseModel):
     link: str
     is_read: bool
     timestamp: datetime
+    sender_name: str | None = None
+    booking_type: str | None = None
 
     model_config = {"from_attributes": True}
 

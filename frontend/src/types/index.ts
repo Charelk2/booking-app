@@ -187,6 +187,8 @@ export interface Notification {
   link: string;
   is_read: boolean;
   timestamp: string;
+  sender_name?: string;
+  booking_type?: string;
 }
 
 export interface ThreadNotification {
