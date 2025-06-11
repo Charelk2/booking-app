@@ -42,7 +42,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
-    expect(parsed.subtitle).toBe('sent a new booking for Personalized Video');
+    expect(parsed.subtitle).toBe('sent a booking for Personalized Video');
   });
 
   it('falls back to provided fields when missing from message', () => {
