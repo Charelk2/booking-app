@@ -363,6 +363,21 @@ def test_format_notification_message_new_types():
     assert msg_review == "Please review your booking #42"
 
 
+def test_format_notification_message_booking_request():
+    msg_full = format_notification_message(
+        NotificationType.NEW_BOOKING_REQUEST,
+        sender_name="Bob",
+        booking_type="Performance",
+        request_id=5,
+    )
+    msg_simple = format_notification_message(
+        NotificationType.NEW_BOOKING_REQUEST,
+        request_id=7,
+    )
+    assert msg_full == "New booking request from Bob: Performance"
+    assert msg_simple == "New booking request #7"
+
+
 def test_personalized_video_notifications_suppressed_until_final():
     db = setup_db()
     client = User(
