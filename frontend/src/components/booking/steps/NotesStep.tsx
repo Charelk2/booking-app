@@ -4,6 +4,7 @@ import { Controller, Control, FieldValues } from 'react-hook-form';
 import useIsMobile from '@/hooks/useIsMobile';
 import { uploadBookingAttachment } from '@/lib/api';
 import toast from '../../ui/Toast';
+import { useState } from 'react';
 
 interface Props {
   control: Control<FieldValues>;
@@ -25,15 +26,29 @@ export default function NotesStep({
   onNext,
 }: Props) {
   const isMobile = useIsMobile();
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
-    const res = await uploadBookingAttachment(formData);
-    if (res?.data?.url) {
-      setValue('attachment_url', res.data.url);
-      toast.success('Attachment uploaded');
+    try {
+      setUploading(true);
+      const res = await uploadBookingAttachment(formData, (evt) => {
+        if (evt.total) {
+          setProgress(Math.round((evt.loaded * 100) / evt.total));
+        }
+      });
+      if (res?.data?.url) {
+        setValue('attachment_url', res.data.url);
+        toast.success('Attachment uploaded');
+      }
+    } catch (err) {
+      toast.error('Failed to upload attachment');
+    } finally {
+      setUploading(false);
+      setProgress(0);
     }
   }
   return (
@@ -59,6 +74,14 @@ export default function NotesStep({
       />
       <label className="block text-sm font-medium">Attachment (optional)</label>
       <input type="file" onChange={handleFileChange} />
+      {uploading && (
+        <div className="flex items-center gap-2 mt-2" role="progressbar" aria-valuenow={progress}>
+          <div className="w-full bg-gray-200 rounded h-2">
+            <div className="bg-blue-600 h-2 rounded" style={{ width: `${progress}%` }} />
+          </div>
+          <span className="text-xs">{progress}%</span>
+        </div>
+      )}
       <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
         {step > 0 && (
           <button
@@ -81,7 +104,8 @@ export default function NotesStep({
           <button
             type="button"
             onClick={onNext}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+            disabled={uploading}
+            className={`w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {step === steps.length - 1 ? 'Submit Request' : 'Next'}
           </button>
