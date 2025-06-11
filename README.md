@@ -487,7 +487,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Unread message counts badge on Messages icon. Badge now sits snugly over the icon on all devices.
 * Tap feedback on icons via `active:bg-gray-100`.
 * **Inbox** page at `/inbox` separates Booking Requests and Chats into tabs.
-* `ChatThreadView` component for mobile-friendly chat threads.
+* `ChatThreadView` component for mobile-friendly chat threads using a modern card-style layout.
 * Tap a booking request card to open `/booking-requests/[id]`.
 * Unread booking requests are highlighted in indigo so they stand out.
 * Cards no longer display a "1 new message" label to keep the list concise.
