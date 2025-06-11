@@ -1,4 +1,4 @@
-import type { Notification } from '@/types';
+import type { Notification, ThreadNotification, UnifiedNotification } from '@/types';
 
 /**
  * Merge incoming notifications with existing ones, ensuring uniqueness by ID
@@ -29,4 +29,49 @@ export function mergeNotifications(
     deduped.push(n);
   }
   return deduped;
+}
+
+/** Merge and sort unified notifications from both APIs. */
+export function mergeFeedItems(
+  existing: UnifiedNotification[],
+  incoming: UnifiedNotification[],
+): UnifiedNotification[] {
+  const map = new Map<string, UnifiedNotification>();
+  const all = [...existing, ...incoming];
+  all.forEach((n) => {
+    const key = n.type === 'message' ? `t-${n.booking_request_id}` : `n-${n.id}`;
+    if (key) {
+      map.set(key, { ...map.get(key), ...n });
+    }
+  });
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+  );
+}
+
+/** Convert a Notification into the unified format. */
+export function toUnifiedFromNotification(n: Notification): UnifiedNotification {
+  return {
+    type: n.type,
+    timestamp: n.timestamp,
+    is_read: n.is_read,
+    content: n.message,
+    link: n.link,
+    id: n.id,
+  };
+}
+
+/** Convert a ThreadNotification into the unified format. */
+export function toUnifiedFromThread(t: ThreadNotification): UnifiedNotification {
+  return {
+    type: 'message',
+    timestamp: t.timestamp,
+    is_read: t.unread_count === 0,
+    content: t.last_message,
+    booking_request_id: t.booking_request_id,
+    name: t.name,
+    unread_count: t.unread_count,
+    link: t.link,
+    avatar_url: t.avatar_url,
+  };
 }

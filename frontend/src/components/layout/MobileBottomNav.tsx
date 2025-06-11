@@ -36,14 +36,16 @@ function classNames(...classes: (string | false | undefined)[]) {
 
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const router = useRouter();
-  const { threads } = useNotifications();
+  const { items } = useNotifications();
   const scrollDir = useScrollDirection();
   if (!user) {
     return null;
   }
   // Next.js App Router doesn’t expose pathname in its types, so we use a type assertion
   const pathname = (router as unknown as { pathname?: string }).pathname || '';
-  const unreadMessages = threads.reduce((sum, t) => sum + t.unread_count, 0);
+  const unreadMessages = items
+    .filter((i) => i.type === 'message')
+    .reduce((sum, t) => sum + (t.unread_count || 0), 0);
   const badgeCount = unreadMessages > 99 ? '99+' : String(unreadMessages);
 
   return (
