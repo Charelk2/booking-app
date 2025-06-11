@@ -32,7 +32,7 @@ export default function ChatThreadView({
           </div>
         </header>
         <div
-          className="flex-1 overflow-y-auto flex flex-col-reverse gap-2 p-4 max-w-[90vw] mx-auto"
+          className="flex-1 overflow-y-auto flex flex-col gap-2 p-4 max-w-[90vw] mx-auto"
           data-testid="message-container"
         >
           {children}
