@@ -11,9 +11,11 @@ jest.mock('next/navigation', () => ({
   usePathname: () => '/',
 }));
 
+import type { AnchorHTMLAttributes } from 'react';
+
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: (props: any) => <a {...props} />,
+  default: (props: AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} />,
 }));
 
 jest.mock('../../../hooks/useNotifications', () => ({
