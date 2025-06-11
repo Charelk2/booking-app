@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
+import { waitFor } from '@testing-library/react';
 import InboxPage from '../page';
 import * as api from '@/lib/api';
 import useNotifications from '@/hooks/useNotifications';
@@ -89,19 +90,30 @@ describe('InboxPage navigation', () => {
     jest.clearAllMocks();
   });
 
-  it.skip('opens booking request detail when card clicked', async () => {
+  it('opens booking request detail when card clicked', async () => {
     const push = jest.fn();
     (useRouter as jest.Mock).mockReturnValue({ push, pathname: '/inbox' });
     const { container, root } = setup();
+
     await act(async () => {
       root.render(<InboxPage />);
     });
-    await act(async () => {});
+
+    // flush InboxPage effect that fetches booking details
+    await act(async () => {
+      await Promise.resolve();
+    });
+
     const card = container.querySelector('li div') as HTMLDivElement;
+
     await act(async () => {
       card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(push).toHaveBeenCalledWith('/booking-requests/1');
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith('/booking-requests/1');
+    });
+
     act(() => {
       root.unmount();
     });
