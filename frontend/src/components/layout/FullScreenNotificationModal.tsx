@@ -111,8 +111,8 @@ export default function FullScreenNotificationModal({
                       onClick={() => handleItemClick(n.id || n.booking_request_id as number)}
                       onKeyPress={() => handleItemClick(n.id || n.booking_request_id as number)}
                       className={classNames(
-                        'flex items-start gap-3 p-4 rounded-lg shadow transition hover:bg-gray-50 cursor-pointer',
-                        n.is_read ? 'bg-white text-gray-500' : 'bg-gray-50 font-medium',
+                        'flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg shadow transition hover:bg-gray-50 cursor-pointer',
+                        n.is_read ? 'bg-white border-l border-transparent text-gray-500' : 'bg-indigo-50 border-l-4 border-indigo-500 font-medium',
                       )}
                     >
                       {parsed.avatarUrl || parsed.initials ? (
@@ -136,12 +136,15 @@ export default function FullScreenNotificationModal({
                       )}
                       <div className="flex-1 text-left">
                         <div className="flex items-start justify-between">
-                          <span className="font-medium text-gray-900 truncate whitespace-nowrap overflow-hidden">{parsed.title}</span>
-                          <span className="text-xs text-gray-400">
+                          <span className="text-base font-medium text-gray-900 truncate whitespace-nowrap overflow-hidden">{parsed.title}</span>
+                          <span className="text-xs text-gray-400 text-right">
                             {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
                           </span>
                         </div>
-                        <span className="block text-sm text-gray-700 truncate whitespace-nowrap overflow-hidden">{parsed.subtitle}</span>
+                        <p className="text-sm text-gray-700 truncate whitespace-nowrap overflow-hidden">{parsed.subtitle}</p>
+                        {parsed.metadata && (
+                          <p className="text-xs text-gray-500 truncate whitespace-nowrap overflow-hidden">{parsed.metadata}</p>
+                        )}
                       </div>
                     </div>
                   );
