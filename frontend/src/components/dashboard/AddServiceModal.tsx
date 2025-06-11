@@ -4,8 +4,6 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { Service } from '@/types';
 import { createService as apiCreateService } from '@/lib/api'; // Assuming this function exists
 import { useState } from 'react';
-import axios from 'axios';
-import { extractErrorMessage } from '@/lib/utils';
 
 interface AddServiceModalProps {
   isOpen: boolean;
@@ -42,14 +40,13 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
       onServiceAdded(response.data);
       reset();
       onClose();
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const message = extractErrorMessage(err.response?.data?.detail);
-        setServerError(message);
-      } else {
-        setServerError('An unexpected error occurred. Failed to create service.');
-      }
-      console.error("Service creation error:", err);
+    } catch (err: unknown) {
+      console.error('Service creation error:', err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'An unexpected error occurred. Failed to create service.';
+      setServerError(message);
     }
   };
 

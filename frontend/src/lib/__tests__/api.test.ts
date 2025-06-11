@@ -36,3 +36,39 @@ describe('request interceptor', () => {
     g.window = win;
   });
 });
+
+describe('response interceptor', () => {
+  const typedApi = api as unknown as {
+    interceptors: {
+      response: {
+        handlers: { rejected: (e: unknown) => Promise<never> }[];
+      };
+    };
+  };
+  const rejected = typedApi.interceptors.response.handlers[0].rejected;
+
+  it('maps HTTP status to user message', async () => {
+    expect.assertions(1);
+    const err: unknown = {
+      isAxiosError: true,
+      response: { status: 401, data: { detail: 'unauth' } },
+    };
+    await rejected(err).catch((e: Error) => {
+      expect(e.message).toBe('Authentication required. Please log in.');
+    });
+  });
+
+  it('falls back to extracted detail and logs error', async () => {
+    expect.assertions(2);
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const err: unknown = {
+      isAxiosError: true,
+      response: { status: 499, data: { detail: 'oops' } },
+    };
+    await rejected(err).catch((e: Error) => {
+      expect(e.message).toBe('oops');
+    });
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+});
