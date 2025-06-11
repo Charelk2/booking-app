@@ -239,32 +239,56 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     [messages],
   );
 
+  const TEN_MINUTES_MS = 10 * 60 * 1000;
+
   interface MessageGroup {
     sender_id: number | null;
     sender_type: string;
     messages: Message[];
+    divider: boolean;
   }
+
+  const shouldShowTimestampGroup = useCallback(
+    (msg: Message, index: number, list: Message[]) => {
+      if (index === 0) return true;
+      const prev = list[index - 1];
+      const sameSender =
+        prev.sender_id === msg.sender_id && prev.sender_type === msg.sender_type;
+      const prevTime = new Date(prev.timestamp).getTime();
+      const currTime = new Date(msg.timestamp).getTime();
+      const withinWindow = currTime - prevTime < TEN_MINUTES_MS;
+      const sameDay =
+        new Date(prev.timestamp).toDateString() ===
+        new Date(msg.timestamp).toDateString();
+      return !(sameSender && withinWindow && sameDay);
+    },
+    [TEN_MINUTES_MS],
+  );
 
   const groupedMessages = useMemo(() => {
     const groups: MessageGroup[] = [];
-    visibleMessages.forEach((msg) => {
-      const last = groups[groups.length - 1];
-      if (
-        !last ||
-        last.sender_id !== msg.sender_id ||
-        last.sender_type !== msg.sender_type
-      ) {
+    visibleMessages.forEach((msg, idx) => {
+      const divider =
+        idx > 0 &&
+        new Date(msg.timestamp).toDateString() !==
+          new Date(visibleMessages[idx - 1].timestamp).toDateString();
+      if (shouldShowTimestampGroup(msg, idx, visibleMessages) || groups.length === 0) {
         groups.push({
           sender_id: msg.sender_id,
           sender_type: msg.sender_type,
           messages: [msg],
+          divider,
         });
       } else {
+        const last = groups[groups.length - 1];
         last.messages.push(msg);
+        if (divider) {
+          last.divider = true;
+        }
       }
     });
     return groups;
-  }, [visibleMessages]);
+  }, [visibleMessages, shouldShowTimestampGroup]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
@@ -307,14 +331,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           const isSelf = !isSystem && firstMsg.sender_id === user?.id;
           const anyUnread = group.messages.some((m) => m.unread);
           const groupClass = `${idx > 0 ? 'mt-1' : ''} ${anyUnread ? 'bg-purple-50' : ''}`;
+          const relativeGroupTime = formatDistanceToNow(new Date(firstMsg.timestamp), {
+            addSuffix: true,
+          });
 
           return (
             <div
               key={firstMsg.id}
               className={`flex flex-col gap-0.5 ${isSelf ? 'items-end ml-auto' : 'items-start'} ${groupClass}`}
             >
+              {group.divider && (
+                <hr className="border-t border-gray-300 w-full my-2" />
+              )}
+              <div className="text-xs text-gray-400 mb-1">{relativeGroupTime}</div>
               {group.messages.map((msg, mIdx) => {
-                const isLast = mIdx === group.messages.length - 1;
                 const bubbleClass = isSelf
                   ? 'bg-[#4F46E5] text-white self-end'
                   : isSystem
@@ -330,9 +360,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 });
                 const timeClass =
                   'absolute bottom-1 right-2 text-xs text-right text-gray-400';
-                const relativeTime = formatDistanceToNow(new Date(msg.timestamp), {
-                  addSuffix: true,
-                });
 
                 return (
                   <motion.div
@@ -373,9 +400,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                         <span className={timeClass}>{timeString}</span>
                       </div>
                     </div>
-                    {isLast && (
-                      <span className="text-xs text-gray-400 mt-1">{relativeTime}</span>
-                    )}
                   </motion.div>
                 );
               })}
