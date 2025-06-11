@@ -20,6 +20,7 @@ class MessageResponse(BaseModel):
     quote_id: int | None = None
     attachment_url: str | None = None
     timestamp: datetime
+    avatar_url: str | None = None
 
     model_config = {
         "from_attributes": True
