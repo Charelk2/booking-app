@@ -71,6 +71,12 @@ export default function BookingWizard({
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [maxStepCompleted, setMaxStepCompleted] = useState(0);
+
+  // Ensure maxStepCompleted always reflects the furthest step reached.
+  useEffect(() => {
+    setMaxStepCompleted((prev) => Math.max(prev, step));
+  }, [step]);
 
   const {
     control,
@@ -124,11 +130,15 @@ export default function BookingWizard({
         fields = [];
     }
     const valid = await trigger(fields);
-    if (valid) setStep(step + 1);
+    if (valid) {
+      const newStep = step + 1;
+      setStep(newStep);
+      setMaxStepCompleted(Math.max(maxStepCompleted, newStep));
+    }
   };
   const prev = () => setStep(step - 1);
   const handleStepClick = (i: number) => {
-    if (i < step) setStep(i);
+    if (i <= maxStepCompleted && i !== step) setStep(i);
   };
 
   const saveDraft = handleSubmit(async (vals) => {
@@ -270,7 +280,12 @@ export default function BookingWizard({
 
   return (
     <div className="px-4">
-      <Stepper steps={steps} currentStep={step} onStepClick={handleStepClick} />
+      <Stepper
+        steps={steps}
+        currentStep={step}
+        maxStepCompleted={maxStepCompleted}
+        onStepClick={handleStepClick}
+      />
       <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md space-y-6">
         <h2 className="text-2xl font-bold" data-testid="step-heading">
           {steps[step]}
