@@ -11,9 +11,26 @@ jest.mock('next/navigation', () => ({
   usePathname: () => '/',
 }));
 
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: (props: any) => <a {...props} />,
+}));
+
 jest.mock('../../../hooks/useNotifications', () => ({
   __esModule: true,
-  default: () => ({ threads: [{ unread_count: 3 }] }),
+  default: () => ({
+    items: [
+      {
+        type: 'message',
+        unread_count: 3,
+        is_read: false,
+        timestamp: '2024-01-01T00:00:00Z',
+        content: '',
+        booking_request_id: 1,
+        name: 'User',
+      },
+    ],
+  }),
 }));
 
 describe('MobileBottomNav', () => {

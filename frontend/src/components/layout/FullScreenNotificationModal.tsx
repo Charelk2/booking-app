@@ -12,21 +12,14 @@ function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-const getStatusFromMessage = (message: string): string | null => {
-  const match = message.match(/status updated to (\w+)/i);
-  if (match) return match[1].replace(/_/g, ' ');
-  if (/new booking request/i.test(message)) return 'new';
-  return null;
-};
-import type { Notification, ThreadNotification } from '@/types';
+import type { UnifiedNotification } from '@/types';
+import { parseItem } from './NotificationDrawer';
 
 interface FullScreenNotificationModalProps {
   open: boolean;
   onClose: () => void;
-  notifications: Notification[];
-  threads: ThreadNotification[];
-  markRead: (id: number) => Promise<void>;
-  markThread: (id: number) => Promise<void>;
+  items: UnifiedNotification[];
+  onItemClick: (id: number) => Promise<void>;
   markAllRead: () => Promise<void>;
   loadMore: () => Promise<void>;
   hasMore: boolean;
@@ -36,45 +29,29 @@ interface FullScreenNotificationModalProps {
 export default function FullScreenNotificationModal({
   open,
   onClose,
-  notifications,
-  threads,
-  markRead,
-  markThread,
+  items,
+  onItemClick,
   markAllRead,
   loadMore,
   hasMore,
 }: FullScreenNotificationModalProps) {
   const router = useRouter();
   const [showUnread, setShowUnread] = useState(false);
-  const filteredThreads = showUnread
-    ? threads.filter((t) => t.unread_count > 0)
-    : threads;
-  const filteredNotifications = showUnread
-    ? notifications.filter((n) => !n.is_read)
-    : notifications;
-  const hasThreads = filteredThreads.length > 0;
-  const grouped = filteredNotifications.reduce<Record<string, Notification[]>>(
-    (acc, n) => {
-      const key = n.type || 'other';
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(n);
-      return acc;
-    },
-    {},
-  );
+  const filtered = showUnread
+    ? items.filter((i) =>
+        i.type === 'message' ? (i.unread_count ?? 0) > 0 : !i.is_read,
+      )
+    : items;
 
-  const navigateToBooking = async (
-    link: string,
-    id: number,
-    markFn: (targetId: number) => Promise<void>,
-  ) => {
-    await markFn(id);
-    if (link) router.push(link);
-  };
-
-  const handleThreadClick = async (id: number) => {
-    await markThread(id);
-    router.push(`/messages/thread/${id}`);
+  const handleItemClick = async (itemId: number) => {
+    const item = items.find((i) => (i.id || i.booking_request_id) === itemId);
+    if (!item) return;
+    await onItemClick(itemId);
+    if (item.type === 'message' && item.booking_request_id) {
+      router.push(`/messages/thread/${item.booking_request_id}`);
+    } else if (item.link) {
+      router.push(item.link);
+    }
   };
 
   return (
@@ -116,84 +93,38 @@ export default function FullScreenNotificationModal({
           </div>
 
           <div className="flex-1 overflow-y-auto p-4">
-            {notifications.length === 0 && !hasThreads ? (
+            {filtered.length === 0 ? (
               <div className="flex h-full items-center justify-center text-gray-500 text-center">
                 🎉 You&apos;re all caught up!
               </div>
             ) : (
               <div className="space-y-4">
-                {hasThreads &&
-                  filteredThreads.map((t) => {
-                    const status = getStatusFromMessage(t.last_message);
-                    return (
-                      <div
-                        key={`thread-${t.booking_request_id}`}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => handleThreadClick(t.booking_request_id)}
-                        onKeyPress={() => handleThreadClick(t.booking_request_id)}
-                        className={classNames(
-                          'relative bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50 cursor-pointer active:bg-gray-100',
-                          t.unread_count > 0
-                            ? 'border-l-4 border-indigo-500'
-                            : 'border-l-4 border-transparent text-gray-500',
-                        )}
-                      >
-                        {status && (
-                          <span className="absolute top-2 right-2 rounded-full bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5">
-                            {status}
-                          </span>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold">{t.name}</span>
-                          <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
-                            {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-700 truncate">{t.last_message}</div>
-                        <span className="text-xs self-start bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                          {t.unread_count > 0 ? 'New' : 'Seen'}
+                {filtered.map((n) => {
+                  const parsed = parseItem(n);
+                  return (
+                    <div
+                      key={`${n.type}-${n.id || n.booking_request_id}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleItemClick(n.id || n.booking_request_id as number)}
+                      onKeyPress={() => handleItemClick(n.id || n.booking_request_id as number)}
+                      className={classNames(
+                        'relative bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50 cursor-pointer',
+                        n.is_read
+                          ? 'border-l-4 border-transparent text-gray-500'
+                          : 'border-l-4 border-indigo-500',
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold">{parsed.title}</span>
+                        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+                          {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
                         </span>
                       </div>
-                    );
-                  })}
-                {Object.values(grouped).map((items) =>
-                  items.map((n) => {
-                    const status = getStatusFromMessage(n.message);
-                    return (
-                      <div
-                        key={`notif-${n.id}`}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => navigateToBooking(n.link, n.id, markRead)}
-                        onKeyPress={() => navigateToBooking(n.link, n.id, markRead)}
-                        className={classNames(
-                          'relative bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50',
-                          n.is_read
-                            ? 'border-l-4 border-transparent text-gray-500'
-                            : 'border-l-4 border-indigo-500',
-                        )}
-                      >
-                        {status && (
-                          <span className="absolute top-2 right-2 rounded-full bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5">
-                            {status}
-                          </span>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold whitespace-pre-wrap break-words">
-                            {n.message}
-                          </span>
-                          <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
-                            {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
-                          </span>
-                        </div>
-                        <span className="text-xs self-start bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                          {n.is_read ? 'Seen' : 'New'}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
+                      <div className="text-sm text-gray-700 truncate">{parsed.subtitle}</div>
+                    </div>
+                  );
+                })}
                 {hasMore && (
                   <div className="text-center pt-2">
                     <button
