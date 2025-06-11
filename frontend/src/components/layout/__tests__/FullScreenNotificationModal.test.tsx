@@ -45,4 +45,5 @@ describe('FullScreenNotificationModal', () => {
     });
     expect(document.body.textContent).toContain('Mark All as Read');
   });
+
 });
