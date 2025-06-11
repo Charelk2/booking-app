@@ -445,11 +445,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           )}
           <form
             onSubmit={handleSend}
-            className="sticky bottom-0 bg-white border-t flex sm:flex-row flex-col items-center gap-2 px-4 py-3"
+            className="sticky bottom-0 bg-white border-t flex flex-row items-center gap-x-2 px-4 py-3"
           >
             <label
               htmlFor="file-upload"
-              className="p-2 text-gray-600 rounded-full hover:bg-gray-100"
+              className="w-8 h-8 flex items-center justify-center text-gray-600 rounded-full hover:bg-gray-100"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
