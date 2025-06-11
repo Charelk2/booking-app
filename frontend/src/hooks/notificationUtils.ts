@@ -10,7 +10,23 @@ export function mergeNotifications(
 ): Notification[] {
   const map = new Map<number, Notification>();
   [...existing, ...incoming].forEach((n) => map.set(n.id, n));
-  return Array.from(map.values()).sort(
+  const sorted = Array.from(map.values()).sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
   );
+  const deduped: Notification[] = [];
+  for (const n of sorted) {
+    const last = deduped[deduped.length - 1];
+    if (
+      last &&
+      last.type === n.type &&
+      last.link === n.link &&
+      last.message === n.message &&
+      Math.abs(new Date(last.timestamp).getTime() - new Date(n.timestamp).getTime()) <
+        10 * 60 * 1000
+    ) {
+      continue;
+    }
+    deduped.push(n);
+  }
+  return deduped;
 }

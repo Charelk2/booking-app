@@ -20,7 +20,10 @@ from app.schemas import (
     BookingRequestUpdateByClient,
 )
 from app.crud import crud_notification
-from app.utils.notifications import format_notification_message
+from app.utils.notifications import (
+    format_notification_message,
+    VIDEO_FLOW_READY_MESSAGE,
+)
 
 
 def setup_db():
@@ -358,3 +361,64 @@ def test_format_notification_message_new_types():
     )
     assert msg_deposit == "Deposit payment due for booking #42"
     assert msg_review == "Please review your booking #42"
+
+
+def test_personalized_video_notifications_suppressed_until_final():
+    db = setup_db()
+    client = User(
+        email="pv@test.com",
+        password="x",
+        first_name="C",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="pva@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+    profile = models.ArtistProfile(user_id=artist.id, business_name="Vid Artist")
+    service = models.Service(
+        artist_id=artist.id,
+        title="Video",
+        description="",
+        service_type="Personalized Video",
+        duration_minutes=5,
+        price=100,
+        display_order=1,
+    )
+    db.add_all([profile, service])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        service_id=service.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    msg_in = MessageCreate(content="Question", message_type=MessageType.SYSTEM)
+    api_message.create_message(br.id, msg_in, db, current_user=client)
+
+    notifs = crud_notification.get_notifications_for_user(db, artist.id)
+    assert not notifs
+
+    msg_final = MessageCreate(
+        content=VIDEO_FLOW_READY_MESSAGE,
+        message_type=MessageType.SYSTEM,
+    )
+    api_message.create_message(br.id, msg_final, db, current_user=client)
+    notifs_after = crud_notification.get_notifications_for_user(db, artist.id)
+    assert len(notifs_after) == 1
+    assert notifs_after[0].type == NotificationType.NEW_BOOKING_REQUEST

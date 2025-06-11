@@ -12,6 +12,11 @@ TWILIO_FROM = os.getenv("TWILIO_FROM_NUMBER")
 
 logger = logging.getLogger(__name__)
 
+# Final system message indicating all automated prompts are complete.
+VIDEO_FLOW_READY_MESSAGE = (
+    "All details collected! The artist has been notified."
+)
+
 def format_notification_message(
     ntype: NotificationType, **kwargs: str | int | None
 ) -> str:
@@ -19,6 +24,10 @@ def format_notification_message(
     if ntype == NotificationType.NEW_MESSAGE:
         return f"New message: {kwargs.get('content')}"
     if ntype == NotificationType.NEW_BOOKING_REQUEST:
+        sender = kwargs.get("sender_name")
+        btype = kwargs.get("booking_type")
+        if sender and btype:
+            return f"New booking request from {sender}: {btype}"
         return f"New booking request #{kwargs.get('request_id')}"
     if ntype == NotificationType.BOOKING_STATUS_UPDATED:
         return (
@@ -59,10 +68,19 @@ def notify_user_new_message(
     _send_sms(user.phone_number, message)
 
 
-def notify_user_new_booking_request(db: Session, user: User, request_id: int) -> None:
+def notify_user_new_booking_request(
+    db: Session,
+    user: User,
+    request_id: int,
+    sender_name: str,
+    booking_type: str,
+) -> None:
     """Create a notification for a new booking request."""
     message = format_notification_message(
-        NotificationType.NEW_BOOKING_REQUEST, request_id=request_id
+        NotificationType.NEW_BOOKING_REQUEST,
+        request_id=request_id,
+        sender_name=sender_name,
+        booking_type=booking_type,
     )
     crud_notification.create_notification(
         db,
