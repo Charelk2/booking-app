@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from ..models import User, NotificationType
+from .. import models
 from ..crud import crud_notification
 from typing import Optional
 import os
@@ -50,10 +51,32 @@ def _send_sms(phone: Optional[str], message: str) -> None:
     except Exception as exc:
         logger.warning("SMS failed: %s", exc)
 
+BOOKING_DETAILS_PREFIX = "Booking details:"
+VIDEO_FLOW_QUESTIONS = [
+    "Who is the video for?",
+    "What is the occasion?",
+    "When should the video be ready?",
+    "Any specific instructions or message?",
+]
+
+
 def notify_user_new_message(
-    db: Session, user: User, booking_request_id: int, content: str
+    db: Session,
+    user: User,
+    booking_request_id: int,
+    content: str,
+    message_type: "models.MessageType",
 ) -> None:
     """Create a notification for a new message."""
+    if message_type == models.MessageType.SYSTEM:
+        if (
+            content.startswith(BOOKING_DETAILS_PREFIX)
+            or content == VIDEO_FLOW_READY_MESSAGE
+            or content in VIDEO_FLOW_QUESTIONS
+        ):
+            logger.info("Skipping system message notification: %s", content)
+            return
+
     message = format_notification_message(
         NotificationType.NEW_MESSAGE, content=content
     )

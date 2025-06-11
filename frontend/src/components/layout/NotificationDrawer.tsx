@@ -117,9 +117,9 @@ function DrawerItem({ n, onClick }: { n: UnifiedNotification; onClick: () => voi
       type="button"
       onClick={onClick}
       className={classNames(
-        'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50 rounded shadow-sm border-b last:border-b-0 transition',
+        'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50 rounded shadow-sm transition',
         n.is_read
-          ? 'border-l-4 border-transparent bg-gray-50 text-gray-500'
+          ? 'border-b last:border-b-0 border-l-4 border-transparent bg-gray-50 text-gray-500'
           : 'border-l-4 border-indigo-500 bg-white text-gray-900 font-medium',
       )}
     >
