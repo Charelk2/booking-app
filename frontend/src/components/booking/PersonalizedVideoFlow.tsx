@@ -11,12 +11,13 @@ interface Props {
   bookingRequestId: number;
   clientName?: string;
   artistName?: string;
+  artistAvatarUrl?: string | null;
 }
 
 /**
  * Wrapper for MessageThread that runs the personalized video Q&A sequence.
  */
-export default function PersonalizedVideoFlow({ bookingRequestId, clientName, artistName }: Props) {
+export default function PersonalizedVideoFlow({ bookingRequestId, clientName, artistName, artistAvatarUrl }: Props) {
   const { user } = useAuth();
   const threadRef = useRef<MessageThreadHandle>(null);
   const [progress, setProgress] = useState(0);
@@ -107,6 +108,7 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
         onMessageSent={refreshFlow}
         clientName={clientName}
         artistName={artistName}
+        artistAvatarUrl={artistAvatarUrl}
         isSystemTyping={systemTyping}
       />
     </div>

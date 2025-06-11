@@ -4,6 +4,8 @@ import { Fragment, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
+import { getFullImageUrl } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import type { Notification, ThreadNotification } from '@/types';
 
@@ -131,12 +133,22 @@ export default function NotificationDrawer({
                               t.unread_count > 0 ? 'font-medium' : 'text-gray-500',
                             )}
                           >
+                          {t.avatar_url ? (
+                            <Image
+                              src={getFullImageUrl(t.avatar_url) as string}
+                              alt="avatar"
+                              width={40}
+                              height={40}
+                              className="h-10 w-10 flex-shrink-0 rounded-full object-cover"
+                            />
+                          ) : (
                             <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
                               {t.name
                                 .split(' ')
                                 .map((word) => word[0])
                                 .join('')}
                             </div>
+                          )}
                             <div className="flex-1 text-left">
                               <span className="block font-medium text-gray-900">
                                 {t.name}
