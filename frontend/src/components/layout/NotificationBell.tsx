@@ -7,12 +7,18 @@ import dynamic from 'next/dynamic';
 
 const NotificationDrawer = dynamic(() => import('./NotificationDrawer'), {
   loading: () => <div className="p-4">Loading...</div>,
+  ssr: false,
 });
 
 const FullScreenNotificationModal = dynamic(
   () => import('./FullScreenNotificationModal'),
   { loading: () => <div className="p-4">Loading...</div>, ssr: false },
 );
+
+function prefetchNotifications() {
+  import('./NotificationDrawer');
+  import('./FullScreenNotificationModal');
+}
 import useIsMobile from '@/hooks/useIsMobile';
 import useNotifications from '@/hooks/useNotifications';
 
@@ -68,6 +74,8 @@ export default function NotificationBell(): JSX.Element {
       <button
         type="button"
         onClick={() => setOpen(true)}
+        onMouseEnter={prefetchNotifications}
+        onFocus={prefetchNotifications}
         className="flex text-gray-400 hover:text-gray-600 focus:outline-none"
       >
         <span className="sr-only">View notifications</span>
