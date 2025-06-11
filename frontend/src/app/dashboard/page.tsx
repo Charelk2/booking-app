@@ -407,7 +407,9 @@ export default function DashboardPage() {
                   <div className="font-medium text-gray-900">
                     {user.user_type === 'artist'
                       ? `${req.client?.first_name} ${req.client?.last_name}`
-                      : `${req.artist?.first_name} ${req.artist?.last_name}`}
+                      :
+                          req.artist?.business_name ||
+                          `${req.artist?.first_name} ${req.artist?.last_name}`}
                   </div>
                   <div className="text-sm text-gray-500">
                     {req.service?.title || '—'}
