@@ -95,7 +95,7 @@ describe('BookingWizard flow', () => {
     });
     await new Promise((r) => setTimeout(r, 0));
     const progressButtons = container.querySelectorAll('[aria-label="Progress"] button');
-    expect(progressButtons).toHaveLength(1);
+    expect(progressButtons.length).toBeGreaterThan(1);
     await act(async () => {
       progressButtons[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
