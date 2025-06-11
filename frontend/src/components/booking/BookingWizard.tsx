@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
 import { format } from 'date-fns';
 import Stepper from '../ui/Stepper'; // progress indicator
+import { AnimatePresence, motion } from 'framer-motion';
 import toast from '../ui/Toast';
 import {
   getArtistAvailability,
@@ -70,6 +71,9 @@ export default function BookingWizard({
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Track the highest step the user has successfully completed so
+  // progress dots remain clickable when navigating backwards.
+  const [maxCompletedStep, setMaxCompletedStep] = useState(-1);
 
   const {
     control,
@@ -123,9 +127,16 @@ export default function BookingWizard({
         fields = [];
     }
     const valid = await trigger(fields);
-    if (valid) setStep(step + 1);
+    if (valid) {
+      const nextStep = step + 1;
+      setStep(nextStep);
+      setMaxCompletedStep((m) => Math.max(m, step));
+    }
   };
   const prev = () => setStep(step - 1);
+  const handleStepClick = (i: number) => {
+    if (i <= maxCompletedStep) setStep(i);
+  };
 
   const saveDraft = handleSubmit(async (vals) => {
     const payload: BookingRequestCreate = {
@@ -266,13 +277,28 @@ export default function BookingWizard({
 
   return (
     <div className="px-4">
-      <Stepper steps={steps} currentStep={step} />
+      <Stepper
+        steps={steps}
+        currentStep={step}
+        maxStepCompleted={maxCompletedStep}
+        onStepClick={handleStepClick}
+      />
       <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md space-y-6">
         <h2 className="text-2xl font-bold" data-testid="step-heading">
           {steps[step]}
         </h2>
 
-        {renderStep()}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {renderStep()}
+          </motion.div>
+        </AnimatePresence>
         {warning && <p className="text-orange-600 text-sm">{warning}</p>}
         {Object.values(errors).length > 0 && (
           <p className="text-red-600 text-sm">Please fix the errors above.</p>

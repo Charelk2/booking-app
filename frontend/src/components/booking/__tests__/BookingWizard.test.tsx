@@ -83,8 +83,28 @@ describe('BookingWizard flow', () => {
     expect(container.textContent).not.toContain('Summary');
     const setStep = (window as unknown as { __setStep: (s: number) => void }).__setStep;
     await act(async () => { setStep(5); });
-    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 400));
     expect(container.querySelector('h2')?.textContent).toContain('Review');
     expect(container.textContent).toContain('Summary');
   });
+
+  it('allows navigating back via the progress bar', async () => {
+    const next = getButton('Next');
+    await act(async () => {
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    const progressButtons = container.querySelectorAll(
+      '[aria-label="Progress"] button',
+    );
+    expect(progressButtons).toHaveLength(1);
+    await act(async () => {
+      progressButtons[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await new Promise((r) => setTimeout(r, 400));
+    expect(
+      container.querySelector('[data-testid="step-heading"]')?.textContent,
+    ).toContain('Date & Time');
+  });
+
 });
