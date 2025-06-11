@@ -65,12 +65,15 @@ describe('InboxPage unread badge', () => {
     jest.clearAllMocks();
   });
 
-  it.skip('highlights unread booking requests', async () => {
+  it('highlights unread booking requests', async () => {
     const { container, root } = setup(2);
     await act(async () => {
       root.render(<InboxPage />);
     });
-    await act(async () => {});
+    // wait for the InboxPage effect that fetches booking details
+    await act(async () => {
+      await Promise.resolve();
+    });
     const card = container.querySelector('li div');
     expect(card?.className).toContain('bg-indigo-50');
     expect(container.textContent).not.toContain('new message');
