@@ -397,6 +397,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * New **Review** step showing cost breakdown and selections.
 * Success toasts when saving a draft or submitting a request.
 * Simplified buttons sit below each step in a responsive button group.
+* Attachment uploads in the notes step display a progress bar and disable the Next button until finished.
 * Collapsible sections for date/time and notes keep steps short on phones.
 * Mobile devices use native date and time pickers for faster input.
 * Each step appears in a white card with rounded corners and a subtle shadow.
@@ -422,6 +423,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Fixed input bar & auto-scroll on mobile.
 * Desktop bubbles expand wider to avoid unnecessary line breaks.
 * Floating “scroll to latest” button on small screens.
+* File uploads show an inline progress bar and the send button is disabled until complete.
 * Personalized Video flow: multi-step prompts, typing indicators, progress bar.
 * Sticky input demo at `/demo/sticky-input` shows local message appending.
 

@@ -36,6 +36,9 @@ describe('MessageThread component', () => {
     // jsdom lacks scrollIntoView which is used by the component
     // @ts-expect-error jsdom lacks scrollIntoView
     window.HTMLElement.prototype.scrollIntoView = jest.fn();
+    // stub createObjectURL used for previews
+    global.URL.createObjectURL = jest.fn(() => 'blob:preview');
+    global.URL.revokeObjectURL = jest.fn();
   });
 
   afterEach(() => {
@@ -201,5 +204,53 @@ describe('MessageThread component', () => {
 
     const bubbles = container.querySelectorAll('.whitespace-pre-wrap');
     expect(bubbles.length).toBe(1);
+  });
+
+  it('shows progress indicator while uploading attachment', async () => {
+    let resolveUpload: () => void;
+    (api.uploadMessageAttachment as jest.Mock).mockImplementation(
+      (_id: number, _file: File, cb?: (e: { loaded: number; total: number }) => void) => {
+        cb?.({ loaded: 50, total: 100 });
+        return new Promise((res) => {
+          resolveUpload = () => {
+            cb?.({ loaded: 100, total: 100 });
+            res({ data: { url: '/f' } });
+          };
+        });
+      },
+    );
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const input = container.querySelector('#file-upload') as HTMLInputElement;
+    const file = new File(['a'], 'a.txt', { type: 'text/plain' });
+    await act(async () => {
+      Object.defineProperty(input, 'files', { value: [file] });
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    const sendButton = container.querySelector('form button[type="submit"]') as HTMLButtonElement;
+    expect(sendButton).not.toBeNull();
+    act(() => {
+      sendButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const progress = container.querySelector('[role="progressbar"]');
+    expect(progress).not.toBeNull();
+    expect(sendButton.disabled).toBe(true);
+
+    await act(async () => {
+      resolveUpload();
+    });
+
+    expect(container.querySelector('[role="progressbar"]')).toBeNull();
+    expect(sendButton.disabled).toBe(false);
   });
 });
