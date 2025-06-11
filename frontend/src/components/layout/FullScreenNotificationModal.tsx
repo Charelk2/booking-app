@@ -8,6 +8,10 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { formatDistanceToNow } from 'date-fns';
 
+function classNames(...classes: string[]) {
+  return classes.filter(Boolean).join(' ');
+}
+
 const getStatusFromMessage = (message: string): string | null => {
   const match = message.match(/status updated to (\w+)/i);
   if (match) return match[1].replace(/_/g, ' ');
@@ -128,7 +132,12 @@ export default function FullScreenNotificationModal({
                         tabIndex={0}
                         onClick={() => handleThreadClick(t.booking_request_id)}
                         onKeyPress={() => handleThreadClick(t.booking_request_id)}
-                        className="relative bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50 cursor-pointer active:bg-gray-100 rounded"
+                        className={classNames(
+                          'relative bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50 cursor-pointer active:bg-gray-100',
+                          t.unread_count > 0
+                            ? 'border-l-4 border-indigo-500'
+                            : 'border-l-4 border-transparent text-gray-500',
+                        )}
                       >
                         {status && (
                           <span className="absolute top-2 right-2 rounded-full bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5">
@@ -158,7 +167,12 @@ export default function FullScreenNotificationModal({
                         tabIndex={0}
                         onClick={() => navigateToBooking(n.link, n.id, markRead)}
                         onKeyPress={() => navigateToBooking(n.link, n.id, markRead)}
-                        className="relative bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50"
+                        className={classNames(
+                          'relative bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50',
+                          n.is_read
+                            ? 'border-l-4 border-transparent text-gray-500'
+                            : 'border-l-4 border-indigo-500',
+                        )}
                       >
                         {status && (
                           <span className="absolute top-2 right-2 rounded-full bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5">

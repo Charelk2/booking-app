@@ -20,6 +20,7 @@ from app.schemas import (
     BookingRequestUpdateByClient,
 )
 from app.crud import crud_notification
+from app.utils.notifications import format_notification_message
 
 
 def setup_db():
@@ -346,3 +347,14 @@ def test_status_update_creates_notification_for_artist():
     notifs = crud_notification.get_notifications_for_user(db, artist.id)
     assert len(notifs) == 1
     assert notifs[0].type == NotificationType.BOOKING_STATUS_UPDATED
+
+
+def test_format_notification_message_new_types():
+    msg_deposit = format_notification_message(
+        NotificationType.DEPOSIT_DUE, booking_id=42
+    )
+    msg_review = format_notification_message(
+        NotificationType.REVIEW_REQUEST, booking_id=42
+    )
+    assert msg_deposit == "Deposit payment due for booking #42"
+    assert msg_review == "Please review your booking #42"
