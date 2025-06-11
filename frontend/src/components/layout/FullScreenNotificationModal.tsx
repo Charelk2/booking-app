@@ -135,12 +135,12 @@ export default function FullScreenNotificationModal({
                       )}
                       <div className="flex-1 text-left">
                         <div className="flex items-start justify-between">
-                          <span className="font-medium text-gray-900 truncate">{parsed.title}</span>
+                          <span className="font-medium text-gray-900 truncate whitespace-nowrap overflow-hidden">{parsed.title}</span>
                           <span className="text-xs text-gray-400">
                             {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
                           </span>
                         </div>
-                        <span className="block text-sm text-gray-700 truncate">{parsed.subtitle}</span>
+                        <span className="block text-sm text-gray-700 truncate whitespace-nowrap overflow-hidden">{parsed.subtitle}</span>
                       </div>
                     </div>
                   );

@@ -434,8 +434,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * "Unread Only" toggle filters message threads and alerts in the drawer and full-screen modal.
 * Optional SMS alerts when `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` are set in the backend environment.
 * Personalized video flows suppress chat alerts until all prompts are answered. A single notification is sent with the booking type once complete.
-* Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews.
-* Booking request notifications display the sender name as the title and the service type in the subtitle with contextual icons. Long service names are truncated for readability.
+* Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews. Titles are limited to 36 characters and subtitles to 30 so long names don't wrap.
+* Booking request notifications display the sender name as the title and the service type in the subtitle with contextual icons. Service names are converted from `PascalCase` or `snake_case` and truncated for readability.
 
 ### Artist Profile Enhancements
 
