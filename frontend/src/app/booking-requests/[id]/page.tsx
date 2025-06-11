@@ -16,6 +16,7 @@ export default function BookingRequestDetailPage() {
   const [request, setRequest] = useState<BookingRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [artistAvatar, setArtistAvatar] = useState<string | null>(null);
+  const [artistName, setArtistName] = useState<string>('');
 
   useEffect(() => {
     if (!id) return;
@@ -27,6 +28,9 @@ export default function BookingRequestDetailPage() {
         try {
           const artistRes = await getArtist(artistId);
           setArtistAvatar(artistRes.data.profile_picture_url ?? null);
+          setArtistName(
+            artistRes.data.business_name || artistRes.data.user.first_name,
+          );
         } catch (err) {
           console.error('Failed to load artist profile', err);
         }
@@ -78,7 +82,7 @@ export default function BookingRequestDetailPage() {
     <MainLayout>
       <div className="max-w-3xl mx-auto p-4 space-y-4">
         <h1 className="text-xl font-semibold">
-          Chat with {request.artist?.business_name || request.artist?.user?.first_name}
+          Chat with {artistName || request.artist?.user?.first_name}
         </h1>
         <div className="space-y-1 text-sm text-gray-700">
           {request.client && (
@@ -108,18 +112,14 @@ export default function BookingRequestDetailPage() {
           <PersonalizedVideoFlow
             bookingRequestId={request.id}
             clientName={request.client?.first_name}
-            artistName={
-              request.artist?.business_name || request.artist?.user?.first_name
-            }
+            artistName={artistName || request.artist?.user?.first_name}
             artistAvatarUrl={artistAvatar}
           />
         ) : (
           <MessageThread
             bookingRequestId={request.id}
             clientName={request.client?.first_name}
-            artistName={
-              request.artist?.business_name || request.artist?.user?.first_name
-            }
+            artistName={artistName || request.artist?.user?.first_name}
             artistAvatarUrl={artistAvatar}
           />
         )}
