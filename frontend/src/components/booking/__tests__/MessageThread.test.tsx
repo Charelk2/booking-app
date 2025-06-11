@@ -63,8 +63,11 @@ describe('MessageThread component', () => {
     Object.defineProperty(scrollContainer, 'clientHeight', { value: 100, configurable: true });
     scrollContainer.scrollTop = 0;
 
-    act(() => {
+    await act(async () => {
       scrollContainer.dispatchEvent(new Event('scroll'));
+    });
+    await act(async () => {
+      await Promise.resolve();
     });
 
     const button = container.querySelector('button[aria-label="Scroll to latest message"]');
@@ -252,5 +255,52 @@ describe('MessageThread component', () => {
 
     expect(container.querySelector('[role="progressbar"]')).toBeNull();
     expect(sendButton.disabled).toBe(false);
+  });
+
+  it('has accessible labels for actions', async () => {
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const uploadButton = container.querySelector('label[for="file-upload"]');
+    expect(uploadButton?.getAttribute('aria-label')).toBe('Upload attachment');
+    const sendButton = container.querySelector('form button[type="submit"]');
+    expect(sendButton?.getAttribute('aria-label')).toBe('Send message');
+  });
+
+  it('announces new messages when scrolled away from bottom', async () => {
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const scrollContainer = document.querySelector('.overflow-y-auto') as HTMLElement;
+    Object.defineProperty(scrollContainer, 'scrollHeight', { value: 200, configurable: true });
+    Object.defineProperty(scrollContainer, 'clientHeight', { value: 100, configurable: true });
+    scrollContainer.scrollTop = 0;
+    act(() => {
+      scrollContainer.dispatchEvent(new Event('scroll'));
+    });
+    const socket = StubSocket.last as StubSocket;
+    const msg = {
+      id: 2,
+      booking_request_id: 1,
+      sender_id: 2,
+      sender_type: 'artist',
+      content: 'Hi',
+      message_type: 'text',
+      timestamp: new Date().toISOString(),
+    };
+    act(() => {
+      socket.onmessage?.({ data: JSON.stringify(msg) });
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const live = container.querySelector('div.sr-only[aria-live="polite"]');
+    expect(live).not.toBeNull();
   });
 });
