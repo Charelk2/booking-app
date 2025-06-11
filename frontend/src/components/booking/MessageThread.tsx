@@ -127,7 +127,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     socket.onmessage = (event) => {
       const msg: Message = JSON.parse(event.data);
       // keep only the latest 200 messages to avoid excessive memory usage
-      setMessages((prev) => [...prev.slice(-199), msg]);
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) {
+          return prev;
+        }
+        return [...prev.slice(-199), msg];
+      });
       if (msg.message_type === 'quote') {
         fetchQuotes();
       }
