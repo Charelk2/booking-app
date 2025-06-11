@@ -67,7 +67,7 @@ describe('Notification virtualization', () => {
         }),
       );
     });
-    const btn = Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.includes('Load more')) as HTMLButtonElement | undefined;
+    const btn = document.querySelector('button[aria-label="Load more notifications"]') as HTMLButtonElement | null;
     btn?.click();
     if (btn) {
       expect(loadMore).toHaveBeenCalled();
@@ -102,7 +102,7 @@ describe('Notification virtualization', () => {
         }),
       );
     });
-    const btn = Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.includes('Load more')) as HTMLButtonElement | undefined;
+    const btn = document.querySelector('button[aria-label="Load more notifications"]') as HTMLButtonElement | null;
     btn?.click();
     if (btn) {
       expect(loadMore).toHaveBeenCalled();
