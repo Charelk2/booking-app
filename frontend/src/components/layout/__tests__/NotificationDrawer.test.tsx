@@ -14,7 +14,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
-    expect(parsed.subtitle).toBe('sent a new booking for Performance');
+    expect(parsed.subtitle).toBe('sent a booking for Performance');
   });
 
   it('parses booking request with alternate separator', () => {
@@ -28,7 +28,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
-    expect(parsed.subtitle).toBe('sent a new booking for Personalized Video');
+    expect(parsed.subtitle).toBe('sent a booking for Personalized Video');
   });
 
   it('falls back to provided fields when missing from message', () => {
@@ -44,7 +44,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Bob');
-    expect(parsed.subtitle).toBe('sent a new booking for Virtual Appearance');
+    expect(parsed.subtitle).toBe('sent a booking for Virtual Appearance');
   });
 
   it('handles missing details with defaults', () => {
@@ -59,5 +59,22 @@ describe('parseItem', () => {
     const parsed = parseItem(n);
     expect(parsed.title).toBe('New booking request');
     expect(parsed.subtitle).toBe('Booking Request');
+  });
+
+  it('parses message notification with unread count', () => {
+    const n: UnifiedNotification = {
+      type: 'message',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Hello there, this is a long message that should be truncated properly.',
+      booking_request_id: 5,
+      name: 'Charlie Brown',
+      unread_count: 3,
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.title).toBe('Charlie Brown (3)');
+    expect(parsed.subtitle).toBe(
+      'Last message: "Hello there, this is a long message that..."',
+    );
   });
 });
