@@ -131,6 +131,47 @@ describe('MessageThread component', () => {
     expect(messageBubbles[1].textContent).toContain('Hello there');
   });
 
+  it('groups messages into timestamp windows', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'First',
+          message_type: 'text',
+          timestamp: '2024-01-01T00:00:00Z',
+        },
+        {
+          id: 2,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Second',
+          message_type: 'text',
+          timestamp: '2024-01-01T00:05:00Z',
+        },
+        {
+          id: 3,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Later',
+          message_type: 'text',
+          timestamp: '2024-01-01T00:20:00Z',
+        },
+      ],
+    });
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+
+    const groups = container.querySelectorAll('.text-xs.text-gray-400.mb-1');
+    expect(groups.length).toBe(2);
+  });
+
   it('deduplicates websocket messages already fetched', async () => {
     const msg = {
       id: 99,
