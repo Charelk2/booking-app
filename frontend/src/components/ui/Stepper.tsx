@@ -31,18 +31,22 @@ export default function Stepper({ steps, currentStep, onStepClick }: StepperProp
           </>
         );
 
-        if (onStepClick && i < currentStep) {
+        if (onStepClick) {
           return (
             <button
               type="button"
               key={label}
-              onClick={() => onStepClick(i)}
-              className="flex flex-col items-center text-sm cursor-pointer focus:outline-none"
+              onClick={() => i <= currentStep && onStepClick(i)}
+              disabled={i > currentStep}
+              className={`flex flex-col items-center text-sm focus:outline-none ${
+                i > currentStep ? 'cursor-not-allowed' : 'cursor-pointer'
+              }`}
             >
               {content}
             </button>
           );
         }
+
         return (
           <div key={label} className="flex flex-col items-center text-sm">
             {content}
