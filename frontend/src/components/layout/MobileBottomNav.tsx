@@ -23,7 +23,7 @@ interface Item {
   auth?: boolean;
 }
 
-const items: Item[] = [
+const navItems: Item[] = [
   { name: 'Home', href: '/', icon: HomeIcon },
   { name: 'Artists', href: '/artists', icon: UsersIcon },
   { name: 'Messages', href: '/inbox', icon: ChatBubbleLeftRightIcon, auth: true },
@@ -36,14 +36,14 @@ function classNames(...classes: (string | false | undefined)[]) {
 
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const router = useRouter();
-  const { items } = useNotifications();
+  const { items: notificationItems } = useNotifications();
   const scrollDir = useScrollDirection();
   if (!user) {
     return null;
   }
   // Next.js App Router doesn’t expose pathname in its types, so we use a type assertion
   const pathname = (router as unknown as { pathname?: string }).pathname || '';
-  const unreadMessages = items
+  const unreadMessages = notificationItems
     .filter((i) => i.type === 'message')
     .reduce((sum, t) => sum + (t.unread_count || 0), 0);
   const badgeCount = unreadMessages > 99 ? '99+' : String(unreadMessages);
@@ -57,7 +57,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
       aria-label="Mobile navigation"
     >
       <ul className="flex justify-around h-full">
-        {items.map((item) => {
+        {navItems.map((item) => {
           const active = pathname === item.href;
           const showBadge = item.name === 'Messages' && unreadMessages > 0;
 
