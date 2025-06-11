@@ -5,6 +5,7 @@ from ..crud import crud_notification
 from typing import Optional
 import os
 import logging
+import enum
 from twilio.rest import Client
 
 TWILIO_SID = os.getenv("TWILIO_ACCOUNT_SID")
@@ -27,6 +28,8 @@ def format_notification_message(
     if ntype == NotificationType.NEW_BOOKING_REQUEST:
         sender = kwargs.get("sender_name")
         btype = kwargs.get("booking_type")
+        if isinstance(btype, enum.Enum):
+            btype = btype.value
         if sender and btype:
             return f"New booking request from {sender}: {btype}"
         return f"New booking request #{kwargs.get('request_id')}"
@@ -96,7 +99,7 @@ def notify_user_new_booking_request(
     user: User,
     request_id: int,
     sender_name: str,
-    booking_type: str,
+    booking_type: str | enum.Enum,
 ) -> None:
     """Create a notification for a new booking request."""
     message = format_notification_message(
