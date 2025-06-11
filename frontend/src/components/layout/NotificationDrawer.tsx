@@ -25,20 +25,33 @@ function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-interface ParsedNotification {
+export interface ParsedNotification {
   title: string;
   subtitle: string;
   icon: string;
 }
 
-function parseNotification(n: Notification): ParsedNotification {
+export function parseNotification(n: Notification): ParsedNotification {
   if (n.type === 'new_booking_request') {
     const match = n.message.match(/New booking request from (.+): (.+)/i);
     if (match) {
       const [, sender, btype] = match;
-      const icon = btype.includes('Video') ? '🎥' : btype.includes('Performance') ? '🎵' : '📅';
-      return { title: sender, subtitle: `sent a new booking request`, icon };
+      const icon = btype.includes('Video')
+        ? '🎥'
+        : btype.includes('Performance')
+          ? '🎵'
+          : '📅';
+      return {
+        title: sender,
+        subtitle: 'sent a new booking request',
+        icon,
+      };
     }
+    return {
+      title: 'New booking request',
+      subtitle: 'Tap to view details',
+      icon: '📅',
+    };
   }
   return { title: n.message, subtitle: '', icon: '🔔' };
 }
