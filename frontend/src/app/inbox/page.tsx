@@ -37,20 +37,24 @@ const parseBookingDetails = (text: string) => {
 };
 
 export default function InboxPage() {
-  const { threads, loading, error, markThread } = useNotifications();
+  const { items, loading, error, markItem } = useNotifications();
   const router = useRouter();
+
+  const messageThreads = items.filter(
+    (i) => i.type === 'message' && i.booking_request_id,
+  );
 
   const [activeTab, setActiveTab] = useState<'requests' | 'chats'>('requests');
   const [bookings, setBookings] = useState<BookingPreview[]>([]);
-  const [chats, setChats] = useState<typeof threads>([]);
+  const [chats, setChats] = useState<typeof messageThreads>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       const bookingList: BookingPreview[] = [];
-      const chatList: typeof threads = [];
+      const chatList: typeof messageThreads = [];
 
       await Promise.all(
-        threads.map(async (t) => {
+        messageThreads.map(async (t) => {
           try {
             const res = await getMessagesForBookingRequest(t.booking_request_id);
             const bookingMsg = res.data.find(
@@ -85,16 +89,19 @@ export default function InboxPage() {
       setChats(chatList);
     };
 
-    if (threads.length > 0) {
+    if (messageThreads.length > 0) {
       fetchData();
     } else {
       setBookings([]);
       setChats([]);
     }
-  }, [threads]);
+  }, [messageThreads]);
 
   const handleClick = async (id: number) => {
-    await markThread(id);
+    const item = messageThreads.find((t) => t.booking_request_id === id);
+    if (item && !item.is_read) {
+      await markItem(item);
+    }
 
     if (activeTab === 'requests') {
       router.push(`/booking-requests/${id}`);
@@ -156,7 +163,7 @@ export default function InboxPage() {
             </div>
             <div className="flex-1 overflow-hidden">
               <div className="font-medium text-sm">{t.name}</div>
-              <div className="text-xs text-gray-500 truncate">{t.last_message}</div>
+              <div className="text-xs text-gray-500 truncate">{t.content}</div>
             </div>
             <div className="text-xs text-gray-400">
               {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
