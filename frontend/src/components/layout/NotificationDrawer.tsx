@@ -294,6 +294,7 @@ export default function NotificationDrawer({
                             <div style={style} className="px-4 py-2 border-t border-gray-200 text-center">
                               <button
                                 type="button"
+                                aria-label="Load more notifications"
                                 onClick={loadMore}
                                 className="text-sm text-indigo-600 hover:underline focus:outline-none"
                               >
