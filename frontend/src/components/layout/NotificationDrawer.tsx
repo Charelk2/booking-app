@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
@@ -35,13 +35,23 @@ export default function NotificationDrawer({
   hasMore,
 }: NotificationDrawerProps) {
   const router = useRouter();
-  const hasThreads = threads.length > 0;
-  const grouped = notifications.reduce<Record<string, Notification[]>>((acc, n) => {
-    const key = n.type || 'other';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(n);
-    return acc;
-  }, {});
+  const [showUnread, setShowUnread] = useState(false);
+  const filteredThreads = showUnread
+    ? threads.filter((t) => t.unread_count > 0)
+    : threads;
+  const filteredNotifications = showUnread
+    ? notifications.filter((n) => !n.is_read)
+    : notifications;
+  const hasThreads = filteredThreads.length > 0;
+  const grouped = filteredNotifications.reduce<Record<string, Notification[]>>(
+    (acc, n) => {
+      const key = n.type || 'other';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(n);
+      return acc;
+    },
+    {},
+  );
 
   const handleThreadClick = async (id: number) => {
     await markThread(id);
@@ -81,6 +91,14 @@ export default function NotificationDrawer({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
+                        onClick={() => setShowUnread((prev) => !prev)}
+                        className="text-sm text-gray-600 hover:underline"
+                        data-testid="toggle-unread"
+                      >
+                        {showUnread ? 'Show All' : 'Unread Only'}
+                      </button>
+                      <button
+                        type="button"
                         onClick={markAllRead}
                         className="text-sm text-indigo-600 hover:underline"
                       >
@@ -97,13 +115,13 @@ export default function NotificationDrawer({
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto">
-                    {notifications.length === 0 && !hasThreads && (
+                    {filteredNotifications.length === 0 && !hasThreads && (
                       <div className="px-4 py-2 text-sm text-gray-500">No notifications</div>
                     )}
                     {hasThreads && (
                       <div className="py-1" key="threads">
                         <p className="sticky top-0 z-10 bg-white px-4 pt-2 pb-1 border-b text-xs font-semibold text-gray-500">Messages</p>
-                        {threads.map((t) => (
+                        {filteredThreads.map((t) => (
                           <button
                             key={`thread-${t.booking_request_id}`}
                             type="button"
