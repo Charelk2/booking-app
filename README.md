@@ -406,7 +406,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
   `Escape` or tap outside.
 * Input fields no longer auto-focus on mobile so the on-screen keyboard stays hidden until tapped.
 * Summary sidebar collapses into a `<details>` section on phones so you can hide the order overview.
-* Steps now animate with **framer-motion** and the progress dots let you jump back to previous steps.
+* Steps now animate with **framer-motion** and the progress dots stay clickable for all completed steps.
 
 ### Open Tasks
 

@@ -7,10 +7,11 @@ import React from 'react';
 interface StepperProps {
   steps: string[];
   currentStep: number;
+  maxStepCompleted?: number;
   onStepClick?: (index: number) => void;
 }
 
-export default function Stepper({ steps, currentStep, onStepClick }: StepperProps) {
+export default function Stepper({ steps, currentStep, maxStepCompleted, onStepClick }: StepperProps) {
   return (
     <div className="flex justify-center space-x-4 my-6" aria-label="Progress">
       {steps.map((label, i) => {
@@ -31,15 +32,19 @@ export default function Stepper({ steps, currentStep, onStepClick }: StepperProp
           </>
         );
 
+        const maxStep =
+          typeof maxStepCompleted === 'number' ? maxStepCompleted : currentStep;
         if (onStepClick) {
           return (
             <button
               type="button"
               key={label}
-              onClick={() => i <= currentStep && onStepClick(i)}
-              disabled={i > currentStep}
+              onClick={() => i <= maxStep && i !== currentStep && onStepClick(i)}
+              disabled={i > maxStep || i === currentStep}
               className={`flex flex-col items-center text-sm focus:outline-none ${
-                i > currentStep ? 'cursor-not-allowed' : 'cursor-pointer'
+                i > maxStep || i === currentStep
+                  ? 'cursor-not-allowed'
+                  : 'cursor-pointer'
               }`}
             >
               {content}
