@@ -8,6 +8,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
+import { getFullImageUrl } from '@/lib/utils';
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
