@@ -22,11 +22,9 @@ import useNotifications from '@/hooks/useNotifications';
 
 export default function NotificationBell(): JSX.Element {
   const {
-    notifications,
-    threads,
+    items,
     unreadCount,
-    markRead,
-    markThread,
+    markItem,
     markAll,
     loadMore,
     hasMore,
@@ -41,32 +39,23 @@ export default function NotificationBell(): JSX.Element {
    * NotificationDrawer only provides the notification ID, so we
    * lookup the full object here before acting.
    */
-  const handleClick = async (id: number) => {
-    const notif = notifications.find((n) => n.id === id);
-    if (!notif) {
-      console.error('Notification not found for id', id);
+  const handleItemClick = async (itemId: number) => {
+    const item = items.find((i) => (i.id || i.booking_request_id) === itemId);
+    if (!item) {
+      console.error('Notification not found for id', itemId);
       return;
     }
-    if (!notif.is_read) {
-      await markRead(id);
+    if (!item.is_read) {
+      await markItem(item);
     }
     setOpen(false);
-    if (notif.link && typeof notif.link === 'string') {
-      router.push(notif.link);
+    if (item.type === 'message' && item.booking_request_id) {
+      router.push(`/messages/thread/${item.booking_request_id}`);
+    } else if (item.link) {
+      router.push(item.link);
     } else {
-      console.warn('Notification missing link', notif);
+      console.warn('Notification missing link', item);
     }
-  };
-
-  const handleThreadClick = async (id: number) => {
-    const thread = threads.find((t) => t.booking_request_id === id);
-    if (!thread) {
-      console.error('Thread not found for id', id);
-      return;
-    }
-    await markThread(id);
-    setOpen(false);
-    router.push(`/messages/thread/${id}`);
   };
 
   const markAllRead = async () => {
@@ -93,10 +82,8 @@ export default function NotificationBell(): JSX.Element {
         <FullScreenNotificationModal
           open={open}
           onClose={() => setOpen(false)}
-          notifications={notifications}
-          threads={threads}
-          markRead={handleClick}
-          markThread={handleThreadClick}
+          items={items}
+          onItemClick={handleItemClick}
           markAllRead={markAllRead}
           loadMore={loadMore}
           hasMore={hasMore}
@@ -105,10 +92,8 @@ export default function NotificationBell(): JSX.Element {
         <NotificationDrawer
           open={open}
           onClose={() => setOpen(false)}
-          notifications={notifications}
-          threads={threads}
-          markRead={handleClick}
-          markThread={handleThreadClick}
+          items={items}
+          onItemClick={handleItemClick}
           markAllRead={markAllRead}
           loadMore={loadMore}
           hasMore={hasMore}

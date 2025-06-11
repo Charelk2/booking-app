@@ -6,10 +6,8 @@ import FullScreenNotificationModal from '../FullScreenNotificationModal';
 const baseProps = {
   open: true,
   onClose: () => {},
-  notifications: [],
-  threads: [],
-  markRead: jest.fn(),
-  markThread: jest.fn(),
+  items: [],
+  onItemClick: jest.fn(),
   markAllRead: jest.fn(),
   loadMore: jest.fn(),
   hasMore: false,
