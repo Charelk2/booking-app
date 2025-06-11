@@ -9,6 +9,7 @@ from app.models import (
     BookingRequestStatus,
     MessageType,
     SenderType,
+    ArtistProfile,
 )
 from app.models.base import BaseModel
 from app.api import api_message
@@ -42,5 +43,47 @@ def test_system_message_from_client_marked_as_artist():
     msg_in = MessageCreate(content='Who is the video for?', message_type=MessageType.SYSTEM)
     result = api_message.create_message(br.id, msg_in, db, current_user=client)
 
-    assert result.sender_type == SenderType.ARTIST
-    assert result.sender_id == artist.id
+    assert result["sender_type"] == SenderType.ARTIST
+    assert result["sender_id"] == artist.id
+    assert result.get("avatar_url") is None
+
+
+def test_message_response_includes_avatar_url_for_artist():
+    db = setup_db()
+    client = User(
+        email="c2@test.com",
+        password="x",
+        first_name="C2",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="a2@test.com",
+        password="x",
+        first_name="A2",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    profile = ArtistProfile(
+        user_id=artist.id, profile_picture_url="/static/profile_pics/pic.jpg"
+    )
+    db.add(profile)
+    db.commit()
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+
+    msg_in = MessageCreate(content="hello", message_type=MessageType.TEXT)
+    result = api_message.create_message(br.id, msg_in, db, current_user=artist)
+
+    assert result["avatar_url"] == "/static/profile_pics/pic.jpg"

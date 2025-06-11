@@ -186,6 +186,7 @@ def test_thread_notification_summary():
     assert t["booking_request_id"] == br.id
     assert t["unread_count"] == 5
     assert t["name"] == "C User"
+    assert t.get("avatar_url") is None
 
     # mark thread read
     crud_notification.mark_thread_read(db, artist.id, br.id)
@@ -215,7 +216,11 @@ def test_thread_notification_uses_business_name_for_artist():
     db.refresh(client)
     db.refresh(artist)
 
-    profile = models.ArtistProfile(user_id=artist.id, business_name="The Band")
+    profile = models.ArtistProfile(
+        user_id=artist.id,
+        business_name="The Band",
+        profile_picture_url="/static/profile_pics/avatar.jpg",
+    )
     db.add(profile)
     db.commit()
     db.refresh(profile)
@@ -235,6 +240,7 @@ def test_thread_notification_uses_business_name_for_artist():
     threads = crud_notification.get_message_thread_notifications(db, client.id)
     assert len(threads) == 1
     assert threads[0]["name"] == "The Band"
+    assert threads[0]["avatar_url"] == "/static/profile_pics/avatar.jpg"
 
 
 def test_mark_all_notifications_read():
