@@ -135,6 +135,7 @@ export interface Message {
   message_type: "text" | "quote" | "system";
   quote_id?: number | null;
   attachment_url?: string | null;
+  avatar_url?: string | null;
   /** Whether the message has been read by the current user */
   unread?: boolean;
   timestamp: string;
@@ -190,4 +191,5 @@ export interface ThreadNotification {
   last_message: string;
   link: string;
   timestamp: string;
+  avatar_url?: string | null;
 }

@@ -47,7 +47,22 @@ def read_messages(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access messages",
         )
-    return crud.crud_message.get_messages_for_request(db, request_id)
+    db_messages = crud.crud_message.get_messages_for_request(db, request_id)
+    result = []
+    for m in db_messages:
+        avatar_url = None
+        if m.sender.user_type == models.UserType.ARTIST:
+            profile = (
+                db.query(models.ArtistProfile)
+                .filter(models.ArtistProfile.user_id == m.sender_id)
+                .first()
+            )
+            if profile and profile.profile_picture_url:
+                avatar_url = profile.profile_picture_url
+        data = schemas.MessageResponse.model_validate(m).model_dump()
+        data["avatar_url"] = avatar_url
+        result.append(data)
+    return result
 
 
 @router.post(
@@ -103,12 +118,25 @@ def create_message(
     other_user = db.query(models.User).filter(models.User.id == other_user_id).first()
     if other_user:
         notify_user_new_message(db, other_user, request_id, message_in.content)
+
+    avatar_url = None
+    if msg.sender.user_type == models.UserType.ARTIST:
+        profile = (
+            db.query(models.ArtistProfile)
+            .filter(models.ArtistProfile.user_id == msg.sender_id)
+            .first()
+        )
+        if profile and profile.profile_picture_url:
+            avatar_url = profile.profile_picture_url
+
+    data = schemas.MessageResponse.model_validate(msg).model_dump()
+    data["avatar_url"] = avatar_url
     background_tasks.add_task(
         manager.broadcast,
         request_id,
-        schemas.MessageResponse.model_validate(msg).model_dump(),
+        data,
     )
-    return msg
+    return data
 
 
 @router.post(

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import MessageThread from '@/components/booking/MessageThread';
-import { getBookingRequestById } from '@/lib/api';
+import { getBookingRequestById, getArtist } from '@/lib/api';
 import { BookingRequest } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -14,6 +14,7 @@ export default function ThreadPage() {
   const { user } = useAuth();
   const [request, setRequest] = useState<BookingRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [artistAvatar, setArtistAvatar] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -21,6 +22,13 @@ export default function ThreadPage() {
       try {
         const res = await getBookingRequestById(id);
         setRequest(res.data);
+        const artistId = res.data.artist_id;
+        try {
+          const artistRes = await getArtist(artistId);
+          setArtistAvatar(artistRes.data.profile_picture_url ?? null);
+        } catch (err) {
+          console.error('Failed to load artist profile', err);
+        }
       } catch (err) {
         console.error('Failed to load booking request', err);
         setError('Failed to load conversation');
@@ -70,6 +78,7 @@ export default function ThreadPage() {
           bookingRequestId={request.id}
           clientName={request.client?.first_name}
           artistName={request.artist?.first_name}
+          artistAvatarUrl={artistAvatar}
         />
       </div>
     </MainLayout>

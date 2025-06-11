@@ -31,5 +31,6 @@ class ThreadNotificationResponse(BaseModel):
     last_message: str
     link: str
     timestamp: datetime
+    avatar_url: str | None = None
 
     model_config = {"from_attributes": True}
