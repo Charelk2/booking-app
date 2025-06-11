@@ -1,11 +1,56 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Dict, List
+import enum
+import logging
 
 from .. import models, schemas, crud
 from .dependencies import get_db, get_current_user
 
 router = APIRouter(tags=["notifications"])
+
+logger = logging.getLogger(__name__)
+
+
+def _build_response(db: Session, n: models.Notification) -> schemas.NotificationResponse:
+    data = schemas.NotificationResponse.model_validate(n).model_dump()
+    sender = None
+    btype = None
+    if n.type == models.NotificationType.NEW_BOOKING_REQUEST:
+        try:
+            request_id = int(n.link.split("/")[-1])
+            br = (
+                db.query(models.BookingRequest)
+                .filter(models.BookingRequest.id == request_id)
+                .first()
+            )
+            if br:
+                client = (
+                    db.query(models.User)
+                    .filter(models.User.id == br.client_id)
+                    .first()
+                )
+                if client:
+                    sender = f"{client.first_name} {client.last_name}"
+                if br.service_id:
+                    service = (
+                        db.query(models.Service)
+                        .filter(models.Service.id == br.service_id)
+                        .first()
+                    )
+                    if service:
+                        btype = service.service_type
+                        if isinstance(btype, enum.Enum):
+                            btype = btype.value
+        except (ValueError, IndexError) as exc:
+            logger.warning(
+                "Failed to derive booking request details from link %s: %s",
+                n.link,
+                exc,
+            )
+    data["sender_name"] = sender
+    data["booking_type"] = btype
+    return schemas.NotificationResponse(**data)
 
 
 @router.get("/notifications", response_model=List[schemas.NotificationResponse])
@@ -16,9 +61,10 @@ def read_my_notifications(
     current_user: models.User = Depends(get_current_user),
 ):
     """Retrieve notifications for the current user with pagination."""
-    return crud.crud_notification.get_notifications_for_user(
+    notifs = crud.crud_notification.get_notifications_for_user(
         db, current_user.id, skip=skip, limit=limit
     )
+    return [_build_response(db, n) for n in notifs]
 
 
 @router.get(
@@ -30,7 +76,10 @@ def read_my_notifications_grouped(
     current_user: models.User = Depends(get_current_user),
 ):
     """Retrieve notifications grouped by type for the current user."""
-    return crud.crud_notification.get_notifications_grouped_by_type(db, current_user.id)
+    grouped = crud.crud_notification.get_notifications_grouped_by_type(db, current_user.id)
+    return {
+        k: [_build_response(db, n) for n in v] for k, v in grouped.items()
+    }
 
 
 @router.put(
@@ -48,7 +97,8 @@ def mark_notification_read(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found"
         )
-    return crud.crud_notification.mark_as_read(db, db_notif)
+    updated = crud.crud_notification.mark_as_read(db, db_notif)
+    return _build_response(db, updated)
 
 
 @router.get(

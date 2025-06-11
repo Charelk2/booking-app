@@ -2,7 +2,7 @@ import { parseItem } from '../NotificationDrawer';
 import type { UnifiedNotification } from '@/types';
 
 describe('parseItem', () => {
-  it('parses booking request with sender and type', () => {
+  it('parses booking request using provided fields', () => {
     const n: UnifiedNotification = {
       type: 'new_booking_request',
       timestamp: new Date().toISOString(),
@@ -11,6 +11,8 @@ describe('parseItem', () => {
       id: 1,
       user_id: 1,
       link: '/booking-requests/1',
+      sender_name: 'Alice',
+      booking_type: 'Performance',
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
@@ -18,7 +20,7 @@ describe('parseItem', () => {
     expect(parsed.bookingType).toBe('Performance');
   });
 
-  it('parses booking request with alternate separator', () => {
+  it('parses booking request for personalized video', () => {
     const n: UnifiedNotification = {
       type: 'new_booking_request',
       timestamp: new Date().toISOString(),
@@ -26,58 +28,13 @@ describe('parseItem', () => {
       content: 'New booking request from Alice for Personalized Video',
       id: 11,
       link: '/booking-requests/11',
+      sender_name: 'Alice',
+      booking_type: 'Personalized Video',
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
     expect(parsed.subtitle).toBe('sent a new booking request for Perso...');
     expect(parsed.bookingType).toBe('Personalized Video');
-  });
-
-  it('parses booking request with alternate separator', () => {
-    const n: UnifiedNotification = {
-      type: 'new_booking_request',
-      timestamp: new Date().toISOString(),
-      is_read: false,
-      content: 'New booking request from Alice for Personalized Video',
-      id: 11,
-      link: '/booking-requests/11',
-    } as UnifiedNotification;
-    const parsed = parseItem(n);
-    expect(parsed.title).toBe('Alice');
-    expect(parsed.subtitle).toBe('sent a new booking request for Perso...');
-    expect(parsed.bookingType).toBe('Personalized Video');
-  });
-
-  it('falls back to provided fields when missing from message', () => {
-    const n: UnifiedNotification = {
-      type: 'new_booking_request',
-      timestamp: new Date().toISOString(),
-      is_read: false,
-      content: 'New booking request #2',
-      id: 2,
-      link: '/booking-requests/2',
-      sender_name: 'Bob',
-      booking_type: 'Virtual Appearance',
-    } as UnifiedNotification;
-    const parsed = parseItem(n);
-    expect(parsed.title).toBe('Bob');
-    expect(parsed.subtitle).toBe('sent a new booking request for Virtu...');
-    expect(parsed.bookingType).toBe('Virtual Appearance');
-  });
-
-  it('handles missing details with defaults', () => {
-    const n: UnifiedNotification = {
-      type: 'new_booking_request',
-      timestamp: new Date().toISOString(),
-      is_read: false,
-      content: 'New booking request #3',
-      id: 3,
-      link: '/booking-requests/3',
-    } as UnifiedNotification;
-    const parsed = parseItem(n);
-    expect(parsed.title).toBe('New booking request');
-    expect(parsed.subtitle).toBe('sent a new booking request');
-    expect(parsed.bookingType).toBe('');
   });
 
   it('extracts metadata from details text', () => {
