@@ -28,7 +28,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
-    expect(parsed.subtitle).toBe('sent a booking for Personalized Video');
+    expect(parsed.subtitle).toBe('sent a booking for Personalize...');
   });
 
   it('parses booking request with alternate separator', () => {
@@ -42,7 +42,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
-    expect(parsed.subtitle).toBe('sent a booking for Personalized Video');
+    expect(parsed.subtitle).toBe('sent a booking for Personalize...');
   });
 
   it('falls back to provided fields when missing from message', () => {
@@ -58,7 +58,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Bob');
-    expect(parsed.subtitle).toBe('sent a booking for Virtual Appearance');
+    expect(parsed.subtitle).toBe('sent a booking for Virtual App...');
   });
 
   it('handles missing details with defaults', () => {
@@ -85,10 +85,25 @@ describe('parseItem', () => {
       name: 'Charlie Brown',
       unread_count: 3,
     } as UnifiedNotification;
+  const parsed = parseItem(n);
+  expect(parsed.title).toBe('Charlie Brown (3)');
+  expect(parsed.subtitle).toBe(
+      'Last message: "Hello there, this is a long me..."',
+  );
+  });
+
+  it('omits unread count when zero', () => {
+    const n: UnifiedNotification = {
+      type: 'message',
+      timestamp: new Date().toISOString(),
+      is_read: true,
+      content: 'New message: Hi',
+      booking_request_id: 6,
+      name: 'Dana',
+      unread_count: 0,
+    } as UnifiedNotification;
     const parsed = parseItem(n);
-    expect(parsed.title).toBe('Charlie Brown (3)');
-    expect(parsed.subtitle).toBe(
-      'Last message: "Hello there, this is a long message that..."',
-    );
+    expect(parsed.title).toBe('Dana');
+    expect(parsed.subtitle).toBe('Last message: "Hi"');
   });
 });
