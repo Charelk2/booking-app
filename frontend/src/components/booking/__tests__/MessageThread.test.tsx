@@ -10,9 +10,13 @@ jest.mock('@/contexts/AuthContext');
 
 // Minimal WebSocket stub
 class StubSocket {
+  static last: StubSocket | null = null;
   onopen: (() => void) | null = null;
   onmessage: ((e: unknown) => void) | null = null;
   onerror: (() => void) | null = null;
+  constructor() {
+    StubSocket.last = this;
+  }
   close() {}
 }
 // @ts-expect-error jsdom does not implement WebSocket
@@ -125,5 +129,36 @@ describe('MessageThread component', () => {
     expect(messageBubbles.length).toBe(2);
     expect(messageBubbles[0].textContent).toContain('Hi');
     expect(messageBubbles[1].textContent).toContain('Hello there');
+  });
+
+  it('deduplicates websocket messages already fetched', async () => {
+    const msg = {
+      id: 99,
+      booking_request_id: 1,
+      sender_id: 2,
+      sender_type: 'artist',
+      content: 'Who is the video for?',
+      message_type: 'system',
+      timestamp: '2024-01-01T00:00:00Z',
+    } as const;
+
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [msg],
+    });
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const socket = StubSocket.last as StubSocket;
+    act(() => {
+      socket.onmessage?.({ data: JSON.stringify(msg) });
+    });
+
+    const bubbles = container.querySelectorAll('.whitespace-pre-wrap');
+    expect(bubbles.length).toBe(1);
   });
 });
