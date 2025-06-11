@@ -10,6 +10,7 @@ from app.models import (
     MessageType,
     NotificationType,
 )
+from app.models.service import ServiceType
 from app import models
 from app.models.base import BaseModel
 from app.api import api_message, api_booking_request
@@ -416,6 +417,16 @@ def test_format_notification_message_booking_request():
     )
     assert msg_full == "New booking request from Bob: Performance"
     assert msg_simple == "New booking request #7"
+
+
+def test_format_notification_message_booking_request_enum():
+    msg_full = format_notification_message(
+        NotificationType.NEW_BOOKING_REQUEST,
+        sender_name="Bob",
+        booking_type=ServiceType.LIVE_PERFORMANCE,
+        request_id=5,
+    )
+    assert msg_full == "New booking request from Bob: Live Performance"
 
 
 def test_personalized_video_notifications_suppressed_until_final():
