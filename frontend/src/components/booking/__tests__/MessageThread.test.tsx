@@ -93,7 +93,7 @@ describe('MessageThread component', () => {
     expect(senderName?.textContent).toBe('Artist');
   });
 
-  it('filters out short messages', async () => {
+  it('displays short messages', async () => {
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
       data: [
         {
@@ -122,7 +122,8 @@ describe('MessageThread component', () => {
     });
 
     const messageBubbles = container.querySelectorAll('.whitespace-pre-wrap');
-    expect(messageBubbles.length).toBe(1);
-    expect(messageBubbles[0].textContent).toContain('Hello there');
+    expect(messageBubbles.length).toBe(2);
+    expect(messageBubbles[0].textContent).toContain('Hi');
+    expect(messageBubbles[1].textContent).toContain('Hello there');
   });
 });
