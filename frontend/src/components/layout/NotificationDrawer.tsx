@@ -28,6 +28,7 @@ export interface ParsedNotification {
   icon: string;
   avatarUrl?: string | null;
   initials?: string;
+  bookingType?: string;
 }
 
 export function parseItem(n: UnifiedNotification): ParsedNotification {
@@ -93,6 +94,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       title,
       subtitle,
       icon,
+      bookingType: formattedType,
     };
   }
   if (/quote accepted/i.test(n.content)) {
@@ -112,6 +114,10 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
 
 function DrawerItem({ n, onClick }: { n: UnifiedNotification; onClick: () => void }) {
   const parsed = parseItem(n);
+  const subtitleText =
+    n.type === 'new_booking_request' && parsed.bookingType
+      ? parsed.bookingType
+      : parsed.subtitle;
   return (
     <button
       type="button"
@@ -149,7 +155,7 @@ function DrawerItem({ n, onClick }: { n: UnifiedNotification; onClick: () => voi
             {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
           </span>
         </div>
-        <span className="block text-sm text-gray-700 truncate whitespace-nowrap overflow-hidden">{parsed.subtitle}</span>
+        <span className="block text-sm text-gray-700 truncate whitespace-nowrap overflow-hidden">{subtitleText}</span>
       </div>
     </button>
   );
