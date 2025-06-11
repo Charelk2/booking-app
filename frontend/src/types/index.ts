@@ -219,4 +219,8 @@ export interface UnifiedNotification {
   /** Unread message count for chat threads */
   unread_count?: number;
   avatar_url?: string | null;
+  /** Optional sender name for booking requests */
+  sender_name?: string;
+  /** Booking type or service title */
+  booking_type?: string;
 }

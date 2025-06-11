@@ -47,19 +47,25 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     };
   }
   if (n.type === 'new_booking_request') {
-    const match = n.content.match(/New booking request from (.+): (.+)/i);
-    if (match) {
-      const [, sender, btype] = match;
-      return {
-        title: `New booking request from ${sender}`,
-        subtitle: btype,
-        icon: '📅',
-      };
-    }
+    const match = n.content.match(/New booking request from ([^:]+):\s*(.+)/i);
+    const sender = match?.[1] || n.sender_name;
+    const btype = match?.[2] || n.booking_type;
+    const iconMap: Record<string, string> = {
+      video: '🎥',
+      song: '🎵',
+    };
+    const iconKey = btype ? btype.toLowerCase() : '';
+    const icon = iconKey.includes('video')
+      ? iconMap.video
+      : iconKey.includes('song')
+        ? iconMap.song
+        : '📅';
+    const subtitleBase = btype ? `sent a new booking for ${btype}` : 'Booking Request';
+    const subtitle = subtitleBase.length > 60 ? `${subtitleBase.slice(0, 57)}...` : subtitleBase;
     return {
-      title: 'New booking request',
-      subtitle: 'sent a new booking',
-      icon: '📅',
+      title: sender || 'New booking request',
+      subtitle,
+      icon,
     };
   }
   if (/quote accepted/i.test(n.content)) {

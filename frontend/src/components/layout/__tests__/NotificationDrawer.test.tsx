@@ -13,11 +13,11 @@ describe('parseItem', () => {
       link: '/booking-requests/1',
     } as UnifiedNotification;
     const parsed = parseItem(n);
-    expect(parsed.title).toContain('Alice');
-    expect(parsed.subtitle).toBe('Performance');
+    expect(parsed.title).toBe('Alice');
+    expect(parsed.subtitle).toBe('sent a new booking for Performance');
   });
 
-  it('falls back when no sender or type in message', () => {
+  it('falls back to provided fields when missing from message', () => {
     const n: UnifiedNotification = {
       type: 'new_booking_request',
       timestamp: new Date().toISOString(),
@@ -25,9 +25,25 @@ describe('parseItem', () => {
       content: 'New booking request #2',
       id: 2,
       link: '/booking-requests/2',
+      sender_name: 'Bob',
+      booking_type: 'Virtual Appearance',
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.title).toBe('Bob');
+    expect(parsed.subtitle).toBe('sent a new booking for Virtual Appearance');
+  });
+
+  it('handles missing details with defaults', () => {
+    const n: UnifiedNotification = {
+      type: 'new_booking_request',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'New booking request #3',
+      id: 3,
+      link: '/booking-requests/3',
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('New booking request');
-    expect(parsed.subtitle).toBe('sent a new booking');
+    expect(parsed.subtitle).toBe('Booking Request');
   });
 });
