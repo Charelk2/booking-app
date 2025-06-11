@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
+import NextImage from 'next/image';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
@@ -431,7 +431,7 @@ export default function EditArtistProfilePage(): JSX.Element {
               </label>
               <div className="flex flex-col items-center space-y-3">
                 {imagePreviewUrl ? (
-                  <Image
+                  <NextImage
                     src={imagePreviewUrl}
                     alt="Profile Preview"
                     width={128}
@@ -488,7 +488,7 @@ export default function EditArtistProfilePage(): JSX.Element {
                       minWidth={100}
                       minHeight={100}
                     >
-                      <Image
+                      <NextImage
                         ref={imgRef}
                         src={originalImageSrc}
                         alt="Crop me"
@@ -518,7 +518,7 @@ export default function EditArtistProfilePage(): JSX.Element {
               </label>
               <div className="flex flex-col items-center space-y-3">
                 {coverPhotoUrl ? (
-                  <Image
+                  <NextImage
                     src={coverPhotoUrl}
                     alt="Cover Photo Preview"
                     width={400}
