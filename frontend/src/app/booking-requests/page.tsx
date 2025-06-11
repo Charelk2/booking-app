@@ -20,7 +20,6 @@ export default function BookingRequestsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [serviceFilter, setServiceFilter] = useState('');
-  const [sortAsc, setSortAsc] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,17 +70,8 @@ export default function BookingRequestsPage() {
         const matchesService =
           !serviceFilter || r.service?.service_type === serviceFilter;
         return matchesSearch && matchesStatus && matchesService;
-      })
-      .sort((a, b) => {
-        const aDate = a.proposed_datetime_1
-          ? new Date(a.proposed_datetime_1).getTime()
-          : 0;
-        const bDate = b.proposed_datetime_1
-          ? new Date(b.proposed_datetime_1).getTime()
-          : 0;
-        return sortAsc ? aDate - bDate : bDate - aDate;
       });
-  }, [requests, search, statusFilter, serviceFilter, sortAsc]);
+  }, [requests, search, statusFilter, serviceFilter]);
 
   if (!user) {
     return (
@@ -135,14 +125,7 @@ export default function BookingRequestsPage() {
             <div className="hidden sm:grid grid-cols-4 gap-4 bg-gray-50 p-2 text-sm font-semibold border-t">
               <div>Client Name</div>
               <div>Service Type</div>
-              <button
-                type="button"
-                onClick={() => setSortAsc(!sortAsc)}
-                className="text-left flex items-center"
-              >
-                <span className="mr-1">Proposed Date</span>
-                {sortAsc ? '▲' : '▼'}
-              </button>
+              <div className="text-left">Proposed Date</div>
               <div>Status</div>
             </div>
             <ul className="divide-y divide-gray-200">
