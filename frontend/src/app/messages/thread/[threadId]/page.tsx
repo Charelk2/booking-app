@@ -78,7 +78,7 @@ export default function ThreadPage() {
           bookingRequestId={request.id}
           clientName={request.client?.first_name}
           artistName={
-            request.artist?.business_name || request.artist?.user.first_name
+            request.artist?.business_name || request.artist?.user?.first_name
           }
           artistAvatarUrl={artistAvatar}
         />
