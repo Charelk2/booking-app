@@ -42,10 +42,22 @@ function setup() {
         client_id: 1,
         artist_id: 2,
         status: 'new',
+        proposed_datetime_1: '2025-06-10T12:00:00Z',
         created_at: '',
         updated_at: '',
         client: { first_name: 'Alice', last_name: 'A' },
         service: { service_type: 'Live Performance' },
+      },
+      {
+        id: 2,
+        client_id: 2,
+        artist_id: 2,
+        status: 'pending_quote',
+        proposed_datetime_1: '2025-06-11T12:00:00Z',
+        created_at: '',
+        updated_at: '',
+        client: { first_name: 'Bob', last_name: 'B' },
+        service: { service_type: 'Custom Song' },
       },
     ],
   });
@@ -68,8 +80,36 @@ describe('BookingRequestsPage', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const row = container.querySelector('li');
-    expect(row?.className).toContain('bg-indigo-50');
+    const rows = Array.from(container.querySelectorAll('li'));
+    const aliceRow = rows.find((li) => li.textContent?.includes('Alice A'));
+    expect(aliceRow?.className).toContain('bg-indigo-50');
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('filters by client name and sorts by proposed date', async () => {
+    const { container, root } = setup();
+    await act(async () => {
+      root.render(<BookingRequestsPage />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const list = container.querySelector('ul');
+    const rows = list ? list.querySelectorAll('li') : ([] as NodeListOf<HTMLLIElement>);
+    const headerButton = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Proposed Date')
+    ) as HTMLButtonElement;
+    const initialDate = rows[0].querySelectorAll('div')[2]?.textContent;
+    await act(async () => {
+      headerButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => { await Promise.resolve(); });
+    const updatedRows = list ? list.querySelectorAll('li') : ([] as NodeListOf<HTMLLIElement>);
+    const dateCell = updatedRows[0].querySelectorAll('div')[2];
+    expect(dateCell?.textContent).not.toBe(initialDate);
     act(() => {
       root.unmount();
     });
