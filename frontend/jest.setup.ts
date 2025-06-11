@@ -15,6 +15,14 @@ jest.mock('next/navigation', () => {
   };
 });
 
+// Simplified <Link> component for tests
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({ children, href }: any) => {
+    return require('react').createElement('a', { href }, children);
+  },
+}));
+
 jest.mock('@/contexts/AuthContext', () => {
   const mock = jest.fn(() => ({
     user: null,
