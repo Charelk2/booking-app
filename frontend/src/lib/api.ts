@@ -1,6 +1,6 @@
 // frontend/src/lib/api.ts
 
-import axios from 'axios';
+import axios, { AxiosProgressEvent } from 'axios';
 import {
   User,
   ArtistProfile,
@@ -235,22 +235,26 @@ export const postMessageToBookingRequest = (
 
 export const uploadMessageAttachment = (
   bookingRequestId: number,
-  file: File
+  file: File,
+  onUploadProgress?: (event: AxiosProgressEvent) => void,
 ) => {
   const formData = new FormData();
   formData.append('file', file);
   return api.post<{ url: string }>(
     `${API_V1}/booking-requests/${bookingRequestId}/attachments`,
     formData,
-    { headers: { 'Content-Type': 'multipart/form-data' } }
+    { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress }
   );
 };
 
-export const uploadBookingAttachment = (formData: FormData) =>
+export const uploadBookingAttachment = (
+  formData: FormData,
+  onUploadProgress?: (event: AxiosProgressEvent) => void,
+) =>
   api.post<{ url: string }>(
     `${API_V1}/booking-requests/attachments`,
     formData,
-    { headers: { 'Content-Type': 'multipart/form-data' } }
+    { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress }
   );
 
 
