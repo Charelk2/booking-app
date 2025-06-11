@@ -22,6 +22,20 @@ export default function BookingRequestsPage() {
   const [serviceFilter, setServiceFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openClients, setOpenClients] = useState<Record<number, boolean>>({});
+
+  const statusLabels: Record<string, string> = {
+    pending_quote: 'Pending Quote',
+    quote_provided: 'Quote Provided',
+    completed: 'Completed',
+  };
+
+  const formatStatus = (status: string) =>
+    statusLabels[status] ||
+    status
+      .split('_')
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(' ');
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -73,6 +87,29 @@ export default function BookingRequestsPage() {
       });
   }, [requests, search, statusFilter, serviceFilter]);
 
+  const grouped = useMemo(() => {
+    const result: {
+      clientId: number;
+      clientName: string;
+      requests: BookingRequest[];
+    }[] = [];
+    const map = new Map<number, number>();
+    filtered.forEach((r) => {
+      const id = r.client_id;
+      const name = r.client
+        ? `${r.client.first_name} ${r.client.last_name}`
+        : '—';
+      if (map.has(id)) {
+        const idx = map.get(id)!;
+        result[idx].requests.push(r);
+      } else {
+        map.set(id, result.length);
+        result.push({ clientId: id, clientName: name, requests: [r] });
+      }
+    });
+    return result;
+  }, [filtered]);
+
   if (!user) {
     return (
       <MainLayout>
@@ -103,9 +140,9 @@ export default function BookingRequestsPage() {
                 className="border rounded-md p-1 text-sm"
               >
                 <option value="">All Statuses</option>
-                <option value="pending_quote">pending_quote</option>
-                <option value="quote_provided">quote_provided</option>
-                <option value="completed">completed</option>
+                <option value="pending_quote">Pending Quote</option>
+                <option value="quote_provided">Quote Provided</option>
+                <option value="completed">Completed</option>
               </select>
               <select
                 value={serviceFilter}
@@ -122,43 +159,59 @@ export default function BookingRequestsPage() {
                   ))}
               </select>
             </div>
-            <div className="hidden sm:grid grid-cols-4 gap-4 bg-gray-50 p-2 text-sm font-semibold border-t">
-              <div>Client Name</div>
+            <div className="hidden sm:grid grid-cols-3 gap-4 bg-gray-50 p-2 text-sm font-semibold border-t">
               <div>Service Type</div>
               <div className="text-left">Proposed Date</div>
               <div>Status</div>
             </div>
             <ul className="divide-y divide-gray-200">
-              {filtered.map((r) => {
-                const unread = unreadIds.has(r.id);
-                return (
-                  <li
-                    key={r.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => router.push(`/booking-requests/${r.id}`)}
-                    onKeyPress={() => router.push(`/booking-requests/${r.id}`)}
-                    className={clsx(
-                      'grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 cursor-pointer hover:bg-gray-50 focus:outline-none',
-                      unread ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'bg-white',
-                    )}
+              {grouped.map((g) => (
+                <li key={`client-${g.clientId}`}> 
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenClients((o) => ({ ...o, [g.clientId]: !o[g.clientId] }))
+                    }
+                    className="w-full text-left p-4 bg-gray-50 font-medium flex items-center justify-between"
                   >
-                    <div className="font-medium">
-                      {r.client ? `${r.client.first_name} ${r.client.last_name}` : '—'}
-                    </div>
-                    <div className="text-sm sm:text-center">
-                      {r.service?.service_type || '—'}
-                    </div>
-                    <div className="text-sm sm:text-center">
-                      {r.proposed_datetime_1
-                        ? new Date(r.proposed_datetime_1).toLocaleDateString()
-                        : '—'}
-                    </div>
-                    <div className="text-sm sm:text-center">{r.status}</div>
-                  </li>
-                );
-              })}
-              {filtered.length === 0 && (
+                    <span>
+                      {openClients[g.clientId] ? '▼' : '▶'} {g.clientName} ({g.requests.length} requests)
+                    </span>
+                  </button>
+                  {openClients[g.clientId] && (
+                    <ul className="divide-y divide-gray-200">
+                      {g.requests.map((r) => {
+                        const unread = unreadIds.has(r.id);
+                        return (
+                          <li
+                            key={r.id}
+                            data-request-id={r.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => router.push(`/booking-requests/${r.id}`)}
+                            onKeyPress={() => router.push(`/booking-requests/${r.id}`)}
+                            className={clsx(
+                              'grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 pl-6 cursor-pointer hover:bg-gray-50 focus:outline-none',
+                              unread ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'bg-white',
+                            )}
+                          >
+                            <div className="text-sm sm:text-center">
+                              {r.service?.service_type || '—'}
+                            </div>
+                            <div className="text-sm sm:text-center">
+                              {r.proposed_datetime_1
+                                ? new Date(r.proposed_datetime_1).toLocaleDateString()
+                                : '—'}
+                            </div>
+                            <div className="text-sm sm:text-center">{formatStatus(r.status)}</div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </li>
+              ))}
+              {grouped.length === 0 && (
                 <li className="p-4 text-sm text-gray-500">No requests.</li>
               )}
             </ul>
