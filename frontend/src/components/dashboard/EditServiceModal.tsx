@@ -4,8 +4,6 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { Service } from "@/types";
 import { updateService as apiUpdateService } from "@/lib/api";
 import { useState } from "react";
-import axios from "axios";
-import { extractErrorMessage } from "@/lib/utils";
 
 interface EditServiceModalProps {
   isOpen: boolean;
@@ -53,16 +51,13 @@ export default function EditServiceModal({
       onServiceUpdated(response.data);
       reset(serviceData);
       onClose();
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const message = extractErrorMessage(err.response?.data?.detail);
-        setServerError(message);
-      } else {
-        setServerError(
-          "An unexpected error occurred. Failed to update service.",
-        );
-      }
-      console.error("Service update error:", err);
+    } catch (err: unknown) {
+      console.error('Service update error:', err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'An unexpected error occurred. Failed to update service.';
+      setServerError(message);
     }
   };
 

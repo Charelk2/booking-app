@@ -1,6 +1,7 @@
 // frontend/src/lib/api.ts
 
 import axios, { AxiosProgressEvent } from 'axios';
+import { extractErrorMessage } from './utils';
 import {
   User,
   ArtistProfile,
@@ -42,6 +43,39 @@ api.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error)
+);
+
+// Provide consistent error messages across the app
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      let message = extractErrorMessage(error.response?.data?.detail);
+
+      if (status) {
+        const map: Record<number, string> = {
+          400: 'Bad request. Please verify your input.',
+          401: 'Authentication required. Please log in.',
+          403: 'You do not have permission to perform this action.',
+          404: 'Resource not found.',
+          422: 'Validation failed. Please check your input.',
+          500: 'Server error. Please try again later.',
+        };
+        message = map[status] || message;
+      } else {
+        message = 'Network error. Please check your connection.';
+      }
+
+      console.error('API error:', error);
+      return Promise.reject(new Error(message));
+    }
+
+    console.error('Unexpected API error:', error);
+    return Promise.reject(
+      error instanceof Error ? error : new Error('An unexpected error occurred.'),
+    );
+  },
 );
 
 // ─── AUTH (no /api/v1 prefix) ───────────────────────────────────────────────────
