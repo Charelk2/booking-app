@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import NotificationBell from './NotificationBell';
+import BookingRequestIcon from './BookingRequestIcon';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import MobileBottomNav from './MobileBottomNav';
 
@@ -56,6 +57,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   </div>
                 </div>
                 <div className="hidden sm:ml-6 sm:flex sm:items-center">
+                  {user && <BookingRequestIcon />}
                   {user && <NotificationBell />}
                   {user ? (
                     <Menu as="div" className="relative ml-3">
@@ -141,6 +143,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   )}
                 </div>
                 <div className="flex items-center sm:hidden">
+                  {user && <BookingRequestIcon />}
                   {user && <NotificationBell />}
                   <button
                     type="button"
