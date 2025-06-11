@@ -9,6 +9,7 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
+import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { Message, MessageCreate, Quote } from '@/types';
@@ -230,19 +231,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   );
 
   return (
-    <div
-      className="border rounded-md p-4 bg-white flex flex-col min-h-[70vh] space-y-2"
-    >
-      <div className="sticky top-0 z-10 bg-white border-b pb-2 mb-2">
-        <span className="text-sm font-medium">
-          {clientName} ↔ {artistName}
-        </span>
-      </div>
-      <div
-        ref={containerRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto space-y-3 px-4 py-2 h-[calc(100vh-60px)]"
-      >
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
+      <div className="bg-white shadow-lg rounded-2xl overflow-hidden border flex flex-col min-h-[70vh]">
+        <header className="sticky top-0 z-10 bg-[#2F2B5C] text-white px-4 py-3 flex items-center justify-between">
+          <span className="font-medium">
+            Chat with {user?.user_type === 'artist' ? clientName : artistName}
+          </span>
+          <div className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center text-sm font-medium">
+            {(user?.user_type === 'artist' ? clientName : artistName)?.charAt(0)}
+          </div>
+        </header>
+        <div
+          ref={containerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto flex flex-col-reverse gap-2 px-4 py-2"
+        >
         {loading ? (
           <div className="flex justify-center py-4" aria-label="Loading messages">
             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-600" />
@@ -258,11 +261,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           const isSelf = !isSystem && msg.sender_id === user?.id;
 
           const bubbleClass = isSelf
-            ? 'bg-brand text-white self-end'
+            ? 'bg-[#4F46E5] text-white self-end'
             : isSystem
               ? 'bg-gray-200 text-gray-900 self-start'
-              : 'bg-brand-light text-brand-dark self-start';
-          const bubbleBase = 'rounded-xl px-4 py-2 max-w-[80%] sm:max-w-[70%] text-sm';
+              : 'bg-gray-100 text-gray-800 self-start';
+          const bubbleBase = 'rounded-xl px-4 py-2 max-w-[75%] text-sm';
 
           const avatar = isSystem
             ? artistName?.charAt(0)
@@ -290,8 +293,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             (isSelf ? 'text-white' : 'text-gray-500');
 
           return (
-            <div
+            <motion.div
               key={msg.id}
+              initial={{ opacity: 0, translateY: 8 }}
+              animate={{ opacity: 1, translateY: 0 }}
               className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} gap-1 mb-2 ${msg.unread ? 'bg-purple-50' : ''}`}
             >
               <span className={`text-sm ${msg.unread ? 'font-semibold' : 'font-medium'}`}>{senderDisplayName}</span>
@@ -339,7 +344,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               </div>
               <span className="text-xs text-gray-400 mt-1">{relativeTime}</span>
               {/* Timestamps now appear inside each bubble instead of beside it. */}
-            </div>
+            </motion.div>
           );
         })}
         {isSystemTyping && (
@@ -386,7 +391,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       {user && (
         <>
           {previewUrl && (
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2">
               {file && file.type.startsWith('image/') ? (
                 <Image
                   src={previewUrl}
@@ -405,24 +410,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           )}
           <form
             onSubmit={handleSend}
-            className="sticky bottom-0 relative flex items-center border rounded-md bg-white focus-within:ring-2 focus-within:ring-indigo-300"
+            className="sticky bottom-0 bg-white border-t flex sm:flex-row flex-col items-center gap-2 px-4 py-3"
           >
-            <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              className="flex-grow border-none rounded-md py-2 pl-10 pr-12 focus:outline-none focus:ring-0"
-              placeholder="Type a message"
-            />
-            <input
-              id="file-upload"
-              type="file"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
-            />
             <label
               htmlFor="file-upload"
-              className="absolute left-2 p-1 text-gray-600 rounded hover:bg-gray-100"
+              className="p-2 text-gray-600 rounded-full hover:bg-gray-100"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -444,7 +436,25 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 />
               </svg>
             </label>
-            <Button type="submit" className="absolute right-2 p-1">Send</Button>
+            <input
+              id="file-upload"
+              type="file"
+              className="hidden"
+              onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+            />
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              className="w-full border rounded-full px-4 py-2 outline-none"
+              placeholder="Type a message"
+            />
+            <Button
+              type="submit"
+              className="rounded-full bg-blue-600 text-white px-4 py-2 hover:bg-blue-700"
+            >
+              Send
+            </Button>
           </form>
           {user.user_type === 'artist' && (
             <div>
@@ -495,7 +505,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           {errorMsg}
         </p>
       )}
-    </div>
+        </div>
+      </div>
   );
 });
 
