@@ -5,7 +5,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { getFullImageUrl } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import type { UnifiedNotification } from '@/types';
 
 interface NotificationDrawerProps {
@@ -29,6 +29,7 @@ export interface ParsedNotification {
   avatarUrl?: string | null;
   initials?: string;
   bookingType?: string;
+  metadata?: string;
 }
 
 export function parseItem(n: UnifiedNotification): ParsedNotification {
@@ -84,10 +85,24 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
         .replace(/\b\w/g, (c) => c.toUpperCase());
     }
     const subtitleBase = formattedType
-      ? `sent a booking for ${formattedType}`
-      : 'Booking Request';
+      ? `sent a new booking request for ${formattedType}`
+      : 'sent a new booking request';
     const subtitle =
-      subtitleBase.length > 30 ? `${subtitleBase.slice(0, 30)}...` : subtitleBase;
+      subtitleBase.length > 36 ? `${subtitleBase.slice(0, 36)}...` : subtitleBase;
+    const locMatch = n.content.match(/Location:\s*(.+)/i);
+    const dateMatch = n.content.match(/Date:\s*(.+)/i);
+    let metadata: string | undefined;
+    if (locMatch || dateMatch) {
+      const loc = locMatch ? locMatch[1].split('\n')[0].trim() : '';
+      const d = dateMatch ? dateMatch[1].split('\n')[0].trim() : '';
+      const parts = [] as string[];
+      if (loc) parts.push(`\u{1F4CD} ${loc}`); // 📍
+      if (d) {
+        const formattedDate = format(new Date(d), 'MMM d, yyyy');
+        parts.push(`\u{1F4C5} ${formattedDate}`); // 📅
+      }
+      metadata = parts.join(' \u2014 '); // —
+    }
     const titleRaw = sender || 'New booking request';
     const title = titleRaw.length > 36 ? `${titleRaw.slice(0, 36)}...` : titleRaw;
     return {
@@ -95,6 +110,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       subtitle,
       icon,
       bookingType: formattedType,
+      metadata,
     };
   }
   if (/quote accepted/i.test(n.content)) {
@@ -114,19 +130,15 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
 
 function DrawerItem({ n, onClick }: { n: UnifiedNotification; onClick: () => void }) {
   const parsed = parseItem(n);
-  const subtitleText =
-    n.type === 'new_booking_request' && parsed.bookingType
-      ? parsed.bookingType
-      : parsed.subtitle;
   return (
     <button
       type="button"
       onClick={onClick}
       className={classNames(
-        'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50 rounded shadow-sm transition',
+        'group flex w-full items-start px-3 sm:px-4 py-3 text-base gap-2 sm:gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50 rounded shadow-sm transition',
         n.is_read
-          ? 'border-b last:border-b-0 border-l-4 border-transparent bg-gray-50 text-gray-500'
-          : 'border-l-4 border-indigo-500 bg-white text-gray-900 font-medium',
+          ? 'border-b last:border-b-0 bg-white border-l border-transparent text-gray-500'
+          : 'border-l-4 border-indigo-500 bg-indigo-50 text-gray-900 font-medium',
       )}
     >
       {parsed.avatarUrl || parsed.initials ? (
@@ -150,12 +162,15 @@ function DrawerItem({ n, onClick }: { n: UnifiedNotification; onClick: () => voi
       )}
       <div className="flex-1 text-left">
         <div className="flex items-start justify-between">
-          <span className="font-medium text-gray-900 truncate whitespace-nowrap overflow-hidden">{parsed.title}</span>
-          <span className="text-xs text-gray-400">
+          <span className="text-base font-medium text-gray-900 truncate whitespace-nowrap overflow-hidden">{parsed.title}</span>
+          <span className="text-xs text-gray-400 text-right">
             {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
           </span>
         </div>
-        <span className="block text-sm text-gray-700 truncate whitespace-nowrap overflow-hidden">{subtitleText}</span>
+        <p className="text-sm text-gray-700 truncate whitespace-nowrap overflow-hidden">{parsed.subtitle}</p>
+        {parsed.metadata && (
+          <p className="text-xs text-gray-500 truncate whitespace-nowrap overflow-hidden">{parsed.metadata}</p>
+        )}
       </div>
     </button>
   );
