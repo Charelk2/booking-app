@@ -22,6 +22,11 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
   const [progress, setProgress] = useState(0);
   // Controls the typing indicator while the system prepares the next question
   const [systemTyping, setSystemTyping] = useState(false);
+  // Track typing state without triggering effect re-runs
+  const systemTypingRef = useRef(systemTyping);
+  useEffect(() => {
+    systemTypingRef.current = systemTyping;
+  }, [systemTyping]);
 
   const sendSystemMessage = useCallback(
     async (text: string) => {
@@ -56,14 +61,14 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
             last &&
             last.message_type === 'system' &&
             last.content === next;
-          if (!alreadyAsked && !systemTyping && !waitingForAnswer) {
+          if (!alreadyAsked && !systemTypingRef.current && !waitingForAnswer) {
             await sendSystemMessage(next);
           }
         } else {
           const done = msgs.some(
             (m) => m.message_type === 'system' && m.content === READY_MESSAGE,
           );
-          if (!done && !systemTyping) {
+          if (!done && !systemTypingRef.current) {
             await sendSystemMessage(READY_MESSAGE);
           }
         }
@@ -71,7 +76,7 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
     } catch (err) {
       console.error('Video flow check failed', err);
     }
-  }, [bookingRequestId, user, sendSystemMessage, systemTyping]);
+  }, [bookingRequestId, user, sendSystemMessage]);
 
   useEffect(() => {
     (async () => {
