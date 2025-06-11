@@ -73,9 +73,18 @@ export default function NotesStep({
         render={({ field }) => <input type="hidden" {...field} />}
       />
       <label className="block text-sm font-medium">Attachment (optional)</label>
-      <input type="file" onChange={handleFileChange} />
+      <input type="file" aria-label="Upload attachment" onChange={handleFileChange} />
       {uploading && (
-        <div className="flex items-center gap-2 mt-2" role="progressbar" aria-valuenow={progress}>
+        <div
+          className="flex items-center gap-2 mt-2"
+          role="progressbar"
+          aria-label="Upload progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress}
+          aria-valuetext={`${progress}%`}
+          aria-live="polite"
+        >
           <div className="w-full bg-gray-200 rounded h-2">
             <div className="bg-blue-600 h-2 rounded" style={{ width: `${progress}%` }} />
           </div>

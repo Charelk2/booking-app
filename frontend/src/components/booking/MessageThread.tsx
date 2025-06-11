@@ -72,6 +72,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [announceNewMessage, setAnnounceNewMessage] = useState('');
+  const prevLengthRef = useRef(0);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -169,6 +171,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const atBottom = scrollHeight - scrollTop - clientHeight < 20;
     setShowScrollButton(!atBottom);
   }, []);
+
+  useEffect(() => {
+    if (prevLengthRef.current && messages.length > prevLengthRef.current && showScrollButton) {
+      setAnnounceNewMessage('New messages available');
+    }
+    prevLengthRef.current = messages.length;
+  }, [messages, showScrollButton]);
 
   const handleSend = useCallback(
     async (e: React.FormEvent) => {
@@ -455,6 +464,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           </svg>
         </button>
       )}
+      <div aria-live="polite" className="sr-only">{announceNewMessage}</div>
       {user && (
         <>
           {previewUrl && (
@@ -481,6 +491,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           >
             <label
               htmlFor="file-upload"
+              aria-label="Upload attachment"
               className="w-8 h-8 flex items-center justify-center text-gray-600 rounded-full hover:bg-gray-100"
             >
               <svg
@@ -517,7 +528,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               placeholder="Type a message"
             />
             {uploading && (
-              <div className="flex items-center gap-2" role="progressbar" aria-valuenow={uploadProgress}>
+              <div
+                className="flex items-center gap-2"
+                role="progressbar"
+                aria-label="Upload progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={uploadProgress}
+                aria-valuetext={`${uploadProgress}%`}
+                aria-live="polite"
+              >
                 <div className="w-16 bg-gray-200 rounded h-1">
                   <div className="bg-blue-600 h-1 rounded" style={{ width: `${uploadProgress}%` }} />
                 </div>
@@ -526,6 +546,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             )}
             <Button
               type="submit"
+              aria-label="Send message"
               disabled={uploading}
               className="rounded-full bg-blue-600 text-white px-4 py-2 hover:bg-blue-700"
             >
