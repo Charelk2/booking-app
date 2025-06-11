@@ -128,9 +128,11 @@ export default function NotificationDrawer({
                             key={`thread-${t.booking_request_id}`}
                             type="button"
                             onClick={() => handleThreadClick(t.booking_request_id)}
-                            className={classNames(
-                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50 cursor-pointer active:bg-gray-100 rounded',
-                              t.unread_count > 0 ? 'font-medium' : 'text-gray-500',
+                          className={classNames(
+                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-100 cursor-pointer rounded',
+                              t.unread_count > 0
+                                ? 'font-medium border-l-4 border-indigo-500'
+                                : 'text-gray-500 border-l-4 border-transparent',
                             )}
                           >
                           {t.avatar_url ? (
@@ -179,9 +181,11 @@ export default function NotificationDrawer({
                             key={`notif-${n.id}`}
                             type="button"
                             onClick={() => markRead(n.id)}
-                            className={classNames(
-                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50',
-                              n.is_read ? 'text-gray-500' : 'font-medium',
+                          className={classNames(
+                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-100',
+                              n.is_read
+                                ? 'text-gray-500 border-l-4 border-transparent'
+                                : 'font-medium border-l-4 border-indigo-500',
                             )}
                           >
                             <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
