@@ -74,6 +74,46 @@ def test_message_creates_notification():
     assert notifs[0].link == f"/booking-requests/{br.id}"
 
 
+def test_system_booking_summary_message_suppressed():
+    db = setup_db()
+    client = User(
+        email="c2@test.com",
+        password="x",
+        first_name="C2",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="a2@test.com",
+        password="x",
+        first_name="A2",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    msg_in = MessageCreate(
+        content="Booking details:\nDate: 2025-01-01",
+        message_type=MessageType.SYSTEM,
+    )
+    api_message.create_message(br.id, msg_in, db, current_user=client)
+
+    notifs = crud_notification.get_notifications_for_user(db, artist.id)
+    assert not notifs
+
+
 def test_booking_request_creates_notification():
     db = setup_db()
     client = User(
@@ -437,3 +477,4 @@ def test_personalized_video_notifications_suppressed_until_final():
     notifs_after = crud_notification.get_notifications_for_user(db, artist.id)
     assert len(notifs_after) == 1
     assert notifs_after[0].type == NotificationType.NEW_BOOKING_REQUEST
+
