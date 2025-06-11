@@ -33,7 +33,7 @@ describe('ChatThreadView', () => {
     const messageContainer = container.querySelector('[data-testid="message-container"]');
     const inputBar = container.querySelector('[data-testid="input-bar"]');
 
-    expect(header?.textContent).toBe('Alice');
+    expect(header?.textContent).toBe('Chat with Alice');
     expect(messageContainer).not.toBeNull();
     expect(inputBar).not.toBeNull();
     expect((container.firstChild as HTMLElement)?.className).toContain('h-screen');
