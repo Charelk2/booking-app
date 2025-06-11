@@ -32,10 +32,16 @@ export interface ParsedNotification {
 
 export function parseItem(n: UnifiedNotification): ParsedNotification {
   if (n.type === 'message') {
-    const snippet =
-      n.content.length > 40 ? `${n.content.slice(0, 40)}...` : n.content;
+    const cleaned = n.content.replace(/^New message:\s*/i, '').trim();
+    const snippet = cleaned.length > 30 ? `${cleaned.slice(0, 30)}...` : cleaned;
+    const titleRaw =
+      n.unread_count && n.unread_count > 0
+        ? `${n.name} (${n.unread_count})`
+        : n.name || '';
+    const title =
+      titleRaw.length > 36 ? `${titleRaw.slice(0, 36)}...` : titleRaw;
     return {
-      title: `${n.name}${n.unread_count !== undefined ? ` (${n.unread_count})` : ''}`,
+      title,
       subtitle: `Last message: "${snippet}"`,
       icon: '💬',
       avatarUrl: n.avatar_url || undefined,
@@ -80,22 +86,28 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       ? `sent a booking for ${formattedType}`
       : 'Booking Request';
     const subtitle =
-      subtitleBase.length > 60 ? `${subtitleBase.slice(0, 57)}...` : subtitleBase;
+      subtitleBase.length > 30 ? `${subtitleBase.slice(0, 30)}...` : subtitleBase;
+    const titleRaw = sender || 'New booking request';
+    const title = titleRaw.length > 36 ? `${titleRaw.slice(0, 36)}...` : titleRaw;
     return {
-      title: sender || 'New booking request',
+      title,
       subtitle,
       icon,
     };
   }
   if (/quote accepted/i.test(n.content)) {
     const match = n.content.match(/Quote accepted by (.+)/i);
+    const rawTitle = match ? `Quote accepted by ${match[1]}` : 'Quote accepted';
+    const title = rawTitle.length > 36 ? `${rawTitle.slice(0, 36)}...` : rawTitle;
+    const subtitle = n.content.length > 30 ? `${n.content.slice(0, 30)}...` : n.content;
     return {
-      title: match ? `Quote accepted by ${match[1]}` : 'Quote accepted',
-      subtitle: n.content,
+      title,
+      subtitle,
       icon: '✅',
     };
   }
-  return { title: n.content, subtitle: '', icon: '🔔' };
+  const defaultTitle = n.content.length > 36 ? `${n.content.slice(0, 36)}...` : n.content;
+  return { title: defaultTitle, subtitle: '', icon: '🔔' };
 }
 
 function DrawerItem({ n, onClick }: { n: UnifiedNotification; onClick: () => void }) {
@@ -105,8 +117,8 @@ function DrawerItem({ n, onClick }: { n: UnifiedNotification; onClick: () => voi
       type="button"
       onClick={onClick}
       className={classNames(
-        'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-100 rounded shadow-sm',
-        n.is_read ? 'text-gray-500 bg-white' : 'bg-gray-50 font-medium',
+        'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50 rounded shadow-sm border-b last:border-b-0',
+        n.is_read ? 'bg-white text-gray-500' : 'bg-gray-100 text-gray-900 font-medium',
       )}
     >
       {parsed.avatarUrl || parsed.initials ? (
@@ -130,12 +142,12 @@ function DrawerItem({ n, onClick }: { n: UnifiedNotification; onClick: () => voi
       )}
       <div className="flex-1 text-left">
         <div className="flex items-start justify-between">
-          <span className="font-medium text-gray-900 truncate">{parsed.title}</span>
+          <span className="font-medium text-gray-900 truncate whitespace-nowrap overflow-hidden">{parsed.title}</span>
           <span className="text-xs text-gray-400">
             {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
           </span>
         </div>
-        <span className="block text-sm text-gray-700 truncate">{parsed.subtitle}</span>
+        <span className="block text-sm text-gray-700 truncate whitespace-nowrap overflow-hidden">{parsed.subtitle}</span>
       </div>
     </button>
   );
