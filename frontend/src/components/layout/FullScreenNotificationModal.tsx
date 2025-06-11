@@ -179,6 +179,7 @@ export default function FullScreenNotificationModal({
                     <div style={style} className="text-center pt-2">
                       <button
                         type="button"
+                        aria-label="Load more notifications"
                         onClick={loadMore}
                         className="text-sm text-indigo-600 hover:underline focus:outline-none"
                       >
