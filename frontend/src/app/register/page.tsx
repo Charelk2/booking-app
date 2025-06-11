@@ -11,8 +11,6 @@ import MainLayout from '@/components/layout/MainLayout';
 import Button from '@/components/ui/Button';
 import AuthInput from '@/components/auth/AuthInput';
 import { User } from '@/types';
-import axios from 'axios';
-import { extractErrorMessage } from '@/lib/utils';
 
 interface RegisterForm extends Omit<User, 'id' | 'is_active' | 'is_verified'> {
   password: string;
@@ -43,14 +41,13 @@ export default function RegisterPage() {
       await registerUser(userData);
       toast.success('Registration successful! Please log in.');
       router.push('/login');
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        const message = extractErrorMessage(err.response?.data?.detail);
-        setError(message);
-      } else {
-        setError('Registration failed. Please try again.');
-      }
+    } catch (err: unknown) {
       console.error('Registration error:', err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Registration failed. Please try again.';
+      setError(message);
     }
   };
 

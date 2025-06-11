@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import NextImage from 'next/image';
-import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import MobileSaveBar from '@/components/dashboard/MobileSaveBar';
@@ -15,7 +14,7 @@ import {
   uploadMyArtistProfilePicture,
   uploadMyArtistCoverPhoto,
 } from '@/lib/api';
-import { getFullImageUrl, extractErrorMessage } from '@/lib/utils';
+import { getFullImageUrl } from '@/lib/utils';
 
 import dynamic from 'next/dynamic';
 import {
@@ -334,13 +333,9 @@ export default function EditArtistProfilePage(): JSX.Element {
       setCompletedCrop(undefined);
     } catch (err: unknown) {
       console.error('Failed to crop or upload image:', err);
-      if (axios.isAxiosError(err) && err.response?.data?.detail) {
-        setError(extractErrorMessage(err.response.data.detail));
-      } else {
-        const msg =
-          err instanceof Error ? err.message : 'Failed to upload image.';
-        setError(msg);
-      }
+      const msg =
+        err instanceof Error ? err.message : 'Failed to upload image.';
+      setError(msg);
     } finally {
       setUploadingImage(false);
     }
@@ -361,13 +356,9 @@ export default function EditArtistProfilePage(): JSX.Element {
       setCoverPhotoSuccessMessage('Cover photo uploaded successfully!');
     } catch (err: unknown) {
       console.error('Failed to upload cover photo:', err);
-      if (axios.isAxiosError(err) && err.response?.data?.detail) {
-        setCoverPhotoError(extractErrorMessage(err.response.data.detail));
-      } else {
-        const msg =
-          err instanceof Error ? err.message : 'Failed to upload cover photo.';
-        setCoverPhotoError(msg);
-      }
+      const msg =
+        err instanceof Error ? err.message : 'Failed to upload cover photo.';
+      setCoverPhotoError(msg);
     } finally {
       setUploadingCoverPhoto(false);
       e.target.value = '';
