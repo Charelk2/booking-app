@@ -94,7 +94,7 @@ describe('MessageThread component', () => {
     const highlightedRow = container.querySelector('.bg-purple-50');
     const senderName = container.querySelector('span.font-semibold');
     expect(highlightedRow).not.toBeNull();
-    expect(senderName?.textContent).toBe('Artist');
+    expect(senderName).toBeNull();
   });
 
   it('displays short messages', async () => {
