@@ -503,6 +503,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * `ChatThreadView` component for mobile-friendly chat threads using a modern card-style layout.
 * Tap a booking request card to open `/booking-requests/[id]`.
 * Unread booking requests are highlighted in indigo so they stand out.
+* Requests from the same client are grouped under a collapsible heading for a cleaner overview.
 * Cards no longer display a "1 new message" label to keep the list concise.
 
 ### Auth & Registration
