@@ -42,9 +42,11 @@ export default function Stepper({ steps, currentStep, maxStepCompleted, onStepCl
               onClick={() => i <= maxStep && i !== currentStep && onStepClick(i)}
               disabled={i > maxStep || i === currentStep}
               className={`flex flex-col items-center text-sm focus:outline-none ${
-                i > maxStep || i === currentStep
+                i > maxStep
                   ? 'cursor-not-allowed'
-                  : 'cursor-pointer'
+                  : i === currentStep
+                    ? 'cursor-default'
+                    : 'cursor-pointer'
               }`}
             >
               {content}
