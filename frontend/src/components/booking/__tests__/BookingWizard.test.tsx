@@ -104,4 +104,18 @@ describe('BookingWizard flow', () => {
       container.querySelector('[data-testid="step-heading"]')?.textContent,
     ).toContain('Date & Time');
   });
+
+  it('keeps future completed steps clickable when rewinding', async () => {
+    const setStep = (window as unknown as { __setStep: (s: number) => void }).__setStep;
+    await act(async () => { setStep(2); });
+    await new Promise((r) => setTimeout(r, 0));
+    let progressButtons = container.querySelectorAll('[aria-label="Progress"] button');
+    await act(async () => {
+      progressButtons[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await new Promise((r) => setTimeout(r, 400));
+    // query again after DOM update
+    progressButtons = container.querySelectorAll('[aria-label="Progress"] button');
+    expect((progressButtons[2] as HTMLButtonElement).disabled).toBe(false);
+  });
 });
