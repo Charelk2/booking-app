@@ -70,6 +70,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -175,7 +177,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       try {
         let attachment_url: string | undefined;
         if (file) {
-          const res = await uploadMessageAttachment(bookingRequestId, file);
+          setUploading(true);
+          const res = await uploadMessageAttachment(
+            bookingRequestId,
+            file,
+            (evt) => {
+              if (evt.total) {
+                setUploadProgress(Math.round((evt.loaded * 100) / evt.total));
+              }
+            },
+          );
           attachment_url = res.data.url;
         }
         const payload: MessageCreate = {
@@ -186,11 +197,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         setNewMessage('');
         setFile(null);
         setPreviewUrl(null);
+        setUploadProgress(0);
+        setUploading(false);
         fetchMessages();
         if (onMessageSent) onMessageSent();
       } catch (err) {
         console.error('Failed to send message', err);
         setErrorMsg('Failed to send message');
+        setUploading(false);
       }
     },
     [newMessage, file, bookingRequestId, fetchMessages, onMessageSent],
@@ -502,11 +516,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               className="w-full border rounded-full px-4 py-2 outline-none"
               placeholder="Type a message"
             />
+            {uploading && (
+              <div className="flex items-center gap-2" role="progressbar" aria-valuenow={uploadProgress}>
+                <div className="w-16 bg-gray-200 rounded h-1">
+                  <div className="bg-blue-600 h-1 rounded" style={{ width: `${uploadProgress}%` }} />
+                </div>
+                <span className="text-xs">{uploadProgress}%</span>
+              </div>
+            )}
             <Button
               type="submit"
+              disabled={uploading}
               className="rounded-full bg-blue-600 text-white px-4 py-2 hover:bg-blue-700"
             >
-              Send
+              {uploading ? 'Uploading…' : 'Send'}
             </Button>
           </form>
           {user.user_type === 'artist' && (
