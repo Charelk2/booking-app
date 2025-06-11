@@ -47,9 +47,17 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     };
   }
   if (n.type === 'new_booking_request') {
-    const match = n.content.match(/New booking request from ([^:]+):\s*(.+)/i);
-    const sender = match?.[1] || n.sender_name;
-    const btype = match?.[2] || n.booking_type;
+    let sender = n.sender_name;
+    let btype = n.booking_type;
+    if (!sender || !btype) {
+      const match = n.content.match(
+        /New booking request from (.+?)(?::| - | for )\s*(.+)/i,
+      );
+      if (match) {
+        sender = sender || match[1];
+        btype = btype || match[2];
+      }
+    }
     const iconMap: Record<string, string> = {
       video: '🎥',
       song: '🎵',
