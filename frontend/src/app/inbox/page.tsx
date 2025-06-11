@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
@@ -40,8 +40,9 @@ export default function InboxPage() {
   const { items, loading, error, markItem } = useNotifications();
   const router = useRouter();
 
-  const messageThreads = items.filter(
-    (i) => i.type === 'message' && i.booking_request_id,
+  const messageThreads = useMemo(
+    () => items.filter((i) => i.type === 'message' && i.booking_request_id),
+    [items],
   );
 
   const [activeTab, setActiveTab] = useState<'requests' | 'chats'>('requests');
