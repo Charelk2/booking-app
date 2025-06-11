@@ -29,7 +29,7 @@ describe('Stepper progress bar', () => {
     expect(container.textContent).toContain('Three');
   });
 
-  it('calls onStepClick for previous steps', () => {
+  it('calls onStepClick when clicking completed or current steps', () => {
     const clickSpy = jest.fn();
     act(() => {
       root.render(
@@ -41,10 +41,31 @@ describe('Stepper progress bar', () => {
       );
     });
     const buttons = container.querySelectorAll('button');
-    expect(buttons).toHaveLength(2);
+    expect(buttons).toHaveLength(3);
     act(() => {
       buttons[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(clickSpy).toHaveBeenCalledWith(0);
+
+    act(() => {
+      buttons[2].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(clickSpy).toHaveBeenCalledWith(2);
+  });
+
+  it('disables buttons for future steps', () => {
+    act(() => {
+      root.render(
+        <Stepper
+          steps={["One", "Two", "Three"]}
+          currentStep={0}
+          onStepClick={() => {}}
+        />,
+      );
+    });
+    const buttons = container.querySelectorAll('button');
+    expect(buttons).toHaveLength(3);
+    expect((buttons[1] as HTMLButtonElement).disabled).toBe(true);
+    expect((buttons[2] as HTMLButtonElement).disabled).toBe(true);
   });
 });
