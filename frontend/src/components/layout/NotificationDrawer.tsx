@@ -1,11 +1,12 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useRef, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 import { getFullImageUrl } from '@/lib/utils';
 import { formatDistanceToNow, format } from 'date-fns';
+import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
 import type { UnifiedNotification } from '@/types';
 
 interface NotificationDrawerProps {
@@ -186,6 +187,18 @@ export default function NotificationDrawer({
   hasMore,
 }: NotificationDrawerProps) {
   const [showUnread, setShowUnread] = useState(false);
+  const [listHeight, setListHeight] = useState(400);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const update = () => {
+      setListHeight(containerRef.current?.clientHeight ?? 400);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   const filtered = showUnread
     ? items.filter((i) =>
         i.type === 'message' ? (i.unread_count ?? 0) > 0 : !i.is_read,
@@ -248,23 +261,48 @@ export default function NotificationDrawer({
                       </button>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto">
-                    {filtered.length === 0 && (
+                  <div
+                    className="flex-1 overflow-y-auto"
+                    ref={containerRef}
+                    data-testid="notification-list"
+                  >
+                    {filtered.length === 0 ? (
                       <div className="px-4 py-2 text-sm text-gray-500">No notifications</div>
-                    )}
-                    {filtered.map((n) => (
-                      <DrawerItem key={`${n.type}-${n.id || n.booking_request_id}`} n={n} onClick={() => onItemClick(n.id || n.booking_request_id as number)} />
-                    ))}
-                    {hasMore && (
-                      <div className="px-4 py-2 border-t border-gray-200 text-center">
-                        <button
-                          type="button"
-                          onClick={loadMore}
-                          className="text-sm text-indigo-600 hover:underline focus:outline-none"
-                        >
-                          Load more
-                        </button>
-                      </div>
+                    ) : (
+                      <List
+                        height={listHeight}
+                        itemCount={filtered.length + (hasMore ? 1 : 0)}
+                        itemSize={88}
+                        width="100%"
+                        overscanCount={3}
+                      >
+                        {({ index, style }: ListChildComponentProps) => {
+                          if (index < filtered.length) {
+                            const n = filtered[index];
+                            return (
+                              <div style={style}>
+                                <DrawerItem
+                                  n={n}
+                                  onClick={() =>
+                                    onItemClick(n.id || (n.booking_request_id as number))
+                                  }
+                                />
+                              </div>
+                            );
+                          }
+                          return (
+                            <div style={style} className="px-4 py-2 border-t border-gray-200 text-center">
+                              <button
+                                type="button"
+                                onClick={loadMore}
+                                className="text-sm text-indigo-600 hover:underline focus:outline-none"
+                              >
+                                Load more
+                              </button>
+                            </div>
+                          );
+                        }}
+                      </List>
                     )}
                   </div>
                 </Dialog.Panel>
