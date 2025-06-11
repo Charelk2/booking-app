@@ -69,7 +69,10 @@ export default function ArtistsPage() {
                   {imageUrl ? (
                     <Image
                       src={imageUrl}
-                      alt={`${artist.user.first_name} ${artist.user.last_name}`}
+                      alt={
+                        artist.business_name ||
+                        `${artist.user.first_name} ${artist.user.last_name}`
+                      }
                       width={512}
                       height={270}
                       className="object-cover w-full h-48"
@@ -80,7 +83,8 @@ export default function ArtistsPage() {
                 </div>
                 <div className="p-6">
                   <h2 className="text-xl font-semibold text-gray-900">
-                    {artist.user.first_name} {artist.user.last_name}
+                    {artist.business_name ||
+                      `${artist.user.first_name} ${artist.user.last_name}`}
                   </h2>
                   <p className="mt-2 text-gray-600 truncate">{artist.description || ''}</p>
                   <div className="mt-4">
