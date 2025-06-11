@@ -74,6 +74,12 @@ For setup instructions see [README.md](README.md).
 * **Purpose:** Sends transactional emails, booking updates, reminders, and chat alerts.
 * **Frontend:** `useNotifications.ts` for popups/toasts, badge updates.
 * **Backend:** `api_notification.py` exposes CRUD endpoints while `utils/notifications.py` persists alerts in the `notifications` table and can send SMS via Twilio if credentials are configured. A new `/notifications/read-all` endpoint marks every notification read in one request.
+* **Notification types:**
+  - `new_message` — someone sent a chat message.
+  - `new_booking_request` — a client created a booking request.
+  - `booking_status_updated` — the request status changed.
+  - `deposit_due` — deposit payment reminder when a booking is accepted.
+  - `review_request` — triggered after an event is completed to solicit feedback.
 
 ### 9. Chat Agent
 
