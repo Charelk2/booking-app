@@ -419,6 +419,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Consecutive messages from the same sender now group together, showing the
   relative time only below the last bubble.
 * Fixed input bar & auto-scroll on mobile.
+* Desktop bubbles expand wider to avoid unnecessary line breaks.
 * Floating “scroll to latest” button on small screens.
 * Personalized Video flow: multi-step prompts, typing indicators, progress bar.
 * Sticky input demo at `/demo/sticky-input` shows local message appending.
