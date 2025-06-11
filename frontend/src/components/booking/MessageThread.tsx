@@ -12,6 +12,7 @@ import React, {
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
+import { getFullImageUrl } from '@/lib/utils';
 import { Message, MessageCreate, Quote } from '@/types';
 import {
   getMessagesForBookingRequest,
@@ -38,6 +39,7 @@ interface MessageThreadProps {
   onMessageSent?: () => void;
   clientName?: string;
   artistName?: string;
+  artistAvatarUrl?: string | null;
   isSystemTyping?: boolean;
 }
 
@@ -48,6 +50,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       onMessageSent,
       clientName = 'Client',
       artistName = 'Artist',
+      artistAvatarUrl = null,
       isSystemTyping = false,
     }: MessageThreadProps,
     ref,
@@ -270,9 +273,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           <span className="font-medium">
             Chat with {user?.user_type === 'artist' ? clientName : artistName}
           </span>
-          <div className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center text-sm font-medium">
-            {(user?.user_type === 'artist' ? clientName : artistName)?.charAt(0)}
-          </div>
+          {user?.user_type === 'artist' || !artistAvatarUrl ? (
+            <div className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center text-sm font-medium">
+              {(user?.user_type === 'artist' ? clientName : artistName)?.charAt(0)}
+            </div>
+          ) : (
+            <Image
+              src={getFullImageUrl(artistAvatarUrl) as string}
+              alt="avatar"
+              width={32}
+              height={32}
+              className="h-8 w-8 rounded-full object-cover"
+            />
+          )}
         </header>
         <div
           ref={containerRef}
@@ -292,6 +305,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           const firstMsg = group.messages[0];
           const isSystem = firstMsg.message_type === 'system';
           const isSelf = !isSystem && firstMsg.sender_id === user?.id;
+          const avatarUrl =
+            group.sender_type === 'artist' ? firstMsg.avatar_url : null;
           const avatar = isSystem
             ? artistName?.charAt(0)
             : group.sender_type === 'artist'
@@ -313,9 +328,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               <div className={`flex items-center gap-2 mb-1 ${isSelf ? 'justify-end' : ''}`}
               >
                 {!isSelf && (
-                  <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
-                    {avatar}
-                  </div>
+                  avatarUrl ? (
+                    <Image
+                      src={getFullImageUrl(avatarUrl) as string}
+                      alt="avatar"
+                      width={24}
+                      height={24}
+                      className="h-6 w-6 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
+                      {avatar}
+                    </div>
+                  )
                 )}
                 <span className={`text-sm ${anyUnread ? 'font-semibold' : 'font-medium'}`}>{senderDisplayName}</span>
               </div>
