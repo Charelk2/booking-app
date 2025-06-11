@@ -106,14 +106,18 @@ export default function BookingRequestDetailPage() {
           <PersonalizedVideoFlow
             bookingRequestId={request.id}
             clientName={request.client?.first_name}
-            artistName={request.artist?.first_name}
+            artistName={
+              request.artist?.business_name || request.artist?.user.first_name
+            }
             artistAvatarUrl={artistAvatar}
           />
         ) : (
           <MessageThread
             bookingRequestId={request.id}
             clientName={request.client?.first_name}
-            artistName={request.artist?.first_name}
+            artistName={
+              request.artist?.business_name || request.artist?.user.first_name
+            }
             artistAvatarUrl={artistAvatar}
           />
         )}

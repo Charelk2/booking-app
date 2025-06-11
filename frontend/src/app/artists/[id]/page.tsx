@@ -439,7 +439,7 @@ export default function ArtistProfilePage() {
                               src={otherProfilePicUrl}
                               alt={
                                 otherArtist.business_name ||
-                                otherArtist.user.first_name
+                                `${otherArtist.user.first_name} ${otherArtist.user.last_name}`
                               }
                               width={300}
                               height={300}
