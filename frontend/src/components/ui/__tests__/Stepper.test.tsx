@@ -29,7 +29,7 @@ describe('Stepper progress bar', () => {
     expect(container.textContent).toContain('Three');
   });
 
-  it('calls onStepClick when clicking completed or current steps', () => {
+  it('calls onStepClick when clicking completed steps', () => {
     const clickSpy = jest.fn();
     act(() => {
       root.render(
@@ -47,6 +47,26 @@ describe('Stepper progress bar', () => {
     });
     expect(clickSpy).toHaveBeenCalledWith(0);
 
+    act(() => {
+      buttons[2].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(clickSpy).not.toHaveBeenCalledWith(2);
+  });
+
+  it('allows clicking a future step once completed previously', () => {
+    const clickSpy = jest.fn();
+    act(() => {
+      root.render(
+        <Stepper
+          steps={["One", "Two", "Three"]}
+          currentStep={1}
+          maxStepCompleted={2}
+          onStepClick={clickSpy}
+        />,
+      );
+    });
+    const buttons = container.querySelectorAll('button');
+    expect((buttons[2] as HTMLButtonElement).disabled).toBe(false);
     act(() => {
       buttons[2].dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
