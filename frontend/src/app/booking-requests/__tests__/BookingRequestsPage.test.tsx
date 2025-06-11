@@ -80,8 +80,18 @@ describe('BookingRequestsPage', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const rows = Array.from(container.querySelectorAll('li'));
-    const aliceRow = rows.find((li) => li.textContent?.includes('Alice A'));
+    const aliceHeader = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Alice A'),
+    ) as HTMLButtonElement;
+    if (aliceHeader) {
+      act(() => {
+        aliceHeader.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+    }
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const aliceRow = container.querySelector('li[data-request-id="1"]');
     expect(aliceRow?.className).toContain('bg-indigo-50');
     act(() => {
       root.unmount();
@@ -105,9 +115,10 @@ describe('BookingRequestsPage', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const rows = Array.from(container.querySelectorAll('li'));
-    const bobRow = rows.find((r) => r.textContent?.includes('Bob B'));
-    expect(bobRow).toBeTruthy();
+    const bobHeader = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Bob B'),
+    );
+    expect(bobHeader).toBeTruthy();
     act(() => {
       root.unmount();
     });
