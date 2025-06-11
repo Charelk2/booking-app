@@ -429,6 +429,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 
 * Persisted via `/api/v1/notifications` & `/api/v1/notifications/message-threads`.
 * Bell icon in header; slide-out drawer on mobile.
+* Clipboard icon opens `/booking-requests` with an unread badge.
 * Unified feed combines booking updates and message threads.
 * Mark-as-read endpoints and “Mark All as Read”.
 * "Unread Only" toggle filters message threads and alerts in the drawer and full-screen modal.
@@ -498,6 +499,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Chat attachment button stays inline with the message input and send button on all screens.
 * Tap feedback on icons via `active:bg-gray-100`.
 * **Inbox** page at `/inbox` separates Booking Requests and Chats into tabs.
+* `/booking-requests` lists all requests in a responsive table.
 * `ChatThreadView` component for mobile-friendly chat threads using a modern card-style layout.
 * Tap a booking request card to open `/booking-requests/[id]`.
 * Unread booking requests are highlighted in indigo so they stand out.
