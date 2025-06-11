@@ -198,3 +198,25 @@ export interface ThreadNotification {
   timestamp: string;
   avatar_url?: string | null;
 }
+
+export interface UnifiedNotification {
+  /** 'message' for chat threads or other Notification.type values */
+  type: string;
+  /** ISO timestamp used for chronological sorting */
+  timestamp: string;
+  /** Whether the item has been read */
+  is_read: boolean;
+  /** Main content string shown in the feed */
+  content: string;
+  /** Optional link for navigation */
+  link?: string;
+  /** Optional ID for standard notifications */
+  id?: number;
+  /** Optional booking request ID for chat threads */
+  booking_request_id?: number;
+  /** Sender or thread name */
+  name?: string;
+  /** Unread message count for chat threads */
+  unread_count?: number;
+  avatar_url?: string | null;
+}
