@@ -12,7 +12,11 @@ from typing import List
 
 from .. import crud, models, schemas
 from .dependencies import get_db, get_current_user
-from ..utils.notifications import notify_user_new_message
+from ..utils.notifications import (
+    notify_user_new_message,
+    notify_user_new_booking_request,
+    VIDEO_FLOW_READY_MESSAGE,
+)
 from .api_ws import manager
 import os
 import uuid
@@ -116,7 +120,29 @@ def create_message(
         else booking_request.client_id
     )
     other_user = db.query(models.User).filter(models.User.id == other_user_id).first()
-    if other_user:
+
+    service = None
+    if booking_request.service_id:
+        service = (
+            db.query(models.Service)
+            .filter(models.Service.id == booking_request.service_id)
+            .first()
+        )
+
+    if service and service.service_type == "Personalized Video":
+        if (
+            message_in.message_type == models.MessageType.SYSTEM
+            and message_in.content == VIDEO_FLOW_READY_MESSAGE
+            and other_user
+        ):
+            client = db.query(models.User).filter(models.User.id == booking_request.client_id).first()
+            booking_type = service.service_type
+            sender_name = f"{client.first_name} {client.last_name}" if client else "Client"
+            artist = db.query(models.User).filter(models.User.id == booking_request.artist_id).first()
+            if artist:
+                notify_user_new_booking_request(db, artist, request_id, sender_name, booking_type)
+        # suppress message notifications during flow
+    elif other_user:
         notify_user_new_message(db, other_user, request_id, message_in.content)
 
     avatar_url = None
