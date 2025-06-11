@@ -6,6 +6,7 @@ import { Dialog, Transition } from '@headlessui/react';
 // Mobile layout previously used swipe actions. Cards are easier to read on
 // small screens so we now display a scrollable list of cards instead.
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 
 function classNames(...classes: string[]) {
@@ -109,19 +110,38 @@ export default function FullScreenNotificationModal({
                       onClick={() => handleItemClick(n.id || n.booking_request_id as number)}
                       onKeyPress={() => handleItemClick(n.id || n.booking_request_id as number)}
                       className={classNames(
-                        'relative bg-white shadow rounded-lg p-4 flex flex-col space-y-2 transition hover:bg-gray-50 cursor-pointer',
-                        n.is_read
-                          ? 'border-l-4 border-transparent text-gray-500'
-                          : 'border-l-4 border-indigo-500',
+                        'flex items-start gap-3 p-4 rounded-lg shadow transition hover:bg-gray-50 cursor-pointer',
+                        n.is_read ? 'bg-white text-gray-500' : 'bg-gray-50 font-medium',
                       )}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold">{parsed.title}</span>
-                        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
-                          {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
-                        </span>
+                      {parsed.avatarUrl || parsed.initials ? (
+                        parsed.avatarUrl ? (
+                          <Image
+                            src={getFullImageUrl(parsed.avatarUrl) as string}
+                            alt="avatar"
+                            width={40}
+                            height={40}
+                            className="h-10 w-10 flex-shrink-0 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                            {parsed.initials}
+                          </div>
+                        )
+                      ) : (
+                        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                          {parsed.icon}
+                        </div>
+                      )}
+                      <div className="flex-1 text-left">
+                        <div className="flex items-start justify-between">
+                          <span className="font-medium text-gray-900 truncate">{parsed.title}</span>
+                          <span className="text-xs text-gray-400">
+                            {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
+                          </span>
+                        </div>
+                        <span className="block text-sm text-gray-700 truncate">{parsed.subtitle}</span>
                       </div>
-                      <div className="text-sm text-gray-700 truncate">{parsed.subtitle}</div>
                     </div>
                   );
                 })}

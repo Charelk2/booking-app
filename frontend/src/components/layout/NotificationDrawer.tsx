@@ -32,10 +32,11 @@ export interface ParsedNotification {
 
 export function parseItem(n: UnifiedNotification): ParsedNotification {
   if (n.type === 'message') {
+    const snippet =
+      n.content.length > 40 ? `${n.content.slice(0, 40)}...` : n.content;
     return {
-      title: `${n.name}${n.unread_count ? ` (${n.unread_count})` : ''}`,
-      subtitle:
-        n.content.length > 40 ? `${n.content.slice(0, 37)}...` : n.content,
+      title: `${n.name}${n.unread_count !== undefined ? ` (${n.unread_count})` : ''}`,
+      subtitle: `Last message: "${snippet}"`,
       icon: '💬',
       avatarUrl: n.avatar_url || undefined,
       initials: n.name
@@ -68,8 +69,18 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       : iconKey.includes('song')
         ? iconMap.song
         : '📅';
-    const subtitleBase = btype ? `sent a new booking for ${btype}` : 'Booking Request';
-    const subtitle = subtitleBase.length > 60 ? `${subtitleBase.slice(0, 57)}...` : subtitleBase;
+    let formattedType = btype || '';
+    if (formattedType) {
+      formattedType = formattedType
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+    const subtitleBase = formattedType
+      ? `sent a booking for ${formattedType}`
+      : 'Booking Request';
+    const subtitle =
+      subtitleBase.length > 60 ? `${subtitleBase.slice(0, 57)}...` : subtitleBase;
     return {
       title: sender || 'New booking request',
       subtitle,
@@ -95,7 +106,7 @@ function DrawerItem({ n, onClick }: { n: UnifiedNotification; onClick: () => voi
       onClick={onClick}
       className={classNames(
         'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-100 rounded shadow-sm',
-        n.is_read ? 'text-gray-500 bg-gray-50 border-l-4 border-transparent' : 'font-medium border-l-4 border-indigo-500',
+        n.is_read ? 'text-gray-500 bg-white' : 'bg-gray-50 font-medium',
       )}
     >
       {parsed.avatarUrl || parsed.initials ? (
@@ -118,11 +129,13 @@ function DrawerItem({ n, onClick }: { n: UnifiedNotification; onClick: () => voi
         </div>
       )}
       <div className="flex-1 text-left">
-        <span className="block font-medium text-gray-900 truncate">{parsed.title}</span>
+        <div className="flex items-start justify-between">
+          <span className="font-medium text-gray-900 truncate">{parsed.title}</span>
+          <span className="text-xs text-gray-400">
+            {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
+          </span>
+        </div>
         <span className="block text-sm text-gray-700 truncate">{parsed.subtitle}</span>
-        <span className="block mt-1 text-xs text-gray-400">
-          {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
-        </span>
       </div>
     </button>
   );
