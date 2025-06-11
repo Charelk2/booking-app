@@ -224,9 +224,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     ],
   );
 
-  // Filter out very short or empty messages before rendering
+  // Filter out empty messages before rendering so even 1-character
+  // messages like "ok" or "?" still show up
   const visibleMessages = useMemo(
-    () => messages.filter((m) => m.content && m.content.trim().length > 5),
+    () => messages.filter((m) => m.content && m.content.trim().length > 0),
     [messages],
   );
 
