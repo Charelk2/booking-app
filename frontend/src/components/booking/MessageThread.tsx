@@ -230,6 +230,33 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     [messages],
   );
 
+  interface MessageGroup {
+    sender_id: number | null;
+    sender_type: string;
+    messages: Message[];
+  }
+
+  const groupedMessages = useMemo(() => {
+    const groups: MessageGroup[] = [];
+    visibleMessages.forEach((msg) => {
+      const last = groups[groups.length - 1];
+      if (
+        !last ||
+        last.sender_id !== msg.sender_id ||
+        last.sender_type !== msg.sender_type
+      ) {
+        groups.push({
+          sender_id: msg.sender_id,
+          sender_type: msg.sender_type,
+          messages: [msg],
+        });
+      } else {
+        last.messages.push(msg);
+      }
+    });
+    return groups;
+  }, [visibleMessages]);
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
       <div className="bg-white shadow-lg rounded-2xl overflow-hidden border flex flex-col min-h-[70vh]">
@@ -255,96 +282,104 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             <p className="text-sm text-gray-500">No messages yet. Start the conversation below.</p>
           )
         )}
-        {visibleMessages.map((msg) => {
-          const isSystem = msg.message_type === 'system';
-          // Bubble alignment still depends on the logged in user
-          const isSelf = !isSystem && msg.sender_id === user?.id;
-
-          const bubbleClass = isSelf
-            ? 'bg-[#4F46E5] text-white self-end'
-            : isSystem
-              ? 'bg-gray-200 text-gray-900 self-start'
-              : 'bg-gray-100 text-gray-800 self-start';
-          const bubbleBase = 'rounded-xl px-4 py-2 max-w-[75%] text-sm';
-
+        {groupedMessages.map((group, idx) => {
+          const firstMsg = group.messages[0];
+          const isSystem = firstMsg.message_type === 'system';
+          const isSelf = !isSystem && firstMsg.sender_id === user?.id;
           const avatar = isSystem
             ? artistName?.charAt(0)
-            : msg.sender_type === 'artist'
+            : group.sender_type === 'artist'
               ? artistName?.charAt(0)
               : clientName?.charAt(0);
-
           const senderDisplayName = isSystem
             ? artistName
-            : msg.sender_type === 'artist'
+            : group.sender_type === 'artist'
               ? artistName
               : clientName;
-
-          const relativeTime = formatDistanceToNow(new Date(msg.timestamp), {
-            addSuffix: true,
-          });
-
-          const timeString = new Date(msg.timestamp).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-          });
-          const timeClass =
-            'ml-2 text-[10px] font-light self-end ' +
-            (isSelf ? 'text-white' : 'text-gray-500');
+          const anyUnread = group.messages.some((m) => m.unread);
+          const groupClass = `${idx > 0 ? 'mt-4' : ''} ${anyUnread ? 'bg-purple-50' : ''}`;
 
           return (
-            <motion.div
-              key={msg.id}
-              initial={{ opacity: 0, translateY: 8 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              className={`flex flex-col ${isSelf ? 'items-end' : 'items-start'} gap-1 mb-2 ${msg.unread ? 'bg-purple-50' : ''}`}
+            <div
+              key={firstMsg.id}
+              className={`flex flex-col gap-0.5 ${isSelf ? 'items-end' : 'items-start'} ${groupClass}`}
             >
-              <span className={`text-sm ${msg.unread ? 'font-semibold' : 'font-medium'}`}>{senderDisplayName}</span>
-              <div className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
+              <div className={`flex items-center gap-2 mb-1 ${isSelf ? 'justify-end' : ''}`}
+              >
                 {!isSelf && (
                   <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
                     {avatar}
                   </div>
                 )}
-                <div
-                  className={`${bubbleBase} whitespace-pre-wrap flex ${bubbleClass}`}
-                >
-                  <div className="flex-1">
-                    {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
-                      <div className="text-gray-800">
-                        <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
-                        <p className="text-sm mt-1">
-                          {new Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: quotes[msg.quote_id].currency,
-                          }).format(Number(quotes[msg.quote_id].price))}
-                        </p>
-                      </div>
-                    ) : (
-                      msg.content
-                    )}{' '}
-                    {msg.attachment_url && (
-                      <a
-                        href={msg.attachment_url}
-                        target="_blank"
-                        className="block text-blue-600 underline mt-1 text-sm"
-                        rel="noopener noreferrer"
-                      >
-                        View attachment
-                      </a>
-                    )}
-                  </div>
-                  <span className={timeClass}>{timeString}</span>
-                </div>
-                {isSelf && (
-                  <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
-                    {avatar}
-                  </div>
-                )}
+                <span className={`text-sm ${anyUnread ? 'font-semibold' : 'font-medium'}`}>{senderDisplayName}</span>
               </div>
-              <span className="text-xs text-gray-400 mt-1">{relativeTime}</span>
-              {/* Timestamps now appear inside each bubble instead of beside it. */}
-            </motion.div>
+              {group.messages.map((msg, mIdx) => {
+                const isLast = mIdx === group.messages.length - 1;
+                const bubbleClass = isSelf
+                  ? 'bg-[#4F46E5] text-white self-end'
+                  : isSystem
+                    ? 'bg-gray-200 text-gray-900 self-start'
+                    : 'bg-gray-100 text-gray-800 self-start';
+                const bubbleBase = 'rounded-2xl px-3 py-1.5 text-sm max-w-full sm:max-w-[75%] transition-all';
+
+                const timeString = new Date(msg.timestamp).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: false,
+                });
+                const timeClass =
+                  'ml-2 text-[10px] font-light self-end ' +
+                  (isSelf ? 'text-white' : 'text-gray-500');
+                const relativeTime = formatDistanceToNow(new Date(msg.timestamp), {
+                  addSuffix: true,
+                });
+
+                return (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, translateY: 8 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    className={`flex flex-col ${mIdx < group.messages.length - 1 ? 'mb-1' : ''}`}
+                  >
+                    <div className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        className={`${bubbleBase} whitespace-pre-wrap flex ${bubbleClass}`}
+                      >
+                        <div className="flex-1">
+                          {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
+                            <div className="text-gray-800">
+                              <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
+                              <p className="text-sm mt-1">
+                                {new Intl.NumberFormat('en-US', {
+                                  style: 'currency',
+                                  currency: quotes[msg.quote_id].currency,
+                                }).format(Number(quotes[msg.quote_id].price))}
+                              </p>
+                            </div>
+                          ) : (
+                            msg.content
+                          )}{' '}
+                          {msg.attachment_url && (
+                            <a
+                              href={msg.attachment_url}
+                              target="_blank"
+                              className="block text-blue-600 underline mt-1 text-sm"
+                              rel="noopener noreferrer"
+                            >
+                              View attachment
+                            </a>
+                          )}
+                        </div>
+                        <span className={timeClass}>{timeString}</span>
+                      </div>
+                    </div>
+                    {isLast && (
+                      <span className="text-xs text-gray-400 mt-1">{relativeTime}</span>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
           );
         })}
         {isSystemTyping && (

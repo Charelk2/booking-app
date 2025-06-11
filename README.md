@@ -416,6 +416,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 
 * WebSocket-powered updates.
 * Polished bubbles with timestamps, avatars, image previews.
+* Consecutive messages from the same sender now group together, showing the
+  relative time only below the last bubble.
 * Fixed input bar & auto-scroll on mobile.
 * Floating “scroll to latest” button on small screens.
 * Personalized Video flow: multi-step prompts, typing indicators, progress bar.
