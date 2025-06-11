@@ -25,6 +25,58 @@ function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
 }
 
+interface ParsedNotification {
+  title: string;
+  subtitle: string;
+  icon: string;
+}
+
+function parseNotification(n: Notification): ParsedNotification {
+  if (n.type === 'new_booking_request') {
+    const match = n.message.match(/New booking request from (.+): (.+)/i);
+    if (match) {
+      const [, sender, btype] = match;
+      const icon = btype.includes('Video') ? '🎥' : btype.includes('Performance') ? '🎵' : '📅';
+      return { title: sender, subtitle: `sent a new booking request`, icon };
+    }
+  }
+  return { title: n.message, subtitle: '', icon: '🔔' };
+}
+
+function DrawerItem({ n, onClick }: { n: Notification; onClick: () => void }) {
+  const [openMsg, setOpenMsg] = useState(false);
+  const parsed = parseNotification(n);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onClick();
+        setOpenMsg((p) => !p);
+      }}
+      className={classNames(
+        'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-100 rounded shadow-sm',
+        n.is_read ? 'text-gray-500 bg-gray-50' : 'font-medium',
+      )}
+    >
+      <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+        {parsed.icon}
+      </div>
+      <div className="flex-1 text-left">
+        <span className="block font-medium text-gray-900 truncate">{parsed.title}</span>
+        <span className="block text-sm text-gray-700 truncate">{parsed.subtitle}</span>
+        {openMsg && (
+          <span className="block mt-1 text-sm text-gray-700 whitespace-pre-wrap break-words">
+            {n.message}
+          </span>
+        )}
+        <span className="block mt-1 text-xs text-gray-400">
+          {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
+        </span>
+      </div>
+    </button>
+  );
+}
+
 export default function NotificationDrawer({
   open,
   onClose,
@@ -177,29 +229,7 @@ export default function NotificationDrawer({
                               : 'Other'}
                         </p>
                         {items.map((n) => (
-                          <button
-                            key={`notif-${n.id}`}
-                            type="button"
-                            onClick={() => markRead(n.id)}
-                          className={classNames(
-                              'group flex w-full items-start px-4 py-3 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-100',
-                              n.is_read
-                                ? 'text-gray-500 border-l-4 border-transparent'
-                                : 'font-medium border-l-4 border-indigo-500',
-                            )}
-                          >
-                            <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
-                              🔔
-                            </div>
-                            <div className="flex-1 text-left">
-                              <span className="block font-medium text-gray-900 whitespace-pre-wrap break-words">
-                                {n.message}
-                              </span>
-                              <span className="block mt-1 text-xs text-gray-400">
-                                {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
-                              </span>
-                            </div>
-                          </button>
+                          <DrawerItem key={`notif-${n.id}`} n={n} onClick={() => markRead(n.id)} />
                         ))}
                       </div>
                     ))}

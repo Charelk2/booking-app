@@ -432,6 +432,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Grouped by type, mark-as-read endpoints, and “Mark All as Read”.
 * "Unread Only" toggle filters message threads and alerts in the drawer and full-screen modal.
 * Optional SMS alerts when `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` are set in the backend environment.
+* Personalized video flows suppress chat alerts until all prompts are answered. A single notification is sent with the booking type once complete.
+* Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews.
 
 ### Artist Profile Enhancements
 

@@ -78,7 +78,15 @@ def create_booking_request(
     # The chat thread used to include a generic "Booking request sent" system
     # message immediately after creation. This extra message cluttered the
     # conversation view, so it has been removed.
-    notify_user_new_booking_request(db, artist_user, new_request.id)
+    service = None
+    if new_request.service_id:
+        service = db.query(models.Service).filter(models.Service.id == new_request.service_id).first()
+    booking_type = service.service_type if service else "General"
+    sender_name = f"{current_user.first_name} {current_user.last_name}"
+    if booking_type != "Personalized Video":
+        notify_user_new_booking_request(
+            db, artist_user, new_request.id, sender_name, booking_type
+        )
     return new_request
 
 @router.get("/me/client", response_model=List[schemas.BookingRequestResponse])
