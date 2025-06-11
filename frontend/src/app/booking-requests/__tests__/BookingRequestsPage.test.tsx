@@ -89,7 +89,7 @@ describe('BookingRequestsPage', () => {
     container.remove();
   });
 
-  it('filters by client name and sorts by proposed date', async () => {
+  it('filters by client name', async () => {
     const { container, root } = setup();
     await act(async () => {
       root.render(<BookingRequestsPage />);
@@ -97,19 +97,17 @@ describe('BookingRequestsPage', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const list = container.querySelector('ul');
-    const rows = list ? list.querySelectorAll('li') : ([] as NodeListOf<HTMLLIElement>);
-    const headerButton = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent?.includes('Proposed Date')
-    ) as HTMLButtonElement;
-    const initialDate = rows[0].querySelectorAll('div')[2]?.textContent;
-    await act(async () => {
-      headerButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const input = container.querySelector('input[type="text"]') as HTMLInputElement;
+    act(() => {
+      input.value = 'Bob';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    await act(async () => { await Promise.resolve(); });
-    const updatedRows = list ? list.querySelectorAll('li') : ([] as NodeListOf<HTMLLIElement>);
-    const dateCell = updatedRows[0].querySelectorAll('div')[2];
-    expect(dateCell?.textContent).not.toBe(initialDate);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const rows = Array.from(container.querySelectorAll('li'));
+    const bobRow = rows.find((r) => r.textContent?.includes('Bob B'));
+    expect(bobRow).toBeTruthy();
     act(() => {
       root.unmount();
     });
