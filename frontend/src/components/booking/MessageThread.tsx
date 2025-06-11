@@ -320,7 +320,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   : isSystem
                     ? 'bg-gray-200 text-gray-900 self-start'
                     : 'bg-gray-100 text-gray-800 self-start';
-                const bubbleBase = 'rounded-2xl px-3 py-1.5 text-sm max-w-full sm:max-w-[75%] transition-all';
+                const bubbleBase = 'rounded-2xl px-3 py-1.5 text-sm max-w-full sm:max-w-[85%] transition-all';
 
                 const timeString = new Date(msg.timestamp).toLocaleTimeString([], {
                   hour: '2-digit',
