@@ -302,7 +302,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           return (
             <div
               key={firstMsg.id}
-              className={`flex flex-col gap-0.5 ${isSelf ? 'items-end' : 'items-start'} ${groupClass}`}
+              className={`flex flex-col gap-0.5 ${isSelf ? 'items-end ml-auto' : 'items-start'} ${groupClass}`}
             >
               <div className={`flex items-center gap-2 mb-1 ${isSelf ? 'justify-end' : ''}`}
               >
@@ -320,7 +320,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   : isSystem
                     ? 'bg-gray-200 text-gray-900 self-start'
                     : 'bg-gray-100 text-gray-800 self-start';
-                const bubbleBase = 'rounded-2xl px-3 py-1.5 text-sm max-w-full sm:max-w-[85%] transition-all';
+                const bubbleBase =
+                  'inline-flex flex-shrink-0 rounded-2xl px-4 py-2 text-sm leading-snug max-w-[70%] sm:max-w-[60%]';
 
                 const timeString = new Date(msg.timestamp).toLocaleTimeString([], {
                   hour: '2-digit',
@@ -328,8 +329,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   hour12: false,
                 });
                 const timeClass =
-                  'ml-2 text-[10px] font-light self-end ' +
-                  (isSelf ? 'text-white' : 'text-gray-500');
+                  'ml-2 text-xs text-right text-gray-400 self-end flex-shrink-0';
                 const relativeTime = formatDistanceToNow(new Date(msg.timestamp), {
                   addSuffix: true,
                 });
@@ -341,9 +341,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                     animate={{ opacity: 1, translateY: 0 }}
                     className={`flex flex-col ${mIdx < group.messages.length - 1 ? 'mb-1' : ''}`}
                   >
-                    <div className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`flex items-end gap-2 ${isSelf ? 'justify-end ml-auto' : 'justify-start'}`}>
                       <div
-                        className={`${bubbleBase} whitespace-pre-wrap flex ${bubbleClass}`}
+                        className={`${bubbleBase} whitespace-pre-wrap ${bubbleClass}`}
                       >
                         <div className="flex-1">
                           {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
