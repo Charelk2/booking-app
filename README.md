@@ -435,6 +435,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Optional SMS alerts when `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` are set in the backend environment.
 * Personalized video flows suppress chat alerts until all prompts are answered. A single notification is sent with the booking type once complete.
 * Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews.
+* Booking request notifications now display the sender name as the title and the service type in the subtitle for quicker context.
 
 ### Artist Profile Enhancements
 
