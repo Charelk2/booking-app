@@ -321,7 +321,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                     ? 'bg-gray-200 text-gray-900 self-start'
                     : 'bg-gray-100 text-gray-800 self-start';
                 const bubbleBase =
-                  'inline-flex flex-shrink-0 rounded-2xl px-4 py-2 text-sm leading-snug max-w-[70%] sm:max-w-[60%]';
+                  'relative inline-flex flex-shrink-0 rounded-2xl px-4 py-2 pr-8 text-sm leading-snug max-w-[70%] sm:max-w-[60%]';
 
                 const timeString = new Date(msg.timestamp).toLocaleTimeString([], {
                   hour: '2-digit',
@@ -329,7 +329,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   hour12: false,
                 });
                 const timeClass =
-                  'ml-2 text-xs text-right text-gray-400 self-end flex-shrink-0';
+                  'absolute bottom-1 right-2 text-xs text-right text-gray-400';
                 const relativeTime = formatDistanceToNow(new Date(msg.timestamp), {
                   addSuffix: true,
                 });
