@@ -488,6 +488,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Persistent bottom nav on small screens (visible only when logged in) with compact 56px height.
 * Bottom nav auto-hides when you scroll down and reappears when scrolling up.
 * Unread message counts badge on Messages icon. Badge now sits snugly over the icon on all devices.
+* Chat attachment button stays inline with the message input and send button on all screens.
 * Tap feedback on icons via `active:bg-gray-100`.
 * **Inbox** page at `/inbox` separates Booking Requests and Chats into tabs.
 * `ChatThreadView` component for mobile-friendly chat threads using a modern card-style layout.
