@@ -3,11 +3,9 @@ import React from 'react';
 import { act } from 'react';
 import { waitFor } from '@testing-library/react';
 import InboxPage from '../page';
-import * as api from '@/lib/api';
 import useNotifications from '@/hooks/useNotifications';
 import { useRouter } from 'next/navigation';
 
-jest.mock('@/lib/api');
 jest.mock('@/hooks/useNotifications', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -35,24 +33,15 @@ function setup(unread = 0) {
         timestamp: new Date().toISOString(),
         content: 'Hi',
         is_read: unread === 0,
+        booking_details: {
+          timestamp: new Date().toISOString(),
+          location: 'Test',
+        },
       },
     ],
     loading: false,
     error: null,
     markItem: jest.fn(),
-  });
-  (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
-    data: [
-      {
-        id: 1,
-        booking_request_id: 1,
-        sender_id: 2,
-        sender_type: 'artist',
-        content: 'Booking details:\nLocation: Test',
-        message_type: 'system',
-        timestamp: new Date().toISOString(),
-      },
-    ],
   });
 
   const container = document.createElement('div');
@@ -71,10 +60,6 @@ describe('InboxPage unread badge', () => {
     await act(async () => {
       root.render(<InboxPage />);
     });
-    // wait for the InboxPage effect that fetches booking details
-    await act(async () => {
-      await Promise.resolve();
-    });
     const card = container.querySelector('li div');
     expect(card?.className).toContain('bg-indigo-50');
     const badge = container.querySelector('span.bg-red-600');
@@ -91,9 +76,6 @@ describe('InboxPage unread badge', () => {
     const { container, root } = setup(0);
     await act(async () => {
       root.render(<InboxPage />);
-    });
-    await act(async () => {
-      await Promise.resolve();
     });
     const dot = container.querySelector('span[aria-label="Unread messages"]');
     expect(dot).toBeNull();
@@ -116,11 +98,6 @@ describe('InboxPage navigation', () => {
 
     await act(async () => {
       root.render(<InboxPage />);
-    });
-
-    // flush InboxPage effect that fetches booking details
-    await act(async () => {
-      await Promise.resolve();
     });
 
     const card = container.querySelector('li div') as HTMLDivElement;

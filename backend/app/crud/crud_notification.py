@@ -2,6 +2,8 @@ from collections import defaultdict
 from sqlalchemy.orm import Session
 from typing import Dict, List, Iterable
 
+from ..utils.messages import BOOKING_DETAILS_PREFIX, parse_booking_details
+
 from datetime import datetime
 
 from .. import models
@@ -122,13 +124,32 @@ def get_message_thread_notifications(db: Session, user_id: int) -> List[dict]:
                 "link": n.link,
                 "timestamp": n.timestamp,
                 "avatar_url": avatar_url,
+                "booking_details": None,
             }
+            thread = threads[request_id]
         else:
             if not n.is_read:
                 thread["unread_count"] += 1
             if n.timestamp > thread["timestamp"]:
                 thread["last_message"] = n.message
                 thread["timestamp"] = n.timestamp
+
+        if thread.get("booking_details") is None:
+            details_msg = (
+                db.query(models.Message)
+                .filter(
+                    models.Message.booking_request_id == request_id,
+                    models.Message.message_type == models.MessageType.SYSTEM,
+                    models.Message.content.startswith(BOOKING_DETAILS_PREFIX),
+                )
+                .order_by(models.Message.timestamp.asc())
+                .first()
+            )
+            if details_msg:
+                thread["booking_details"] = {
+                    "timestamp": details_msg.timestamp,
+                    **parse_booking_details(details_msg.content),
+                }
 
     return sorted(threads.values(), key=lambda t: t["timestamp"], reverse=True)
 

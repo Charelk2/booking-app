@@ -435,6 +435,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 ### Notifications
 
 * Persisted via `/api/v1/notifications` & `/api/v1/notifications/message-threads`.
+* `/notifications/message-threads` now returns a `booking_details` object when a thread contains a booking details message.
 * Bell icon in header; slide-out drawer on mobile.
 * Clipboard icon opens `/booking-requests` with an unread badge.
 * Unified feed combines booking updates and message threads.
