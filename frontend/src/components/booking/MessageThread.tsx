@@ -327,6 +327,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               width={32}
               height={32}
               className="h-8 w-8 rounded-full object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
+              }}
             />
           )}
         </header>

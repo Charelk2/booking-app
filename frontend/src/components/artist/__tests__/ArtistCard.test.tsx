@@ -39,4 +39,18 @@ describe('ArtistCard optional fields', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('falls back to default avatar on image error', () => {
+    const { container, root } = setup({ imageUrl: '/missing.jpg' });
+    const img = container.querySelector('img') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    if (img) {
+      act(() => {
+        img.dispatchEvent(new Event('error'));
+      });
+      expect(img.src).toContain('/default-avatar.svg');
+    }
+    act(() => root.unmount());
+    container.remove();
+  });
 });
