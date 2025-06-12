@@ -22,6 +22,10 @@ docker pull ghcr.io/example-org/booking-app-ci:latest # optional pre-built image
 docker run --rm -p 3000:3000 -p 8000:8000 ghcr.io/example-org/booking-app-ci:latest
 ```
 
+For first-time test runs with internet access, populate the dependency caches by
+running `DOCKER_TEST_NETWORK=bridge ./scripts/docker-test.sh`. This copies the
+caches from the Docker image so subsequent runs work offline.
+
 To develop using the pre-built image without reinstalling dependencies, mount the repository and expose the ports:
 
 ```bash
@@ -205,6 +209,10 @@ Before using the regular test runner, populate the dependency caches by running
 
 ```bash
 DOCKER_TEST_NETWORK=bridge ./scripts/docker-test.sh
+
+Running with `DOCKER_TEST_NETWORK=bridge` ensures the initial install can reach
+the package registries. Once the caches exist you can omit this flag to stay
+offline.
 ```
 
 This command copies `backend/venv` and `frontend/node_modules` from the Docker
