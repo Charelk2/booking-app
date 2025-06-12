@@ -199,6 +199,13 @@ export interface ThreadNotification {
   link: string;
   timestamp: string;
   avatar_url?: string | null;
+  booking_details?: {
+    timestamp: string;
+    location?: string;
+    guests?: string;
+    venue_type?: string;
+    notes?: string;
+  } | null;
 }
 
 export interface UnifiedNotification {
@@ -225,4 +232,11 @@ export interface UnifiedNotification {
   sender_name?: string;
   /** Booking type or service title */
   booking_type?: string;
+  booking_details?: {
+    timestamp: string;
+    location?: string;
+    guests?: string;
+    venue_type?: string;
+    notes?: string;
+  } | null;
 }

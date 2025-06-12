@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import MainLayout from '@/components/layout/MainLayout';
 import useNotifications from '@/hooks/useNotifications';
-import { getMessagesForBookingRequest } from '@/lib/api';
+
 
 interface BookingPreview {
   id: number;
@@ -18,23 +18,6 @@ interface BookingPreview {
   notes?: string;
   unread: number;
 }
-
-const parseBookingDetails = (text: string) => {
-  const lines = text.split('\n').slice(1);
-  const details: Record<string, string> = {};
-  lines.forEach((line) => {
-    const [key, ...rest] = line.split(':');
-    if (key && rest.length > 0) {
-      details[key.trim().toLowerCase()] = rest.join(':').trim();
-    }
-  });
-  return {
-    location: details.location,
-    guests: details.guests,
-    venueType: details['venue type'],
-    notes: details.notes,
-  };
-};
 
 export default function InboxPage() {
   const { items, loading, error, markItem } = useNotifications();
@@ -50,52 +33,28 @@ export default function InboxPage() {
   const [chats, setChats] = useState<typeof messageThreads>([]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const bookingList: BookingPreview[] = [];
-      const chatList: typeof messageThreads = [];
+    const bookingList: BookingPreview[] = [];
+    const chatList: typeof messageThreads = [];
 
-      await Promise.all(
-        messageThreads.map(async (t) => {
-          try {
-            const res = await getMessagesForBookingRequest(t.booking_request_id);
-            const bookingMsg = res.data.find(
-              (m) =>
-                m.message_type === 'system' &&
-                m.content.startsWith('Booking details:')
-            );
-            if (bookingMsg) {
-              const details = parseBookingDetails(bookingMsg.content);
-              bookingList.push({
-                id: t.booking_request_id,
-                senderName: t.name,
-                formattedDate: new Date(bookingMsg.timestamp).toLocaleDateString(),
-                ...details,
-                unread: t.unread_count,
-              });
-            } else {
-              chatList.push(t);
-            }
-          } catch (err) {
-            console.error(
-              'Failed to fetch messages for thread',
-              t.booking_request_id,
-              err
-            );
-            chatList.push(t);
-          }
-        })
-      );
+    messageThreads.forEach((t) => {
+      if (t.booking_details) {
+        bookingList.push({
+          id: t.booking_request_id,
+          senderName: t.name,
+          formattedDate: new Date(t.booking_details.timestamp).toLocaleDateString(),
+          location: t.booking_details.location,
+          guests: t.booking_details.guests,
+          venueType: t.booking_details.venue_type,
+          notes: t.booking_details.notes,
+          unread: t.unread_count,
+        });
+      } else {
+        chatList.push(t);
+      }
+    });
 
-      setBookings(bookingList);
-      setChats(chatList);
-    };
-
-    if (messageThreads.length > 0) {
-      fetchData();
-    } else {
-      setBookings([]);
-      setChats([]);
-    }
+    setBookings(bookingList);
+    setChats(chatList);
   }, [messageThreads]);
 
   const handleClick = async (id: number) => {
