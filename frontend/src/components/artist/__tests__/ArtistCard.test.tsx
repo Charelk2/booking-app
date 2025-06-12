@@ -57,10 +57,17 @@ describe('ArtistCard optional fields', () => {
     container.remove();
   });
 
-  it('displays rating and review count', () => {
+  it('displays rating when provided', () => {
     const { container, root } = setup({ rating: 4.5, ratingCount: 10 });
     expect(container.textContent).toContain('4.5');
-    expect(container.textContent).toContain('(10)');
+    expect(container.textContent).not.toContain('(10)');
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('shows fallback message when no rating', () => {
+    const { container, root } = setup();
+    expect(container.textContent).toContain('No ratings yet');
     act(() => root.unmount());
     container.remove();
   });

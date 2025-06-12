@@ -474,9 +474,9 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Accessibility and animation improvements.
 * Dashboard stats now animate on load using **framer-motion**.
 * Artist cards display star ratings and verified badges. Prices only appear when `price_visible` is true.
-* `<ArtistCard />` now accepts `rating`, `ratingCount`, `priceVisible`, `verified`, and `isAvailable` props so listings can show review data. You may also pass `specialities` as an alias for `specialties`. Ratings render with a star icon and the total count. Availability information remains in the data layer but is hidden from the UI.
+* `<ArtistCard />` now accepts `rating`, `ratingCount`, `priceVisible`, `verified`, and `isAvailable` props so listings can show review data. You may also pass `specialities` as an alias for `specialties`. Ratings render with a star icon; availability information remains in the data layer but is hidden from the UI.
 * The card layout was revamped: the photo stacks above the details on mobile and sits left on larger screens. Taglines clamp to two lines using the new Tailwind `line-clamp` plugin. Pricing appears beneath the artist name when `priceVisible` is true or shows **Contact for pricing** otherwise.
-* Final polish aligns `<ArtistCard />` with the global design system: a subtle border, softer shadow, improved meta rows with icons, and a rounded-xl action button. Ratings display "No ratings yet" when missing and the location row includes a pin icon for clarity.
+* Final polish aligns `<ArtistCard />` with the global design system: a subtle border, softer shadow, improved meta rows with icons, and a rounded-xl action button. Ratings display "No ratings yet" when missing.
 
 ### Service Management (Artist Dashboard)
 
