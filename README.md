@@ -420,6 +420,9 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * **Endpoints** under `/api/v1/sound-providers` and `/api/v1/quotes/calculate`.
 * Frontend pages: `/sound-providers`, `/quote-calculator`.
 * Quote API factors travel distance, provider fees, and accommodation.
+* New quote endpoints: `POST /api/v1/quotes`, `GET /api/v1/quotes/{id}`, and
+  `POST /api/v1/quotes/{id}/accept` create simplified bookings when a client
+  accepts.
 
 ### Booking Wizard
 
