@@ -43,6 +43,12 @@ export const extractErrorMessage = (detail: unknown): string => {
   return String(detail);
 };
 
+export const formatCurrency = (
+  value: number,
+  currency = 'ZAR',
+): string =>
+  new Intl.NumberFormat('en-ZA', { style: 'currency', currency }).format(value);
+
 export const normalizeService = (service: Service): Service => ({
   ...service,
   price:
