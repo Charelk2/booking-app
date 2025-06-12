@@ -59,49 +59,47 @@ export default function ArtistsPage() {
             Compare artists, check ratings, and book instantly.
           </p>
         </div>
-        <div className="rounded-xl bg-white shadow-md px-4 py-3 flex flex-wrap gap-2 items-center justify-start mt-4">
+        <div className="mt-6 mb-4 px-6 py-4 bg-white rounded-xl shadow-sm flex flex-wrap items-center gap-2">
           <div className="flex gap-2 overflow-x-auto whitespace-nowrap">
             {CATEGORIES.map((c) => (
               <button
                 key={c}
                 type="button"
                 onClick={() => onCategory(c)}
-                className={
-                  category === c
-                    ? 'flex items-center gap-1 rounded-full bg-indigo-100 text-indigo-600 px-3 py-1.5 text-sm font-semibold'
-                    : 'flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 px-3 py-1.5 text-sm font-medium hover:bg-gray-200 transition'
-                }
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition${
+                  category === c ? ' bg-indigo-100 text-indigo-600 font-semibold' : ''
+                }`}
               >
                 {c}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2 ml-auto">
+          <input
+            placeholder="Location"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="text-sm px-3 py-1.5 rounded-md border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-[140px]"
+          />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value || undefined)}
+            className="text-sm px-3 py-1.5 rounded-md border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">Sort</option>
+            <option value="top_rated">Top Rated</option>
+            <option value="most_booked">Most Booked</option>
+            <option value="newest">Newest</option>
+          </select>
+          <label className="flex items-center gap-1 text-sm">
             <input
-              placeholder="Location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="border rounded px-2 py-1 text-sm"
+              type="checkbox"
+              checked={verifiedOnly}
+              onChange={(e) => setVerifiedOnly(e.target.checked)}
             />
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value || undefined)}
-              className="border rounded px-2 py-1 text-sm"
-            >
-              <option value="">Sort</option>
-              <option value="top_rated">Top Rated</option>
-              <option value="most_booked">Most Booked</option>
-              <option value="newest">Newest</option>
-            </select>
-            <label className="flex items-center gap-1 text-sm">
-              <input
-                type="checkbox"
-                checked={verifiedOnly}
-                onChange={(e) => setVerifiedOnly(e.target.checked)}
-              />
-              Verified Only
-            </label>
-            <button type="button" className="ml-2 flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800">
+            Verified Only
+          </label>
+          <div className="ml-auto">
+            <button type="button" className="flex items-center gap-1 text-sm font-medium text-indigo-600 hover:underline">
               <FunnelIcon className="w-4 h-4" />
               Filter
             </button>
