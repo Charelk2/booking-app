@@ -418,7 +418,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                             <div className="text-gray-800">
                               <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
                               <p className="text-sm mt-1">
-                                {new Intl.NumberFormat('en-US', {
+                                {new Intl.NumberFormat('en-ZA', {
                                   style: 'currency',
                                   currency: quotes[msg.quote_id].currency,
                                 }).format(Number(quotes[msg.quote_id].price))}

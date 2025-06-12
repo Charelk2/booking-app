@@ -54,7 +54,7 @@ class BookingRequestResponse(BookingRequestBase):
 class QuoteBase(BaseModel):
     quote_details: str
     price: Decimal
-    currency: str = "USD"
+    currency: str = "ZAR"
     valid_until: Optional[datetime] = None
 
 class QuoteCreate(QuoteBase):

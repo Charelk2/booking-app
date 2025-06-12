@@ -99,7 +99,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
             </div>
 
             <div>
-              <label htmlFor="price" className="block text-sm font-medium text-gray-700">Price ($)</label>
+              <label htmlFor="price" className="block text-sm font-medium text-gray-700">Price (R)</label>
               <input
                 type="number"
                 id="price"
