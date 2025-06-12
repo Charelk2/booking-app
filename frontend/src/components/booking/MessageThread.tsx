@@ -353,8 +353,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           )}
         </header>
         {bookingConfirmed && (
-          <div className="bg-green-50 text-green-800 text-sm px-4 py-2" data-testid="booking-confirmed-banner">
-            This event is now booked and confirmed.
+          <div
+            className="rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-800 mt-4"
+            data-testid="booking-confirmed-banner"
+          >
+            🎉 Booking confirmed for {artistName}! You’ll receive follow-up emails and details.
           </div>
         )}
         <div
