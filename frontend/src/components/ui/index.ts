@@ -4,3 +4,4 @@ export { default as Tag } from './Tag';
 export { default as Stepper } from './Stepper';
 export { default as TextInput } from './TextInput';
 export { default as Toast } from './Toast';
+export { default as TimeAgo } from './TimeAgo';

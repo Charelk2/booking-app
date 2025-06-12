@@ -11,7 +11,7 @@ import React, {
 } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { formatDistanceToNow } from 'date-fns';
+import TimeAgo from '../ui/TimeAgo';
 import { getFullImageUrl } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
@@ -350,9 +350,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           const isSelf = !isSystem && firstMsg.sender_id === user?.id;
           const anyUnread = group.messages.some((m) => m.unread);
           const groupClass = `${idx > 0 ? 'mt-1' : ''} ${anyUnread ? 'bg-purple-50' : ''}`;
-          const relativeGroupTime = formatDistanceToNow(new Date(firstMsg.timestamp), {
-            addSuffix: true,
-          });
 
           return (
             <div
@@ -375,16 +372,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   <hr className="flex-grow border-t border-gray-300" />
                 </div>
               )}
-              <time
-                dateTime={firstMsg.timestamp}
-                title={new Date(firstMsg.timestamp).toLocaleString()}
+              <TimeAgo
+                timestamp={firstMsg.timestamp}
                 className="text-xs text-gray-400 mb-1"
-              >
-                <span className="sr-only">
-                  {new Date(firstMsg.timestamp).toLocaleString()}
-                </span>
-                {relativeGroupTime}
-              </time>
+              />
               {anyUnread && (
                 <span
                   className="absolute right-0 top-1 w-2 h-2 bg-purple-600 rounded-full"
