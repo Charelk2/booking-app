@@ -31,16 +31,18 @@ describe('ArtistCard optional fields', () => {
     c1.remove();
 
     const { container: c2, root: r2 } = setup({ price: '$200', priceVisible: false });
-    expect(c2.textContent).not.toContain('$200');
+    expect(c2.textContent).toContain('Price available on request');
     act(() => r2.unmount());
     c2.remove();
   });
 
-  it('shows location and tagline clamped', () => {
+  it('shows location and tagline truncated', () => {
     const { container, root } = setup({ location: 'NYC', subtitle: 'Best artist ever in the world' });
     expect(container.textContent).toContain('NYC');
     const subtitleEl = container.querySelector('p.text-sm');
-    expect(subtitleEl?.className).toContain('line-clamp-2');
+    expect(subtitleEl?.className).toContain('truncate');
+    const locEl = container.querySelector('p.text-xs');
+    expect(locEl?.textContent).toContain('📍NYC');
     act(() => root.unmount());
     container.remove();
   });
@@ -49,7 +51,7 @@ describe('ArtistCard optional fields', () => {
     const { container, root } = setup({ verified: true, isAvailable: false });
     const badge = container.querySelector('svg');
     expect(badge).not.toBeNull();
-    expect(container.textContent).toContain('Unavailable');
+    expect(container.textContent).toContain('Currently unavailable');
     act(() => root.unmount());
     container.remove();
   });
