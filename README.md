@@ -618,7 +618,7 @@ Payment processing now emits structured logs instead of printing to stdout so tr
 
 All prices and quotes now default to **South African Rand (ZAR)**. Update your environment or tests if you previously assumed USD values.
 
-`DEFAULT_CURRENCY` in `frontend/src/lib/constants.ts` exports this value for use across the app. Call `formatCurrency(value, currency?, locale?)` from `frontend/src/lib/utils.ts` to format amounts consistently.
+`DEFAULT_CURRENCY` in `frontend/src/lib/constants.ts` exports this value for use across the app. Call `formatCurrency(value, currency?, locale?)` from `frontend/src/lib/utils.ts` to format amounts consistently. UI labels such as "Price" and "Hourly Rate" now automatically display this currency.
 
 ---
 
