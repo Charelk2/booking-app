@@ -514,7 +514,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Tap a booking request card to open `/booking-requests/[id]`.
 * Unread booking requests are highlighted in indigo so they stand out.
 * Requests from the same client are grouped under a collapsible heading for a cleaner overview.
-* Unread counts appear as a red badge next to the sender name.
+* Each request row now shows a red badge with its unread count next to the status.
 * Threads with unread messages also show a small dot next to the timestamp until opened.
 
 ### Auth & Registration
