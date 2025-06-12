@@ -88,6 +88,10 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 The SQLite database path is automatically resolved to the project root, so you can start the backend from either the repo root or the `backend/` folder without creating duplicate database files.
 
+### Database migrations
+
+Run `alembic upgrade head` whenever you pull changes that modify the database schema. The API will attempt to add missing columns such as `artist_profiles.price_visible` automatically for SQLite setups, but explicit migrations are recommended for other databases.
+
 ### Service type enum
 
 `services.service_type` stores enum string values such as `"Live Performance"`. If you run into lookup errors, ensure your SQLAlchemy model uses:
