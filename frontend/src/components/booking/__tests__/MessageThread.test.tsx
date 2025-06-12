@@ -333,10 +333,20 @@ describe('MessageThread component', () => {
     });
 
     const details = container.querySelector('[data-testid="booking-details"]');
-    const summary = container.querySelector('summary');
+    const button = container.querySelector(
+      '[data-testid="booking-details-button"]',
+    ) as HTMLButtonElement;
     expect(details).not.toBeNull();
-    expect(summary?.textContent).toBe('Show details');
-    expect(details?.textContent).toContain('Location: Test City');
+    expect(button?.textContent).toBe('Show details');
+    expect(
+      container.querySelector('[data-testid="booking-details-content"]'),
+    ).toBeNull();
+    act(() => {
+      button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    const content = container.querySelector('[data-testid="booking-details-content"]');
+    expect(button?.textContent).toBe('Hide details');
+    expect(content?.textContent).toContain('Location: Test City');
   });
 
   it('announces new messages when scrolled away from bottom', async () => {
