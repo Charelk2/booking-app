@@ -615,6 +615,8 @@ POST /api/v1/payments
 ```
 Payment processing now emits structured logs instead of printing to stdout so transactions can be traced in production.
 
+All prices and quotes now default to **South African Rand (ZAR)**. Update your environment or tests if you previously assumed USD values.
+
 ---
 
 ## Troubleshooting & Common Errors
