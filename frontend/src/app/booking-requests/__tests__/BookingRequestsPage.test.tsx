@@ -109,7 +109,9 @@ describe('BookingRequestsPage', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const input = container.querySelector('input[type="text"]') as HTMLInputElement;
+    const input = container.querySelector(
+      'input[aria-label="Search by client name"]',
+    ) as HTMLInputElement;
     act(() => {
       input.value = 'Bob';
       input.dispatchEvent(new Event('input', { bubbles: true }));
