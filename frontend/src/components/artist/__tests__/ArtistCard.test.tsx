@@ -122,7 +122,7 @@ describe('ArtistCard optional fields', () => {
     container.remove();
   });
 
-  it('hides specialty tags when they overflow', () => {
+  it('limits specialty tags to two when they overflow', () => {
     const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
     const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
 
@@ -137,7 +137,9 @@ describe('ArtistCard optional fields', () => {
 
     const { container, root } = setup({ specialties: ['x', 'y', 'z'] });
     const tagDiv = container.querySelector('div.flex.flex-nowrap');
-    expect(tagDiv).toBeNull();
+    expect(tagDiv).not.toBeNull();
+    const tags = tagDiv?.querySelectorAll('span');
+    expect(tags?.length).toBe(2);
 
     act(() => root.unmount());
     container.remove();
