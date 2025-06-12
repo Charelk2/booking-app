@@ -470,6 +470,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Profile images across the UI now automatically fall back to `default-avatar.svg` if the requested file cannot be loaded.
 * Accessibility and animation improvements.
 * Dashboard stats now animate on load using **framer-motion**.
+* Artist cards display star ratings, verified badges, and an availability pill. Prices only appear when `price_visible` is true.
 
 ### Service Management (Artist Dashboard)
 
