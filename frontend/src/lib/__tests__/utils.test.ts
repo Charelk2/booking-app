@@ -5,6 +5,7 @@ import {
   getFullImageUrl,
   formatCurrency,
 } from '../utils';
+import { DEFAULT_CURRENCY } from '../constants';
 import api from '../api';
 import { format } from 'date-fns';
 import type { Service, ArtistProfile } from '@/types';
@@ -79,11 +80,15 @@ describe('getFullImageUrl', () => {
 });
 
 describe('formatCurrency', () => {
-  it('formats numbers as ZAR currency by default', () => {
+  it('formats numbers using DEFAULT_CURRENCY and locale', () => {
     expect(formatCurrency(1000.5)).toBe('R\u00A01\u00A0000,50');
   });
 
   it('uses the provided currency code', () => {
     expect(formatCurrency(100, 'USD')).toBe('US$100,00');
+  });
+
+  it('accepts a custom locale', () => {
+    expect(formatCurrency(100, DEFAULT_CURRENCY, 'en-US')).toBe('ZAR\u00A0100.00');
   });
 });
