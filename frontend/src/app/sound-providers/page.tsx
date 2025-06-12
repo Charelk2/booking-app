@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
+import { formatCurrency } from '@/lib/utils';
 import {
   getSoundProviders,
   createSoundProvider,
@@ -100,7 +101,7 @@ export default function SoundProvidersPage() {
                 <p className="font-medium">{prov.name}</p>
                 {prov.contact_info && <p className="text-sm">{prov.contact_info}</p>}
                 {prov.price_per_event != null && (
-                  <p className="text-sm">${Number(prov.price_per_event).toFixed(2)}</p>
+                  <p className="text-sm">{formatCurrency(Number(prov.price_per_event))}</p>
                 )}
               </div>
               <button
