@@ -612,7 +612,7 @@ export default function EditArtistProfilePage(): JSX.Element {
               <div className="space-y-4">
                 <div>
                   <label htmlFor="hourlyRate" className={labelClasses}>
-                    Hourly Rate (USD)
+                    Hourly Rate (R)
                   </label>
                   <input
                     type="number"
