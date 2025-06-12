@@ -458,6 +458,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Desktop bubbles expand wider to avoid unnecessary line breaks.
 * Floating “scroll to latest” button on small screens.
 * File uploads show an inline progress bar and the send button is disabled until complete.
+* Artists can now send itemized quotes directly in the thread via a **Send Quote** modal. Clients can accept or decline, and accepted quotes show a confirmation banner.
 * Upload progress and new message alerts are announced to screen readers.
 * Personalized Video flow: multi-step prompts, typing indicators, progress bar.
 * Sticky input demo at `/demo/sticky-input` shows local message appending.
