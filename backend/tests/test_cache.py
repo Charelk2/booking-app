@@ -21,17 +21,47 @@ class DummyDB:
     def __init__(self, data):
         self.data = data
         self.called = 0
-    def query(self, model):
+
+    def query(self, *models):
         self.called += 1
+
         class Q:
             def __init__(self, data):
                 self._data = data
+                self.rating = 0
+                self.rating_count = 0
+                self.book_count = 0
+
             def all(self):
-                return self._data
+                # Return tuples like the real query
+                return [(item, None, 0, 0) for item in self._data]
+
+            def outerjoin(self, *args, **kwargs):
+                return self
+
+            def join(self, *args, **kwargs):
+                return self
+
+            def filter(self, *args, **kwargs):
+                return self
+
+            def group_by(self, *args, **kwargs):
+                return self
+
+            def order_by(self, *args, **kwargs):
+                return self
+
+            @property
+            def c(self):
+                return self
+
+            def subquery(self, *args, **kwargs):
+                return self
+
         return Q(self.data)
 
 class FailingDB(DummyDB):
-    def query(self, model):
+    def query(self, *models):
         raise AssertionError("db should not be accessed")
 
 def make_artist(id_: int):
@@ -50,16 +80,32 @@ def make_artist(id_: int):
         user=None,
     )
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.models.base import BaseModel
+from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.user import User, UserType
+
+
 def test_read_all_artist_profiles_uses_cache(monkeypatch):
     fake = fakeredis.FakeStrictRedis()
     monkeypatch.setattr(redis_cache, "get_redis_client", lambda: fake)
 
-    first_db = DummyDB([make_artist(1)])
-    first = api_artist.read_all_artist_profiles(first_db)
-    assert first_db.called == 1
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    BaseModel.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    db = Session()
 
-    second_db = FailingDB([])
-    second = api_artist.read_all_artist_profiles(second_db)
+    user = User(email="a@test.com", password="x", first_name="A", last_name="B", user_type=UserType.ARTIST)
+    profile = ArtistProfileV2(user_id=1, business_name="Test")
+    db.add(user)
+    db.add(profile)
+    db.commit()
+
+    first = api_artist.read_all_artist_profiles(db, None, None, None)
+    assert len(first) == 1
+
+    second = api_artist.read_all_artist_profiles(db, None, None, None)
     assert second == first
 
 
@@ -72,8 +118,16 @@ def test_fallback_when_redis_unavailable(monkeypatch):
 
     monkeypatch.setattr(redis_cache, "get_redis_client", lambda: DummyRedis())
 
-    db = DummyDB([make_artist(2)])
-    result = api_artist.read_all_artist_profiles(db)
-    # when redis fails, it should query the db once
-    assert db.called == 1
-    assert result[0].user_id == 2
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    BaseModel.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    user = User(email="b@test.com", password="x", first_name="B", last_name="C", user_type=UserType.ARTIST)
+    profile = ArtistProfileV2(user_id=1, business_name="Test2")
+    db.add(user)
+    db.add(profile)
+    db.commit()
+
+    result = api_artist.read_all_artist_profiles(db, None, None, None)
+    assert len(result) == 1

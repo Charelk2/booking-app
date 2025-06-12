@@ -1,111 +1,106 @@
 'use client';
-
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
 import MainLayout from '@/components/layout/MainLayout';
-import { ArtistProfile } from '@/types';
 import { getArtists } from '@/lib/api';
-import { getFullImageUrl } from '@/lib/utils';
-import { Card, Tag } from '@/components/ui';
+import type { ArtistProfile } from '@/types';
+import ArtistCard from '@/components/artist/ArtistCard';
+
+const CATEGORIES = [
+  'Live Performance',
+  'Virtual Appearance',
+  'Personalized Video',
+  'Custom Song',
+  'Other',
+];
 
 export default function ArtistsPage() {
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [category, setCategory] = useState<string | undefined>();
+  const [location, setLocation] = useState('');
+  const [sort, setSort] = useState<string | undefined>();
+
+  const fetchArtists = async (params?: { category?: string; location?: string; sort?: string }) => {
+    try {
+      const res = await getArtists(params);
+      setArtists(res.data);
+    } catch (err) {
+      console.error('Error fetching artists:', err);
+      setError('Failed to load artists.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchArtists = async () => {
-      try {
-        const response = await getArtists();
-        setArtists(response.data);
-      } catch (err) {
-        console.error('Error fetching artists:', err);
-        setError('Failed to load artists. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchArtists({ category, location: location || undefined, sort });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, location, sort]);
 
-    fetchArtists();
-  }, []);
-
-  if (loading) {
-    return (
-      <MainLayout>
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
-        </div>
-      </MainLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <MainLayout>
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-semibold text-gray-900">{error}</h2>
-        </div>
-      </MainLayout>
-    );
-  }
+  const onCategory = (c: string) => {
+    setCategory((prev) => (prev === c ? undefined : c));
+  };
 
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Our Artists</h1>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {artists.map((artist) => {
-            const profilePic = getFullImageUrl(artist.profile_picture_url);
-            const fallbackPic =
-              artist.portfolio_urls && artist.portfolio_urls.length > 0
-                ? getFullImageUrl(artist.portfolio_urls[0])
-                : null;
-            const imageUrl = profilePic || fallbackPic;
-
-            return (
-              <Card key={`artistCard-${artist.id}`} className="overflow-hidden">
-                <div className="aspect-w-16 aspect-h-9 bg-gray-200 flex items-center justify-center">
-                  {imageUrl ? (
-                    <Image
-                      src={imageUrl}
-                      alt={
-                        artist.business_name ||
-                        `${artist.user.first_name} ${artist.user.last_name}`
-                      }
-                      width={512}
-                      height={270}
-                      className="object-cover w-full h-48"
-                    />
-                  ) : (
-                    <span className="text-gray-400 text-sm">No Image</span>
-                  )}
-                </div>
-                <div className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {artist.business_name ||
-                      `${artist.user.first_name} ${artist.user.last_name}`}
-                  </h2>
-                  <p className="mt-2 text-gray-600 truncate">{artist.description || ''}</p>
-                  <div className="mt-4">
-                    <h3 className="text-sm font-medium text-gray-900">Specialties:</h3>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {artist.specialties?.map((specialty) => (
-                        <Tag key={`artist-${artist.id}-spec-${specialty}`}>{specialty}</Tag>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="mt-6">
-                    <Link href={`/artists/${artist.id}`} legacyBehavior passHref>
-                      <a className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 w-full justify-center">
-                        View Profile
-                      </a>
-                    </Link>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
+      <section className="bg-gray-50 py-12 text-center">
+        <h1 className="text-3xl font-bold">Find the Perfect Artist</h1>
+        <p className="mt-2 text-gray-600">Browse and book talented performers</p>
+      </section>
+      <div className="sticky top-0 z-10 bg-white border-b">
+        <div className="max-w-7xl mx-auto px-4 py-3 overflow-x-auto whitespace-nowrap flex gap-2">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onCategory(c)}
+              className={
+                category === c
+                  ? 'bg-indigo-600 text-white px-3 py-1 rounded-full'
+                  : 'bg-gray-100 text-gray-700 px-3 py-1 rounded-full'
+              }
+            >
+              {c}
+            </button>
+          ))}
+          <input
+            placeholder="Location"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="border rounded px-2 py-1 text-sm"
+          />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value || undefined)}
+            className="border rounded px-2 py-1 text-sm"
+          >
+            <option value="">Sort</option>
+            <option value="top_rated">Top Rated</option>
+            <option value="most_booked">Most Booked</option>
+            <option value="newest">Newest</option>
+          </select>
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {loading && <p>Loading...</p>}
+        {error && <p className="text-red-600">{error}</p>}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {artists.map((a) => (
+            <ArtistCard
+              key={a.id}
+              id={a.id}
+              name={a.business_name || `${a.user.first_name} ${a.user.last_name}`}
+              subtitle={a.custom_subtitle || undefined}
+              imageUrl={a.profile_picture_url || a.portfolio_urls?.[0] || undefined}
+              price={a.hourly_rate && a.price_visible ? `$${a.hourly_rate}` : undefined}
+              location={a.location}
+              specialties={a.specialties}
+              verified={a.user.is_verified}
+              isAvailable={a.is_available}
+              href={`/artists/${a.id}`}
+            />
+          ))}
         </div>
       </div>
     </MainLayout>

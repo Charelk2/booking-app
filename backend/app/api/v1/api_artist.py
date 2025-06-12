@@ -1,7 +1,8 @@
 # app/api/v1/api_artist.py
 
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func, desc
 from datetime import datetime
 import re, shutil
 from pathlib import Path
@@ -15,6 +16,8 @@ from app.models.user import User
 from app.models.artist_profile_v2 import ArtistProfileV2 as Artist
 from app.models.booking import Booking, BookingStatus
 from app.models.request_quote import BookingRequest, BookingRequestStatus
+from app.models.service import Service, ServiceType
+from app.models.review import Review
 from app.schemas.artist import (
     ArtistProfileResponse,
     ArtistProfileUpdate,  # new Pydantic schema for updates
@@ -236,25 +239,77 @@ async def upload_artist_cover_photo_me(
     "/",
     response_model=List[ArtistProfileResponse],
     summary="List all artist profiles",
-    description="Returns an array of every artist’s profile."
+    description="Returns an array of every artist’s profile.",
 )
-def read_all_artist_profiles(db: Session = Depends(get_db)):
-    """Return a list of all artist profiles (public)."""
+def read_all_artist_profiles(
+    db: Session = Depends(get_db),
+    category: Optional[ServiceType] = Query(None),
+    location: Optional[str] = Query(None),
+    sort: Optional[str] = Query(None, pattern="^(top_rated|most_booked|newest)$"),
+):
+    """Return a list of all artist profiles with optional filters."""
 
     cached = get_cached_artist_list()
-    if cached is not None:
-        # Convert cached dicts back into Pydantic models for response validation
+    if not category and not location and not sort and cached is not None:
         return [ArtistProfileResponse.model_validate(item) for item in cached]
 
-    artists = db.query(Artist).all()
+    rating_subq = (
+        db.query(
+            Review.artist_id.label("artist_id"),
+            func.avg(Review.rating).label("rating"),
+            func.count(Review.id).label("rating_count"),
+        )
+        .group_by(Review.artist_id)
+        .subquery()
+    )
+    booking_subq = (
+        db.query(
+            Booking.artist_id.label("artist_id"),
+            func.count(Booking.id).label("book_count"),
+        )
+        .group_by(Booking.artist_id)
+        .subquery()
+    )
 
-    profiles = [ArtistProfileResponse.model_validate(a) for a in artists]
+    query = (
+        db.query(Artist, rating_subq.c.rating, rating_subq.c.rating_count, booking_subq.c.book_count)
+        .outerjoin(rating_subq, rating_subq.c.artist_id == Artist.user_id)
+        .outerjoin(booking_subq, booking_subq.c.artist_id == Artist.user_id)
+    )
 
-    # Store serialisable data in cache, making sure user_id is present
-    cache_artist_list([
-        {**profile.model_dump(), "user_id": profile.user_id}
-        for profile in profiles
-    ])
+    if category:
+        query = query.join(Service).filter(Service.service_type == category)
+
+    if location:
+        query = query.filter(Artist.location.ilike(f"%{location}%"))
+
+    if sort == "top_rated":
+        query = query.order_by(desc(rating_subq.c.rating))
+    elif sort == "most_booked":
+        query = query.order_by(desc(booking_subq.c.book_count))
+    elif sort == "newest":
+        query = query.order_by(desc(Artist.created_at))
+
+    artists = query.all()
+
+    profiles: List[ArtistProfileResponse] = []
+    for artist, rating, rating_count, book_count in artists:
+        profile = ArtistProfileResponse.model_validate(
+            {
+                **artist.__dict__,
+                "rating": float(rating) if rating is not None else None,
+                "rating_count": int(rating_count or 0),
+            }
+        )
+        availability = read_artist_availability(artist.user_id, db)
+        profile.is_available = len(availability["unavailable_dates"]) == 0
+        profiles.append(profile)
+
+    if not category and not location and not sort:
+        cache_artist_list([
+            {**profile.model_dump(), "user_id": profile.user_id}
+            for profile in profiles
+        ])
 
     return profiles
 
