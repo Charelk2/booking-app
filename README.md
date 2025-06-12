@@ -492,7 +492,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Fixed a console warning by omitting the `isAvailable` prop from the underlying DOM element.
 * The card layout was revamped: the photo stacks above the details on mobile and sits left on larger screens. Taglines clamp to two lines using the new Tailwind `line-clamp` plugin. Pricing appears beneath the artist name when `priceVisible` is true or shows **Contact for pricing** otherwise.
 * Final polish aligns `<ArtistCard />` with the global design system. The image now stretches edge to edge with only the top corners rounded. Specialty tags truncate to a single row and use pill badges with `text-xs px-2 py-1` styling. Ratings show a yellow star or "No ratings yet". Prices display as `from R{price}` with no decimals. A divider separates meta info from the location and **View Profile** button.
-* Specialty badges now use `flex-nowrap` and `overflow-hidden` so tags remain on a single line even on small screens.
+* Specialty badges now use `flex-nowrap` and `overflow-hidden` so tags remain on a single line even on small screens. If the pills would overflow, the entire row is hidden to avoid truncated badges.
 
 ### Service Management (Artist Dashboard)
 
