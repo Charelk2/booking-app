@@ -5,6 +5,7 @@ from sqlalchemy.engine import Engine
 from app.db_utils import (
     ensure_notification_link_column,
     ensure_price_visible_column,
+    ensure_currency_column,
 )
 
 
@@ -52,9 +53,35 @@ def setup_artist_engine() -> Engine:
     return engine
 
 
+def setup_service_engine() -> Engine:
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE services (
+                    id INTEGER PRIMARY KEY,
+                    artist_id INTEGER,
+                    title VARCHAR,
+                    price NUMERIC(10, 2)
+                )
+                """
+            )
+        )
+    return engine
+
+
 def test_add_price_visible_column():
     engine = setup_artist_engine()
     ensure_price_visible_column(engine)
     inspector = inspect(engine)
     column_names = [col["name"] for col in inspector.get_columns("artist_profiles")]
     assert "price_visible" in column_names
+
+
+def test_add_currency_column():
+    engine = setup_service_engine()
+    ensure_currency_column(engine)
+    inspector = inspect(engine)
+    column_names = [col["name"] for col in inspector.get_columns("services")]
+    assert "currency" in column_names

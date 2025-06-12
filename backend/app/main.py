@@ -17,6 +17,7 @@ from .db_utils import (
     ensure_notification_link_column,
     ensure_custom_subtitle_column,
     ensure_price_visible_column,
+    ensure_currency_column,
     ensure_request_attachment_column,
 )
 from .models.user import User
@@ -58,6 +59,7 @@ ensure_display_order_column(engine)
 ensure_notification_link_column(engine)
 ensure_custom_subtitle_column(engine)
 ensure_price_visible_column(engine)
+ensure_currency_column(engine)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Artist Booking API")
