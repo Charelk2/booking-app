@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { getArtists } from '@/lib/api';
-import { getFullImageUrl, formatCurrency } from '@/lib/utils';
+import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCard from '@/components/artist/ArtistCard';
 
@@ -120,7 +120,7 @@ export default function ArtistsPage() {
                 }
                 price={
                   a.hourly_rate && a.price_visible
-                    ? formatCurrency(Number(a.hourly_rate))
+                    ? Number(a.hourly_rate)
                     : undefined
                 }
                 location={a.location}
