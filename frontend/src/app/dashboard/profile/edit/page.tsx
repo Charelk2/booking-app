@@ -15,6 +15,7 @@ import {
   uploadMyArtistCoverPhoto,
 } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
+import { DEFAULT_CURRENCY } from '@/lib/constants';
 
 import dynamic from 'next/dynamic';
 import {
@@ -612,7 +613,7 @@ export default function EditArtistProfilePage(): JSX.Element {
               <div className="space-y-4">
                 <div>
                   <label htmlFor="hourlyRate" className={labelClasses}>
-                    Hourly Rate (R)
+                    {`Hourly Rate (${DEFAULT_CURRENCY})`}
                   </label>
                   <input
                     type="number"

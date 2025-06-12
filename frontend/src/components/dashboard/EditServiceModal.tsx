@@ -4,6 +4,7 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { Service } from "@/types";
 import { updateService as apiUpdateService } from "@/lib/api";
 import { useState } from "react";
+import { DEFAULT_CURRENCY } from '@/lib/constants';
 
 interface EditServiceModalProps {
   isOpen: boolean;
@@ -152,7 +153,7 @@ export default function EditServiceModal({
                 htmlFor="price"
                 className="block text-sm font-medium text-gray-700"
               >
-                Price (R)
+                {`Price (${DEFAULT_CURRENCY})`}
               </label>
               <input
                 type="number"
