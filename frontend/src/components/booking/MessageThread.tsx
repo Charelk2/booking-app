@@ -12,19 +12,22 @@ import React, {
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import TimeAgo from '../ui/TimeAgo';
-import { getFullImageUrl, formatCurrency } from '@/lib/utils';
+import { getFullImageUrl } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
-import { Message, MessageCreate, Quote } from '@/types';
+import { Message, MessageCreate, QuoteV2 } from '@/types';
 import {
   getMessagesForBookingRequest,
   postMessageToBookingRequest,
   uploadMessageAttachment,
-  getQuotesForBookingRequest,
-  createQuoteForRequest,
+  createQuoteV2,
+  getQuoteV2,
+  acceptQuoteV2,
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '../ui/Button';
+import SendQuoteModal from './SendQuoteModal';
+import QuoteCard from './QuoteCard';
 import useWebSocket from '@/hooks/useWebSocket';
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -42,6 +45,8 @@ interface MessageThreadProps {
   onMessageSent?: () => void;
   clientName?: string;
   artistName?: string;
+  clientId?: number;
+  artistId?: number;
   artistAvatarUrl?: string | null;
   isSystemTyping?: boolean;
 }
@@ -53,6 +58,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       onMessageSent,
       clientName = 'Client',
       artistName = 'Artist',
+      clientId,
+      artistId,
       artistAvatarUrl = null,
       isSystemTyping = false,
     }: MessageThreadProps,
@@ -60,15 +67,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   ) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [quotes, setQuotes] = useState<Record<number, Quote>>({});
+  const [quotes, setQuotes] = useState<Record<number, QuoteV2>>({});
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [showQuoteForm, setShowQuoteForm] = useState(false);
-  const [quoteDetails, setQuoteDetails] = useState('');
-  const [quotePrice, setQuotePrice] = useState('');
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -88,6 +94,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           ),
       );
       setMessages(filtered);
+      filtered.forEach((m) => {
+        if (m.message_type === 'quote' && m.quote_id) {
+          ensureQuoteLoaded(m.quote_id);
+        }
+      });
       setErrorMsg(null);
       setLoading(false);
     } catch (err) {
@@ -95,36 +106,32 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       setErrorMsg('Failed to load messages');
       setLoading(false);
     }
-  }, [bookingRequestId]);
+  }, [bookingRequestId, ensureQuoteLoaded]);
 
-  const fetchQuotes = useCallback(async () => {
-    try {
-      const res = await getQuotesForBookingRequest(bookingRequestId);
-      const map: Record<number, Quote> = {};
-      res.data.forEach((q) => {
-        map[q.id] = q;
-      });
-      setQuotes(map);
-      setLoading(false);
-    } catch (err) {
-      console.error('Failed to fetch quotes', err);
-      setErrorMsg('Failed to load quotes');
-      setLoading(false);
-    }
-  }, [bookingRequestId]);
+  const ensureQuoteLoaded = useCallback(
+    async (quoteId: number) => {
+      if (quotes[quoteId]) return;
+      try {
+        const res = await getQuoteV2(quoteId);
+        setQuotes((prev) => ({ ...prev, [quoteId]: res.data }));
+        if (res.data.status === 'accepted') setBookingConfirmed(true);
+      } catch (err) {
+        console.error('Failed to fetch quote', err);
+      }
+    },
+    [quotes],
+  );
 
   useImperativeHandle(ref, () => ({
     refreshMessages: async () => {
       await fetchMessages();
-      await fetchQuotes();
     },
   }));
 
   useEffect(() => {
     setLoading(true);
     fetchMessages();
-    fetchQuotes();
-  }, [bookingRequestId, fetchMessages, fetchQuotes]);
+  }, [bookingRequestId, fetchMessages]);
 
   const token =
     typeof window !== 'undefined' ? localStorage.getItem('token') : '';
@@ -143,11 +150,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           }
           return [...prev.slice(-199), msg];
         });
-        if (msg.message_type === 'quote') {
-          fetchQuotes();
+        if (msg.message_type === 'quote' && msg.quote_id) {
+          ensureQuoteLoaded(msg.quote_id);
         }
       }),
-    [onSocketMessage, fetchQuotes],
+    [onSocketMessage, ensureQuoteLoaded],
   );
 
   // Create a preview URL whenever the file changes
@@ -222,33 +229,45 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   );
 
   const handleSendQuote = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
+    async (data: QuoteV2Create) => {
       try {
-        await createQuoteForRequest(bookingRequestId, {
-          booking_request_id: bookingRequestId,
-          quote_details: quoteDetails,
-          price: Number(quotePrice),
-        });
-        setShowQuoteForm(false);
-        setQuoteDetails('');
-        setQuotePrice('');
+        await createQuoteV2(data);
+        setShowQuoteModal(false);
         fetchMessages();
-        fetchQuotes();
         if (onMessageSent) onMessageSent();
       } catch (err) {
         console.error('Failed to send quote', err);
         setErrorMsg('Failed to send quote');
       }
     },
-    [
-      bookingRequestId,
-      quoteDetails,
-      quotePrice,
-      fetchMessages,
-      fetchQuotes,
-      onMessageSent,
-    ],
+    [fetchMessages, onMessageSent],
+  );
+
+  const handleAcceptQuote = useCallback(
+    async (quoteId: number) => {
+      try {
+        await acceptQuoteV2(quoteId);
+        setBookingConfirmed(true);
+        const q = await getQuoteV2(quoteId);
+        setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
+      } catch (err) {
+        console.error('Failed to accept quote', err);
+        setErrorMsg('Failed to accept quote');
+      }
+    },
+    [],
+  );
+
+  const handleDeclineQuote = useCallback(
+    async (quoteId: number) => {
+      try {
+        const q = await getQuoteV2(quoteId);
+        setQuotes((prev) => ({ ...prev, [quoteId]: { ...q.data, status: 'rejected' } }));
+      } catch (err) {
+        console.error('Failed to decline quote', err);
+      }
+    },
+    [],
   );
 
   // Filter out empty messages before rendering so even 1-character
@@ -333,6 +352,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             />
           )}
         </header>
+        {bookingConfirmed && (
+          <div className="bg-green-50 text-green-800 text-sm px-4 py-2" data-testid="booking-confirmed-banner">
+            This event is now booked and confirmed.
+          </div>
+        )}
         <div
           ref={containerRef}
           onScroll={handleScroll}
@@ -415,15 +439,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                       >
                         <div className="flex-1">
                           {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
-                            <div className="text-gray-800">
-                              <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
-                              <p className="text-sm mt-1">
-                                {formatCurrency(
-                                  Number(quotes[msg.quote_id].price),
-                                  quotes[msg.quote_id].currency,
-                                )}
-                              </p>
-                            </div>
+                            <QuoteCard
+                              quote={quotes[msg.quote_id]}
+                              isClient={user?.user_type === 'client'}
+                              onAccept={() => handleAcceptQuote(msg.quote_id!)}
+                              onDecline={() => handleDeclineQuote(msg.quote_id!)}
+                              bookingConfirmed={bookingConfirmed}
+                            />
                           ) : msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX) ? (
                             <div data-testid="booking-details">
                               <button
@@ -614,48 +636,23 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               {uploading ? 'Uploading…' : 'Send'}
             </Button>
           </form>
-          {user.user_type === 'artist' && (
-            <div>
-              {showQuoteForm ? (
-                <form onSubmit={handleSendQuote} className="mt-2 space-y-2">
-                  <textarea
-                    className="w-full border rounded-md p-1"
-                    placeholder="Quote details"
-                    value={quoteDetails}
-                    onChange={(e) => setQuoteDetails(e.target.value)}
-                  />
-                  <input
-                    type="number"
-                    className="w-full border rounded-md p-1"
-                    placeholder="Price"
-                    value={quotePrice}
-                    onChange={(e) => setQuotePrice(e.target.value)}
-                  />
-                  <div className="flex gap-2">
-                    <Button type="submit" className="px-3 py-1 bg-green-600 hover:bg-green-700 focus:ring-green-500 text-white">
-                      Send Quote
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => setShowQuoteForm(false)}
-                      className="px-3 py-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={() => setShowQuoteForm(true)}
-                  className="mt-2 text-sm text-indigo-600 underline"
-                >
-                  Send Quote
-                </Button>
-              )}
-            </div>
+          {user.user_type === 'artist' && !bookingConfirmed && (
+            <Button
+              type="button"
+              onClick={() => setShowQuoteModal(true)}
+              className="mt-2 text-sm text-indigo-600 underline"
+            >
+              Send Quote
+            </Button>
           )}
+          <SendQuoteModal
+            open={showQuoteModal}
+            onClose={() => setShowQuoteModal(false)}
+            onSubmit={handleSendQuote}
+            artistId={artistId ?? user.id}
+            clientId={clientId ?? messages.find((m) => m.sender_type === 'client')?.sender_id ?? 0}
+            bookingRequestId={bookingRequestId}
+          />
         </>
       )}
       {errorMsg && (

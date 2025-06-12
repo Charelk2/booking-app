@@ -134,6 +134,42 @@ export interface Quote {
   // artist?: User;
 }
 
+export interface ServiceItem {
+  description: string;
+  price: number;
+}
+
+export interface QuoteV2Create {
+  booking_request_id: number;
+  artist_id: number;
+  client_id: number;
+  services: ServiceItem[];
+  sound_fee: number;
+  travel_fee: number;
+  accommodation?: string | null;
+  discount?: number | null;
+  expires_at?: string | null;
+}
+
+export interface QuoteV2 extends QuoteV2Create {
+  id: number;
+  subtotal: number;
+  total: number;
+  status: 'pending' | 'accepted' | 'rejected' | 'expired';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BookingSimple {
+  id: number;
+  quote_id: number;
+  artist_id: number;
+  client_id: number;
+  confirmed: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Message {
   id: number;
   booking_request_id: number;
