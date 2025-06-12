@@ -12,7 +12,7 @@ import React, {
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import TimeAgo from '../ui/TimeAgo';
-import { getFullImageUrl } from '@/lib/utils';
+import { getFullImageUrl, formatCurrency } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Message, MessageCreate, Quote } from '@/types';
@@ -418,10 +418,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                             <div className="text-gray-800">
                               <p className="font-medium">{quotes[msg.quote_id].quote_details}</p>
                               <p className="text-sm mt-1">
-                                {new Intl.NumberFormat('en-ZA', {
-                                  style: 'currency',
-                                  currency: quotes[msg.quote_id].currency,
-                                }).format(Number(quotes[msg.quote_id].price))}
+                                {formatCurrency(
+                                  Number(quotes[msg.quote_id].price),
+                                  quotes[msg.quote_id].currency,
+                                )}
                               </p>
                             </div>
                           ) : msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX) ? (
