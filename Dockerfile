@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y curl gnupg ca-certificates \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get update \
     && apt-get install -y nodejs \
+    && npm config set fetch-retry-mintimeout 20000 \
+    && npm config set registry https://registry.npmjs.org \
     && rm -rf /var/lib/apt/lists/*
 
 # install Python dependencies into a virtual environment
