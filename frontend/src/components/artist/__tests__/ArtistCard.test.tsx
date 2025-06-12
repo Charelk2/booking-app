@@ -121,4 +121,32 @@ describe('ArtistCard optional fields', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('hides specialty tags when they overflow', () => {
+    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      value: 100,
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
+      configurable: true,
+      value: 150,
+    });
+
+    const { container, root } = setup({ specialties: ['x', 'y', 'z'] });
+    const tagDiv = container.querySelector('div.flex.flex-nowrap');
+    expect(tagDiv).toBeNull();
+
+    act(() => root.unmount());
+    container.remove();
+
+    if (originalClientWidth) {
+      Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth);
+    }
+    if (originalScrollWidth) {
+      Object.defineProperty(HTMLElement.prototype, 'scrollWidth', originalScrollWidth);
+    }
+  });
 });
