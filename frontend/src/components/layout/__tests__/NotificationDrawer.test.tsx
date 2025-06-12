@@ -1,4 +1,4 @@
-import { parseItem } from '../NotificationDrawer';
+import { parseItem } from '../NotificationListItem';
 import type { UnifiedNotification } from '@/types';
 
 describe('parseItem', () => {
