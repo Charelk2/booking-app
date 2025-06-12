@@ -127,4 +127,34 @@ describe('NotificationDrawer component', () => {
     const errorBar = document.querySelector('[data-testid="notification-error"]');
     expect(errorBar?.textContent).toBe('Failed to load');
   });
+
+  it('does not show badge when unread_count is string', async () => {
+    const item: UnifiedNotification = {
+      type: 'message',
+      timestamp: new Date().toISOString(),
+      is_read: true,
+      content: 'New message: Hi',
+      booking_request_id: 7,
+      name: 'Eve',
+      unread_count: '0' as unknown as number,
+    } as UnifiedNotification;
+
+    await act(async () => {
+      root.render(
+        React.createElement(NotificationDrawer, {
+          open: true,
+          onClose: () => {},
+          items: [item],
+          onItemClick: jest.fn(),
+          markAllRead: jest.fn(),
+          loadMore: jest.fn(),
+          hasMore: false,
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    const badge = container.querySelector('span.bg-red-600');
+    expect(badge).toBeNull();
+  });
 });
