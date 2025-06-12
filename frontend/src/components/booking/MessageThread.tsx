@@ -360,7 +360,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               {group.divider && (
                 <hr className="border-t border-gray-300 w-full my-2" />
               )}
-              <div className="text-xs text-gray-400 mb-1">{relativeGroupTime}</div>
+              <time
+                dateTime={firstMsg.timestamp}
+                title={new Date(firstMsg.timestamp).toLocaleString()}
+                className="text-xs text-gray-400 mb-1"
+              >
+                <span className="sr-only">
+                  {new Date(firstMsg.timestamp).toLocaleString()}
+                </span>
+                {relativeGroupTime}
+              </time>
               {anyUnread && (
                 <span
                   className="absolute right-0 top-1 w-2 h-2 bg-purple-600 rounded-full"
@@ -420,7 +429,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                             </a>
                           )}
                         </div>
-                        <span className={timeClass}>{timeString}</span>
+                        <time
+                          dateTime={msg.timestamp}
+                          title={new Date(msg.timestamp).toLocaleString()}
+                          className={timeClass}
+                        >
+                          <span className="sr-only">
+                            {new Date(msg.timestamp).toLocaleString()}
+                          </span>
+                          {timeString}
+                        </time>
                       </div>
                     </div>
                   </motion.div>
