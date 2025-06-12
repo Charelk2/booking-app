@@ -3,6 +3,14 @@ from datetime import datetime
 from ..models.notification import NotificationType
 
 
+class BookingDetailsSummary(BaseModel):
+    timestamp: datetime
+    location: str | None = None
+    guests: str | None = None
+    venue_type: str | None = None
+    notes: str | None = None
+
+
 class NotificationCreate(BaseModel):
     user_id: int
     type: NotificationType
@@ -34,5 +42,6 @@ class ThreadNotificationResponse(BaseModel):
     link: str
     timestamp: datetime
     avatar_url: str | None = None
+    booking_details: BookingDetailsSummary | None = None
 
     model_config = {"from_attributes": True}

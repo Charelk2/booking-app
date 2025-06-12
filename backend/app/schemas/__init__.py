@@ -26,8 +26,12 @@ from .request_quote import (
     QuoteCalculationParams,
 )
 from .message import MessageCreate, MessageResponse
-from .notification import NotificationCreate, NotificationResponse
-from .notification import ThreadNotificationResponse
+from .notification import (
+    NotificationCreate,
+    NotificationResponse,
+    ThreadNotificationResponse,
+    BookingDetailsSummary,
+)
 
 __all__ = [
     "UserBase",
@@ -66,6 +70,7 @@ __all__ = [
     "MessageResponse",
     "NotificationCreate",
     "NotificationResponse",
+    "BookingDetailsSummary",
     "ThreadNotificationResponse",
     "SoundProviderBase",
     "SoundProviderCreate",
