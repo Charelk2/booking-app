@@ -310,6 +310,35 @@ describe('MessageThread component', () => {
     expect(sendButton?.getAttribute('aria-label')).toBe('Send message');
   });
 
+  it('renders booking details in a collapsible section', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Booking details:\nLocation: Test City',
+          message_type: 'system',
+          timestamp: '2024-01-01T00:00:00Z',
+        },
+      ],
+    });
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const details = container.querySelector('[data-testid="booking-details"]');
+    const summary = container.querySelector('summary');
+    expect(details).not.toBeNull();
+    expect(summary?.textContent).toBe('Show details');
+    expect(details?.textContent).toContain('Location: Test City');
+  });
+
   it('announces new messages when scrolled away from bottom', async () => {
     await act(async () => {
       root.render(<MessageThread bookingRequestId={1} />);
