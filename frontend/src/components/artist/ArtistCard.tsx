@@ -96,13 +96,13 @@ export default function ArtistCard({
           <h2 className="flex-1 text-lg font-semibold text-gray-900 truncate mt-3">{name}</h2>
           {verified && <CheckBadgeIcon className="h-4 w-4 text-brand" aria-label="Verified" />}
         </div>
-        {subtitle && <p className="text-sm text-gray-500 leading-tight mt-1 line-clamp-2">{subtitle}</p>}
+        {subtitle && <p className="text-sm text-gray-500 leading-tight mt-0.5 line-clamp-2">{subtitle}</p>}
         {limitedTags.length > 0 && (
           <div className="flex flex-nowrap overflow-hidden gap-1 mt-2 whitespace-nowrap">
             {limitedTags.map((s) => (
               <span
                 key={`${id}-${s}`}
-                className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full"
+                className="text-xs px-2 py-1 bg-blue-50 text-gray-700 rounded-full"
               >
                 {s}
               </span>
