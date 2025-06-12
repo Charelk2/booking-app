@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { calculateQuote, getSoundProviders } from '@/lib/api';
+import { formatCurrency } from '@/lib/utils';
 import { QuoteCalculationResponse, SoundProvider } from '@/types';
 
 export default function QuoteCalculatorPage() {
@@ -89,11 +90,11 @@ export default function QuoteCalculatorPage() {
         </form>
         {result && (
           <div className="bg-white p-4 rounded border">
-            <p>Base Fee: ${Number(result.base_fee).toFixed(2)}</p>
-            <p>Travel Cost: ${Number(result.travel_cost).toFixed(2)}</p>
-            <p>Provider Cost: ${Number(result.provider_cost).toFixed(2)}</p>
-            <p>Accommodation: ${Number(result.accommodation_cost).toFixed(2)}</p>
-            <p className="font-semibold">Total: ${Number(result.total).toFixed(2)}</p>
+            <p>Base Fee: {formatCurrency(Number(result.base_fee))}</p>
+            <p>Travel Cost: {formatCurrency(Number(result.travel_cost))}</p>
+            <p>Provider Cost: {formatCurrency(Number(result.provider_cost))}</p>
+            <p>Accommodation: {formatCurrency(Number(result.accommodation_cost))}</p>
+            <p className="font-semibold">Total: {formatCurrency(Number(result.total))}</p>
           </div>
         )}
       </div>
