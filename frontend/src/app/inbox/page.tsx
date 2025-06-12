@@ -180,9 +180,16 @@ export default function InboxPage() {
               </div>
               <div className="text-xs text-gray-500 truncate">{t.content}</div>
             </div>
-            <div className="text-xs text-gray-400">
+            <time
+              dateTime={t.timestamp}
+              title={new Date(t.timestamp).toLocaleString()}
+              className="text-xs text-gray-400"
+            >
+              <span className="sr-only">
+                {new Date(t.timestamp).toLocaleString()}
+              </span>
               {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
-            </div>
+            </time>
           </div>
         );
       })}
