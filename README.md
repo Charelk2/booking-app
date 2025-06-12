@@ -531,8 +531,11 @@ Profiles include `rating`, `rating_count`, and `is_available` fields. A new
 `price_visible` boolean on each artist controls whether the hourly rate is
 returned. Newly created profiles default to `true`.
 
-The redesigned listing page features a sticky filter bar with category chips,
-a location search, sort dropdown, and a **Verified Only** toggle. Each card
+The redesigned listing page features a sticky filter bar that uses
+`flex flex-wrap gap-2 items-center justify-between` for responsive spacing.
+Category chips render as pill buttons in a horizontally scrollable row on small
+screens. A location search, sort dropdown, and **Verified Only** toggle align on
+the right. Each card
 shows the artist's rating and a green/red availability pill based on
 `is_available` so clients can quickly gauge popularity and open slots.
 
