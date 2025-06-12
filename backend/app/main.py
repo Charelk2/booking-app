@@ -36,6 +36,7 @@ from .api import (
     api_review,
     api_booking_request,
     api_quote,
+    api_quote_v2,
     api_sound_provider,
     api_ws,
     api_message,
@@ -162,6 +163,7 @@ app.include_router(
 
 # ─── QUOTE ROUTES (under /api/v1) ─────────────────────────────────────────────
 app.include_router(api_quote.router, prefix=f"{api_prefix}", tags=["quotes"])
+app.include_router(api_quote_v2.router, prefix=f"{api_prefix}", tags=["quotes-v2"])
 
 # ─── MESSAGE ROUTES (under /api/v1) ─────────────────────────────────────────
 app.include_router(
