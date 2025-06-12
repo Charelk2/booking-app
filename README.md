@@ -143,6 +143,11 @@ NEXT_PUBLIC_WS_URL=ws://192.168.3.203:8000
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDm-BKmMtzMSMd-XUdfapjEUU6O5mYy2bk
 ```
 
+The host portion of `NEXT_PUBLIC_API_URL` is also used by
+`next.config.js` to allow optimized image requests from the backend.
+Set this URL to match your API server so artist profile pictures and
+cover photos load without 400 errors from the `/_next/image` endpoint.
+
 The location input relies on the built-in Google Maps Places Autocomplete
 service instead of the experimental `@googlemaps/places` package. The previous
 dependency caused a build failure because it depended on Node-only modules like
