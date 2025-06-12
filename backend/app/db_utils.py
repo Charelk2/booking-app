@@ -90,3 +90,14 @@ def ensure_custom_subtitle_column(engine: Engine) -> None:
         "custom_subtitle",
         "custom_subtitle VARCHAR",
     )
+
+
+def ensure_price_visible_column(engine: Engine) -> None:
+    """Add the ``price_visible`` column to ``artist_profiles`` if it's missing."""
+
+    add_column_if_missing(
+        engine,
+        "artist_profiles",
+        "price_visible",
+        "price_visible BOOLEAN NOT NULL DEFAULT TRUE",
+    )
