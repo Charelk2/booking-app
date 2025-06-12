@@ -77,7 +77,8 @@ describe('InboxPage unread badge', () => {
     });
     const card = container.querySelector('li div');
     expect(card?.className).toContain('bg-indigo-50');
-    expect(container.textContent).not.toContain('new message');
+    const badge = container.querySelector('span.bg-red-600');
+    expect(badge?.textContent).toBe('2');
     act(() => {
       root.unmount();
     });
