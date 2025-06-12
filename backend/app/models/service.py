@@ -35,6 +35,7 @@ class Service(BaseModel):
     title = Column(String, index=True, nullable=False)
     description = Column(Text, nullable=True)
     price = Column(Numeric(10, 2), nullable=False)
+    currency = Column(String(3), nullable=False, default="ZAR")
     duration_minutes = Column(Integer, nullable=False)
     display_order = Column(Integer, nullable=False, default=0)
     service_type = Column(
