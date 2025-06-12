@@ -20,9 +20,10 @@ jest.mock('@/components/layout/MainLayout', () => {
   return Mock;
 });
 
-function setup() {
+function setup(markItem = jest.fn()) {
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client' } });
-  (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+  const push = jest.fn();
+  (useRouter as jest.Mock).mockReturnValue({ push });
   (useNotifications as jest.Mock).mockReturnValue({
     items: [
       {
@@ -34,6 +35,7 @@ function setup() {
         id: 1,
       },
     ],
+    markItem,
   });
   (api.getMyBookingRequests as jest.Mock).mockResolvedValue({
     data: [
@@ -64,7 +66,7 @@ function setup() {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
-  return { container, root };
+  return { container, root, push, markItem };
 }
 
 describe('BookingRequestsPage', () => {
@@ -153,6 +155,40 @@ describe('BookingRequestsPage', () => {
     expect(aliceHeader?.getAttribute('aria-expanded')).toBe('true');
     const list = container.querySelector('#requests-1');
     expect(list).toBeTruthy();
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('marks notifications read when row clicked', async () => {
+    const { container, root, push, markItem } = setup(jest.fn());
+    await act(async () => {
+      root.render(<BookingRequestsPage />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const aliceHeader = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Alice A'),
+    ) as HTMLButtonElement;
+    if (aliceHeader) {
+      act(() => {
+        aliceHeader.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+    }
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const row = container.querySelector('li[data-request-id="1"]') as HTMLLIElement;
+    await act(async () => {
+      row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(markItem).toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith('/booking-requests/1');
     act(() => {
       root.unmount();
     });
