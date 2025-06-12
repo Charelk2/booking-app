@@ -504,6 +504,18 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Default Redis URL: `redis://localhost:6379/0`.
 * Fallback to DB if Redis is unavailable.
 
+### Artist Listing Filters
+
+`GET /api/v1/artist-profiles/` supports optional query parameters:
+
+```
+category=<ServiceType>&location=<substring>&sort=<top_rated|most_booked|newest>
+```
+
+Profiles include `rating`, `rating_count`, and `is_available` fields. A new
+`price_visible` boolean on each artist controls whether the hourly rate is
+returned. Newly created profiles default to `true`.
+
 ### Mobile Navigation & Inbox
 
 * Persistent bottom nav on small screens (visible only when logged in) with compact 56px height.
