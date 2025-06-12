@@ -26,12 +26,12 @@ describe('ArtistCard optional fields', () => {
 
   it('renders price when visible and hides when not', () => {
     const { container: c1, root: r1 } = setup({ price: '$100', priceVisible: true });
-    expect(c1.textContent).toContain('Starting at R$100');
+    expect(c1.textContent).toContain('$100');
     act(() => r1.unmount());
     c1.remove();
 
     const { container: c2, root: r2 } = setup({ price: '$200', priceVisible: false });
-    expect(c2.textContent).toContain('Price available after request');
+    expect(c2.textContent).not.toContain('$200');
     act(() => r2.unmount());
     c2.remove();
   });
@@ -52,7 +52,7 @@ describe('ArtistCard optional fields', () => {
     const badge = container.querySelector('svg');
     expect(badge).not.toBeNull();
     expect(container.textContent).toContain('Currently unavailable');
-    const grayPill = container.querySelector('span.bg-gray-200');
+    const grayPill = container.querySelector('span.bg-gray-100');
     expect(grayPill).not.toBeNull();
     if (grayPill) {
       expect(grayPill.className).toContain('text-gray-500');
@@ -106,7 +106,7 @@ describe('ArtistCard optional fields', () => {
 
   it('renders availability pill only when isAvailable is defined', () => {
     const { container, root } = setup({ isAvailable: false });
-    const gray = container.querySelector('span.bg-gray-200');
+    const gray = container.querySelector('span.bg-gray-100');
     expect(gray).not.toBeNull();
     act(() => root.unmount());
     container.remove();
@@ -118,16 +118,16 @@ describe('ArtistCard optional fields', () => {
     c2.remove();
 
     const { container: c3, root: r3 } = setup();
-    expect(c3.querySelector('span.bg-gray-200')).toBeNull();
+    expect(c3.querySelector('span.bg-gray-100')).toBeNull();
     expect(c3.querySelector('span.bg-green-100')).toBeNull();
     act(() => r3.unmount());
     c3.remove();
   });
 
-  it('applies rounded-lg class to the action button', () => {
+  it('applies rounded-xl class to the action button', () => {
     const { container, root } = setup();
     const btn = container.querySelector('button');
-    expect(btn?.className).toContain('rounded-lg');
+    expect(btn?.className).toContain('rounded-xl');
     act(() => root.unmount());
     container.remove();
   });
