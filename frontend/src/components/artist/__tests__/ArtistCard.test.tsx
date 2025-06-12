@@ -26,7 +26,7 @@ describe('ArtistCard optional fields', () => {
 
   it('renders price when visible and hides when not', () => {
     const { container: c1, root: r1 } = setup({ price: '$100', priceVisible: true });
-    expect(c1.textContent).toContain('R$100');
+    expect(c1.textContent).toContain('Starting at R$100');
     act(() => r1.unmount());
     c1.remove();
 
@@ -52,13 +52,23 @@ describe('ArtistCard optional fields', () => {
     const badge = container.querySelector('svg');
     expect(badge).not.toBeNull();
     expect(container.textContent).toContain('Currently unavailable');
-    const availPill = container.querySelector('span.bg-gray-200');
-    expect(availPill).not.toBeNull();
-    if (availPill) {
-      expect(availPill.className).toContain('text-gray-500');
+    const grayPill = container.querySelector('span.bg-gray-200');
+    expect(grayPill).not.toBeNull();
+    if (grayPill) {
+      expect(grayPill.className).toContain('text-gray-500');
     }
     act(() => root.unmount());
     container.remove();
+
+    const { container: c2, root: r2 } = setup({ verified: true, isAvailable: true });
+    const greenPill = c2.querySelector('span.bg-green-100');
+    expect(greenPill).not.toBeNull();
+    if (greenPill) {
+      expect(greenPill.className).toContain('text-green-600');
+    }
+    expect(c2.textContent).toContain('Available');
+    act(() => r2.unmount());
+    c2.remove();
   });
 
   it('displays rating and review count', () => {
@@ -96,16 +106,22 @@ describe('ArtistCard optional fields', () => {
 
   it('renders availability pill only when isAvailable is defined', () => {
     const { container, root } = setup({ isAvailable: false });
-    const pill = container.querySelector('span.bg-gray-200');
-    expect(pill).not.toBeNull();
+    const gray = container.querySelector('span.bg-gray-200');
+    expect(gray).not.toBeNull();
     act(() => root.unmount());
     container.remove();
 
-    const { container: c2, root: r2 } = setup();
-    expect(c2.querySelector('span.bg-gray-200')).toBeNull();
-    expect(c2.querySelector('span.bg-green-100')).toBeNull();
+    const { container: c2, root: r2 } = setup({ isAvailable: true });
+    const green = c2.querySelector('span.bg-green-100');
+    expect(green).not.toBeNull();
     act(() => r2.unmount());
     c2.remove();
+
+    const { container: c3, root: r3 } = setup();
+    expect(c3.querySelector('span.bg-gray-200')).toBeNull();
+    expect(c3.querySelector('span.bg-green-100')).toBeNull();
+    act(() => r3.unmount());
+    c3.remove();
   });
 
   it('applies rounded-lg class to the action button', () => {
