@@ -55,8 +55,9 @@ export default function ArtistCard({
   void ratingCount;
   void isAvailable;
   const tags = specialties || specialities || [];
-  // Show only the first row of tags. Approximate using a fixed slice so
-  // overflowing badges don't wrap onto a second line.
+  // Limit displayed tags so badges fit a single row. The container uses
+  // `flex-nowrap` and `overflow-hidden` to prevent wrapping, but long lists
+  // are also sliced to avoid partially hidden badges.
   const maxTagsFirstRow = 4;
   const limitedTags = tags.slice(0, maxTagsFirstRow);
 
@@ -97,7 +98,7 @@ export default function ArtistCard({
         </div>
         {subtitle && <p className="text-sm text-gray-500 leading-tight mt-1 line-clamp-2">{subtitle}</p>}
         {limitedTags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
+          <div className="flex flex-nowrap overflow-hidden gap-1 mt-2 whitespace-nowrap">
             {limitedTags.map((s) => (
               <span
                 key={`${id}-${s}`}
