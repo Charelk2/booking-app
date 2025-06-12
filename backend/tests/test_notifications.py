@@ -451,8 +451,16 @@ def test_format_notification_message_new_types():
     msg_review = format_notification_message(
         NotificationType.REVIEW_REQUEST, booking_id=42
     )
+    msg_quote = format_notification_message(
+        NotificationType.QUOTE_ACCEPTED, quote_id=7
+    )
+    msg_booking = format_notification_message(
+        NotificationType.NEW_BOOKING, booking_id=8
+    )
     assert msg_deposit == "Deposit payment due for booking #42"
     assert msg_review == "Please review your booking #42"
+    assert msg_quote == "Quote #7 accepted"
+    assert msg_booking == "New booking #8"
 
 
 def test_format_notification_message_booking_request():

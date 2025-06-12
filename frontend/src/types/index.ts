@@ -166,6 +166,9 @@ export interface BookingSimple {
   artist_id: number;
   client_id: number;
   confirmed: boolean;
+  date?: string | null;
+  location?: string | null;
+  payment_status: string;
   created_at: string;
   updated_at: string;
 }

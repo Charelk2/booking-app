@@ -19,7 +19,12 @@ const QuoteCard: React.FC<Props> = ({ quote, isClient, onAccept, onDecline, book
   };
   return (
     <div className="border rounded-lg p-3 bg-gray-50 mt-2" data-testid="quote-card">
-      <h3 className="font-medium mb-1">Quote</h3>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-medium">Quote</h3>
+        {quote.status === 'accepted' && (
+          <span className="ml-2 rounded bg-green-100 text-green-800 px-2 py-0.5 text-xs">Accepted</span>
+        )}
+      </div>
       <ul className="list-disc list-inside text-sm mb-1">
         {quote.services.map((s, i) => (
           <li key={i}>{s.description} – {Number(s.price).toFixed(2)}</li>
