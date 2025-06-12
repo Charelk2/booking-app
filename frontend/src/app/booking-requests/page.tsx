@@ -136,6 +136,7 @@ export default function BookingRequestsPage() {
               <input
                 type="text"
                 placeholder="Search by client name"
+                aria-label="Search by client name"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="border rounded-md p-1 text-sm flex-1"
@@ -143,6 +144,7 @@ export default function BookingRequestsPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label="Filter by status"
                 className="border rounded-md p-1 text-sm"
               >
                 <option value="">All Statuses</option>
@@ -153,6 +155,7 @@ export default function BookingRequestsPage() {
               <select
                 value={serviceFilter}
                 onChange={(e) => setServiceFilter(e.target.value)}
+                aria-label="Filter by service"
                 className="border rounded-md p-1 text-sm"
               >
                 <option value="">All Services</option>
