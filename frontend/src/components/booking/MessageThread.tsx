@@ -348,9 +348,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           const isSelf = !isSystem && firstMsg.sender_id === user?.id;
           const anyUnread = group.messages.some((m) => m.unread);
           const groupClass = `${idx > 0 ? 'mt-1' : ''} ${anyUnread ? 'bg-purple-50' : ''}`;
-          const relativeGroupTime = formatDistanceToNow(new Date(firstMsg.timestamp), {
+          const groupDate = new Date(firstMsg.timestamp);
+          const relativeGroupTime = formatDistanceToNow(groupDate, {
             addSuffix: true,
           });
+          const fullGroupTime = groupDate.toLocaleString();
 
           return (
             <div
@@ -360,7 +362,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               {group.divider && (
                 <hr className="border-t border-gray-300 w-full my-2" />
               )}
-              <div className="text-xs text-gray-400 mb-1">{relativeGroupTime}</div>
+              <time
+                className="text-xs text-gray-400 mb-1"
+                title={fullGroupTime}
+              >
+                {relativeGroupTime}
+                <span className="sr-only">{fullGroupTime}</span>
+              </time>
               {group.messages.map((msg, mIdx) => {
                 const bubbleClass = isSelf
                   ? 'bg-[#4F46E5] text-white self-end'
@@ -370,11 +378,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 const bubbleBase =
                   'relative inline-flex min-w-[fit-content] flex-shrink-0 rounded-2xl px-4 py-2 pr-12 text-sm leading-snug max-w-[70%] sm:max-w-[60%]';
 
-                const timeString = new Date(msg.timestamp).toLocaleTimeString([], {
+                const msgDate = new Date(msg.timestamp);
+                const timeString = msgDate.toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit',
                   hour12: false,
                 });
+                const fullTimeString = msgDate.toLocaleString();
                 const timeClass =
                   'absolute bottom-1 right-2 text-xs text-right text-gray-400';
 
@@ -414,7 +424,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                             </a>
                           )}
                         </div>
-                        <span className={timeClass}>{timeString}</span>
+                        <time className={timeClass} title={fullTimeString}>
+                          {timeString}
+                          <span className="sr-only">{fullTimeString}</span>
+                        </time>
                       </div>
                     </div>
                   </motion.div>
