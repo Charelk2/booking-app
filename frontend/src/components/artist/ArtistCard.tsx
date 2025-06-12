@@ -40,13 +40,15 @@ export default function ArtistCard({
   specialties,
   specialities,
   rating,
-  ratingCount: _ratingCount,
+  ratingCount,
   priceVisible = true,
   verified = false,
   href,
   className,
   ...props
 }: ArtistCardProps) {
+  // ratingCount is currently unused but may be utilized in future designs
+  void ratingCount;
   const tags = specialties || specialities || [];
   const maxTagsToShow = 4;
   const limitedTags = tags.slice(0, maxTagsToShow);
