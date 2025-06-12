@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, ForeignKey, Boolean, DateTime, String
 from sqlalchemy.orm import relationship
 
 from .base import BaseModel
@@ -12,6 +12,9 @@ class BookingSimple(BaseModel):
     artist_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     client_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     confirmed = Column(Boolean, default=True, nullable=False)
+    date = Column(DateTime, nullable=True)
+    location = Column(String, nullable=True)
+    payment_status = Column(String, nullable=False, default="pending")
 
     quote = relationship("QuoteV2")
     artist = relationship("User", foreign_keys=[artist_id])

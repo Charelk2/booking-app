@@ -51,4 +51,5 @@ def test_create_and_accept_quote():
     assert booking.artist_id == artist.id
     assert booking.client_id == client.id
     assert booking.confirmed is True
+    assert booking.payment_status == "pending"
 

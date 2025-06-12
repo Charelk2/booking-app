@@ -43,6 +43,9 @@ class BookingSimpleRead(BaseModel):
     artist_id: int
     client_id: int
     confirmed: bool
+    date: Optional[datetime] = None
+    location: Optional[str] = None
+    payment_status: str
     created_at: datetime
     updated_at: datetime
 
