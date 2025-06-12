@@ -426,6 +426,10 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 ### Open Tasks
 
 - Review cross-browser support for the new collapsible summary sidebar and consider a custom toggle for non-standard browsers.
+- Refactor `<ArtistCard />` to follow the new directory style with tighter spacing, pill badges, location and rating icons, and subtle hover transitions.
+- Update the `/artists` grid to use responsive Tailwind columns (1 on mobile, 2 on tablet, 3–4 on desktop) and test the new layout.
+- Add a sticky filter bar with pill buttons, location search, sort dropdown, and a **Verified Only** toggle.
+- Ensure fallback images and truncated text render cleanly on small screens.
 
 ### Real-time Chat
 
