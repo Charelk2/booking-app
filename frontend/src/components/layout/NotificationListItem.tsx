@@ -1,7 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import { formatDistanceToNow, format } from 'date-fns';
+import { format } from 'date-fns';
+import TimeAgo from '../ui/TimeAgo';
 import { getFullImageUrl } from '@/lib/utils';
 import type { UnifiedNotification } from '@/types';
 
@@ -156,14 +157,10 @@ export default function NotificationListItem({ n, onClick, style, className = ''
               </span>
             )}
           </div>
-          <time
-            dateTime={n.timestamp}
-            title={new Date(n.timestamp).toLocaleString()}
+          <TimeAgo
+            timestamp={n.timestamp}
             className="text-xs text-gray-400 text-right"
-          >
-            <span className="sr-only">{new Date(n.timestamp).toLocaleString()}</span>
-            {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
-          </time>
+          />
         </div>
         <p className="text-sm text-gray-700 truncate whitespace-nowrap overflow-hidden">{parsed.subtitle}</p>
         {parsed.metadata && (
