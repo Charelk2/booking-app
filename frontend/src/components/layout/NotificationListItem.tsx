@@ -121,10 +121,10 @@ export default function NotificationListItem({ n, onClick, style, className = ''
       style={style}
       onClick={onClick}
       className={classNames(
-        'group flex w-full items-start px-3 sm:px-4 py-3 text-base gap-2 sm:gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50 rounded shadow-sm transition cursor-pointer',
+        'group flex w-full items-start px-3 sm:px-4 py-2.5 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50 transition cursor-pointer border-b border-gray-200',
         n.is_read
-          ? 'bg-white border-l border-transparent text-gray-500'
-          : 'bg-indigo-50 border-l-4 border-indigo-500 font-medium text-gray-900',
+          ? 'bg-white border-l border-transparent text-gray-600'
+          : 'bg-indigo-50 border-l-4 border-indigo-500 text-gray-900 font-medium',
         className,
       )}
     >
@@ -164,7 +164,7 @@ export default function NotificationListItem({ n, onClick, style, className = ''
         </div>
         <p className="text-sm text-gray-700 truncate whitespace-nowrap overflow-hidden">{parsed.subtitle}</p>
         {parsed.metadata && (
-          <p className="text-xs text-gray-500 truncate whitespace-nowrap overflow-hidden">{parsed.metadata}</p>
+          <p className="text-sm text-gray-500 truncate whitespace-nowrap overflow-hidden">{parsed.metadata}</p>
         )}
       </div>
     </button>
