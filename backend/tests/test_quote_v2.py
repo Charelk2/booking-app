@@ -1,0 +1,54 @@
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from decimal import Decimal
+
+from app.models import (
+    User,
+    UserType,
+    BookingRequest,
+    BookingRequestStatus,
+)
+from app.models.base import BaseModel
+from app.api import api_quote_v2
+from app.schemas.quote_v2 import ServiceItem, QuoteCreate
+
+
+def setup_db():
+    engine = create_engine('sqlite:///:memory:', connect_args={'check_same_thread': False})
+    BaseModel.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    return Session()
+
+
+def test_create_and_accept_quote():
+    db = setup_db()
+    artist = User(email='artist@test.com', password='x', first_name='A', last_name='R', user_type=UserType.ARTIST)
+    client = User(email='client@test.com', password='x', first_name='C', last_name='L', user_type=UserType.CLIENT)
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    br = BookingRequest(client_id=client.id, artist_id=artist.id, status=BookingRequestStatus.PENDING_QUOTE)
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    quote_in = QuoteCreate(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=client.id,
+        services=[ServiceItem(description='Performance', price=Decimal('100'))],
+        sound_fee=Decimal('20'),
+        travel_fee=Decimal('30'),
+    )
+    quote = api_quote_v2.create_quote(quote_in, db)
+    assert quote.subtotal == Decimal('150')
+    assert quote.total == Decimal('150')
+
+    booking = api_quote_v2.accept_quote(quote.id, db)
+    assert booking.quote_id == quote.id
+    assert booking.artist_id == artist.id
+    assert booking.client_id == client.id
+    assert booking.confirmed is True
+
