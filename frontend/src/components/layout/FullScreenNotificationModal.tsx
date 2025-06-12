@@ -118,7 +118,7 @@ export default function FullScreenNotificationModal({
               <List
                 height={listHeight}
                 itemCount={filtered.length + (hasMore ? 1 : 0)}
-                itemSize={96}
+                itemSize={84}
                 width="100%"
                 overscanCount={3}
               >
@@ -131,7 +131,7 @@ export default function FullScreenNotificationModal({
                         n={n}
                         onClick={() => handleItemClick(n.id || (n.booking_request_id as number))}
                         style={style}
-                        className="rounded-lg shadow"
+                        className="rounded-lg"
                       />
                     );
                   }
