@@ -3,6 +3,7 @@ import {
   normalizeService,
   getNextAvailableDates,
   getFullImageUrl,
+  formatCurrency,
 } from '../utils';
 import api from '../api';
 import { format } from 'date-fns';
@@ -74,5 +75,15 @@ describe('getFullImageUrl', () => {
   it('returns absolute path unchanged', () => {
     const url = 'https://cdn.example.com/img.png';
     expect(getFullImageUrl(url)).toBe(url);
+  });
+});
+
+describe('formatCurrency', () => {
+  it('formats numbers as ZAR currency by default', () => {
+    expect(formatCurrency(1000.5)).toBe('R\u00A01\u00A0000,50');
+  });
+
+  it('uses the provided currency code', () => {
+    expect(formatCurrency(100, 'USD')).toBe('US$100,00');
   });
 });
