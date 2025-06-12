@@ -136,7 +136,15 @@ export default function InboxPage() {
                   </span>
                 )}
               </div>
-              <span className="text-xs text-gray-500">{b.formattedDate}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">{b.formattedDate}</span>
+                {b.unread > 0 && (
+                  <span
+                    className="w-2 h-2 bg-red-600 rounded-full"
+                    aria-label="Unread messages"
+                  />
+                )}
+              </div>
             </div>
             <div className="text-sm text-gray-600">
               📍 {b.location || '—'} | 👥 {b.guests || '—'} | 🏠 {b.venueType || '—'}
@@ -180,16 +188,24 @@ export default function InboxPage() {
               </div>
               <div className="text-xs text-gray-500 truncate">{t.content}</div>
             </div>
-            <time
-              dateTime={t.timestamp}
-              title={new Date(t.timestamp).toLocaleString()}
-              className="text-xs text-gray-400"
-            >
-              <span className="sr-only">
-                {new Date(t.timestamp).toLocaleString()}
-              </span>
-              {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
-            </time>
+            <div className="flex items-center gap-2">
+              <time
+                dateTime={t.timestamp}
+                title={new Date(t.timestamp).toLocaleString()}
+                className="text-xs text-gray-400"
+              >
+                <span className="sr-only">
+                  {new Date(t.timestamp).toLocaleString()}
+                </span>
+                {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
+              </time>
+              {(t.unread_count ?? 0) > 0 && (
+                <span
+                  className="w-2 h-2 bg-red-600 rounded-full"
+                  aria-label="Unread messages"
+                />
+              )}
+            </div>
           </div>
         );
       })}
