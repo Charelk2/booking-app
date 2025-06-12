@@ -258,6 +258,9 @@ commits with no code updates cause the script to exit immediately without
 running any tests. Set `FORCE_TESTS=1` to run the full suite regardless of
 what changed.
 
+After modifying any frontend component, run `./scripts/test-all.sh` to verify
+that Jest tests and lint checks still pass.
+
 You can override the number of parallel Jest workers by setting the
 `JEST_WORKERS` environment variable. `test-all.sh` passes this value to
 `npm test` using Jest's `--maxWorkers` flag, so you can control concurrency:
@@ -472,6 +475,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Dashboard stats now animate on load using **framer-motion**.
 * Artist cards display star ratings, verified badges, and an availability pill. Prices only appear when `price_visible` is true.
 * `<ArtistCard />` now accepts `rating`, `ratingCount`, `priceVisible`, `verified`, and `isAvailable` props so listings can show review data. Ratings render with a star icon and the total count while the availability pill turns green or red based on `isAvailable`.
+* The new layout stacks the photo above the details on mobile and aligns it left on larger screens. Pricing appears beneath the artist name when `priceVisible` is true or shows **Contact for pricing** otherwise. The availability badge turns gray when no schedule info is available.
 
 ### Service Management (Artist Dashboard)
 
