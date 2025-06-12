@@ -58,4 +58,63 @@ describe('Artists page filters', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('filters to verified artists only', async () => {
+    jest.spyOn(api, 'getArtists').mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          user: { first_name: 'A', last_name: 'B', is_verified: true },
+          business_name: 'Alpha',
+          user_id: 1,
+        } as unknown as ArtistProfile,
+        {
+          id: 2,
+          user: { first_name: 'C', last_name: 'D', is_verified: false },
+          business_name: null,
+          user_id: 2,
+        } as unknown as ArtistProfile,
+      ],
+    });
+    const { container, root } = setup();
+    await act(async () => {
+      root.render(React.createElement(ArtistsPage));
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain('Alpha');
+    expect(container.textContent).toContain('C D');
+    const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    await act(async () => {
+      checkbox.click();
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain('Alpha');
+    expect(container.textContent).not.toContain('C D');
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('renders rating and verified badge', async () => {
+    jest.spyOn(api, 'getArtists').mockResolvedValue({
+      data: [
+        {
+          id: 3,
+          business_name: 'Bravo',
+          rating: 4.5,
+          rating_count: 8,
+          user: { first_name: 'E', last_name: 'F', is_verified: true },
+          user_id: 3,
+        } as unknown as ArtistProfile,
+      ],
+    });
+    const { container, root } = setup();
+    await act(async () => {
+      root.render(React.createElement(ArtistsPage));
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain('4.5');
+    expect(container.querySelector('[aria-label="Verified"]')).not.toBeNull();
+    act(() => root.unmount());
+    container.remove();
+  });
 });
