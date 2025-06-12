@@ -59,7 +59,7 @@ export default function ArtistsPage() {
             Compare artists, check ratings, and book instantly.
           </p>
         </div>
-        <div className="rounded-xl bg-white shadow-md px-4 py-3 flex flex-wrap gap-2 items-center justify-start">
+        <div className="rounded-xl bg-white shadow-md px-4 py-3 flex flex-wrap gap-2 items-center justify-start mt-4">
           <div className="flex gap-2 overflow-x-auto whitespace-nowrap">
             {CATEGORIES.map((c) => (
               <button
