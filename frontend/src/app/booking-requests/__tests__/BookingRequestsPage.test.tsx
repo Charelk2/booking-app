@@ -126,4 +126,34 @@ describe('BookingRequestsPage', () => {
     });
     container.remove();
   });
+
+  it('sets aria attributes on toggle buttons', async () => {
+    const { container, root } = setup();
+    await act(async () => {
+      root.render(<BookingRequestsPage />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const aliceHeader = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Alice A'),
+    ) as HTMLButtonElement;
+    expect(aliceHeader?.getAttribute('aria-controls')).toBe('requests-1');
+    expect(aliceHeader?.getAttribute('aria-expanded')).toBe('false');
+    if (aliceHeader) {
+      act(() => {
+        aliceHeader.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+    }
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(aliceHeader?.getAttribute('aria-expanded')).toBe('true');
+    const list = container.querySelector('#requests-1');
+    expect(list).toBeTruthy();
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
 });

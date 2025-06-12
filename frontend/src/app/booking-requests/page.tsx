@@ -172,20 +172,22 @@ export default function BookingRequestsPage() {
             </div>
             <ul className="divide-y divide-gray-200">
               {grouped.map((g) => (
-                <li key={`client-${g.clientId}`}> 
+                <li key={`client-${g.clientId}`}>
                   <button
                     type="button"
                     onClick={() =>
                       setOpenClients((o) => ({ ...o, [g.clientId]: !o[g.clientId] }))
                     }
-                    className="w-full text-left p-4 bg-gray-50 font-medium flex items-center justify-between"
+                    aria-expanded={openClients[g.clientId] || false}
+                    aria-controls={`requests-${g.clientId}`}
+                    className="w-full text-left p-4 bg-gray-50 font-medium flex items-center justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
                   >
                     <span>
                       {openClients[g.clientId] ? '▼' : '▶'} {g.clientName} ({g.requests.length} requests)
                     </span>
                   </button>
                   {openClients[g.clientId] && (
-                    <ul className="divide-y divide-gray-200">
+                    <ul id={`requests-${g.clientId}`} className="divide-y divide-gray-200">
                       {g.requests.map((r) => {
                         const count = unreadCounts[r.id] ?? 0;
                         const unread = count > 0;
