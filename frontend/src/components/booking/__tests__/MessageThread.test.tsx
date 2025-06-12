@@ -396,4 +396,32 @@ describe('MessageThread component', () => {
     const found = Array.from(buttons).find((b) => b.textContent === 'Send Quote');
     expect(found).not.toBeUndefined();
   });
+
+  it('displays booking confirmation banner when quote accepted', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Quote sent',
+          message_type: 'quote',
+          quote_id: 5,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+    (api.getQuoteV2 as jest.Mock).mockResolvedValue({
+      data: { id: 5, status: 'accepted', services: [], sound_fee: 0, travel_fee: 0, subtotal: 0, total: 0, artist_id: 2, client_id: 1, booking_request_id: 1, created_at: '', updated_at: '' },
+    });
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} artistName="DJ" />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const banner = container.querySelector('[data-testid="booking-confirmed-banner"]');
+    expect(banner?.textContent).toContain('Booking confirmed for DJ');
+  });
 });

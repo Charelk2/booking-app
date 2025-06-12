@@ -38,6 +38,10 @@ def format_notification_message(
             f"Booking request #{kwargs.get('request_id')} status updated to"
             f" {kwargs.get('status')}"
         )
+    if ntype == NotificationType.QUOTE_ACCEPTED:
+        return f"Quote #{kwargs.get('quote_id')} accepted"
+    if ntype == NotificationType.NEW_BOOKING:
+        return f"New booking #{kwargs.get('booking_id')}"
     if ntype == NotificationType.DEPOSIT_DUE:
         return f"Deposit payment due for booking #{kwargs.get('booking_id')}"
     if ntype == NotificationType.REVIEW_REQUEST:
@@ -137,6 +141,40 @@ def notify_booking_status_update(
         type=NotificationType.BOOKING_STATUS_UPDATED,
         message=message,
         link=f"/booking-requests/{request_id}",
+    )
+    logger.info("Notify %s: %s", user.email, message)
+    _send_sms(user.phone_number, message)
+
+
+def notify_quote_accepted(db: Session, user: User, quote_id: int) -> None:
+    """Notify a user that a quote was accepted."""
+    message = format_notification_message(
+        NotificationType.QUOTE_ACCEPTED,
+        quote_id=quote_id,
+    )
+    crud_notification.create_notification(
+        db,
+        user_id=user.id,
+        type=NotificationType.QUOTE_ACCEPTED,
+        message=message,
+        link=f"/quotes/{quote_id}",
+    )
+    logger.info("Notify %s: %s", user.email, message)
+    _send_sms(user.phone_number, message)
+
+
+def notify_new_booking(db: Session, user: User, booking_id: int) -> None:
+    """Notify a user of a new booking."""
+    message = format_notification_message(
+        NotificationType.NEW_BOOKING,
+        booking_id=booking_id,
+    )
+    crud_notification.create_notification(
+        db,
+        user_id=user.id,
+        type=NotificationType.NEW_BOOKING,
+        message=message,
+        link=f"/bookings/{booking_id}",
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
