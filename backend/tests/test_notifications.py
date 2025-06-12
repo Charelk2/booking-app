@@ -288,6 +288,57 @@ def test_thread_notification_uses_business_name_for_artist():
     assert threads[0]["avatar_url"] == "/static/profile_pics/avatar.jpg"
 
 
+def test_thread_notification_includes_booking_details():
+    db = setup_db()
+    client = User(
+        email="bdetails@test.com",
+        password="x",
+        first_name="Client",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="bdetails2@test.com",
+        password="x",
+        first_name="Artist",
+        last_name="User",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    msg_in = MessageCreate(
+        content="Booking details:\nLocation: Test City\nGuests: 20",
+        message_type=MessageType.SYSTEM,
+    )
+    api_message.create_message(br.id, msg_in, db, current_user=client)
+
+    # create a normal message to generate a notification
+    api_message.create_message(
+        br.id,
+        MessageCreate(content="hello", message_type=MessageType.TEXT),
+        db,
+        current_user=client,
+    )
+
+    threads = crud_notification.get_message_thread_notifications(db, artist.id)
+    assert len(threads) == 1
+    details = threads[0]["booking_details"]
+    assert details["location"] == "Test City"
+    assert details["guests"] == "20"
+
+
 def test_mark_all_notifications_read():
     db = setup_db()
     user = User(

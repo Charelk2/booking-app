@@ -75,5 +75,6 @@ export function toUnifiedFromThread(t: ThreadNotification): UnifiedNotification 
     unread_count: t.unread_count,
     link: t.link,
     avatar_url: t.avatar_url,
+    booking_details: t.booking_details ?? undefined,
   };
 }
