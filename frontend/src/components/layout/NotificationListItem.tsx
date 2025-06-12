@@ -27,7 +27,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     const snippet = cleaned.length > 30 ? `${cleaned.slice(0, 30)}...` : cleaned;
     const titleRaw = n.name || '';
     const title = titleRaw.length > 36 ? `${titleRaw.slice(0, 36)}...` : titleRaw;
-    const unreadCount = n.unread_count ?? 0;
+    const unreadCount = Number(n.unread_count) || 0;
     return {
       title,
       subtitle: `Last message: "${snippet}"`,
@@ -151,7 +151,7 @@ export default function NotificationListItem({ n, onClick, style, className = ''
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
             <span className="text-base font-medium text-gray-900 truncate whitespace-nowrap overflow-hidden">{parsed.title}</span>
-            {parsed.unreadCount && parsed.unreadCount > 0 && (
+            {parsed.unreadCount > 0 && (
               <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full">
                 {parsed.unreadCount > 99 ? '99+' : parsed.unreadCount}
               </span>
