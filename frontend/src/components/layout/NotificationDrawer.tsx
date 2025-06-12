@@ -31,18 +31,16 @@ export interface ParsedNotification {
   initials?: string;
   bookingType?: string;
   metadata?: string;
+  unreadCount?: number;
 }
 
 export function parseItem(n: UnifiedNotification): ParsedNotification {
   if (n.type === 'message') {
     const cleaned = n.content.replace(/^New message:\s*/i, '').trim();
     const snippet = cleaned.length > 30 ? `${cleaned.slice(0, 30)}...` : cleaned;
-    const titleRaw =
-      n.unread_count && n.unread_count > 0
-        ? `${n.name} (${n.unread_count})`
-        : n.name || '';
-    const title =
-      titleRaw.length > 36 ? `${titleRaw.slice(0, 36)}...` : titleRaw;
+    const titleRaw = n.name || '';
+    const title = titleRaw.length > 36 ? `${titleRaw.slice(0, 36)}...` : titleRaw;
+    const unreadCount = n.unread_count ?? 0;
     return {
       title,
       subtitle: `Last message: "${snippet}"`,
@@ -54,6 +52,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
             .map((w) => w[0])
             .join('')
         : undefined,
+      unreadCount,
     };
   }
   if (n.type === 'new_booking_request') {
@@ -154,7 +153,14 @@ function DrawerItem({ n, onClick }: { n: UnifiedNotification; onClick: () => voi
       )}
       <div className="flex-1 text-left">
         <div className="flex items-start justify-between">
-          <span className="text-base font-medium text-gray-900 truncate whitespace-nowrap overflow-hidden">{parsed.title}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-base font-medium text-gray-900 truncate whitespace-nowrap overflow-hidden">{parsed.title}</span>
+            {parsed.unreadCount && parsed.unreadCount > 0 && (
+              <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full">
+                {parsed.unreadCount > 99 ? '99+' : parsed.unreadCount}
+              </span>
+            )}
+          </div>
           <span className="text-xs text-gray-400 text-right">
             {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
           </span>

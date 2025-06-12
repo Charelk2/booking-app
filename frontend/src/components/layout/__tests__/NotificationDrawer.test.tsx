@@ -63,7 +63,8 @@ describe('parseItem', () => {
       unread_count: 3,
     } as UnifiedNotification;
   const parsed = parseItem(n);
-  expect(parsed.title).toBe('Charlie Brown (3)');
+  expect(parsed.title).toBe('Charlie Brown');
+  expect(parsed.unreadCount).toBe(3);
   expect(parsed.subtitle).toBe(
       'Last message: "Hello there, this is a long me..."',
   );
@@ -81,6 +82,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Dana');
+    expect(parsed.unreadCount).toBe(0);
     expect(parsed.subtitle).toBe('Last message: "Hi"');
   });
 });
