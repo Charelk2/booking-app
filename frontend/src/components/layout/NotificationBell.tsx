@@ -34,6 +34,7 @@ export default function NotificationBell(): JSX.Element {
     markAll,
     loadMore,
     hasMore,
+    error,
   } = useNotifications();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -95,6 +96,7 @@ export default function NotificationBell(): JSX.Element {
           markAllRead={markAllRead}
           loadMore={loadMore}
           hasMore={hasMore}
+          error={error}
         />
       ) : (
         <NotificationDrawer
@@ -105,6 +107,7 @@ export default function NotificationBell(): JSX.Element {
           markAllRead={markAllRead}
           loadMore={loadMore}
           hasMore={hasMore}
+          error={error}
         />
       )}
     </div>

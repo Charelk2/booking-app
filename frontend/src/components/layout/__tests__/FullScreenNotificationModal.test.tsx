@@ -44,4 +44,18 @@ describe('FullScreenNotificationModal', () => {
     expect(document.body.textContent).toContain('Mark All as Read');
   });
 
+  it('shows error message when provided', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(FullScreenNotificationModal, {
+          ...baseProps,
+          error: 'Failed to load',
+        }),
+      );
+      await Promise.resolve();
+    });
+    const err = document.querySelector('[data-testid="notification-error"]');
+    expect(err?.textContent).toBe('Failed to load');
+  });
+
 });

@@ -19,6 +19,7 @@ interface FullScreenNotificationModalProps {
   markAllRead: () => Promise<void>;
   loadMore: () => Promise<void>;
   hasMore: boolean;
+  error?: string | null;
 }
 
 
@@ -30,6 +31,7 @@ export default function FullScreenNotificationModal({
   markAllRead,
   loadMore,
   hasMore,
+  error,
 }: FullScreenNotificationModalProps) {
   const router = useRouter();
   const [showUnread, setShowUnread] = useState(false);
@@ -97,6 +99,11 @@ export default function FullScreenNotificationModal({
               </button>
             </div>
           </div>
+          {error && (
+            <div className="bg-red-100 text-red-800 text-sm px-4 py-2" data-testid="notification-error">
+              {error}
+            </div>
+          )}
 
           <div
             className="flex-1 overflow-y-auto p-4"

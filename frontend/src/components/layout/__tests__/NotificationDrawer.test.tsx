@@ -1,3 +1,7 @@
+import { createRoot } from 'react-dom/client';
+import React from 'react';
+import { act } from 'react-dom/test-utils';
+import NotificationDrawer from '../NotificationDrawer';
 import { parseItem } from '../NotificationListItem';
 import type { UnifiedNotification } from '@/types';
 
@@ -84,5 +88,43 @@ describe('parseItem', () => {
     expect(parsed.title).toBe('Dana');
     expect(parsed.unreadCount).toBe(0);
     expect(parsed.subtitle).toBe('Last message: "Hi"');
+  });
+});
+
+describe('NotificationDrawer component', () => {
+  let container: HTMLDivElement;
+  let root: ReturnType<typeof createRoot>;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('renders error message when provided', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(NotificationDrawer, {
+          open: true,
+          onClose: () => {},
+          items: [],
+          onItemClick: jest.fn(),
+          markAllRead: jest.fn(),
+          loadMore: jest.fn(),
+          hasMore: false,
+          error: 'Failed to load',
+        }),
+      );
+      await Promise.resolve();
+    });
+    const errorBar = document.querySelector('[data-testid="notification-error"]');
+    expect(errorBar?.textContent).toBe('Failed to load');
   });
 });
