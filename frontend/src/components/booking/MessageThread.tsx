@@ -14,6 +14,7 @@ import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { getFullImageUrl } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
+import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Message, MessageCreate, Quote } from '@/types';
 import {
   getMessagesForBookingRequest,
@@ -74,6 +75,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [announceNewMessage, setAnnounceNewMessage] = useState('');
+  const [openDetails, setOpenDetails] = useState<Record<number, boolean>>({});
   const prevLengthRef = useRef(0);
 
   const fetchMessages = useCallback(async () => {
@@ -429,12 +431,33 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                               </p>
                             </div>
                           ) : msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX) ? (
-                            <details data-testid="booking-details">
-                              <summary className="cursor-pointer text-blue-600">Show details</summary>
-                              <pre className="whitespace-pre-wrap">
-                                {msg.content.slice(BOOKING_DETAILS_PREFIX.length).trim()}
-                              </pre>
-                            </details>
+                            <div data-testid="booking-details">
+                              <button
+                                type="button"
+                                data-testid="booking-details-button"
+                                onClick={() =>
+                                  setOpenDetails((prev) => ({
+                                    ...prev,
+                                    [msg.id]: !prev[msg.id],
+                                  }))
+                                }
+                                className="flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+                              >
+                                {openDetails[msg.id] ? (
+                                  <ChevronDownIcon className="h-4 w-4" aria-hidden="true" />
+                                ) : (
+                                  <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
+                                )}
+                                {openDetails[msg.id] ? 'Hide details' : 'Show details'}
+                              </button>
+                              {openDetails[msg.id] && (
+                                <div className="mt-2 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-800 font-mono whitespace-pre-wrap" data-testid="booking-details-content">
+                                  {msg.content
+                                    .slice(BOOKING_DETAILS_PREFIX.length)
+                                    .trim()}
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             msg.content
                           )}{' '}
