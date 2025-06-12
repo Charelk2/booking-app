@@ -54,52 +54,56 @@ export default function ArtistsPage() {
           <h1 className="text-3xl font-bold">Find the Perfect Artist</h1>
           <p className="mt-2 text-gray-600">Browse and book talented performers</p>
         </section>
-        <div className="sticky top-0 z-10 bg-white border-b">
-          <div className="flex flex-wrap items-center gap-2 overflow-x-auto whitespace-nowrap py-3">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => onCategory(c)}
-              className={
-                category === c
-                  ? 'bg-indigo-600 text-white px-3 py-1 rounded-full'
-                  : 'bg-gray-100 text-gray-700 px-3 py-1 rounded-full'
-              }
-            >
-              {c}
-            </button>
-          ))}
-          <input
-            placeholder="Location"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
-          />
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value || undefined)}
-            className="border rounded px-2 py-1 text-sm"
-          >
-            <option value="">Sort</option>
-            <option value="top_rated">Top Rated</option>
-            <option value="most_booked">Most Booked</option>
-            <option value="newest">Newest</option>
-          </select>
-          <label className="flex items-center gap-1 text-sm">
-            <input
-              type="checkbox"
-              checked={verifiedOnly}
-              onChange={(e) => setVerifiedOnly(e.target.checked)}
-            />
-            Verified Only
-          </label>
-        </div>
+        <div className="sticky top-0 z-10 bg-white border-b py-3">
+          <div className="flex flex-wrap gap-2 items-center justify-between mb-6">
+            <div className="flex gap-2 overflow-x-auto whitespace-nowrap">
+              {CATEGORIES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => onCategory(c)}
+                  className={
+                    category === c
+                      ? 'bg-indigo-600 text-white px-3 py-1 rounded-full'
+                      : 'bg-gray-100 text-gray-700 px-3 py-1 rounded-full'
+                  }
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                placeholder="Location"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="border rounded px-2 py-1 text-sm"
+              />
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value || undefined)}
+                className="border rounded px-2 py-1 text-sm"
+              >
+                <option value="">Sort</option>
+                <option value="top_rated">Top Rated</option>
+                <option value="most_booked">Most Booked</option>
+                <option value="newest">Newest</option>
+              </select>
+              <label className="flex items-center gap-1 text-sm">
+                <input
+                  type="checkbox"
+                  checked={verifiedOnly}
+                  onChange={(e) => setVerifiedOnly(e.target.checked)}
+                />
+                Verified Only
+              </label>
+            </div>
+          </div>
         </div>
         <div>
           {loading && <p>Loading...</p>}
           {error && <p className="text-red-600">{error}</p>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 py-6 lg:py-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {artists.map((a) => {
               const user = (a as Partial<typeof a>).user as ArtistProfile['user'] | null | undefined;
               const name = a.business_name || (user ? `${user.first_name} ${user.last_name}` : 'Unknown Artist');
