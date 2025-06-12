@@ -253,7 +253,7 @@ export default function NotificationDrawer({
                         onClick={markAllRead}
                         className="text-sm text-indigo-600 hover:underline"
                       >
-                        Mark all read
+                        Mark All as Read
                       </button>
                       <button
                         type="button"
