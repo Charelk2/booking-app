@@ -476,6 +476,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Artist cards display star ratings, verified badges, and an availability pill. Prices only appear when `price_visible` is true.
 * `<ArtistCard />` now accepts `rating`, `ratingCount`, `priceVisible`, `verified`, and `isAvailable` props so listings can show review data. You may also pass `specialities` as an alias for `specialties`. Ratings render with a star icon and the total count while the availability pill turns green or red based on `isAvailable`.
 * The card layout was revamped: the photo stacks above the details on mobile and sits left on larger screens. Taglines clamp to two lines using the new Tailwind `line-clamp` plugin. Pricing appears beneath the artist name when `priceVisible` is true or shows **Contact for pricing** otherwise. The availability badge turns gray when no schedule info is available.
+* Final polish aligns `<ArtistCard />` with the global design system: a subtle border, softer shadow, improved meta rows with icons, and a rounded-xl action button. Ratings display "No ratings yet" when missing and the location row includes a pin icon for clarity.
 
 ### Service Management (Artist Dashboard)
 
