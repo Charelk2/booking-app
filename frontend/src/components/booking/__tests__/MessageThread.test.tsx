@@ -180,6 +180,44 @@ describe('MessageThread component', () => {
     expect(groups.length).toBe(2);
   });
 
+  it('shows full date divider between days', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Previous day',
+          message_type: 'text',
+          timestamp: '2024-06-09T23:59:00Z',
+        },
+        {
+          id: 2,
+          booking_request_id: 1,
+          sender_id: 1,
+          sender_type: 'client',
+          content: 'Next day',
+          message_type: 'text',
+          timestamp: '2024-06-10T00:01:00Z',
+        },
+      ],
+    });
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+
+    const divider = container.querySelector('[data-testid="day-divider"]');
+    expect(divider?.textContent).toBe(
+      new Date('2024-06-10T00:01:00Z').toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+    );
+  });
+
   it('deduplicates websocket messages already fetched', async () => {
     const msg = {
       id: 99,

@@ -358,7 +358,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               className={`relative flex flex-col gap-0.5 ${isSelf ? 'items-end ml-auto' : 'items-start'} ${groupClass}`}
             >
               {group.divider && (
-                <hr className="border-t border-gray-300 w-full my-2" />
+                <div className="flex items-center my-2" role="separator">
+                  <hr className="flex-grow border-t border-gray-300" />
+                  <span
+                    className="px-2 text-xs text-gray-500 whitespace-nowrap"
+                    data-testid="day-divider"
+                  >
+                    {new Date(firstMsg.timestamp).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </span>
+                  <hr className="flex-grow border-t border-gray-300" />
+                </div>
               )}
               <time
                 dateTime={firstMsg.timestamp}
