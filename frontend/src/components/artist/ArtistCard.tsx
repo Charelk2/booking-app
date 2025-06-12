@@ -2,7 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type { HTMLAttributes } from 'react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, useMemo } from 'react';
 import clsx from 'clsx';
 import {
   StarIcon,
@@ -55,26 +55,37 @@ export default function ArtistCard({
   // Ensure unused props don't trigger lint errors until availability features land
   void ratingCount;
   void isAvailable;
-  const tags = specialties || specialities || [];
-  // Limit displayed tags so badges fit a single row. The container uses
-  // `flex-nowrap` and `overflow-hidden` to prevent wrapping, but long lists
-  // are also sliced to avoid partially hidden badges.
+  const tags = useMemo(
+    () => specialties || specialities || [],
+    [specialties, specialities],
+  );
+  // Limit displayed tags so badges fit a single row. Up to four are shown when
+  // space allows. If the container overflows, the list is reduced to two so the
+  // row remains intact instead of disappearing entirely.
   const maxTagsFirstRow = 4;
-  const limitedTags = tags.slice(0, maxTagsFirstRow);
+  const maxTagsOverflow = 2;
+  const [visibleCount, setVisibleCount] = useState(
+    Math.min(tags.length, maxTagsFirstRow),
+  );
 
   const tagRef = useRef<HTMLDivElement>(null);
-  const [showTags, setShowTags] = useState(true);
 
   useLayoutEffect(() => {
     const el = tagRef.current;
     if (!el) return;
     const update = () => {
-      setShowTags(el.scrollWidth <= el.clientWidth);
+      const fits = el.scrollWidth <= el.clientWidth;
+      const next = fits
+        ? Math.min(tags.length, maxTagsFirstRow)
+        : Math.min(tags.length, maxTagsOverflow);
+      setVisibleCount(next);
     };
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
-  }, [limitedTags]);
+  }, [tags]);
+
+  const limitedTags = tags.slice(0, visibleCount);
 
   return (
     <div
@@ -112,7 +123,7 @@ export default function ArtistCard({
           {verified && <CheckBadgeIcon className="h-4 w-4 text-brand" aria-label="Verified" />}
         </div>
         {subtitle && <p className="text-sm text-gray-500 leading-tight mt-0.5 line-clamp-2">{subtitle}</p>}
-        {showTags && limitedTags.length > 0 && (
+        {limitedTags.length > 0 && (
           <div
             ref={tagRef}
             className="flex flex-nowrap overflow-hidden gap-1 mt-2 whitespace-nowrap"
