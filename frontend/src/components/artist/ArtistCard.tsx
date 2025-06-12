@@ -38,7 +38,16 @@ export default function ArtistCard({
     <Card className={clsx('overflow-hidden', className)} {...props}>
       <div className="aspect-w-16 aspect-h-9 bg-gray-200 flex items-center justify-center">
         {imageUrl ? (
-          <Image src={imageUrl} alt={name} width={512} height={270} className="object-cover w-full h-48" />
+          <Image
+            src={imageUrl}
+            alt={name}
+            width={512}
+            height={270}
+            className="object-cover w-full h-48"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
+            }}
+          />
         ) : (
           <span className="text-gray-400 text-sm">No Image</span>
         )}

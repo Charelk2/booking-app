@@ -136,6 +136,9 @@ export default function NotificationListItem({ n, onClick, style, className = ''
             width={40}
             height={40}
             className="h-10 w-10 flex-shrink-0 rounded-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
+            }}
           />
         ) : (
           <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
