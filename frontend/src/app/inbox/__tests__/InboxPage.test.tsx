@@ -79,6 +79,24 @@ describe('InboxPage unread badge', () => {
     expect(card?.className).toContain('bg-indigo-50');
     const badge = container.querySelector('span.bg-red-600');
     expect(badge?.textContent).toBe('2');
+    const dot = container.querySelector('span[aria-label="Unread messages"]');
+    expect(dot).not.toBeNull();
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('does not show unread dot for read threads', async () => {
+    const { container, root } = setup(0);
+    await act(async () => {
+      root.render(<InboxPage />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const dot = container.querySelector('span[aria-label="Unread messages"]');
+    expect(dot).toBeNull();
     act(() => {
       root.unmount();
     });
