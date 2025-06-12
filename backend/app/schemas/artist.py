@@ -25,6 +25,7 @@ class ArtistProfileBase(BaseModel):
     specialties: Optional[List[str]] = None
     profile_picture_url: Optional[str] = None
     cover_photo_url: Optional[str] = None
+    price_visible: Optional[bool] = True
 
     model_config = {
         # Still needed so that Pydantic can work with ORM objects, but we override below
@@ -50,6 +51,9 @@ class ArtistProfileResponse(ArtistProfileBase):
     user_id: int = Field(..., exclude=True)
     created_at: datetime
     updated_at: datetime
+    rating: Optional[float] = None
+    rating_count: int = 0
+    is_available: Optional[bool] = None
 
     # We want to include a nested "user" object when returning an artist profile
     user: Optional[UserResponse] = None

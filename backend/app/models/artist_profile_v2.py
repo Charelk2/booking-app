@@ -1,6 +1,6 @@
 # backend/app/models/artist_profile_v2.py
 
-from sqlalchemy import Column, String, Text, Numeric, ForeignKey, JSON, Integer
+from sqlalchemy import Column, String, Text, Numeric, ForeignKey, JSON, Integer, Boolean
 from sqlalchemy.orm import relationship
 from .base import BaseModel      # ← import BaseModel directly
 
@@ -24,6 +24,7 @@ class ArtistProfileV2(BaseModel):
     specialties        = Column(JSON, nullable=True)
     profile_picture_url= Column(String, nullable=True)
     cover_photo_url    = Column(String, nullable=True)
+    price_visible      = Column(Boolean, nullable=False, default=True)
 
     # Relationships
     user     = relationship("User", back_populates="artist_profile")
