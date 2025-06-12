@@ -6,6 +6,7 @@ import clsx from 'clsx';
 import {
   StarIcon,
   CheckBadgeIcon,
+  MapPinIcon,
 } from '@heroicons/react/24/solid';
 
 export interface ArtistCardProps extends HTMLAttributes<HTMLDivElement> {
@@ -53,7 +54,7 @@ export default function ArtistCard({
   return (
     <div
       className={clsx(
-        'p-4 flex flex-col gap-2 rounded-2xl bg-white shadow-sm transition lg:hover:shadow-lg lg:hover:scale-[1.01]',
+        'p-4 flex flex-col gap-2 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition',
         className,
       )}
       {...props}
@@ -80,58 +81,66 @@ export default function ArtistCard({
           />
         )}
       </div>
-      <div className="flex flex-col gap-1 flex-1">
+      <div className="flex flex-col gap-2 flex-1 mt-2">
         <div className="flex items-center">
-          <h2 className="flex-1 text-lg font-semibold truncate">{name}</h2>
+          <h2 className="flex-1 text-lg font-semibold text-gray-900 truncate">{name}</h2>
           {verified && <CheckBadgeIcon className="h-4 w-4 text-brand" aria-label="Verified" />}
         </div>
-        {subtitle && <p className="text-sm text-gray-600 line-clamp-2">{subtitle}</p>}
+        {subtitle && <p className="text-sm text-gray-600 leading-tight line-clamp-2">{subtitle}</p>}
         {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
+          <div className="flex flex-wrap gap-1">
             {tags.map((s) => (
               <span
                 key={`${id}-${s}`}
-                className="bg-indigo-100 text-indigo-600 px-2 py-1 text-xs rounded-full"
+                className="bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-full"
               >
                 {s}
               </span>
             ))}
           </div>
         )}
-        <div className="mt-auto flex flex-wrap items-center justify-between gap-2 text-sm">
-          {location && <span className="text-gray-500">{location}</span>}
-          {rating !== undefined && rating !== null && ratingCount !== undefined && ratingCount !== null && (
-            <span className="flex items-center">
-              <StarIcon className="h-4 w-4 mr-1 text-yellow-400" />
-              {rating}
-              <span className="ml-1">({ratingCount})</span>
-            </span>
+        <hr className="border-t border-gray-100 my-2" />
+        <div className="flex items-center justify-between text-sm">
+          <span className="flex items-center text-gray-700">
+            <StarIcon className="h-4 w-4 mr-1 text-yellow-400" />
+            {rating !== undefined && rating !== null && ratingCount !== undefined && ratingCount !== null ? (
+              <>
+                {rating} <span className="ml-1">({ratingCount})</span>
+              </>
+            ) : (
+              <span className="text-gray-400">No ratings yet</span>
+            )}
+          </span>
+          {priceVisible && price && (
+            <span className="text-base font-semibold text-gray-900">{price}</span>
           )}
-          {priceVisible ? (
-            price ? (
-              <span className="font-medium text-gray-900">Starting at R{price}</span>
-            ) : null
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          {location ? (
+            <span className="flex items-center text-gray-500 truncate">
+              <MapPinIcon className="h-4 w-4 mr-1 text-gray-400" />
+              {location}
+            </span>
           ) : (
-            <span className="text-gray-500">Price available after request</span>
+            <span />
           )}
           {isAvailable !== undefined && (
             <span
               className={clsx(
-                'px-2 py-1 text-xs rounded-full',
-                isAvailable ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-500',
+                'px-2 py-1 rounded-full',
+                isAvailable ? 'bg-green-100 text-green-600 text-xs' : 'bg-gray-100 text-gray-500 text-xs',
               )}
             >
               {isAvailable ? 'Available' : 'Currently unavailable'}
             </span>
           )}
         </div>
-        <Link href={href} className="mt-2 self-end w-full sm:w-auto group">
+        <Link href={href} className="mt-2 self-end w-full sm:w-auto">
           <button
             type="button"
-            className="w-full sm:w-auto text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg px-4 py-2 text-sm font-medium"
+            className="w-full sm:w-auto text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700"
           >
-            <span className="group-hover:hidden">View Profile</span>
-            <span className="hidden group-hover:inline">Book Now</span>
+            View Profile
           </button>
         </Link>
       </div>
