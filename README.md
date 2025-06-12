@@ -59,9 +59,10 @@ exist, the script extracts them so the directories are restored. This first
 run is mandatory&mdash;`./scripts/test-all.sh` will fail until these caches
 are populated.
 
-If `DOCKER_TEST_NETWORK` isn't set and the caches are missing, the script
-now automatically uses `--network bridge` and prints a notice so the
-dependencies can be fetched.
+If `DOCKER_TEST_NETWORK` isn't set and the caches are missing **or the
+dependency hashes differ from the cached versions**, the script automatically
+uses `--network bridge` and prints a notice so the updated packages can be
+fetched.
 
 2. **Run tests offline**
 
@@ -70,9 +71,10 @@ dependencies can be fetched.
    ```
 
    Subsequent runs reuse the cached dependencies and pass `--network none` to
-   avoid downloading packages, making the tests start much faster. Rebuild the
-   image or delete the caches whenever `requirements.txt` or `package-lock.json`
-   changes so the updated packages are installed.
+   avoid downloading packages, making the tests start much faster. The script
+   detects when `requirements.txt` or `package-lock.json` changes and
+   automatically switches to `--network bridge` so the caches are refreshed.
+   You can still delete the caches or rebuild the image manually if needed.
 
 The container installs all Python and Node dependencies. During the build
 step it creates `backend/venv` and installs the requirements into that
@@ -350,9 +352,9 @@ the container. If either cache is missing, it prints a warning like
 `DOCKER_TEST_NETWORK=bridge` so the dependencies can be copied over. Once the
 caches are in place, future runs with `--network none` complete quickly because
 the cached directories are reused.
-If `DOCKER_TEST_NETWORK` isn't set and these markers are absent, `docker-test.sh`
-automatically uses `bridge` and prints a notice so the caches are populated
-without failing.
+If `DOCKER_TEST_NETWORK` isn't set and these markers are absent **or the hash
+files show the caches are outdated**, `docker-test.sh` automatically uses
+`bridge` and prints a notice so the caches are populated without failing.
 
 If `setup.sh` still tries to run `pip install` or `npm ci`, it means the marker
 files were not copied correctly. Rerun `scripts/docker-test.sh` with
