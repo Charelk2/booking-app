@@ -15,7 +15,7 @@ import type { BookingRequest } from '@/types';
 export default function BookingRequestsPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const { items } = useNotifications();
+  const { items, markItem } = useNotifications();
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -116,6 +116,23 @@ export default function BookingRequestsPage() {
     return result;
   }, [filtered]);
 
+  const handleRowClick = async (id: number) => {
+    const related = items.filter((n) => {
+      if (n.type === 'message' && n.booking_request_id === id) {
+        return (n.unread_count ?? 0) > 0;
+      }
+      if (n.type === 'new_booking_request' && !n.is_read) {
+        const match = n.link?.match(/booking-requests\/(\d+)/);
+        return match ? Number(match[1]) === id : false;
+      }
+      return false;
+    });
+    for (const n of related) {
+      await markItem(n);
+    }
+    router.push(`/booking-requests/${id}`);
+  };
+
   if (!user) {
     return (
       <MainLayout>
@@ -200,8 +217,8 @@ export default function BookingRequestsPage() {
                             data-request-id={r.id}
                             role="button"
                             tabIndex={0}
-                            onClick={() => router.push(`/booking-requests/${r.id}`)}
-                            onKeyPress={() => router.push(`/booking-requests/${r.id}`)}
+                            onClick={() => handleRowClick(r.id)}
+                            onKeyPress={() => handleRowClick(r.id)}
                             className={clsx(
                               'grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 pl-6 cursor-pointer hover:bg-gray-50 focus:outline-none',
                               unread ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'bg-white',
