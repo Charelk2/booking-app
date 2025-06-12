@@ -54,12 +54,12 @@ export default function ArtistCard({
   return (
     <div
       className={clsx(
-        'p-4 flex flex-col gap-2 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition',
+        'p-4 flex flex-col gap-2 rounded-xl border border-gray-200 shadow-sm bg-white transition hover:shadow-md',
         className,
       )}
       {...props}
     >
-      <div className="relative h-48 w-full overflow-hidden rounded-t-2xl">
+      <div className="relative h-48 w-full overflow-hidden rounded-lg">
         {imageUrl ? (
           <Image
             src={imageUrl}
@@ -86,22 +86,22 @@ export default function ArtistCard({
           <h2 className="flex-1 text-lg font-semibold text-gray-900 truncate">{name}</h2>
           {verified && <CheckBadgeIcon className="h-4 w-4 text-brand" aria-label="Verified" />}
         </div>
-        {subtitle && <p className="text-sm text-gray-600 leading-tight line-clamp-2">{subtitle}</p>}
+        {subtitle && <p className="text-sm text-gray-500 leading-tight line-clamp-2">{subtitle}</p>}
         {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1 mt-1 text-xs">
             {tags.map((s) => (
               <span
                 key={`${id}-${s}`}
-                className="bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-full"
+                className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
               >
                 {s}
               </span>
             ))}
           </div>
         )}
-        <hr className="border-t border-gray-100 my-2" />
-        <div className="flex items-center justify-between text-sm">
-          <span className="flex items-center text-gray-700">
+        <hr className="border-t border-gray-200 my-2" />
+        <div className="flex justify-between items-center text-sm text-gray-700">
+          <span className="flex items-center">
             <StarIcon className="h-4 w-4 mr-1 text-yellow-400" />
             {rating !== undefined && rating !== null && ratingCount !== undefined && ratingCount !== null ? (
               <>
@@ -112,37 +112,24 @@ export default function ArtistCard({
             )}
           </span>
           {priceVisible && price && (
-            <span className="text-base font-semibold text-gray-900">{price}</span>
+            <span className="font-semibold">{price}</span>
           )}
         </div>
-        <div className="flex items-center justify-between text-xs">
+        <div className="flex justify-between items-center mt-1">
           {location ? (
-            <span className="flex items-center text-gray-500 truncate">
-              <MapPinIcon className="h-4 w-4 mr-1 text-gray-400" />
-              {location}
-            </span>
+            <span className="text-gray-700 truncate">{location}</span>
           ) : (
             <span />
           )}
-          {isAvailable !== undefined && (
-            <span
-              className={clsx(
-                'px-2 py-1 rounded-full',
-                isAvailable ? 'bg-green-100 text-green-600 text-xs' : 'bg-gray-100 text-gray-500 text-xs',
-              )}
+          <Link href={href} className="shrink-0">
+            <button
+              type="button"
+              className="bg-indigo-500 text-white text-sm px-4 py-1 rounded-md hover:bg-indigo-600"
             >
-              {isAvailable ? 'Available' : 'Currently unavailable'}
-            </span>
-          )}
+              View Profile
+            </button>
+          </Link>
         </div>
-        <Link href={href} className="mt-2 self-end w-full sm:w-auto">
-          <button
-            type="button"
-            className="w-full sm:w-auto text-sm font-medium bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700"
-          >
-            View Profile
-          </button>
-        </Link>
       </div>
     </div>
   );
