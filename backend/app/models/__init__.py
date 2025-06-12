@@ -4,6 +4,8 @@ from .service import Service
 from .booking import Booking, BookingStatus
 from .review import Review
 from .request_quote import BookingRequest, Quote, BookingRequestStatus, QuoteStatus
+from .quote_v2 import QuoteV2, QuoteStatusV2
+from .booking_simple import BookingSimple
 from .sound_provider import SoundProvider
 from .artist_sound_preference import ArtistSoundPreference
 from .message import Message, SenderType, MessageType
@@ -17,6 +19,8 @@ __all__ = [
     "Review",
     "BookingRequest",
     "Quote",
+    "QuoteV2",
+    "BookingSimple",
     "Message",
     "SoundProvider",
     "ArtistSoundPreference",
@@ -24,6 +28,7 @@ __all__ = [
     "BookingStatus",
     "BookingRequestStatus",
     "QuoteStatus",
+    "QuoteStatusV2",
     "SenderType",
     "MessageType",
     "Notification",
