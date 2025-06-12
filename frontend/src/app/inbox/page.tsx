@@ -128,7 +128,14 @@ export default function InboxPage() {
             )}
           >
             <div className="flex justify-between items-center">
-              <span className="font-semibold text-sm">{b.senderName}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm">{b.senderName}</span>
+                {b.unread > 0 && (
+                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full">
+                    {b.unread > 99 ? '99+' : b.unread}
+                  </span>
+                )}
+              </div>
               <span className="text-xs text-gray-500">{b.formattedDate}</span>
             </div>
             <div className="text-sm text-gray-600">
@@ -163,7 +170,14 @@ export default function InboxPage() {
               {initials}
             </div>
             <div className="flex-1 overflow-hidden">
-              <div className="font-medium text-sm">{t.name}</div>
+              <div className="flex items-center gap-2">
+                <div className="font-medium text-sm">{t.name}</div>
+                {(t.unread_count ?? 0) > 0 && (
+                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full">
+                    {t.unread_count && t.unread_count > 99 ? '99+' : t.unread_count}
+                  </span>
+                )}
+              </div>
               <div className="text-xs text-gray-500 truncate">{t.content}</div>
             </div>
             <div className="text-xs text-gray-400">
