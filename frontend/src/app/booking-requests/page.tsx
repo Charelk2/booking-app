@@ -57,18 +57,24 @@ export default function BookingRequestsPage() {
     fetchRequests();
   }, [user]);
 
-  const unreadIds = useMemo(() => {
-    const set = new Set<number>();
+  const unreadCounts = useMemo(() => {
+    const map: Record<number, number> = {};
     items.forEach((n) => {
-      if (n.type === 'message' && n.booking_request_id && (n.unread_count ?? 0) > 0) {
-        set.add(n.booking_request_id);
+      if (n.type === 'message' && n.booking_request_id) {
+        const count = n.unread_count ?? 0;
+        if (count > 0) {
+          map[n.booking_request_id] = (map[n.booking_request_id] || 0) + count;
+        }
       }
       if (n.type === 'new_booking_request' && !n.is_read) {
         const match = n.link?.match(/booking-requests\/(\d+)/);
-        if (match) set.add(Number(match[1]));
+        if (match) {
+          const id = Number(match[1]);
+          map[id] = (map[id] || 0) + 1;
+        }
       }
     });
-    return set;
+    return map;
   }, [items]);
 
   const filtered = useMemo(() => {
@@ -181,7 +187,8 @@ export default function BookingRequestsPage() {
                   {openClients[g.clientId] && (
                     <ul className="divide-y divide-gray-200">
                       {g.requests.map((r) => {
-                        const unread = unreadIds.has(r.id);
+                        const count = unreadCounts[r.id] ?? 0;
+                        const unread = count > 0;
                         return (
                           <li
                             key={r.id}
@@ -203,7 +210,17 @@ export default function BookingRequestsPage() {
                                 ? new Date(r.proposed_datetime_1).toLocaleDateString()
                                 : '—'}
                             </div>
-                            <div className="text-sm sm:text-center">{formatStatus(r.status)}</div>
+                            <div className="text-sm sm:text-center flex items-center justify-between sm:justify-center">
+                              <span>{formatStatus(r.status)}</span>
+                              {count > 0 && (
+                                <span
+                                  className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full"
+                                  aria-label={`${count} unread updates`}
+                                >
+                                  {count > 99 ? '99+' : count}
+                                </span>
+                              )}
+                            </div>
                           </li>
                         );
                       })}
