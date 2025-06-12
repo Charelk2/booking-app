@@ -121,7 +121,7 @@ export default function NotificationDrawer({
                       <List
                         height={listHeight}
                         itemCount={filtered.length + (hasMore ? 1 : 0)}
-                        itemSize={88}
+                        itemSize={84}
                         width="100%"
                         overscanCount={3}
                       >
@@ -135,7 +135,6 @@ export default function NotificationDrawer({
                                   onClick={() =>
                                     onItemClick(n.id || (n.booking_request_id as number))
                                   }
-                                  className="border-b last:border-b-0"
                                 />
                               </div>
                             );
