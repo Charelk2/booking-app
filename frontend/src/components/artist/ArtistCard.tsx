@@ -26,10 +26,13 @@ export interface ArtistCardProps extends HTMLAttributes<HTMLDivElement> {
   /** explicitly controls if price is shown */
   priceVisible?: boolean;
   verified?: boolean;
-  // isAvailable?: boolean; // reserved for future availability indicator
+  /** availability flag reserved for future indicator */
+  isAvailable?: boolean;
   href: string;
 }
 
+// ratingCount and isAvailable are currently unused but may be utilized in the future.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function ArtistCard({
   id,
   imageUrl,
@@ -40,13 +43,17 @@ export default function ArtistCard({
   specialties,
   specialities,
   rating,
-  ratingCount: _ratingCount,
+  ratingCount,
   priceVisible = true,
   verified = false,
   href,
+  isAvailable,
   className,
   ...props
 }: ArtistCardProps) {
+  // Ensure unused props don't trigger lint errors until availability features land
+  void ratingCount;
+  void isAvailable;
   const tags = specialties || specialities || [];
   const maxTagsToShow = 4;
   const limitedTags = tags.slice(0, maxTagsToShow);
