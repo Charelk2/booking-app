@@ -7,6 +7,7 @@ The June 2025 update bumps key dependencies:
 - **FastAPI** 0.115.12 (requires Starlette 0.46+)
 - **Uvicorn** 0.34
 - **React** 18.3 and **Next.js** 14.2
+- Minor fix: the artists listing now gracefully handles incomplete user data from the API.
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
