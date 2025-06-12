@@ -106,35 +106,23 @@ describe('ArtistCard optional fields', () => {
     container.remove();
   });
 
-  it('shows only the first row of specialty tags', () => {
+  it('shows at most two specialty tags', () => {
     const { container, root } = setup({
       specialties: ['a', 'b', 'c', 'd', 'e', 'f'],
     });
     const tagContainer = container.querySelector('div.flex.flex-nowrap');
     const tags = tagContainer?.querySelectorAll('span');
-    expect(tags?.length).toBeLessThanOrEqual(4);
+    expect(tags?.length).toBeLessThanOrEqual(2);
     tags?.forEach((tag) => {
-      expect(tag.className).toContain('text-xs');
-      expect(tag.className).toContain('px-2');
-      expect(tag.className).toContain('py-1');
+      expect(tag.className).toContain('text-[10px]');
+      expect(tag.className).toContain('px-1.5');
+      expect(tag.className).toContain('py-0.5');
     });
     act(() => root.unmount());
     container.remove();
   });
 
-  it('limits specialty tags to two when they overflow', () => {
-    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
-    const originalScrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
-
-    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
-      configurable: true,
-      value: 100,
-    });
-    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
-      configurable: true,
-      value: 150,
-    });
-
+  it('always limits specialty tags to two', () => {
     const { container, root } = setup({ specialties: ['x', 'y', 'z'] });
     const tagDiv = container.querySelector('div.flex.flex-nowrap');
     expect(tagDiv).not.toBeNull();
@@ -143,12 +131,5 @@ describe('ArtistCard optional fields', () => {
 
     act(() => root.unmount());
     container.remove();
-
-    if (originalClientWidth) {
-      Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth);
-    }
-    if (originalScrollWidth) {
-      Object.defineProperty(HTMLElement.prototype, 'scrollWidth', originalScrollWidth);
-    }
   });
 });
