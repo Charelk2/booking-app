@@ -471,6 +471,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Accessibility and animation improvements.
 * Dashboard stats now animate on load using **framer-motion**.
 * Artist cards display star ratings, verified badges, and an availability pill. Prices only appear when `price_visible` is true.
+* `<ArtistCard />` now accepts `rating`, `ratingCount`, `priceVisible`, `verified`, and `isAvailable` props so listings can show review data. Ratings render with a star icon and the total count while the availability pill turns green or red based on `isAvailable`.
 
 ### Service Management (Artist Dashboard)
 
@@ -529,6 +530,11 @@ category=<ServiceType>&location=<substring>&sort=<top_rated|most_booked|newest>
 Profiles include `rating`, `rating_count`, and `is_available` fields. A new
 `price_visible` boolean on each artist controls whether the hourly rate is
 returned. Newly created profiles default to `true`.
+
+The redesigned listing page features a sticky filter bar with category chips,
+a location search, sort dropdown, and a **Verified Only** toggle. Each card
+shows the artist's rating and a green/red availability pill based on
+`is_available` so clients can quickly gauge popularity and open slots.
 
 ### Mobile Navigation & Inbox
 
