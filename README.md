@@ -552,11 +552,11 @@ Profiles include `rating`, `rating_count`, and `is_available` fields. A new
 `price_visible` boolean on each artist controls whether the hourly rate is
 returned. Newly created profiles default to `true`.
 
-The redesigned listing page features a sticky filter bar that uses
-`flex flex-wrap gap-2 items-center justify-between` for responsive spacing.
-Category chips render as pill buttons in a horizontally scrollable row on small
-screens. A location search, sort dropdown, and **Verified Only** toggle align on
-the right. Each card shows the artist's rating.
+The redesigned listing page features a rounded filter bar wrapped in a white
+card with a subtle shadow. Chips use `rounded-full bg-gray-100 text-gray-700
+px-3 py-1.5 text-sm` styling and highlight in indigo when selected. An optional
+**Filter** button with a funnel icon sits on the far right. The entire page now
+rests on a soft gradient background from indigo to white.
 
 ### Mobile Navigation & Inbox
 
