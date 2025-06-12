@@ -107,7 +107,7 @@ export interface QuoteCreate {
   booking_request_id: number;
   quote_details: string;
   price: number;
-  currency?: string; // defaults to "USD"
+  currency?: string; // defaults to "ZAR"
   valid_until?: string; // ISO date-time
 }
 
