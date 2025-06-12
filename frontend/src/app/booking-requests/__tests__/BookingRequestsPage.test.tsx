@@ -72,7 +72,7 @@ describe('BookingRequestsPage', () => {
     jest.clearAllMocks();
   });
 
-  it('highlights unread requests', async () => {
+  it('highlights unread requests and shows badge', async () => {
     const { container, root } = setup();
     await act(async () => {
       root.render(<BookingRequestsPage />);
@@ -93,6 +93,8 @@ describe('BookingRequestsPage', () => {
     });
     const aliceRow = container.querySelector('li[data-request-id="1"]');
     expect(aliceRow?.className).toContain('bg-indigo-50');
+    const badge = aliceRow?.querySelector('span.bg-red-600');
+    expect(badge?.textContent).toBe('1');
     act(() => {
       root.unmount();
     });
