@@ -467,6 +467,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * ARIA roles, clearer empty states, optional subtitle/tagline.
 * Shared `Card`, `Tag`, `TextInput` components.
 * Open Graph meta tags and fallback avatars.
+* Profile images across the UI now automatically fall back to `default-avatar.svg` if the requested file cannot be loaded.
 * Accessibility and animation improvements.
 * Dashboard stats now animate on load using **framer-motion**.
 
