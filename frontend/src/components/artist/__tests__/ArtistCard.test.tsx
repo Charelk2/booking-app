@@ -25,13 +25,13 @@ describe('ArtistCard optional fields', () => {
   });
 
   it('renders price when visible and hides when not', () => {
-    const { container: c1, root: r1 } = setup({ price: '$100', priceVisible: true });
-    expect(c1.textContent).toContain('$100');
+    const { container: c1, root: r1 } = setup({ price: 100, priceVisible: true });
+    expect(c1.textContent).toContain('from R100');
     act(() => r1.unmount());
     c1.remove();
 
-    const { container: c2, root: r2 } = setup({ price: '$200', priceVisible: false });
-    expect(c2.textContent).not.toContain('$200');
+    const { container: c2, root: r2 } = setup({ price: 200, priceVisible: false });
+    expect(c2.textContent).not.toContain('200');
     act(() => r2.unmount());
     c2.remove();
   });
@@ -41,7 +41,7 @@ describe('ArtistCard optional fields', () => {
     expect(container.textContent).toContain('NYC');
     const subtitleEl = container.querySelector('p.text-sm');
     expect(subtitleEl?.className).toContain('line-clamp-2');
-    const locEl = container.querySelector('span.text-gray-700');
+    const locEl = container.querySelector('span.text-sm');
     expect(locEl?.textContent).toContain('NYC');
     act(() => root.unmount());
     container.remove();
