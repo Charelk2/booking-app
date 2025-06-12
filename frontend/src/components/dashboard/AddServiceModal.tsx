@@ -4,6 +4,7 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { Service } from '@/types';
 import { createService as apiCreateService } from '@/lib/api'; // Assuming this function exists
 import { useState } from 'react';
+import { DEFAULT_CURRENCY } from '@/lib/constants';
 
 interface AddServiceModalProps {
   isOpen: boolean;
@@ -99,7 +100,9 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
             </div>
 
             <div>
-              <label htmlFor="price" className="block text-sm font-medium text-gray-700">Price (R)</label>
+              <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+                {`Price (${DEFAULT_CURRENCY})`}
+              </label>
               <input
                 type="number"
                 id="price"
