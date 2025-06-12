@@ -86,21 +86,26 @@ export default function ArtistsPage() {
         {loading && <p>Loading...</p>}
         {error && <p className="text-red-600">{error}</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {artists.map((a) => (
-            <ArtistCard
-              key={a.id}
-              id={a.id}
-              name={a.business_name || `${a.user.first_name} ${a.user.last_name}`}
-              subtitle={a.custom_subtitle || undefined}
-              imageUrl={a.profile_picture_url || a.portfolio_urls?.[0] || undefined}
-              price={a.hourly_rate && a.price_visible ? `$${a.hourly_rate}` : undefined}
-              location={a.location}
-              specialties={a.specialties}
-              verified={a.user.is_verified}
-              isAvailable={a.is_available}
-              href={`/artists/${a.id}`}
-            />
-          ))}
+          {artists.map((a) => {
+            const user = (a as Partial<typeof a>).user as ArtistProfile['user'] | null | undefined;
+            const name = a.business_name || (user ? `${user.first_name} ${user.last_name}` : 'Unknown Artist');
+
+            return (
+              <ArtistCard
+                key={a.id}
+                id={a.id}
+                name={name}
+                subtitle={a.custom_subtitle || undefined}
+                imageUrl={a.profile_picture_url || a.portfolio_urls?.[0] || undefined}
+                price={a.hourly_rate && a.price_visible ? `$${a.hourly_rate}` : undefined}
+                location={a.location}
+                specialties={a.specialties}
+                verified={user?.is_verified}
+                isAvailable={a.is_available}
+                href={`/artists/${a.id}`}
+              />
+            );
+          })}
         </div>
       </div>
     </MainLayout>
