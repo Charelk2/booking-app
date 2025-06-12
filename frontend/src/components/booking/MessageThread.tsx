@@ -84,6 +84,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [openDetails, setOpenDetails] = useState<Record<number, boolean>>({});
   const prevLengthRef = useRef(0);
 
+  const ensureQuoteLoaded = useCallback(
+    async (quoteId: number) => {
+      if (quotes[quoteId]) return;
+      try {
+        const res = await getQuoteV2(quoteId);
+        setQuotes((prev) => ({ ...prev, [quoteId]: res.data }));
+        if (res.data.status === 'accepted') setBookingConfirmed(true);
+      } catch (err) {
+        console.error('Failed to fetch quote', err);
+      }
+    },
+    [quotes],
+  );
+
   const fetchMessages = useCallback(async () => {
     try {
       const res = await getMessagesForBookingRequest(bookingRequestId);
@@ -107,20 +121,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       setLoading(false);
     }
   }, [bookingRequestId, ensureQuoteLoaded]);
-
-  const ensureQuoteLoaded = useCallback(
-    async (quoteId: number) => {
-      if (quotes[quoteId]) return;
-      try {
-        const res = await getQuoteV2(quoteId);
-        setQuotes((prev) => ({ ...prev, [quoteId]: res.data }));
-        if (res.data.status === 'accepted') setBookingConfirmed(true);
-      } catch (err) {
-        console.error('Failed to fetch quote', err);
-      }
-    },
-    [quotes],
-  );
 
   useImperativeHandle(ref, () => ({
     refreshMessages: async () => {
