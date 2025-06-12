@@ -110,7 +110,7 @@ describe('ArtistCard optional fields', () => {
     const { container, root } = setup({
       specialties: ['a', 'b', 'c', 'd', 'e', 'f'],
     });
-    const tagContainer = container.querySelector('div.flex.flex-wrap');
+    const tagContainer = container.querySelector('div.flex.flex-nowrap');
     const tags = tagContainer?.querySelectorAll('span');
     expect(tags?.length).toBeLessThanOrEqual(4);
     tags?.forEach((tag) => {
