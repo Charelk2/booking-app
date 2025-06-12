@@ -66,7 +66,11 @@ fi
 
 if [ -z "${BOOKING_APP_SKIP_PULL:-}" ]; then
   echo "Pulling $IMAGE"
-  docker pull "$IMAGE"
+  if ! docker pull "$IMAGE"; then
+    echo "❌ Failed to contact Docker daemon. Is it running?" >&2
+    echo "   Install or start Docker, or run ./scripts/test-all.sh directly." >&2
+    exit 1
+  fi
 else
   echo "Skipping docker pull because BOOKING_APP_SKIP_PULL is set"
 fi

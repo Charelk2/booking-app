@@ -671,9 +671,10 @@ formatCurrency(99.5, 'USD', 'en-US'); // => 'US$99.50'
   `npm config set https-proxy http://proxy:8080` if your environment requires a
   proxy. Without these settings you may see `ENETUNREACH` or other network
   errors when running `setup.sh` or `npm ci`.
-* **npm install failed**: `scripts/test-all.sh` prints the last npm debug log on
-  failure. Verify network access or run `scripts/docker-test.sh` to install
-  dependencies offline.
+* **npm install failed**: `scripts/test-all.sh` shows the last npm debug log on
+  failure. Verify your proxy settings or run
+  `scripts/docker-test.sh` with `DOCKER_TEST_NETWORK=bridge` to install
+  dependencies or refresh caches.
 * **Outdated Docker cache**: If `docker-test.sh` fails due to missing packages,
   update the Docker image and allow network access:
   `BOOKING_APP_BUILD=1 DOCKER_TEST_NETWORK=bridge ./scripts/docker-test.sh`.

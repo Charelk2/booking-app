@@ -70,7 +70,8 @@ if [ -n "$FRONTEND_CHANGES" ]; then
   if [ ! -f node_modules/.install_complete ]; then
     npm config set install-links true
     if ! npm ci --prefer-offline --no-audit --progress=false 2>npm-ci.log; then
-      echo "\n❌ npm install failed. Check network access or run ./scripts/docker-test.sh" >&2
+      echo "\n❌ npm install failed." >&2
+      echo "   Verify your proxy settings or run ./scripts/docker-test.sh with DOCKER_TEST_NETWORK=bridge" >&2
       if [ -s npm-ci.log ]; then
         echo "--- npm ci output ---" >&2
         cat npm-ci.log >&2
