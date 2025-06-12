@@ -29,13 +29,31 @@ decompress_cache() {
 decompress_cache "$HOST_REPO/backend/venv.tar.zst" "$HOST_REPO/backend/venv"
 decompress_cache "$HOST_REPO/frontend/node_modules.tar.zst" "$HOST_REPO/frontend/node_modules"
 
-# Automatically enable network access when dependency caches are missing and
-# DOCKER_TEST_NETWORK wasn't specified by the user. This helps first-time runs
-# populate `backend/venv` and `frontend/node_modules` without failing.
-if [ -z "${DOCKER_TEST_NETWORK+x}" ] && { [ ! -f "$HOST_REPO/backend/venv/.install_complete" ] || \ 
-     [ ! -f "$HOST_REPO/frontend/node_modules/.install_complete" ]; }; then
-  NETWORK=bridge
-  echo "Dependency caches missing. Using --network bridge to populate them."
+# Automatically enable network access when dependency caches are missing or
+# when `requirements.txt` or `package-lock.json` changed and DOCKER_TEST_NETWORK
+# was not explicitly specified. This ensures updated packages can be installed
+# without test failures.
+if [ -z "${DOCKER_TEST_NETWORK+x}" ]; then
+  NEED_NETWORK=false
+  if [ ! -f "$HOST_REPO/backend/venv/.install_complete" ] || \
+     [ ! -f "$HOST_REPO/frontend/node_modules/.install_complete" ]; then
+    NEED_NETWORK=true
+  else
+    HOST_REQ_HASH=$(sha256sum "$HOST_REPO/backend/requirements.txt" | awk '{print $1}')
+    CACHED_REQ_HASH=""
+    [ -f "$HOST_REPO/backend/venv/.req_hash" ] && CACHED_REQ_HASH=$(cat "$HOST_REPO/backend/venv/.req_hash")
+    HOST_PKG_HASH=$(sha256sum "$HOST_REPO/frontend/package-lock.json" | awk '{print $1}')
+    CACHED_PKG_HASH=""
+    [ -f "$HOST_REPO/frontend/node_modules/.pkg_hash" ] && CACHED_PKG_HASH=$(cat "$HOST_REPO/frontend/node_modules/.pkg_hash")
+    if [ "$HOST_REQ_HASH" != "$CACHED_REQ_HASH" ] || [ "$HOST_PKG_HASH" != "$CACHED_PKG_HASH" ]; then
+      NEED_NETWORK=true
+    fi
+  fi
+
+  if [ "$NEED_NETWORK" = true ]; then
+    NETWORK=bridge
+    echo "Dependency caches out of date or missing. Using --network bridge to update them."
+  fi
 fi
 
 # Fallback to local tests when Docker is not installed. This allows CI
