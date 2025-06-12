@@ -52,6 +52,11 @@ describe('ArtistCard optional fields', () => {
     const badge = container.querySelector('svg');
     expect(badge).not.toBeNull();
     expect(container.textContent).toContain('Currently unavailable');
+    const availPill = container.querySelector('span.bg-gray-100');
+    expect(availPill).not.toBeNull();
+    if (availPill) {
+      expect(availPill.className).toContain('text-gray-500');
+    }
     act(() => root.unmount());
     container.remove();
   });
@@ -74,6 +79,39 @@ describe('ArtistCard optional fields', () => {
       });
       expect(img.src).toContain('/default-avatar.svg');
     }
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('uses default avatar when imageUrl is not provided', () => {
+    const { container, root } = setup();
+    const img = container.querySelector('img') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    if (img) {
+      expect(img.src).toContain('/default-avatar.svg');
+    }
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('renders availability pill only when isAvailable is defined', () => {
+    const { container, root } = setup({ isAvailable: false });
+    const pill = container.querySelector('span.bg-gray-100');
+    expect(pill).not.toBeNull();
+    act(() => root.unmount());
+    container.remove();
+
+    const { container: c2, root: r2 } = setup();
+    expect(c2.querySelector('span.bg-gray-100')).toBeNull();
+    expect(c2.querySelector('span.bg-green-50')).toBeNull();
+    act(() => r2.unmount());
+    c2.remove();
+  });
+
+  it('applies rounded-full class to the action button', () => {
+    const { container, root } = setup();
+    const btn = container.querySelector('button');
+    expect(btn?.className).toContain('rounded-full');
     act(() => root.unmount());
     container.remove();
   });
