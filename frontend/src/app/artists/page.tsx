@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { getArtists } from '@/lib/api';
-import { getFullImageUrl } from '@/lib/utils';
+import { getFullImageUrl, formatCurrency } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCard from '@/components/artist/ArtistCard';
 
@@ -101,7 +101,11 @@ export default function ArtistsPage() {
                   getFullImageUrl(a.profile_picture_url || a.portfolio_urls?.[0]) ||
                   undefined
                 }
-                price={a.hourly_rate && a.price_visible ? `$${a.hourly_rate}` : undefined}
+                price={
+                  a.hourly_rate && a.price_visible
+                    ? formatCurrency(Number(a.hourly_rate))
+                    : undefined
+                }
                 location={a.location}
                 specialties={a.specialties}
                 verified={user?.is_verified}
