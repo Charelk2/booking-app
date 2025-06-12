@@ -2,13 +2,23 @@ import api from './api';
 import { Service } from '@/types';
 import { addDays } from 'date-fns';
 
-export const getFullImageUrl = (relativePath: string | undefined | null): string | null => {
+export const getFullImageUrl = (
+  relativePath: string | undefined | null,
+): string | null => {
   if (!relativePath) return null;
   if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
     return relativePath;
   }
-  const cleanPath = relativePath.startsWith('/static/') ? relativePath : `/static/${relativePath.replace(/^\/+/, '')}`;
-  return `${api.defaults.baseURL}${cleanPath}`;
+
+  const cleanPath = relativePath.startsWith('/static/')
+    ? relativePath
+    : `/static/${relativePath.replace(/^\/+/, '')}`;
+
+  let base = api.defaults.baseURL || '';
+  base = base.replace(/\/+$/, '');
+  base = base.replace(/\/api(?:\/v\d+)?$/, '');
+
+  return `${base}${cleanPath}`;
 };
 
 export const extractErrorMessage = (detail: unknown): string => {
