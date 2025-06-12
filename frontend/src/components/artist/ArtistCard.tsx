@@ -2,7 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type { HTMLAttributes } from 'react';
-import { useLayoutEffect, useRef, useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import clsx from 'clsx';
 import {
   StarIcon,
@@ -59,33 +59,9 @@ export default function ArtistCard({
     () => specialties || specialities || [],
     [specialties, specialities],
   );
-  // Limit displayed tags so badges fit a single row. Up to four are shown when
-  // space allows. If the container overflows, the list is reduced to two so the
-  // row remains intact instead of disappearing entirely.
-  const maxTagsFirstRow = 4;
-  const maxTagsOverflow = 2;
-  const [visibleCount, setVisibleCount] = useState(
-    Math.min(tags.length, maxTagsFirstRow),
-  );
-
-  const tagRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    const el = tagRef.current;
-    if (!el) return;
-    const update = () => {
-      const fits = el.scrollWidth <= el.clientWidth;
-      const next = fits
-        ? Math.min(tags.length, maxTagsFirstRow)
-        : Math.min(tags.length, maxTagsOverflow);
-      setVisibleCount(next);
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, [tags]);
-
-  const limitedTags = tags.slice(0, visibleCount);
+  // Display at most two tags so pills remain compact.
+  const maxTags = 2;
+  const limitedTags = tags.slice(0, maxTags);
 
   return (
     <div
@@ -125,13 +101,12 @@ export default function ArtistCard({
         {subtitle && <p className="text-sm text-gray-500 leading-tight mt-0.5 line-clamp-2">{subtitle}</p>}
         {limitedTags.length > 0 && (
           <div
-            ref={tagRef}
             className="flex flex-nowrap overflow-hidden gap-1 mt-2 whitespace-nowrap"
           >
             {limitedTags.map((s) => (
               <span
                 key={`${id}-${s}`}
-                className="text-xs px-2 py-1 bg-blue-50 text-gray-700 rounded-full"
+                className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-gray-700 rounded-full"
               >
                 {s}
               </span>
