@@ -57,7 +57,7 @@ class Quote(Base):
     
     quote_details = Column(Text, nullable=False)
     price = Column(Numeric(10, 2), nullable=False)
-    currency = Column(String(3), nullable=False, default="USD") # e.g., USD, EUR
+    currency = Column(String(3), nullable=False, default="ZAR") # e.g., ZAR, EUR
     valid_until = Column(DateTime, nullable=True) # Quote expiry date
 
     status = Column(SQLAlchemyEnum(QuoteStatus), nullable=False, default=QuoteStatus.PENDING_CLIENT_ACTION)
