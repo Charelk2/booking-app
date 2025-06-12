@@ -35,7 +35,11 @@ docker build -t booking-app:latest .
 docker run --rm -p 3000:3000 -p 8000:8000 booking-app:latest
 ```
 The Dockerfile installs Node.js via the official NodeSource setup script
-so that `npm ci` runs reliably during the build.
+so that `npm ci` runs reliably during the build. Pull the latest image or
+rebuild whenever dependencies change. If you hit network errors during
+`npm ci`, rebuild with network access by setting `DOCKER_TEST_NETWORK=bridge`
+or running `docker build`/`docker run` with `--network bridge` so npm can
+reach the registry.
 
 ### docker-test.sh quickstart
 
@@ -660,6 +664,9 @@ formatCurrency(99.5, 'USD', 'en-US'); // => 'US$99.50'
 * **npm install failed**: `scripts/test-all.sh` prints the last npm debug log on
   failure. Verify network access or run `scripts/docker-test.sh` to install
   dependencies offline.
+* **Outdated Docker cache**: If `docker-test.sh` fails due to missing packages,
+  update the Docker image and allow network access:
+  `BOOKING_APP_BUILD=1 DOCKER_TEST_NETWORK=bridge ./scripts/docker-test.sh`.
 * Running `./scripts/test-all.sh` (or `./setup.sh` first) installs dependencies and
   prints the path to the Jest binary if it is missing.
 * Use `scripts/docker-test.sh` when you need to run the tests completely offline
