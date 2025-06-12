@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { FunnelIcon } from '@heroicons/react/24/outline';
 import MainLayout from '@/components/layout/MainLayout';
 import { getArtists } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
@@ -98,12 +97,6 @@ export default function ArtistsPage() {
             />
             Verified Only
           </label>
-          <div className="ml-auto">
-            <button type="button" className="flex items-center gap-1 text-sm font-medium text-indigo-600 hover:underline">
-              <FunnelIcon className="w-4 h-4" />
-              Filter
-            </button>
-          </div>
         </div>
         <div>
           {loading && <p>Loading...</p>}
