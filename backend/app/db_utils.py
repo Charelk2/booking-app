@@ -101,3 +101,14 @@ def ensure_price_visible_column(engine: Engine) -> None:
         "price_visible",
         "price_visible BOOLEAN NOT NULL DEFAULT TRUE",
     )
+
+
+def ensure_currency_column(engine: Engine) -> None:
+    """Add the ``currency`` column to ``services`` if it's missing."""
+
+    add_column_if_missing(
+        engine,
+        "services",
+        "currency",
+        "currency VARCHAR(3) NOT NULL DEFAULT 'ZAR'",
+    )
