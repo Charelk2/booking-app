@@ -149,8 +149,13 @@ export default function NotificationListItem({ n, onClick, style, className = ''
       )}
       <div className="flex-1 text-left">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-base font-medium text-gray-900 truncate whitespace-nowrap overflow-hidden">{parsed.title}</span>
+          <div className="flex items-center gap-2 truncate overflow-hidden">
+            <span
+              className="text-base font-medium text-gray-900 whitespace-nowrap"
+              title={parsed.title}
+            >
+              {parsed.title}
+            </span>
             {parsed.unreadCount > 0 && (
               <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full">
                 {parsed.unreadCount > 99 ? '99+' : parsed.unreadCount}
