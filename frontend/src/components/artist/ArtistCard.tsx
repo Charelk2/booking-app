@@ -26,7 +26,7 @@ export interface ArtistCardProps extends HTMLAttributes<HTMLDivElement> {
   /** explicitly controls if price is shown */
   priceVisible?: boolean;
   verified?: boolean;
-  isAvailable?: boolean;
+  // isAvailable?: boolean; // reserved for future availability indicator
   href: string;
 }
 
@@ -43,22 +43,23 @@ export default function ArtistCard({
   ratingCount: _ratingCount,
   priceVisible = true,
   verified = false,
-  isAvailable,
   href,
   className,
   ...props
 }: ArtistCardProps) {
   const tags = specialties || specialities || [];
+  const maxTagsToShow = 4;
+  const limitedTags = tags.slice(0, maxTagsToShow);
 
   return (
     <div
       className={clsx(
-        'p-4 flex flex-col gap-2 rounded-xl border border-gray-200 shadow-sm bg-white transition hover:shadow-md',
+        'rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden transition hover:shadow-md p-0 pb-4',
         className,
       )}
       {...props}
     >
-      <div className="relative h-48 w-full overflow-hidden rounded-lg">
+      <div className="relative h-48 w-full overflow-hidden rounded-t-xl">
         {imageUrl ? (
           <Image
             src={imageUrl}
@@ -80,15 +81,15 @@ export default function ArtistCard({
           />
         )}
       </div>
-      <div className="flex flex-col gap-2 flex-1 mt-2">
+      <div className="flex flex-col flex-1 px-4">
         <div className="flex items-center">
-          <h2 className="flex-1 text-lg font-semibold text-gray-900 truncate">{name}</h2>
+          <h2 className="flex-1 text-lg font-semibold text-gray-900 truncate mt-3">{name}</h2>
           {verified && <CheckBadgeIcon className="h-4 w-4 text-brand" aria-label="Verified" />}
         </div>
-        {subtitle && <p className="text-sm text-gray-500 leading-tight line-clamp-2">{subtitle}</p>}
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1 text-xs">
-            {tags.map((s) => (
+        {subtitle && <p className="text-sm text-gray-500 leading-tight mt-1 line-clamp-2">{subtitle}</p>}
+        {limitedTags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2 text-xs">
+            {limitedTags.map((s) => (
               <span
                 key={`${id}-${s}`}
                 className="bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
@@ -98,7 +99,7 @@ export default function ArtistCard({
             ))}
           </div>
         )}
-        <hr className="border-t border-gray-200 my-2" />
+        <hr className="my-3 border-gray-200" />
         <div className="flex justify-between items-center text-sm text-gray-700">
           <span className="flex items-center">
             <StarIcon className="h-4 w-4 mr-1 text-yellow-400" />
@@ -109,19 +110,21 @@ export default function ArtistCard({
             )}
           </span>
           {priceVisible && price && (
-            <span className="font-semibold">{price}</span>
+            <span className="font-semibold text-gray-900 text-sm">
+              from R{Math.round(Number(price))}
+            </span>
           )}
         </div>
-        <div className="flex justify-between items-center mt-1">
+        <div className="flex justify-between items-center mt-2">
           {location ? (
-            <span className="text-gray-700 truncate">{location}</span>
+            <span className="text-sm text-gray-600 truncate">{location}</span>
           ) : (
             <span />
           )}
           <Link href={href} className="shrink-0">
             <button
               type="button"
-              className="bg-indigo-500 text-white text-sm px-4 py-1 rounded-md hover:bg-indigo-600"
+              className="bg-indigo-500 text-white text-sm px-4 py-1.5 rounded-md hover:bg-indigo-600"
             >
               View Profile
             </button>
