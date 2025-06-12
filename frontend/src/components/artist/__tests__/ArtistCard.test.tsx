@@ -105,4 +105,20 @@ describe('ArtistCard optional fields', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('shows only the first row of specialty tags', () => {
+    const { container, root } = setup({
+      specialties: ['a', 'b', 'c', 'd', 'e', 'f'],
+    });
+    const tagContainer = container.querySelector('div.flex.flex-wrap');
+    const tags = tagContainer?.querySelectorAll('span');
+    expect(tags?.length).toBeLessThanOrEqual(4);
+    tags?.forEach((tag) => {
+      expect(tag.className).toContain('text-xs');
+      expect(tag.className).toContain('px-2');
+      expect(tag.className).toContain('py-1');
+    });
+    act(() => root.unmount());
+    container.remove();
+  });
 });
