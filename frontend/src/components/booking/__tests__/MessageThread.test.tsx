@@ -28,7 +28,8 @@ describe('MessageThread component', () => {
 
   beforeEach(() => {
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
-    (api.getQuotesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getQuoteV2 as jest.Mock).mockResolvedValue({ data: { id: 1 } });
+    (api.acceptQuoteV2 as jest.Mock).mockResolvedValue({ data: { id: 1 } });
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client', email: 'c@example.com' } });
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -381,5 +382,18 @@ describe('MessageThread component', () => {
     });
     const live = container.querySelector('div.sr-only[aria-live="polite"]');
     expect(live).not.toBeNull();
+  });
+
+  it('shows send quote button for artist', async () => {
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} clientId={1} artistId={2} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const buttons = container.querySelectorAll('button');
+    const found = Array.from(buttons).find((b) => b.textContent === 'Send Quote');
+    expect(found).not.toBeUndefined();
   });
 });

@@ -12,6 +12,9 @@ import {
   BookingRequest,
   QuoteCreate,
   Quote,
+  QuoteV2Create,
+  QuoteV2,
+  BookingSimple,
   Message,
   MessageCreate,
   SoundProvider,
@@ -255,6 +258,15 @@ export const getQuotesForBookingRequest = (bookingRequestId: number) =>
   api.get<Quote[]>(
     `${API_V1}/booking-requests/${bookingRequestId}/quotes`
   );
+
+export const createQuoteV2 = (data: QuoteV2Create) =>
+  api.post<QuoteV2>(`${API_V1}/quotes`, data);
+
+export const getQuoteV2 = (quoteId: number) =>
+  api.get<QuoteV2>(`${API_V1}/quotes/${quoteId}`);
+
+export const acceptQuoteV2 = (quoteId: number) =>
+  api.post<BookingSimple>(`${API_V1}/quotes/${quoteId}/accept`, {});
 
 // ─── MESSAGES ───────────────────────────────────────────────────────────
 export const getMessagesForBookingRequest = (bookingRequestId: number) =>
