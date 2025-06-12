@@ -16,7 +16,7 @@ import {
   deleteService,
 } from "@/lib/api";
 import { format } from "date-fns";
-import { normalizeService } from "@/lib/utils";
+import { formatCurrency, normalizeService } from "@/lib/utils";
 import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
@@ -109,7 +109,7 @@ function ServiceCard({
           <p className="text-xs text-gray-500">{service.service_type}</p>
           <div className="mt-2 flex items-center justify-between">
             <span className="text-sm font-medium text-gray-900">
-              ${service.price.toFixed(2)}
+              {formatCurrency(Number(service.price))}
             </span>
             <span className="text-sm text-gray-500">{service.duration_minutes} min</span>
           </div>
@@ -365,11 +365,11 @@ export default function DashboardPage() {
             <OverviewAccordion
               primaryStats={[
                 { label: 'Total Bookings', value: bookings.length },
-                { label: 'Total Earnings', value: `$${totalEarnings.toFixed(2)}` },
+                { label: 'Total Earnings', value: formatCurrency(totalEarnings) },
               ]}
               secondaryStats={[
                 { label: 'Total Services', value: servicesCount },
-                { label: 'Earnings This Month', value: `$${earningsThisMonth.toFixed(2)}` },
+                { label: 'Earnings This Month', value: formatCurrency(earningsThisMonth) },
               ]}
             />
           </div>
@@ -461,7 +461,7 @@ export default function DashboardPage() {
                       {booking.status}
                     </span>
                     <span className="text-sm text-gray-500">
-                      ${booking.total_price.toFixed(2)}
+                      {formatCurrency(Number(booking.total_price))}
                     </span>
                   </div>
                 </div>
