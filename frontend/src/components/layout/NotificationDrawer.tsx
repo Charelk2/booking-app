@@ -15,6 +15,7 @@ interface NotificationDrawerProps {
   markAllRead: () => Promise<void>;
   loadMore: () => Promise<void>;
   hasMore: boolean;
+  error?: string | null;
 }
 
 
@@ -27,6 +28,7 @@ export default function NotificationDrawer({
   markAllRead,
   loadMore,
   hasMore,
+  error,
 }: NotificationDrawerProps) {
   const [showUnread, setShowUnread] = useState(false);
   const [listHeight, setListHeight] = useState(400);
@@ -103,6 +105,11 @@ export default function NotificationDrawer({
                       </button>
                     </div>
                   </div>
+                  {error && (
+                    <div className="bg-red-100 text-red-800 text-sm px-4 py-2" data-testid="notification-error">
+                      {error}
+                    </div>
+                  )}
                   <div
                     className="flex-1 overflow-y-auto"
                     ref={containerRef}
