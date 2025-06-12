@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { getFullImageUrl } from '@/lib/utils';
+import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { Message, MessageCreate, Quote } from '@/types';
 import {
   getMessagesForBookingRequest,
@@ -81,8 +82,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       const filtered = res.data.filter(
         (m) =>
           !(
-            (m.message_type === 'text' && m.content.startsWith('Requesting ')) ||
-            (m.message_type === 'system' && m.content === 'Booking request sent')
+            m.message_type === 'text' && m.content.startsWith('Requesting ')
           ),
       );
       setMessages(filtered);
@@ -428,6 +428,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                                 }).format(Number(quotes[msg.quote_id].price))}
                               </p>
                             </div>
+                          ) : msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX) ? (
+                            <details data-testid="booking-details">
+                              <summary className="cursor-pointer text-blue-600">Show details</summary>
+                              <pre className="whitespace-pre-wrap">
+                                {msg.content.slice(BOOKING_DETAILS_PREFIX.length).trim()}
+                              </pre>
+                            </details>
                           ) : (
                             msg.content
                           )}{' '}
