@@ -445,6 +445,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Personalized video flows suppress chat alerts until all prompts are answered. A single notification is sent with the booking type once complete.
 * System-generated booking details messages do not create extra chat alerts; a single booking request notification is sent after the form is submitted.
 * Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews. Titles are limited to 36 characters and subtitles to 30 so long names don't wrap.
+* Chat message groups display a small unread badge on the right side when new messages arrive, clearing automatically once read.
 * Booking request notifications display the sender name as the title and the service type in the subtitle with contextual icons. Service names are converted from `PascalCase` or `snake_case` and truncated for readability. The `/api/v1/notifications` endpoint now includes `sender_name` and `booking_type` fields so the frontend no longer parses them from the message string.
 
 ### Artist Profile Enhancements
