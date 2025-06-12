@@ -4,6 +4,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..utils.notifications import notify_quote_accepted, notify_new_booking
 
 
 def calculate_totals(quote_in: schemas.QuoteV2Create) -> tuple[Decimal, Decimal]:
@@ -51,15 +52,37 @@ def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
         raise ValueError("Quote cannot be accepted")
 
     db_quote.status = models.QuoteStatusV2.ACCEPTED
+
+    # Optionally reject other pending quotes for the same request
+    others = (
+        db.query(models.QuoteV2)
+        .filter(
+            models.QuoteV2.booking_request_id == db_quote.booking_request_id,
+            models.QuoteV2.status == models.QuoteStatusV2.PENDING,
+            models.QuoteV2.id != db_quote.id,
+        )
+        .all()
+    )
+    for o in others:
+        o.status = models.QuoteStatusV2.REJECTED
+
     booking = models.BookingSimple(
         quote_id=db_quote.id,
         artist_id=db_quote.artist_id,
         client_id=db_quote.client_id,
         confirmed=True,
+        payment_status="pending",
     )
     db.add(booking)
     db.commit()
     db.refresh(db_quote)
     db.refresh(booking)
+
+    # Send notifications to both artist and client
+    artist = db_quote.artist
+    client = db_quote.client
+    notify_quote_accepted(db, artist, db_quote.id)
+    notify_new_booking(db, client, booking.id)
+
     return booking
 
