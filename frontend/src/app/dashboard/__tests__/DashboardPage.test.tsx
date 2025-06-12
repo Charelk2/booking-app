@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
+import { formatCurrency } from '@/lib/utils';
 import { waitFor } from '@testing-library/react';
 import DashboardPage from '../page';
 import * as api from '@/lib/api';
@@ -147,7 +148,7 @@ describe('DashboardPage artist stats', () => {
 
   it('renders monthly earnings card', () => {
     expect(container.textContent).toContain('Earnings This Month');
-    expect(container.textContent).toContain('120');
+    expect(container.textContent).toContain(formatCurrency(120));
   });
 });
 
