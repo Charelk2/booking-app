@@ -13,11 +13,13 @@ def test_service_create_requires_type():
     )
     assert s.service_type == ServiceType.OTHER
     assert s.display_order is None
+    assert s.currency == "ZAR"
 
 
 def test_service_update_type_optional():
     upd = ServiceUpdate()
     assert upd.service_type is None
+    assert upd.currency == "ZAR"
 
 
 def test_service_update_accepts_display_order():
