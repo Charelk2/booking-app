@@ -6,7 +6,6 @@ import clsx from 'clsx';
 import {
   StarIcon,
   CheckBadgeIcon,
-  MapPinIcon,
 } from '@heroicons/react/24/solid';
 
 export interface ArtistCardProps extends HTMLAttributes<HTMLDivElement> {
@@ -41,7 +40,7 @@ export default function ArtistCard({
   specialties,
   specialities,
   rating,
-  ratingCount,
+  ratingCount: _ratingCount,
   priceVisible = true,
   verified = false,
   isAvailable,
@@ -103,10 +102,8 @@ export default function ArtistCard({
         <div className="flex justify-between items-center text-sm text-gray-700">
           <span className="flex items-center">
             <StarIcon className="h-4 w-4 mr-1 text-yellow-400" />
-            {rating !== undefined && rating !== null && ratingCount !== undefined && ratingCount !== null ? (
-              <>
-                {rating} <span className="ml-1">({ratingCount})</span>
-              </>
+            {rating !== undefined && rating !== null ? (
+              <>{rating}</>
             ) : (
               <span className="text-gray-400">No ratings yet</span>
             )}
