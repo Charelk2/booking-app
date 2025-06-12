@@ -23,6 +23,14 @@ export interface ArtistProfile {
   cover_photo_url?: string | null;
   portfolio_urls?: string[] | null;
   specialties?: string[] | null;
+  /** Average star rating calculated from reviews */
+  rating?: number;
+  /** Number of reviews contributing to the rating */
+  rating_count?: number;
+  /** Whether the artist has no active bookings on the chosen date */
+  is_available?: boolean;
+  /** Controls if the hourly_rate should be displayed to users */
+  price_visible?: boolean;
   user: User;
   created_at: string;
   updated_at: string;
