@@ -1,4 +1,10 @@
-import { extractErrorMessage, normalizeService, getNextAvailableDates } from '../utils';
+import {
+  extractErrorMessage,
+  normalizeService,
+  getNextAvailableDates,
+  getFullImageUrl,
+} from '../utils';
+import api from '../api';
 import { format } from 'date-fns';
 import type { Service, ArtistProfile } from '@/types';
 
@@ -53,5 +59,20 @@ describe('getNextAvailableDates', () => {
     expect(format(dates[0], 'yyyy-MM-dd')).toBe('2024-06-11');
     expect(format(dates[1], 'yyyy-MM-dd')).toBe('2024-06-13');
     expect(format(dates[2], 'yyyy-MM-dd')).toBe('2024-06-14');
+  });
+});
+
+describe('getFullImageUrl', () => {
+  it('joins base url and path removing /api suffix', () => {
+    const orig = api.defaults.baseURL;
+    api.defaults.baseURL = 'http://example.com/api';
+    const result = getFullImageUrl('profile_pics/foo.jpg');
+    expect(result).toBe('http://example.com/static/profile_pics/foo.jpg');
+    api.defaults.baseURL = orig;
+  });
+
+  it('returns absolute path unchanged', () => {
+    const url = 'https://cdn.example.com/img.png';
+    expect(getFullImageUrl(url)).toBe(url);
   });
 });
