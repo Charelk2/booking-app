@@ -7,7 +7,6 @@ import {
   StarIcon,
   CheckBadgeIcon,
 } from '@heroicons/react/24/solid';
-import Card from '@/components/ui/Card';
 import Tag from '@/components/ui/Tag';
 import Button from '@/components/ui/Button';
 
@@ -54,33 +53,39 @@ export default function ArtistCard({
   const tags = specialties || specialities || [];
 
   return (
-    <Card
+    <div
       className={clsx(
-        'rounded-2xl shadow-md hover:shadow-lg transition-all overflow-hidden p-4 lg:p-6',
+        'rounded-2xl shadow-md bg-white p-4 flex flex-col hover:shadow-lg hover:scale-[1.01] transition',
         className,
       )}
       {...props}
     >
-      <div className="aspect-square bg-gray-200 flex items-center justify-center">
+      <div className="h-[180px] w-full">
         {imageUrl ? (
           <Image
             src={imageUrl}
             alt={name}
             width={512}
             height={512}
-            className="object-cover w-full h-full"
+            className="rounded-xl object-cover w-full h-full"
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
             }}
           />
         ) : (
-          <span className="text-gray-400 text-sm">No Image</span>
+          <Image
+            src="/default-avatar.svg"
+            alt={name}
+            width={512}
+            height={512}
+            className="rounded-xl object-cover w-full h-full"
+          />
         )}
       </div>
       <div className="space-y-2">
         <div className="space-y-1">
           <div className="flex items-center">
-            <h2 className="text-lg font-semibold text-gray-900 mr-1">{name}</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mr-1 mt-4">{name}</h2>
             {verified && (
               <CheckBadgeIcon className="h-4 w-4 text-brand" aria-label="Verified" />
             )}
@@ -95,10 +100,14 @@ export default function ArtistCard({
             </div>
           )}
         </div>
-        {subtitle && <p className="text-sm text-gray-600 line-clamp-2">{subtitle}</p>}
-        {location && <p className="text-sm text-gray-600">{location}</p>}
-        {price && priceVisible && (
-          <p className="text-sm font-medium text-gray-900">Starting at {price}</p>
+        {subtitle && <p className="text-sm text-gray-600 truncate">{subtitle}</p>}
+        {location && <p className="text-xs text-gray-500">📍{location}</p>}
+        {priceVisible ? (
+          price && (
+            <p className="text-sm font-medium text-gray-900">Starting at {price}</p>
+          )
+        ) : (
+          <p className="text-sm text-gray-500">Price available on request</p>
         )}
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-1">
@@ -108,18 +117,17 @@ export default function ArtistCard({
           </div>
         )}
         {isAvailable !== undefined && (
-          <Tag
-            className={clsx(
-              isAvailable ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700',
-            )}
-          >
-            {isAvailable ? 'Available' : 'Unavailable'}
+          <Tag className={clsx(isAvailable ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500')}>
+            {isAvailable ? 'Available' : 'Currently unavailable'}
           </Tag>
         )}
-        <Link href={href} className="block mt-3">
-          <Button fullWidth>View Profile</Button>
+        <Link href={href} className="block mt-3 group">
+          <Button fullWidth className="rounded-full">
+            <span className="group-hover:hidden">View Profile</span>
+            <span className="hidden group-hover:inline">Book Now</span>
+          </Button>
         </Link>
       </div>
-    </Card>
+    </div>
   );
 }
