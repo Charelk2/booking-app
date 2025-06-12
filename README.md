@@ -487,6 +487,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Removed the unused "Recent Activity" block.
 * Booking request and booking lists collapse after five items with a **Show All** toggle.
 * Improved dashboard stats layout with monthly earnings card.
+* Currency values now use consistent locale formatting with `formatCurrency()`.
 * Streamlined mobile dashboard with collapsible overview and sticky tabs.
   ![Mobile dashboard states](docs/mobile_dashboard_states.svg)
 
