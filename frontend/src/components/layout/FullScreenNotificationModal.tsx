@@ -163,9 +163,16 @@ export default function FullScreenNotificationModal({
                         <div className="flex-1 text-left">
                           <div className="flex items-start justify-between">
                             <span className="text-base font-medium text-gray-900 truncate whitespace-nowrap overflow-hidden">{parsed.title}</span>
-                            <span className="text-xs text-gray-400 text-right">
+                            <time
+                              dateTime={n.timestamp}
+                              title={new Date(n.timestamp).toLocaleString()}
+                              className="text-xs text-gray-400 text-right"
+                            >
+                              <span className="sr-only">
+                                {new Date(n.timestamp).toLocaleString()}
+                              </span>
                               {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true })}
-                            </span>
+                            </time>
                           </div>
                           <p className="text-sm text-gray-700 truncate whitespace-nowrap overflow-hidden">{parsed.subtitle}</p>
                           {parsed.metadata && (
