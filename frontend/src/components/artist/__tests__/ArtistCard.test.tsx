@@ -41,34 +41,20 @@ describe('ArtistCard optional fields', () => {
     expect(container.textContent).toContain('NYC');
     const subtitleEl = container.querySelector('p.text-sm');
     expect(subtitleEl?.className).toContain('line-clamp-2');
-    const locEl = container.querySelector('span.text-gray-500');
+    const locEl = container.querySelector('span.text-gray-700');
     expect(locEl?.textContent).toContain('NYC');
     act(() => root.unmount());
     container.remove();
   });
 
-  it('shows verified badge and availability', () => {
-    const { container, root } = setup({ verified: true, isAvailable: false });
+  it('shows verified badge', () => {
+    const { container, root } = setup({ verified: true });
     const badge = container.querySelector('svg');
     expect(badge).not.toBeNull();
-    expect(container.textContent).toContain('Currently unavailable');
-    const grayPill = container.querySelector('span.bg-gray-100');
-    expect(grayPill).not.toBeNull();
-    if (grayPill) {
-      expect(grayPill.className).toContain('text-gray-500');
-    }
+    expect(container.textContent).not.toContain('Currently unavailable');
+    expect(container.textContent).not.toContain('Available');
     act(() => root.unmount());
     container.remove();
-
-    const { container: c2, root: r2 } = setup({ verified: true, isAvailable: true });
-    const greenPill = c2.querySelector('span.bg-green-100');
-    expect(greenPill).not.toBeNull();
-    if (greenPill) {
-      expect(greenPill.className).toContain('text-green-600');
-    }
-    expect(c2.textContent).toContain('Available');
-    act(() => r2.unmount());
-    c2.remove();
   });
 
   it('displays rating and review count', () => {
@@ -104,30 +90,11 @@ describe('ArtistCard optional fields', () => {
     container.remove();
   });
 
-  it('renders availability pill only when isAvailable is defined', () => {
-    const { container, root } = setup({ isAvailable: false });
-    const gray = container.querySelector('span.bg-gray-100');
-    expect(gray).not.toBeNull();
-    act(() => root.unmount());
-    container.remove();
 
-    const { container: c2, root: r2 } = setup({ isAvailable: true });
-    const green = c2.querySelector('span.bg-green-100');
-    expect(green).not.toBeNull();
-    act(() => r2.unmount());
-    c2.remove();
-
-    const { container: c3, root: r3 } = setup();
-    expect(c3.querySelector('span.bg-gray-100')).toBeNull();
-    expect(c3.querySelector('span.bg-green-100')).toBeNull();
-    act(() => r3.unmount());
-    c3.remove();
-  });
-
-  it('applies rounded-xl class to the action button', () => {
+  it('applies rounded-md class to the action button', () => {
     const { container, root } = setup();
     const btn = container.querySelector('button');
-    expect(btn?.className).toContain('rounded-xl');
+    expect(btn?.className).toContain('rounded-md');
     act(() => root.unmount());
     container.remove();
   });
