@@ -12,6 +12,7 @@ class ServiceBase(BaseModel):
     description: Optional[str] = None
     duration_minutes: Optional[int] = None
     price: Optional[Decimal] = None
+    currency: Optional[str] = "ZAR"
     display_order: Optional[int] = None
     service_type: Optional[ServiceType] = None
 
