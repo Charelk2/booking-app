@@ -554,9 +554,8 @@ returned. Newly created profiles default to `true`.
 
 The redesigned listing page features a rounded filter bar wrapped in a white
 card with a subtle shadow. Chips use `rounded-full bg-gray-100 text-gray-700
-px-3 py-1.5 text-sm` styling and highlight in indigo when selected. An optional
-**Filter** button with a funnel icon sits on the far right. The entire page now
-rests on a soft gradient background from indigo to white.
+px-3 py-1.5 text-sm` styling and highlight in indigo when selected. The entire
+page now rests on a soft gradient background from indigo to white.
 
 ### Mobile Navigation & Inbox
 
