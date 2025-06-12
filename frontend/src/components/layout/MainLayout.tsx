@@ -27,7 +27,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <Disclosure as="nav" className="bg-white shadow-sm">
         {() => (
           <>
