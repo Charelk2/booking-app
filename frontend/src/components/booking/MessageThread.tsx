@@ -355,12 +355,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           return (
             <div
               key={firstMsg.id}
-              className={`flex flex-col gap-0.5 ${isSelf ? 'items-end ml-auto' : 'items-start'} ${groupClass}`}
+              className={`relative flex flex-col gap-0.5 ${isSelf ? 'items-end ml-auto' : 'items-start'} ${groupClass}`}
             >
               {group.divider && (
                 <hr className="border-t border-gray-300 w-full my-2" />
               )}
               <div className="text-xs text-gray-400 mb-1">{relativeGroupTime}</div>
+              {anyUnread && (
+                <span
+                  className="absolute right-0 top-1 w-2 h-2 bg-purple-600 rounded-full"
+                  aria-label="Unread messages"
+                />
+              )}
               {group.messages.map((msg, mIdx) => {
                 const bubbleClass = isSelf
                   ? 'bg-[#4F46E5] text-white self-end'

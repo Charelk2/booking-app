@@ -99,7 +99,9 @@ describe('MessageThread component', () => {
     });
     const highlightedRow = container.querySelector('.bg-purple-50');
     const senderName = container.querySelector('span.font-semibold');
+    const badge = container.querySelector('span[aria-label="Unread messages"]');
     expect(highlightedRow).not.toBeNull();
+    expect(badge).not.toBeNull();
     expect(senderName).toBeNull();
   });
 
