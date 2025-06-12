@@ -2,6 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type { HTMLAttributes } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import {
   StarIcon,
@@ -61,6 +62,20 @@ export default function ArtistCard({
   const maxTagsFirstRow = 4;
   const limitedTags = tags.slice(0, maxTagsFirstRow);
 
+  const tagRef = useRef<HTMLDivElement>(null);
+  const [showTags, setShowTags] = useState(true);
+
+  useLayoutEffect(() => {
+    const el = tagRef.current;
+    if (!el) return;
+    const update = () => {
+      setShowTags(el.scrollWidth <= el.clientWidth);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [limitedTags]);
+
   return (
     <div
       className={clsx(
@@ -97,8 +112,11 @@ export default function ArtistCard({
           {verified && <CheckBadgeIcon className="h-4 w-4 text-brand" aria-label="Verified" />}
         </div>
         {subtitle && <p className="text-sm text-gray-500 leading-tight mt-0.5 line-clamp-2">{subtitle}</p>}
-        {limitedTags.length > 0 && (
-          <div className="flex flex-nowrap overflow-hidden gap-1 mt-2 whitespace-nowrap">
+        {showTags && limitedTags.length > 0 && (
+          <div
+            ref={tagRef}
+            className="flex flex-nowrap overflow-hidden gap-1 mt-2 whitespace-nowrap"
+          >
             {limitedTags.map((s) => (
               <span
                 key={`${id}-${s}`}
