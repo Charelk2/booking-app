@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Service } from '@/types';
 import { Button, Card } from '@/components/ui';
 import { getService } from '@/lib/api';
+import { formatCurrency } from '@/lib/utils';
 
 // This component was updated to fetch the latest service data whenever the card
 // is expanded. It ensures pricing or descriptions changed on the server are
@@ -62,7 +63,7 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
           <p className="text-sm text-gray-500">Type: {currentService.service_type}</p>
           <div className="mt-2 flex items-center space-x-2">
             <span className="text-lg font-bold text-gray-800">
-              {Number(currentService.price).toFixed(2)}
+              {formatCurrency(Number(currentService.price))}
             </span>
             <span className="text-sm text-gray-500">
               {currentService.duration_minutes} minutes
