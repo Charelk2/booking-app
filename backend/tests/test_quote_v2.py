@@ -7,6 +7,7 @@ from app.models import (
     UserType,
     BookingRequest,
     BookingRequestStatus,
+    Message,
 )
 from app.models.base import BaseModel
 from app.api import api_quote_v2
@@ -45,6 +46,9 @@ def test_create_and_accept_quote():
     quote = api_quote_v2.create_quote(quote_in, db)
     assert quote.subtotal == Decimal('150')
     assert quote.total == Decimal('150')
+    msgs = db.query(Message).all()
+    assert len(msgs) == 1
+    assert msgs[0].quote_id == quote.id
 
     booking = api_quote_v2.accept_quote(quote.id, db)
     assert booking.quote_id == quote.id

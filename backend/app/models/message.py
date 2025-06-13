@@ -24,7 +24,8 @@ class Message(BaseModel):
     sender_type = Column(Enum(SenderType), nullable=False)
     message_type = Column(Enum(MessageType), nullable=False, default=MessageType.TEXT)
     content = Column(Text, nullable=False)
-    quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=True)
+    # Link to the newer quotes_v2 table so quote messages render properly
+    quote_id = Column(Integer, ForeignKey("quotes_v2.id"), nullable=True)
     attachment_url = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
 
@@ -33,4 +34,4 @@ class Message(BaseModel):
         backref=backref("messages", cascade="all, delete-orphan"),
     )
     sender = relationship("User")
-    quote = relationship("Quote")
+    quote = relationship("QuoteV2")
