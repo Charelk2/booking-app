@@ -525,6 +525,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * "Your Services" now appears in a collapsible section just like booking requests, keeping the dashboard tidy.
 * Removed the unused "Recent Activity" block.
 * Booking request and booking lists collapse after five items with a **Show All** toggle.
+* New `/dashboard/bookings` page lists all bookings with links to their quotes.
 * Improved dashboard stats layout with monthly earnings card.
 * Currency values now use consistent locale formatting with `formatCurrency()`.
 * Service API responses now include a `currency` field.
