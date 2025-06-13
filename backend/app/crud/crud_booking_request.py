@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
 from .. import models
@@ -23,11 +23,17 @@ def create_booking_request(
     return db_booking_request
 
 def get_booking_request(db: Session, request_id: int) -> Optional[models.BookingRequest]:
-    return db.query(models.BookingRequest).filter(models.BookingRequest.id == request_id).first()
+    return (
+        db.query(models.BookingRequest)
+        .options(joinedload(models.BookingRequest.quotes))
+        .filter(models.BookingRequest.id == request_id)
+        .first()
+    )
 
 def get_booking_requests_by_client(db: Session, client_id: int, skip: int = 0, limit: int = 100) -> List[models.BookingRequest]:
     return (
         db.query(models.BookingRequest)
+        .options(joinedload(models.BookingRequest.quotes))
         .filter(models.BookingRequest.client_id == client_id)
         .order_by(models.BookingRequest.created_at.desc())
         .offset(skip)
@@ -38,6 +44,7 @@ def get_booking_requests_by_client(db: Session, client_id: int, skip: int = 0, l
 def get_booking_requests_by_artist(db: Session, artist_id: int, skip: int = 0, limit: int = 100) -> List[models.BookingRequest]:
     return (
         db.query(models.BookingRequest)
+        .options(joinedload(models.BookingRequest.quotes))
         .filter(models.BookingRequest.artist_id == artist_id)
         .order_by(models.BookingRequest.created_at.desc())
         .offset(skip)

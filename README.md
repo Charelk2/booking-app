@@ -526,6 +526,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Booking request and booking lists collapse after five items with a **Show All** toggle.
 * New `/dashboard/bookings` page lists all bookings with links to their quotes.
 * The dashboard Bookings tab now includes a **View All Bookings** link.
+* Booking request cards now show a **Quote accepted** label linking directly to the accepted quote.
 * Improved dashboard stats layout with monthly earnings card.
 * Currency values now use consistent locale formatting with `formatCurrency()`.
 * Service API responses now include a `currency` field.
