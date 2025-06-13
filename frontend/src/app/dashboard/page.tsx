@@ -397,44 +397,56 @@ export default function DashboardPage() {
           </div>
 
           {activeTab === 'requests' && (
-            <SectionList
-              title="Booking Requests"
-              data={visibleRequests}
-              defaultOpen={false}
-              emptyState={<span>No bookings yet</span>}
-              renderItem={(req) => (
-                <div key={req.id} className="bg-white p-4 shadow rounded-lg">
-                  <div className="font-medium text-gray-900">
-                    {user.user_type === 'artist'
-                      ? `${req.client?.first_name} ${req.client?.last_name}`
-                      :
-                          req.artist?.business_name ||
-                          `${req.artist?.first_name} ${req.artist?.last_name}`}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {req.service?.title || '—'}
-                  </div>
-                  <div className="mt-2 flex justify-between text-sm text-gray-500">
-                    <span>{req.status}</span>
-                    <span>{new Date(req.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <Link
-                    href={`/booking-requests/${req.id}`}
-                    className="mt-2 inline-block text-indigo-600 hover:underline text-sm"
-                  >
-                    View Chat
-                  </Link>
-                  {req.accepted_quote_id && (
+            <>
+              <SectionList
+                title="Booking Requests"
+                data={visibleRequests}
+                defaultOpen={false}
+                emptyState={<span>No bookings yet</span>}
+                renderItem={(req) => (
+                  <div key={req.id} className="bg-white p-4 shadow rounded-lg">
+                    <div className="font-medium text-gray-900">
+                      {user.user_type === 'artist'
+                        ? `${req.client?.first_name} ${req.client?.last_name}`
+                        :
+                            req.artist?.business_name ||
+                            `${req.artist?.first_name} ${req.artist?.last_name}`}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {req.service?.title || '—'}
+                    </div>
+                    <div className="mt-2 flex justify-between text-sm text-gray-500">
+                      <span>{req.status}</span>
+                      <span>{new Date(req.created_at).toLocaleDateString()}</span>
+                    </div>
                     <Link
-                      href={`/quotes/${req.accepted_quote_id}`}
-                      className="ml-4 mt-2 inline-block text-green-600 hover:underline text-sm"
+                      href={`/booking-requests/${req.id}`}
+                      className="mt-2 inline-block text-indigo-600 hover:underline text-sm"
                     >
-                      Quote accepted
+                      View Chat
                     </Link>
-                  )}
+                    {req.accepted_quote_id && (
+                      <Link
+                        href={`/quotes/${req.accepted_quote_id}`}
+                        className="ml-4 mt-2 inline-block text-green-600 hover:underline text-sm"
+                      >
+                        Quote accepted
+                      </Link>
+                    )}
+                  </div>
+                )}
+              />
+              {bookingRequests.length > visibleRequests.length && (
+                <div className="mt-2">
+                  <Link
+                    href="/booking-requests"
+                    className="text-indigo-600 hover:underline text-sm"
+                  >
+                    View All Requests
+                  </Link>
                 </div>
               )}
-            />
+            </>
           )}
 
           {activeTab === 'bookings' && (
