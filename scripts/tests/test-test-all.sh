@@ -11,7 +11,7 @@ git clone "$REPO_ROOT" "$TMP_DIR/booking-app" >/dev/null
 pushd "$TMP_DIR/booking-app" >/dev/null
 
 # Ensure working tree is clean
-output=$(FORCE_TESTS=1 ./scripts/test-all.sh 2>&1)
+output=$(./scripts/test-all.sh 2>&1)
 
 echo "$output"
 
