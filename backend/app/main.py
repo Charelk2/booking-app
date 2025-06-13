@@ -162,8 +162,9 @@ app.include_router(
 
 
 # ─── QUOTE ROUTES (under /api/v1) ─────────────────────────────────────────────
-app.include_router(api_quote.router, prefix=f"{api_prefix}", tags=["quotes"])
+# Register the newer v2 routes first so they take precedence when paths overlap
 app.include_router(api_quote_v2.router, prefix=f"{api_prefix}", tags=["quotes-v2"])
+app.include_router(api_quote.router, prefix=f"{api_prefix}", tags=["quotes"])
 
 # ─── MESSAGE ROUTES (under /api/v1) ─────────────────────────────────────────
 app.include_router(
