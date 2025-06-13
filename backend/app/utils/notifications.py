@@ -146,7 +146,9 @@ def notify_booking_status_update(
     _send_sms(user.phone_number, message)
 
 
-def notify_quote_accepted(db: Session, user: User, quote_id: int) -> None:
+def notify_quote_accepted(
+    db: Session, user: User, quote_id: int, booking_request_id: int
+) -> None:
     """Notify a user that a quote was accepted."""
     message = format_notification_message(
         NotificationType.QUOTE_ACCEPTED,
@@ -157,7 +159,7 @@ def notify_quote_accepted(db: Session, user: User, quote_id: int) -> None:
         user_id=user.id,
         type=NotificationType.QUOTE_ACCEPTED,
         message=message,
-        link=f"/quotes/{quote_id}",
+        link=f"/booking-requests/{booking_request_id}",
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
