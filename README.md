@@ -423,6 +423,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * New quote endpoints: `POST /api/v1/quotes`, `GET /api/v1/quotes/{id}`, and
   `POST /api/v1/quotes/{id}/accept` create simplified bookings when a client
   accepts.
+* Quote V2 routes are now registered before the legacy ones so `GET /api/v1/quotes/{id}`
+  correctly returns the new format and avoids 404 errors.
 
 ### Booking Wizard
 
