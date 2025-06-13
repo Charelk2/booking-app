@@ -430,6 +430,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
   accepts.
 * Quote V2 routes are now registered before the legacy ones so `GET /api/v1/quotes/{id}`
   correctly returns the new format and avoids 404 errors.
+* Quote notifications now link to `/quotes/{id}` so users can view accepted
+  quotes directly from the notification list.
 
 ### Booking Wizard
 
