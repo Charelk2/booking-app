@@ -80,4 +80,29 @@ describe('useWebSocket', () => {
 
     jest.useRealTimers();
   });
+
+  it('invokes onError when the socket closes', () => {
+    jest.useFakeTimers();
+
+    const onError = jest.fn();
+
+    function Test() {
+      useWebSocket('ws://test', onError);
+      return null;
+    }
+
+    act(() => {
+      root.render(<Test />);
+    });
+
+    const first = StubSocket.instances[0];
+
+    act(() => {
+      first.onclose?.();
+    });
+
+    expect(onError).toHaveBeenCalled();
+
+    jest.useRealTimers();
+  });
 });
