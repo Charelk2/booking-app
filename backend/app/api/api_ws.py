@@ -2,11 +2,14 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Dict, List, Any
 from jose import JWTError, jwt
+import logging
 
 from .dependencies import get_db
 from ..models.user import User
 from ..crud import crud_booking_request
 from .auth import SECRET_KEY, ALGORITHM
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -53,9 +56,17 @@ async def booking_request_ws(
     booking_request = crud_booking_request.get_booking_request(
         db, request_id=request_id
     )
-    if not booking_request or (
-        user and user.id not in [booking_request.client_id, booking_request.artist_id]
-    ):
+    if not booking_request:
+        logger.warning(
+            "Closing WebSocket for request %s: booking request not found", request_id
+        )
+        await websocket.close()
+        return
+
+    if user and user.id not in [booking_request.client_id, booking_request.artist_id]:
+        logger.warning(
+            "Closing WebSocket for request %s: unauthorized user %s", request_id, user.id
+        )
         await websocket.close()
         return
 

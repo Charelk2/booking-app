@@ -424,4 +424,22 @@ describe('MessageThread component', () => {
     const banner = container.querySelector('[data-testid="booking-confirmed-banner"]');
     expect(banner?.textContent).toContain('Booking confirmed for DJ');
   });
+
+  it('shows an alert when the WebSocket fails', async () => {
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const socket = StubSocket.last as StubSocket;
+    act(() => {
+      socket.onerror?.();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const alert = container.querySelector('p[role="alert"]:last-child');
+    expect(alert?.textContent).toContain('refresh the page');
+  });
 });
