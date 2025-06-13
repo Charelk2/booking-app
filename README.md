@@ -138,7 +138,7 @@ When the server starts it logs the resolved origins, e.g. `CORS origins set to: 
 
 For quick local testing you can bypass specific origins entirely by setting `CORS_ALLOW_ALL=true` in `.env`. When enabled the API responds with `Access-Control-Allow-Origin: *`.
 
-Unhandled exceptions are returned as JSON 500 responses, so your configured CORS headers are always included.
+Unhandled exceptions are returned as JSON 500 responses. The middleware now injects the appropriate `Access-Control-Allow-Origin` header even when errors occur, so browser clients never see a CORS failure when the API throws an exception.
 
 ---
 
