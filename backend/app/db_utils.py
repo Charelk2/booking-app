@@ -115,7 +115,23 @@ def ensure_currency_column(engine: Engine) -> None:
 
 
 def ensure_booking_simple_columns(engine: Engine) -> None:
-    """Add missing ``date`` and ``location`` columns on ``bookings_simple``."""
+    """Add missing columns on ``bookings_simple``."""
 
-    add_column_if_missing(engine, "bookings_simple", "date", "date DATETIME")
-    add_column_if_missing(engine, "bookings_simple", "location", "location VARCHAR")
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "date",
+        "date DATETIME",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "location",
+        "location VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "payment_status",
+        "payment_status VARCHAR NOT NULL DEFAULT 'pending'",
+    )

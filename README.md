@@ -8,6 +8,7 @@ The June 2025 update bumps key dependencies:
 - **Uvicorn** 0.34
 - **React** 18.3 and **Next.js** 14.2
 - Minor fix: the artists listing now gracefully handles incomplete user data from the API.
+- Bookings now track `payment_status` in `bookings_simple`.
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
