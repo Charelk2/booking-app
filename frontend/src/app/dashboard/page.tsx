@@ -430,13 +430,14 @@ export default function DashboardPage() {
           )}
 
           {activeTab === 'bookings' && (
-            <SectionList
-              title="Recent Bookings"
-              data={visibleBookings}
-              defaultOpen={false}
-              emptyState={<span>No bookings yet</span>}
-              renderItem={(booking) => (
-                <div key={booking.id} className="bg-white p-4 shadow rounded-lg">
+            <>
+              <SectionList
+                title="Recent Bookings"
+                data={visibleBookings}
+                defaultOpen={false}
+                emptyState={<span>No bookings yet</span>}
+                renderItem={(booking) => (
+                  <div key={booking.id} className="bg-white p-4 shadow rounded-lg">
                   <div className="font-medium text-gray-900">
                     {booking.client.first_name} {booking.client.last_name}
                   </div>
@@ -465,8 +466,19 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 </div>
+                )}
+              />
+              {bookings.length > visibleBookings.length && (
+                <div className="mt-2">
+                  <Link
+                    href="/dashboard/bookings"
+                    className="text-indigo-600 hover:underline text-sm"
+                  >
+                    View All Bookings
+                  </Link>
+                </div>
               )}
-            />
+            </>
           )}
           {user.user_type === "artist" && activeTab === 'services' && (
             <details
