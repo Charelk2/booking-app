@@ -435,17 +435,14 @@ export default function DashboardPage() {
                     )}
                   </div>
                 )}
+                footer={
+                  bookingRequests.length > visibleRequests.length ? (
+                    <Link href="/booking-requests" className="text-indigo-600 hover:underline text-sm">
+                      View All Requests
+                    </Link>
+                  ) : null
+                }
               />
-              {bookingRequests.length > visibleRequests.length && (
-                <div className="mt-2">
-                  <Link
-                    href="/booking-requests"
-                    className="text-indigo-600 hover:underline text-sm"
-                  >
-                    View All Requests
-                  </Link>
-                </div>
-              )}
             </>
           )}
 

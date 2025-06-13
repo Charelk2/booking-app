@@ -8,6 +8,7 @@ interface SectionListProps<T> {
   renderItem: (item: T) => React.ReactNode;
   emptyState: React.ReactNode;
   defaultOpen?: boolean;
+  footer?: React.ReactNode;
 }
 
 export default function SectionList<T>({
@@ -16,6 +17,7 @@ export default function SectionList<T>({
   renderItem,
   emptyState,
   defaultOpen = false,
+  footer,
 }: SectionListProps<T>) {
   const isOpen = defaultOpen && data.length > 0;
   return (
@@ -33,6 +35,7 @@ export default function SectionList<T>({
             ))}
           </ul>
         )}
+        {footer && <div className="mt-2">{footer}</div>}
       </div>
     </details>
   );
