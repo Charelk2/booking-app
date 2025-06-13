@@ -99,9 +99,24 @@ def read_my_client_booking_requests(
     """
     Retrieve booking requests made by the current client.
     """
-    return crud.crud_booking_request.get_booking_requests_by_client(
+    requests = crud.crud_booking_request.get_booking_requests_by_client(
         db=db, client_id=current_user.id, skip=skip, limit=limit
     )
+    for req in requests:
+        accepted = next(
+            (
+                q
+                for q in req.quotes
+                if q.status in [
+                    models.QuoteStatus.ACCEPTED_BY_CLIENT,
+                    models.QuoteStatus.CONFIRMED_BY_ARTIST,
+                ]
+            ),
+            None,
+        )
+        if accepted:
+            setattr(req, "accepted_quote_id", accepted.id)
+    return requests
 
 @router.get("/me/artist", response_model=List[schemas.BookingRequestResponse])
 def read_my_artist_booking_requests(
@@ -113,9 +128,24 @@ def read_my_artist_booking_requests(
     """
     Retrieve booking requests made to the current artist.
     """
-    return crud.crud_booking_request.get_booking_requests_by_artist(
+    requests = crud.crud_booking_request.get_booking_requests_by_artist(
         db=db, artist_id=current_artist.id, skip=skip, limit=limit
     )
+    for req in requests:
+        accepted = next(
+            (
+                q
+                for q in req.quotes
+                if q.status in [
+                    models.QuoteStatus.ACCEPTED_BY_CLIENT,
+                    models.QuoteStatus.CONFIRMED_BY_ARTIST,
+                ]
+            ),
+            None,
+        )
+        if accepted:
+            setattr(req, "accepted_quote_id", accepted.id)
+    return requests
 
 @router.get("/{request_id}", response_model=schemas.BookingRequestResponse)
 def read_booking_request(
@@ -129,11 +159,24 @@ def read_booking_request(
     """
     if not current_user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
-    db_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
+    db_request = crud.crud_booking_request.get_booking_request(
+        db, request_id=request_id
+    )
     if db_request is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking request not found")
     if not (db_request.client_id == current_user.id or db_request.artist_id == current_user.id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this request")
+    accepted = next(
+        (
+            q
+            for q in db_request.quotes
+            if q.status
+            in [models.QuoteStatus.ACCEPTED_BY_CLIENT, models.QuoteStatus.CONFIRMED_BY_ARTIST]
+        ),
+        None,
+    )
+    if accepted:
+        setattr(db_request, "accepted_quote_id", accepted.id)
     return db_request
 
 @router.put("/{request_id}/client", response_model=schemas.BookingRequestResponse)

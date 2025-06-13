@@ -43,7 +43,8 @@ class BookingRequestResponse(BookingRequestBase):
     client: Optional[UserResponse] = None
     artist: Optional[UserResponse] = None # Artist's UserResponse
     service: Optional[ServiceResponse] = None
-    # quotes: List['QuoteResponse'] = [] # Forward reference for QuoteResponse
+    quotes: List['QuoteResponse'] = []
+    accepted_quote_id: Optional[int] = None
 
     model_config = {
         "from_attributes": True
