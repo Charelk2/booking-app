@@ -108,13 +108,23 @@ logger.info("CORS origins set to: %s", allow_origins)
 async def catch_exceptions(request: Request, call_next):
     """Return JSON 500 errors so CORS headers are included."""
     try:
-        return await call_next(request)
+        response = await call_next(request)
     except Exception as exc:  # pragma: no cover - generic handler
         logger.exception("Unhandled error: %s", exc)
-        return JSONResponse(
+        response = JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"detail": "Internal Server Error"},
         )
+
+    # Ensure the CORS headers are present even when an exception occurs
+    origin = request.headers.get("origin")
+    if origin and ("*" in allow_origins or origin in allow_origins):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    elif "*" in allow_origins:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+
+    return response
 
 
 @app.exception_handler(RequestValidationError)
