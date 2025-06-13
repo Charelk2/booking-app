@@ -125,15 +125,14 @@ For setup instructions see [README.md](README.md).
   and logs their versions. It calls Jest via Node so it works even when
   `node_modules/.bin` is missing. The path and version of the Jest binary are
   printed, and the script exits with a clear error if the binary cannot be
-  found. Documentation-only commits (or commits with no code changes) skip
-  testing by default. Set `FORCE_TESTS=1` to run the full suite regardless of
-  what changed.
+  found. Tests run for *all* commits by default. Set `SKIP_TESTS=1` to bypass
+  them when absolutely necessary.
 * If network access is limited, use the pre-built Docker image by running
   `./scripts/docker-test.sh`. Set `BOOKING_APP_IMAGE` to override the default
   registry path. The script runs the container with `--network none` by default;
   export `DOCKER_TEST_NETWORK=bridge` if tests require connectivity.
 * `scripts/tests/test-test-all.sh` clones the repository into a temporary
-  directory, runs `FORCE_TESTS=1 ./scripts/test-all.sh`, and verifies that both
+  directory, runs `./scripts/test-all.sh`, and verifies that both
   backend and frontend test suites execute. Use this helper to confirm the test
   runner works on a clean checkout.
 
