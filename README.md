@@ -460,6 +460,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * File uploads show an inline progress bar and the send button is disabled until complete.
 * Artists can now send itemized quotes directly in the thread via a **Send Quote** modal. Clients can accept or decline, and accepted quotes show a confirmation banner.
 * Accepting a quote now creates a booking instantly and notifies both parties.
+* Fixed issue where quotes sent via the thread were missing because no chat message was recorded.
 * Upload progress and new message alerts are announced to screen readers.
 * Personalized Video flow: multi-step prompts, typing indicators, progress bar.
 * Sticky input demo at `/demo/sticky-input` shows local message appending.
