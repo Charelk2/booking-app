@@ -74,6 +74,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [wsFailed, setWsFailed] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -137,6 +138,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     typeof window !== 'undefined' ? localStorage.getItem('token') : '';
   const { onMessage: onSocketMessage } = useWebSocket(
     `${wsBase}${API_V1}/ws/booking-requests/${bookingRequestId}?token=${token}`,
+    () => setWsFailed(true),
   );
 
   useEffect(
@@ -661,6 +663,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       {errorMsg && (
         <p className="text-sm text-red-600" role="alert">
           {errorMsg}
+        </p>
+      )}
+      {wsFailed && (
+        <p className="text-sm text-red-600" role="alert">
+          Connection lost. Please refresh the page or sign in again.
         </p>
       )}
         </div>
