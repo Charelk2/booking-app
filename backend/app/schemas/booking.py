@@ -6,6 +6,7 @@ from ..models.booking import BookingStatus # Enum for booking status
 from .user import UserResponse # For nesting client details
 from .artist import ArtistProfileNested # For nesting artist details (partial)
 from .service import ServiceResponse # For nesting service details
+from .request_quote import QuoteResponse
 
 # Shared properties for Booking
 class BookingBase(BaseModel):
@@ -38,8 +39,9 @@ class BookingResponse(BookingBase):
     updated_at: datetime
 
     # Include nested details for frontend dashboard
-    client: Optional[UserResponse] = None 
+    client: Optional[UserResponse] = None
     service: Optional[ServiceResponse] = None
+    source_quote: Optional[QuoteResponse] = None
     # artist: Optional[ArtistProfileNested] = None # Artist details might be useful too
     # The artist_id field (user_id of artist) is already present.
     # If full ArtistProfileResponse is needed for the artist of the booking, it can be added.
@@ -48,3 +50,4 @@ class BookingResponse(BookingBase):
     model_config = {
         "from_attributes": True
     } 
+

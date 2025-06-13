@@ -66,6 +66,7 @@ export interface Booking {
   artist: ArtistProfile;
   client: User;
   service: Service;
+  source_quote?: Quote;
 }
 
 export interface Review {
