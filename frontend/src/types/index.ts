@@ -108,7 +108,8 @@ export interface BookingRequest {
   client?: User;
   artist?: User;
   service?: Service;
-  // quotes?: Quote[];
+  quotes?: Quote[];
+  accepted_quote_id?: number | null;
 }
 
 // If you need to handle Quotes (e.g. when the artist replies):
