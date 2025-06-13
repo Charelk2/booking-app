@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 import logging
 
 from .. import models, schemas
@@ -56,4 +57,10 @@ def accept_quote(quote_id: int, db: Session = Depends(get_db)):
     except ValueError as exc:
         logger.warning("Accepting quote %s failed: %s", quote_id, exc)
         raise HTTPException(status_code=400, detail=str(exc))
+    except SQLAlchemyError:
+        logger.exception("Database error accepting quote %s", quote_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        )
 
