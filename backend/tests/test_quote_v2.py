@@ -1,5 +1,8 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import SQLAlchemyError
+import logging
+import pytest
 from decimal import Decimal
 
 from app.models import (
@@ -69,4 +72,22 @@ def test_read_quote_not_found():
         assert "Quote 999 not found" in exc.detail
     else:
         assert False, "Expected HTTPException for missing quote"
+
+
+def test_accept_quote_logs_db_error(monkeypatch, caplog):
+    db = setup_db()
+
+    def fail_accept(*_):
+        raise SQLAlchemyError("db failure")
+
+    monkeypatch.setattr(api_quote_v2.crud_quote_v2, "accept_quote", fail_accept)
+    caplog.set_level(logging.ERROR, logger=api_quote_v2.logger.name)
+
+    with pytest.raises(HTTPException) as exc_info:
+        api_quote_v2.accept_quote(1, db)
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail == "Internal Server Error"
+    messages = [r for r in caplog.records if "Database error accepting quote" in r.getMessage()]
+    assert messages and messages[0].exc_info
 
