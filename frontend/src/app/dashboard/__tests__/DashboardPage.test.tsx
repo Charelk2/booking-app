@@ -419,3 +419,42 @@ describe('DashboardPage bookings link', () => {
     container.remove();
   });
 });
+
+describe('DashboardPage accepted quote label', () => {
+  it('shows quote accepted link when a request has an accepted quote', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client', email: 'c@example.com' } });
+    (api.getMyClientBookings as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getMyBookingRequests as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          client_id: 1,
+          artist_id: 2,
+          status: 'pending_artist_confirmation',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          accepted_quote_id: 42,
+          quotes: [],
+          artist: { first_name: 'A', last_name: 'B' },
+        },
+      ],
+    });
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(<DashboardPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    const link = container.querySelector('a[href="/quotes/42"]');
+    expect(link).toBeTruthy();
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+});
