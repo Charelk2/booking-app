@@ -525,7 +525,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Mobile-friendly dashboard cards for bookings and requests with larger service action buttons.
 * "Your Services" now appears in a collapsible section just like booking requests, keeping the dashboard tidy.
 * Removed the unused "Recent Activity" block.
-* Booking request and booking lists collapse after five items with a **Show All** toggle.
+* Booking request and booking lists show the five most recent items with a **View All** link to see the full history.
 * New `/dashboard/bookings` page lists all bookings with links to their quotes.
 * The dashboard Bookings tab now includes a **View All Bookings** link.
 * Booking request cards now show a **Quote accepted** label linking directly to the accepted quote.
