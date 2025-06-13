@@ -420,6 +420,51 @@ describe('DashboardPage bookings link', () => {
   });
 });
 
+describe('DashboardPage booking requests link', () => {
+  it('shows link to all requests when more than five exist', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
+    const requests = Array.from({ length: 6 }).map((_, i) => ({
+      id: i,
+      client_id: 3,
+      artist_id: 2,
+      status: 'pending_artist_confirmation',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      quotes: [],
+      client: { first_name: 'C', last_name: String(i) },
+      artist: { first_name: 'A', last_name: 'B' },
+    }));
+    (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
+    (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: requests });
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(<DashboardPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+    const requestsTab = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Requests'
+    ) as HTMLButtonElement;
+    if (requestsTab) {
+      await act(async () => {
+        requestsTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+      await act(async () => { await Promise.resolve(); });
+    }
+    const link = container.querySelector('a[href="/booking-requests"]');
+    expect(link).toBeTruthy();
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+});
+
 describe('DashboardPage accepted quote label', () => {
   it('shows quote accepted link when a request has an accepted quote', async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
