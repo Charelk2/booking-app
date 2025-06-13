@@ -45,14 +45,23 @@ async def booking_request_ws(
     db: Session = Depends(get_db),
 ):
     user: User | None = None
-    if token:
-        try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            email = payload.get("sub")
-            if email:
-                user = db.query(User).filter(User.email == email).first()
-        except JWTError:
-            user = None
+    if not token:
+        logger.warning("Closing WebSocket for request %s: missing token", request_id)
+        await websocket.close()
+        return
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if email:
+            user = db.query(User).filter(User.email == email).first()
+    except JWTError:
+        logger.warning("Closing WebSocket for request %s: invalid token", request_id)
+        await websocket.close()
+        return
+    if not user:
+        logger.warning("Closing WebSocket for request %s: invalid token", request_id)
+        await websocket.close()
+        return
     booking_request = crud_booking_request.get_booking_request(
         db, request_id=request_id
     )
