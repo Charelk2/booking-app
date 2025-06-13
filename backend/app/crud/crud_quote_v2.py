@@ -45,6 +45,15 @@ def get_quote(db: Session, quote_id: int) -> Optional[models.QuoteV2]:
 
 
 def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
+    """Accept a pending quote and create a booking record.
+
+    This sets the quote status to ``ACCEPTED`` and creates a ``BookingSimple``
+    with ``payment_status="pending"``. No payment processing occurs here—the
+    intent is only to record that the artist and client have agreed to proceed.
+    Future payment integration could call the payment API or an external
+    provider after the booking is saved and notifications are sent.
+    """
+
     db_quote = get_quote(db, quote_id)
     if not db_quote:
         raise ValueError("Quote not found")
@@ -71,6 +80,7 @@ def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
         artist_id=db_quote.artist_id,
         client_id=db_quote.client_id,
         confirmed=True,
+        # No charge is triggered yet; payment will be collected later
         payment_status="pending",
     )
     db.add(booking)
