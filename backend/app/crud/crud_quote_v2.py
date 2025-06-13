@@ -91,7 +91,9 @@ def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
     # Send notifications to both artist and client
     artist = db_quote.artist
     client = db_quote.client
-    notify_quote_accepted(db, artist, db_quote.id)
+    notify_quote_accepted(
+        db, artist, db_quote.id, db_quote.booking_request_id
+    )
     notify_new_booking(db, client, booking.id)
 
     return booking
