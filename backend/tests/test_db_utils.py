@@ -6,6 +6,7 @@ from app.db_utils import (
     ensure_notification_link_column,
     ensure_price_visible_column,
     ensure_currency_column,
+    ensure_booking_simple_columns,
 )
 
 
@@ -71,6 +72,22 @@ def setup_service_engine() -> Engine:
     return engine
 
 
+def setup_booking_simple_engine() -> Engine:
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE bookings_simple (
+                    id INTEGER PRIMARY KEY,
+                    quote_id INTEGER
+                )
+                """
+            )
+        )
+    return engine
+
+
 def test_add_price_visible_column():
     engine = setup_artist_engine()
     ensure_price_visible_column(engine)
@@ -85,3 +102,12 @@ def test_add_currency_column():
     inspector = inspect(engine)
     column_names = [col["name"] for col in inspector.get_columns("services")]
     assert "currency" in column_names
+
+
+def test_booking_simple_columns():
+    engine = setup_booking_simple_engine()
+    ensure_booking_simple_columns(engine)
+    inspector = inspect(engine)
+    column_names = [col["name"] for col in inspector.get_columns("bookings_simple")]
+    assert "date" in column_names
+    assert "location" in column_names
