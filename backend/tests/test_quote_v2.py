@@ -91,3 +91,56 @@ def test_accept_quote_logs_db_error(monkeypatch, caplog):
     messages = [r for r in caplog.records if "Database error accepting quote" in r.getMessage()]
     assert messages and messages[0].exc_info
 
+
+def test_accept_quote_missing_client(caplog):
+    """Ensure accepting a quote succeeds even if the client record was deleted."""
+    db = setup_db()
+    artist = User(
+        email="artist2@test.com",
+        password="x",
+        first_name="A",
+        last_name="R",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="ghost@test.com",
+        password="x",
+        first_name="G",
+        last_name="O",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    quote_in = QuoteCreate(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=client.id,
+        services=[ServiceItem(description="Perf", price=Decimal("100"))],
+        sound_fee=Decimal("0"),
+        travel_fee=Decimal("0"),
+    )
+    quote = api_quote_v2.create_quote(quote_in, db)
+
+    # Remove the client record to simulate a missing foreign key
+    db.delete(client)
+    db.commit()
+
+    caplog.set_level(logging.ERROR, logger="app.utils.notifications")
+    booking = api_quote_v2.accept_quote(quote.id, db)
+    assert booking.client_id == client.id
+    assert any(
+        "user missing for booking" in r.getMessage() for r in caplog.records
+    )
+
