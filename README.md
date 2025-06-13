@@ -102,7 +102,7 @@ The SQLite database path is automatically resolved to the project root, so you c
 
 ### Database migrations
 
-Run `alembic upgrade head` whenever you pull changes that modify the database schema. The API will attempt to add missing columns such as `artist_profiles.price_visible`, `services.currency`, and `bookings_simple.date`/`location` automatically for SQLite setups, but explicit migrations are recommended for other databases.
+Run `alembic upgrade head` whenever you pull changes that modify the database schema. The API will attempt to add missing columns such as `artist_profiles.price_visible`, `services.currency`, `bookings_simple.date`/`location`, and `bookings_simple.payment_status` automatically for SQLite setups, but explicit migrations are recommended for other databases. Non-SQLite deployments should run the new Alembic migration after pulling this update.
 
 ### Service type enum
 
