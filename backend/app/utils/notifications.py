@@ -165,8 +165,20 @@ def notify_quote_accepted(
     _send_sms(user.phone_number, message)
 
 
-def notify_new_booking(db: Session, user: User, booking_id: int) -> None:
-    """Notify a user of a new booking."""
+def notify_new_booking(db: Session, user: Optional[User], booking_id: int) -> None:
+    """Notify a user of a new booking.
+
+    If ``user`` is ``None`` the function logs an error and returns gracefully
+    without raising an exception. This prevents runtime errors when a booking
+    references a missing or deleted user record.
+    """
+    if user is None:
+        logger.error(
+            "Failed to send booking notification: user missing for booking %s",
+            booking_id,
+        )
+        return
+
     message = format_notification_message(
         NotificationType.NEW_BOOKING,
         booking_id=booking_id,
