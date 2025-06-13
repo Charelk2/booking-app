@@ -7,6 +7,20 @@ import { useAuth } from '@/contexts/AuthContext';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
+jest.mock('../SendQuoteModal', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const React = require('react');
+  function MockModal(props: { open: boolean; onSubmit: (data: unknown) => void }) {
+    const { open, onSubmit } = props;
+    React.useEffect(() => {
+      if (open) {
+        onSubmit({});
+      }
+    }, [open, onSubmit]);
+    return null;
+  }
+  return { __esModule: true, default: MockModal };
+});
 
 // Minimal WebSocket stub
 class StubSocket {
@@ -395,6 +409,36 @@ describe('MessageThread component', () => {
     const buttons = container.querySelectorAll('button');
     const found = Array.from(buttons).find((b) => b.textContent === 'Send Quote');
     expect(found).not.toBeUndefined();
+  });
+
+  it('refreshes messages after creating a quote', async () => {
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });
+    (api.createQuoteV2 as jest.Mock).mockResolvedValue({ data: { id: 99 } });
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} clientId={1} artistId={2} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    (api.getMessagesForBookingRequest as jest.Mock).mockClear();
+
+    const openBtn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Send Quote') as HTMLButtonElement;
+    act(() => {
+      openBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(api.createQuoteV2).toHaveBeenCalled();
+    expect((api.getMessagesForBookingRequest as jest.Mock).mock.calls.length).toBeGreaterThan(0);
   });
 
   it('displays booking confirmation banner when quote accepted', async () => {
