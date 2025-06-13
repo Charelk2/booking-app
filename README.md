@@ -688,6 +688,9 @@ formatCurrency(99.5, 'USD', 'en-US'); // => 'US$99.50'
   prints the path to the Jest binary if it is missing.
 * Use `scripts/docker-test.sh` when you need to run the tests completely offline
   with cached dependencies.
+* **WebSocket closes immediately**: Ensure the booking request exists and that
+  your authentication token is valid. Invalid tokens or missing requests cause
+  the server to close the connection and log a warning.
 
 ---
 
