@@ -89,6 +89,7 @@ def create_booking(
         .options(
             selectinload(Booking.client),
             selectinload(Booking.service),
+            selectinload(Booking.source_quote),
         )
         .filter(Booking.id == db_booking.id)
         .first()
@@ -110,6 +111,7 @@ def read_my_bookings(
         .options(
             selectinload(Booking.client),
             selectinload(Booking.service),
+            selectinload(Booking.source_quote),
         )
         .filter(Booking.client_id == current_client.id)
         .order_by(Booking.start_time.desc())
@@ -132,6 +134,7 @@ def read_artist_bookings(
         .options(
             selectinload(Booking.client),
             selectinload(Booking.service),
+            selectinload(Booking.source_quote),
         )
         .filter(Booking.artist_id == current_artist.id)
         .order_by(Booking.start_time.desc())
@@ -176,6 +179,7 @@ def update_booking_status(
         .options(
             selectinload(Booking.client),
             selectinload(Booking.service),
+            selectinload(Booking.source_quote),
         )
         .filter(Booking.id == booking.id)
         .first()
@@ -199,6 +203,7 @@ def read_booking_details(
         .options(
             selectinload(Booking.client),
             selectinload(Booking.service),
+            selectinload(Booking.source_quote),
         )
         .filter(Booking.id == booking_id)
         .first()
