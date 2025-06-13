@@ -79,8 +79,12 @@ class QuoteResponse(QuoteBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     
-    artist: Optional[UserResponse] = None # Artist's UserResponse
-    booking_request: Optional[BookingRequestResponse] = None # Optional: The request this quote is for
+    artist: Optional[UserResponse] = None  # Artist details
+    # Exclude booking_request to avoid recursion when nested under
+    # BookingRequestResponse -> QuoteResponse -> BookingRequestResponse
+    booking_request: Optional[BookingRequestResponse] = Field(
+        default=None, exclude=True
+    )
     # booking: Optional[BookingResponse] = None # Optional: If a booking was created from this quote
 
     model_config = {
