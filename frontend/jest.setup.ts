@@ -12,6 +12,7 @@ jest.mock('next/navigation', () => {
       pathname: '/',
     }),
     usePathname: () => '/',
+    useParams: jest.fn(() => ({})),
   };
 });
 
