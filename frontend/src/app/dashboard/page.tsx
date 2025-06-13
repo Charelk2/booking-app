@@ -424,6 +424,14 @@ export default function DashboardPage() {
                   >
                     View Chat
                   </Link>
+                  {req.accepted_quote_id && (
+                    <Link
+                      href={`/quotes/${req.accepted_quote_id}`}
+                      className="ml-4 mt-2 inline-block text-green-600 hover:underline text-sm"
+                    >
+                      Quote accepted
+                    </Link>
+                  )}
                 </div>
               )}
             />
