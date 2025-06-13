@@ -133,6 +133,8 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 When the server starts it logs the resolved origins, e.g. `CORS origins set to: ['http://localhost:3000']`, so you can verify your configuration.
 
+For quick local testing you can bypass specific origins entirely by setting `CORS_ALLOW_ALL=true` in `.env`. When enabled the API responds with `Access-Control-Allow-Origin: *`.
+
 Unhandled exceptions are returned as JSON 500 responses, so your configured CORS headers are always included.
 
 ---

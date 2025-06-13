@@ -90,15 +90,16 @@ app.mount("/cover_photos", StaticFiles(directory=COVER_PHOTOS_DIR), name="cover_
 
 
 # ─── CORS middleware (adjust allow_origins if your frontend is hosted elsewhere) ─────────
-# Allow configurable origins (defaults to * for development)
+# Allow configurable origins or "*" when CORS_ALLOW_ALL is enabled
+allow_origins = ["*"] if settings.CORS_ALLOW_ALL else (settings.CORS_ORIGINS or ["*"])
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS or ["*"],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-logger.info("CORS origins set to: %s", settings.CORS_ORIGINS or "*")
+logger.info("CORS origins set to: %s", allow_origins)
 
 
 @app.middleware("http")
