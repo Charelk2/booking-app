@@ -112,6 +112,7 @@ def read_quote(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this quote",
         )
+    db_quote.booking_request = None
     return db_quote
 
 
@@ -150,10 +151,12 @@ def read_quotes_for_booking_request(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access quotes for this request",
         )
-
-    return crud.crud_quote.get_quotes_by_booking_request(
+    quotes = crud.crud_quote.get_quotes_by_booking_request(
         db, booking_request_id=request_id
     )
+    for q in quotes:
+        q.booking_request = None
+    return quotes
 
 
 @router.get("/quotes/me/artist", response_model=List[schemas.QuoteResponse])
@@ -166,9 +169,12 @@ def read_my_artist_quotes(
     """
     Retrieve all quotes made by the current artist.
     """
-    return crud.crud_quote.get_quotes_by_artist(
+    quotes = crud.crud_quote.get_quotes_by_artist(
         db=db, artist_id=current_artist.id, skip=skip, limit=limit
     )
+    for q in quotes:
+        q.booking_request = None
+    return quotes
 
 
 @router.put("/quotes/{quote_id}/client", response_model=schemas.QuoteResponse)

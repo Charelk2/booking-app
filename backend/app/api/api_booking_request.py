@@ -103,6 +103,8 @@ def read_my_client_booking_requests(
         db=db, client_id=current_user.id, skip=skip, limit=limit
     )
     for req in requests:
+        for q in req.quotes:
+            q.booking_request = None
         accepted = next(
             (
                 q
@@ -132,6 +134,8 @@ def read_my_artist_booking_requests(
         db=db, artist_id=current_artist.id, skip=skip, limit=limit
     )
     for req in requests:
+        for q in req.quotes:
+            q.booking_request = None
         accepted = next(
             (
                 q
@@ -166,6 +170,8 @@ def read_booking_request(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking request not found")
     if not (db_request.client_id == current_user.id or db_request.artist_id == current_user.id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this request")
+    for q in db_request.quotes:
+        q.booking_request = None
     accepted = next(
         (
             q
