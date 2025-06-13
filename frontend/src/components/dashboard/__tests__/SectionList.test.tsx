@@ -33,4 +33,19 @@ describe('SectionList', () => {
     });
     expect(container.textContent).toContain('Empty');
   });
+
+  it('renders footer when provided', () => {
+    act(() => {
+      root.render(
+        React.createElement(SectionList, {
+          title: 'Test',
+          data: [1],
+          emptyState: React.createElement('span', null, 'Empty'),
+          renderItem: () => React.createElement('div', null, 'item'),
+          footer: React.createElement('span', null, 'Footer'),
+        })
+      );
+    });
+    expect(container.textContent).toContain('Footer');
+  });
 });
