@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from typing import Any, ClassVar
 import json
 from pathlib import Path
@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     # CORS origins
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3002"]
+    CORS_ALLOW_ALL: bool = False
 
     @field_validator("CORS_ORIGINS", mode="before")
     def split_origins(cls, v: Any) -> list[str]:
@@ -37,6 +38,13 @@ class Settings(BaseSettings):
                 pass
             return [s.strip() for s in v.split(",") if s.strip()]
         return v
+
+
+    @model_validator(mode="after")
+    def allow_all_if_requested(cls, values: "Settings") -> "Settings":
+        if values.CORS_ALLOW_ALL:
+            values.CORS_ORIGINS = ["*"]
+        return values
 
     class Config:
         env_file = ".env"
