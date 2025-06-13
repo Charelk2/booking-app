@@ -431,6 +431,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
   correctly returns the new format and avoids 404 errors.
 * Quote notifications now link to `/quotes/{id}` so users can view accepted
   quotes directly from the notification list.
+* Quote API responses omit the nested `booking_request` field to avoid
+  circular references.
 
 ### Booking Wizard
 
