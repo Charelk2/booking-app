@@ -112,3 +112,10 @@ def ensure_currency_column(engine: Engine) -> None:
         "currency",
         "currency VARCHAR(3) NOT NULL DEFAULT 'ZAR'",
     )
+
+
+def ensure_booking_simple_columns(engine: Engine) -> None:
+    """Add missing ``date`` and ``location`` columns on ``bookings_simple``."""
+
+    add_column_if_missing(engine, "bookings_simple", "date", "date DATETIME")
+    add_column_if_missing(engine, "bookings_simple", "location", "location VARCHAR")
