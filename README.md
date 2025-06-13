@@ -2,11 +2,13 @@
 
 This repository contains a FastAPI backend and a Next.js frontend.
 
-The June 2025 update bumps key dependencies:
+The July 2025 update bumps key dependencies and Docker base images:
 
 - **FastAPI** 0.115.12 (requires Starlette 0.46+)
 - **Uvicorn** 0.34
 - **React** 18.3 and **Next.js** 14.2
+- **Python** 3.12
+- **Node.js** 21
 - Minor fix: the artists listing now gracefully handles incomplete user data from the API.
 - Bookings now track `payment_status` in `bookings_simple`.
 
@@ -271,11 +273,8 @@ setting `DOCKER_TEST_NETWORK=bridge`) so the script can copy the cached
 dependencies from the image. After they exist, export
 `BOOKING_APP_SKIP_PULL=1` and pass `--network none` to keep the environment
 offline while reusing the caches.
-It also detects which files changed in Git and only runs
-the backend or frontend tests when necessary; documentation-only changes and
-commits with no code updates cause the script to exit immediately without
-running any tests. Set `FORCE_TESTS=1` to run the full suite regardless of
-what changed.
+Tests now run for every commit by default. Use `SKIP_TESTS=1` only when you
+really need to bypass them (for example in a documentation-only hotfix).
 
 After modifying any frontend component, run `./scripts/test-all.sh` to verify
 that Jest tests and lint checks still pass.
