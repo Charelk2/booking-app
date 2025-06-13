@@ -372,3 +372,50 @@ describe('Service card drag handle', () => {
     jest.useRealTimers();
   });
 });
+
+describe('DashboardPage bookings link', () => {
+  it('shows link to all bookings when more than five exist', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
+    const bookings = Array.from({ length: 6 }).map((_, i) => ({
+      id: i,
+      artist_id: 2,
+      client_id: 3,
+      service_id: 4,
+      start_time: new Date().toISOString(),
+      end_time: new Date().toISOString(),
+      status: 'completed',
+      total_price: 100,
+      notes: '',
+      client: { first_name: 'C', last_name: String(i) },
+      service: { title: 'Service' },
+    }));
+    (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: bookings });
+    (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
+    (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [] });
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(<DashboardPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+    const bookingsTab = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Bookings'
+    ) as HTMLButtonElement;
+    if (bookingsTab) {
+      await act(async () => {
+        bookingsTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+      await act(async () => { await Promise.resolve(); });
+    }
+    const link = container.querySelector('a[href="/dashboard/bookings"]');
+    expect(link).toBeTruthy();
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+});
