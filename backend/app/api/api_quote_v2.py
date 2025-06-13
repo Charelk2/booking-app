@@ -1,17 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+import logging
 
 from .. import models, schemas
 from ..crud import crud_quote_v2, crud_message
 from .dependencies import get_db
 
 router = APIRouter(tags=["QuotesV2"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/quotes", response_model=schemas.QuoteV2Read, status_code=status.HTTP_201_CREATED)
 def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db)):
     try:
         quote = crud_quote_v2.create_quote(db, quote_in)
+        logger.info("Created quote %s for booking request %s", quote.id, quote_in.booking_request_id)
         crud_message.create_message(
             db=db,
             booking_request_id=quote_in.booking_request_id,
@@ -24,6 +27,7 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
         )
         return quote
     except Exception as exc:  # pragma: no cover - generic failure path
+        logger.error("Failed to create quote: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
@@ -32,9 +36,14 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
 
 @router.get("/quotes/{quote_id}", response_model=schemas.QuoteV2Read)
 def read_quote(quote_id: int, db: Session = Depends(get_db)):
+    logger.info("Fetching quote %s", quote_id)
     quote = crud_quote_v2.get_quote(db, quote_id)
     if not quote:
-        raise HTTPException(status_code=404, detail="Quote not found")
+        logger.warning("Quote %s not found", quote_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Quote {quote_id} not found",
+        )
     return quote
 
 
@@ -42,7 +51,9 @@ def read_quote(quote_id: int, db: Session = Depends(get_db)):
 def accept_quote(quote_id: int, db: Session = Depends(get_db)):
     try:
         booking = crud_quote_v2.accept_quote(db, quote_id)
+        logger.info("Quote %s accepted creating booking %s", quote_id, booking.id)
         return booking
     except ValueError as exc:
+        logger.warning("Accepting quote %s failed: %s", quote_id, exc)
         raise HTTPException(status_code=400, detail=str(exc))
 

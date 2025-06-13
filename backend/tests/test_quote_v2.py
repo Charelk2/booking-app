@@ -10,6 +10,7 @@ from app.models import (
     Message,
 )
 from app.models.base import BaseModel
+from fastapi import HTTPException
 from app.api import api_quote_v2
 from app.schemas.quote_v2 import ServiceItem, QuoteCreate
 
@@ -56,4 +57,16 @@ def test_create_and_accept_quote():
     assert booking.client_id == client.id
     assert booking.confirmed is True
     assert booking.payment_status == "pending"
+
+
+def test_read_quote_not_found():
+    db = setup_db()
+    try:
+        api_quote_v2.read_quote(999, db)
+    except Exception as exc:
+        assert isinstance(exc, HTTPException)
+        assert exc.status_code == 404
+        assert "Quote 999 not found" in exc.detail
+    else:
+        assert False, "Expected HTTPException for missing quote"
 
