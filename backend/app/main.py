@@ -98,6 +98,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+logger.info("CORS origins set to: %s", settings.CORS_ORIGINS or "*")
 
 
 @app.middleware("http")
