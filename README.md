@@ -433,6 +433,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
   quotes directly from the notification list.
 * Quote API responses omit the nested `booking_request` field to avoid
   circular references.
+* Accepting a Quote V2 now also creates a formal booking visible on the artist dashboard.
 
 ### Booking Wizard
 
