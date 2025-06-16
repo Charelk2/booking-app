@@ -82,7 +82,7 @@ describe('BookingWizard flow', () => {
     expect(container.querySelector('h2')?.textContent).toContain('Date & Time');
     expect(container.textContent).not.toContain('Summary');
     const setStep = (window as unknown as { __setStep: (s: number) => void }).__setStep;
-    await act(async () => { setStep(5); });
+    await act(async () => { setStep(6); });
     await new Promise((r) => setTimeout(r, 400));
     expect(container.querySelector('h2')?.textContent).toContain('Review');
     expect(container.textContent).toContain('Summary');

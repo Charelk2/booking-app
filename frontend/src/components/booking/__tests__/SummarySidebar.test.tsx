@@ -30,6 +30,7 @@ describe('SummarySidebar', () => {
         date: new Date('2024-01-02T00:00:00Z'),
         time: '10am',
         location: '',
+        guests: '20',
         venueType: 'indoor',
         sound: 'yes',
       },
@@ -46,6 +47,7 @@ describe('SummarySidebar', () => {
         date: '2024-05-03',
         time: '9pm',
         location: '',
+        guests: '50',
         venueType: 'indoor',
         sound: 'yes',
       },
@@ -54,5 +56,6 @@ describe('SummarySidebar', () => {
       root.render(<SummarySidebar />);
     });
     expect(container.textContent).toContain('May 3, 2024');
+    expect(container.textContent).toContain('50');
   });
 });
