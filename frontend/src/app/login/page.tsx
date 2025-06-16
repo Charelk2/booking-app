@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
@@ -24,6 +24,8 @@ interface LoginForm {
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
+  const params = useSearchParams();
+  const next = params.get('next');
   const [error, setError] = useState('');
   const {
     register,
@@ -34,7 +36,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     try {
       await login(data.email, data.password, data.remember);
-      router.push('/dashboard');
+      router.push(next || '/dashboard');
     } catch (err) {
       setError('Invalid email or password');
     }
@@ -125,7 +127,10 @@ export default function LoginPage() {
 
           <p className="mt-10 text-center text-sm text-gray-500">
             Not a member?{' '}
-            <Link href="/register" className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500">
+            <Link
+              href={`/register${next ? `?next=${encodeURIComponent(next)}` : ''}`}
+              className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
+            >
               Sign up now
             </Link>
           </p>
