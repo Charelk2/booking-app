@@ -3,6 +3,7 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 export interface EventDetails {
   date: Date;
   location: string;
+  guests: string;
   venueType: 'indoor' | 'outdoor' | 'hybrid';
   sound: 'yes' | 'no';
   notes?: string;
@@ -27,6 +28,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
   const [details, setDetails] = useState<EventDetails>({
     date: new Date(),
     location: '',
+    guests: '',
     venueType: 'indoor',
     sound: 'yes',
     attachment_url: '',

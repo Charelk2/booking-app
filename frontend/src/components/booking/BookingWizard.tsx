@@ -22,6 +22,7 @@ import { useBooking, EventDetails } from '@/contexts/BookingContext';
 import useBookingForm from '@/hooks/useBookingForm';
 import DateTimeStep from './steps/DateTimeStep';
 import LocationStep from './steps/LocationStep';
+import GuestsStep from './steps/GuestsStep';
 import SoundStep from './steps/SoundStep';
 import VenueStep from './steps/VenueStep';
 import NotesStep from './steps/NotesStep';
@@ -30,6 +31,7 @@ import ReviewStep from './steps/ReviewStep';
 const steps = [
   'Date & Time',
   'Location',
+  'Guests',
   'Venue Type',
   'Sound',
   'Notes',
@@ -39,6 +41,10 @@ const steps = [
 const schema = yup.object({
   date: yup.date().required().min(new Date(), 'Pick a future date'),
   location: yup.string().required('Location is required'),
+  guests: yup
+    .string()
+    .required('Number of guests is required')
+    .matches(/^\d+$/, 'Guests must be a number'),
   venueType: yup
     .mixed<'indoor' | 'outdoor' | 'hybrid'>()
     .oneOf(['indoor', 'outdoor', 'hybrid'])
@@ -121,9 +127,12 @@ export default function BookingWizard({
         fields = ['location'];
         break;
       case 2:
-        fields = ['venueType'];
+        fields = ['guests'];
         break;
       case 3:
+        fields = ['venueType'];
+        break;
+      case 4:
         fields = ['sound'];
         break;
       default:
@@ -186,6 +195,7 @@ export default function BookingWizard({
       const detailLines = [
         `Date: ${format(vals.date, 'yyyy-MM-dd')}`,
         `Location: ${vals.location}`,
+        `Guests: ${vals.guests}`,
         `Sound: ${vals.sound}`,
         `Venue Type: ${vals.venueType}`,
         vals.notes ? `Notes: ${vals.notes}` : null,
@@ -232,7 +242,7 @@ export default function BookingWizard({
         );
       case 2:
         return (
-          <VenueStep
+          <GuestsStep
             control={control as unknown as Control<FieldValues>}
             step={step}
             steps={steps}
@@ -243,7 +253,7 @@ export default function BookingWizard({
         );
       case 3:
         return (
-          <SoundStep
+          <VenueStep
             control={control as unknown as Control<FieldValues>}
             step={step}
             steps={steps}
@@ -253,6 +263,17 @@ export default function BookingWizard({
           />
         );
       case 4:
+        return (
+          <SoundStep
+            control={control as unknown as Control<FieldValues>}
+            step={step}
+            steps={steps}
+            onBack={prev}
+            onSaveDraft={saveDraft}
+            onNext={next}
+          />
+        );
+      case 5:
         return (
           <NotesStep
             control={control as unknown as Control<FieldValues>}
