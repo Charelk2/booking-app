@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
@@ -20,6 +20,8 @@ interface RegisterForm extends Omit<User, 'id' | 'is_active' | 'is_verified'> {
 export default function RegisterPage() {
   const { register: registerUser } = useAuth();
   const router = useRouter();
+  const params = useSearchParams();
+  const next = params.get('next');
   const [error, setError] = useState('');
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<RegisterForm>();
 
@@ -40,7 +42,7 @@ export default function RegisterPage() {
       void confirmPassword;
       await registerUser(userData);
       toast.success('Registration successful! Please log in.');
-      router.push('/login');
+      router.push(`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`);
     } catch (err: unknown) {
       console.error('Registration error:', err);
       const message =
@@ -194,7 +196,10 @@ export default function RegisterPage() {
 
           <p className="mt-10 text-center text-sm text-gray-500">
             Already have an account?{' '}
-            <Link href="/login" className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500">
+            <Link
+              href={`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`}
+              className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
+            >
               Sign in
             </Link>
           </p>
