@@ -23,6 +23,16 @@ export default function ArtistsPage() {
   const [sort, setSort] = useState<string | undefined>();
   const [verifiedOnly, setVerifiedOnly] = useState(false);
 
+  const clearFilters = () => {
+    setCategory(undefined);
+    setLocation('');
+    setSort(undefined);
+    setVerifiedOnly(false);
+  };
+
+  const filtersActive =
+    Boolean(category) || Boolean(location) || Boolean(sort) || verifiedOnly;
+
   const fetchArtists = async (params?: { category?: string; location?: string; sort?: string }) => {
     try {
       const res = await getArtists(params);
@@ -97,10 +107,22 @@ export default function ArtistsPage() {
             />
             Verified Only
           </label>
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-sm text-blue-600 hover:underline ml-auto"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
         <div>
           {loading && <p>Loading...</p>}
           {error && <p className="text-red-600">{error}</p>}
+          {!loading && artists.length === 0 && !error && (
+            <p>No artists found</p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {artists.map((a) => {
               const user = (a as Partial<typeof a>).user as ArtistProfile['user'] | null | undefined;
