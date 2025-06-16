@@ -185,6 +185,9 @@ fail.
 `useIsMobile` also initializes to `false` and updates on mount so mobile devices
 avoid hydration errors when rendering responsive components.
 
+Protected pages redirect unauthenticated visitors to `/login?next=<path>`. After
+sign in or sign up, the app automatically returns to the original URL.
+
 API responses are now handled by a global interceptor which maps common HTTP
 status codes to human-friendly error messages and logs server errors to the
 console. Hooks and components no longer need to parse Axios errors manually.
