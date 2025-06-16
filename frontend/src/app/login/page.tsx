@@ -1,7 +1,7 @@
 
 'use client';
 
-// TODO: Add multi-factor auth and "remember me" option for persistent sessions
+// TODO: Add multi-factor auth
 
 // Login form uses shared auth components and offers optional social login
 
@@ -18,17 +18,22 @@ import SocialLoginButtons from '@/components/auth/SocialLoginButtons';
 interface LoginForm {
   email: string;
   password: string;
+  remember: boolean;
 }
 
 export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
   const [error, setError] = useState('');
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginForm>({ defaultValues: { remember: false } });
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      await login(data.email, data.password);
+      await login(data.email, data.password, data.remember);
       router.push('/dashboard');
     } catch (err) {
       setError('Invalid email or password');
@@ -76,10 +81,24 @@ export default function LoginPage() {
                 })}
                 error={errors.password}
               />
-              <div className="mt-2 text-right text-sm">
-                <Link href="/forgot-password" className="font-semibold text-indigo-600 hover:text-indigo-500">
-                  Forgot password?
-                </Link>
+              <div className="mt-2 flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    id="remember"
+                    type="checkbox"
+                    aria-label="Remember me"
+                    {...register('remember')}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                  />
+                  <label htmlFor="remember" className="ml-2 block text-sm text-gray-900">
+                    Remember me
+                  </label>
+                </div>
+                <div className="text-sm">
+                  <Link href="/forgot-password" className="font-semibold text-indigo-600 hover:text-indigo-500">
+                    Forgot password?
+                  </Link>
+                </div>
               </div>
             </div>
 
