@@ -117,4 +117,45 @@ describe('Artists page filters', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('shows message when no artists found', async () => {
+    jest.spyOn(api, 'getArtists').mockResolvedValue({ data: [] });
+    const { container, root } = setup();
+    await act(async () => {
+      root.render(React.createElement(ArtistsPage));
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain('No artists found');
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('clears all filters', async () => {
+    const spy = jest.spyOn(api, 'getArtists').mockResolvedValue({ data: [] });
+    const { container, root } = setup();
+    await act(async () => {
+      root.render(React.createElement(ArtistsPage));
+      await Promise.resolve();
+    });
+    const locationInput = container.querySelector('input[placeholder="Location"]') as HTMLInputElement;
+    const sortSelect = container.querySelector('select') as HTMLSelectElement;
+    const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    await act(async () => {
+      locationInput.value = 'NY';
+      locationInput.dispatchEvent(new Event('input', { bubbles: true }));
+      sortSelect.value = 'newest';
+      sortSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      checkbox.click();
+      await Promise.resolve();
+    });
+    const button = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Clear filters') as HTMLButtonElement;
+    expect(button).not.toBeNull();
+    await act(async () => {
+      button.click();
+      await Promise.resolve();
+    });
+    expect(spy).toHaveBeenLastCalledWith({ category: undefined, location: undefined, sort: undefined });
+    act(() => root.unmount());
+    container.remove();
+  });
 });
