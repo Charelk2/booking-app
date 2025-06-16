@@ -2,9 +2,14 @@ from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy.orm import Session
+import logging
+from fastapi import HTTPException, status
 
 from .. import models, schemas
 from ..utils.notifications import notify_quote_accepted, notify_new_booking
+from .crud_booking import create_booking_from_quote_v2
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_totals(quote_in: schemas.QuoteV2Create) -> tuple[Decimal, Decimal]:
@@ -60,6 +65,17 @@ def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
     if db_quote.status != models.QuoteStatusV2.PENDING:
         raise ValueError("Quote cannot be accepted")
 
+    booking_request = db_quote.booking_request
+    if not booking_request or not booking_request.service_id or not booking_request.proposed_datetime_1:
+        logger.error(
+            "Booking request %s missing service_id or proposed_datetime_1",
+            getattr(booking_request, "id", None),
+        )
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Booking request missing service_id or proposed_datetime_1",
+        )
+
     db_quote.status = models.QuoteStatusV2.ACCEPTED
 
     # Optionally reject other pending quotes for the same request
@@ -87,6 +103,12 @@ def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
     db.commit()
     db.refresh(db_quote)
     db.refresh(booking)
+
+    # Create the full booking record
+    try:
+        create_booking_from_quote_v2(db, db_quote)
+    except Exception as exc:  # pragma: no cover - logging path
+        logger.error("Failed to create Booking from quote %s: %s", quote_id, exc)
 
     # Send notifications to both artist and client
     artist = db_quote.artist
