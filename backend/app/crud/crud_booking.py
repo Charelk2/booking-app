@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
 from decimal import Decimal
+from datetime import timedelta
 
 from .. import models, schemas
 from ..models.booking import BookingStatus # For BookingStatus enum
@@ -142,4 +143,37 @@ def create_booking_from_quote(
     db.add(db_booking)
     db.commit()
     db.refresh(db_booking)
-    return db_booking 
+    return db_booking
+
+
+# Function to create a booking from a QuoteV2 after it is accepted
+def create_booking_from_quote_v2(db: Session, quote: models.QuoteV2) -> models.Booking:
+    """Create a ``Booking`` record from an accepted ``QuoteV2``."""
+
+    booking_request = quote.booking_request
+    if booking_request is None:
+        raise ValueError("Quote is missing booking_request relationship")
+
+    if not booking_request.service_id or not booking_request.proposed_datetime_1:
+        raise ValueError("Booking request lacks service_id or proposed_datetime_1")
+
+    service = db.query(models.Service).filter(models.Service.id == booking_request.service_id).first()
+    if service is None:
+        raise ValueError(f"Service id {booking_request.service_id} not found")
+
+    end_time = booking_request.proposed_datetime_1 + timedelta(minutes=service.duration_minutes)
+
+    db_booking = models.Booking(
+        artist_id=quote.artist_id,
+        client_id=quote.client_id,
+        service_id=service.id,
+        start_time=booking_request.proposed_datetime_1,
+        end_time=end_time,
+        status=models.BookingStatus.CONFIRMED,
+        total_price=quote.total,
+        quote_id=quote.id,
+    )
+    db.add(db_booking)
+    db.commit()
+    db.refresh(db_booking)
+    return db_booking
