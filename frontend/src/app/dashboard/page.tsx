@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Booking, Service, ArtistProfile, BookingRequest } from "@/types";
@@ -146,6 +146,7 @@ function ServiceCard({
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(
@@ -180,7 +181,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) {
-      router.push("/login");
+      router.push(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
 
@@ -223,7 +224,7 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
-  }, [user, router]);
+  }, [user, router, pathname]);
 
   const handleServiceAdded = (newService: Service) => {
     const processedService = normalizeService(newService);
