@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
+import logging
 
 from .. import crud, models, schemas
 from .dependencies import get_db, get_current_user, get_current_active_client, get_current_active_artist
@@ -16,6 +17,8 @@ import shutil
 router = APIRouter(
     tags=["Booking Requests"],
 )
+
+logger = logging.getLogger(__name__)
 
 ATTACHMENTS_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "static", "attachments")
@@ -49,18 +52,42 @@ def create_booking_request(
     A client makes a request to an artist.
     """
     # Ensure the artist exists
-    artist_user = db.query(models.User).filter(models.User.id == request_in.artist_id, models.User.user_type == models.UserType.ARTIST).first()
+    artist_user = db.query(models.User).filter(
+        models.User.id == request_in.artist_id,
+        models.User.user_type == models.UserType.ARTIST,
+    ).first()
     if not artist_user:
+        logger.warning(
+            "Artist not found when creating booking request; user_id=%s payload=%s",
+            current_user.id,
+            {
+                "artist_id": request_in.artist_id,
+                "service_id": request_in.service_id,
+                "status": str(request_in.status),
+            },
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artist not found")
     
     # Ensure service_id, if provided, belongs to the specified artist_id
     if request_in.service_id:
         service = db.query(models.Service).filter(
             models.Service.id == request_in.service_id,
-            models.Service.artist_id == request_in.artist_id # artist_id on service is artist_profiles.user_id
+            models.Service.artist_id == request_in.artist_id,  # artist_id on service is artist_profiles.user_id
         ).first()
         if not service:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Service ID does not match the specified artist or does not exist.")
+            logger.warning(
+                "Invalid service_id in booking request; user_id=%s payload=%s",
+                current_user.id,
+                {
+                    "artist_id": request_in.artist_id,
+                    "service_id": request_in.service_id,
+                    "status": str(request_in.status),
+                },
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Service ID does not match the specified artist or does not exist.",
+            )
 
     new_request = crud.crud_booking_request.create_booking_request(
         db=db, booking_request=request_in, client_id=current_user.id
@@ -198,16 +225,57 @@ def update_booking_request_by_client(
     """
     db_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
     if db_request is None:
+        logger.warning(
+            "Booking request %s not found; user_id=%s payload=%s",
+            request_id,
+            current_user.id,
+            {
+                "status": str(request_update.status) if request_update.status else None,
+                "service_id": request_update.service_id,
+                "message_provided": bool(getattr(request_update, "message", None)),
+            },
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking request not found")
     if db_request.client_id != current_user.id:
+        logger.warning(
+            "User %s unauthorized to update booking request %s",
+            current_user.id,
+            request_id,
+        )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this request")
     
     # Prevent updating if artist has already provided a quote or declined
-    if db_request.status not in [models.BookingRequestStatus.DRAFT, models.BookingRequestStatus.PENDING_QUOTE, models.BookingRequestStatus.REQUEST_WITHDRAWN]:
-         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot update request in status: {db_request.status.value}")
+    if db_request.status not in [
+        models.BookingRequestStatus.DRAFT,
+        models.BookingRequestStatus.PENDING_QUOTE,
+        models.BookingRequestStatus.REQUEST_WITHDRAWN,
+    ]:
+        logger.warning(
+            "Invalid status %s for update by client; user_id=%s request_id=%s",
+            db_request.status,
+            current_user.id,
+            request_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot update request in status: {db_request.status.value}",
+        )
 
     # Validate status change if present
-    if request_update.status and request_update.status not in [models.BookingRequestStatus.REQUEST_WITHDRAWN, models.BookingRequestStatus.PENDING_QUOTE, models.BookingRequestStatus.DRAFT]:
+    if request_update.status and request_update.status not in [
+        models.BookingRequestStatus.REQUEST_WITHDRAWN,
+        models.BookingRequestStatus.PENDING_QUOTE,
+        models.BookingRequestStatus.DRAFT,
+    ]:
+        logger.warning(
+            "Client attempted invalid status update; user_id=%s request_id=%s payload=%s",
+            current_user.id,
+            request_id,
+            {
+                "status": str(request_update.status),
+                "service_id": request_update.service_id,
+            },
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status update by client.")
 
     if request_update.service_id:
@@ -216,6 +284,16 @@ def update_booking_request_by_client(
             models.Service.artist_id == db_request.artist_id,
         ).first()
         if not service:
+            logger.warning(
+                "Invalid service_id update by client; user_id=%s request_id=%s payload=%s",
+                current_user.id,
+                request_id,
+                {
+                    "status": str(request_update.status) if request_update.status else None,
+                    "service_id": request_update.service_id,
+                    "message_provided": bool(getattr(request_update, "message", None)),
+                },
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Service ID does not match the specified artist or does not exist.",
@@ -247,16 +325,45 @@ def update_booking_request_by_artist(
     """
     db_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
     if db_request is None:
+        logger.warning(
+            "Booking request %s not found for artist update; user_id=%s",
+            request_id,
+            current_artist.id,
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Booking request not found")
     if db_request.artist_id != current_artist.id:
+        logger.warning(
+            "Artist %s unauthorized to update booking request %s",
+            current_artist.id,
+            request_id,
+        )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this request")
 
     # Artist can only update DRAFT, PENDING_QUOTE or QUOTE_PROVIDED (to decline, after quote)
-    if db_request.status not in [models.BookingRequestStatus.DRAFT, models.BookingRequestStatus.PENDING_QUOTE, models.BookingRequestStatus.QUOTE_PROVIDED]:
-         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot update request in status: {db_request.status.value}")
+    if db_request.status not in [
+        models.BookingRequestStatus.DRAFT,
+        models.BookingRequestStatus.PENDING_QUOTE,
+        models.BookingRequestStatus.QUOTE_PROVIDED,
+    ]:
+        logger.warning(
+            "Invalid status %s for update by artist; user_id=%s request_id=%s",
+            db_request.status,
+            current_artist.id,
+            request_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot update request in status: {db_request.status.value}",
+        )
 
     # Validate status change by artist (e.g., only to REQUEST_DECLINED)
     if request_update.status and request_update.status != models.BookingRequestStatus.REQUEST_DECLINED:
+        logger.warning(
+            "Artist attempted invalid status update; user_id=%s request_id=%s payload=%s",
+            current_artist.id,
+            request_id,
+            {"status": str(request_update.status)},
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status update by artist.")
     
     # If artist is declining a request that already has a quote, this logic might need adjustment based on product decision
