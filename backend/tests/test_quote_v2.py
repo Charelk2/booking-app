@@ -11,6 +11,9 @@ from app.models import (
     BookingRequest,
     BookingRequestStatus,
     Message,
+    Service,
+    Booking,
+    BookingStatus,
 )
 from app.models.base import BaseModel
 from fastapi import HTTPException
@@ -34,7 +37,28 @@ def test_create_and_accept_quote():
     db.refresh(artist)
     db.refresh(client)
 
-    br = BookingRequest(client_id=client.id, artist_id=artist.id, status=BookingRequestStatus.PENDING_QUOTE)
+    service = Service(
+        artist_id=artist.id,
+        title="Show",
+        description="test",
+        price=Decimal("100"),
+        currency="ZAR",
+        duration_minutes=60,
+        service_type="Live Performance",
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    from datetime import datetime
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        service_id=service.id,
+        proposed_datetime_1=datetime(2030, 1, 1, 20, 0, 0),
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
     db.add(br)
     db.commit()
     db.refresh(br)
@@ -60,6 +84,15 @@ def test_create_and_accept_quote():
     assert booking.client_id == client.id
     assert booking.confirmed is True
     assert booking.payment_status == "pending"
+
+    db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
+    assert db_booking is not None
+    assert db_booking.service_id == service.id
+    assert db_booking.start_time == br.proposed_datetime_1
+    from datetime import timedelta
+    assert db_booking.end_time == br.proposed_datetime_1 + timedelta(minutes=service.duration_minutes)
+    assert db_booking.status == BookingStatus.CONFIRMED
+    assert db_booking.total_price == quote.total
 
 
 def test_read_quote_not_found():
@@ -114,9 +147,26 @@ def test_accept_quote_missing_client(caplog):
     db.refresh(artist)
     db.refresh(client)
 
+    service = Service(
+        artist_id=artist.id,
+        title="Show",
+        description="test",
+        price=Decimal("50"),
+        currency="ZAR",
+        duration_minutes=30,
+        service_type="Live Performance",
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    from datetime import datetime
+
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
+        service_id=service.id,
+        proposed_datetime_1=datetime(2030, 2, 1, 21, 0, 0),
         status=BookingRequestStatus.PENDING_QUOTE,
     )
     db.add(br)
@@ -133,14 +183,16 @@ def test_accept_quote_missing_client(caplog):
     )
     quote = api_quote_v2.create_quote(quote_in, db)
 
-    # Remove the client record to simulate a missing foreign key
+    # Remove the client but keep the booking request intact
+    client.booking_requests_as_client.remove(br)
     db.delete(client)
     db.commit()
 
     caplog.set_level(logging.ERROR, logger="app.utils.notifications")
-    booking = api_quote_v2.accept_quote(quote.id, db)
-    assert booking.client_id == client.id
+    with pytest.raises(HTTPException) as exc_info:
+        api_quote_v2.accept_quote(quote.id, db)
+    assert exc_info.value.status_code == 422
     assert any(
-        "user missing for booking" in r.getMessage() for r in caplog.records
+        "Booking request" in r.getMessage() for r in caplog.records
     )
 
