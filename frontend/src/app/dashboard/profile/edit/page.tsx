@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import NextImage from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import MobileSaveBar from '@/components/dashboard/MobileSaveBar';
 import { useAuth } from '@/contexts/AuthContext';
@@ -109,6 +109,7 @@ async function getCroppedImg(
 export default function EditArtistProfilePage(): JSX.Element {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   // Fetched profile
   const [profile, setProfile] = useState<Partial<ArtistProfile>>({});
@@ -149,7 +150,7 @@ export default function EditArtistProfilePage(): JSX.Element {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      router.push('/login');
+      router.push(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
     if (user.user_type !== 'artist') {
@@ -193,7 +194,7 @@ export default function EditArtistProfilePage(): JSX.Element {
     };
 
     fetchProfile();
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, pathname]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
