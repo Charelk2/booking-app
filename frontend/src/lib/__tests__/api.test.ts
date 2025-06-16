@@ -11,6 +11,7 @@ describe('request interceptor', () => {
 
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it('adds Authorization header when token present', () => {
@@ -18,6 +19,13 @@ describe('request interceptor', () => {
     const config: AxiosRequestConfig = { headers: {} };
     const result = handler(config);
     expect(result.headers!.Authorization).toBe('Bearer abc');
+  });
+
+  it('reads token from sessionStorage when available', () => {
+    sessionStorage.setItem('token', 'def');
+    const config: AxiosRequestConfig = { headers: {} };
+    const result = handler(config);
+    expect(result.headers!.Authorization).toBe('Bearer def');
   });
 
   it('removes Authorization header when token missing', () => {

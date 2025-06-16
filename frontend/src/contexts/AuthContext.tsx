@@ -8,7 +8,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, remember?: boolean) => Promise<void>;
   register: (data: Partial<User>) => Promise<void>;
   logout: () => void;
 }
@@ -21,14 +21,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('token');
+    const storedUser =
+      localStorage.getItem('user') || sessionStorage.getItem('user');
+    const storedToken =
+      localStorage.getItem('token') || sessionStorage.getItem('token');
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
       } catch (e) {
-        console.error("Failed to parse stored user:", e);
+        console.error('Failed to parse stored user:', e);
         localStorage.removeItem('user');
+        sessionStorage.removeItem('user');
       }
     }
     if (storedToken) {
@@ -37,14 +40,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (
+    email: string,
+    password: string,
+    remember = false,
+  ) => {
     try {
       const response = await apiLogin(email, password);
       const { user: userData, access_token } = response.data;
       setUser(userData);
       setToken(access_token);
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', access_token);
+      const storage = remember ? localStorage : sessionStorage;
+      const altStorage = remember ? sessionStorage : localStorage;
+      storage.setItem('user', JSON.stringify(userData));
+      storage.setItem('token', access_token);
+      altStorage.removeItem('user');
+      altStorage.removeItem('token');
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -68,6 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('token');
   };
 
   return (
