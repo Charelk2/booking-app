@@ -563,6 +563,9 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Booking request and booking lists show the five most recent items with a **View All** link to see the full history.
 * New `/dashboard/bookings` page lists all bookings with links to their quotes.
 * The dashboard Bookings tab now includes a **View All Bookings** link.
+* New `/dashboard/quotes` page lets artists manage their quotes. Endpoints
+  `GET /api/v1/quotes/me/artist`, `PUT /api/v1/quotes/{id}/artist`, and
+  `POST /api/v1/quotes/{id}/confirm-booking` allow updates and confirmations.
 * Booking request cards now show a **Quote accepted** label linking directly to the accepted quote.
 * Artists can update or decline booking requests from the dashboard via a new **Update Request** modal.
 * Improved dashboard stats layout with monthly earnings card.
