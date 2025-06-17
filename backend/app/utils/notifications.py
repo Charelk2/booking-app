@@ -98,6 +98,29 @@ def notify_user_new_message(
     _send_sms(user.phone_number, message)
 
 
+def notify_deposit_due(db: Session, user: Optional[User], booking_id: int) -> None:
+    """Notify a user that a deposit payment is due for a booking."""
+    if user is None:
+        logger.error(
+            "Failed to send deposit due notification: user missing for booking %s",
+            booking_id,
+        )
+        return
+
+    message = format_notification_message(
+        NotificationType.DEPOSIT_DUE, booking_id=booking_id
+    )
+    crud_notification.create_notification(
+        db,
+        user_id=user.id,
+        type=NotificationType.DEPOSIT_DUE,
+        message=message,
+        link=f"/bookings/{booking_id}",
+    )
+    logger.info("Notify %s: %s", user.email, message)
+    _send_sms(user.phone_number, message)
+
+
 def notify_user_new_booking_request(
     db: Session,
     user: User,
