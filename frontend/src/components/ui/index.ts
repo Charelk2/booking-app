@@ -5,3 +5,4 @@ export { default as Stepper } from './Stepper';
 export { default as TextInput } from './TextInput';
 export { default as Toast } from './Toast';
 export { default as TimeAgo } from './TimeAgo';
+export { default as BottomSheet } from './BottomSheet';

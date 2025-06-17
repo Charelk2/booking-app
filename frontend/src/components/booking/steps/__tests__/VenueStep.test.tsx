@@ -4,6 +4,20 @@ import { act } from 'react';
 import { useForm, Control, FieldValues } from 'react-hook-form';
 import VenueStep from '../VenueStep';
 
+function MobileWrapper() {
+  const { control } = useForm({ defaultValues: { venueType: 'indoor' } });
+  return (
+    <VenueStep
+      control={control as unknown as Control<FieldValues>}
+      step={2}
+      steps={['one', 'two', 'three']}
+      onBack={() => {}}
+      onSaveDraft={() => {}}
+      onNext={() => {}}
+    />
+  );
+}
+
 function Wrapper() {
   const { control } = useForm({ defaultValues: { venueType: 'indoor' } });
   return (
@@ -48,5 +62,49 @@ describe('VenueStep radio buttons', () => {
       outdoor.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(outdoor.checked).toBe(true);
+  });
+});
+
+describe('VenueStep bottom sheet mobile', () => {
+  let container: HTMLDivElement;
+  let root: ReturnType<typeof createRoot>;
+
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    Object.defineProperty(window, 'innerWidth', { value: 1024, writable: true });
+  });
+
+  it('opens sheet and restores focus', async () => {
+    await act(async () => {
+      root.render(React.createElement(MobileWrapper));
+    });
+    const openButton = container.querySelector('button') as HTMLButtonElement;
+    act(() => {
+      openButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const sheet = document.querySelector('[data-testid="bottom-sheet"]');
+    expect(sheet).not.toBeNull();
+    const outdoor = sheet?.querySelector('input[value="outdoor"]') as HTMLInputElement;
+    act(() => {
+      outdoor.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.querySelector('[data-testid="bottom-sheet"]')).toBeNull();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(document.activeElement).toBe(openButton);
   });
 });
