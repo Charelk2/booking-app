@@ -97,6 +97,11 @@ export const login = (email: string, password: string) => {
   });
 };
 
+export const verifyMfa = (token: string, code: string) =>
+  api.post('/auth/verify-mfa', { token, code });
+
+export const setupMfa = () => api.post('/auth/setup-mfa');
+
 // ─── All other resources live under /api/v1 ────────────────────────────────────
 
 const API_V1 = '/api/v1';
