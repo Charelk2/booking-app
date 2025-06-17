@@ -12,9 +12,11 @@ interface UseWebSocketReturn {
  * exponential backoff when disconnected. Consumers can send data and
  * subscribe to message events.
  */
+export type ErrorHandler = (event?: CloseEvent) => void;
+
 export default function useWebSocket(
   url: string,
-  onError?: () => void,
+  onError?: ErrorHandler,
 ): UseWebSocketReturn {
   const socketRef = useRef<WebSocket | null>(null);
   const handlersRef = useRef<MessageHandler[]>([]);
@@ -50,15 +52,15 @@ export default function useWebSocket(
         handlersRef.current.forEach((h) => h(e));
       };
 
-      const scheduleReconnect = () => {
+      const scheduleReconnect = (e?: CloseEvent) => {
         if (cancelled) return;
-        if (onError) onError();
+        if (onError) onError(e);
         attemptsRef.current += 1;
         const delay = Math.min(30000, 1000 * 2 ** (attemptsRef.current - 1));
         timerRef.current = setTimeout(connect, delay);
       };
 
-      ws.onerror = scheduleReconnect;
+      ws.onerror = () => scheduleReconnect();
       ws.onclose = scheduleReconnect;
     };
 

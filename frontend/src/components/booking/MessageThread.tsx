@@ -138,7 +138,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     typeof window !== 'undefined' ? localStorage.getItem('token') : '';
   const { onMessage: onSocketMessage } = useWebSocket(
     `${wsBase}${API_V1}/ws/booking-requests/${bookingRequestId}?token=${token}`,
-    () => setWsFailed(true),
+    (e) => {
+      if (e?.code === 4401) {
+        setErrorMsg('Authentication error. Please sign in again.');
+      } else {
+        setWsFailed(true);
+      }
+    },
   );
 
   useEffect(
