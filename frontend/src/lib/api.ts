@@ -198,8 +198,8 @@ export const createBooking = (data: Partial<Booking>) =>
   api.post(`${API_V1}/bookings`, data);
 
 // client’s bookings: GET /api/v1/bookings/my-bookings
-export const getMyClientBookings = () =>
-  api.get<Booking[]>(`${API_V1}/bookings/my-bookings`);
+export const getMyClientBookings = (params: { status?: string } = {}) =>
+  api.get<Booking[]>(`${API_V1}/bookings/my-bookings`, { params });
 
 // artist’s bookings: GET /api/v1/bookings/artist-bookings
 export const getMyArtistBookings = () =>
