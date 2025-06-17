@@ -22,23 +22,46 @@ interface LoginForm {
 }
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, verifyMfa } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next');
   const [error, setError] = useState('');
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [rememberState, setRememberState] = useState(false);
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({ defaultValues: { remember: false } });
 
+  const {
+    register: registerMfa,
+    handleSubmit: handleSubmitMfa,
+    formState: { isSubmitting: mfaSubmitting },
+  } = useForm<{ code: string }>();
+
   const onSubmit = async (data: LoginForm) => {
     try {
-      await login(data.email, data.password, data.remember);
+      const res = await login(data.email, data.password, data.remember);
+      if (res && res.mfaRequired) {
+        setMfaToken(res.token);
+        setRememberState(data.remember);
+        return;
+      }
       router.push(next || '/dashboard');
     } catch (err) {
       setError('Invalid email or password');
+    }
+  };
+
+  const onVerify = async ({ code }: { code: string }) => {
+    if (!mfaToken) return;
+    try {
+      await verifyMfa(mfaToken, code, rememberState);
+      router.push(next || '/dashboard');
+    } catch (err) {
+      setError('Invalid verification code');
     }
   };
 
@@ -52,7 +75,8 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          {!mfaToken && (
+            <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             <AuthInput
               id="email"
               type="email"
@@ -120,10 +144,36 @@ export default function LoginPage() {
               </Button>
             </div>
 
-            <div className="pt-2">
-              <SocialLoginButtons />
-            </div>
-          </form>
+              <div className="pt-2">
+                <SocialLoginButtons />
+              </div>
+            </form>
+          )}
+          {mfaToken && (
+            <form className="space-y-6" onSubmit={handleSubmitMfa(onVerify)}>
+              <AuthInput
+                id="mfa-code"
+                type="text"
+                label="Verification code"
+                registration={registerMfa('code', { required: 'Code is required' })}
+                error={undefined}
+              />
+              {error && (
+                <div className="rounded-md bg-red-50 p-4">
+                  <div className="flex">
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-red-800">{error}</h3>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div>
+                <Button type="submit" disabled={mfaSubmitting} className="w-full">
+                  {mfaSubmitting ? 'Verifying...' : 'Verify'}
+                </Button>
+              </div>
+            </form>
+          )}
 
           <p className="mt-10 text-center text-sm text-gray-500">
             Not a member?{' '}

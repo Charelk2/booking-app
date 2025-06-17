@@ -21,6 +21,8 @@ class User(BaseModel):
     user_type    = Column(Enum(UserType), nullable=False)
     is_active    = Column(Boolean, default=True)
     is_verified  = Column(Boolean, default=False)
+    mfa_secret   = Column(String, nullable=True)
+    mfa_enabled  = Column(Boolean, default=False)
 
     # ↔–↔ If this user is an artist, they get exactly one profile here:
     artist_profile = relationship(

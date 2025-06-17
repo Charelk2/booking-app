@@ -26,6 +26,7 @@ class UserResponse(UserBase):
     id: int
     is_active: bool
     is_verified: bool
+    mfa_enabled: bool
 
     model_config = {
         "from_attributes": True
@@ -35,3 +36,8 @@ class UserResponse(UserBase):
 # TokenData for extracting “sub” (email) from JWT
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+
+class MFAVerify(BaseModel):
+    token: str
+    code: str

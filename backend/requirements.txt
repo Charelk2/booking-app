@@ -15,3 +15,4 @@ redis==6.2.0
 fakeredis==2.23.2
 email-validator==2.2.0
 twilio==9.6.2
+pyotp==2.9.0
