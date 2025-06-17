@@ -1,6 +1,7 @@
 # backend/app/api/v1/api_booking.py
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import logging
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, selectinload
 from fastapi.responses import Response
 from typing import List, Any
@@ -19,6 +20,7 @@ from .dependencies import (
 )
 
 router = APIRouter(tags=["bookings"])
+logger = logging.getLogger(__name__)
 # ‣ Note: no prefix here.  main.py already does:
 #     app.include_router(router, prefix="/api/v1/bookings", …)
 
@@ -102,11 +104,18 @@ def read_my_bookings(
     *,
     db: Session = Depends(get_db),
     current_client: User = Depends(get_current_active_client),
+    status_filter: str | None = Query(
+        None,
+        alias="status",
+        description="Filter by status or 'upcoming'/'past'",
+        examples={
+            "upcoming": {"summary": "Upcoming", "value": "upcoming"},
+            "past": {"summary": "Past", "value": "past"},
+        },
+    ),
 ) -> Any:
-    """
-    Return all bookings made by the currently authenticated client.
-    """
-    bookings = (
+    """Return bookings for the authenticated client, optionally filtered."""
+    query = (
         db.query(Booking)
         .options(
             selectinload(Booking.client),
@@ -114,9 +123,33 @@ def read_my_bookings(
             selectinload(Booking.source_quote),
         )
         .filter(Booking.client_id == current_client.id)
-        .order_by(Booking.start_time.desc())
-        .all()
     )
+
+    if status_filter:
+        try:
+            if status_filter == "upcoming":
+                query = query.filter(
+                    Booking.status.in_(
+                        [BookingStatus.PENDING, BookingStatus.CONFIRMED]
+                    )
+                )
+            elif status_filter == "past":
+                query = query.filter(
+                    Booking.status.in_(
+                        [BookingStatus.COMPLETED, BookingStatus.CANCELLED]
+                    )
+                )
+            else:
+                enum_status = BookingStatus(status_filter)
+                query = query.filter(Booking.status == enum_status)
+        except ValueError as exc:  # invalid status string
+            logger.warning("Invalid status filter: %s", status_filter)
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Invalid status filter",
+            ) from exc
+
+    bookings = query.order_by(Booking.start_time.desc()).all()
     return bookings
 
 
