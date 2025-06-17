@@ -455,6 +455,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 
 * **Endpoints** under `/api/v1/sound-providers` and `/api/v1/quotes/calculate`.
 * Frontend pages: `/sound-providers`, `/quote-calculator`.
+* These pages now appear in the artist navigation menu.
 * Quote API factors travel distance, provider fees, and accommodation.
 * Providers can now be edited and artists may rank preferred providers via `/sound-providers`.
 * New quote endpoints: `POST /api/v1/quotes`, `GET /api/v1/quotes/{id}`, and

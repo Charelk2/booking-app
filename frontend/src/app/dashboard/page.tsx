@@ -376,9 +376,15 @@ export default function DashboardPage() {
             ]}
           />
           {user.user_type === 'artist' && (
-            <div className="mt-2">
+            <div className="mt-2 space-x-4">
               <Link href="/dashboard/quotes" className="text-indigo-600 hover:underline text-sm">
                 View All Quotes
+              </Link>
+              <Link href="/sound-providers" className="text-indigo-600 hover:underline text-sm">
+                Sound Providers
+              </Link>
+              <Link href="/quote-calculator" className="text-indigo-600 hover:underline text-sm">
+                Quote Calculator
               </Link>
             </div>
           )}
