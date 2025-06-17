@@ -6,8 +6,12 @@ import {
   getSoundProviders,
   createSoundProvider,
   deleteSoundProvider,
+  updateSoundProvider,
+  getSoundProvidersForArtist,
+  addArtistSoundPreference,
 } from '@/lib/api';
-import { SoundProvider } from '@/types';
+import { SoundProvider, ArtistSoundPreference } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SoundProvidersPage() {
   const [providers, setProviders] = useState<SoundProvider[]>([]);
@@ -15,11 +19,31 @@ export default function SoundProvidersPage() {
   const [contact, setContact] = useState('');
   const [price, setPrice] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editContact, setEditContact] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+
+  const { user } = useAuth();
+  const [preferences, setPreferences] = useState<ArtistSoundPreference[]>([]);
+  const [prefProviderId, setPrefProviderId] = useState('');
+  const [prefPriority, setPrefPriority] = useState('');
+
+  const fetchPreferences = async () => {
+    if (user?.user_type !== 'artist') return;
+    try {
+      const prefRes = await getSoundProvidersForArtist(user.id);
+      setPreferences(prefRes.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchProviders = async () => {
     try {
       const res = await getSoundProviders();
       setProviders(res.data);
+      await fetchPreferences();
     } catch (e) {
       console.error(e);
     }
@@ -27,7 +51,7 @@ export default function SoundProvidersPage() {
 
   useEffect(() => {
     fetchProviders();
-  }, []);
+  }, [user]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +76,44 @@ export default function SoundProvidersPage() {
     try {
       await deleteSoundProvider(id);
       fetchProviders();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const onEditClick = (prov: SoundProvider) => {
+    setEditingId(prov.id);
+    setEditName(prov.name);
+    setEditContact(prov.contact_info || '');
+    setEditPrice(prov.price_per_event != null ? String(prov.price_per_event) : '');
+  };
+
+  const onSaveEdit = async () => {
+    if (editingId == null) return;
+    try {
+      await updateSoundProvider(editingId, {
+        name: editName,
+        contact_info: editContact || undefined,
+        price_per_event: editPrice ? Number(editPrice) : undefined,
+      });
+      setEditingId(null);
+      await fetchProviders();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const onAddPreference = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || user.user_type !== 'artist') return;
+    try {
+      await addArtistSoundPreference(user.id, {
+        provider_id: Number(prefProviderId),
+        priority: prefPriority ? Number(prefPriority) : undefined,
+      });
+      setPrefProviderId('');
+      setPrefPriority('');
+      fetchPreferences();
     } catch (err) {
       console.error(err);
     }
@@ -97,22 +159,88 @@ export default function SoundProvidersPage() {
         <div className="space-y-2">
           {providers.map((prov) => (
             <div key={prov.id} className="border p-3 bg-white flex justify-between items-center rounded">
-              <div>
-                <p className="font-medium">{prov.name}</p>
-                {prov.contact_info && <p className="text-sm">{prov.contact_info}</p>}
-                {prov.price_per_event != null && (
-                  <p className="text-sm">{formatCurrency(Number(prov.price_per_event))}</p>
-                )}
-              </div>
-              <button
-                onClick={() => onDelete(prov.id)}
-                className="text-red-600 text-sm"
-              >
-                Delete
-              </button>
+              {editingId === prov.id ? (
+                <div className="flex-1 space-y-2">
+                  <input
+                    data-edit-name
+                    className="border p-1 rounded w-full"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                  />
+                  <input
+                    className="border p-1 rounded w-full"
+                    value={editContact}
+                    onChange={(e) => setEditContact(e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    className="border p-1 rounded w-full"
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(e.target.value)}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <p className="font-medium">{prov.name}</p>
+                  {prov.contact_info && <p className="text-sm">{prov.contact_info}</p>}
+                  {prov.price_per_event != null && (
+                    <p className="text-sm">{formatCurrency(Number(prov.price_per_event))}</p>
+                  )}
+                </div>
+              )}
+              {editingId === prov.id ? (
+                <div className="flex flex-col space-y-1 ml-2">
+                  <button data-save type="button" onClick={onSaveEdit} className="text-green-600 text-sm">Save</button>
+                  <button type="button" onClick={() => setEditingId(null)} className="text-sm">Cancel</button>
+                </div>
+              ) : (
+                <div className="flex flex-col space-y-1 ml-2">
+                  <button data-edit type="button" onClick={() => onEditClick(prov)} className="text-blue-600 text-sm">Edit</button>
+                  <button type="button" onClick={() => onDelete(prov.id)} className="text-red-600 text-sm">Delete</button>
+                </div>
+              )}
             </div>
           ))}
         </div>
+
+        {user?.user_type === 'artist' && (
+          <form onSubmit={onAddPreference} className="space-y-2 border p-4 bg-white rounded">
+            <h2 className="font-medium">Preferred Providers</h2>
+            <div>
+              <label className="block text-sm font-medium">Provider</label>
+              <select
+                data-pref-provider
+                className="border p-2 rounded w-full"
+                value={prefProviderId}
+                onChange={(e) => setPrefProviderId(e.target.value)}
+              >
+                <option value="" disabled>Select provider</option>
+                {providers.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Priority</label>
+              <input
+                data-pref-priority
+                type="number"
+                className="border p-2 rounded w-full"
+                value={prefPriority}
+                onChange={(e) => setPrefPriority(e.target.value)}
+              />
+            </div>
+            <button data-add-pref type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded">Add Preference</button>
+            <div className="space-y-1">
+              {preferences.map((pref) => (
+                <div key={pref.id} className="flex justify-between border p-2 rounded bg-gray-50">
+                  <span>{providers.find((p) => p.id === pref.provider_id)?.name || pref.provider?.name}</span>
+                  <span className="text-sm">{pref.priority ?? ''}</span>
+                </div>
+              ))}
+            </div>
+          </form>
+        )}
       </div>
     </MainLayout>
   );
