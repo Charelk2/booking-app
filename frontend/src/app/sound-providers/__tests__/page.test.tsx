@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
+// eslint-disable-next-line react/display-name
 jest.mock('@/components/layout/MainLayout', () => ({ children }: { children: React.ReactNode }) => <div>{children}</div>);
 
 function setup() {
