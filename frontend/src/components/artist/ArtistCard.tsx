@@ -78,6 +78,7 @@ export default function ArtistCard({
             alt={name}
             width={512}
             height={512}
+            loading="lazy"
             className="object-cover w-full h-full"
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
@@ -89,6 +90,7 @@ export default function ArtistCard({
             alt={name}
             width={512}
             height={512}
+            loading="lazy"
             className="object-cover w-full h-full"
           />
         )}

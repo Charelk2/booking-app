@@ -43,6 +43,18 @@ const mapContainerExpanded = {
   transition: 'height 0.3s ease',
 };
 
+function GoogleMapsLoader({
+  children,
+}: {
+  children: (isLoaded: boolean) => JSX.Element;
+}) {
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+    libraries: MAP_LIBRARIES,
+  });
+  return children(isLoaded);
+}
+
 interface AutocompleteProps {
   value: string | undefined;
   onChange: (v: string) => void;
@@ -101,12 +113,24 @@ export default function LocationStep({
   onSaveDraft,
   onNext,
 }: Props): JSX.Element {
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-    libraries: MAP_LIBRARIES,
-  });
+  const [shouldLoadMap, setShouldLoadMap] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [marker, setMarker] = useState<LatLng | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const target = containerRef.current;
+    if (!target) return;
+    if (shouldLoadMap) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setShouldLoadMap(true);
+        observer.disconnect();
+      }
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [shouldLoadMap]);
 
   useEffect(() => {
     (async () => {
@@ -121,29 +145,69 @@ export default function LocationStep({
     })();
   }, [artistLocation, marker, setWarning]);
 
+  function Map({ isLoaded }: { isLoaded: boolean }) {
+    if (!marker) return null;
+    if (!isLoaded) return <div className="h-full w-full" />;
+    return (
+      <GoogleMap
+        center={marker}
+        zoom={14}
+        mapContainerStyle={{ width: '100%', height: '100%' }}
+        data-testid="map"
+      >
+        <Marker position={marker} />
+      </GoogleMap>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">Where is the show?</p>
-      <Controller
-        name="location"
-        control={control}
-        render={({ field }) => (
-          <AutocompleteInput
-            value={field.value}
-            onChange={field.onChange}
-            onSelect={(loc) => setMarker(loc)}
-            isLoaded={isLoaded}
-          />
-        )}
-      />
-      <div
-        style={marker ? mapContainerExpanded : mapContainerCollapsed}
-        data-testid="map-container"
-      >
-        {marker && isLoaded && (
-          <GoogleMap center={marker} zoom={14} mapContainerStyle={{ width: '100%', height: '100%' }} data-testid="map">
-            <Marker position={marker} />
-          </GoogleMap>
+      <div ref={containerRef}>
+        {shouldLoadMap ? (
+          <GoogleMapsLoader>
+            {(loaded) => (
+              <>
+                <Controller
+                  name="location"
+                  control={control}
+                  render={({ field }) => (
+                    <AutocompleteInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      onSelect={(loc) => setMarker(loc)}
+                      isLoaded={loaded}
+                    />
+                  )}
+                />
+                <div
+                  style={marker ? mapContainerExpanded : mapContainerCollapsed}
+                  data-testid="map-container"
+                >
+                  <Map isLoaded={loaded} />
+                </div>
+              </>
+            )}
+          </GoogleMapsLoader>
+        ) : (
+          <>
+            <Controller
+              name="location"
+              control={control}
+              render={({ field }) => (
+                <AutocompleteInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  onSelect={(loc) => setMarker(loc)}
+                  isLoaded={false}
+                />
+              )}
+            />
+            <div
+              style={marker ? mapContainerExpanded : mapContainerCollapsed}
+              data-testid="map-container"
+            />
+          </>
         )}
       </div>
       <button
