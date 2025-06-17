@@ -135,3 +135,20 @@ def ensure_booking_simple_columns(engine: Engine) -> None:
         "payment_status",
         "payment_status VARCHAR NOT NULL DEFAULT 'pending'",
     )
+
+
+def ensure_mfa_columns(engine: Engine) -> None:
+    """Add MFA fields to the ``users`` table if missing."""
+    add_column_if_missing(
+        engine,
+        "users",
+        "mfa_secret",
+        "mfa_secret VARCHAR"
+    )
+    add_column_if_missing(
+        engine,
+        "users",
+        "mfa_enabled",
+        "mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE"
+    )
+
