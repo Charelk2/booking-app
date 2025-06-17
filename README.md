@@ -112,6 +112,11 @@ pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+If you encounter `ModuleNotFoundError: No module named 'pyotp'`, the Python
+dependencies were not installed correctly. Run the `pip install` command above
+or execute `./setup.sh` from the project root to install both backend and
+frontend packages.
+
 The SQLite database path is automatically resolved to the project root, so you can start the backend from either the repo root or the `backend/` folder without creating duplicate database files.
 
 ### Database migrations
