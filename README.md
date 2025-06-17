@@ -590,6 +590,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 ### Redis Caching
 
 * Caches `/api/v1/artist-profiles/` GET responses.
+* Cache keys include page number and filter parameters so each combination is stored separately.
 * Default Redis URL: `redis://localhost:6379/0`.
 * Fallback to DB if Redis is unavailable.
 
