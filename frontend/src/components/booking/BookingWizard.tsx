@@ -74,6 +74,7 @@ export default function BookingWizard({
   } = useBooking();
   const router = useRouter();
   const [unavailable, setUnavailable] = useState<string[]>([]);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [artistLocation, setArtistLocation] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -104,9 +105,11 @@ export default function BookingWizard({
 
   useEffect(() => {
     if (!artistId) return;
+    setLoadingAvailability(true);
     getArtistAvailability(artistId)
       .then((res) => setUnavailable(res.data.unavailable_dates))
-      .catch(() => setUnavailable([]));
+      .catch(() => setUnavailable([]))
+      .finally(() => setLoadingAvailability(false));
     getArtist(artistId)
       .then((res) => setArtistLocation(res.data.location || null))
       .catch(() => setArtistLocation(null));
@@ -224,6 +227,7 @@ export default function BookingWizard({
           <DateTimeStep
             control={control as unknown as Control<FieldValues>}
             unavailable={unavailable}
+            loading={loadingAvailability}
             step={index}
             steps={steps}
             onBack={prev}
