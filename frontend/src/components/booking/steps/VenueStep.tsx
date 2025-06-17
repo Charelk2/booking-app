@@ -1,5 +1,8 @@
 'use client';
 import { Controller, Control, FieldValues } from 'react-hook-form';
+import { useState, useRef } from 'react';
+import useIsMobile from '@/hooks/useIsMobile';
+import { BottomSheet } from '../../ui';
 
 interface Props {
   control: Control<FieldValues>;
@@ -18,45 +21,81 @@ export default function VenueStep({
   onSaveDraft,
   onNext,
 }: Props) {
+  const isMobile = useIsMobile();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const firstRadioRef = useRef<HTMLInputElement>(null);
+
+  const options = [
+    { value: 'indoor', label: 'Indoor' },
+    { value: 'outdoor', label: 'Outdoor' },
+    { value: 'hybrid', label: 'Hybrid' },
+  ];
+
   return (
     <div className="space-y-4">
       <Controller
         name="venueType"
         control={control}
         render={({ field }) => (
-          <fieldset className="space-y-2">
-            <legend className="font-medium">Venue Type</legend>
-            <label className="flex items-center space-x-2">
-              <input
-                type="radio"
-                name={field.name}
-                value="indoor"
-                checked={field.value === 'indoor'}
-                onChange={(e) => field.onChange(e.target.value)}
-              />
-              <span>Indoor</span>
-            </label>
-            <label className="flex items-center space-x-2">
-              <input
-                type="radio"
-                name={field.name}
-                value="outdoor"
-                checked={field.value === 'outdoor'}
-                onChange={(e) => field.onChange(e.target.value)}
-              />
-              <span>Outdoor</span>
-            </label>
-            <label className="flex items-center space-x-2">
-              <input
-                type="radio"
-                name={field.name}
-                value="hybrid"
-                checked={field.value === 'hybrid'}
-                onChange={(e) => field.onChange(e.target.value)}
-              />
-              <span>Hybrid</span>
-            </label>
-          </fieldset>
+          <>
+            {isMobile ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSheetOpen(true)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md text-left"
+                  ref={buttonRef}
+                >
+                  {field.value
+                    ? `Venue: ${field.value.charAt(0).toUpperCase()}${field.value.slice(1)}`
+                    : 'Select venue type'}
+                </button>
+                <BottomSheet
+                  open={sheetOpen}
+                  onClose={() => setSheetOpen(false)}
+                  initialFocus={firstRadioRef}
+                  testId="bottom-sheet"
+                >
+                  <fieldset className="p-4 space-y-2">
+                    <legend className="font-medium">Venue Type</legend>
+                    {options.map((opt, idx) => (
+                      <label key={opt.value} className="flex items-center space-x-2">
+                        <input
+                          ref={idx === 0 ? firstRadioRef : undefined}
+                          type="radio"
+                          name={field.name}
+                          value={opt.value}
+                          checked={field.value === opt.value}
+                          onChange={(e) => {
+                            field.onChange(e.target.value);
+                            setSheetOpen(false);
+                          }}
+                        />
+                        <span>{opt.label}</span>
+                      </label>
+                    ))}
+                  </fieldset>
+                </BottomSheet>
+              </>
+            ) : (
+              <fieldset className="space-y-2">
+                <legend className="font-medium">Venue Type</legend>
+                {options.map((opt) => (
+                  <label key={opt.value} className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      name={field.name}
+                      value={opt.value}
+                      checked={field.value === opt.value}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                    <span>{opt.label}</span>
+                  </label>
+                ))}
+              </fieldset>
+            )}
+          </>
         )}
       />
       <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
