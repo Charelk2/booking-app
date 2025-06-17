@@ -13,6 +13,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Bookings now track `payment_status` in `bookings_simple`.
 - Booking wizard includes a required **Guests** step.
 - Date picker and quote calculator show skeleton loaders while data fetches.
+- Google Maps and large images load lazily once in view to reduce first paint time.
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
