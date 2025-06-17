@@ -83,7 +83,7 @@ function AutocompleteInput({ value, onChange, onSelect, isLoaded }: Autocomplete
   return (
     <input
       ref={inputRef}
-      className="border p-2 w-full"
+      className="border p-2 w-full min-h-[44px]"
       placeholder="Search address"
       onChange={(e) => onChange(e.target.value)}
       data-testid="autocomplete-input"
@@ -148,7 +148,7 @@ export default function LocationStep({
       </div>
       <button
         type="button"
-        className="mt-2 text-sm text-indigo-600 underline"
+        className="mt-2 text-sm text-indigo-600 underline px-4 py-2 rounded inline-block min-h-[44px]"
         onClick={() => {
           navigator.geolocation.getCurrentPosition(
             (pos) => {
@@ -165,7 +165,7 @@ export default function LocationStep({
         Use my location
       </button>
       <span
-        className="ml-1 text-gray-400 cursor-help"
+        className="ml-1 text-gray-500 cursor-help"
         title="A warning appears if this address is over 100km from the artist."
       >
         ?
@@ -176,7 +176,7 @@ export default function LocationStep({
           <button
             type="button"
             onClick={onBack}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Back
           </button>
@@ -186,14 +186,14 @@ export default function LocationStep({
           <button
             type="button"
             onClick={onSaveDraft}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Save Draft
           </button>
           <button
             type="button"
             onClick={onNext}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition min-h-[44px]"
           >
             {step === steps.length - 1 ? 'Submit Request' : 'Next'}
           </button>
