@@ -10,7 +10,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - **Python** 3.12
 - **Node.js** 21
 - Minor fix: the artists listing now gracefully handles incomplete user data from the API.
-- Bookings now track `payment_status` in `bookings_simple`.
+- Bookings now track `payment_status` and `deposit_amount` in `bookings_simple`.
 - Booking wizard includes a required **Guests** step.
 - Date picker and quote calculator show skeleton loaders while data fetches.
 - Google Maps and large images load lazily once in view to reduce first paint time.
@@ -694,6 +694,7 @@ POST /api/v1/payments
  Required: booking_request_id, amount
  Optional: full (bool)
 ```
+Sending `full: true` charges the remaining balance and marks the booking paid. Omitting it records a deposit and sets the status to `deposit_paid`.
 Payment processing now emits structured logs instead of printing to stdout so transactions can be traced in production.
 
 All prices and quotes now default to **South African Rand (ZAR)**. Update your environment or tests if you previously assumed USD values.
