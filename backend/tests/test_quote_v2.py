@@ -258,3 +258,69 @@ def test_accept_quote_value_error_logs(monkeypatch, caplog):
     assert exc_info.value.detail["message"] == "nope"
     assert exc_info.value.detail["field_errors"]["quote_id"] == "invalid"
     assert any("quote_id=10" in r.getMessage() for r in caplog.records)
+
+
+def test_accept_quote_creates_deposit_notification():
+    db = setup_db()
+    artist = User(
+        email="artist4@test.com",
+        password="x",
+        first_name="A",
+        last_name="R",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="client4@test.com",
+        password="x",
+        first_name="C",
+        last_name="L",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    service = Service(
+        artist_id=artist.id,
+        title="Show",
+        description="test",
+        price=Decimal("200"),
+        currency="ZAR",
+        duration_minutes=45,
+        service_type="Live Performance",
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    from datetime import datetime
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        service_id=service.id,
+        proposed_datetime_1=datetime(2031, 1, 1, 20, 0, 0),
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    quote_in = QuoteCreate(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=client.id,
+        services=[ServiceItem(description="Performance", price=Decimal("200"))],
+        sound_fee=Decimal("0"),
+        travel_fee=Decimal("0"),
+    )
+    quote = api_quote_v2.create_quote(quote_in, db)
+    api_quote_v2.accept_quote(quote.id, db)
+
+    from app.crud import crud_notification
+    from app.models import NotificationType
+
+    notifs = crud_notification.get_notifications_for_user(db, client.id)
+    types = [n.type for n in notifs]
+    assert NotificationType.DEPOSIT_DUE in types
