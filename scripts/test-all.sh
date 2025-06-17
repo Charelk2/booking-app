@@ -18,6 +18,8 @@ echo "npm $(npm --version)"
 
 # Always run both backend and frontend tests
 echo "⚙️  Installing dependencies…"
+# When running this script inside Docker, use --network bridge or set
+# DOCKER_TEST_NETWORK=bridge if npm fails to contact registry.npmjs.org.
 ./setup.sh
 
 echo "🧪 Running backend tests…"
