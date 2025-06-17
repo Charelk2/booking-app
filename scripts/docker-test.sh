@@ -9,6 +9,12 @@ NETWORK=${DOCKER_TEST_NETWORK:-none}
 WORKDIR=/workspace
 HOST_REPO=$(pwd)
 
+# Warn when DOCKER_TEST_NETWORK isn't specified so users know npm may fail
+if [ -z "${DOCKER_TEST_NETWORK+x}" ]; then
+  echo "⚠️  DOCKER_TEST_NETWORK is unset. Tests will run with --network none." >&2
+  echo "   Set DOCKER_TEST_NETWORK=bridge for the initial run so npm can reach registry.npmjs.org." >&2
+fi
+
 # Restore dependency caches from a previous Docker run. When running
 # offline, `docker-test.sh` saves `backend/venv.tar.zst` and
 # `frontend/node_modules.tar.zst`. If the unpacked directories are
