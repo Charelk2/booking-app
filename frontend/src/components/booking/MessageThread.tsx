@@ -11,6 +11,7 @@ import React, {
 } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import Link from 'next/link';
 import TimeAgo from '../ui/TimeAgo';
 import { getFullImageUrl } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
@@ -382,6 +383,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           >
             🎉 Booking confirmed for {artistName}! You’ll receive follow-up emails and details.
           </div>
+        )}
+        {bookingConfirmed && (
+          <Link
+            href={`/booking-requests/${bookingRequestId}`}
+            aria-label="View booking details"
+            data-testid="view-booking-link"
+            className="mt-2 inline-block text-indigo-600 hover:underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+          >
+            View booking
+          </Link>
         )}
         {paymentStatus && (
           <div
