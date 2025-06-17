@@ -12,11 +12,14 @@ export default function QuoteCalculatorPage() {
   const [accommodation, setAccommodation] = useState('');
   const [result, setResult] = useState<QuoteCalculationResponse | null>(null);
   const [providers, setProviders] = useState<SoundProvider[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(false);
 
   useEffect(() => {
+    setLoadingProviders(true);
     getSoundProviders()
       .then((res) => setProviders(res.data))
-      .catch(() => setProviders([]));
+      .catch(() => setProviders([]))
+      .finally(() => setLoadingProviders(false));
   }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -62,18 +65,25 @@ export default function QuoteCalculatorPage() {
           </div>
           <div>
             <label className="block text-sm font-medium">Sound Provider</label>
-            <select
-              className="border p-2 rounded w-full"
-              value={providerId}
-              onChange={(e) => setProviderId(e.target.value)}
-            >
-              <option value="">None</option>
-              {providers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            {loadingProviders ? (
+              <div
+                data-testid="provider-skeleton"
+                className="h-10 w-full rounded bg-gray-200 animate-pulse"
+              />
+            ) : (
+              <select
+                className="border p-2 rounded w-full"
+                value={providerId}
+                onChange={(e) => setProviderId(e.target.value)}
+              >
+                <option value="">None</option>
+                {providers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium">Accommodation Cost</label>
