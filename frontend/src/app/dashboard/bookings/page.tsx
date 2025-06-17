@@ -5,7 +5,12 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { getMyArtistBookings } from '@/lib/api';
+import toast from '@/components/ui/Toast';
+import {
+  getMyArtistBookings,
+  updateBookingStatus,
+  downloadBookingIcs,
+} from '@/lib/api';
 import { Booking } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 
@@ -14,6 +19,44 @@ export default function ArtistBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const handleStatusChange = async (
+    id: number,
+    status: Booking['status'],
+  ) => {
+    try {
+      const res = await updateBookingStatus(id, status);
+      setBookings((prev) =>
+        prev.map((bk) => (bk.id === id ? res.data : bk)),
+      );
+      toast.success('Booking updated');
+    } catch (err) {
+      console.error('Status update error', err);
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to update booking',
+      );
+    }
+  };
+
+  const handleDownload = async (id: number) => {
+    try {
+      const res = await downloadBookingIcs(id);
+      const blob = new Blob([res.data], { type: 'text/calendar' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `booking-${id}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Calendar download error', err);
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to download calendar',
+      );
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -105,6 +148,35 @@ export default function ArtistBookingsPage() {
                     View Quote
                   </Link>
                 )}
+                <div className="mt-2 space-x-4">
+                  {b.status !== 'completed' && b.status !== 'cancelled' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleStatusChange(b.id, 'completed')}
+                        className="text-green-600 hover:underline text-sm"
+                      >
+                        Mark Completed
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStatusChange(b.id, 'cancelled')}
+                        className="text-red-600 hover:underline text-sm"
+                      >
+                        Cancel Booking
+                      </button>
+                    </>
+                  )}
+                  {b.status === 'confirmed' && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(b.id)}
+                      className="text-indigo-600 hover:underline text-sm"
+                    >
+                      Add to Calendar
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
