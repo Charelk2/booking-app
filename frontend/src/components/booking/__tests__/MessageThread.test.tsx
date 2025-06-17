@@ -467,8 +467,10 @@ describe('MessageThread component', () => {
     });
     const banner = container.querySelector('[data-testid="booking-confirmed-banner"]');
     expect(banner?.textContent).toContain('Booking confirmed for DJ');
-    const link = container.querySelector('a[href="/booking-requests/1"]');
-    expect(link).not.toBeNull();
+    const viewLink = container.querySelector('a[href="/booking-requests/1"]');
+    expect(viewLink).not.toBeNull();
+    const dashboardLink = container.querySelector('a[href="/dashboard/client/bookings"]');
+    expect(dashboardLink).not.toBeNull();
   });
 
   it('opens payment modal after accepting quote', async () => {
