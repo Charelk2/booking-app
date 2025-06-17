@@ -18,7 +18,6 @@ This document outlines key friction points in the current booking wizard and pro
 * **Pain Points:** Number input is small and near the top.
 * **Improvements:**
   - Enlarge touch target and keep action buttons in the bottom bar.
-  - Summarize max capacity rules below the field.
 
 ## Venue Type
 * **Pain Points:** Drop‑down overlaps with keyboard.
