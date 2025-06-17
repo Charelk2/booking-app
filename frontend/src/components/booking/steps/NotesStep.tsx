@@ -61,7 +61,7 @@ export default function NotesStep({
         render={({ field }) => (
           <textarea
             rows={3}
-            className="border p-2 rounded w-full"
+            className="border p-2 rounded w-full min-h-[44px]"
             {...field}
             autoFocus={!isMobile}
           />
@@ -73,7 +73,12 @@ export default function NotesStep({
         render={({ field }) => <input type="hidden" {...field} />}
       />
       <label className="block text-sm font-medium">Attachment (optional)</label>
-      <input type="file" aria-label="Upload attachment" onChange={handleFileChange} />
+      <input
+        type="file"
+        aria-label="Upload attachment"
+        className="min-h-[44px]"
+        onChange={handleFileChange}
+      />
       {uploading && (
         <div
           className="flex items-center gap-2 mt-2"
@@ -96,7 +101,7 @@ export default function NotesStep({
           <button
             type="button"
             onClick={onBack}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Back
           </button>
@@ -106,7 +111,7 @@ export default function NotesStep({
           <button
             type="button"
             onClick={onSaveDraft}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Save Draft
           </button>
@@ -114,7 +119,7 @@ export default function NotesStep({
             type="button"
             onClick={onNext}
             disabled={uploading}
-            className={`w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition min-h-[44px] ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {step === steps.length - 1 ? 'Submit Request' : 'Next'}
           </button>
