@@ -1,4 +1,9 @@
-import api, { updateBookingRequestArtist, createPayment } from '../api';
+import api, {
+  updateBookingRequestArtist,
+  createPayment,
+  updateBookingStatus,
+  downloadBookingIcs,
+} from '../api';
 import type { AxiosRequestConfig } from 'axios';
 
 describe('request interceptor', () => {
@@ -53,6 +58,32 @@ describe('updateBookingRequestArtist', () => {
       '/api/v1/booking-requests/5/artist',
       { status: 'request_declined' },
     );
+    spy.mockRestore();
+  });
+});
+
+describe('updateBookingStatus', () => {
+  it('patches the booking status endpoint', async () => {
+    const spy = jest
+      .spyOn(api, 'patch')
+      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await updateBookingStatus(7, 'completed');
+    expect(spy).toHaveBeenCalledWith('/api/v1/bookings/7/status', {
+      status: 'completed',
+    });
+    spy.mockRestore();
+  });
+});
+
+describe('downloadBookingIcs', () => {
+  it('requests the calendar file as a blob', async () => {
+    const spy = jest
+      .spyOn(api, 'get')
+      .mockResolvedValue({ data: new Blob() } as unknown as { data: Blob });
+    await downloadBookingIcs(2);
+    expect(spy).toHaveBeenCalledWith('/api/v1/bookings/2/calendar.ics', {
+      responseType: 'blob',
+    });
     spy.mockRestore();
   });
 });
