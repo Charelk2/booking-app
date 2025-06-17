@@ -74,10 +74,6 @@ exist, the script extracts them so the directories are restored. This first
 run is mandatory&mdash;`./scripts/test-all.sh` will fail until these caches
 are populated.
 
-If `DOCKER_TEST_NETWORK` isn't set and the caches are missing **or the
-dependency hashes differ from the cached versions**, the script automatically
-uses `--network bridge` and prints a notice so the updated packages can be
-fetched.
 
 2. **Run tests offline**
 
@@ -85,11 +81,11 @@ fetched.
    BOOKING_APP_SKIP_PULL=1 DOCKER_TEST_NETWORK=none ./scripts/docker-test.sh
    ```
 
-   Subsequent runs reuse the cached dependencies and pass `--network none` to
-   avoid downloading packages, making the tests start much faster. The script
-   detects when `requirements.txt` or `package-lock.json` changes and
-   automatically switches to `--network bridge` so the caches are refreshed.
-   You can still delete the caches or rebuild the image manually if needed.
+  Subsequent runs reuse the cached dependencies and pass `--network none` to
+  avoid downloading packages, making the tests start much faster. If you update
+  `requirements.txt` or `package-lock.json`, run again with
+  `DOCKER_TEST_NETWORK=bridge` so the caches are refreshed. You can delete the
+  caches or rebuild the image manually if needed.
 
 The container installs all Python and Node dependencies. During the build
 step it creates `backend/venv` and installs the requirements into that
@@ -377,16 +373,13 @@ image when it is not found locally. The script automatically falls back to
 The `.req_hash` and `.pkg_hash` files are copied along with the caches so the
 setup script can detect when lock files change.
 
-When run with `DOCKER_TEST_NETWORK=none`, the script now checks that the
-dependency caches already contain `.install_complete` markers before launching
-the container. If either cache is missing, it prints a warning like
+When run with `DOCKER_TEST_NETWORK=none`, the script checks that the dependency
+caches already contain `.install_complete` markers before launching the
+container. If either cache is missing, it prints a warning like
 `❌ Cached dependencies missing` and exits, advising you to rerun with
 `DOCKER_TEST_NETWORK=bridge` so the dependencies can be copied over. Once the
 caches are in place, future runs with `--network none` complete quickly because
 the cached directories are reused.
-If `DOCKER_TEST_NETWORK` isn't set and these markers are absent **or the hash
-files show the caches are outdated**, `docker-test.sh` automatically uses
-`bridge` and prints a notice so the caches are populated without failing.
 
 If `setup.sh` still tries to run `pip install` or `npm ci`, it means the marker
 files were not copied correctly. Rerun `scripts/docker-test.sh` with
