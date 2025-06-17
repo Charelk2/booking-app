@@ -6,6 +6,9 @@ import {
   login as apiLogin,
   register as apiRegister,
   verifyMfa as apiVerifyMfa,
+  confirmMfa as apiConfirmMfa,
+  generateRecoveryCodes as apiGenerateRecoveryCodes,
+  disableMfa as apiDisableMfa,
 } from '@/lib/api';
 
 interface AuthContextType {
@@ -22,6 +25,9 @@ interface AuthContextType {
     code: string,
     remember?: boolean,
   ) => Promise<void>;
+  confirmMfa: (code: string) => Promise<void>;
+  generateRecoveryCodes: () => Promise<string[]>;
+  disableMfa: (code: string) => Promise<void>;
   register: (data: Partial<User>) => Promise<void>;
   logout: () => void;
 }
@@ -100,6 +106,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const confirmMfa = async (code: string) => {
+    await apiConfirmMfa(code);
+    setUser((prev) => (prev ? { ...prev, mfa_enabled: true } : prev));
+  };
+
+  const generateRecoveryCodes = async () => {
+    const res = await apiGenerateRecoveryCodes();
+    return res.data.codes as string[];
+  };
+
+  const disableMfa = async (code: string) => {
+    await apiDisableMfa(code);
+    setUser((prev) => (prev ? { ...prev, mfa_enabled: false } : prev));
+  };
+
   const register = async (data: Partial<User>) => {
     try {
       const response = await apiRegister(data);
@@ -123,7 +144,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, loading, login, verifyMfa, register, logout }}
+      value={{
+        user,
+        token,
+        loading,
+        login,
+        verifyMfa,
+        confirmMfa,
+        generateRecoveryCodes,
+        disableMfa,
+        register,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>

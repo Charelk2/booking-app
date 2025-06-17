@@ -9,6 +9,7 @@ export interface User {
   phone_number: string;
   is_active: boolean;
   is_verified: boolean;
+  mfa_enabled?: boolean;
 }
 
 export interface ArtistProfile {
