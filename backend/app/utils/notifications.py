@@ -115,7 +115,7 @@ def notify_deposit_due(db: Session, user: Optional[User], booking_id: int) -> No
         user_id=user.id,
         type=NotificationType.DEPOSIT_DUE,
         message=message,
-        link=f"/bookings/{booking_id}",
+        link=f"/dashboard/client/bookings?booking_id={booking_id}",
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
