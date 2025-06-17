@@ -30,7 +30,7 @@ export default function ReviewStep({
           <button
             type="button"
             onClick={onBack}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Back
           </button>
@@ -40,7 +40,7 @@ export default function ReviewStep({
           <button
             type="button"
             onClick={onSaveDraft}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Save Draft
           </button>
@@ -48,7 +48,7 @@ export default function ReviewStep({
             type="button"
             onClick={onSubmit}
             disabled={submitting}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition disabled:opacity-50"
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition disabled:opacity-50 min-h-[44px]"
           >
             {submitting ? 'Submitting...' : step === steps.length - 1 ? 'Submit Request' : 'Next'}
           </button>
