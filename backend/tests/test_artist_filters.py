@@ -79,7 +79,7 @@ def test_filters_and_sorting(monkeypatch):
     monkeypatch.setattr('app.utils.redis_cache.get_cached_artist_list', lambda: None)
     monkeypatch.setattr('app.utils.redis_cache.cache_artist_list', lambda data: None)
 
-    results = read_all_artist_profiles(category=ServiceType.OTHER, location='San', sort='most_booked', db=db)
+    results = read_all_artist_profiles(category=ServiceType.OTHER, location='San', sort='most_booked', db=db, page=1)
     assert len(results) == 1
     assert results[0].business_name == 'Beta'
     assert results[0].rating == 5
