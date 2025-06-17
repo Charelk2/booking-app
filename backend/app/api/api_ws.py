@@ -7,6 +7,9 @@ from fastapi import (
 )
 from starlette.exceptions import WebSocketException
 from starlette import status as ws_status
+
+# Custom WebSocket close codes mirroring HTTP status codes
+WS_4401_UNAUTHORIZED = 4401
 from sqlalchemy.orm import Session
 from typing import Dict, List, Any
 from jose import JWTError, jwt
@@ -55,7 +58,7 @@ async def booking_request_ws(
     user: User | None = None
     if not token:
         logger.warning("Rejecting WebSocket for request %s: missing token", request_id)
-        raise WebSocketException(code=ws_status.WS_1008_POLICY_VIOLATION, reason="Missing token")
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
@@ -63,10 +66,10 @@ async def booking_request_ws(
             user = db.query(User).filter(User.email == email).first()
     except JWTError:
         logger.warning("Rejecting WebSocket for request %s: invalid token", request_id)
-        raise WebSocketException(code=ws_status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
     if not user:
         logger.warning("Rejecting WebSocket for request %s: user not found", request_id)
-        raise WebSocketException(code=ws_status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
     booking_request = crud_booking_request.get_booking_request(
         db, request_id=request_id
     )
@@ -74,13 +77,15 @@ async def booking_request_ws(
         logger.warning(
             "Rejecting WebSocket for request %s: booking request not found", request_id
         )
-        raise WebSocketException(code=ws_status.WS_1008_POLICY_VIOLATION, reason="Request not found")
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Request not found")
 
     if user and user.id not in [booking_request.client_id, booking_request.artist_id]:
         logger.warning(
-            "Rejecting WebSocket for request %s: unauthorized user %s", request_id, user.id
+            "Rejecting WebSocket for request %s: unauthorized user %s",
+            request_id,
+            user.id,
         )
-        raise WebSocketException(code=ws_status.WS_1008_POLICY_VIOLATION, reason="Unauthorized")
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Unauthorized")
 
     await manager.connect(request_id, websocket)
     try:
