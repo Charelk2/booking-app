@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y curl gnupg ca-certificates \
     libxshmfence1 libdbus-1-3 libxss1 libxtst6 \
     && curl -fsSL https://deb.nodesource.com/setup_21.x | bash - \
     && apt-get update \
+    # Use `docker build --network bridge` if npm fails to reach registry.npmjs.org
     && apt-get install -y nodejs \
     && npm config set fetch-retry-mintimeout 20000 \
     && npm config set registry https://registry.npmjs.org \

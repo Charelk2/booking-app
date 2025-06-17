@@ -49,6 +49,17 @@ rebuild whenever dependencies change. If you hit network errors during
 or running `docker build`/`docker run` with `--network bridge` so npm can
 reach the registry.
 
+Even with Docker network access, corporate proxies or partial restrictions may
+still block requests to `registry.npmjs.org`. If `npm ci` fails with
+`ECONNRESET` or `ENETUNREACH`, configure your proxy and rerun with network
+bridge enabled:
+
+```bash
+npm config set proxy http://proxy:8080
+npm config set https-proxy http://proxy:8080
+DOCKER_TEST_NETWORK=bridge ./scripts/docker-test.sh
+```
+
 ### docker-test.sh quickstart
 
 1. **Populate caches with network access**
@@ -698,11 +709,12 @@ formatCurrency(99.5, 'USD', 'en-US'); // => 'US$99.50'
 * **next: not found / ENOTEMPTY**: Reinstall in `frontend/` with `npm install` or `./setup.sh`.
 * **Module not found: Can't resolve 'framer-motion'**: Run `npm install` in `frontend/` to pull the latest dependencies.
 * **Packages missing after setup**: If you see errors like `next: command not found` or `cannot find module`, `npm ci` likely did not finish. Rerun `./setup.sh` or run `npm ci` inside `frontend/`. When offline, use `scripts/docker-test.sh` to restore dependencies.
-* **npm ci fails with `ECONNRESET`**: Check your proxy configuration. Run
-  `npm config set proxy http://proxy:8080` and
-  `npm config set https-proxy http://proxy:8080` if your environment requires a
-  proxy. Without these settings you may see `ENETUNREACH` or other network
-  errors when running `setup.sh` or `npm ci`.
+* **npm ci fails with `ECONNRESET` or `ENETUNREACH`**: Your environment may
+  block access to `registry.npmjs.org`. Configure a proxy and rerun with
+  network bridging:
+  `npm config set proxy http://proxy:8080`
+  `npm config set https-proxy http://proxy:8080`
+  `DOCKER_TEST_NETWORK=bridge ./scripts/docker-test.sh`
 * **npm install failed**: `scripts/test-all.sh` shows the last npm debug log on
   failure. Verify your proxy settings or run
   `scripts/docker-test.sh` with `DOCKER_TEST_NETWORK=bridge` to install
