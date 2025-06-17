@@ -80,4 +80,46 @@ describe('ClientBookingsPage', () => {
     });
     div.remove();
   });
+
+  it('shows review button for completed bookings', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({
+      user: { id: 1, user_type: 'client', email: 'c@example.com', first_name: 'C' },
+    });
+    (getMyClientBookings as jest.Mock)
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: 9,
+            artist_id: 2,
+            client_id: 1,
+            service_id: 4,
+            start_time: new Date().toISOString(),
+            end_time: new Date().toISOString(),
+            status: 'completed',
+            total_price: 100,
+            notes: '',
+            service: { title: 'Gig' },
+            client: { id: 1 },
+          },
+        ],
+      });
+
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+
+    await act(async () => {
+      root.render(<ClientBookingsPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(div.textContent).toContain('Leave review');
+
+    act(() => {
+      root.unmount();
+    });
+    div.remove();
+  });
 });

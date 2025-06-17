@@ -4,11 +4,22 @@ import { useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { getMyClientBookings } from '@/lib/api';
-import type { Booking } from '@/types';
+import type { Booking, Review } from '@/types';
+import ReviewFormModal from '@/components/review/ReviewFormModal';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 
-function BookingList({ items }: { items: Booking[] }) {
+interface BookingWithReview extends Booking {
+  review?: Review | null;
+}
+
+function BookingList({
+  items,
+  onReview,
+}: {
+  items: BookingWithReview[];
+  onReview: (id: number) => void;
+}) {
   return (
     <ul className="space-y-3">
       {items.map((b) => (
@@ -23,10 +34,10 @@ function BookingList({ items }: { items: Booking[] }) {
                 b.status === 'completed'
                   ? 'bg-green-100 text-green-800'
                   : b.status === 'cancelled'
-                  ? 'bg-red-100 text-red-800'
-                  : b.status === 'confirmed'
-                  ? 'bg-blue-100 text-blue-800'
-                  : 'bg-yellow-100 text-yellow-800'
+                    ? 'bg-red-100 text-red-800'
+                    : b.status === 'confirmed'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-yellow-100 text-yellow-800'
               }`}
             >
               {b.status}
@@ -35,6 +46,20 @@ function BookingList({ items }: { items: Booking[] }) {
               {formatCurrency(Number(b.total_price))}
             </span>
           </div>
+          {b.status === 'completed' && !b.review && (
+            <button
+              type="button"
+              onClick={() => onReview(b.id)}
+              className="mt-2 text-indigo-600 hover:underline text-sm"
+            >
+              Leave review
+            </button>
+          )}
+          {b.review && (
+            <p className="mt-2 text-sm text-gray-600">
+              You rated {b.review.rating}/5
+            </p>
+          )}
         </li>
       ))}
     </ul>
@@ -44,7 +69,8 @@ function BookingList({ items }: { items: Booking[] }) {
 export default function ClientBookingsPage() {
   const { user } = useAuth();
   const [upcoming, setUpcoming] = useState<Booking[]>([]);
-  const [past, setPast] = useState<Booking[]>([]);
+  const [past, setPast] = useState<BookingWithReview[]>([]);
+  const [reviewId, setReviewId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -74,6 +100,16 @@ export default function ClientBookingsPage() {
       setError('Access denied');
     }
   }, [user]);
+
+  const handleOpenReview = (id: number) => {
+    setReviewId(id);
+  };
+
+  const handleReviewSubmitted = (review: Review) => {
+    setPast((prev) =>
+      prev.map((b) => (b.id === review.booking_id ? { ...b, review } : b)),
+    );
+  };
 
   if (!user) {
     return (
@@ -107,7 +143,7 @@ export default function ClientBookingsPage() {
           {upcoming.length === 0 ? (
             <p>No upcoming bookings.</p>
           ) : (
-            <BookingList items={upcoming} />
+            <BookingList items={upcoming} onReview={handleOpenReview} />
           )}
         </section>
         <section>
@@ -115,10 +151,18 @@ export default function ClientBookingsPage() {
           {past.length === 0 ? (
             <p>No past bookings.</p>
           ) : (
-            <BookingList items={past} />
+            <BookingList items={past} onReview={handleOpenReview} />
           )}
         </section>
       </div>
+      {reviewId && (
+        <ReviewFormModal
+          isOpen={reviewId !== null}
+          bookingId={reviewId}
+          onClose={() => setReviewId(null)}
+          onSubmitted={handleReviewSubmitted}
+        />
+      )}
     </MainLayout>
   );
 }
