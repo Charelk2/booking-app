@@ -52,4 +52,58 @@ describe('ArtistBookingsPage', () => {
     });
     div.remove();
   });
+
+  it('allows status updates and calendar downloads', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
+    const booking = {
+      id: 1,
+      artist_id: 2,
+      client_id: 3,
+      service_id: 4,
+      start_time: new Date().toISOString(),
+      end_time: new Date().toISOString(),
+      status: 'confirmed',
+      total_price: 200,
+      notes: '',
+      client: { first_name: 'Client', last_name: 'User' },
+      service: { title: 'Show' },
+    };
+    (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [booking] });
+    (api.updateBookingStatus as jest.Mock).mockResolvedValue({ data: { ...booking, status: 'completed' } });
+    (api.downloadBookingIcs as jest.Mock).mockResolvedValue({ data: new Blob() });
+
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(<ArtistBookingsPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    const icsBtn = Array.from(div.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Add to Calendar',
+    ) as HTMLButtonElement;
+    expect(icsBtn).toBeTruthy();
+    await act(async () => {
+      icsBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(api.downloadBookingIcs).toHaveBeenCalledWith(1);
+
+    const completeBtn = Array.from(div.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Mark Completed',
+    ) as HTMLButtonElement;
+    expect(completeBtn).toBeTruthy();
+    await act(async () => {
+      completeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => { await Promise.resolve(); });
+    expect(api.updateBookingStatus).toHaveBeenCalledWith(1, 'completed');
+    expect(div.textContent).toContain('completed');
+
+    act(() => {
+      root.unmount();
+    });
+    div.remove();
+  });
 });
