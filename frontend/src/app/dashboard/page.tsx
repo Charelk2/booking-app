@@ -382,6 +382,16 @@ export default function DashboardPage() {
               </Link>
             </div>
           )}
+          {user.user_type === 'client' && (
+            <div className="mt-2">
+              <Link
+                href="/dashboard/client/bookings"
+                className="text-indigo-600 hover:underline text-sm"
+              >
+                My Bookings
+              </Link>
+            </div>
+          )}
         </div>
 
           {user.user_type === "artist" && activeTab === 'services' && (
