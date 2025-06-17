@@ -7,6 +7,7 @@ from app.db_utils import (
     ensure_price_visible_column,
     ensure_currency_column,
     ensure_booking_simple_columns,
+    ensure_mfa_columns,
 )
 
 
@@ -88,6 +89,22 @@ def setup_booking_simple_engine() -> Engine:
     return engine
 
 
+def setup_user_engine() -> Engine:
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE users (
+                    id INTEGER PRIMARY KEY,
+                    email VARCHAR
+                )
+                """
+            )
+        )
+    return engine
+
+
 def test_add_price_visible_column():
     engine = setup_artist_engine()
     ensure_price_visible_column(engine)
@@ -112,3 +129,12 @@ def test_booking_simple_columns():
     assert "date" in column_names
     assert "location" in column_names
     assert "payment_status" in column_names
+
+
+def test_mfa_columns():
+    engine = setup_user_engine()
+    ensure_mfa_columns(engine)
+    inspector = inspect(engine)
+    cols = [c["name"] for c in inspector.get_columns("users")]
+    assert "mfa_secret" in cols
+    assert "mfa_enabled" in cols
