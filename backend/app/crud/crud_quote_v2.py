@@ -3,10 +3,12 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 import logging
-from fastapi import HTTPException, status
+
+from fastapi import status
 
 from .. import models, schemas
 from ..utils.notifications import notify_quote_accepted, notify_new_booking
+from ..utils import error_response
 from .crud_booking import create_booking_from_quote_v2
 
 logger = logging.getLogger(__name__)
@@ -66,14 +68,22 @@ def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
         raise ValueError("Quote cannot be accepted")
 
     booking_request = db_quote.booking_request
-    if not booking_request or not booking_request.service_id or not booking_request.proposed_datetime_1:
+    if (
+        not booking_request
+        or not booking_request.service_id
+        or not booking_request.proposed_datetime_1
+    ):
         logger.error(
-            "Booking request %s missing service_id or proposed_datetime_1",
+            "Booking request %s missing service_id or proposed_datetime_1 when accepting quote %s; artist_id=%s client_id=%s",
             getattr(booking_request, "id", None),
+            quote_id,
+            db_quote.artist_id,
+            db_quote.client_id,
         )
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        raise error_response(
             "Booking request missing service_id or proposed_datetime_1",
+            {"booking_request_id": "invalid"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
     db_quote.status = models.QuoteStatusV2.ACCEPTED
@@ -115,10 +125,7 @@ def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
     # Send notifications to both artist and client
     artist = db_quote.artist
     client = db_quote.client or db.query(models.User).get(db_quote.client_id)
-    notify_quote_accepted(
-        db, artist, db_quote.id, db_quote.booking_request_id
-    )
+    notify_quote_accepted(db, artist, db_quote.id, db_quote.booking_request_id)
     notify_new_booking(db, client, booking.id)
 
     return booking
-
