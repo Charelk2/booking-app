@@ -1,4 +1,4 @@
-import api from '../api';
+import api, { updateBookingRequestArtist } from '../api';
 import type { AxiosRequestConfig } from 'axios';
 
 describe('request interceptor', () => {
@@ -42,6 +42,18 @@ describe('request interceptor', () => {
     expect(() => handler(config)).not.toThrow();
     expect(config.headers!.Authorization).toBeUndefined();
     g.window = win;
+  });
+});
+
+describe('updateBookingRequestArtist', () => {
+  it('calls the correct endpoint', async () => {
+    const spy = jest.spyOn(api, 'put').mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await updateBookingRequestArtist(5, { status: 'request_declined' });
+    expect(spy).toHaveBeenCalledWith(
+      '/api/v1/booking-requests/5/artist',
+      { status: 'request_declined' },
+    );
+    spy.mockRestore();
   });
 });
 

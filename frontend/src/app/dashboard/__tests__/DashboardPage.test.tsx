@@ -7,7 +7,7 @@ import DashboardPage from '../page';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { ArtistProfile, User, Service } from '@/types';
+import { ArtistProfile, User, Service, BookingRequest } from '@/types';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
@@ -496,6 +496,65 @@ describe('DashboardPage accepted quote label', () => {
 
     const link = container.querySelector('a[href="/quotes/42"]');
     expect(link).toBeTruthy();
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+});
+
+describe('DashboardPage request updates', () => {
+  it('updates request status when form submitted', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
+    const req = {
+      id: 1,
+      client_id: 3,
+      artist_id: 2,
+      status: 'pending_quote',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      client: { first_name: 'C', last_name: 'U' },
+      service: { title: 'Show' },
+    } as BookingRequest;
+    (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
+    (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [req] });
+    (api.updateBookingRequestArtist as jest.Mock).mockResolvedValue({ data: { ...req, status: 'request_declined' } });
+    (api.postMessageToBookingRequest as jest.Mock).mockResolvedValue({});
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(<DashboardPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    const updateBtn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Update') as HTMLButtonElement;
+    expect(updateBtn).toBeTruthy();
+    await act(async () => {
+      updateBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => { await Promise.resolve(); });
+    const select = container.querySelector('select#status') as HTMLSelectElement;
+    const textarea = container.querySelector('textarea#note') as HTMLTextAreaElement;
+    act(() => {
+      select.value = 'request_declined';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      textarea.value = 'sorry';
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    const save = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Save') as HTMLButtonElement;
+    await act(async () => {
+      save.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(api.updateBookingRequestArtist).toHaveBeenCalledWith(1, { status: 'request_declined' });
+    expect(container.textContent).toContain('request_declined');
 
     act(() => {
       root.unmount();
