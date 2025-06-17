@@ -135,6 +135,18 @@ def ensure_booking_simple_columns(engine: Engine) -> None:
         "payment_status",
         "payment_status VARCHAR NOT NULL DEFAULT 'pending'",
     )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "deposit_amount",
+        "deposit_amount NUMERIC(10, 2)"
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "deposit_paid",
+        "deposit_paid BOOLEAN NOT NULL DEFAULT FALSE",
+    )
 
 
 def ensure_mfa_columns(engine: Engine) -> None:
