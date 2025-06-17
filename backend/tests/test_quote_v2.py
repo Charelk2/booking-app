@@ -22,7 +22,9 @@ from app.schemas.quote_v2 import ServiceItem, QuoteCreate
 
 
 def setup_db():
-    engine = create_engine('sqlite:///:memory:', connect_args={'check_same_thread': False})
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}
+    )
     BaseModel.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     return Session()
@@ -30,8 +32,20 @@ def setup_db():
 
 def test_create_and_accept_quote():
     db = setup_db()
-    artist = User(email='artist@test.com', password='x', first_name='A', last_name='R', user_type=UserType.ARTIST)
-    client = User(email='client@test.com', password='x', first_name='C', last_name='L', user_type=UserType.CLIENT)
+    artist = User(
+        email="artist@test.com",
+        password="x",
+        first_name="A",
+        last_name="R",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="client@test.com",
+        password="x",
+        first_name="C",
+        last_name="L",
+        user_type=UserType.CLIENT,
+    )
     db.add_all([artist, client])
     db.commit()
     db.refresh(artist)
@@ -67,13 +81,13 @@ def test_create_and_accept_quote():
         booking_request_id=br.id,
         artist_id=artist.id,
         client_id=client.id,
-        services=[ServiceItem(description='Performance', price=Decimal('100'))],
-        sound_fee=Decimal('20'),
-        travel_fee=Decimal('30'),
+        services=[ServiceItem(description="Performance", price=Decimal("100"))],
+        sound_fee=Decimal("20"),
+        travel_fee=Decimal("30"),
     )
     quote = api_quote_v2.create_quote(quote_in, db)
-    assert quote.subtotal == Decimal('150')
-    assert quote.total == Decimal('150')
+    assert quote.subtotal == Decimal("150")
+    assert quote.total == Decimal("150")
     msgs = db.query(Message).all()
     assert len(msgs) == 1
     assert msgs[0].quote_id == quote.id
@@ -92,7 +106,10 @@ def test_create_and_accept_quote():
     assert db_booking.service_id == service.id
     assert db_booking.start_time == br.proposed_datetime_1
     from datetime import timedelta
-    assert db_booking.end_time == br.proposed_datetime_1 + timedelta(minutes=service.duration_minutes)
+
+    assert db_booking.end_time == br.proposed_datetime_1 + timedelta(
+        minutes=service.duration_minutes
+    )
     assert db_booking.status == BookingStatus.CONFIRMED
     assert db_booking.total_price == quote.total
 
@@ -104,7 +121,8 @@ def test_read_quote_not_found():
     except Exception as exc:
         assert isinstance(exc, HTTPException)
         assert exc.status_code == 404
-        assert "Quote 999 not found" in exc.detail
+        assert exc.detail["message"] == "Quote 999 not found"
+        assert exc.detail["field_errors"]["quote_id"] == "not_found"
     else:
         assert False, "Expected HTTPException for missing quote"
 
@@ -122,8 +140,11 @@ def test_accept_quote_logs_db_error(monkeypatch, caplog):
         api_quote_v2.accept_quote(1, db)
 
     assert exc_info.value.status_code == 500
-    assert exc_info.value.detail == "Internal Server Error"
-    messages = [r for r in caplog.records if "Database error accepting quote" in r.getMessage()]
+    assert exc_info.value.detail["message"] == "Internal Server Error"
+    assert exc_info.value.detail["field_errors"]["quote_id"] == "db_error"
+    messages = [
+        r for r in caplog.records if "Database error accepting quote" in r.getMessage()
+    ]
     assert messages and messages[0].exc_info
 
 
@@ -194,7 +215,46 @@ def test_accept_quote_missing_client(caplog):
     with pytest.raises(HTTPException) as exc_info:
         api_quote_v2.accept_quote(quote.id, db)
     assert exc_info.value.status_code == 422
-    assert any(
-        "Booking request" in r.getMessage() for r in caplog.records
+    assert any("Booking request" in r.getMessage() for r in caplog.records)
+
+
+def test_create_quote_error_logs_and_response(monkeypatch, caplog):
+    db = setup_db()
+    quote_in = QuoteCreate(
+        booking_request_id=1,
+        artist_id=2,
+        client_id=3,
+        services=[ServiceItem(description="foo", price=Decimal("1"))],
+        sound_fee=Decimal("0"),
+        travel_fee=Decimal("0"),
     )
 
+    def fail_create(*_):
+        raise ValueError("boom")
+
+    monkeypatch.setattr(api_quote_v2.crud_quote_v2, "create_quote", fail_create)
+    caplog.set_level(logging.ERROR, logger=api_quote_v2.logger.name)
+    with pytest.raises(HTTPException) as exc_info:
+        api_quote_v2.create_quote(quote_in, db)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail["message"] == "Unable to create quote"
+    assert exc_info.value.detail["field_errors"]["quote"] == "create_failed"
+    assert any("artist_id=2" in r.getMessage() for r in caplog.records)
+
+
+def test_accept_quote_value_error_logs(monkeypatch, caplog):
+    db = setup_db()
+
+    def fail_accept(*_):
+        raise ValueError("nope")
+
+    monkeypatch.setattr(api_quote_v2.crud_quote_v2, "accept_quote", fail_accept)
+    caplog.set_level(logging.WARNING, logger=api_quote_v2.logger.name)
+    with pytest.raises(HTTPException) as exc_info:
+        api_quote_v2.accept_quote(10, db)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail["message"] == "nope"
+    assert exc_info.value.detail["field_errors"]["quote_id"] == "invalid"
+    assert any("quote_id=10" in r.getMessage() for r in caplog.records)
