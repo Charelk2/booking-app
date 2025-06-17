@@ -3,6 +3,9 @@ import api, {
   createPayment,
   updateBookingStatus,
   downloadBookingIcs,
+  getMyArtistQuotes,
+  updateQuoteAsArtist,
+  confirmQuoteBooking,
 } from '../api';
 import type { AxiosRequestConfig } from 'axios';
 
@@ -129,6 +132,43 @@ describe('response interceptor', () => {
       expect(e.message).toBe('oops');
     });
     expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+});
+
+describe('getMyArtistQuotes', () => {
+  it('requests quotes with params', async () => {
+    const spy = jest
+      .spyOn(api, 'get')
+      .mockResolvedValue({ data: [] } as unknown as { data: unknown });
+    await getMyArtistQuotes({ skip: 1, limit: 5 });
+    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/me/artist', {
+      params: { skip: 1, limit: 5 },
+    });
+    spy.mockRestore();
+  });
+});
+
+describe('updateQuoteAsArtist', () => {
+  it('puts to the artist endpoint', async () => {
+    const spy = jest
+      .spyOn(api, 'put')
+      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await updateQuoteAsArtist(2, { quote_details: 'hi' });
+    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/2/artist', {
+      quote_details: 'hi',
+    });
+    spy.mockRestore();
+  });
+});
+
+describe('confirmQuoteBooking', () => {
+  it('posts to confirm-booking', async () => {
+    const spy = jest
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await confirmQuoteBooking(3);
+    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/3/confirm-booking', {});
     spy.mockRestore();
   });
 });

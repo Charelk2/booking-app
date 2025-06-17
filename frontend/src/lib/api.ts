@@ -292,6 +292,15 @@ export const getQuoteV2 = (quoteId: number) =>
 export const acceptQuoteV2 = (quoteId: number) =>
   api.post<BookingSimple>(`${API_V1}/quotes/${quoteId}/accept`, {});
 
+export const getMyArtistQuotes = (params: { skip?: number; limit?: number } = {}) =>
+  api.get<Quote[]>(`${API_V1}/quotes/me/artist`, { params });
+
+export const updateQuoteAsArtist = (id: number, data: Partial<Quote>) =>
+  api.put<Quote>(`${API_V1}/quotes/${id}/artist`, data);
+
+export const confirmQuoteBooking = (id: number) =>
+  api.post<Booking>(`${API_V1}/quotes/${id}/confirm-booking`, {});
+
 // ─── MESSAGES ───────────────────────────────────────────────────────────
 export const getMessagesForBookingRequest = (bookingRequestId: number) =>
   api.get<Message[]>(
