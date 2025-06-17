@@ -298,6 +298,9 @@ export const getMyArtistQuotes = (params: { skip?: number; limit?: number } = {}
 export const updateQuoteAsArtist = (id: number, data: Partial<Quote>) =>
   api.put<Quote>(`${API_V1}/quotes/${id}/artist`, data);
 
+export const updateQuoteAsClient = (id: number, data: { status: string }) =>
+  api.put<Quote>(`${API_V1}/quotes/${id}/client`, data);
+
 export const confirmQuoteBooking = (id: number) =>
   api.post<Booking>(`${API_V1}/quotes/${id}/confirm-booking`, {});
 

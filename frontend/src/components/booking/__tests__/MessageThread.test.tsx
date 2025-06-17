@@ -520,6 +520,108 @@ describe('MessageThread component', () => {
     expect(modalHeading?.textContent).toBe('Pay Deposit');
   });
 
+  it('falls back to legacy endpoint when accept fails', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Quote',
+          message_type: 'quote',
+          quote_id: 8,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+    (api.getQuoteV2 as jest.Mock).mockResolvedValue({
+      data: {
+        id: 8,
+        status: 'pending',
+        services: [],
+        sound_fee: 0,
+        travel_fee: 0,
+        subtotal: 0,
+        total: 0,
+        artist_id: 2,
+        client_id: 1,
+        booking_request_id: 1,
+        created_at: '',
+        updated_at: '',
+      },
+    });
+    (api.acceptQuoteV2 as jest.Mock).mockRejectedValue(new Error('fail'));
+    (api.updateQuoteAsClient as jest.Mock).mockResolvedValue({ data: {} });
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const acceptBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Accept',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(api.updateQuoteAsClient).toHaveBeenCalledWith(8, {
+      status: 'accepted_by_client',
+    });
+  });
+
+  it('declines quote using legacy endpoint', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Quote',
+          message_type: 'quote',
+          quote_id: 9,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+    (api.getQuoteV2 as jest.Mock).mockResolvedValue({
+      data: {
+        id: 9,
+        status: 'pending',
+        services: [],
+        sound_fee: 0,
+        travel_fee: 0,
+        subtotal: 0,
+        total: 0,
+        artist_id: 2,
+        client_id: 1,
+        booking_request_id: 1,
+        created_at: '',
+        updated_at: '',
+      },
+    });
+    (api.updateQuoteAsClient as jest.Mock).mockResolvedValue({ data: {} });
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const declineBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Decline',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      declineBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(api.updateQuoteAsClient).toHaveBeenCalledWith(9, {
+      status: 'rejected_by_client',
+    });
+  });
+
   it('shows an alert when the WebSocket fails', async () => {
     await act(async () => {
       root.render(<MessageThread bookingRequestId={1} />);
