@@ -41,3 +41,7 @@ class TokenData(BaseModel):
 class MFAVerify(BaseModel):
     token: str
     code: str
+
+
+class MFACode(BaseModel):
+    code: str

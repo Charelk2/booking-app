@@ -163,4 +163,10 @@ def ensure_mfa_columns(engine: Engine) -> None:
         "mfa_enabled",
         "mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE"
     )
+    add_column_if_missing(
+        engine,
+        "users",
+        "mfa_recovery_tokens",
+        "mfa_recovery_tokens TEXT"
+    )
 
