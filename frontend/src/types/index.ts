@@ -141,6 +141,19 @@ export interface ServiceItem {
   price: number;
 }
 
+export interface QuoteTemplate {
+  id: number;
+  artist_id: number;
+  name: string;
+  services: ServiceItem[];
+  sound_fee: number;
+  travel_fee: number;
+  accommodation?: string | null;
+  discount?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface QuoteV2Create {
   booking_request_id: number;
   artist_id: number;
