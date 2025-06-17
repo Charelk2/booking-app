@@ -5,6 +5,7 @@ from .booking import Booking, BookingStatus
 from .review import Review
 from .request_quote import BookingRequest, Quote, BookingRequestStatus, QuoteStatus
 from .quote_v2 import QuoteV2, QuoteStatusV2
+from .quote_template import QuoteTemplate
 from .booking_simple import BookingSimple
 from .sound_provider import SoundProvider
 from .artist_sound_preference import ArtistSoundPreference
@@ -20,6 +21,7 @@ __all__ = [
     "BookingRequest",
     "Quote",
     "QuoteV2",
+    "QuoteTemplate",
     "BookingSimple",
     "Message",
     "SoundProvider",
