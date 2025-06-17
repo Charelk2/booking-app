@@ -365,17 +365,24 @@ export default function DashboardPage() {
 
           {/* Stats */}
           <div className="mt-8">
-            <OverviewAccordion
-              primaryStats={[
-                { label: 'Total Bookings', value: bookings.length },
-                { label: 'Total Earnings', value: formatCurrency(totalEarnings) },
-              ]}
-              secondaryStats={[
-                { label: 'Total Services', value: servicesCount },
-                { label: 'Earnings This Month', value: formatCurrency(earningsThisMonth) },
-              ]}
-            />
-          </div>
+          <OverviewAccordion
+            primaryStats={[
+              { label: 'Total Bookings', value: bookings.length },
+              { label: 'Total Earnings', value: formatCurrency(totalEarnings) },
+            ]}
+            secondaryStats={[
+              { label: 'Total Services', value: servicesCount },
+              { label: 'Earnings This Month', value: formatCurrency(earningsThisMonth) },
+            ]}
+          />
+          {user.user_type === 'artist' && (
+            <div className="mt-2">
+              <Link href="/dashboard/quotes" className="text-indigo-600 hover:underline text-sm">
+                View All Quotes
+              </Link>
+            </div>
+          )}
+        </div>
 
           {user.user_type === "artist" && activeTab === 'services' && (
             <button
