@@ -8,12 +8,14 @@ from datetime import datetime, timedelta
 from typing import Optional
 import os
 import logging
+import secrets
+import hashlib
 from dotenv import load_dotenv
 
 from ..database import get_db
 from ..models.user import User, UserType
 from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
-from ..schemas.user import UserCreate, UserResponse, TokenData, MFAVerify
+from ..schemas.user import UserCreate, UserResponse, TokenData, MFAVerify, MFACode
 from ..utils.auth import get_password_hash, verify_password
 
 try:
@@ -217,4 +219,60 @@ def setup_mfa(
             issuer_name="BookingApp",
         ),
     }
+
+
+@router.post("/confirm-mfa")
+def confirm_mfa(
+    data: MFACode,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not current_user.mfa_secret:
+        raise HTTPException(status_code=400, detail="MFA not initialized")
+    if not pyotp.TOTP(current_user.mfa_secret).verify(data.code, valid_window=1):
+        raise HTTPException(status_code=401, detail="Invalid MFA code")
+    current_user.mfa_enabled = True
+    db.commit()
+    return {"message": "MFA enabled"}
+
+
+@router.post("/recovery-codes")
+def generate_recovery_codes(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not current_user.mfa_secret:
+        raise HTTPException(status_code=400, detail="MFA not enabled")
+    codes = [secrets.token_hex(8) for _ in range(8)]
+    hashed = [hashlib.sha256(c.encode()).hexdigest() for c in codes]
+    current_user.mfa_recovery_tokens = ",".join(hashed)
+    db.commit()
+    return {"codes": codes}
+
+
+@router.post("/disable-mfa")
+def disable_mfa(
+    data: MFACode,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not current_user.mfa_secret:
+        raise HTTPException(status_code=400, detail="MFA not enabled")
+
+    valid = pyotp.TOTP(current_user.mfa_secret).verify(data.code, valid_window=1)
+    if not valid and current_user.mfa_recovery_tokens:
+        hashed = hashlib.sha256(data.code.encode()).hexdigest()
+        tokens = current_user.mfa_recovery_tokens.split(",")
+        if hashed in tokens:
+            tokens.remove(hashed)
+            current_user.mfa_recovery_tokens = ",".join(tokens)
+            valid = True
+    if not valid:
+        raise HTTPException(status_code=401, detail="Invalid MFA code")
+
+    current_user.mfa_secret = None
+    current_user.mfa_enabled = False
+    current_user.mfa_recovery_tokens = None
+    db.commit()
+    return {"message": "MFA disabled"}
 
