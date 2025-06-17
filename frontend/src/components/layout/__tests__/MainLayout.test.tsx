@@ -14,7 +14,7 @@ describe('MainLayout user menu', () => {
     jest.clearAllMocks();
   });
 
-  it('shows Quotes link for artist users', async () => {
+  it('shows artist links for artist users', async () => {
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, email: 'a@test.com', user_type: 'artist' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -23,6 +23,8 @@ describe('MainLayout user menu', () => {
       root.render(React.createElement(MainLayout, null, React.createElement('div')));
     });
     await act(async () => { await Promise.resolve(); });
+    expect(div.textContent).toContain('Sound Providers');
+    expect(div.textContent).toContain('Quote Calculator');
     const menuBtn = Array.from(div.querySelectorAll('button')).find(b => b.textContent?.includes('Open user menu')) as HTMLButtonElement;
     expect(menuBtn).toBeTruthy();
     await act(async () => {
