@@ -78,6 +78,20 @@ describe('BookingWizard flow', () => {
     expect(heading()).toContain('Location');
   });
 
+  it('collapses inactive steps on mobile', async () => {
+    const details = () => Array.from(container.querySelectorAll('details'));
+    expect(details()[0].open).toBe(true);
+    expect(details()[1].open).toBe(false);
+    const next = getButton('Next');
+    await act(async () => {
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    const updated = details();
+    expect(updated[0].open).toBe(false);
+    expect(updated[1].open).toBe(true);
+  });
+
   it('shows summary only on the review step', async () => {
     expect(container.querySelector('h2')?.textContent).toContain('Date & Time');
     expect(container.textContent).not.toContain('Summary');
@@ -117,5 +131,10 @@ describe('BookingWizard flow', () => {
     // query again after DOM update
     progressButtons = container.querySelectorAll('[aria-label="Progress"] button');
     expect((progressButtons[2] as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('renders a sticky progress indicator', () => {
+    const wrapper = container.querySelector('[aria-label="Progress"]')?.parentElement;
+    expect(wrapper?.className).toContain('sticky');
   });
 });
