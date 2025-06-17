@@ -11,7 +11,7 @@ import BookingRequestIcon from './BookingRequestIcon';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import MobileBottomNav from './MobileBottomNav';
 
-const navigation = [
+const baseNavigation = [
   { name: 'Home', href: '/' },
   { name: 'Artists', href: '/artists' },
   { name: 'Services', href: '/services' },
@@ -25,6 +25,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const navigation = [...baseNavigation];
+  if (user?.user_type === 'artist') {
+    navigation.push(
+      { name: 'Sound Providers', href: '/sound-providers' },
+      { name: 'Quote Calculator', href: '/quote-calculator' },
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">

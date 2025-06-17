@@ -4,7 +4,12 @@ import { act } from 'react';
 import MobileMenuDrawer from '../MobileMenuDrawer';
 import type { User } from '@/types';
 
-const nav = [{ name: 'Home', href: '/' }, { name: 'Artists', href: '/artists' }];
+const nav = [
+  { name: 'Home', href: '/' },
+  { name: 'Artists', href: '/artists' },
+  { name: 'Sound Providers', href: '/sound-providers' },
+  { name: 'Quote Calculator', href: '/quote-calculator' },
+];
 
 describe('MobileMenuDrawer', () => {
   let container: HTMLDivElement;
@@ -42,9 +47,11 @@ describe('MobileMenuDrawer', () => {
     const bodyText = document.body.textContent || '';
     expect(bodyText).toContain('Home');
     expect(bodyText).toContain('Artists');
+    expect(bodyText).toContain('Sound Providers');
+    expect(bodyText).toContain('Quote Calculator');
   });
 
-  it('shows Quotes link for artists', async () => {
+  it('shows artist links for artists', async () => {
     await act(async () => {
       root.render(
         React.createElement(MobileMenuDrawer, {
@@ -62,6 +69,8 @@ describe('MobileMenuDrawer', () => {
     });
     const body = document.body.textContent || '';
     expect(body).toContain('Quotes');
+    expect(body).toContain('Sound Providers');
+    expect(body).toContain('Quote Calculator');
   });
 
   it('shows My Bookings link for clients', async () => {
