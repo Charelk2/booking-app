@@ -44,6 +44,7 @@ from .api import (
     api_message,
     api_notification,
     api_payment,
+    api_quote_template,
 )
 
 # The “artist‐profiles” router lives under app/api/v1/
@@ -181,6 +182,11 @@ app.include_router(
 # Register the newer v2 routes first so they take precedence when paths overlap
 app.include_router(api_quote_v2.router, prefix=f"{api_prefix}", tags=["quotes-v2"])
 app.include_router(api_quote.router, prefix=f"{api_prefix}", tags=["quotes"])
+app.include_router(
+    api_quote_template.router,
+    prefix=f"{api_prefix}",
+    tags=["quote-templates"],
+)
 
 # ─── MESSAGE ROUTES (under /api/v1) ─────────────────────────────────────────
 app.include_router(
