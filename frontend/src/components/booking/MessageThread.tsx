@@ -27,6 +27,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '../ui/Button';
 import SendQuoteModal from './SendQuoteModal';
+import PaymentModal from './PaymentModal';
 import QuoteCard from './QuoteCard';
 import useWebSocket from '@/hooks/useWebSocket';
 
@@ -73,6 +74,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [wsFailed, setWsFailed] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
@@ -256,6 +260,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       try {
         await acceptQuoteV2(quoteId);
         setBookingConfirmed(true);
+        setShowPaymentModal(true);
         const q = await getQuoteV2(quoteId);
         setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
       } catch (err) {
@@ -368,6 +373,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           >
             🎉 Booking confirmed for {artistName}! You’ll receive follow-up emails and details.
           </div>
+        )}
+        {paymentStatus && (
+          <div
+            className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800 mt-2"
+            data-testid="payment-status-banner"
+          >
+            {paymentStatus === 'paid' ? 'Payment completed.' : 'Deposit received.'}
+          </div>
+        )}
+        {paymentError && (
+          <p className="text-sm text-red-600" role="alert">{paymentError}</p>
         )}
         <div
           ref={containerRef}
@@ -665,6 +681,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             artistId={artistId ?? user.id}
             clientId={clientId ?? messages.find((m) => m.sender_type === 'client')?.sender_id ?? 0}
             bookingRequestId={bookingRequestId}
+          />
+          <PaymentModal
+            open={showPaymentModal}
+            onClose={() => {
+              setShowPaymentModal(false);
+              setPaymentError(null);
+            }}
+            bookingRequestId={bookingRequestId}
+            onSuccess={(status) => {
+              setPaymentStatus(status);
+              setShowPaymentModal(false);
+              setPaymentError(null);
+            }}
+            onError={(msg) => setPaymentError(msg)}
           />
         </>
       )}
