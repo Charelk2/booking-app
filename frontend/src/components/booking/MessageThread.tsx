@@ -391,14 +391,24 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           </div>
         )}
         {bookingConfirmed && (
-          <Link
-            href={`/booking-requests/${bookingRequestId}`}
-            aria-label="View booking details"
-            data-testid="view-booking-link"
-            className="mt-2 inline-block text-indigo-600 hover:underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-          >
-            View booking
-          </Link>
+          <>
+            <Link
+              href={`/booking-requests/${bookingRequestId}`}
+              aria-label="View booking details"
+              data-testid="view-booking-link"
+              className="mt-2 inline-block text-indigo-600 hover:underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            >
+              View booking
+            </Link>
+            <Link
+              href="/dashboard/client/bookings"
+              aria-label="Go to My Bookings"
+              data-testid="my-bookings-link"
+              className="mt-2 ml-4 inline-block text-indigo-600 hover:underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            >
+              My Bookings
+            </Link>
+          </>
         )}
         {paymentStatus && (
           <div
