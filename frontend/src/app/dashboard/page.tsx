@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { formatCurrency, normalizeService } from "@/lib/utils";
 import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
+import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
 import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
 import SectionList from "@/components/dashboard/SectionList";
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
@@ -157,6 +158,7 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [requestToUpdate, setRequestToUpdate] = useState<BookingRequest | null>(null);
   const [activeTab, setActiveTab] = useState<'requests' | 'bookings' | 'services'>('requests');
 
   // Aggregated totals for dashboard statistics
@@ -426,6 +428,15 @@ export default function DashboardPage() {
                     >
                       View Chat
                     </Link>
+                    {user.user_type === 'artist' && (
+                      <button
+                        type="button"
+                        onClick={() => setRequestToUpdate(req)}
+                        className="ml-4 mt-2 inline-block text-indigo-600 hover:underline text-sm"
+                      >
+                        Update
+                      </button>
+                    )}
                     {req.accepted_quote_id && (
                       <Link
                         href={`/quotes/${req.accepted_quote_id}`}
@@ -552,6 +563,18 @@ export default function DashboardPage() {
           service={editingService}
           onClose={() => setEditingService(null)}
           onServiceUpdated={handleServiceUpdated}
+        />
+      )}
+      {requestToUpdate && (
+        <UpdateRequestModal
+          isOpen={!!requestToUpdate}
+          request={requestToUpdate}
+          onClose={() => setRequestToUpdate(null)}
+          onUpdated={(updated) =>
+            setBookingRequests((prev) =>
+              prev.map((r) => (r.id === updated.id ? updated : r)),
+            )
+          }
         />
       )}
     </MainLayout>
