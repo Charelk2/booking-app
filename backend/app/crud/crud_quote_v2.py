@@ -7,7 +7,11 @@ import logging
 from fastapi import status
 
 from .. import models, schemas
-from ..utils.notifications import notify_quote_accepted, notify_new_booking
+from ..utils.notifications import (
+    notify_quote_accepted,
+    notify_new_booking,
+    notify_deposit_due,
+)
 from ..utils import error_response
 from .crud_booking import create_booking_from_quote_v2
 
@@ -127,5 +131,6 @@ def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
     client = db_quote.client or db.query(models.User).get(db_quote.client_id)
     notify_quote_accepted(db, artist, db_quote.id, db_quote.booking_request_id)
     notify_new_booking(db, client, booking.id)
+    notify_deposit_due(db, client, booking.id)
 
     return booking
