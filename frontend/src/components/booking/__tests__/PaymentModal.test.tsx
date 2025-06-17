@@ -14,10 +14,18 @@ describe('PaymentModal', () => {
     const root = createRoot(div);
     await act(async () => {
       root.render(
-        <PaymentModal open bookingRequestId={1} onClose={() => {}} onSuccess={onSuccess} onError={() => {}} />,
+        <PaymentModal
+          open
+          bookingRequestId={1}
+          onClose={() => {}}
+          onSuccess={onSuccess}
+          onError={() => {}}
+          depositAmount={50}
+        />,
       );
     });
     const input = div.querySelector('input[type="number"]') as HTMLInputElement;
+    expect(input.value).toBe('50');
     await act(async () => {
       input.value = '25';
       input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));

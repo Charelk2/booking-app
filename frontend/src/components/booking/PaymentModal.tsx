@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from '../ui/Button';
 import { createPayment } from '@/lib/api';
 
@@ -8,6 +8,7 @@ interface PaymentModalProps {
   bookingRequestId: number;
   onSuccess: (status: string) => void;
   onError: (msg: string) => void;
+  depositAmount?: number;
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -16,11 +17,20 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   bookingRequestId,
   onSuccess,
   onError,
+  depositAmount,
 }) => {
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(
+    depositAmount !== undefined ? depositAmount.toString() : '',
+  );
   const [full, setFull] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open && depositAmount !== undefined) {
+      setAmount(depositAmount.toString());
+    }
+  }, [depositAmount, open]);
 
   if (!open) return null;
 
