@@ -459,6 +459,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Quote API responses omit the nested `booking_request` field to avoid
   circular references.
 * Accepting a Quote V2 now also creates a formal booking visible on the artist dashboard.
+* Quote V2 error handling logs the acting user and quote details and returns structured responses for easier debugging.
 
 ### Booking Wizard
 
