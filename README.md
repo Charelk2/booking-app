@@ -620,6 +620,7 @@ found" beneath the filter bar.
 * Password strength meter and success toast.
 * Shared form components with optional Google/GitHub sign-in.
 * "Remember me" option persists sessions using `localStorage` or `sessionStorage`.
+* Accounts lock temporarily after too many failed login attempts to prevent brute-force attacks.
 
 ---
 

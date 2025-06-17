@@ -1,6 +1,6 @@
 # backend/app/api/auth.py
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -29,6 +29,23 @@ ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+# --- Login attempt tracking configuration ---
+# Maximum failed attempts allowed within the window
+MAX_LOGIN_ATTEMPTS = int(os.getenv("LOGIN_MAX_ATTEMPTS", 5))
+# How long (seconds) each failed attempt counts against the limit
+LOGIN_ATTEMPT_WINDOW_SECONDS = int(os.getenv("LOGIN_ATTEMPT_WINDOW_SECONDS", 600))
+# How long (seconds) the account/IP pair is locked after exceeding the limit
+LOCKOUT_DURATION_SECONDS = int(os.getenv("LOGIN_LOCKOUT_SECONDS", 900))
+
+# Track failures and lockouts in-memory; a real deployment should use Redis or a persistent store
+_failed_logins: dict[str, list[datetime]] = {}
+_lockouts: dict[str, datetime] = {}
+
+
+def _now() -> datetime:
+    """Helper for easier monkeypatching in tests."""
+    return datetime.utcnow()
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -80,19 +97,50 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         )
 
 
-# TODO: Add rate limiting and lockout after repeated failures
 @router.post("/login")
 def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
+    host = request.client.host if request else "unknown"
+    key = f"{form_data.username}:{host}"
+
+    lock_until = _lockouts.get(key)
+    now = _now()
+    if lock_until and lock_until > now:
+        logger.info("Login locked for %s from %s until %s", form_data.username, host, lock_until.isoformat())
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed login attempts. Please try again later.",
+        )
+
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password):
+        attempts = _failed_logins.get(key, [])
+        attempts = [t for t in attempts if (now - t).total_seconds() <= LOGIN_ATTEMPT_WINDOW_SECONDS]
+        attempts.append(now)
+        _failed_logins[key] = attempts
+        if len(attempts) >= MAX_LOGIN_ATTEMPTS:
+            lock_until = now + timedelta(seconds=LOCKOUT_DURATION_SECONDS)
+            _lockouts[key] = lock_until
+            logger.warning(
+                "User %s locked out from %s until %s", form_data.username, host, lock_until.isoformat()
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many failed login attempts. Account temporarily locked.",
+            )
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Successful login -> reset counters
+    _failed_logins.pop(key, None)
+    _lockouts.pop(key, None)
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
