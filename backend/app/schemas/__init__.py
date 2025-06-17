@@ -26,6 +26,12 @@ from .request_quote import (
     QuoteCalculationParams,
 )
 from .quote_v2 import QuoteCreate as QuoteV2Create, QuoteRead as QuoteV2Read, BookingSimpleRead
+from .quote_template import (
+    QuoteTemplateCreate,
+    QuoteTemplateUpdate,
+    QuoteTemplateRead,
+    ServiceItem as TemplateServiceItem,
+)
 from .message import MessageCreate, MessageResponse
 from .notification import (
     NotificationCreate,
@@ -70,6 +76,10 @@ __all__ = [
     "QuoteV2Create",
     "QuoteV2Read",
     "BookingSimpleRead",
+    "QuoteTemplateCreate",
+    "QuoteTemplateUpdate",
+    "QuoteTemplateRead",
+    "TemplateServiceItem",
     "MessageCreate",
     "MessageResponse",
     "NotificationCreate",

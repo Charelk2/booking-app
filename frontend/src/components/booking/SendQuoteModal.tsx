@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from '../ui/Button';
-import { ServiceItem, QuoteV2Create } from '@/types';
+import { ServiceItem, QuoteV2Create, QuoteTemplate } from '@/types';
+import { getQuoteTemplates } from '@/lib/api';
 
 interface Props {
   open: boolean;
@@ -32,6 +33,27 @@ const SendQuoteModal: React.FC<Props> = ({
   const [accommodation, setAccommodation] = useState('');
   const [discount, setDiscount] = useState(0);
   const [expiresHours, setExpiresHours] = useState<number | null>(null);
+  const [templates, setTemplates] = useState<QuoteTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<number | ''>('');
+
+  useEffect(() => {
+    if (open) {
+      getQuoteTemplates(artistId)
+        .then((res) => setTemplates(res.data))
+        .catch(() => setTemplates([]));
+    }
+  }, [open, artistId]);
+
+  useEffect(() => {
+    const tmpl = templates.find((t) => t.id === selectedTemplate);
+    if (tmpl) {
+      setServices(tmpl.services);
+      setSoundFee(tmpl.sound_fee);
+      setTravelFee(tmpl.travel_fee);
+      setAccommodation(tmpl.accommodation || '');
+      setDiscount(tmpl.discount || 0);
+    }
+  }, [selectedTemplate, templates]);
 
   const subtotal = services.reduce((acc, s) => acc + Number(s.price), 0) + soundFee + travelFee;
   const total = subtotal - (discount || 0);
@@ -65,6 +87,22 @@ const SendQuoteModal: React.FC<Props> = ({
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-4">
         <h2 className="text-lg font-medium mb-2">Send Quote</h2>
         <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+          {templates.length > 0 && (
+            <select
+              className="w-full border rounded p-1"
+              value={selectedTemplate}
+              onChange={(e) =>
+                setSelectedTemplate(e.target.value ? Number(e.target.value) : '')
+              }
+            >
+              <option value="">Choose template</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
           {services.map((s, i) => (
             <div key={i} className="flex gap-2 items-center">
               <input

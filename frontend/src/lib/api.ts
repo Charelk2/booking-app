@@ -20,6 +20,7 @@ import {
   SoundProvider,
   ArtistSoundPreference,
   QuoteCalculationResponse,
+  QuoteTemplate,
   Notification,
   ThreadNotification,
 } from '@/types';
@@ -312,6 +313,21 @@ export const uploadBookingAttachment = (
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress }
   );
+
+// ─── QUOTE TEMPLATES ─────────────────────────────────────────────────────────
+export const getQuoteTemplates = (artistId: number) =>
+  api.get<QuoteTemplate[]>(`${API_V1}/quote-templates/artist/${artistId}`);
+
+export const createQuoteTemplate = (data: Partial<QuoteTemplate>) =>
+  api.post<QuoteTemplate>(`${API_V1}/quote-templates`, data);
+
+export const updateQuoteTemplate = (
+  id: number,
+  data: Partial<QuoteTemplate>,
+) => api.put<QuoteTemplate>(`${API_V1}/quote-templates/${id}`, data);
+
+export const deleteQuoteTemplate = (id: number) =>
+  api.delete(`${API_V1}/quote-templates/${id}`);
 
 
 // ─── SOUND PROVIDERS ─────────────────────────────────────────────────────────
