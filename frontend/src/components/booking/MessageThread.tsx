@@ -13,7 +13,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import TimeAgo from '../ui/TimeAgo';
-import { getFullImageUrl } from '@/lib/utils';
+import { getFullImageUrl, formatCurrency } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Message, MessageCreate, QuoteV2 } from '@/types';
@@ -81,6 +81,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     undefined,
   );
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [wsFailed, setWsFailed] = useState(false);
@@ -415,7 +417,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800 mt-2"
             data-testid="payment-status-banner"
           >
-            {paymentStatus === 'paid' ? 'Payment completed.' : 'Deposit received.'}
+            {paymentStatus === 'paid'
+              ? 'Payment completed.'
+              : `Deposit of ${formatCurrency(paymentAmount ?? depositAmount ?? 0)} received.`}
+            {receiptUrl && (
+              <a
+                href={receiptUrl}
+                target="_blank"
+                rel="noopener"
+                data-testid="booking-receipt-link"
+                className="ml-2 underline"
+              >
+                View receipt
+              </a>
+            )}
           </div>
         )}
         {paymentError && (
@@ -727,8 +742,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             }}
             bookingRequestId={bookingRequestId}
             depositAmount={depositAmount}
-            onSuccess={(status) => {
+            onSuccess={({ status, amount, receiptUrl: url }) => {
               setPaymentStatus(status);
+              setPaymentAmount(amount);
+              setReceiptUrl(url ?? null);
               setShowPaymentModal(false);
               setPaymentError(null);
             }}
