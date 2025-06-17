@@ -38,7 +38,6 @@ export default function GuestsStep({
           />
         )}
       />
-      <p className="text-xs text-gray-600">Max capacity is 200 guests.</p>
       <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
         {step > 0 && (
           <button
