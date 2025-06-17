@@ -5,6 +5,7 @@ import api, {
   downloadBookingIcs,
   getMyArtistQuotes,
   updateQuoteAsArtist,
+  updateQuoteAsClient,
   confirmQuoteBooking,
 } from '../api';
 import type { AxiosRequestConfig } from 'axios';
@@ -157,6 +158,19 @@ describe('updateQuoteAsArtist', () => {
     await updateQuoteAsArtist(2, { quote_details: 'hi' });
     expect(spy).toHaveBeenCalledWith('/api/v1/quotes/2/artist', {
       quote_details: 'hi',
+    });
+    spy.mockRestore();
+  });
+});
+
+describe('updateQuoteAsClient', () => {
+  it('puts to the client endpoint', async () => {
+    const spy = jest
+      .spyOn(api, 'put')
+      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await updateQuoteAsClient(4, { status: 'accepted_by_client' });
+    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/4/client', {
+      status: 'accepted_by_client',
     });
     spy.mockRestore();
   });
