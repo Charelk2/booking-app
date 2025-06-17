@@ -4,8 +4,14 @@
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import dynamic from 'next/dynamic';
 import { useLoadScript } from '@react-google-maps/api';
-const GoogleMap = dynamic(() => import('@react-google-maps/api').then((m) => m.GoogleMap), { ssr: false });
-const Marker = dynamic(() => import('@react-google-maps/api').then((m) => m.Marker), { ssr: false });
+const GoogleMap = dynamic(
+  () => import('@react-google-maps/api').then((m) => m.GoogleMap),
+  { ssr: false },
+);
+const Marker = dynamic(
+  () => import('@react-google-maps/api').then((m) => m.Marker),
+  { ssr: false },
+);
 import { useRef, useState, useEffect } from 'react';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
 
@@ -24,7 +30,18 @@ interface Props {
   onNext: () => void;
 }
 
-const containerStyle = { width: '100%', height: '250px' };
+const mapContainerCollapsed = {
+  width: '100%',
+  height: 0,
+  overflow: 'hidden',
+  transition: 'height 0.3s ease',
+};
+
+const mapContainerExpanded = {
+  width: '100%',
+  height: '250px',
+  transition: 'height 0.3s ease',
+};
 
 interface AutocompleteProps {
   value: string | undefined;
@@ -104,7 +121,6 @@ export default function LocationStep({
     })();
   }, [artistLocation, marker, setWarning]);
 
-  if (!isLoaded) return <p>Loading map...</p>;
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">Where is the show?</p>
@@ -120,16 +136,16 @@ export default function LocationStep({
           />
         )}
       />
-      {marker && (
-        <GoogleMap
-          center={marker}
-          zoom={14}
-          mapContainerStyle={containerStyle}
-          data-testid="map"
-        >
-          <Marker position={marker} />
-        </GoogleMap>
-      )}
+      <div
+        style={marker ? mapContainerExpanded : mapContainerCollapsed}
+        data-testid="map-container"
+      >
+        {marker && isLoaded && (
+          <GoogleMap center={marker} zoom={14} mapContainerStyle={{ width: '100%', height: '100%' }} data-testid="map">
+            <Marker position={marker} />
+          </GoogleMap>
+        )}
+      </div>
       <button
         type="button"
         className="mt-2 text-sm text-indigo-600 underline"

@@ -182,6 +182,8 @@ The location input relies on the built-in Google Maps Places Autocomplete
 service instead of the experimental `@googlemaps/places` package. The previous
 dependency caused a build failure because it depended on Node-only modules like
 `fs`. No additional npm install step is required after this change.
+The embedded map only loads after a location is selected so the page renders
+quickly.
 
 To expose the app on your local network, replace `192.168.3.203` with your
 machine's LAN IP. Set the same address in `backend/.env` under
