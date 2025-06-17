@@ -171,7 +171,8 @@ export default function BookingWizard({
       setError(null);
       toast.success('Draft saved');
     } catch (e) {
-      setError('Failed to save draft');
+      const err = e as Error;
+      setError(err.message);
     }
   });
 
@@ -209,7 +210,8 @@ export default function BookingWizard({
       toast.success('Request submitted');
       router.push(`/booking-requests/${idToUse}`);
     } catch (e) {
-      setError('Failed to submit request');
+      const err = e as Error;
+      setError(err.message);
     } finally {
       setSubmitting(false);
     }

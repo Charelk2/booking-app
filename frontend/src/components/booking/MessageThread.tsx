@@ -118,7 +118,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       setLoading(false);
     } catch (err) {
       console.error('Failed to fetch messages', err);
-      setErrorMsg('Failed to load messages');
+      setErrorMsg((err as Error).message);
       setLoading(false);
     }
   }, [bookingRequestId, ensureQuoteLoaded]);
@@ -223,7 +223,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         if (onMessageSent) onMessageSent();
       } catch (err) {
         console.error('Failed to send message', err);
-        setErrorMsg('Failed to send message');
+        setErrorMsg((err as Error).message);
         setUploading(false);
       }
     },
@@ -239,7 +239,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         if (onMessageSent) onMessageSent();
       } catch (err) {
         console.error('Failed to send quote', err);
-        setErrorMsg('Failed to send quote');
+        setErrorMsg((err as Error).message);
       }
     },
     [fetchMessages, onMessageSent],
@@ -254,7 +254,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
       } catch (err) {
         console.error('Failed to accept quote', err);
-        setErrorMsg('Failed to accept quote');
+        setErrorMsg((err as Error).message);
       }
     },
     [],
