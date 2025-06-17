@@ -16,6 +16,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Google Maps and large images load lazily once in view to reduce first paint time.
 - Client dashboards now include a bookings list with upcoming and past filters via `/api/v1/bookings/my-bookings?status=`.
 - Artists can mark bookings completed or cancelled and download confirmed bookings as calendar (.ics) files.
+- Clients can leave a star rating and comment once a booking is marked completed. Service detail pages now display these reviews.
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 

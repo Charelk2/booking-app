@@ -231,6 +231,14 @@ export const createReviewForBooking = (
     data
   );
 
+// read a single review by booking id: GET /api/v1/reviews/{booking_id}
+export const getReview = (bookingId: number) =>
+  api.get<Review>(`${API_V1}/reviews/${bookingId}`);
+
+// list reviews for a service: GET /api/v1/services/{service_id}/reviews
+export const getServiceReviews = (serviceId: number) =>
+  api.get<Review[]>(`${API_V1}/services/${serviceId}/reviews`);
+
 // list reviews for an artist: GET /api/v1/reviews/artist-profiles/{artist_id}/reviews
 export const getArtistReviews = (artistUserId: number) =>
   api.get<Review[]>(
