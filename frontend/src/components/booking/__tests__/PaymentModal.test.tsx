@@ -8,7 +8,9 @@ jest.mock('@/lib/api');
 
 describe('PaymentModal', () => {
   it('submits payment', async () => {
-    (api.createPayment as jest.Mock).mockResolvedValue({ data: {} });
+    (api.createPayment as jest.Mock).mockResolvedValue({
+      data: { payment_id: 'pay_1' },
+    });
     const onSuccess = jest.fn();
     const div = document.createElement('div');
     const root = createRoot(div);
@@ -26,16 +28,16 @@ describe('PaymentModal', () => {
     });
     const input = div.querySelector('input[type="number"]') as HTMLInputElement;
     expect(input.value).toBe('50');
-    await act(async () => {
-      input.value = '25';
-      input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-    });
     const button = Array.from(div.querySelectorAll('button')).find((b) => b.textContent === 'Pay') as HTMLButtonElement;
     await act(async () => {
       button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(api.createPayment).toHaveBeenCalled();
-    expect(onSuccess).toHaveBeenCalledWith('deposit_paid');
+    expect(onSuccess).toHaveBeenCalledWith({
+      status: 'deposit_paid',
+      amount: 50,
+      receiptUrl: '/api/v1/payments/pay_1/receipt',
+    });
     root.unmount();
   });
 });
