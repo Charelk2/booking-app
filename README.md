@@ -212,8 +212,12 @@ console. Hooks and components no longer need to parse Axios errors manually.
 
 Run `POST /auth/setup-mfa` while authenticated to generate a TOTP secret.
 Scan the returned `otp_auth_url` in an authenticator app or use the SMS code
-sent to your phone. Confirm the code via `POST /auth/verify-mfa` to enable MFA
-for your account. Subsequent logins require this second step.
+sent to your phone. Verify the code via `POST /auth/confirm-mfa` to finish
+enabling MFA. Generate backup codes anytime with `POST /auth/recovery-codes` and
+store them somewhere safe. You can disable MFA later by calling
+`POST /auth/disable-mfa` with either a current TOTP or one of the recovery
+codes. Subsequent logins require the verification step provided by
+`POST /auth/verify-mfa`.
 
 ---
 

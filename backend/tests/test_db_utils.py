@@ -140,3 +140,4 @@ def test_mfa_columns():
     cols = [c["name"] for c in inspector.get_columns("users")]
     assert "mfa_secret" in cols
     assert "mfa_enabled" in cols
+    assert "mfa_recovery_tokens" in cols
