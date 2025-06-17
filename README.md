@@ -447,6 +447,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * New **Review** step showing cost breakdown and selections.
 * Success toasts when saving a draft or submitting a request.
 * Simplified buttons sit below each step in a responsive button group.
+* Guests step now matches the others with Back, Save Draft, and Next buttons.
 * Attachment uploads in the notes step display a progress bar and disable the Next button until finished.
 * Collapsible sections for date/time and notes keep steps short on phones.
 * Mobile devices use native date and time pickers for faster input.
