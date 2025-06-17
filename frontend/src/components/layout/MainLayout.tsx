@@ -124,6 +124,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                               )}
                             </Menu.Item>
                           )}
+                          {user && user.user_type === 'client' && (
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  href="/dashboard/client/bookings"
+                                  className={classNames(
+                                    active ? 'bg-gray-100' : '',
+                                    'block px-4 py-2 text-sm text-gray-700'
+                                  )}
+                                >
+                                  My Bookings
+                                </Link>
+                              )}
+                            </Menu.Item>
+                          )}
                           <Menu.Item>
                             {({ active }) => (
                               <button
