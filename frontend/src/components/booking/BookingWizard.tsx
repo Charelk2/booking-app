@@ -27,6 +27,7 @@ import SoundStep from './steps/SoundStep';
 import VenueStep from './steps/VenueStep';
 import NotesStep from './steps/NotesStep';
 import ReviewStep from './steps/ReviewStep';
+import useIsMobile from '@/hooks/useIsMobile';
 
 const steps = [
   'Date & Time',
@@ -78,6 +79,7 @@ export default function BookingWizard({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [maxStepCompleted, setMaxStepCompleted] = useState(0);
+  const isMobile = useIsMobile();
 
   // Ensure maxStepCompleted always reflects the furthest step reached.
   useEffect(() => {
@@ -213,14 +215,14 @@ export default function BookingWizard({
     }
   });
 
-  const renderStep = () => {
-    switch (step) {
+  const renderStep = (index: number) => {
+    switch (index) {
       case 0:
         return (
           <DateTimeStep
             control={control as unknown as Control<FieldValues>}
             unavailable={unavailable}
-            step={step}
+            step={index}
             steps={steps}
             onBack={prev}
             onSaveDraft={saveDraft}
@@ -233,7 +235,7 @@ export default function BookingWizard({
             control={control as unknown as Control<FieldValues>}
             artistLocation={artistLocation || undefined}
             setWarning={setWarning}
-            step={step}
+            step={index}
             steps={steps}
             onBack={prev}
             onSaveDraft={saveDraft}
@@ -244,7 +246,7 @@ export default function BookingWizard({
         return (
           <GuestsStep
             control={control as unknown as Control<FieldValues>}
-            step={step}
+            step={index}
             steps={steps}
             onBack={prev}
             onSaveDraft={saveDraft}
@@ -255,7 +257,7 @@ export default function BookingWizard({
         return (
           <VenueStep
             control={control as unknown as Control<FieldValues>}
-            step={step}
+            step={index}
             steps={steps}
             onBack={prev}
             onSaveDraft={saveDraft}
@@ -266,7 +268,7 @@ export default function BookingWizard({
         return (
           <SoundStep
             control={control as unknown as Control<FieldValues>}
-            step={step}
+            step={index}
             steps={steps}
             onBack={prev}
             onSaveDraft={saveDraft}
@@ -278,7 +280,7 @@ export default function BookingWizard({
           <NotesStep
             control={control as unknown as Control<FieldValues>}
             setValue={setValue as unknown as (name: string, value: unknown) => void}
-            step={step}
+            step={index}
             steps={steps}
             onBack={prev}
             onSaveDraft={saveDraft}
@@ -288,7 +290,7 @@ export default function BookingWizard({
       default:
         return (
           <ReviewStep
-            step={step}
+            step={index}
             steps={steps}
             onBack={prev}
             onSaveDraft={saveDraft}
@@ -301,34 +303,84 @@ export default function BookingWizard({
 
   return (
     <div className="px-4">
-      <Stepper
-        steps={steps}
-        currentStep={step}
-        maxStepCompleted={maxStepCompleted}
-        onStepClick={handleStepClick}
-      />
-      <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md space-y-6">
-        <h2 className="text-2xl font-bold" data-testid="step-heading">
-          {steps[step]}
-        </h2>
-
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            {renderStep()}
-          </motion.div>
-        </AnimatePresence>
-        {warning && <p className="text-orange-600 text-sm">{warning}</p>}
-        {Object.values(errors).length > 0 && (
-          <p className="text-red-600 text-sm">Please fix the errors above.</p>
-        )}
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+      <div className="sticky top-0 z-10 bg-white">
+        <Stepper
+          steps={steps}
+          currentStep={step}
+          maxStepCompleted={maxStepCompleted}
+          onStepClick={handleStepClick}
+        />
       </div>
+      {isMobile ? (
+        <div className="space-y-4">
+          {steps.map((label, i) => (
+            <details
+              key={label}
+              open={i === step}
+              className="max-w-md mx-auto bg-white rounded-lg shadow-md"
+            >
+              <summary
+                className="p-4 font-bold cursor-pointer border-b"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleStepClick(i);
+                }}
+              >
+                {label}
+              </summary>
+              {i === step && (
+                <div className="p-6 space-y-6">
+                  <h2 className="sr-only" data-testid="step-heading">
+                    {label}
+                  </h2>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={step}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {renderStep(i)}
+                    </motion.div>
+                  </AnimatePresence>
+                  {warning && (
+                    <p className="text-orange-600 text-sm">{warning}</p>
+                  )}
+                  {Object.values(errors).length > 0 && (
+                    <p className="text-red-600 text-sm">
+                      Please fix the errors above.
+                    </p>
+                  )}
+                  {error && <p className="text-red-600 text-sm">{error}</p>}
+                </div>
+              )}
+            </details>
+          ))}
+        </div>
+      ) : (
+        <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md space-y-6">
+          <h2 className="text-2xl font-bold" data-testid="step-heading">
+            {steps[step]}
+          </h2>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {renderStep(step)}
+            </motion.div>
+          </AnimatePresence>
+          {warning && <p className="text-orange-600 text-sm">{warning}</p>}
+          {Object.values(errors).length > 0 && (
+            <p className="text-red-600 text-sm">Please fix the errors above.</p>
+          )}
+          {error && <p className="text-red-600 text-sm">{error}</p>}
+        </div>
+      )}
     </div>
   );
 }
