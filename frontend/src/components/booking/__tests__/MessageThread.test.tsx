@@ -469,6 +469,57 @@ describe('MessageThread component', () => {
     expect(banner?.textContent).toContain('Booking confirmed for DJ');
   });
 
+  it('opens payment modal after accepting quote', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Quote',
+          message_type: 'quote',
+          quote_id: 7,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+    (api.getQuoteV2 as jest.Mock).mockResolvedValue({
+      data: {
+        id: 7,
+        status: 'pending',
+        services: [],
+        sound_fee: 0,
+        travel_fee: 0,
+        subtotal: 0,
+        total: 0,
+        artist_id: 2,
+        client_id: 1,
+        booking_request_id: 1,
+        created_at: '',
+        updated_at: '',
+      },
+    });
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const acceptBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Accept',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const modalHeading = container.querySelector('h2');
+    expect(modalHeading?.textContent).toBe('Pay Deposit');
+  });
+
   it('shows an alert when the WebSocket fails', async () => {
     await act(async () => {
       root.render(<MessageThread bookingRequestId={1} />);

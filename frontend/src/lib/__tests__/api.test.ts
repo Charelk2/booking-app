@@ -1,4 +1,4 @@
-import api, { updateBookingRequestArtist } from '../api';
+import api, { updateBookingRequestArtist, createPayment } from '../api';
 import type { AxiosRequestConfig } from 'axios';
 
 describe('request interceptor', () => {
@@ -53,6 +53,15 @@ describe('updateBookingRequestArtist', () => {
       '/api/v1/booking-requests/5/artist',
       { status: 'request_declined' },
     );
+    spy.mockRestore();
+  });
+});
+
+describe('createPayment', () => {
+  it('posts to the payments endpoint', async () => {
+    const spy = jest.spyOn(api, 'post').mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await createPayment({ booking_request_id: 3, amount: 50 });
+    expect(spy).toHaveBeenCalledWith('/api/v1/payments', { booking_request_id: 3, amount: 50 });
     spy.mockRestore();
   });
 });

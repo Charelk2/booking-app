@@ -374,6 +374,13 @@ export const calculateQuote = (params: {
   accommodation_cost?: number;
 }) => api.post<QuoteCalculationResponse>(`${API_V1}/quotes/calculate`, params);
 
+// ─── PAYMENTS ───────────────────────────────────────────────────────────────
+export const createPayment = (data: {
+  booking_request_id: number;
+  amount: number;
+  full?: boolean;
+}) => api.post(`${API_V1}/payments`, data);
+
 // ─── NOTIFICATIONS ───────────────────────────────────────────────────────────
 export const getNotifications = (skip = 0, limit = 20) =>
   api.get<Notification[]>(
