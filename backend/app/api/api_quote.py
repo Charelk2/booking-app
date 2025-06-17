@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List
 import logging
@@ -17,6 +17,7 @@ from ..crud.crud_booking import (
 )  # Will be created later
 from ..services.booking_quote import calculate_quote_breakdown, calculate_quote
 from decimal import Decimal
+from ..utils import error_response
 
 router = APIRouter(
     tags=["Quotes"],
@@ -40,24 +41,43 @@ def create_quote_for_request(
     The `quote_in` schema's `booking_request_id` must match `request_id` from path.
     """
     if quote_in.booking_request_id != request_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Booking request ID in path does not match ID in request body.",
+        logger.warning(
+            "Quote create mismatch; user_id=%s path=%s body=%s",
+            current_artist.id,
+            f"/booking-requests/{request_id}/quotes",
+            quote_in.model_dump(),
+        )
+        raise error_response(
+            "Booking request ID in path does not match ID in request body.",
+            {"booking_request_id": "Mismatch"},
+            status.HTTP_400_BAD_REQUEST,
         )
 
     db_booking_request = crud.crud_booking_request.get_booking_request(
         db, request_id=request_id
     )
     if not db_booking_request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Booking request not found",
+        logger.warning(
+            "Booking request %s not found for quote creation; user_id=%s",
+            request_id,
+            current_artist.id,
+        )
+        raise error_response(
+            "Booking request not found",
+            {"booking_request_id": "Not found"},
+            status.HTTP_404_NOT_FOUND,
         )
 
     if db_booking_request.artist_id != current_artist.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to create a quote for this request",
+        logger.warning(
+            "Unauthorized quote creation attempt; user_id=%s request_id=%s",
+            current_artist.id,
+            request_id,
+        )
+        raise error_response(
+            "Not authorized to create a quote for this request",
+            {"request_id": "Forbidden"},
+            status.HTTP_403_FORBIDDEN,
         )
 
     try:
@@ -76,9 +96,10 @@ def create_quote_for_request(
         )
         return new_quote
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        logger.warning(
+            "Invalid quote create payload by user %s: %s", current_artist.id, e
         )
+        raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
 
 
 @router.get("/quotes/{quote_id}", response_model=schemas.QuoteResponse)
@@ -92,15 +113,18 @@ def read_quote(
     Accessible by the client of the booking request or the artist who made the quote.
     """
     if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
+        raise error_response(
+            "Inactive user",
+            {"user": "Inactive"},
+            status.HTTP_400_BAD_REQUEST,
         )
 
     db_quote = crud.crud_quote.get_quote(db, quote_id=quote_id)
     if db_quote is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Quote with id {quote_id} not found",
+        raise error_response(
+            f"Quote with id {quote_id} not found",
+            {"quote_id": "Not found"},
+            status.HTTP_404_NOT_FOUND,
         )
 
     # Check if current user is the client of the booking request or the artist of the quote
@@ -108,9 +132,10 @@ def read_quote(
         db_quote.booking_request.client_id == current_user.id
         or db_quote.artist_id == current_user.id
     ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this quote",
+        raise error_response(
+            "Not authorized to access this quote",
+            {"quote_id": "Forbidden"},
+            status.HTTP_403_FORBIDDEN,
         )
     db_quote.booking_request = None
     return db_quote
@@ -130,26 +155,30 @@ def read_quotes_for_booking_request(
     Accessible by the client who made the request or the artist it was made to.
     """
     if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
+        raise error_response(
+            "Inactive user",
+            {"user": "Inactive"},
+            status.HTTP_400_BAD_REQUEST,
         )
 
     db_booking_request = crud.crud_booking_request.get_booking_request(
         db, request_id=request_id
     )
     if not db_booking_request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Booking request not found",
+        raise error_response(
+            "Booking request not found",
+            {"booking_request_id": "Not found"},
+            status.HTTP_404_NOT_FOUND,
         )
 
     if not (
         db_booking_request.client_id == current_user.id
         or db_booking_request.artist_id == current_user.id
     ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access quotes for this request",
+        raise error_response(
+            "Not authorized to access quotes for this request",
+            {"request_id": "Forbidden"},
+            status.HTTP_403_FORBIDDEN,
         )
     quotes = crud.crud_quote.get_quotes_by_booking_request(
         db, booking_request_id=request_id
@@ -190,20 +219,24 @@ def update_quote_by_client(
     """
     db_quote = crud.crud_quote.get_quote(db, quote_id=quote_id)
     if db_quote is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Quote not found"
+        raise error_response(
+            "Quote not found",
+            {"quote_id": "Not found"},
+            status.HTTP_404_NOT_FOUND,
         )
 
     if db_quote.booking_request.client_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update this quote",
+        raise error_response(
+            "Not authorized to update this quote",
+            {"quote_id": "Forbidden"},
+            status.HTTP_403_FORBIDDEN,
         )
 
     if db_quote.status != models.QuoteStatus.PENDING_CLIENT_ACTION:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Quote cannot be updated. Current status: {db_quote.status.value}",
+        raise error_response(
+            f"Quote cannot be updated. Current status: {db_quote.status.value}",
+            {"status": "Invalid state"},
+            status.HTTP_400_BAD_REQUEST,
         )
 
     # Client can only set status to ACCEPTED_BY_CLIENT or REJECTED_BY_CLIENT
@@ -211,9 +244,10 @@ def update_quote_by_client(
         models.QuoteStatus.ACCEPTED_BY_CLIENT,
         models.QuoteStatus.REJECTED_BY_CLIENT,
     ]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid status update by client.",
+        raise error_response(
+            "Invalid status update by client.",
+            {"status": "Not allowed"},
+            status.HTTP_400_BAD_REQUEST,
         )
 
     try:
@@ -224,9 +258,7 @@ def update_quote_by_client(
             actor_is_artist=False,
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        )
+        raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
 
 
 @router.put("/quotes/{quote_id}/artist", response_model=schemas.QuoteResponse)
@@ -242,14 +274,17 @@ def update_quote_by_artist(
     """
     db_quote = crud.crud_quote.get_quote(db, quote_id=quote_id)
     if db_quote is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Quote not found"
+        raise error_response(
+            "Quote not found",
+            {"quote_id": "Not found"},
+            status.HTTP_404_NOT_FOUND,
         )
 
     if db_quote.artist_id != current_artist.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update this quote",
+        raise error_response(
+            "Not authorized to update this quote",
+            {"quote_id": "Forbidden"},
+            status.HTTP_403_FORBIDDEN,
         )
 
     # Artist can withdraw a PENDING_CLIENT_ACTION quote. Or update details.
@@ -259,18 +294,20 @@ def update_quote_by_artist(
             quote_update.status == models.QuoteStatus.WITHDRAWN_BY_ARTIST
             and db_quote.status == models.QuoteStatus.PENDING_CLIENT_ACTION
         ):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Quote cannot be modified in its current status: {db_quote.status.value}",
+            raise error_response(
+                f"Quote cannot be modified in its current status: {db_quote.status.value}",
+                {"status": "Invalid state"},
+                status.HTTP_400_BAD_REQUEST,
             )
 
     # If updating status, artist can only withdraw (unless it's confirming an accepted quote - separate endpoint)
     if quote_update.status and quote_update.status not in [
         models.QuoteStatus.WITHDRAWN_BY_ARTIST
     ]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Artist can only withdraw the quote using this endpoint for status changes.",
+        raise error_response(
+            "Artist can only withdraw the quote using this endpoint for status changes.",
+            {"status": "Not allowed"},
+            status.HTTP_400_BAD_REQUEST,
         )
 
     try:
@@ -281,9 +318,7 @@ def update_quote_by_artist(
             actor_is_artist=True,
         )
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        )
+        raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
 
 
 @router.post(
@@ -300,26 +335,30 @@ def confirm_quote_and_create_booking(
     """
     db_quote = crud.crud_quote.get_quote(db, quote_id=quote_id)
     if db_quote is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Quote not found"
+        raise error_response(
+            "Quote not found",
+            {"quote_id": "Not found"},
+            status.HTTP_404_NOT_FOUND,
         )
 
     if db_quote.artist_id != current_artist.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
+        raise error_response(
+            (
                 f"Artist id {current_artist.id} is not authorized to confirm quote"
                 f" {quote_id}"
             ),
+            {"quote_id": "Forbidden"},
+            status.HTTP_403_FORBIDDEN,
         )
 
     if db_quote.status != models.QuoteStatus.ACCEPTED_BY_CLIENT:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
+        raise error_response(
+            (
                 f"Quote {quote_id} status is {db_quote.status.value}; "
                 "only accepted quotes can be confirmed"
             ),
+            {"status": "Invalid state"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
     # Update quote status to CONFIRMED_BY_ARTIST and subsequently BookingRequest to REQUEST_CONFIRMED
@@ -333,12 +372,11 @@ def confirm_quote_and_create_booking(
             quote_update=quote_update_schema,
             actor_is_artist=True,
         )
-    except (
-        ValueError
-    ) as e:  # Should catch the specific error from crud if client hasn't accepted
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Could not update quote {quote_id}: {e}",
+    except (ValueError,) as e:  # Should catch the specific error from crud if client hasn't accepted
+        raise error_response(
+            f"Could not update quote {quote_id}: {e}",
+            {"quote_id": str(e)},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
     # Now, create the actual booking
@@ -350,12 +388,10 @@ def confirm_quote_and_create_booking(
         not booking_request.service_id
         or not booking_request.proposed_datetime_1
     ):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "Booking request lacks service_id or proposed_datetime_1; "
-                "cannot create booking"
-            ),
+        raise error_response(
+            "Booking request lacks service_id or proposed_datetime_1; cannot create booking",
+            {"booking_request": "Incomplete"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
     # Estimate end_time based on service duration (if service_id is present)
@@ -366,12 +402,13 @@ def confirm_quote_and_create_booking(
         .first()
     )
     if not related_service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
+        raise error_response(
+            (
                 f"Service with id {booking_request.service_id} not found when "
                 "creating booking"
             ),
+            {"service_id": "Not found"},
+            status.HTTP_404_NOT_FOUND,
         )
 
     from datetime import timedelta
@@ -401,17 +438,19 @@ def confirm_quote_and_create_booking(
         return new_booking
     except ValueError as e:
         logger.error("Failed booking creation from quote %s: %s", quote_id, e)
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Unable to create booking from quote {quote_id}: {e}",
+        raise error_response(
+            f"Unable to create booking from quote {quote_id}: {e}",
+            {"quote_id": str(e)},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
     except Exception as e:
         logger.exception(
             "Error creating booking from quote %s: %s", quote_id, e
         )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create booking from quote {quote_id}",
+        raise error_response(
+            f"Failed to create booking from quote {quote_id}",
+            {"quote_id": "server_error"},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
@@ -431,9 +470,10 @@ def calculate_quote_endpoint(
             .first()
         )
         if not provider:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Provider not found",
+            raise error_response(
+                "Provider not found",
+                {"provider_id": "Not found"},
+                status.HTTP_404_NOT_FOUND,
             )
     breakdown = calculate_quote_breakdown(
         params.base_fee,

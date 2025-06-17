@@ -38,6 +38,13 @@ export const extractErrorMessage = (detail: unknown): string => {
   }
   if (typeof detail === 'object') {
     const record = detail as Record<string, unknown>;
+    if (record.field_errors && typeof record.field_errors === 'object') {
+      const msgs = Object.values(record.field_errors as Record<string, string>).join(', ');
+      if (typeof record.message === 'string') {
+        return `${record.message}: ${msgs}`;
+      }
+      return msgs;
+    }
     if (typeof record.msg === 'string') return record.msg;
     return JSON.stringify(detail);
   }
