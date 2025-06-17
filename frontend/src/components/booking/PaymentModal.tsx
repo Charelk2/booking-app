@@ -2,11 +2,17 @@ import React, { useState, useEffect } from 'react';
 import Button from '../ui/Button';
 import { createPayment } from '@/lib/api';
 
+interface PaymentSuccess {
+  status: string;
+  amount: number;
+  receiptUrl?: string;
+}
+
 interface PaymentModalProps {
   open: boolean;
   onClose: () => void;
   bookingRequestId: number;
-  onSuccess: (status: string) => void;
+  onSuccess: (result: PaymentSuccess) => void;
   onError: (msg: string) => void;
   depositAmount?: number;
 }
@@ -38,12 +44,20 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      await createPayment({
+      const res = await createPayment({
         booking_request_id: bookingRequestId,
         amount: Number(amount),
         full,
       });
-      onSuccess(full ? 'paid' : 'deposit_paid');
+      const paymentId = (res.data as { payment_id?: string }).payment_id;
+      const receiptUrl = paymentId
+        ? `/api/v1/payments/${paymentId}/receipt`
+        : undefined;
+      onSuccess({
+        status: full ? 'paid' : 'deposit_paid',
+        amount: Number(amount),
+        receiptUrl,
+      });
     } catch (err) {
       console.error('Failed to create payment', err);
       const msg = (err as Error).message;
