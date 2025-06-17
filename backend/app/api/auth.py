@@ -13,8 +13,9 @@ from dotenv import load_dotenv
 from ..database import get_db
 from ..models.user import User, UserType
 from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
-from ..schemas.user import UserCreate, UserResponse, TokenData
+from ..schemas.user import UserCreate, UserResponse, TokenData, MFAVerify
 from ..utils.auth import get_password_hash, verify_password
+import pyotp
 
 logger = logging.getLogger(__name__)
 
@@ -94,10 +95,23 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if user.mfa_secret:
+        temp_token = create_access_token(
+            {"sub": user.email, "mfa": True},
+            expires_delta=timedelta(minutes=5),
+        )
+        try:
+            from ..utils.notifications import _send_sms
+            code = pyotp.TOTP(user.mfa_secret).now()
+            _send_sms(user.phone_number, f"Your verification code is {code}")
+        except Exception as exc:  # pragma: no cover - SMS failures shouldn't crash
+            logger.warning("Unable to send MFA code: %s", exc)
+        return {"mfa_required": True, "mfa_token": temp_token}
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.email},
-        expires_delta=access_token_expires
+        expires_delta=access_token_expires,
     )
 
     return {
@@ -108,8 +122,9 @@ def login(
             "email": user.email,
             "first_name": user.first_name,
             "last_name": user.last_name,
-            "user_type": user.user_type
-        }
+            "user_type": user.user_type,
+            "mfa_enabled": bool(user.mfa_secret),
+        },
     }
 
 
@@ -139,3 +154,60 @@ def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+
+@router.post("/verify-mfa")
+def verify_mfa(data: MFAVerify, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(data.token, SECRET_KEY, algorithms=[ALGORITHM])
+        if not payload.get("mfa"):
+            raise HTTPException(status_code=400, detail="Invalid token")
+        email = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = get_user_by_email(db, email)
+    if not user or not user.mfa_secret:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    if not pyotp.TOTP(user.mfa_secret).verify(data.code, valid_window=1):
+        raise HTTPException(status_code=401, detail="Invalid MFA code")
+
+    user.mfa_enabled = True
+    db.commit()
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email},
+        expires_delta=access_token_expires,
+    )
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "user_type": user.user_type,
+            "mfa_enabled": True,
+        },
+    }
+
+
+@router.post("/setup-mfa")
+def setup_mfa(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    secret = pyotp.random_base32()
+    current_user.mfa_secret = secret
+    db.commit()
+    return {
+        "secret": secret,
+        "otp_auth_url": pyotp.totp.TOTP(secret).provisioning_uri(
+            current_user.email,
+            issuer_name="BookingApp",
+        ),
+    }
+

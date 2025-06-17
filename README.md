@@ -203,6 +203,13 @@ API responses are now handled by a global interceptor which maps common HTTP
 status codes to human-friendly error messages and logs server errors to the
 console. Hooks and components no longer need to parse Axios errors manually.
 
+### Multi-factor authentication
+
+Run `POST /auth/setup-mfa` while authenticated to generate a TOTP secret.
+Scan the returned `otp_auth_url` in an authenticator app or use the SMS code
+sent to your phone. Confirm the code via `POST /auth/verify-mfa` to enable MFA
+for your account. Subsequent logins require this second step.
+
 ---
 
 ## Development
