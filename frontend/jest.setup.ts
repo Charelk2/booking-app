@@ -45,6 +45,21 @@ class ResizeObserver {
 }
 (window as any).ResizeObserver = window.ResizeObserver || ResizeObserver;
 
+// JSDOM lacks IntersectionObserver; provide a minimal stub
+class IntersectionObserver {
+  private readonly cb: (entries: any[]) => void;
+  constructor(cb: (entries: any[]) => void) {
+    this.cb = cb;
+  }
+  observe() {
+    this.cb([{ isIntersecting: true }]);
+  }
+  unobserve() {}
+  disconnect() {}
+}
+(window as any).IntersectionObserver =
+  window.IntersectionObserver || IntersectionObserver;
+
 // Mock Google Maps components used in tests
 jest.mock('@react-google-maps/api', () => {
   const React = require('react');
