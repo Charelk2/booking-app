@@ -739,7 +739,7 @@ formatCurrency(99.5, 'USD', 'en-US'); // => 'US$99.50'
   with cached dependencies.
 * **WebSocket closes immediately**: Ensure the booking request exists and that
   your authentication token is valid. Invalid tokens or missing requests cause
-  the server to close the connection and log a warning.
+  the server to close the connection with code `4401` and log a warning.
 
 ---
 
