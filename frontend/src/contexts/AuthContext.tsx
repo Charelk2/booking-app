@@ -2,13 +2,26 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@/types';
-import { login as apiLogin, register as apiRegister } from '@/lib/api';
+import {
+  login as apiLogin,
+  register as apiRegister,
+  verifyMfa as apiVerifyMfa,
+} from '@/lib/api';
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string, remember?: boolean) => Promise<void>;
+  login: (
+    email: string,
+    password: string,
+    remember?: boolean,
+  ) => Promise<{ mfaRequired: true; token: string } | void>;
+  verifyMfa: (
+    token: string,
+    code: string,
+    remember?: boolean,
+  ) => Promise<void>;
   register: (data: Partial<User>) => Promise<void>;
   logout: () => void;
 }
@@ -47,6 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) => {
     try {
       const response = await apiLogin(email, password);
+      if (response.data.mfa_required) {
+        return { mfaRequired: true, token: response.data.mfa_token } as const;
+      }
       const { user: userData, access_token } = response.data;
       setUser(userData);
       setToken(access_token);
@@ -58,6 +74,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       altStorage.removeItem('token');
     } catch (error) {
       console.error('Login failed:', error);
+      throw error;
+    }
+  };
+
+  const verifyMfa = async (
+    tokenToVerify: string,
+    code: string,
+    remember = false,
+  ) => {
+    try {
+      const response = await apiVerifyMfa(tokenToVerify, code);
+      const { user: userData, access_token } = response.data;
+      setUser(userData);
+      setToken(access_token);
+      const storage = remember ? localStorage : sessionStorage;
+      const altStorage = remember ? sessionStorage : localStorage;
+      storage.setItem('user', JSON.stringify(userData));
+      storage.setItem('token', access_token);
+      altStorage.removeItem('user');
+      altStorage.removeItem('token');
+    } catch (error) {
+      console.error('MFA verification failed:', error);
       throw error;
     }
   };
@@ -84,7 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, loading, login, verifyMfa, register, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

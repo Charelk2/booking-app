@@ -30,6 +30,7 @@ jest.mock('@/contexts/AuthContext', () => {
     token: null,
     loading: false,
     login: jest.fn(),
+    verifyMfa: jest.fn(),
     register: jest.fn(),
     logout: jest.fn(),
   }));
