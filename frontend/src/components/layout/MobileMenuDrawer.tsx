@@ -97,18 +97,27 @@ export default function MobileMenuDrawer({
                     </Link>
                     {user.user_type === 'artist' && (
                       <Link
-                        href="/dashboard/profile/edit"
-                        onClick={onClose}
-                        className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                      >
-                        Edit Profile
-                      </Link>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        logout();
-                        onClose();
+                    href="/dashboard/profile/edit"
+                    onClick={onClose}
+                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    Edit Profile
+                  </Link>
+                )}
+                {user.user_type === 'artist' && (
+                  <Link
+                    href="/dashboard/quotes"
+                    onClick={onClose}
+                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    Quotes
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    onClose();
                       }}
                       className="block w-full text-left px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     >
