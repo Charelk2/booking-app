@@ -9,6 +9,8 @@ import useIsMobile from '@/hooks/useIsMobile';
 interface Props {
   control: Control<FieldValues>;
   unavailable: string[];
+  /** Show a skeleton calendar while availability loads */
+  loading?: boolean;
   step: number;
   steps: string[];
   onBack: () => void;
@@ -19,6 +21,7 @@ interface Props {
 export default function DateTimeStep({
   control,
   unavailable,
+  loading = false,
   step,
   steps,
   onBack,
@@ -35,37 +38,44 @@ export default function DateTimeStep({
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">When should we perform?</p>
-      <Controller
-        name="date"
-        control={control}
-        render={({ field }) => {
-          const currentValue =
-            field.value && typeof field.value === 'string'
-              ? parseISO(field.value)
-              : field.value;
-          return isMobile ? (
-            <input
-              type="date"
-              className="border p-2 rounded w-full min-h-[44px]"
-              min={format(new Date(), 'yyyy-MM-dd')}
-              name={field.name}
-              ref={field.ref}
-              onBlur={field.onBlur}
-              value={currentValue ? format(currentValue, 'yyyy-MM-dd') : ''}
-              onChange={(e) => field.onChange(e.target.value)}
-            />
-          ) : (
-            <Calendar
-              {...field}
-              value={currentValue}
-              locale="en-US"
-              formatLongDate={formatLongDate}
-              onChange={(date) => field.onChange(date as Date)}
-              tileDisabled={tileDisabled}
-            />
-          );
-        }}
-      />
+      {loading ? (
+        <div
+          data-testid="calendar-skeleton"
+          className="h-72 bg-gray-200 rounded animate-pulse"
+        />
+      ) : (
+        <Controller
+          name="date"
+          control={control}
+          render={({ field }) => {
+            const currentValue =
+              field.value && typeof field.value === 'string'
+                ? parseISO(field.value)
+                : field.value;
+            return isMobile ? (
+              <input
+                type="date"
+                className="border p-2 rounded w-full min-h-[44px]"
+                min={format(new Date(), 'yyyy-MM-dd')}
+                name={field.name}
+                ref={field.ref}
+                onBlur={field.onBlur}
+                value={currentValue ? format(currentValue, 'yyyy-MM-dd') : ''}
+                onChange={(e) => field.onChange(e.target.value)}
+              />
+            ) : (
+              <Calendar
+                {...field}
+                value={currentValue}
+                locale="en-US"
+                formatLongDate={formatLongDate}
+                onChange={(date) => field.onChange(date as Date)}
+                tileDisabled={tileDisabled}
+              />
+            );
+          }}
+        />
+      )}
       <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
         {step > 0 && (
           <button

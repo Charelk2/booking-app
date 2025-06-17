@@ -133,6 +133,28 @@ describe('BookingWizard flow', () => {
     expect((progressButtons[2] as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it('shows a loader while fetching availability', async () => {
+    let resolve: (value: { data: { unavailable_dates: string[] } }) => void;
+    (api.getArtistAvailability as jest.Mock).mockReturnValue(
+      new Promise((res) => {
+        resolve = res;
+      }),
+    );
+    act(() => {
+      root.unmount();
+    });
+    container.innerHTML = '';
+    root = createRoot(container);
+    await act(async () => {
+      root.render(React.createElement(Wrapper));
+    });
+    const skeleton = container.querySelector('[data-testid="calendar-skeleton"]');
+    expect(skeleton).not.toBeNull();
+    act(() => resolve({ data: { unavailable_dates: [] } }));
+    await act(async () => {});
+    expect(container.querySelector('[data-testid="calendar-skeleton"]')).toBeNull();
+  });
+
   it('renders a sticky progress indicator', () => {
     const wrapper = container.querySelector('[aria-label="Progress"]')?.parentElement;
     expect(wrapper?.className).toContain('sticky');

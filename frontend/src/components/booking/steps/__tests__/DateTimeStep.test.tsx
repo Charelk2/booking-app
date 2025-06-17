@@ -21,6 +21,22 @@ function Wrapper() {
   );
 }
 
+function LoadingWrapper() {
+  const { control } = useForm();
+  return (
+    <DateTimeStep
+      control={control as unknown as Control<FieldValues>}
+      unavailable={[]}
+      loading
+      step={0}
+      steps={['one']}
+      onBack={() => {}}
+      onSaveDraft={() => {}}
+      onNext={() => {}}
+    />
+  );
+}
+
 describe('DateTimeStep mobile input', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
@@ -52,5 +68,13 @@ describe('DateTimeStep mobile input', () => {
     expect(input).not.toBeNull();
     expect(input.value).toBe('2025-06-20');
     expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('renders a skeleton when loading', async () => {
+    await act(async () => {
+      root.render(React.createElement(LoadingWrapper));
+    });
+    const skeleton = container.querySelector('[data-testid="calendar-skeleton"]');
+    expect(skeleton).not.toBeNull();
   });
 });
