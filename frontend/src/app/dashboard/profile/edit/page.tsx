@@ -429,6 +429,7 @@ export default function EditArtistProfilePage(): JSX.Element {
                     alt="Profile Preview"
                     width={128}
                     height={128}
+                    loading="lazy"
                     className="w-32 h-32 rounded-full object-cover border-2 border-gray-300 shadow-sm"
                   />
                 ) : (
@@ -488,6 +489,7 @@ export default function EditArtistProfilePage(): JSX.Element {
                         onLoad={onImageLoad}
                         width={300}
                         height={300}
+                        loading="lazy"
                         style={{ maxHeight: '300px', objectFit: 'contain' }}
                       />
                     </ReactCrop>
@@ -516,6 +518,7 @@ export default function EditArtistProfilePage(): JSX.Element {
                     alt="Cover Photo Preview"
                     width={400}
                     height={192}
+                    loading="lazy"
                     className="w-full h-48 object-cover rounded-md border-2 border-gray-300 shadow-sm"
                   />
                 ) : (
