@@ -347,6 +347,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               alt="avatar"
               width={32}
               height={32}
+              loading="lazy"
               className="h-8 w-8 rounded-full object-cover"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
@@ -563,6 +564,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   alt="preview"
                   width={40}
                   height={40}
+                  loading="lazy"
                   className="w-10 h-10 object-cover rounded"
                 />
               ) : (
