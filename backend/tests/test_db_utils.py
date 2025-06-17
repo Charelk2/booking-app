@@ -129,6 +129,8 @@ def test_booking_simple_columns():
     assert "date" in column_names
     assert "location" in column_names
     assert "payment_status" in column_names
+    assert "deposit_amount" in column_names
+    assert "deposit_paid" in column_names
 
 
 def test_mfa_columns():

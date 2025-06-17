@@ -98,6 +98,8 @@ def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
         confirmed=True,
         # No charge is triggered yet; payment will be collected later
         payment_status="pending",
+        deposit_amount=0,
+        deposit_paid=False,
     )
     db.add(booking)
     db.commit()

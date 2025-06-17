@@ -1,4 +1,12 @@
-from sqlalchemy import Column, Integer, ForeignKey, Boolean, DateTime, String
+from sqlalchemy import (
+    Column,
+    Integer,
+    ForeignKey,
+    Boolean,
+    DateTime,
+    String,
+    Numeric,
+)
 from sqlalchemy.orm import relationship
 
 from .base import BaseModel
@@ -15,6 +23,8 @@ class BookingSimple(BaseModel):
     date = Column(DateTime, nullable=True)
     location = Column(String, nullable=True)
     payment_status = Column(String, nullable=False, default="pending")
+    deposit_amount = Column(Numeric(10, 2), nullable=True, default=0)
+    deposit_paid = Column(Boolean, nullable=False, default=False)
 
     quote = relationship("QuoteV2")
     artist = relationship("User", foreign_keys=[artist_id])
