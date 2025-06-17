@@ -504,6 +504,32 @@ describe('DashboardPage accepted quote label', () => {
   });
 });
 
+describe('DashboardPage quotes link', () => {
+  it('shows link to artist quotes', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
+    (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
+    (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [] });
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(<DashboardPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    const link = container.querySelector('a[href="/dashboard/quotes"]');
+    expect(link).toBeTruthy();
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+});
+
 describe('DashboardPage request updates', () => {
   it('updates request status when form submitted', async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });

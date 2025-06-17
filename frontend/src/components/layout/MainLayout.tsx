@@ -109,6 +109,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                               )}
                             </Menu.Item>
                           )}
+                          {user && user.user_type === 'artist' && (
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  href="/dashboard/quotes"
+                                  className={classNames(
+                                    active ? 'bg-gray-100' : '',
+                                    'block px-4 py-2 text-sm text-gray-700'
+                                  )}
+                                >
+                                  Quotes
+                                </Link>
+                              )}
+                            </Menu.Item>
+                          )}
                           <Menu.Item>
                             {({ active }) => (
                               <button
