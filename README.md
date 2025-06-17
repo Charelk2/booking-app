@@ -12,6 +12,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Minor fix: the artists listing now gracefully handles incomplete user data from the API.
 - Bookings now track `payment_status` in `bookings_simple`.
 - Booking wizard includes a required **Guests** step.
+- Date picker and quote calculator show skeleton loaders while data fetches.
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
