@@ -246,11 +246,18 @@ def read_all_artist_profiles(
     category: Optional[ServiceType] = Query(None),
     location: Optional[str] = Query(None),
     sort: Optional[str] = Query(None, pattern="^(top_rated|most_booked|newest)$"),
+    page: int = Query(1, ge=1),
 ):
     """Return a list of all artist profiles with optional filters."""
 
-    cached = get_cached_artist_list()
-    if not category and not location and not sort and cached is not None:
+    cache_category = category.value if isinstance(category, ServiceType) else category
+    cached = get_cached_artist_list(
+        page=page,
+        category=cache_category,
+        location=location,
+        sort=sort,
+    )
+    if cached is not None:
         return [ArtistProfileResponse.model_validate(item) for item in cached]
 
     rating_subq = (
@@ -305,11 +312,16 @@ def read_all_artist_profiles(
         profile.is_available = len(availability["unavailable_dates"]) == 0
         profiles.append(profile)
 
-    if not category and not location and not sort:
-        cache_artist_list([
+    cache_artist_list(
+        [
             {**profile.model_dump(), "user_id": profile.user_id}
             for profile in profiles
-        ])
+        ],
+        page=page,
+        category=cache_category,
+        location=location,
+        sort=sort,
+    )
 
     return profiles
 
