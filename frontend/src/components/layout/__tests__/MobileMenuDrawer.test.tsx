@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import MobileMenuDrawer from '../MobileMenuDrawer';
+import type { User } from '@/types';
 
 const nav = [{ name: 'Home', href: '/' }, { name: 'Artists', href: '/artists' }];
 
@@ -50,7 +51,7 @@ describe('MobileMenuDrawer', () => {
           open: true,
           onClose: () => {},
           navigation: nav,
-          user: { user_type: 'artist' } as any,
+          user: { user_type: 'artist' } as User,
           logout: () => {},
           pathname: '/',
         }),
@@ -61,5 +62,25 @@ describe('MobileMenuDrawer', () => {
     });
     const body = document.body.textContent || '';
     expect(body).toContain('Quotes');
+  });
+
+  it('shows My Bookings link for clients', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose: () => {},
+          navigation: nav,
+          user: { user_type: 'client' } as User,
+          logout: () => {},
+          pathname: '/',
+        }),
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const body = document.body.textContent || '';
+    expect(body).toContain('My Bookings');
   });
 });
