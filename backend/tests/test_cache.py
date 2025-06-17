@@ -9,8 +9,21 @@ def test_cache_artist_list(monkeypatch):
     monkeypatch.setattr(redis_cache, "get_redis_client", lambda: fake)
 
     data = [{"id": 1, "business_name": "Test"}]
-    redis_cache.cache_artist_list(data, expire=10)
-    assert redis_cache.get_cached_artist_list() == data
+    redis_cache.cache_artist_list(data, page=1, category=None, location=None, sort=None, expire=10)
+    assert redis_cache.get_cached_artist_list(page=1) == data
+
+
+def test_cache_artist_list_page_specific(monkeypatch):
+    fake = fakeredis.FakeStrictRedis()
+    monkeypatch.setattr(redis_cache, "get_redis_client", lambda: fake)
+
+    data = [{"id": 2, "business_name": "Another"}]
+    redis_cache.cache_artist_list(data, page=2, category="A", location="NY", sort="newest")
+    assert (
+        redis_cache.get_cached_artist_list(page=2, category="A", location="NY", sort="newest")
+        == data
+    )
+    assert redis_cache.get_cached_artist_list(page=1, category="A", location="NY", sort="newest") is None
 
 
 from types import SimpleNamespace
@@ -102,10 +115,11 @@ def test_read_all_artist_profiles_uses_cache(monkeypatch):
     db.add(profile)
     db.commit()
 
-    first = api_artist.read_all_artist_profiles(db, None, None, None)
+    first = api_artist.read_all_artist_profiles(db=db, category=None, location=None, sort=None, page=1)
     assert len(first) == 1
 
-    second = api_artist.read_all_artist_profiles(db, None, None, None)
+    # Use failing DB to ensure cache is consulted on second call
+    second = api_artist.read_all_artist_profiles(db=FailingDB([]), category=None, location=None, sort=None, page=1)
     assert second == first
 
 
@@ -129,5 +143,5 @@ def test_fallback_when_redis_unavailable(monkeypatch):
     db.add(profile)
     db.commit()
 
-    result = api_artist.read_all_artist_profiles(db, None, None, None)
+    result = api_artist.read_all_artist_profiles(db=db, category=None, location=None, sort=None, page=1)
     assert len(result) == 1
