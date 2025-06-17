@@ -211,7 +211,13 @@ export const getBookingDetails = (bookingId: number) =>
 
 // update status: PATCH /api/v1/bookings/{booking_id}/status
 export const updateBookingStatus = (id: number, status: Booking['status']) =>
-  api.patch(`${API_V1}/bookings/${id}/status`, { status });
+  api.patch<Booking>(`${API_V1}/bookings/${id}/status`, { status });
+
+// download a confirmed booking's ICS file
+export const downloadBookingIcs = (id: number) =>
+  api.get<Blob>(`${API_V1}/bookings/${id}/calendar.ics`, {
+    responseType: 'blob',
+  });
 
 // ─── REVIEWS ───────────────────────────────────────────────────────────────────
 
