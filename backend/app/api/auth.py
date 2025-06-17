@@ -15,7 +15,14 @@ from ..models.user import User, UserType
 from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
 from ..schemas.user import UserCreate, UserResponse, TokenData, MFAVerify
 from ..utils.auth import get_password_hash, verify_password
-import pyotp
+
+try:
+    import pyotp
+except ModuleNotFoundError as exc:
+    raise RuntimeError(
+        "pyotp is required for multi-factor authentication. "
+        "Run 'pip install -r backend/requirements.txt' to install dependencies."
+    ) from exc
 
 logger = logging.getLogger(__name__)
 
