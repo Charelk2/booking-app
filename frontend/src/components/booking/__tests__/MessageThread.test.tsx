@@ -626,6 +626,80 @@ describe('MessageThread component', () => {
     });
   });
 
+  it('shows receipt link after paying deposit', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Quote',
+          message_type: 'quote',
+          quote_id: 10,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+    (api.getQuoteV2 as jest.Mock).mockResolvedValue({
+      data: {
+        id: 10,
+        status: 'pending',
+        services: [],
+        sound_fee: 0,
+        travel_fee: 0,
+        subtotal: 0,
+        total: 100,
+        artist_id: 2,
+        client_id: 1,
+        booking_request_id: 1,
+        created_at: '',
+        updated_at: '',
+      },
+    });
+    (api.acceptQuoteV2 as jest.Mock).mockResolvedValue({ data: {} });
+    (api.createPayment as jest.Mock).mockResolvedValue({
+      data: { payment_id: 'pay_2' },
+    });
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const acceptBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Accept',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const payBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Pay',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      payBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const banner = container.querySelector('[data-testid="payment-status-banner"]');
+    expect(banner?.textContent).toMatch(/Deposit.*50/);
+    const link = document.querySelector('[data-testid="booking-receipt-link"]');
+    expect(link).not.toBeNull();
+  });
+
   it('shows an alert when the WebSocket fails', async () => {
     await act(async () => {
       root.render(<MessageThread bookingRequestId={1} />);
