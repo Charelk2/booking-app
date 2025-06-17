@@ -1,11 +1,13 @@
 import json
+import json
 import logging
 import redis
-from typing import List
+from typing import List, Optional
+
 from app.core.config import settings
 from .json_utils import dumps
 
-_redis_client = None
+_redis_client: Optional[redis.Redis] = None
 
 
 def get_redis_client() -> redis.Redis:
@@ -15,13 +17,29 @@ def get_redis_client() -> redis.Redis:
     return _redis_client
 
 
-ARTIST_LIST_KEY = "artist_profiles:list"
+ARTIST_LIST_KEY_PREFIX = "artist_profiles:list"
 
 
-def get_cached_artist_list() -> List[dict] | None:
+def _make_key(page: int, category: Optional[str], location: Optional[str], sort: Optional[str]) -> str:
+    """Return a Redis key for the given parameter combination."""
+    cat = category or ""
+    loc = location or ""
+    srt = sort or ""
+    return f"{ARTIST_LIST_KEY_PREFIX}:{page}:{cat}:{loc}:{srt}"
+
+
+def get_cached_artist_list(
+    page: int = 1,
+    *,
+    category: Optional[str] = None,
+    location: Optional[str] = None,
+    sort: Optional[str] = None,
+) -> List[dict] | None:
+    """Retrieve a cached artist list for the given parameters if available."""
     client = get_redis_client()
+    key = _make_key(page, category, location, sort)
     try:
-        data = client.get(ARTIST_LIST_KEY)
+        data = client.get(key)
     except redis.exceptions.ConnectionError as exc:
         logging.warning("Redis unavailable: %s", exc)
         return None
@@ -30,11 +48,20 @@ def get_cached_artist_list() -> List[dict] | None:
     return None
 
 
-def cache_artist_list(data: List[dict], expire: int = 60) -> None:
+def cache_artist_list(
+    data: List[dict],
+    page: int = 1,
+    *,
+    category: Optional[str] = None,
+    location: Optional[str] = None,
+    sort: Optional[str] = None,
+    expire: int = 60,
+) -> None:
+    """Cache the artist list for the given parameter combination."""
     client = get_redis_client()
+    key = _make_key(page, category, location, sort)
     try:
-        client.setex(ARTIST_LIST_KEY, expire, dumps(data))
+        client.setex(key, expire, dumps(data))
     except redis.exceptions.ConnectionError as exc:
         logging.warning("Could not cache artist list: %s", exc)
-        return None
     return None
