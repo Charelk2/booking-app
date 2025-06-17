@@ -7,6 +7,9 @@ import api, {
   updateQuoteAsArtist,
   updateQuoteAsClient,
   confirmQuoteBooking,
+  createReviewForBooking,
+  getReview,
+  getServiceReviews,
 } from '../api';
 import type { AxiosRequestConfig } from 'axios';
 
@@ -183,6 +186,38 @@ describe('confirmQuoteBooking', () => {
       .mockResolvedValue({ data: {} } as unknown as { data: unknown });
     await confirmQuoteBooking(3);
     expect(spy).toHaveBeenCalledWith('/api/v1/quotes/3/confirm-booking', {});
+    spy.mockRestore();
+  });
+});
+
+describe('review helpers', () => {
+  it('creates a booking review', async () => {
+    const spy = jest
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await createReviewForBooking(2, { rating: 5 });
+    expect(spy).toHaveBeenCalledWith(
+      '/api/v1/reviews/bookings/2/reviews',
+      { rating: 5 },
+    );
+    spy.mockRestore();
+  });
+
+  it('fetches a single review', async () => {
+    const spy = jest
+      .spyOn(api, 'get')
+      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await getReview(5);
+    expect(spy).toHaveBeenCalledWith('/api/v1/reviews/5');
+    spy.mockRestore();
+  });
+
+  it('gets service reviews', async () => {
+    const spy = jest
+      .spyOn(api, 'get')
+      .mockResolvedValue({ data: [] } as unknown as { data: unknown });
+    await getServiceReviews(7);
+    expect(spy).toHaveBeenCalledWith('/api/v1/services/7/reviews');
     spy.mockRestore();
   });
 });
