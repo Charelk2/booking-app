@@ -44,7 +44,7 @@ export default function VenueStep({
                 <button
                   type="button"
                   onClick={() => setSheetOpen(true)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md text-left"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md text-left min-h-[44px]"
                   ref={buttonRef}
                 >
                   {field.value
@@ -60,7 +60,7 @@ export default function VenueStep({
                   <fieldset className="p-4 space-y-2">
                     <legend className="font-medium">Venue Type</legend>
                     {options.map((opt, idx) => (
-                      <label key={opt.value} className="flex items-center space-x-2">
+                      <label key={opt.value} className="flex items-center space-x-2 py-2">
                         <input
                           ref={idx === 0 ? firstRadioRef : undefined}
                           type="radio"
@@ -82,7 +82,7 @@ export default function VenueStep({
               <fieldset className="space-y-2">
                 <legend className="font-medium">Venue Type</legend>
                 {options.map((opt) => (
-                  <label key={opt.value} className="flex items-center space-x-2">
+                  <label key={opt.value} className="flex items-center space-x-2 py-2">
                     <input
                       type="radio"
                       name={field.name}
@@ -103,7 +103,7 @@ export default function VenueStep({
           <button
             type="button"
             onClick={onBack}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Back
           </button>
@@ -113,14 +113,14 @@ export default function VenueStep({
           <button
             type="button"
             onClick={onSaveDraft}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Save Draft
           </button>
           <button
             type="button"
             onClick={onNext}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition min-h-[44px]"
           >
             {step === steps.length - 1 ? 'Submit Request' : 'Next'}
           </button>

@@ -46,7 +46,7 @@ export default function DateTimeStep({
           return isMobile ? (
             <input
               type="date"
-              className="border p-2 rounded w-full"
+              className="border p-2 rounded w-full min-h-[44px]"
               min={format(new Date(), 'yyyy-MM-dd')}
               name={field.name}
               ref={field.ref}
@@ -71,7 +71,7 @@ export default function DateTimeStep({
           <button
             type="button"
             onClick={onBack}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Back
           </button>
@@ -81,14 +81,14 @@ export default function DateTimeStep({
           <button
             type="button"
             onClick={onSaveDraft}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Save Draft
           </button>
           <button
             type="button"
             onClick={onNext}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition min-h-[44px]"
           >
             {step === steps.length - 1 ? 'Submit Request' : 'Next'}
           </button>

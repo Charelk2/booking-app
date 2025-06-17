@@ -26,7 +26,7 @@ export default function SoundStep({
         render={({ field }) => (
           <fieldset className="space-y-2">
             <legend className="font-medium">Is sound needed?</legend>
-            <label className="flex items-center space-x-2">
+            <label className="flex items-center space-x-2 py-2">
               <input
                 type="radio"
                 name={field.name}
@@ -36,7 +36,7 @@ export default function SoundStep({
               />
               <span>Yes</span>
             </label>
-            <label className="flex items-center space-x-2">
+            <label className="flex items-center space-x-2 py-2">
               <input
                 type="radio"
                 name={field.name}
@@ -54,7 +54,7 @@ export default function SoundStep({
           <button
             type="button"
             onClick={onBack}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Back
           </button>
@@ -64,14 +64,14 @@ export default function SoundStep({
           <button
             type="button"
             onClick={onSaveDraft}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Save Draft
           </button>
           <button
             type="button"
             onClick={onNext}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition min-h-[44px]"
           >
             {step === steps.length - 1 ? 'Submit Request' : 'Next'}
           </button>

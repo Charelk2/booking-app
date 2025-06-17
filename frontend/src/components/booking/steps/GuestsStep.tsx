@@ -32,7 +32,7 @@ export default function GuestsStep({
           <input
             type="number"
             min={1}
-            className="border p-3 rounded w-full text-lg"
+            className="border p-3 rounded w-full text-lg min-h-[44px]"
             {...field}
             autoFocus={!isMobile}
           />
@@ -43,7 +43,7 @@ export default function GuestsStep({
           <button
             type="button"
             onClick={onBack}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Back
           </button>
@@ -53,14 +53,14 @@ export default function GuestsStep({
           <button
             type="button"
             onClick={onSaveDraft}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition"
+            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
           >
             Save Draft
           </button>
           <button
             type="button"
             onClick={onNext}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition min-h-[44px]"
           >
             {step === steps.length - 1 ? 'Submit Request' : 'Next'}
           </button>
