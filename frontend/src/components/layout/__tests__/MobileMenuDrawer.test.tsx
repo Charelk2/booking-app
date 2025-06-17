@@ -42,4 +42,24 @@ describe('MobileMenuDrawer', () => {
     expect(bodyText).toContain('Home');
     expect(bodyText).toContain('Artists');
   });
+
+  it('shows Quotes link for artists', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose: () => {},
+          navigation: nav,
+          user: { user_type: 'artist' } as any,
+          logout: () => {},
+          pathname: '/',
+        }),
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const body = document.body.textContent || '';
+    expect(body).toContain('Quotes');
+  });
 });
