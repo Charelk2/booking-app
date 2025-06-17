@@ -102,6 +102,11 @@ export const verifyMfa = (token: string, code: string) =>
   api.post('/auth/verify-mfa', { token, code });
 
 export const setupMfa = () => api.post('/auth/setup-mfa');
+export const confirmMfa = (code: string) =>
+  api.post('/auth/confirm-mfa', { code });
+export const generateRecoveryCodes = () => api.post('/auth/recovery-codes');
+export const disableMfa = (code: string) =>
+  api.post('/auth/disable-mfa', { code });
 
 // ─── All other resources live under /api/v1 ────────────────────────────────────
 
