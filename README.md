@@ -17,6 +17,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Client dashboards now include a bookings list with upcoming and past filters via `/api/v1/bookings/my-bookings?status=`.
 - Artists can mark bookings completed or cancelled and download confirmed bookings as calendar (.ics) files.
 - Clients can leave a star rating and comment once a booking is marked completed. Service detail pages now display these reviews.
+- After accepting a quote, clients see quick links in the chat to view that booking and jump to **My Bookings**.
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
