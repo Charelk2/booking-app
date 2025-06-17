@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import QuoteCard from '@/components/booking/QuoteCard';
-import { getQuoteV2 } from '@/lib/api';
+import { getQuoteV2, updateQuoteAsClient } from '@/lib/api';
 import { QuoteV2 } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -14,6 +14,7 @@ export default function QuoteDetailPage() {
   const { user } = useAuth();
   const [quote, setQuote] = useState<QuoteV2 | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -63,6 +64,21 @@ export default function QuoteDetailPage() {
     );
   }
 
+  const handleAction = async (status: 'accepted_by_client' | 'rejected_by_client') => {
+    if (!quote) return;
+    setUpdating(true);
+    try {
+      await updateQuoteAsClient(quote.id, { status });
+      const res = await getQuoteV2(quote.id);
+      setQuote(res.data);
+    } catch (err) {
+      console.error('Failed to update quote', err);
+      setError('Failed to update quote');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="max-w-md mx-auto p-4">
@@ -70,10 +86,13 @@ export default function QuoteDetailPage() {
         <QuoteCard
           quote={quote}
           isClient={user.user_type === 'client'}
-          onAccept={() => {}}
-          onDecline={() => {}}
+          onAccept={() => handleAction('accepted_by_client')}
+          onDecline={() => handleAction('rejected_by_client')}
           bookingConfirmed={false}
         />
+        {updating && (
+          <p className="text-sm mt-2" aria-live="polite">Updating...</p>
+        )}
       </div>
     </MainLayout>
   );

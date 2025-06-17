@@ -23,6 +23,7 @@ import {
   createQuoteV2,
   getQuoteV2,
   acceptQuoteV2,
+  updateQuoteAsClient,
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '../ui/Button';
@@ -264,8 +265,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         const q = await getQuoteV2(quoteId);
         setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
       } catch (err) {
-        console.error('Failed to accept quote', err);
-        setErrorMsg((err as Error).message);
+        console.warn('Failed to accept quote via V2, trying legacy endpoint', err);
+        try {
+          await updateQuoteAsClient(quoteId, { status: 'accepted_by_client' });
+          const q = await getQuoteV2(quoteId);
+          setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
+        } catch (legacyErr) {
+          console.error('Failed to accept quote', legacyErr);
+          setErrorMsg((legacyErr as Error).message);
+        }
       }
     },
     [],
@@ -274,8 +282,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const handleDeclineQuote = useCallback(
     async (quoteId: number) => {
       try {
+        await updateQuoteAsClient(quoteId, { status: 'rejected_by_client' });
         const q = await getQuoteV2(quoteId);
-        setQuotes((prev) => ({ ...prev, [quoteId]: { ...q.data, status: 'rejected' } }));
+        setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
       } catch (err) {
         console.error('Failed to decline quote', err);
       }
