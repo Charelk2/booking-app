@@ -77,6 +77,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [depositAmount, setDepositAmount] = useState<number | undefined>(
+    undefined,
+  );
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -262,14 +265,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       try {
         await acceptQuoteV2(quoteId);
         setBookingConfirmed(true);
-        setShowPaymentModal(true);
         const q = await getQuoteV2(quoteId);
+        setDepositAmount(q.data.total * 0.5);
+        setShowPaymentModal(true);
         setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
       } catch (err) {
         console.warn('Failed to accept quote via V2, trying legacy endpoint', err);
         try {
           await updateQuoteAsClient(quoteId, { status: 'accepted_by_client' });
           const q = await getQuoteV2(quoteId);
+          setDepositAmount(q.data.total * 0.5);
+          setShowPaymentModal(true);
           setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
         } catch (legacyErr) {
           console.error('Failed to accept quote', legacyErr);
@@ -707,8 +713,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             onClose={() => {
               setShowPaymentModal(false);
               setPaymentError(null);
+              setDepositAmount(undefined);
             }}
             bookingRequestId={bookingRequestId}
+            depositAmount={depositAmount}
             onSuccess={(status) => {
               setPaymentStatus(status);
               setShowPaymentModal(false);
