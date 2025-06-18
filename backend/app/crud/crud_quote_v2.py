@@ -142,6 +142,12 @@ def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
     client = db_quote.client or db.query(models.User).get(db_quote.client_id)
     notify_quote_accepted(db, artist, db_quote.id, db_quote.booking_request_id)
     notify_new_booking(db, client, booking.id)
-    notify_deposit_due(db, client, booking.id)
+    notify_deposit_due(
+        db,
+        client,
+        booking.id,
+        float(booking.deposit_amount or 0),
+        booking.deposit_due_by,
+    )
 
     return booking

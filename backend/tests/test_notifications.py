@@ -1,6 +1,6 @@
-import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 
 from app.models import (
     User,
@@ -399,7 +399,9 @@ def test_status_update_creates_notification_for_client():
     db.refresh(br)
 
     update = BookingRequestUpdateByArtist(status=BookingRequestStatus.REQUEST_DECLINED)
-    api_booking_request.update_booking_request_by_artist(br.id, update, db, current_artist=artist)
+    api_booking_request.update_booking_request_by_artist(
+        br.id, update, db, current_artist=artist
+    )
 
     notifs = crud_notification.get_notifications_for_user(db, client.id)
     assert len(notifs) == 1
@@ -437,7 +439,9 @@ def test_status_update_creates_notification_for_artist():
     db.refresh(br)
 
     update = BookingRequestUpdateByClient(status=BookingRequestStatus.REQUEST_WITHDRAWN)
-    api_booking_request.update_booking_request_by_client(br.id, update, db, current_user=client)
+    api_booking_request.update_booking_request_by_client(
+        br.id, update, db, current_user=client
+    )
 
     notifs = crud_notification.get_notifications_for_user(db, artist.id)
     assert len(notifs) == 1
@@ -446,18 +450,19 @@ def test_status_update_creates_notification_for_artist():
 
 def test_format_notification_message_new_types():
     msg_deposit = format_notification_message(
-        NotificationType.DEPOSIT_DUE, booking_id=42
+        NotificationType.DEPOSIT_DUE,
+        booking_id=42,
+        deposit_amount=50.0,
+        deposit_due_by=datetime(2025, 1, 1),
     )
     msg_review = format_notification_message(
         NotificationType.REVIEW_REQUEST, booking_id=42
     )
-    msg_quote = format_notification_message(
-        NotificationType.QUOTE_ACCEPTED, quote_id=7
-    )
+    msg_quote = format_notification_message(NotificationType.QUOTE_ACCEPTED, quote_id=7)
     msg_booking = format_notification_message(
         NotificationType.NEW_BOOKING, booking_id=8
     )
-    assert msg_deposit == "Deposit payment due for booking #42"
+    assert msg_deposit == "Deposit of 50.00 due by 2025-01-01 for booking #42"
     assert msg_review == "Please review your booking #42"
     assert msg_quote == "Quote #7 accepted"
     assert msg_booking == "New booking #8"
@@ -547,4 +552,3 @@ def test_personalized_video_notifications_suppressed_until_final():
     notifs_after = crud_notification.get_notifications_for_user(db, artist.id)
     assert len(notifs_after) == 1
     assert notifs_after[0].type == NotificationType.NEW_BOOKING_REQUEST
-
