@@ -65,7 +65,9 @@ def get_quote(db: Session, quote_id: int) -> Optional[models.QuoteV2]:
     return quote
 
 
-def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
+def accept_quote(
+    db: Session, quote_id: int, service_id: int | None = None
+) -> models.BookingSimple:
     """Accept a pending quote and create a booking record.
 
     This sets the quote status to ``ACCEPTED`` and creates a ``BookingSimple``
@@ -82,11 +84,7 @@ def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
         raise ValueError("Quote cannot be accepted")
 
     booking_request = db_quote.booking_request
-    if (
-        not booking_request
-        or not booking_request.service_id
-        or not booking_request.proposed_datetime_1
-    ):
+    if not booking_request or not booking_request.proposed_datetime_1:
         logger.error(
             "Booking request %s missing service_id or proposed_datetime_1 when accepting quote %s; artist_id=%s client_id=%s",
             getattr(booking_request, "id", None),
@@ -99,6 +97,39 @@ def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
             {"booking_request_id": "invalid"},
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
+
+    if not booking_request.service_id:
+        if service_id is None:
+            logger.error(
+                "Booking request %s missing service_id when accepting quote %s and no service_id provided",
+                booking_request.id,
+                quote_id,
+            )
+            raise error_response(
+                "Booking request missing service_id",
+                {"service_id": "required"},
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        service = (
+            db.query(models.Service)
+            .filter(models.Service.id == service_id)
+            .first()
+        )
+        if not service or service.artist_id != db_quote.artist_id:
+            logger.error(
+                "Invalid service_id %s for quote %s and artist %s",
+                service_id,
+                quote_id,
+                db_quote.artist_id,
+            )
+            raise error_response(
+                "Invalid service_id",
+                {"service_id": "invalid"},
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        booking_request.service_id = service_id
+        db.commit()
 
     db_quote.status = models.QuoteStatusV2.ACCEPTED
 

@@ -479,6 +479,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
   `booking_request` set to `null` to prevent serialization cycles.
 * Accepting a Quote V2 now also creates a formal booking visible on the artist dashboard.
 * Accepted quotes now include a `booking_id` when retrieved via `GET /api/v1/quotes/{id}` so clients can load booking details.
+* `POST /api/v1/quotes/{id}/accept` accepts an optional `service_id` query
+  parameter when the related booking request was created without one.
 * Quote V2 error handling logs the acting user and quote details and returns structured responses for easier debugging.
 * Legacy quotes can still be accepted or rejected via `PUT /api/v1/quotes/{id}/client` when the newer `/accept` route is unavailable.
 * Artists can save **Quote Templates** via `/api/v1/quote-templates` and apply them when composing a quote.

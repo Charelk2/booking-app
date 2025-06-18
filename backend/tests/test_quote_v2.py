@@ -193,7 +193,7 @@ def test_read_quote_not_found():
 def test_accept_quote_logs_db_error(monkeypatch, caplog):
     db = setup_db()
 
-    def fail_accept(*_):
+    def fail_accept(*_, **__):
         raise SQLAlchemyError("db failure")
 
     monkeypatch.setattr(api_quote_v2.crud_quote_v2, "accept_quote", fail_accept)
@@ -309,7 +309,7 @@ def test_create_quote_error_logs_and_response(monkeypatch, caplog):
 def test_accept_quote_value_error_logs(monkeypatch, caplog):
     db = setup_db()
 
-    def fail_accept(*_):
+    def fail_accept(*_, **__):
         raise ValueError("nope")
 
     monkeypatch.setattr(api_quote_v2.crud_quote_v2, "accept_quote", fail_accept)
@@ -519,3 +519,71 @@ def test_accept_quote_new_booking_notification_link():
     notifs = crud_notification.get_notifications_for_user(db, client.id)
     new_booking = next(n for n in notifs if n.type == NotificationType.NEW_BOOKING)
     assert new_booking.link == f"/dashboard/client/bookings/{booking.id}"
+
+
+def test_accept_quote_supplies_missing_service_id():
+    db = setup_db()
+    artist = User(
+        email="artist7@test.com",
+        password="x",
+        first_name="A",
+        last_name="R",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="client7@test.com",
+        password="x",
+        first_name="C",
+        last_name="L",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    service = Service(
+        artist_id=artist.id,
+        title="Show",
+        description="test",
+        price=Decimal("120"),
+        currency="ZAR",
+        duration_minutes=60,
+        service_type="Live Performance",
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    from datetime import datetime
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        proposed_datetime_1=datetime(2034, 1, 1, 20, 0, 0),
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    quote_in = QuoteCreate(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=client.id,
+        services=[ServiceItem(description="Performance", price=Decimal("120"))],
+        sound_fee=Decimal("0"),
+        travel_fee=Decimal("0"),
+    )
+    quote = api_quote_v2.create_quote(quote_in, db)
+    booking = api_quote_v2.accept_quote(quote.id, db, service_id=service.id)
+
+    db.refresh(br)
+    assert br.service_id == service.id
+
+    from app.models import Booking
+
+    db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
+    assert db_booking is not None
+    assert db_booking.service_id == service.id
+    assert booking.id == db_booking.id
