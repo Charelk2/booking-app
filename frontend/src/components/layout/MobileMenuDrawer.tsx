@@ -62,7 +62,7 @@ export default function MobileMenuDrawer({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
+                  className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   <span className="sr-only">Close menu</span>
                   <XMarkIcon className="h-6 w-6" aria-hidden="true" />
