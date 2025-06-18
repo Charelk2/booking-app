@@ -15,6 +15,8 @@ const baseNavigation = [
   { name: 'Home', href: '/' },
   { name: 'Artists', href: '/artists' },
   { name: 'Services', href: '/services' },
+  { name: 'FAQ', href: '/faq' },
+  { name: 'Contact', href: '/contact' },
 ];
 
 function classNames(...classes: string[]) {
