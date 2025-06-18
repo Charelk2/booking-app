@@ -175,6 +175,7 @@ export interface QuoteV2Create {
 
 export interface QuoteV2 extends QuoteV2Create {
   id: number;
+  booking_id?: number | null;
   subtotal: number;
   total: number;
   status: 'pending' | 'accepted' | 'rejected' | 'expired';
