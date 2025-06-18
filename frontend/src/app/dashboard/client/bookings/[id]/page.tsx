@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import PaymentModal from '@/components/booking/PaymentModal';
@@ -13,6 +13,8 @@ import { formatCurrency } from '@/lib/utils';
 
 export default function BookingDetailsPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const pay = searchParams.get('pay');
   const id = Number(params.id);
 
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -26,6 +28,9 @@ export default function BookingDetailsPage() {
       try {
         const res = await getBookingDetails(id);
         setBooking(res.data);
+        if (pay === '1' && res.data.payment_status === 'pending') {
+          setShowPayment(true);
+        }
       } catch (err) {
         console.error('Failed to load booking', err);
         setError('Failed to load booking');
@@ -34,7 +39,7 @@ export default function BookingDetailsPage() {
       }
     };
     fetchBooking();
-  }, [id]);
+  }, [id, pay]);
 
   const handleDownload = useCallback(async () => {
     if (!booking) return;
