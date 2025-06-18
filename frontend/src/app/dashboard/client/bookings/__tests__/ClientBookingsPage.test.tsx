@@ -263,4 +263,51 @@ describe('ClientBookingsPage', () => {
     });
     div.remove();
   });
+
+  it('shows alert when there are pending deposits', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({
+      user: { id: 1, user_type: 'client', email: 'c@example.com', first_name: 'C' },
+    });
+    (getMyClientBookings as jest.Mock)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: 1,
+            artist_id: 2,
+            client_id: 1,
+            service_id: 4,
+            start_time: new Date('2023-01-01').toISOString(),
+            end_time: new Date('2023-01-01').toISOString(),
+            status: 'confirmed',
+            total_price: 100,
+            notes: '',
+            deposit_amount: 50,
+            payment_status: 'pending',
+            service: { title: 'Gig' },
+            client: { id: 1 },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ data: [] });
+
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+
+    await act(async () => {
+      root.render(<ClientBookingsPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    const alert = div.querySelector('[data-testid="pending-payment-alert"]');
+    expect(alert).not.toBeNull();
+    const link = alert?.querySelector('a');
+    expect(link?.getAttribute('href')).toBe('/dashboard/client/bookings/1');
+
+    act(() => {
+      root.unmount();
+    });
+    div.remove();
+  });
 });

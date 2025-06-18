@@ -10,6 +10,7 @@ import PaymentModal from '@/components/booking/PaymentModal';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 import { HelpPrompt } from '@/components/ui';
 
 interface BookingWithReview extends Booking {
@@ -139,6 +140,7 @@ export default function ClientBookingsPage() {
     useState<number | null>(null);
   const [paymentDeposit, setPaymentDeposit] = useState<number | undefined>();
   const [paymentBookingId, setPaymentBookingId] = useState<number | null>(null);
+  const [showPendingAlert, setShowPendingAlert] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -192,6 +194,16 @@ export default function ClientBookingsPage() {
     );
   };
 
+  const pendingBookings = [...upcoming, ...past].filter(
+    (b) => b.payment_status === 'pending',
+  );
+  const oldestPending = pendingBookings
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+    )[0];
+
   if (!user) {
     return (
       <MainLayout>
@@ -219,6 +231,34 @@ export default function ClientBookingsPage() {
   return (
     <MainLayout>
       <div className="max-w-3xl mx-auto p-4 space-y-6">
+        {showPendingAlert && pendingBookings.length > 0 && oldestPending && (
+          <div
+            className="rounded-md bg-yellow-50 p-4"
+            data-testid="pending-payment-alert"
+            role="alert"
+          >
+            <div className="flex items-start justify-between">
+              <p className="text-sm text-yellow-700">
+                You have {pendingBookings.length} pending deposit
+                {pendingBookings.length > 1 ? 's' : ''}.{' '}
+                <Link
+                  href={`/dashboard/client/bookings/${oldestPending.id}`}
+                  className="font-medium underline"
+                >
+                  Pay oldest
+                </Link>
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowPendingAlert(false)}
+                aria-label="Dismiss"
+                className="ml-4 text-yellow-700 hover:text-yellow-900"
+              >
+                <XMarkIcon className="h-5 w-5" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        )}
         <section>
           <h1 className="text-xl font-semibold mb-2">Upcoming Bookings</h1>
           {upcoming.length === 0 ? (
