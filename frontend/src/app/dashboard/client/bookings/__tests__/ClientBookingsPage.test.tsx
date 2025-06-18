@@ -12,10 +12,12 @@ jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   usePathname: jest.fn(() => '/dashboard/client/bookings'),
 }));
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
 jest.mock('next/link', () => {
   const React = require('react');
-  return { __esModule: true, default: (props) => React.createElement('a', props) };
+  return { __esModule: true, default: (props: any) => React.createElement('a', props) };
 });
+/* eslint-enable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
 
 describe('ClientBookingsPage', () => {
   afterEach(() => {
@@ -208,6 +210,53 @@ describe('ClientBookingsPage', () => {
     expect(getBookingDetails).toHaveBeenCalledWith(5);
     const input = div.querySelector('input[type="number"]') as HTMLInputElement;
     expect(input.value).toBe('80');
+
+    act(() => {
+      root.unmount();
+    });
+    div.remove();
+  });
+
+  it('links each booking card to the booking request', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({
+      user: { id: 1, user_type: 'client', email: 'c@example.com', first_name: 'C' },
+    });
+    (getMyClientBookings as jest.Mock)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: 8,
+            artist_id: 2,
+            client_id: 1,
+            service_id: 4,
+            start_time: new Date().toISOString(),
+            end_time: new Date().toISOString(),
+            status: 'confirmed',
+            total_price: 150,
+            notes: '',
+            deposit_amount: 50,
+            payment_status: 'deposit_paid',
+            service: { title: 'Gig' },
+            client: { id: 1 },
+            source_quote: { booking_request_id: 12 },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ data: [] });
+
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+
+    await act(async () => {
+      root.render(<ClientBookingsPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    const msgLink = div.querySelector('[data-testid="message-artist-link"]');
+    expect(msgLink).not.toBeNull();
+    expect(msgLink?.getAttribute('href')).toBe('/booking-requests/12');
 
     act(() => {
       root.unmount();
