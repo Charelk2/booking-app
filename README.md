@@ -11,6 +11,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - **Node.js** 21
 - Minor fix: the artists listing now gracefully handles incomplete user data from the API.
 - Bookings now track `payment_status` and `deposit_amount` in `bookings_simple`.
+- Booking cards now show deposit and payment status with a simple progress timeline.
 - Booking wizard includes a required **Guests** step.
 - Date picker and quote calculator show skeleton loaders while data fetches.
 - Google Maps and large images load lazily once in view to reduce first paint time.
