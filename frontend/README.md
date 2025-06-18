@@ -71,6 +71,10 @@ The `/booking` page requires an `artist_id` query parameter and accepts an optio
 
 Passing `service_id` skips the service selection step when a user clicks "Book Now" on a service card.
 
+## Dashboard
+
+The artist dashboard includes a quotes page for managing offers. The `EditQuoteModal` allows artists to modify quote details and price inline without leaving the list. It opens when clicking the "Edit" button next to a pending quote and mirrors the style of `SendQuoteModal`.
+
 ## Testing
 
 Run `npm test` when you only want to execute the frontend Jest suite. The `pretest` script defined in
