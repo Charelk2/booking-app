@@ -114,13 +114,17 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       >
         <h2 className="text-lg font-medium mb-2">Pay Deposit</h2>
         <div className="space-y-2">
-          <input
-            type="number"
-            className="w-full border rounded p-1"
-            placeholder="Amount"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
+          <label htmlFor="deposit-amount" className="flex flex-col text-sm">
+            Amount
+            <input
+              id="deposit-amount"
+              type="number"
+              className="w-full border rounded p-1"
+              placeholder="Amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </label>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
