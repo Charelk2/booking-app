@@ -307,6 +307,10 @@ export default function ClientBookingsPage() {
               ? paymentDeposit
               : [...upcoming, ...past].find((b) => b.id === paymentBookingId)?.deposit_amount
           }
+          depositDueBy={
+            [...upcoming, ...past].find((b) => b.id === paymentBookingId)?.deposit_due_by ??
+            undefined
+          }
           onClose={() => setShowPayment(false)}
           onSuccess={(result) => {
             setUpcoming((prev) =>
