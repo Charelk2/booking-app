@@ -11,6 +11,7 @@ import {
 } from '@/lib/api';
 import type { Quote } from '@/types';
 import EditQuoteModal from '@/components/booking/EditQuoteModal';
+import { Spinner } from '@/components/ui';
 
 export default function ArtistQuotesPage() {
   const { user } = useAuth();
@@ -101,7 +102,9 @@ export default function ArtistQuotesPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex justify-center items-center min-h-[60vh]">Loading...</div>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <Spinner />
+        </div>
       </MainLayout>
     );
   }

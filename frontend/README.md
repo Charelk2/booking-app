@@ -27,6 +27,12 @@ Reusable style constants are defined in `src/styles`. Button variants come from
 configuration includes this directory in its `content` array so these constant
 class names are preserved during production builds.
 
+### Loading Indicators
+
+`Spinner` and `SkeletonList` components in `src/components/ui` provide
+accessible loading states. They apply `role="status"` and `aria-busy` attributes
+so screen readers announce when data is in flight.
+
 ### Customizing Brand Colors
 
 Brand colors are declared in `tailwind.config.js` and exposed as CSS variables in

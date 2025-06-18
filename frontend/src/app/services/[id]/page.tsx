@@ -7,6 +7,7 @@ import { getService, getServiceReviews } from '@/lib/api';
 import { Service, Review } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { StarIcon } from '@heroicons/react/24/outline';
+import { Spinner } from '@/components/ui';
 
 export default function ServiceDetailPage() {
   const params = useParams();
@@ -39,7 +40,7 @@ export default function ServiceDetailPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="p-8">Loading...</div>
+        <div className="p-8"><Spinner /></div>
       </MainLayout>
     );
   }
