@@ -64,6 +64,10 @@ export interface Booking {
   status: "pending" | "confirmed" | "completed" | "cancelled";
   total_price: number;
   notes: string;
+  /** Amount paid as a deposit toward this booking */
+  deposit_amount?: number | null;
+  /** Current payment status, e.g. 'pending', 'deposit_paid', 'paid' */
+  payment_status?: string;
   artist: ArtistProfile;
   client: User;
   service: Service;

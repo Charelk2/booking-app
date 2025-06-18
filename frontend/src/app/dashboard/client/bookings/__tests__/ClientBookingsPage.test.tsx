@@ -18,7 +18,7 @@ describe('ClientBookingsPage', () => {
     jest.clearAllMocks();
   });
 
-  it('renders upcoming and past bookings', async () => {
+  it('renders upcoming and past bookings with deposit info', async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
     (useAuth as jest.Mock).mockReturnValue({
       user: { id: 1, user_type: 'client', email: 'c@example.com', first_name: 'C' },
@@ -36,6 +36,8 @@ describe('ClientBookingsPage', () => {
             status: 'confirmed',
             total_price: 100,
             notes: '',
+            deposit_amount: 50,
+            payment_status: 'deposit_paid',
             service: { title: 'Gig' },
             client: { id: 1 },
           },
@@ -53,6 +55,8 @@ describe('ClientBookingsPage', () => {
             status: 'completed',
             total_price: 200,
             notes: '',
+            deposit_amount: 100,
+            payment_status: 'paid',
             service: { title: 'Gig' },
             client: { id: 1 },
           },
@@ -74,6 +78,10 @@ describe('ClientBookingsPage', () => {
     expect(getMyClientBookings).toHaveBeenCalledWith({ status: 'past' });
     expect(div.textContent).toContain('Upcoming Bookings');
     expect(div.textContent).toContain('Past Bookings');
+    expect(div.textContent).toContain('Deposit:');
+    expect(div.textContent).toContain('Deposit Paid');
+    expect(div.textContent).toContain('Requested');
+    expect(div.textContent).toContain('Completed');
 
     act(() => {
       root.unmount();
@@ -100,6 +108,8 @@ describe('ClientBookingsPage', () => {
             status: 'completed',
             total_price: 100,
             notes: '',
+            deposit_amount: 50,
+            payment_status: 'deposit_paid',
             service: { title: 'Gig' },
             client: { id: 1 },
           },
