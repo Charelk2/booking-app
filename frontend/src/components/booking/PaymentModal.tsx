@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Button from '../ui/Button';
 import { createPayment } from '@/lib/api';
+import { formatCurrency } from '@/lib/utils';
 
 interface PaymentSuccess {
   status: string;
@@ -129,7 +130,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           </label>
           {depositDueBy && (
             <p className="text-sm text-gray-600">
-              Due by {new Date(depositDueBy).toLocaleDateString()}
+              {formatCurrency(Number((depositAmount ?? amount) || 0))} due by{' '}
+              {new Date(depositDueBy).toLocaleDateString()}
             </p>
           )}
           <label className="flex items-center gap-2 text-sm">
