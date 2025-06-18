@@ -21,6 +21,7 @@ class ArtistProfileV2(BaseModel):
     location           = Column(String, nullable=True)
     hourly_rate        = Column(Numeric(10, 2), nullable=True)
     portfolio_urls     = Column(JSON, nullable=True)
+    portfolio_image_urls = Column(JSON, nullable=True)
     specialties        = Column(JSON, nullable=True)
     profile_picture_url= Column(String, nullable=True)
     cover_photo_url    = Column(String, nullable=True)
