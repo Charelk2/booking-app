@@ -50,6 +50,7 @@ describe('MessageThread component', () => {
         service: { title: 'Gig' },
         start_time: '2024-01-01T00:00:00Z',
         deposit_amount: 50,
+        deposit_due_by: '2024-01-08T00:00:00Z',
       },
     });
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client', email: 'c@example.com' } });
@@ -478,6 +479,7 @@ describe('MessageThread component', () => {
     });
     const banner = container.querySelector('[data-testid="booking-confirmed-banner"]');
     expect(banner?.textContent).toContain('Booking confirmed for DJ');
+    expect(banner?.textContent).toContain('due by');
     const viewLink = container.querySelector(
       'a[href="/dashboard/client/bookings/1"]',
     );
@@ -511,6 +513,7 @@ describe('MessageThread component', () => {
         service: { title: 'Gig' },
         start_time: '2024-01-01T00:00:00Z',
         deposit_amount: 50,
+        deposit_due_by: '2024-01-08T00:00:00Z',
       },
     });
     (api.getQuoteV2 as jest.Mock).mockResolvedValue({

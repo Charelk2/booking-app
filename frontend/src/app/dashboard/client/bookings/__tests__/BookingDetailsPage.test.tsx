@@ -36,6 +36,7 @@ describe('BookingDetailsPage', () => {
         total_price: 100,
         notes: '',
         deposit_amount: 50,
+        deposit_due_by: new Date('2024-01-08').toISOString(),
         payment_status: 'pending',
         service: { title: 'Gig' },
         client: { id: 3 },
@@ -52,6 +53,7 @@ describe('BookingDetailsPage', () => {
 
     expect(getBookingDetails).toHaveBeenCalledWith(1);
     expect(div.textContent).toContain('Gig');
+    expect(div.textContent).toContain('Deposit due');
     const pay = div.querySelector('[data-testid="pay-deposit-button"]');
     expect(pay).not.toBeNull();
 
@@ -73,6 +75,7 @@ describe('BookingDetailsPage', () => {
         total_price: 100,
         notes: '',
         deposit_amount: 50,
+        deposit_due_by: new Date('2024-01-08').toISOString(),
         payment_status: 'deposit_paid',
         payment_id: 'pay_123',
         service: { title: 'Gig' },
@@ -110,6 +113,7 @@ describe('BookingDetailsPage', () => {
         total_price: 100,
         notes: '',
         deposit_amount: 50,
+        deposit_due_by: new Date('2024-01-08').toISOString(),
         payment_status: 'pending',
         service: { title: 'Gig' },
         client: { id: 3 },
@@ -145,6 +149,7 @@ describe('BookingDetailsPage', () => {
         total_price: 100,
         notes: '',
         deposit_amount: 50,
+        deposit_due_by: new Date('2024-01-08').toISOString(),
         payment_status: 'deposit_paid',
         service: { title: 'Gig' },
         client: { id: 3 },
