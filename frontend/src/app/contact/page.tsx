@@ -7,18 +7,18 @@ export default function ContactPage() {
       <div className="prose max-w-2xl mx-auto">
         <h1>Contact Support</h1>
         <p>
-          Email us at{' '}
+          Email us&nbsp;
           <a href="mailto:support@example.com" className="text-indigo-600 hover:underline">
             support@example.com
           </a>
-           and we'll get back to you shortly.
+          &nbsp;and we&apos;ll get back to you shortly.
         </p>
         <p>
-          You can also check our{' '}
+          You can also check our&nbsp;
           <Link href="/faq" className="text-indigo-600 hover:underline">
             FAQ
           </Link>
-           for quick answers.
+          &nbsp;for quick answers.
         </p>
       </div>
     </MainLayout>
