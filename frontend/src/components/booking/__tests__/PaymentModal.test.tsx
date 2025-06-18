@@ -37,6 +37,7 @@ describe('PaymentModal', () => {
       status: 'deposit_paid',
       amount: 50,
       receiptUrl: '/api/v1/payments/pay_1/receipt',
+      paymentId: 'pay_1',
     });
     root.unmount();
   });
@@ -69,6 +70,7 @@ describe('PaymentModal', () => {
       status: 'deposit_paid',
       amount: 30,
       receiptUrl: '/api/v1/payments/pay_2/receipt',
+      paymentId: 'pay_2',
     });
     root.unmount();
   });
