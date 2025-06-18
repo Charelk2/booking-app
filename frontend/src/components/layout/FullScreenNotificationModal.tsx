@@ -85,15 +85,15 @@ export default function FullScreenNotificationModal({
               <button
                 type="button"
                 onClick={() => setShowUnread((prev) => !prev)}
-                className="text-sm text-gray-600 hover:underline"
+                className="text-sm text-gray-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 data-testid="toggle-unread"
               >
                 {showUnread ? 'Show All' : 'Unread Only'}
               </button>
-              <button type="button" onClick={markAllRead} className="text-sm text-indigo-600">
+              <button type="button" onClick={markAllRead} className="text-sm text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
                 Mark All as Read
               </button>
-              <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
                 <span className="sr-only">Close panel</span>
                 <XMarkIcon className="h-6 w-6" aria-hidden="true" />
               </button>
@@ -141,7 +141,7 @@ export default function FullScreenNotificationModal({
                         type="button"
                         aria-label="Load more notifications"
                         onClick={loadMore}
-                        className="text-sm text-indigo-600 hover:underline focus:outline-none"
+                        className="text-sm text-indigo-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                       >
                         Load more
                       </button>
