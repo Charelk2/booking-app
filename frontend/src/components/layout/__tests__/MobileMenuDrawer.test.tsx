@@ -51,6 +51,28 @@ describe('MobileMenuDrawer', () => {
     expect(bodyText).toContain('Quote Calculator');
   });
 
+  it('close button has focus ring classes', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose: () => {},
+          navigation: nav,
+          user: null,
+          logout: () => {},
+          pathname: '/',
+        }),
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const span = document.querySelector('span.sr-only');
+    const button = span?.parentElement as HTMLButtonElement | null;
+    expect(button?.className).toContain('focus-visible:ring-2');
+    expect(button?.className).toContain('focus-visible:ring-brand');
+  });
+
   it('shows artist links for artists', async () => {
     await act(async () => {
       root.render(
