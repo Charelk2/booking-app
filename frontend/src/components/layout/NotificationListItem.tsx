@@ -91,6 +91,24 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       metadata,
     };
   }
+  if (/deposit payment due/i.test(n.content) || /deposit due/i.test(n.content)) {
+    const subtitle =
+      n.content.length > 30 ? `${n.content.slice(0, 30)}...` : n.content;
+    return {
+      title: 'Deposit Due',
+      subtitle,
+      icon: '💰',
+    };
+  }
+  if (/new booking/i.test(n.content)) {
+    const subtitle =
+      n.content.length > 30 ? `${n.content.slice(0, 30)}...` : n.content;
+    return {
+      title: 'Booking Confirmed',
+      subtitle,
+      icon: '📅',
+    };
+  }
   if (/quote accepted/i.test(n.content)) {
     const match = n.content.match(/Quote accepted by (.+)/i);
     const rawTitle = match ? `Quote accepted by ${match[1]}` : 'Quote accepted';
