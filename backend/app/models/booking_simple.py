@@ -23,6 +23,7 @@ class BookingSimple(BaseModel):
     date = Column(DateTime, nullable=True)
     location = Column(String, nullable=True)
     payment_status = Column(String, nullable=False, default="pending")
+    payment_id = Column(String, nullable=True)
     deposit_amount = Column(Numeric(10, 2), nullable=True, default=0)
     deposit_paid = Column(Boolean, nullable=False, default=False)
 
