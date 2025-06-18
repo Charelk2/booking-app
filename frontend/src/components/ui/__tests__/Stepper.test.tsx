@@ -99,4 +99,19 @@ describe('Stepper progress bar', () => {
     expect(buttons[1].className).toContain('cursor-default');
     expect(buttons[1].className).not.toContain('cursor-not-allowed');
   });
+
+  it('applies focus ring when navigating with the keyboard', () => {
+    act(() => {
+      root.render(
+        <Stepper steps={["One", "Two"]} currentStep={0} onStepClick={() => {}} />,
+      );
+    });
+    const button = container.querySelector('button') as HTMLButtonElement;
+    act(() => {
+      button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+      button.focus();
+    });
+    expect(button.className).toContain('focus-visible:ring-2');
+    expect(button.className).toContain('focus-visible:ring-indigo-500');
+  });
 });
