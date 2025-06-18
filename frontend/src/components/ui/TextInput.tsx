@@ -1,5 +1,6 @@
 'use client';
 import type { InputHTMLAttributes } from 'react';
+import { forwardRef } from 'react';
 import clsx from 'clsx';
 
 export interface TextInputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -8,8 +9,8 @@ export interface TextInputProps extends InputHTMLAttributes<HTMLInputElement> {
   loading?: boolean;
 }
 
-export default function TextInput({ label, id, error, loading = false, className, ...props }: TextInputProps) {
-  return (
+const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
+  ({ label, id, error, loading = false, className, ...props }, ref) => (
     <div className="w-full">
       {label && (
         <label htmlFor={id} className="block text-sm font-medium text-gray-700">
@@ -18,6 +19,7 @@ export default function TextInput({ label, id, error, loading = false, className
       )}
       <div className="mt-1 relative">
         <input
+          ref={ref}
           id={id}
           className={clsx(
             'block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm',
@@ -33,5 +35,8 @@ export default function TextInput({ label, id, error, loading = false, className
       </div>
       {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
     </div>
-  );
-}
+  ),
+);
+TextInput.displayName = 'TextInput';
+
+export default TextInput;
