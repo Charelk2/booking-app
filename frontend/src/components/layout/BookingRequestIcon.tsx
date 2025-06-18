@@ -23,7 +23,7 @@ export default function BookingRequestIcon() {
     <div className="relative ml-3" aria-live="polite">
       <Link
         href="/booking-requests"
-        className="flex text-gray-400 hover:text-gray-600 focus:outline-none"
+        className="flex text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
       >
         <span className="sr-only">View booking requests</span>
         <ClipboardIcon className="h-6 w-6" aria-hidden="true" />
