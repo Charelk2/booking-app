@@ -2,7 +2,7 @@ import { buttonVariants } from '../buttonVariants';
 
 describe('buttonVariants', () => {
   it('provides classes for primary buttons', () => {
-    expect(buttonVariants.primary).toMatch('bg-blue-600');
+    expect(buttonVariants.primary).toMatch('bg-brand');
   });
 
   it('provides classes for secondary buttons', () => {
