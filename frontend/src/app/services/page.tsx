@@ -7,6 +7,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { Service } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { getAllServices, getArtistServices } from '@/lib/api';
+import { Spinner } from '@/components/ui';
 
 export default function ServicesPage() {
   const params = useSearchParams();
@@ -51,7 +52,7 @@ export default function ServicesPage() {
           className="w-full max-w-md border border-gray-300 rounded-md p-2 mb-6"
         />
         {loading ? (
-          <div className="text-center">Loading...</div>
+          <div className="text-center"><Spinner /></div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.length > 0 ? (

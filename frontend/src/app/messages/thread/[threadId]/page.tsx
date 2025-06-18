@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import MessageThread from '@/components/booking/MessageThread';
+import { Spinner } from '@/components/ui';
 import { getBookingRequestById, getArtist } from '@/lib/api';
 import { BookingRequest } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -56,7 +57,9 @@ export default function ThreadPage() {
   if (!request) {
     return (
       <MainLayout>
-        <div className="flex justify-center items-center min-h-[60vh]">Loading...</div>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <Spinner />
+        </div>
       </MainLayout>
     );
   }

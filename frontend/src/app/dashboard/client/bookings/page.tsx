@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import Link from 'next/link';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { HelpPrompt } from '@/components/ui';
+import { HelpPrompt, Spinner } from '@/components/ui';
 
 interface BookingWithReview extends Booking {
   review?: Review | null;
@@ -231,7 +231,9 @@ export default function ClientBookingsPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex justify-center items-center min-h-[60vh]">Loading...</div>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <Spinner />
+        </div>
       </MainLayout>
     );
   }

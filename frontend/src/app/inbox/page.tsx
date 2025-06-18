@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import MainLayout from '@/components/layout/MainLayout';
 import useNotifications from '@/hooks/useNotifications';
+import { Spinner } from '@/components/ui';
 
 
 interface BookingPreview {
@@ -195,7 +196,7 @@ export default function InboxPage() {
             Chats
           </button>
         </div>
-        {loading && <p>Loading...</p>}
+        {loading && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}
         {!loading && !error && bookings.length === 0 && chats.length === 0 && (
           <p className="text-sm text-gray-500">No messages yet.</p>
