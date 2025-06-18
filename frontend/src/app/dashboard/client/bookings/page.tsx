@@ -241,7 +241,11 @@ export default function ClientBookingsPage() {
         <PaymentModal
           open={showPayment}
           bookingRequestId={paymentBookingRequestId}
-          depositAmount={paymentDeposit}
+          depositAmount={
+            paymentDeposit !== undefined
+              ? paymentDeposit
+              : [...upcoming, ...past].find((b) => b.id === paymentBookingId)?.deposit_amount
+          }
           onClose={() => setShowPayment(false)}
           onSuccess={(result) => {
             setUpcoming((prev) =>

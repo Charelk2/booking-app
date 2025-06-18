@@ -806,7 +806,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               setDepositAmount(undefined);
             }}
             bookingRequestId={bookingRequestId}
-            depositAmount={depositAmount}
+            depositAmount={
+              depositAmount !== undefined
+                ? depositAmount
+                : bookingDetails?.deposit_amount
+            }
             onSuccess={({ status, amount, receiptUrl: url }) => {
               setPaymentStatus(status);
               setPaymentAmount(amount);
