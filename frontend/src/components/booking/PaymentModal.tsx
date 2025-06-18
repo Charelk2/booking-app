@@ -16,6 +16,7 @@ interface PaymentModalProps {
   onSuccess: (result: PaymentSuccess) => void;
   onError: (msg: string) => void;
   depositAmount?: number;
+  depositDueBy?: string;
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -25,6 +26,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   onSuccess,
   onError,
   depositAmount,
+  depositDueBy,
 }) => {
   const [amount, setAmount] = useState(
     depositAmount !== undefined ? depositAmount.toString() : '',
@@ -125,6 +127,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               onChange={(e) => setAmount(e.target.value)}
             />
           </label>
+          {depositDueBy && (
+            <p className="text-sm text-gray-600">
+              Due by {new Date(depositDueBy).toLocaleDateString()}
+            </p>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
