@@ -160,7 +160,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   }, [bookingRequestId, fetchMessages]);
 
   const token =
-    typeof window !== 'undefined' ? localStorage.getItem('token') : '';
+    typeof window !== 'undefined'
+      ? localStorage.getItem('token') ||
+        sessionStorage.getItem('token') ||
+        ''
+      : '';
   const { onMessage: onSocketMessage } = useWebSocket(
     `${wsBase}${API_V1}/ws/booking-requests/${bookingRequestId}?token=${token}`,
     (e) => {
