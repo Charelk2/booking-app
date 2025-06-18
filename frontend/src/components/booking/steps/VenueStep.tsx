@@ -2,7 +2,7 @@
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import { useState, useRef } from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
-import { BottomSheet } from '../../ui';
+import { BottomSheet, Button } from '../../ui';
 
 interface Props {
   control: Control<FieldValues>;
@@ -41,16 +41,17 @@ export default function VenueStep({
           <>
             {isMobile ? (
               <>
-                <button
+                <Button
                   type="button"
                   onClick={() => setSheetOpen(true)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md text-left min-h-[44px]"
+                  variant="secondary"
+                  className="w-full text-left min-h-[44px]"
                   ref={buttonRef}
                 >
                   {field.value
                     ? `Venue: ${field.value.charAt(0).toUpperCase()}${field.value.slice(1)}`
                     : 'Select venue type'}
-                </button>
+                </Button>
                 <BottomSheet
                   open={sheetOpen}
                   onClose={() => setSheetOpen(false)}
@@ -100,30 +101,32 @@ export default function VenueStep({
       />
       <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
         {step > 0 && (
-          <button
+          <Button
             type="button"
             onClick={onBack}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
+            variant="secondary"
+            className="w-full sm:w-auto min-h-[44px]"
           >
             Back
-          </button>
+          </Button>
         )}
 
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
-          <button
+          <Button
             type="button"
             onClick={onSaveDraft}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
+            variant="secondary"
+            className="w-full sm:w-auto min-h-[44px]"
           >
             Save Draft
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onNext}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition min-h-[44px]"
+            className="w-full sm:w-auto min-h-[44px]"
           >
             {step === steps.length - 1 ? 'Submit Request' : 'Next'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
