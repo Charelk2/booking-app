@@ -14,6 +14,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import TimeAgo from '../ui/TimeAgo';
 import { getFullImageUrl, formatCurrency } from '@/lib/utils';
+import HelpPrompt from '../ui/HelpPrompt';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Booking, Message, MessageCreate, QuoteV2 } from '@/types';
@@ -473,6 +474,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 Add to calendar
               </button>
             )}
+            <HelpPrompt />
           </>
         )}
         {paymentStatus && (
