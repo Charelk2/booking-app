@@ -12,6 +12,10 @@ jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   usePathname: jest.fn(() => '/dashboard/client/bookings'),
 }));
+jest.mock('next/link', () => {
+  const React = require('react');
+  return { __esModule: true, default: (props) => React.createElement('a', props) };
+});
 
 describe('ClientBookingsPage', () => {
   afterEach(() => {
@@ -82,6 +86,8 @@ describe('ClientBookingsPage', () => {
     expect(div.textContent).toContain('Deposit Paid');
     expect(div.textContent).toContain('Requested');
     expect(div.textContent).toContain('Completed');
+    const link = div.querySelector('a[data-booking-id="1"]');
+    expect(link?.getAttribute('href')).toBe('/dashboard/client/bookings/1');
     const help = div.querySelector('[data-testid="help-prompt"]');
     expect(help).not.toBeNull();
 
