@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react-dom/test-utils';
-import NotificationListItem from '../NotificationListItem';
+import NotificationListItem, { parseItem } from '../NotificationListItem';
 import type { UnifiedNotification } from '@/types';
 
 const baseNotification: UnifiedNotification = {
@@ -41,5 +41,29 @@ describe('NotificationListItem', () => {
     });
     const span = container.querySelector('span[title]');
     expect(span?.getAttribute('title')).toBe('Alice');
+  });
+
+  it('parses deposit due notifications', () => {
+    const n: UnifiedNotification = {
+      type: 'deposit_due',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Deposit payment due for booking #5',
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.title).toBe('Deposit Due');
+    expect(parsed.icon).toBe('💰');
+  });
+
+  it('parses new booking notifications', () => {
+    const n: UnifiedNotification = {
+      type: 'new_booking',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'New booking #5 confirmed',
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.title).toBe('Booking Confirmed');
+    expect(parsed.icon).toBe('📅');
   });
 });
