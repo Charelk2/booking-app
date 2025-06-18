@@ -5,6 +5,7 @@ import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { getMyClientQuotes } from '@/lib/api';
+import { HelpPrompt } from '@/components/ui';
 import type { Quote } from '@/types';
 
 export default function ClientQuotesPage() {
@@ -120,6 +121,7 @@ export default function ClientQuotesPage() {
             ))}
           </ul>
         )}
+        <HelpPrompt />
       </div>
     </MainLayout>
   );
