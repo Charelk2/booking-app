@@ -2,7 +2,7 @@
 // Larger touch targets and contextual help improve usability on mobile.
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import useIsMobile from '@/hooks/useIsMobile';
-import { Button } from '../../ui';
+import { Button, TextInput } from '../../ui';
 
 interface Props {
   control: Control<FieldValues>;
@@ -24,16 +24,16 @@ export default function GuestsStep({
   const isMobile = useIsMobile();
   return (
     <div className="space-y-4">
-      <label className="block text-sm font-medium">Number of guests</label>
       <p className="text-sm text-gray-600">How many people?</p>
       <Controller
         name="guests"
         control={control}
         render={({ field }) => (
-          <input
+          <TextInput
             type="number"
             min={1}
-            className="border p-3 rounded w-full text-lg min-h-[44px]"
+            label="Number of guests"
+            className="text-lg"
             {...field}
             autoFocus={!isMobile}
           />
