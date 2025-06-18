@@ -821,6 +821,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 ? depositAmount
                 : bookingDetails?.deposit_amount
             }
+            depositDueBy={bookingDetails?.deposit_due_by ?? undefined}
             onSuccess={({ status, amount, receiptUrl: url }) => {
               setPaymentStatus(status);
               setPaymentAmount(amount);
