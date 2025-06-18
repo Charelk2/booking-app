@@ -356,6 +356,13 @@ with:
 npx playwright test
 ```
 
+Before running the suite for the first time, download the browsers used by
+Playwright:
+
+```bash
+npx playwright install --with-deps
+```
+
 The suite now includes `client-deposit-flow.spec.ts`, which verifies the
 deposit payment process on an iPhone 14 Pro viewport.
 
