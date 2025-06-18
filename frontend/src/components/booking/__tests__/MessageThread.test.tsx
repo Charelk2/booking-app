@@ -478,7 +478,9 @@ describe('MessageThread component', () => {
     });
     const banner = container.querySelector('[data-testid="booking-confirmed-banner"]');
     expect(banner?.textContent).toContain('Booking confirmed for DJ');
-    const viewLink = container.querySelector('a[href="/booking-requests/1"]');
+    const viewLink = container.querySelector(
+      'a[href="/dashboard/client/bookings/1"]',
+    );
     expect(viewLink).not.toBeNull();
     const dashboardLink = container.querySelector(
       'a[href="/dashboard/client/bookings/1"]',
