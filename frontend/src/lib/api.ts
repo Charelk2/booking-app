@@ -303,8 +303,9 @@ export const acceptQuoteV2 = (quoteId: number) =>
 export const getMyArtistQuotes = (params: { skip?: number; limit?: number } = {}) =>
   api.get<Quote[]>(`${API_V1}/quotes/me/artist`, { params });
 
-export const getMyClientQuotes = (params: { skip?: number; limit?: number } = {}) =>
-  api.get<Quote[]>(`${API_V1}/quotes/me/client`, { params });
+export const getMyClientQuotes = (
+  params: { skip?: number; limit?: number; status?: string } = {},
+) => api.get<Quote[]>(`${API_V1}/quotes/me/client`, { params });
 
 export const updateQuoteAsArtist = (id: number, data: Partial<Quote>) =>
   api.put<Quote>(`${API_V1}/quotes/${id}/artist`, data);

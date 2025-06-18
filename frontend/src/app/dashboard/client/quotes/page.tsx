@@ -12,12 +12,15 @@ export default function ClientQuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
     if (!user) return;
     const fetchQuotes = async () => {
       try {
-        const res = await getMyClientQuotes();
+        const res = await getMyClientQuotes(
+          statusFilter ? { status: statusFilter } : {},
+        );
         setQuotes(res.data);
       } catch (err) {
         console.error('Failed to load client quotes', err);
@@ -32,7 +35,7 @@ export default function ClientQuotesPage() {
       setLoading(false);
       setError('Access denied');
     }
-  }, [user]);
+  }, [user, statusFilter]);
 
   if (!user) {
     return (
@@ -77,6 +80,22 @@ export default function ClientQuotesPage() {
     <MainLayout>
       <div className="max-w-3xl mx-auto p-4 space-y-4">
         <h1 className="text-xl font-semibold">My Quotes</h1>
+        <div className="mb-2">
+          <label htmlFor="status" className="mr-2 text-sm">
+            Filter:
+          </label>
+          <select
+            id="status"
+            className="border rounded-md p-1 text-sm"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="accepted">Accepted</option>
+            <option value="declined">Declined</option>
+          </select>
+        </div>
         {quotes.length === 0 ? (
           <p>No quotes yet.</p>
         ) : (
