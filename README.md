@@ -723,7 +723,7 @@ Payment processing now emits structured logs instead of printing to stdout so tr
 When a client accepts a quote in the chat thread, the frontend now prompts them to pay a deposit via this endpoint. Successful payments update the booking's `payment_status` and display a confirmation banner.
 The payment modal automatically fills in half the quote total as the suggested deposit, but clients can adjust the amount before submitting.
 The modal layout now adapts to narrow screens, trapping focus and scrolling internally so mobile users can submit using the keyboard's **Done** button.
-Accepting a quote also creates a **DEPOSIT_DUE** notification so the client receives a clear reminder to pay. The notification links to the dashboard at `/dashboard/client/bookings?booking_id={booking_id}` where they can complete the deposit.
+Accepting a quote also creates a **DEPOSIT_DUE** notification so the client receives a clear reminder to pay. The notification links to the dashboard at `/dashboard/client/bookings/{booking_id}` where they can complete the deposit.
 
 All prices and quotes now default to **South African Rand (ZAR)**. Update your environment or tests if you previously assumed USD values.
 
