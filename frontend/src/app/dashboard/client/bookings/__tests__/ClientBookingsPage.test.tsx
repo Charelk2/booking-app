@@ -82,6 +82,8 @@ describe('ClientBookingsPage', () => {
     expect(div.textContent).toContain('Deposit Paid');
     expect(div.textContent).toContain('Requested');
     expect(div.textContent).toContain('Completed');
+    const help = div.querySelector('[data-testid="help-prompt"]');
+    expect(help).not.toBeNull();
 
     act(() => {
       root.unmount();
@@ -126,6 +128,8 @@ describe('ClientBookingsPage', () => {
     await act(async () => { await Promise.resolve(); });
 
     expect(div.textContent).toContain('Leave review');
+    const help = div.querySelector('[data-testid="help-prompt"]');
+    expect(help).not.toBeNull();
 
     act(() => {
       root.unmount();
