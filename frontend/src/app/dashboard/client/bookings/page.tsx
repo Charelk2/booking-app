@@ -46,6 +46,37 @@ function BookingList({
               {formatCurrency(Number(b.total_price))}
             </span>
           </div>
+          {b.deposit_amount !== undefined && (
+            <div className="text-sm text-gray-500 mt-1">
+              Deposit: {formatCurrency(Number(b.deposit_amount || 0))} (
+              {b.payment_status})
+            </div>
+          )}
+          <div className="flex justify-between text-xs text-gray-500 mt-2">
+            {['Requested', 'Confirmed', 'Deposit Paid',
+              b.status === 'cancelled' ? 'Cancelled' : 'Completed'].map(
+              (step, idx) => {
+                const activeIdx =
+                  b.status === 'pending'
+                    ? 0
+                    : b.status === 'confirmed'
+                      ? b.payment_status === 'deposit_paid' || b.payment_status === 'paid'
+                        ? 2
+                        : 1
+                      : 3;
+                return (
+                  <span
+                    key={step}
+                    className={
+                      idx <= activeIdx ? 'font-semibold text-indigo-600 flex-1 text-center' : 'flex-1 text-center'
+                    }
+                  >
+                    {step}
+                  </span>
+                );
+              },
+            )}
+          </div>
           {b.status === 'completed' && !b.review && (
             <button
               type="button"
