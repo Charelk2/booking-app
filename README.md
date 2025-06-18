@@ -19,6 +19,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Date picker and quote calculator show skeleton loaders while data fetches.
 - Google Maps and large images load lazily once in view to reduce first paint time.
 - Client dashboards now include a bookings list with upcoming and past filters via `/api/v1/bookings/my-bookings?status=`.
+- Each booking item in this list now includes a `deposit_due_by` field when the booking was created from a quote.
 - Artists can mark bookings completed or cancelled and download confirmed bookings as calendar (.ics) files.
 - Clients can leave a star rating and comment once a booking is marked completed. Service detail pages now display these reviews.
 - After accepting a quote, clients see quick links in the chat to view that booking, pay the deposit, add it to a calendar, and jump to **My Bookings**.
