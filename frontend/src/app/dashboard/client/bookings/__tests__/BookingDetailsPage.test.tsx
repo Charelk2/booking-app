@@ -52,4 +52,41 @@ describe('BookingDetailsPage', () => {
     act(() => { root.unmount(); });
     div.remove();
   });
+
+  it('shows receipt link when payment_id is present', async () => {
+    (useParams as jest.Mock).mockReturnValue({ id: '2' });
+    (getBookingDetails as jest.Mock).mockResolvedValue({
+      data: {
+        id: 2,
+        artist_id: 2,
+        client_id: 3,
+        service_id: 4,
+        start_time: new Date().toISOString(),
+        end_time: new Date().toISOString(),
+        status: 'confirmed',
+        total_price: 100,
+        notes: '',
+        deposit_amount: 50,
+        payment_status: 'deposit_paid',
+        payment_id: 'pay_123',
+        service: { title: 'Gig' },
+        client: { id: 3 },
+      },
+    });
+    (downloadBookingIcs as jest.Mock).mockResolvedValue({ data: new Blob() });
+
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(<BookingDetailsPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    const link = div.querySelector('[data-testid="booking-receipt-link"]');
+    expect(link).not.toBeNull();
+    expect(link?.getAttribute('href')).toBe('/api/v1/payments/pay_123/receipt');
+
+    act(() => { root.unmount(); });
+    div.remove();
+  });
 });

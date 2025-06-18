@@ -6,6 +6,7 @@ interface PaymentSuccess {
   status: string;
   amount: number;
   receiptUrl?: string;
+  paymentId?: string;
 }
 
 interface PaymentModalProps {
@@ -89,6 +90,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         status: full ? 'paid' : 'deposit_paid',
         amount: Number(amount),
         receiptUrl,
+        paymentId,
       });
     } catch (err) {
       console.error('Failed to create payment', err);

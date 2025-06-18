@@ -85,6 +85,19 @@ export default function BookingDetailsPage() {
             {booking.payment_status})
           </p>
         )}
+        {booking.payment_id && (
+          <p>
+            <a
+              href={`/api/v1/payments/${booking.payment_id}/receipt`}
+              target="_blank"
+              rel="noopener"
+              className="text-indigo-600 underline text-sm"
+              data-testid="booking-receipt-link"
+            >
+              View receipt
+            </a>
+          </p>
+        )}
         <div className="mt-2 space-x-4">
           {booking.payment_status === 'pending' && (
             <button
@@ -119,8 +132,12 @@ export default function BookingDetailsPage() {
         onClose={() => setShowPayment(false)}
         bookingRequestId={booking.source_quote?.booking_request_id || booking.id}
         depositAmount={booking.deposit_amount}
-        onSuccess={() => {
-          setBooking({ ...booking, payment_status: 'deposit_paid' });
+        onSuccess={({ paymentId }) => {
+          setBooking({
+            ...booking,
+            payment_status: 'deposit_paid',
+            payment_id: paymentId ?? booking.payment_id,
+          });
           setShowPayment(false);
         }}
         onError={() => {}}

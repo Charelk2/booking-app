@@ -68,6 +68,8 @@ export interface Booking {
   deposit_amount?: number | null;
   /** Current payment status, e.g. 'pending', 'deposit_paid', 'paid' */
   payment_status?: string;
+  /** ID from the payment gateway used to fetch receipts */
+  payment_id?: string | null;
   artist: ArtistProfile;
   client: User;
   service: Service;
