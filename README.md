@@ -576,7 +576,9 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * The dashboard Bookings tab now includes a **View All Bookings** link.
 * New `/dashboard/client/quotes` page lists all quotes sent to the client. Endpoint
   `GET /api/v1/quotes/me/client` retrieves the client's quote history, and the
-  main navigation now features a **My Quotes** link for client users.
+  main navigation now features a **My Quotes** link for client users. A dropdown
+  filter lets clients view only `pending`, `accepted`, or `declined` quotes using
+  the same endpoint's optional `status` query parameter.
 * New `/dashboard/quotes` page lets artists manage their quotes. Endpoints
   `GET /api/v1/quotes/me/artist`, `PUT /api/v1/quotes/{id}/artist`, and
   `POST /api/v1/quotes/{id}/confirm-booking` allow updates and confirmations.
