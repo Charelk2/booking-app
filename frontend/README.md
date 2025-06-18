@@ -27,6 +27,8 @@ Reusable style constants are defined in `src/styles`. Button variants come from
 variant provides a text-only style for inline actions. The Tailwind
 configuration includes this directory in its `content` array so these constant
 class names are preserved during production builds.
+All text inputs should use the `TextInput` component in `src/components/ui` so
+form fields share consistent spacing and focus styles.
 
 ### Loading Indicators
 

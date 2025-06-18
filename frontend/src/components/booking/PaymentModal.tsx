@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Button from '../ui/Button';
+import TextInput from '../ui/TextInput';
 import { createPayment } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -121,22 +122,19 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       >
         <h2 className="text-lg font-medium mb-2">Pay Deposit</h2>
         <div className="space-y-2">
-          <label htmlFor="deposit-amount" className="flex flex-col text-sm">
-            Amount
-            <input
-              id="deposit-amount"
-              type="text"
-              className="w-full border rounded p-1"
-              placeholder="Amount"
-              value={amountInput}
-              onChange={(e) => {
-                const raw = e.target.value;
-                setAmountInput(raw);
-                const num = parseFloat(raw.replace(/[^0-9.]/g, ''));
-                if (!Number.isNaN(num)) setAmount(num);
-              }}
-            />
-          </label>
+          <TextInput
+            id="deposit-amount"
+            type="text"
+            label="Amount"
+            placeholder="Amount"
+            value={amountInput}
+            onChange={(e) => {
+              const raw = e.target.value;
+              setAmountInput(raw);
+              const num = parseFloat(raw.replace(/[^0-9.]/g, ''));
+              if (!Number.isNaN(num)) setAmount(num);
+            }}
+          />
           {depositDueBy && (
             <p className="text-sm text-gray-600">
               {formatCurrency(depositAmount ?? amount)} due by{' '}
