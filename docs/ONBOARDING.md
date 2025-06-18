@@ -7,3 +7,64 @@ This guide walks new users through securing their accounts with two-factor authe
 3. **Disable 2FA.** If you lose access to your authenticator, use a recovery code to disable 2FA at `/security/disable`.
 
 Enabling MFA greatly reduces the risk of unauthorized access. Keep your recovery codes secure and regenerate them periodically.
+
+## Quickstart Booking Walkthrough
+
+These sample commands demonstrate the basic booking flow using the API. Replace `CLIENT_TOKEN`, `ARTIST_TOKEN`, `ARTIST_ID`, `SERVICE_ID`, `REQUEST_ID`, and `QUOTE_ID` with actual values from your environment. Set `PAYMENT_GATEWAY_FAKE=1` when testing locally so payments use the built-in fake gateway.
+
+1. **Create users**
+   ```bash
+   curl -X POST http://localhost:8000/auth/register \
+     -H 'Content-Type: application/json' \
+     -d '{"email":"client@example.com","password":"pass","user_type":"client"}'
+   curl -X POST http://localhost:8000/auth/register \
+     -H 'Content-Type: application/json' \
+     -d '{"email":"artist@example.com","password":"pass","user_type":"artist"}'
+   ```
+   Log in via `/auth/login` to obtain `CLIENT_TOKEN` and `ARTIST_TOKEN`.
+
+2. **Artist creates a service**
+   ```bash
+   curl -X POST http://localhost:8000/api/v1/services/ \
+     -H "Authorization: Bearer ARTIST_TOKEN" \
+     -H 'Content-Type: application/json' \
+     -d '{"name":"Acoustic Set","price":250}'
+   ```
+
+3. **Client submits a booking request**
+   ```bash
+   curl -X POST http://localhost:8000/api/v1/booking-requests/ \
+     -H "Authorization: Bearer CLIENT_TOKEN" \
+     -H 'Content-Type: application/json' \
+     -d '{"artist_id":ARTIST_ID,"service_id":SERVICE_ID,"event_date":"2025-12-25","message":"Please perform"}'
+   ```
+
+4. **Artist sends a quote**
+   ```bash
+   curl -X POST http://localhost:8000/api/v1/booking-requests/REQUEST_ID/quotes \
+     -H "Authorization: Bearer ARTIST_TOKEN" \
+     -H 'Content-Type: application/json' \
+     -d '{"booking_request_id":REQUEST_ID,"amount":500}'
+   ```
+
+5. **Client accepts the quote**
+   ```bash
+   curl -X PUT http://localhost:8000/api/v1/quotes/QUOTE_ID/client \
+     -H "Authorization: Bearer CLIENT_TOKEN" \
+     -H 'Content-Type: application/json' \
+     -d '{"status":"accepted_by_client"}'
+   ```
+
+6. **Pay the deposit using the fake gateway**
+   ```bash
+   PAYMENT_GATEWAY_FAKE=1 curl -X POST http://localhost:8000/api/v1/payments \
+     -H "Authorization: Bearer CLIENT_TOKEN" \
+     -H 'Content-Type: application/json' \
+     -d '{"booking_request_id":REQUEST_ID,"amount":250}'
+   ```
+
+7. **Check your bookings**
+   ```bash
+   curl -H "Authorization: Bearer CLIENT_TOKEN" \
+     http://localhost:8000/api/v1/bookings/my-bookings
+   ```
