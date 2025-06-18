@@ -7,6 +7,7 @@ import logging
 import os
 from decimal import Decimal
 import httpx
+import uuid
 
 from ..models import User, BookingSimple, QuoteV2
 from .dependencies import get_db, get_current_active_client
@@ -14,6 +15,7 @@ from .dependencies import get_db, get_current_active_client
 logger = logging.getLogger(__name__)
 
 PAYMENT_GATEWAY_URL = os.getenv("PAYMENT_GATEWAY_URL", "https://example.com")
+PAYMENT_GATEWAY_FAKE = os.getenv("PAYMENT_GATEWAY_FAKE")
 
 router = APIRouter(tags=["payments"])
 
@@ -57,19 +59,23 @@ def create_payment(
         )
         raise HTTPException(status.HTTP_403_FORBIDDEN)
 
-    try:
-        response = httpx.post(
-            f"{PAYMENT_GATEWAY_URL}/charges",
-            json={"amount": payment_in.amount, "currency": "ZAR"},
-            timeout=10,
-        )
-        response.raise_for_status()
-        charge = response.json()
-    except Exception as exc:  # pragma: no cover - network failure path
-        logger.error("Payment gateway error: %s", exc, exc_info=True)
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, detail="Payment gateway error"
-        )
+    if PAYMENT_GATEWAY_FAKE:
+        logger.info("PAYMENT_GATEWAY_FAKE set - skipping gateway call")
+        charge = {"id": f"fake_{uuid.uuid4().hex}", "status": "succeeded"}
+    else:
+        try:
+            response = httpx.post(
+                f"{PAYMENT_GATEWAY_URL}/charges",
+                json={"amount": payment_in.amount, "currency": "ZAR"},
+                timeout=10,
+            )
+            response.raise_for_status()
+            charge = response.json()
+        except Exception as exc:  # pragma: no cover - network failure path
+            logger.error("Payment gateway error: %s", exc, exc_info=True)
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY, detail="Payment gateway error"
+            )
 
     booking.deposit_amount = Decimal(str(payment_in.amount))
     booking.deposit_paid = True
