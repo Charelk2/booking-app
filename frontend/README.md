@@ -23,7 +23,8 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 ## UI Theme
 
 Reusable style constants are defined in `src/styles`. Button variants come from
-`buttonVariants.ts` so colors stay consistent across the app. The Tailwind
+`buttonVariants.ts` so colors stay consistent across the app. A new `link`
+variant provides a text-only style for inline actions. The Tailwind
 configuration includes this directory in its `content` array so these constant
 class names are preserved during production builds.
 

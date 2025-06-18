@@ -13,6 +13,7 @@ const Marker = dynamic(
   { ssr: false },
 );
 import { useRef, useState, useEffect } from 'react';
+import { Button } from '../../ui';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
 
 // Keeping the libraries array stable avoids unnecessary re-renders from
@@ -210,9 +211,10 @@ export default function LocationStep({
           </>
         )}
       </div>
-      <button
+      <Button
         type="button"
-        className="mt-2 text-sm text-indigo-600 underline px-4 py-2 rounded inline-block min-h-[44px]"
+        variant="link"
+        className="mt-2 text-sm inline-block min-h-[44px]"
         onClick={() => {
           navigator.geolocation.getCurrentPosition(
             (pos) => {
@@ -227,7 +229,7 @@ export default function LocationStep({
         }}
       >
         Use my location
-      </button>
+      </Button>
       <span
         className="ml-1 text-gray-500 cursor-help"
         title="A warning appears if this address is over 100km from the artist."
@@ -237,30 +239,32 @@ export default function LocationStep({
       {geoError && <p className="text-red-600 text-sm">{geoError}</p>}
       <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
         {step > 0 && (
-          <button
+          <Button
             type="button"
             onClick={onBack}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
+            variant="secondary"
+            className="w-full sm:w-auto min-h-[44px]"
           >
             Back
-          </button>
+          </Button>
         )}
 
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
-          <button
+          <Button
             type="button"
             onClick={onSaveDraft}
-            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100 transition min-h-[44px]"
+            variant="secondary"
+            className="w-full sm:w-auto min-h-[44px]"
           >
             Save Draft
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onNext}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition min-h-[44px]"
+            className="w-full sm:w-auto min-h-[44px]"
           >
             {step === steps.length - 1 ? 'Submit Request' : 'Next'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
