@@ -28,6 +28,7 @@ class QuoteCreate(BaseModel):
 
 class QuoteRead(QuoteCreate):
     id: int
+    booking_id: Optional[int] = None
     subtotal: Decimal
     total: Decimal
     status: QuoteStatusV2
