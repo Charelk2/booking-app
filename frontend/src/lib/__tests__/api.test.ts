@@ -159,9 +159,9 @@ describe('getMyClientQuotes', () => {
     const spy = jest
       .spyOn(api, 'get')
       .mockResolvedValue({ data: [] } as unknown as { data: unknown });
-    await getMyClientQuotes({ skip: 2, limit: 10 });
+    await getMyClientQuotes({ skip: 2, limit: 10, status: 'pending' });
     expect(spy).toHaveBeenCalledWith('/api/v1/quotes/me/client', {
-      params: { skip: 2, limit: 10 },
+      params: { skip: 2, limit: 10, status: 'pending' },
     });
     spy.mockRestore();
   });
