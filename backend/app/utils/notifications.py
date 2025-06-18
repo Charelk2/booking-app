@@ -3,6 +3,7 @@ from ..models import User, NotificationType
 from .. import models
 from ..crud import crud_notification
 from typing import Optional
+from datetime import datetime
 import os
 import logging
 import enum
@@ -42,7 +43,24 @@ def format_notification_message(
     if ntype == NotificationType.NEW_BOOKING:
         return f"New booking #{kwargs.get('booking_id')}"
     if ntype == NotificationType.DEPOSIT_DUE:
-        return f"Deposit payment due for booking #{kwargs.get('booking_id')}"
+        amount = kwargs.get("deposit_amount")
+        due_by = kwargs.get("deposit_due_by")
+        booking_id = kwargs.get("booking_id")
+        msg = "Deposit payment due"
+        if amount is not None:
+            try:
+                msg = f"Deposit of {float(amount):.2f} due"
+            except Exception:  # pragma: no cover - formatting should not fail
+                msg = "Deposit payment due"
+        if due_by is not None:
+            try:
+                date_str = due_by.strftime("%Y-%m-%d")
+                msg += f" by {date_str}"
+            except Exception:
+                pass
+        if booking_id is not None:
+            msg += f" for booking #{booking_id}"
+        return msg
     if ntype == NotificationType.REVIEW_REQUEST:
         return f"Please review your booking #{kwargs.get('booking_id')}"
     return str(kwargs.get("content", ""))
@@ -97,7 +115,13 @@ def notify_user_new_message(
     _send_sms(user.phone_number, message)
 
 
-def notify_deposit_due(db: Session, user: Optional[User], booking_id: int) -> None:
+def notify_deposit_due(
+    db: Session,
+    user: Optional[User],
+    booking_id: int,
+    deposit_amount: Optional[float] = None,
+    deposit_due_by: Optional["datetime"] = None,
+) -> None:
     """Notify a user that a deposit payment is due for a booking."""
     if user is None:
         logger.error(
@@ -107,7 +131,10 @@ def notify_deposit_due(db: Session, user: Optional[User], booking_id: int) -> No
         return
 
     message = format_notification_message(
-        NotificationType.DEPOSIT_DUE, booking_id=booking_id
+        NotificationType.DEPOSIT_DUE,
+        booking_id=booking_id,
+        deposit_amount=deposit_amount,
+        deposit_due_by=deposit_due_by,
     )
     crud_notification.create_notification(
         db,
