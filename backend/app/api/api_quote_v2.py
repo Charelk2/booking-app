@@ -65,9 +65,13 @@ def read_quote(quote_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/quotes/{quote_id}/accept", response_model=schemas.BookingSimpleRead)
-def accept_quote(quote_id: int, db: Session = Depends(get_db)):
+def accept_quote(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    service_id: int | None = None,
+):
     try:
-        booking = crud_quote_v2.accept_quote(db, quote_id)
+        booking = crud_quote_v2.accept_quote(db, quote_id, service_id=service_id)
         logger.info("Quote %s accepted creating booking %s", quote_id, booking.id)
         return booking
     except ValueError as exc:
