@@ -49,4 +49,63 @@ describe('ClientQuotesPage', () => {
     });
     div.remove();
   });
+
+  it('filters quotes by status', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({
+      user: { id: 1, user_type: 'client', email: 'c@example.com' },
+    });
+    (getMyClientQuotes as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 2,
+          artist_id: 3,
+          quote_details: 'Hi',
+          price: 100,
+          currency: 'ZAR',
+          status: 'pending_client_action',
+          created_at: '',
+          updated_at: '',
+        },
+      ],
+    });
+
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(<ClientQuotesPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    const select = div.querySelector('select') as HTMLSelectElement;
+    (getMyClientQuotes as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 2,
+          booking_request_id: 2,
+          artist_id: 3,
+          quote_details: 'Done',
+          price: 120,
+          currency: 'ZAR',
+          status: 'accepted_by_client',
+          created_at: '',
+          updated_at: '',
+        },
+      ],
+    });
+    await act(async () => {
+      select.value = 'accepted';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(getMyClientQuotes).toHaveBeenLastCalledWith({ status: 'accepted' });
+    expect(div.textContent).toContain('accepted_by_client');
+    act(() => {
+      root.unmount();
+    });
+    div.remove();
+  });
 });
