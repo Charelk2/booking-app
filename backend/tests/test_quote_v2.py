@@ -99,14 +99,14 @@ def test_create_and_accept_quote():
     assert booking.confirmed is True
     assert booking.payment_status == "pending"
     assert booking.deposit_amount == quote.total * Decimal("0.5")
+    from datetime import timedelta
+    assert booking.deposit_due_by == quote.created_at + timedelta(days=7)
     assert booking.deposit_paid is False
 
     db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
     assert db_booking is not None
     assert db_booking.service_id == service.id
     assert db_booking.start_time == br.proposed_datetime_1
-    from datetime import timedelta
-
     assert db_booking.end_time == br.proposed_datetime_1 + timedelta(
         minutes=service.duration_minutes
     )
