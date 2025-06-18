@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
 import { format } from 'date-fns';
 import Stepper from '../ui/Stepper'; // progress indicator
+import CollapsibleSection from '../ui/CollapsibleSection';
 import { AnimatePresence, motion } from 'framer-motion';
 import toast from '../ui/Toast';
 import {
@@ -320,22 +321,14 @@ export default function BookingWizard({
       {isMobile ? (
         <div className="space-y-4">
           {steps.map((label, i) => (
-            <details
+            <CollapsibleSection
               key={label}
+              title={label}
               open={i === step}
-              className="max-w-md mx-auto bg-white rounded-lg shadow-md"
+              onToggle={() => handleStepClick(i)}
             >
-              <summary
-                className="p-4 font-bold cursor-pointer border-b"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleStepClick(i);
-                }}
-              >
-                {label}
-              </summary>
               {i === step && (
-                <div className="p-6 space-y-6">
+                <>
                   <h2 className="sr-only" data-testid="step-heading">
                     {label}
                   </h2>
@@ -354,14 +347,12 @@ export default function BookingWizard({
                     <p className="text-orange-600 text-sm">{warning}</p>
                   )}
                   {Object.values(errors).length > 0 && (
-                    <p className="text-red-600 text-sm">
-                      Please fix the errors above.
-                    </p>
+                    <p className="text-red-600 text-sm">Please fix the errors above.</p>
                   )}
                   {error && <p className="text-red-600 text-sm">{error}</p>}
-                </div>
+                </>
               )}
-            </details>
+            </CollapsibleSection>
           ))}
         </div>
       ) : (
