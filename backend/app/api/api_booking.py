@@ -12,6 +12,7 @@ from ..models.user import User, UserType
 from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
 from ..models.service import Service
 from ..models.booking import Booking, BookingStatus
+from ..models.booking_simple import BookingSimple
 from ..schemas.booking import BookingCreate, BookingUpdate, BookingResponse
 from .dependencies import (
     get_current_user,
@@ -258,6 +259,14 @@ def read_booking_details(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to view this booking.",
         )
+
+    simple = (
+        db.query(BookingSimple)
+        .filter(BookingSimple.quote_id == booking.quote_id)
+        .first()
+    )
+    if simple:
+        booking.deposit_due_by = simple.deposit_due_by
 
     return booking
 
