@@ -388,4 +388,4 @@ def test_accept_quote_deposit_notification_link():
     from app.models import NotificationType
     notifs = crud_notification.get_notifications_for_user(db, client.id)
     deposit = next(n for n in notifs if n.type == NotificationType.DEPOSIT_DUE)
-    assert deposit.link == f"/dashboard/client/bookings?booking_id={booking.id}"
+    assert deposit.link == f"/dashboard/client/bookings/{booking.id}"
