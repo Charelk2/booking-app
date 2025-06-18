@@ -24,6 +24,7 @@ RUN python -m venv backend/venv \
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 WORKDIR /app/frontend
 RUN npm ci --silent \
+    && npx playwright install --with-deps \
     && npm run build --silent \
     && sha256sum package-lock.json | awk '{print $1}' > node_modules/.pkg_hash \
     && touch node_modules/.install_complete
