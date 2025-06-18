@@ -797,3 +797,9 @@ Update these colors in `frontend/tailwind.config.js` and
 config also scans `src/styles/**/*` so constants like `buttonVariants.ts` are
 included in the final build. See `frontend/README.md` for detailed theming
 instructions.
+
+### Help Prompt
+
+The `HelpPrompt` component renders quick links to the FAQ and contact page. It
+appears beneath the booking confirmation banner in chat and at the bottom of the
+client bookings page so users always know where to get assistance.

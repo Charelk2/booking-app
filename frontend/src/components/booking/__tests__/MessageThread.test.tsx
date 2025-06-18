@@ -479,6 +479,8 @@ describe('MessageThread component', () => {
     expect(viewLink).not.toBeNull();
     const dashboardLink = container.querySelector('a[href="/dashboard/client/bookings"]');
     expect(dashboardLink).not.toBeNull();
+    const help = container.querySelector('[data-testid="help-prompt"]');
+    expect(help).not.toBeNull();
   });
 
   it('opens payment modal after accepting quote', async () => {
@@ -536,6 +538,8 @@ describe('MessageThread component', () => {
     expect(payBtn).not.toBeNull();
     const calBtn = container.querySelector('[data-testid="add-calendar-button"]');
     expect(calBtn).not.toBeNull();
+    const help = container.querySelector('[data-testid="help-prompt"]');
+    expect(help).not.toBeNull();
   });
 
   it('falls back to legacy endpoint when accept fails', async () => {
