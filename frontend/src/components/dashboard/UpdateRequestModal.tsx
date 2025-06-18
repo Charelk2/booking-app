@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { BookingRequest } from '@/types';
 import { updateBookingRequestArtist, postMessageToBookingRequest } from '@/lib/api';
+import Button from '../ui/Button';
 
 interface UpdateRequestModalProps {
   isOpen: boolean;
@@ -76,20 +77,12 @@ export default function UpdateRequestModal({
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="items-center px-4 py-3 space-x-2 text-right">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 bg-gray-200 text-gray-700 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              >
+              <Button type="button" variant="secondary" onClick={onClose}>
                 Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-4 py-2 bg-brand text-white text-base font-medium rounded-md shadow-sm hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50"
-              >
+              </Button>
+              <Button type="submit" disabled={saving}>
                 {saving ? 'Saving...' : 'Save'}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

@@ -1,10 +1,11 @@
 'use client';
 
-import { useForm, SubmitHandler } from 'react-hook-form';
-import { Service } from '@/types';
-import { createService as apiCreateService } from '@/lib/api'; // Assuming this function exists
+import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useState } from 'react';
+import { Service } from '@/types';
+import { createService as apiCreateService } from '@/lib/api';
 import { DEFAULT_CURRENCY } from '@/lib/constants';
+import Button from '../ui/Button';
 
 interface AddServiceModalProps {
   isOpen: boolean;
@@ -135,20 +136,20 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
             {serverError && <p className="text-sm text-red-600">{serverError}</p>}
 
             <div className="items-center px-4 py-3 space-x-2">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 bg-brand text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50"
-              >
+              <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? 'Adding...' : 'Add Service'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                onClick={() => { onClose(); reset(); setServerError(null); }}
-                className="px-4 py-2 bg-gray-200 text-gray-700 text-base font-medium rounded-md w-auto shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                variant="secondary"
+                onClick={() => {
+                  onClose();
+                  reset();
+                  setServerError(null);
+                }}
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         </div>
