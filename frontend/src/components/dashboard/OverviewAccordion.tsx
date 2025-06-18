@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import './dashboard.css';
+import CollapsibleSection from '../ui/CollapsibleSection';
 
 interface Stat {
   label: string;
@@ -17,6 +18,8 @@ export default function OverviewAccordion({
   primaryStats,
   secondaryStats = [],
 }: OverviewAccordionProps) {
+  const [open, setOpen] = useState(false);
+
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
@@ -28,11 +31,13 @@ export default function OverviewAccordion({
         ))}
       </div>
       {secondaryStats.length > 0 && (
-        <details className="border border-gray-200 rounded-md bg-white shadow-sm">
-          <summary className="px-3 py-2 text-sm font-medium text-gray-600 cursor-pointer select-none">
-            Overview
-          </summary>
-          <div className="mt-2 grid grid-cols-2 gap-2 px-3 pb-3">
+        <CollapsibleSection
+          title="Overview"
+          open={open}
+          onToggle={() => setOpen(!open)}
+          className="border border-gray-200 rounded-md shadow-sm"
+        >
+          <div className="mt-2 grid grid-cols-2 gap-2">
             {secondaryStats.map((s) => (
               <div key={s.label} className="overview-card">
                 <span className="overview-label">{s.label}</span>
@@ -40,7 +45,7 @@ export default function OverviewAccordion({
               </div>
             ))}
           </div>
-        </details>
+        </CollapsibleSection>
       )}
     </div>
   );
