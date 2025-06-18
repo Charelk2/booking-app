@@ -120,6 +120,15 @@ export default function BookingDetailsPage() {
               Add to calendar
             </button>
           )}
+          {booking.source_quote?.booking_request_id && (
+            <Link
+              href={`/booking-requests/${booking.source_quote.booking_request_id}`}
+              className="text-indigo-600 underline text-sm"
+              data-testid="message-artist-link"
+            >
+              Message Artist
+            </Link>
+          )}
           <Link
             href="/dashboard/client/bookings"
             className="text-indigo-600 underline text-sm"
