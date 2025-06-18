@@ -32,6 +32,7 @@ import {
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '../ui/Button';
+import TextInput from '../ui/TextInput';
 import SendQuoteModal from './SendQuoteModal';
 import PaymentModal from './PaymentModal';
 import QuoteCard from './QuoteCard';
@@ -757,11 +758,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               className="hidden"
               onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
             />
-            <input
+            <TextInput
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              className="w-full border rounded-full px-4 py-2 outline-none"
+              className="rounded-full px-4 py-2"
               placeholder="Type a message"
             />
             {uploading && (
