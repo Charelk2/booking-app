@@ -98,7 +98,7 @@ def test_create_and_accept_quote():
     assert booking.client_id == client.id
     assert booking.confirmed is True
     assert booking.payment_status == "pending"
-    assert booking.deposit_amount == 0
+    assert booking.deposit_amount == quote.total * Decimal("0.5")
     assert booking.deposit_paid is False
 
     db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
