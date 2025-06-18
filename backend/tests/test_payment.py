@@ -110,6 +110,7 @@ def test_create_deposit(monkeypatch):
     assert booking.deposit_amount == Decimal('50')
     assert booking.deposit_paid is True
     assert booking.payment_status == 'deposit_paid'
+    assert booking.payment_id == 'ch_test'
     db.close()
     if prev_db is not None:
         app.dependency_overrides[get_db] = prev_db
