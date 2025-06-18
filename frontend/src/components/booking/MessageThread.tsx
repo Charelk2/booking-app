@@ -472,7 +472,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               type="button"
               onClick={() => setShowPaymentModal(true)}
               data-testid="pay-deposit-button"
-              className="mt-2 ml-4 inline-block text-indigo-600 underline text-sm"
+              className="mt-2 ml-4 inline-block text-indigo-600 underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               Pay deposit
             </button>
@@ -481,7 +481,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 type="button"
                 onClick={handleDownloadCalendar}
                 data-testid="add-calendar-button"
-                className="mt-2 ml-4 inline-block text-indigo-600 underline text-sm"
+                className="mt-2 ml-4 inline-block text-indigo-600 underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               >
                 Add to calendar
               </button>
