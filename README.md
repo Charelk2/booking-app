@@ -519,7 +519,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 
 ### Open Tasks
 
-- Review cross-browser support for the new collapsible summary sidebar and consider a custom toggle for non-standard browsers.
+- ~~Review cross-browser support for the new collapsible summary sidebar and consider a custom toggle for non-standard browsers.~~ Cross-browser behavior verified in WebKit and Chrome.
 
 ### Real-time Chat
 

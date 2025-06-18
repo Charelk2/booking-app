@@ -30,7 +30,7 @@ describe('OverviewAccordion', () => {
       );
     });
     expect(container.textContent).toContain('A');
-    const detailsEl = container.querySelector('details');
-    expect(detailsEl?.hasAttribute('open')).toBe(false);
+    const toggleBtn = container.querySelector('button');
+    expect(toggleBtn?.getAttribute('aria-expanded')).toBe('false');
   });
 });
