@@ -720,6 +720,7 @@ POST /api/v1/payments
  Optional: full (bool)
 ```
 Sending `full: true` charges the remaining balance and marks the booking paid. Omitting it records a deposit and sets the status to `deposit_paid`.
+The endpoint now verifies the booking belongs to the authenticated client and returns **403 Forbidden** if another user attempts payment.
 Payment processing now emits structured logs instead of printing to stdout so transactions can be traced in production.
 
 When a client accepts a quote in the chat thread, the frontend now prompts them to pay a deposit via this endpoint. Successful payments update the booking's `payment_status` and display a confirmation banner.
