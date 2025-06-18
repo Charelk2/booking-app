@@ -94,6 +94,8 @@ def create_quote_for_request(
             quote_id=new_quote.id,
             attachment_url=None,
         )
+        # Avoid circular references when serialized by Pydantic models
+        new_quote.booking_request = None
         return new_quote
     except ValueError as e:
         logger.warning(
