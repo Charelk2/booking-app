@@ -475,6 +475,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
   quotes directly from the notification list.
 * Quote API responses omit the nested `booking_request` field to avoid
   circular references.
+* POST `/api/v1/booking-requests/{id}/quotes` now returns a Quote with
+  `booking_request` set to `null` to prevent serialization cycles.
 * Accepting a Quote V2 now also creates a formal booking visible on the artist dashboard.
 * Accepted quotes now include a `booking_id` when retrieved via `GET /api/v1/quotes/{id}` so clients can load booking details.
 * Quote V2 error handling logs the acting user and quote details and returns structured responses for easier debugging.
