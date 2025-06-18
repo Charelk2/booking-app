@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import QuoteCard from '../QuoteCard';
 import { act } from 'react';
+import { formatCurrency } from '@/lib/utils';
 
 const quote = {
   id: 1,
@@ -30,6 +31,7 @@ describe('QuoteCard', () => {
       );
     });
     expect(div.textContent).toContain('Perf');
-    expect(div.textContent).toContain('130');
+    expect(div.textContent).toContain(formatCurrency(100));
+    expect(div.textContent).toContain(formatCurrency(130));
   });
 });

@@ -3,6 +3,7 @@ import React from 'react';
 import { act } from 'react';
 import PaymentModal from '../PaymentModal';
 import * as api from '@/lib/api';
+import { formatCurrency } from '@/lib/utils';
 
 jest.mock('@/lib/api');
 
@@ -155,7 +156,7 @@ describe('PaymentModal', () => {
     const note = div.querySelector('p.text-sm.text-gray-600');
     expect(note).not.toBeNull();
     expect(note?.textContent).toContain(
-      `Due by ${new Date(due).toLocaleDateString()}`,
+      `${formatCurrency(25)} due by ${new Date(due).toLocaleDateString()}`,
     );
     root.unmount();
   });
