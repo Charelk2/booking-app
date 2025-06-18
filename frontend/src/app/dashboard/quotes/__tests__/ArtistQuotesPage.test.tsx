@@ -58,4 +58,52 @@ describe('ArtistQuotesPage', () => {
     });
     div.remove();
   });
+
+  it('opens edit modal and saves changes', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
+    (api.getMyArtistQuotes as jest.Mock).mockResolvedValue({
+      data: [
+        { id: 1, booking_request_id: 9, artist_id: 2, quote_details: 'Offer', price: 100, currency: 'ZAR', status: 'pending_client_action', created_at: '', updated_at: '' },
+      ],
+    });
+    (api.updateQuoteAsArtist as jest.Mock).mockResolvedValue({ data: {} });
+
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+
+    await act(async () => {
+      root.render(<ArtistQuotesPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    const editBtn = Array.from(div.querySelectorAll('button')).find(b => b.textContent === 'Edit') as HTMLButtonElement;
+    expect(editBtn).toBeTruthy();
+    await act(async () => {
+      editBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const textarea = div.querySelector('textarea') as HTMLTextAreaElement;
+    const input = div.querySelector('input[type="number"]') as HTMLInputElement;
+    expect(textarea).not.toBeNull();
+    await act(async () => {
+      textarea.value = 'Updated';
+      textarea.dispatchEvent(new Event('change', { bubbles: true }));
+      input.value = '150';
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    const form = div.querySelector('form') as HTMLFormElement;
+    await act(async () => {
+      form.dispatchEvent(new Event('submit', { bubbles: true }));
+    });
+
+    expect(api.updateQuoteAsArtist).toHaveBeenCalledWith(1, { quote_details: 'Updated', price: 150 });
+
+    act(() => {
+      root.unmount();
+    });
+    div.remove();
+  });
 });

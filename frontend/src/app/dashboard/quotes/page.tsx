@@ -10,6 +10,7 @@ import {
   confirmQuoteBooking,
 } from '@/lib/api';
 import type { Quote } from '@/types';
+import EditQuoteModal from '@/components/booking/EditQuoteModal';
 
 export default function ArtistQuotesPage() {
   const { user } = useAuth();
@@ -53,23 +54,24 @@ export default function ArtistQuotesPage() {
     }
   };
 
-  const handleEdit = async (quote: Quote) => {
-    const details = window.prompt('Quote details', quote.quote_details);
-    if (details === null) return;
-    const priceStr = window.prompt('Price', quote.price.toString());
-    if (priceStr === null) return;
-    const price = Number(priceStr);
-    const updated = { ...quote, quote_details: details, price };
-    setQuotes((prev) => prev.map((q) => (q.id === quote.id ? updated : q)));
+  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
+
+  const handleEdit = (quote: Quote) => {
+    setEditingQuote(quote);
+  };
+
+  const handleSaveEdit = async (data: { quote_details: string; price: number }) => {
+    if (!editingQuote) return;
+    const updated = { ...editingQuote, ...data };
+    setQuotes((prev) => prev.map((q) => (q.id === editingQuote.id ? updated : q)));
     try {
-      await updateQuoteAsArtist(quote.id, {
-        quote_details: details,
-        price,
-      });
+      await updateQuoteAsArtist(editingQuote.id, data);
       toast.success('Quote updated');
     } catch (err) {
       console.error('Update failed', err);
       toast.error(err instanceof Error ? err.message : 'Error updating quote');
+    } finally {
+      setEditingQuote(null);
     }
   };
 
@@ -158,6 +160,12 @@ export default function ArtistQuotesPage() {
           </ul>
         )}
       </div>
+      <EditQuoteModal
+        open={editingQuote !== null}
+        onClose={() => setEditingQuote(null)}
+        onSubmit={handleSaveEdit}
+        quote={editingQuote ?? ({} as Quote)}
+      />
     </MainLayout>
   );
 }
