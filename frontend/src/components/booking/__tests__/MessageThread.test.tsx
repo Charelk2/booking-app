@@ -473,11 +473,16 @@ describe('MessageThread component', () => {
     await act(async () => {
       await Promise.resolve();
     });
+    await act(async () => {
+      await Promise.resolve();
+    });
     const banner = container.querySelector('[data-testid="booking-confirmed-banner"]');
     expect(banner?.textContent).toContain('Booking confirmed for DJ');
     const viewLink = container.querySelector('a[href="/booking-requests/1"]');
     expect(viewLink).not.toBeNull();
-    const dashboardLink = container.querySelector('a[href="/dashboard/client/bookings"]');
+    const dashboardLink = container.querySelector(
+      'a[href="/dashboard/client/bookings/1"]',
+    );
     expect(dashboardLink).not.toBeNull();
     const help = container.querySelector('[data-testid="help-prompt"]');
     expect(help).not.toBeNull();
@@ -497,6 +502,14 @@ describe('MessageThread component', () => {
           timestamp: new Date().toISOString(),
         },
       ],
+    });
+    (api.getBookingDetails as jest.Mock).mockResolvedValue({
+      data: {
+        id: 42,
+        service: { title: 'Gig' },
+        start_time: '2024-01-01T00:00:00Z',
+        deposit_amount: 50,
+      },
     });
     (api.getQuoteV2 as jest.Mock).mockResolvedValue({
       data: {
@@ -521,7 +534,14 @@ describe('MessageThread component', () => {
     await act(async () => {
       await Promise.resolve();
     });
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(api.getBookingDetails).toHaveBeenCalledWith(42);
+    const dashboardLink = container.querySelector(
+      'a[href="/dashboard/client/bookings/42"]',
+    );
+    expect(dashboardLink).not.toBeNull();
   });
 
   it('opens payment modal after accepting quote', async () => {
