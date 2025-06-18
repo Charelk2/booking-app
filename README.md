@@ -724,6 +724,10 @@ POST /api/v1/payments
  Required: booking_request_id, amount
  Optional: full (bool)
 ```
+```
+GET /api/v1/payments/{payment_id}/receipt
+```
+Returns the PDF receipt for a completed payment.
 Sending `full: true` charges the remaining balance and marks the booking paid. Omitting it records a deposit and sets the status to `deposit_paid`.
 The endpoint now verifies the booking belongs to the authenticated client and returns **403 Forbidden** if another user attempts payment.
 Payment processing now emits structured logs instead of printing to stdout so transactions can be traced in production.
