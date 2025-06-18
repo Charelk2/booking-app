@@ -433,7 +433,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 {bookingDetails.service?.title} on{' '}
                 {new Date(bookingDetails.start_time).toLocaleString()}. Deposit{' '}
                 {formatCurrency(depositAmount ?? bookingDetails.deposit_amount ?? 0)}
-                {' '}due.
+                {bookingDetails.deposit_due_by
+                  ? ` due by ${new Date(bookingDetails.deposit_due_by).toLocaleDateString()}`
+                  : ' due.'}
               </>
             )}
           </div>

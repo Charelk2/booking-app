@@ -37,6 +37,7 @@ class BookingResponse(BookingBase):
     total_price: Annotated[Decimal, Field()]
     created_at: datetime
     updated_at: datetime
+    deposit_due_by: Optional[datetime] = None
 
     # Include nested details for frontend dashboard
     client: Optional[UserResponse] = None
