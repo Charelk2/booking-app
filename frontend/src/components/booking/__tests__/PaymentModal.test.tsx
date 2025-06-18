@@ -27,6 +27,9 @@ describe('PaymentModal', () => {
       );
     });
     const input = div.querySelector('input[type="number"]') as HTMLInputElement;
+    const label = div.querySelector('label[for="deposit-amount"]');
+    expect(label).not.toBeNull();
+    expect(label?.textContent).toContain('Amount');
     expect(input.value).toBe('50');
     const form = div.querySelector('form') as HTMLFormElement;
     await act(async () => {
@@ -61,6 +64,9 @@ describe('PaymentModal', () => {
         />,
       );
     });
+    const label = div.querySelector('label[for="deposit-amount"]');
+    expect(label).not.toBeNull();
+    expect(label?.textContent).toContain('Amount');
     const form = div.querySelector('form') as HTMLFormElement;
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true }));
@@ -122,6 +128,9 @@ describe('PaymentModal', () => {
       );
     });
     const reopened = div.querySelector('input[type="number"]') as HTMLInputElement;
+    const reopenedLabel = div.querySelector('label[for="deposit-amount"]');
+    expect(reopenedLabel).not.toBeNull();
+    expect(reopenedLabel?.textContent).toContain('Amount');
     expect(reopened.value).toBe('40');
     root.unmount();
   });
