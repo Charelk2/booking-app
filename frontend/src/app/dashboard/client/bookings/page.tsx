@@ -8,6 +8,7 @@ import type { Booking, Review } from '@/types';
 import ReviewFormModal from '@/components/review/ReviewFormModal';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
+import { HelpPrompt } from '@/components/ui';
 
 interface BookingWithReview extends Booking {
   review?: Review | null;
@@ -185,6 +186,7 @@ export default function ClientBookingsPage() {
             <BookingList items={past} onReview={handleOpenReview} />
           )}
         </section>
+        <HelpPrompt />
       </div>
       {reviewId && (
         <ReviewFormModal
