@@ -117,7 +117,8 @@ def read_my_bookings(
 ) -> Any:
     """Return bookings for the authenticated client, optionally filtered."""
     query = (
-        db.query(Booking)
+        db.query(Booking, BookingSimple.deposit_due_by)
+        .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
         .options(
             selectinload(Booking.client),
             selectinload(Booking.service),
@@ -150,7 +151,13 @@ def read_my_bookings(
                 detail="Invalid status filter",
             ) from exc
 
-    bookings = query.order_by(Booking.start_time.desc()).all()
+    rows = query.order_by(Booking.start_time.desc()).all()
+    bookings: List[Booking] = []
+    for booking, deposit_due in rows:
+        if deposit_due is not None:
+            booking.deposit_due_by = deposit_due
+        bookings.append(booking)
+
     return bookings
 
 
