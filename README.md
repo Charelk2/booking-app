@@ -755,6 +755,7 @@ Set `PAYMENT_GATEWAY_FAKE=1` in the environment to bypass the real gateway durin
 
 When a client accepts a quote in the chat thread, the frontend now prompts them to pay a deposit via this endpoint. Successful payments update the booking's `payment_status` and display a confirmation banner.
 The payment modal automatically fills in half the quote total as the suggested deposit, but clients can adjust the amount before submitting.
+The amount field now displays this value formatted via `formatCurrency` and shows helper text indicating whether the deposit or full amount will be charged. Deposit due dates use the `PPP` format for brevity.
 The modal layout now adapts to narrow screens, trapping focus and scrolling internally so mobile users can submit using the keyboard's **Done** button.
 Accepting a quote also creates a **DEPOSIT_DUE** notification so the client receives a clear reminder to pay. The notification links to the dashboard at `/dashboard/client/bookings/{booking_id}?pay=1` where they can complete the deposit.
 The alert now displays the deposit amount and due date so clients know exactly what to pay and by when. The drawer also parses these values so the list shows `R50.00 due by Jan 1, 2025` under the title.
