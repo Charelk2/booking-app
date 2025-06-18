@@ -43,6 +43,7 @@ describe('ClientBookingsPage', () => {
             total_price: 100,
             notes: '',
             deposit_amount: 50,
+            deposit_due_by: new Date('2024-01-08').toISOString(),
             payment_status: 'deposit_paid',
             service: { title: 'Gig' },
             client: { id: 1 },
@@ -86,6 +87,7 @@ describe('ClientBookingsPage', () => {
     expect(div.textContent).toContain('Past Bookings');
     expect(div.textContent).toContain('Deposit:');
     expect(div.textContent).toContain('Deposit Paid');
+    expect(div.textContent).toContain('Deposit due by');
     expect(div.textContent).toContain('Requested');
     expect(div.textContent).toContain('Completed');
     const link = div.querySelector('a[data-booking-id="1"]');
