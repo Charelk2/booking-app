@@ -17,6 +17,7 @@ from .db_utils import (
     ensure_notification_link_column,
     ensure_custom_subtitle_column,
     ensure_price_visible_column,
+    ensure_portfolio_image_urls_column,
     ensure_currency_column,
     ensure_mfa_columns,
     ensure_request_attachment_column,
@@ -63,6 +64,7 @@ ensure_display_order_column(engine)
 ensure_notification_link_column(engine)
 ensure_custom_subtitle_column(engine)
 ensure_price_visible_column(engine)
+ensure_portfolio_image_urls_column(engine)
 ensure_currency_column(engine)
 ensure_mfa_columns(engine)
 ensure_booking_simple_columns(engine)
