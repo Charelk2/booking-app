@@ -10,6 +10,12 @@ jest.mock('next/navigation', () => ({
   useParams: jest.fn(),
   usePathname: jest.fn(() => '/dashboard/client/bookings/1'),
 }));
+/* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
+jest.mock('next/link', () => {
+  const React = require('react');
+  return { __esModule: true, default: (props: any) => React.createElement('a', props) };
+});
+/* eslint-enable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
 
 describe('BookingDetailsPage', () => {
   afterEach(() => {
@@ -122,6 +128,47 @@ describe('BookingDetailsPage', () => {
     expect(help).not.toBeNull();
 
     act(() => { root.unmount(); });
+    div.remove();
+  });
+
+  it('shows a link to message the artist', async () => {
+    (useParams as jest.Mock).mockReturnValue({ id: '4' });
+    (getBookingDetails as jest.Mock).mockResolvedValue({
+      data: {
+        id: 4,
+        artist_id: 2,
+        client_id: 3,
+        service_id: 4,
+        start_time: new Date().toISOString(),
+        end_time: new Date().toISOString(),
+        status: 'confirmed',
+        total_price: 100,
+        notes: '',
+        deposit_amount: 50,
+        payment_status: 'deposit_paid',
+        service: { title: 'Gig' },
+        client: { id: 3 },
+        source_quote: { booking_request_id: 7 },
+      },
+    });
+    (downloadBookingIcs as jest.Mock).mockResolvedValue({ data: new Blob() });
+
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(<BookingDetailsPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { await Promise.resolve(); });
+    
+
+    const msg = div.querySelector('[data-testid="message-artist-link"]');
+    expect(msg).not.toBeNull();
+    expect(msg?.getAttribute('href')).toBe('/booking-requests/7');
+
+    act(() => {
+      root.unmount();
+    });
     div.remove();
   });
 });
