@@ -738,6 +738,7 @@ Returns the PDF receipt for a completed payment.
 Sending `full: true` charges the remaining balance and marks the booking paid. Omitting it records a deposit and sets the status to `deposit_paid`.
 The endpoint now verifies the booking belongs to the authenticated client and returns **403 Forbidden** if another user attempts payment.
 Payment processing now emits structured logs instead of printing to stdout so transactions can be traced in production.
+Set `PAYMENT_GATEWAY_FAKE=1` in the environment to bypass the real gateway during local testing. When enabled, `/api/v1/payments` returns a dummy `payment_id` and immediately marks the booking paid.
 
 When a client accepts a quote in the chat thread, the frontend now prompts them to pay a deposit via this endpoint. Successful payments update the booking's `payment_status` and display a confirmation banner.
 The payment modal automatically fills in half the quote total as the suggested deposit, but clients can adjust the amount before submitting.
