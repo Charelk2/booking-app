@@ -118,7 +118,7 @@ export default function BookingDetailsPage() {
         open={showPayment}
         onClose={() => setShowPayment(false)}
         bookingRequestId={booking.source_quote?.booking_request_id || booking.id}
-        depositAmount={booking.deposit_amount || undefined}
+        depositAmount={booking.deposit_amount}
         onSuccess={() => {
           setBooking({ ...booking, payment_status: 'deposit_paid' });
           setShowPayment(false);
