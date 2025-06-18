@@ -147,6 +147,42 @@ def test_create_deposit(monkeypatch):
         app.dependency_overrides.pop(get_current_active_client, None)
 
 
+def test_create_deposit_fake(monkeypatch):
+    Session = setup_app()
+    client_user, br_id, Session = create_records(Session)
+    prev_db = app.dependency_overrides.get(get_db)
+    prev_client = app.dependency_overrides.get(get_current_active_client)
+    app.dependency_overrides[get_current_active_client] = override_client(
+        client_user
+    )
+
+    def should_not_call(*args, **kwargs):
+        raise AssertionError("httpx.post should not be called")
+
+    monkeypatch.setattr(api_payment.httpx, "post", should_not_call)
+    monkeypatch.setattr(api_payment, "PAYMENT_GATEWAY_FAKE", "1")
+    client = TestClient(app)
+    res = client.post(
+        "/api/v1/payments/", json={"booking_request_id": br_id, "amount": 50}
+    )
+    assert res.status_code == 201
+    db = Session()
+    booking = db.query(BookingSimple).first()
+    assert booking.deposit_amount == Decimal("50")
+    assert booking.deposit_paid is True
+    assert booking.payment_status == "deposit_paid"
+    assert booking.payment_id.startswith("fake_")
+    db.close()
+    if prev_db is not None:
+        app.dependency_overrides[get_db] = prev_db
+    else:
+        app.dependency_overrides.pop(get_db, None)
+    if prev_client is not None:
+        app.dependency_overrides[get_current_active_client] = prev_client
+    else:
+        app.dependency_overrides.pop(get_current_active_client, None)
+
+
 def test_get_receipt(tmp_path):
     payment_id = "abc123"
     receipts_dir = tmp_path / "static" / "receipts"
