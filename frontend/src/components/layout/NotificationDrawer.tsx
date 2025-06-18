@@ -83,7 +83,7 @@ export default function NotificationDrawer({
                       <button
                         type="button"
                         onClick={() => setShowUnread((prev) => !prev)}
-                        className="text-sm text-gray-600 hover:underline"
+                        className="text-sm text-gray-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                         data-testid="toggle-unread"
                       >
                         {showUnread ? 'Show All' : 'Unread Only'}
@@ -91,13 +91,13 @@ export default function NotificationDrawer({
                       <button
                         type="button"
                         onClick={markAllRead}
-                        className="text-sm text-indigo-600 hover:underline"
+                        className="text-sm text-indigo-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                       >
                         Mark All as Read
                       </button>
                       <button
                         type="button"
-                        className="rounded-md text-gray-400 hover:text-gray-600 focus:outline-none"
+                        className="rounded-md text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                         onClick={onClose}
                       >
                         <span className="sr-only">Close panel</span>
@@ -145,7 +145,7 @@ export default function NotificationDrawer({
                                 type="button"
                                 aria-label="Load more notifications"
                                 onClick={loadMore}
-                                className="text-sm text-indigo-600 hover:underline focus:outline-none"
+                                className="text-sm text-indigo-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                               >
                                 Load more
                               </button>

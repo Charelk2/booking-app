@@ -77,7 +77,7 @@ export default function NotificationBell(): JSX.Element {
         onClick={() => setOpen(true)}
         onMouseEnter={prefetchNotifications}
         onFocus={prefetchNotifications}
-        className="flex text-gray-400 hover:text-gray-600 focus:outline-none"
+        className="flex text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
       >
         <span className="sr-only">View notifications</span>
         <BellIcon className="h-6 w-6" aria-hidden="true" />
