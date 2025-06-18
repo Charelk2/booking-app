@@ -6,6 +6,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import MessageThread from '@/components/booking/MessageThread';
 import PersonalizedVideoFlow from '@/components/booking/PersonalizedVideoFlow';
 import { getBookingRequestById, getArtist } from '@/lib/api';
+import { Spinner } from '@/components/ui';
 import { BookingRequest } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -62,7 +63,7 @@ export default function BookingRequestDetailPage() {
     return (
       <MainLayout>
         <div className="flex justify-center items-center min-h-[60vh]">
-          Loading...
+          <Spinner />
         </div>
       </MainLayout>
     );

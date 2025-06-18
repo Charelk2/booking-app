@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import QuoteCard from '@/components/booking/QuoteCard';
+import { Spinner } from '@/components/ui';
 import { getQuoteV2, updateQuoteAsClient } from '@/lib/api';
 import { QuoteV2 } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,7 +50,9 @@ export default function QuoteDetailPage() {
   if (!quote) {
     return (
       <MainLayout>
-        <div className="flex justify-center items-center min-h-[60vh]">Loading...</div>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <Spinner />
+        </div>
       </MainLayout>
     );
   }

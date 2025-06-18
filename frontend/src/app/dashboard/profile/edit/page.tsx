@@ -17,6 +17,7 @@ import {
 } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import { DEFAULT_CURRENCY } from '@/lib/constants';
+import { Spinner } from '@/components/ui';
 
 import dynamic from 'next/dynamic';
 import {
@@ -424,7 +425,7 @@ export default function EditArtistProfilePage(): JSX.Element {
     return (
       <MainLayout>
         <div className="flex justify-center items-center h-screen">
-          <p>Loading...</p>
+          <Spinner />
         </div>
       </MainLayout>
     );

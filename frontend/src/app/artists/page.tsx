@@ -5,6 +5,7 @@ import { getArtists } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCard from '@/components/artist/ArtistCard';
+import { Spinner } from '@/components/ui';
 
 const CATEGORIES = [
   'Live Performance',
@@ -118,7 +119,7 @@ export default function ArtistsPage() {
           )}
         </div>
         <div>
-          {loading && <p>Loading...</p>}
+          {loading && <Spinner className="my-4" />}
           {error && <p className="text-red-600">{error}</p>}
           {!loading && artists.length === 0 && !error && (
             <p>No artists found</p>
