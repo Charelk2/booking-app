@@ -740,6 +740,8 @@ The alert now displays the deposit amount and due date so clients know exactly w
 Clients can also pay outstanding deposits later from the bookings page. Each
 pending booking shows a **Pay deposit** button that fetches the latest deposit
 amount from the server before opening the payment modal.
+Adding `?pay=1` to a booking URL automatically opens this modal when the booking
+loads if the payment status is still `pending`.
 
 All prices and quotes now default to **South African Rand (ZAR)**. Update your environment or tests if you previously assumed USD values.
 

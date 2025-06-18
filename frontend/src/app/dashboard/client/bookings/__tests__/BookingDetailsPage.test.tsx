@@ -3,11 +3,12 @@ import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 import BookingDetailsPage from '../[id]/page';
 import { getBookingDetails, downloadBookingIcs } from '@/lib/api';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 
 jest.mock('@/lib/api');
 jest.mock('next/navigation', () => ({
   useParams: jest.fn(),
+  useSearchParams: jest.fn(),
   usePathname: jest.fn(() => '/dashboard/client/bookings/1'),
 }));
 /* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
@@ -18,6 +19,9 @@ jest.mock('next/link', () => {
 /* eslint-enable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
 
 describe('BookingDetailsPage', () => {
+  beforeEach(() => {
+    (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
+  });
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -176,4 +180,48 @@ describe('BookingDetailsPage', () => {
     });
     div.remove();
   });
+
+  it('opens the payment modal when ?pay=1 and payment pending', async () => {
+    (useParams as jest.Mock).mockReturnValue({ id: '5' });
+    (useSearchParams as jest.Mock).mockReturnValue({
+      get: (key: string) => (key === 'pay' ? '1' : null),
+    });
+    (getBookingDetails as jest.Mock).mockResolvedValue({
+      data: {
+        id: 5,
+        artist_id: 2,
+        client_id: 3,
+        service_id: 4,
+        start_time: new Date().toISOString(),
+        end_time: new Date().toISOString(),
+        status: 'confirmed',
+        total_price: 100,
+        notes: '',
+        deposit_amount: 50,
+        deposit_due_by: new Date('2024-01-08').toISOString(),
+        payment_status: 'pending',
+        service: { title: 'Gig' },
+        client: { id: 3 },
+      },
+    });
+    (downloadBookingIcs as jest.Mock).mockResolvedValue({ data: new Blob() });
+
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(<BookingDetailsPage />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const modalHeading = div.querySelector('h2');
+    expect(modalHeading?.textContent).toBe('Pay Deposit');
+
+    act(() => {
+      root.unmount();
+    });
+    div.remove();
+  });
 });
+
