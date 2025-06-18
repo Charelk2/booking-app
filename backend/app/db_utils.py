@@ -103,6 +103,17 @@ def ensure_price_visible_column(engine: Engine) -> None:
     )
 
 
+def ensure_portfolio_image_urls_column(engine: Engine) -> None:
+    """Add the ``portfolio_image_urls`` column to ``artist_profiles`` if missing."""
+
+    add_column_if_missing(
+        engine,
+        "artist_profiles",
+        "portfolio_image_urls",
+        "portfolio_image_urls JSON",
+    )
+
+
 def ensure_currency_column(engine: Engine) -> None:
     """Add the ``currency`` column to ``services`` if it's missing."""
 

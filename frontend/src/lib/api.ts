@@ -169,6 +169,21 @@ export const uploadMyArtistCoverPhoto = (file: File) => {
   );
 };
 
+export const uploadMyArtistPortfolioImages = (files: File[]) => {
+  const formData = new FormData();
+  files.forEach((f) => formData.append('files', f));
+  return api.post<ArtistProfile>(
+    `${API_V1}/artist-profiles/me/portfolio-images`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+};
+
+export const updateMyArtistPortfolioImageOrder = (urls: string[]) =>
+  api.put<ArtistProfile>(`${API_V1}/artist-profiles/me/portfolio-images`, {
+    portfolio_image_urls: urls,
+  });
+
 // ─── SERVICES ──────────────────────────────────────────────────────────────────
 
 // “services by artist” is GET /api/v1/services/artist/{artist_user_id}
