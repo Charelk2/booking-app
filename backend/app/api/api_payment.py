@@ -59,6 +59,7 @@ def create_payment(
     booking.deposit_amount = Decimal(str(payment_in.amount))
     booking.deposit_paid = True
     booking.payment_status = "paid" if payment_in.full else "deposit_paid"
+    booking.payment_id = charge.get("id")
     db.commit()
     db.refresh(booking)
 

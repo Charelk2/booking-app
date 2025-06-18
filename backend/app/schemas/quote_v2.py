@@ -46,6 +46,7 @@ class BookingSimpleRead(BaseModel):
     date: Optional[datetime] = None
     location: Optional[str] = None
     payment_status: str
+    payment_id: Optional[str] = None
     deposit_amount: Optional[Decimal] = None
     deposit_paid: bool
     created_at: datetime

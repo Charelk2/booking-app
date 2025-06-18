@@ -138,6 +138,12 @@ def ensure_booking_simple_columns(engine: Engine) -> None:
     add_column_if_missing(
         engine,
         "bookings_simple",
+        "payment_id",
+        "payment_id VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
         "deposit_amount",
         "deposit_amount NUMERIC(10, 2)"
     )
