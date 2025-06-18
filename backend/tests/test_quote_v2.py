@@ -448,6 +448,73 @@ def test_accept_quote_deposit_notification_link():
 
     from app.crud import crud_notification
     from app.models import NotificationType
+
     notifs = crud_notification.get_notifications_for_user(db, client.id)
     deposit = next(n for n in notifs if n.type == NotificationType.DEPOSIT_DUE)
     assert deposit.link == f"/dashboard/client/bookings/{booking.id}"
+
+
+def test_accept_quote_new_booking_notification_link():
+    db = setup_db()
+    artist = User(
+        email="artist6@test.com",
+        password="x",
+        first_name="A",
+        last_name="R",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="client6@test.com",
+        password="x",
+        first_name="C",
+        last_name="L",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    service = Service(
+        artist_id=artist.id,
+        title="Show",
+        description="test",
+        price=Decimal("180"),
+        currency="ZAR",
+        duration_minutes=60,
+        service_type="Live Performance",
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    from datetime import datetime
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        service_id=service.id,
+        proposed_datetime_1=datetime(2033, 1, 1, 20, 0, 0),
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    quote_in = QuoteCreate(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=client.id,
+        services=[ServiceItem(description="Performance", price=Decimal("180"))],
+        sound_fee=Decimal("0"),
+        travel_fee=Decimal("0"),
+    )
+    quote = api_quote_v2.create_quote(quote_in, db)
+    booking = api_quote_v2.accept_quote(quote.id, db)
+
+    from app.crud import crud_notification
+    from app.models import NotificationType
+
+    notifs = crud_notification.get_notifications_for_user(db, client.id)
+    new_booking = next(n for n in notifs if n.type == NotificationType.NEW_BOOKING)
+    assert new_booking.link == f"/dashboard/client/bookings/{booking.id}"
