@@ -13,7 +13,7 @@ const Marker = dynamic(
   { ssr: false },
 );
 import { useRef, useState, useEffect } from 'react';
-import { Button } from '../../ui';
+import { Button, TextInput } from '../../ui';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
 
 // Keeping the libraries array stable avoids unnecessary re-renders from
@@ -94,11 +94,11 @@ function AutocompleteInput({ value, onChange, onSelect, isLoaded }: Autocomplete
   }, [value]);
 
   return (
-    <input
+    <TextInput
       ref={inputRef}
-      className="border p-2 w-full min-h-[44px]"
       placeholder="Search address"
       onChange={(e) => onChange(e.target.value)}
+      className="min-h-[44px]"
       data-testid="autocomplete-input"
     />
   );
