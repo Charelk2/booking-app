@@ -7,6 +7,7 @@ from datetime import datetime
 import re, shutil
 from pathlib import Path
 from typing import List, Optional
+from pydantic import BaseModel
 import logging
 
 from app.utils.redis_cache import get_cached_artist_list, cache_artist_list
@@ -30,15 +31,19 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Paths for storing uploaded images:
-STATIC_DIR       = Path(__file__).resolve().parent.parent.parent / "static"
-PROFILE_PICS_DIR = STATIC_DIR / "profile_pics"
-COVER_PHOTOS_DIR = STATIC_DIR / "cover_photos"
+STATIC_DIR         = Path(__file__).resolve().parent.parent.parent / "static"
+PROFILE_PICS_DIR   = STATIC_DIR / "profile_pics"
+COVER_PHOTOS_DIR   = STATIC_DIR / "cover_photos"
+PORTFOLIO_IMAGES_DIR = STATIC_DIR / "portfolio_images"
 # Create directories if they don’t exist
 PROFILE_PICS_DIR.mkdir(parents=True, exist_ok=True)
 COVER_PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
+PORTFOLIO_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_PROFILE_PIC_SIZE   = 5 * 1024 * 1024  # 5 MB
 ALLOWED_PROFILE_PIC_TYPES = ["image/jpeg", "image/png", "image/webp"]
+ALLOWED_PORTFOLIO_IMAGE_TYPES = ALLOWED_PROFILE_PIC_TYPES
+MAX_PORTFOLIO_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 @router.get("/me", response_model=ArtistProfileResponse)
@@ -233,6 +238,91 @@ async def upload_artist_cover_photo_me(
 
     finally:
         await file.close()
+
+
+@router.post(
+    "/me/portfolio-images",
+    response_model=ArtistProfileResponse,
+    summary="Upload portfolio images",
+    description="Upload one or more portfolio images and append them to the artist's portfolio_image_urls list.",
+)
+async def upload_artist_portfolio_images_me(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    files: List[UploadFile] = File(...),
+):
+    """POST /api/v1/artist-profiles/me/portfolio-images"""
+    artist_profile = (
+        db.query(Artist)
+          .filter(Artist.user_id == current_user.id)
+          .first()
+    )
+    if not artist_profile:
+        raise HTTPException(status_code=404, detail="Artist profile not found.")
+
+    new_urls = list(artist_profile.portfolio_image_urls or [])
+    try:
+        for up in files:
+            if up.content_type not in ALLOWED_PORTFOLIO_IMAGE_TYPES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid image type. Allowed: {ALLOWED_PORTFOLIO_IMAGE_TYPES}",
+                )
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            original = Path(up.filename or "portfolio").name
+            sanitized = re.sub(r"[^a-zA-Z0-9_.-]", "_", original)
+            unique_filename = f"{timestamp}_{current_user.id}_{sanitized}"
+            file_path = PORTFOLIO_IMAGES_DIR / unique_filename
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(up.file, buffer)
+            new_urls.append(f"/static/portfolio_images/{unique_filename}")
+
+        artist_profile.portfolio_image_urls = new_urls
+        db.add(artist_profile)
+        db.commit()
+        db.refresh(artist_profile)
+        return artist_profile
+    except Exception as e:
+        if 'file_path' in locals() and file_path.exists():
+            try:
+                file_path.unlink()
+            except OSError as cleanup_err:
+                logger.warning("Error cleaning up portfolio image %s: %s", file_path, cleanup_err)
+        raise HTTPException(status_code=500, detail=f"Could not upload portfolio image: {e}")
+    finally:
+        for up in files:
+            await up.close()
+
+
+class PortfolioImagesUpdate(BaseModel):
+    portfolio_image_urls: List[str]
+
+
+@router.put(
+    "/me/portfolio-images",
+    response_model=ArtistProfileResponse,
+    summary="Update portfolio image order",
+    description="Replace portfolio_image_urls with the provided list to reorder images.",
+)
+def update_portfolio_images_order_me(
+    update: PortfolioImagesUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """PUT /api/v1/artist-profiles/me/portfolio-images"""
+    artist_profile = (
+        db.query(Artist)
+          .filter(Artist.user_id == current_user.id)
+          .first()
+    )
+    if not artist_profile:
+        raise HTTPException(status_code=404, detail="Artist profile not found.")
+
+    artist_profile.portfolio_image_urls = update.portfolio_image_urls
+    db.add(artist_profile)
+    db.commit()
+    db.refresh(artist_profile)
+    return artist_profile
 
 
 @router.get(
