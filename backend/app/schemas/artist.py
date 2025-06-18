@@ -21,6 +21,7 @@ class ArtistProfileBase(BaseModel):
     # If you want to validate that portfolio URLs are valid HTTP(S) URLs, use HttpUrl.
     # Otherwise, feel free to revert to `List[str]` if you truly just want free‐form strings.
     portfolio_urls: Optional[List[HttpUrl]] = None
+    portfolio_image_urls: Optional[List[str]] = None
 
     specialties: Optional[List[str]] = None
     profile_picture_url: Optional[str] = None

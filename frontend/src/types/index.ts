@@ -23,6 +23,7 @@ export interface ArtistProfile {
   profile_picture_url?: string | null;
   cover_photo_url?: string | null;
   portfolio_urls?: string[] | null;
+  portfolio_image_urls?: string[] | null;
   specialties?: string[] | null;
   /** Average star rating calculated from reviews */
   rating?: number;
