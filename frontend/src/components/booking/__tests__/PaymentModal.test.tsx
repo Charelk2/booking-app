@@ -134,4 +134,29 @@ describe('PaymentModal', () => {
     expect(reopened.value).toBe('40');
     root.unmount();
   });
+
+  it('shows deposit due date when provided', async () => {
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    const due = '2024-01-05T00:00:00Z';
+    await act(async () => {
+      root.render(
+        <PaymentModal
+          open
+          bookingRequestId={4}
+          onClose={() => {}}
+          onSuccess={() => {}}
+          onError={() => {}}
+          depositAmount={25}
+          depositDueBy={due}
+        />,
+      );
+    });
+    const note = div.querySelector('p.text-sm.text-gray-600');
+    expect(note).not.toBeNull();
+    expect(note?.textContent).toContain(
+      `Due by ${new Date(due).toLocaleDateString()}`,
+    );
+    root.unmount();
+  });
 });
