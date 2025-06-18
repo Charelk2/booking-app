@@ -4,6 +4,7 @@ import api, {
   updateBookingStatus,
   downloadBookingIcs,
   getMyArtistQuotes,
+  getMyClientQuotes,
   updateQuoteAsArtist,
   updateQuoteAsClient,
   confirmQuoteBooking,
@@ -148,6 +149,19 @@ describe('getMyArtistQuotes', () => {
     await getMyArtistQuotes({ skip: 1, limit: 5 });
     expect(spy).toHaveBeenCalledWith('/api/v1/quotes/me/artist', {
       params: { skip: 1, limit: 5 },
+    });
+    spy.mockRestore();
+  });
+});
+
+describe('getMyClientQuotes', () => {
+  it('requests client quotes with params', async () => {
+    const spy = jest
+      .spyOn(api, 'get')
+      .mockResolvedValue({ data: [] } as unknown as { data: unknown });
+    await getMyClientQuotes({ skip: 2, limit: 10 });
+    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/me/client', {
+      params: { skip: 2, limit: 10 },
     });
     spy.mockRestore();
   });
