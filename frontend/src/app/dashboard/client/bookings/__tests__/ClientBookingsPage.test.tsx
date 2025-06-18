@@ -180,7 +180,7 @@ describe('ClientBookingsPage', () => {
         status: 'confirmed',
         total_price: 120,
         notes: '',
-        deposit_amount: 60,
+        deposit_amount: 80,
         payment_status: 'pending',
         service: { title: 'Gig' },
         client: { id: 1 },
@@ -207,7 +207,7 @@ describe('ClientBookingsPage', () => {
 
     expect(getBookingDetails).toHaveBeenCalledWith(5);
     const input = div.querySelector('input[type="number"]') as HTMLInputElement;
-    expect(input.value).toBe('60');
+    expect(input.value).toBe('80');
 
     act(() => {
       root.unmount();
