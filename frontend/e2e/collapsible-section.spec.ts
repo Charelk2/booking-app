@@ -17,3 +17,24 @@ test.describe('CollapsibleSection mobile behavior', () => {
     await expect(page.getByTestId('step-heading')).toHaveText(/Location/);
   });
 });
+
+test.describe('CollapsibleSection cross-browser', () => {
+  test.skip(({ browserName }) => browserName === 'firefox', 'Chrome and WebKit only');
+
+  test.beforeEach(async ({ page }) => {
+    await stubArtist(page);
+    await stubCatchAllApi(page);
+    await stubGoogleMaps(page);
+  });
+
+  test('toggles section on click', async ({ page }) => {
+    await page.goto('/booking?artist_id=1&service_id=1');
+    const dateButton = page.getByRole('button', { name: 'Date & Time' });
+    const locationButton = page.getByRole('button', { name: 'Location' });
+    await expect(dateButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(locationButton).toHaveAttribute('aria-expanded', 'false');
+    await locationButton.click();
+    await expect(locationButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('step-heading')).toHaveText(/Location/);
+  });
+});

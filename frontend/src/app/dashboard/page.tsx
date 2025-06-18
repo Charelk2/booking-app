@@ -22,6 +22,7 @@ import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
 import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
 import SectionList from "@/components/dashboard/SectionList";
+import CollapsibleSection from "@/components/ui/CollapsibleSection";
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import Link from "next/link";
 import { Reorder, useDragControls } from "framer-motion";
@@ -158,6 +159,7 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [servicesOpen, setServicesOpen] = useState(false);
   const [requestToUpdate, setRequestToUpdate] = useState<BookingRequest | null>(null);
   const [activeTab, setActiveTab] = useState<'requests' | 'bookings' | 'services'>('requests');
 
@@ -533,13 +535,13 @@ export default function DashboardPage() {
             </>
           )}
           {user.user_type === "artist" && activeTab === 'services' && (
-            <details
-              className="mt-8 border border-gray-200 rounded-md bg-white shadow-sm"
+            <CollapsibleSection
+              title="Your Services"
+              open={servicesOpen}
+              onToggle={() => setServicesOpen(!servicesOpen)}
+              className="mt-8 border border-gray-200 rounded-md shadow-sm"
             >
-              <summary className="px-3 py-2 text-sm font-medium text-gray-700 cursor-pointer select-none">
-                Your Services
-              </summary>
-              <div className="px-3 pb-3">
+              <div>
                 {services.length === 0 ? (
                   <div className="text-sm text-gray-500 py-2">No services yet</div>
                 ) : (
@@ -571,7 +573,7 @@ export default function DashboardPage() {
                   Add Service
                 </button>
               </div>
-            </details>
+            </CollapsibleSection>
           )}
         </div>
       </div>
