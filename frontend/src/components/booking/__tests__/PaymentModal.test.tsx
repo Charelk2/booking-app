@@ -4,6 +4,7 @@ import { act } from 'react';
 import PaymentModal from '../PaymentModal';
 import * as api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
+import { format } from 'date-fns';
 
 jest.mock('@/lib/api');
 
@@ -27,11 +28,11 @@ describe('PaymentModal', () => {
         />,
       );
     });
-    const input = div.querySelector('input[type="number"]') as HTMLInputElement;
+    const input = div.querySelector('input[type="text"]') as HTMLInputElement;
     const label = div.querySelector('label[for="deposit-amount"]');
     expect(label).not.toBeNull();
     expect(label?.textContent).toContain('Amount');
-    expect(input.value).toBe('50');
+    expect(input.value).toBe(formatCurrency(50));
     const form = div.querySelector('form') as HTMLFormElement;
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true }));
@@ -68,6 +69,8 @@ describe('PaymentModal', () => {
     const label = div.querySelector('label[for="deposit-amount"]');
     expect(label).not.toBeNull();
     expect(label?.textContent).toContain('Amount');
+    const input = div.querySelector('input[type="text"]') as HTMLInputElement;
+    expect(input.value).toBe(formatCurrency(30));
     const form = div.querySelector('form') as HTMLFormElement;
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true }));
@@ -97,7 +100,7 @@ describe('PaymentModal', () => {
         />,
       );
     });
-    const input = div.querySelector('input[type="number"]') as HTMLInputElement;
+    const input = div.querySelector('input[type="text"]') as HTMLInputElement;
     act(() => {
       input.value = '75';
       input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -128,11 +131,11 @@ describe('PaymentModal', () => {
         />,
       );
     });
-    const reopened = div.querySelector('input[type="number"]') as HTMLInputElement;
+    const reopened = div.querySelector('input[type="text"]') as HTMLInputElement;
     const reopenedLabel = div.querySelector('label[for="deposit-amount"]');
     expect(reopenedLabel).not.toBeNull();
     expect(reopenedLabel?.textContent).toContain('Amount');
-    expect(reopened.value).toBe('40');
+    expect(reopened.value).toBe(formatCurrency(40));
     root.unmount();
   });
 
@@ -153,11 +156,39 @@ describe('PaymentModal', () => {
         />,
       );
     });
-    const note = div.querySelector('p.text-sm.text-gray-600');
+    const notes = div.querySelectorAll('p.text-sm.text-gray-600');
+    const note = notes[0];
     expect(note).not.toBeNull();
-    expect(note?.textContent).toContain(
-      `${formatCurrency(25)} due by ${new Date(due).toLocaleDateString()}`,
+    expect(note.textContent).toContain(
+      `${formatCurrency(25)} due by ${format(new Date(due), 'PPP')}`,
     );
+    const help = notes[1];
+    expect(help.textContent).toContain('deposit');
+    root.unmount();
+  });
+
+  it('updates helper text when paying full amount', async () => {
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(
+        <PaymentModal
+          open
+          bookingRequestId={5}
+          onClose={() => {}}
+          onSuccess={() => {}}
+          onError={() => {}}
+          depositAmount={40}
+        />,
+      );
+    });
+    const checkbox = div.querySelector('input[type="checkbox"]') as HTMLInputElement;
+    await act(async () => {
+      checkbox.click();
+    });
+    const help = div.querySelector('p.text-sm.text-gray-600');
+    expect(help).not.toBeNull();
+    expect(help?.textContent).toContain('full amount');
     root.unmount();
   });
 });

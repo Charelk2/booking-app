@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Button from '../ui/Button';
 import { createPayment } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
+import { format } from 'date-fns';
 
 interface PaymentSuccess {
   status: string;
@@ -29,8 +30,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   depositAmount,
   depositDueBy,
 }) => {
-  const [amount, setAmount] = useState(
-    depositAmount !== undefined ? depositAmount.toString() : '',
+  const [amount, setAmount] = useState<number>(depositAmount ?? 0);
+  const [amountInput, setAmountInput] = useState(
+    depositAmount !== undefined ? formatCurrency(depositAmount) : '',
   );
   const [full, setFull] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,7 +41,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
   useEffect(() => {
     if (open) {
-      setAmount(depositAmount !== undefined ? depositAmount.toString() : '');
+      const initial = depositAmount ?? 0;
+      setAmount(initial);
+      setAmountInput(formatCurrency(initial));
     }
   }, [depositAmount, open]);
 
@@ -121,19 +125,29 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             Amount
             <input
               id="deposit-amount"
-              type="number"
+              type="text"
               className="w-full border rounded p-1"
               placeholder="Amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              value={amountInput}
+              onChange={(e) => {
+                const raw = e.target.value;
+                setAmountInput(raw);
+                const num = parseFloat(raw.replace(/[^0-9.]/g, ''));
+                if (!Number.isNaN(num)) setAmount(num);
+              }}
             />
           </label>
           {depositDueBy && (
             <p className="text-sm text-gray-600">
-              {formatCurrency(Number((depositAmount ?? amount) || 0))} due by{' '}
-              {new Date(depositDueBy).toLocaleDateString()}
+              {formatCurrency(depositAmount ?? amount)} due by{' '}
+              {format(new Date(depositDueBy), 'PPP')}
             </p>
           )}
+          <p className="text-sm text-gray-600">
+            {full
+              ? 'You are paying the full amount.'
+              : 'You are paying the deposit.'}
+          </p>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
