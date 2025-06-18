@@ -22,7 +22,7 @@ router = APIRouter(tags=["payments"])
 
 class PaymentCreate(BaseModel):
     booking_request_id: int
-    amount: float = Field(gt=0)
+    amount: Optional[float] = Field(default=None, gt=0)
     full: Optional[bool] = False
 
 
@@ -59,14 +59,23 @@ def create_payment(
         )
         raise HTTPException(status.HTTP_403_FORBIDDEN)
 
+    amount = (
+        payment_in.amount
+        if payment_in.amount is not None
+        else float(booking.deposit_amount or 0)
+    )
+    logger.info("Resolved payment amount %s", amount)
+
     if PAYMENT_GATEWAY_FAKE:
-        logger.info("PAYMENT_GATEWAY_FAKE set - skipping gateway call")
+        logger.info(
+            "PAYMENT_GATEWAY_FAKE set - skipping gateway call (amount=%s)", amount
+        )
         charge = {"id": f"fake_{uuid.uuid4().hex}", "status": "succeeded"}
     else:
         try:
             response = httpx.post(
                 f"{PAYMENT_GATEWAY_URL}/charges",
-                json={"amount": payment_in.amount, "currency": "ZAR"},
+                json={"amount": amount, "currency": "ZAR"},
                 timeout=10,
             )
             response.raise_for_status()
@@ -77,7 +86,7 @@ def create_payment(
                 status.HTTP_502_BAD_GATEWAY, detail="Payment gateway error"
             )
 
-    booking.deposit_amount = Decimal(str(payment_in.amount))
+    booking.deposit_amount = Decimal(str(amount))
     booking.deposit_paid = True
     booking.payment_status = "paid" if payment_in.full else "deposit_paid"
     booking.payment_id = charge.get("id")
