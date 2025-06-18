@@ -100,6 +100,7 @@ def test_create_and_accept_quote():
     assert booking.payment_status == "pending"
     assert booking.deposit_amount == quote.total * Decimal("0.5")
     from datetime import timedelta
+
     assert booking.deposit_due_by == quote.created_at + timedelta(days=7)
     assert booking.deposit_paid is False
 
@@ -451,7 +452,7 @@ def test_accept_quote_deposit_notification_link():
 
     notifs = crud_notification.get_notifications_for_user(db, client.id)
     deposit = next(n for n in notifs if n.type == NotificationType.DEPOSIT_DUE)
-    assert deposit.link == f"/dashboard/client/bookings/{booking.id}"
+    assert deposit.link == f"/dashboard/client/bookings/{booking.id}?pay=1"
 
 
 def test_accept_quote_new_booking_notification_link():
