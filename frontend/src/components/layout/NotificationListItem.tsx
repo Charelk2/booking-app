@@ -91,9 +91,22 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       metadata,
     };
   }
-  if (/deposit payment due/i.test(n.content) || /deposit due/i.test(n.content)) {
-    const subtitle =
+  if (/deposit.*due/i.test(n.content)) {
+    let subtitle =
       n.content.length > 30 ? `${n.content.slice(0, 30)}...` : n.content;
+    const match = n.content.match(/Deposit of\s*([\d.,]+)\s*due(?:\s*by\s*(\d{4}-\d{2}-\d{2}))?/i);
+    if (match) {
+      const [, amt, dateStr] = match;
+      const parts: string[] = [];
+      if (amt) {
+        parts.push(`${amt}`);
+      }
+      if (dateStr) {
+        const formatted = format(new Date(dateStr), 'MMM d, yyyy');
+        parts.push(`due by ${formatted}`);
+      }
+      subtitle = parts.join(' ');
+    }
     return {
       title: 'Deposit Due',
       subtitle,
