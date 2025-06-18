@@ -1,3 +1,4 @@
+/* eslint-disable react/display-name */
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';

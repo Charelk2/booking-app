@@ -54,6 +54,15 @@ export default function useWebSocket(
 
       const scheduleReconnect = (e?: CloseEvent) => {
         if (cancelled) return;
+        if (e?.code === 4401) {
+          if (onError) onError(e);
+          cancelled = true;
+          if (timerRef.current) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+          }
+          return;
+        }
         if (onError) onError(e);
         attemptsRef.current += 1;
         const delay = Math.min(30000, 1000 * 2 ** (attemptsRef.current - 1));
