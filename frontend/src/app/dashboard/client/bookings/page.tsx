@@ -112,6 +112,15 @@ function BookingList({
               You rated {b.review.rating}/5
             </p>
           )}
+          {b.source_quote?.booking_request_id && (
+            <Link
+              href={`/booking-requests/${b.source_quote.booking_request_id}`}
+              className="mt-2 text-indigo-600 hover:underline text-sm"
+              data-testid="message-artist-link"
+            >
+              Message Artist
+            </Link>
+          )}
         </li>
       ))}
     </ul>
