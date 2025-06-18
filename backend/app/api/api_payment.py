@@ -16,10 +16,12 @@ PAYMENT_GATEWAY_URL = os.getenv("PAYMENT_GATEWAY_URL", "https://example.com")
 
 router = APIRouter(tags=["payments"])
 
+
 class PaymentCreate(BaseModel):
     booking_request_id: int
     amount: float = Field(gt=0)
     full: Optional[bool] = False
+
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_payment(
@@ -41,8 +43,18 @@ def create_payment(
         .first()
     )
     if not booking:
-        logger.warning("Booking not found for request %s", payment_in.booking_request_id)
+        logger.warning(
+            "Booking not found for request %s", payment_in.booking_request_id
+        )
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Booking not found")
+
+    if booking.client_id != current_user.id:
+        logger.warning(
+            "User %s attempted payment for booking %s",
+            current_user.id,
+            booking.id,
+        )
+        raise HTTPException(status.HTTP_403_FORBIDDEN)
 
     try:
         response = httpx.post(
@@ -54,7 +66,9 @@ def create_payment(
         charge = response.json()
     except Exception as exc:  # pragma: no cover - network failure path
         logger.error("Payment gateway error: %s", exc, exc_info=True)
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail="Payment gateway error")
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, detail="Payment gateway error"
+        )
 
     booking.deposit_amount = Decimal(str(payment_in.amount))
     booking.deposit_paid = True
