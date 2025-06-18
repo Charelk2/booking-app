@@ -15,6 +15,7 @@ import Link from 'next/link';
 import TimeAgo from '../ui/TimeAgo';
 import { getFullImageUrl, formatCurrency } from '@/lib/utils';
 import HelpPrompt from '../ui/HelpPrompt';
+import AlertBanner from '../ui/AlertBanner';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Booking, Message, MessageCreate, QuoteV2 } from '@/types';
@@ -427,10 +428,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           )}
         </header>
         {bookingConfirmed && (
-          <div
-            className="rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-800 mt-4"
-            data-testid="booking-confirmed-banner"
-          >
+          <AlertBanner variant="success" data-testid="booking-confirmed-banner" className="mt-4">
             🎉 Booking confirmed for {artistName}!{' '}
             {bookingDetails && (
               <>
@@ -442,7 +440,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   : ' due.'}
               </>
             )}
-          </div>
+          </AlertBanner>
         )}
         {bookingConfirmed && (
           <>
@@ -492,10 +490,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           </>
         )}
         {paymentStatus && (
-          <div
-            className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800 mt-2"
-            data-testid="payment-status-banner"
-          >
+          <AlertBanner variant="info" data-testid="payment-status-banner" className="mt-2">
             {paymentStatus === 'paid'
               ? 'Payment completed.'
               : `Deposit of ${formatCurrency(paymentAmount ?? depositAmount ?? 0)} received.`}
@@ -510,7 +505,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 View receipt
               </a>
             )}
-          </div>
+          </AlertBanner>
         )}
         {paymentError && (
           <p className="text-sm text-red-600" role="alert">{paymentError}</p>
