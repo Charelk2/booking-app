@@ -44,6 +44,14 @@ describe('MessageThread component', () => {
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
     (api.getQuoteV2 as jest.Mock).mockResolvedValue({ data: { id: 1 } });
     (api.acceptQuoteV2 as jest.Mock).mockResolvedValue({ data: { id: 1 } });
+    (api.getBookingDetails as jest.Mock).mockResolvedValue({
+      data: {
+        id: 1,
+        service: { title: 'Gig' },
+        start_time: '2024-01-01T00:00:00Z',
+        deposit_amount: 50,
+      },
+    });
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client', email: 'c@example.com' } });
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -522,6 +530,12 @@ describe('MessageThread component', () => {
     });
     const modalHeading = container.querySelector('h2');
     expect(modalHeading?.textContent).toBe('Pay Deposit');
+    const banner = container.querySelector('[data-testid="booking-confirmed-banner"]');
+    expect(banner?.textContent).toContain('Gig');
+    const payBtn = container.querySelector('[data-testid="pay-deposit-button"]');
+    expect(payBtn).not.toBeNull();
+    const calBtn = container.querySelector('[data-testid="add-calendar-button"]');
+    expect(calBtn).not.toBeNull();
   });
 
   it('falls back to legacy endpoint when accept fails', async () => {

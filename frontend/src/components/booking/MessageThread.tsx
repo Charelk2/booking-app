@@ -16,7 +16,7 @@ import TimeAgo from '../ui/TimeAgo';
 import { getFullImageUrl, formatCurrency } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
-import { Message, MessageCreate, QuoteV2 } from '@/types';
+import { Booking, Message, MessageCreate, QuoteV2 } from '@/types';
 import {
   getMessagesForBookingRequest,
   postMessageToBookingRequest,
@@ -25,6 +25,8 @@ import {
   getQuoteV2,
   acceptQuoteV2,
   updateQuoteAsClient,
+  getBookingDetails,
+  downloadBookingIcs,
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import Button from '../ui/Button';
@@ -80,6 +82,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [depositAmount, setDepositAmount] = useState<number | undefined>(
     undefined,
   );
+  const [bookingDetails, setBookingDetails] = useState<Booking | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
@@ -102,12 +105,22 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       try {
         const res = await getQuoteV2(quoteId);
         setQuotes((prev) => ({ ...prev, [quoteId]: res.data }));
-        if (res.data.status === 'accepted') setBookingConfirmed(true);
+        if (res.data.status === 'accepted') {
+          setBookingConfirmed(true);
+          if (!bookingDetails) {
+            try {
+              const details = await getBookingDetails(res.data.id);
+              setBookingDetails(details.data);
+            } catch (err2) {
+              console.error('Failed to fetch booking details', err2);
+            }
+          }
+        }
       } catch (err) {
         console.error('Failed to fetch quote', err);
       }
     },
-    [quotes],
+    [quotes, bookingDetails],
   );
 
   const fetchMessages = useCallback(async () => {
@@ -265,12 +278,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const handleAcceptQuote = useCallback(
     async (quoteId: number) => {
       try {
-        await acceptQuoteV2(quoteId);
+        const res = await acceptQuoteV2(quoteId);
         setBookingConfirmed(true);
         const q = await getQuoteV2(quoteId);
         setDepositAmount(q.data.total * 0.5);
         setShowPaymentModal(true);
         setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
+        try {
+          const details = await getBookingDetails(res.data.id);
+          setBookingDetails(details.data);
+        } catch (detailsErr) {
+          console.error('Failed to fetch booking details', detailsErr);
+        }
       } catch (err) {
         console.warn('Failed to accept quote via V2, trying legacy endpoint', err);
         try {
@@ -300,6 +319,24 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     },
     [],
   );
+
+  const handleDownloadCalendar = useCallback(async () => {
+    if (!bookingDetails) return;
+    try {
+      const res = await downloadBookingIcs(bookingDetails.id);
+      const blob = new Blob([res.data], { type: 'text/calendar' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `booking-${bookingDetails.id}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Calendar download error', err);
+    }
+  }, [bookingDetails]);
 
   // Filter out empty messages before rendering so even 1-character
   // messages like "ok" or "?" still show up
@@ -389,7 +426,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             className="rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-800 mt-4"
             data-testid="booking-confirmed-banner"
           >
-            🎉 Booking confirmed for {artistName}! You’ll receive follow-up emails and details.
+            🎉 Booking confirmed for {artistName}!{' '}
+            {bookingDetails && (
+              <>
+                {bookingDetails.service?.title} on{' '}
+                {new Date(bookingDetails.start_time).toLocaleString()}. Deposit{' '}
+                {formatCurrency(depositAmount ?? bookingDetails.deposit_amount ?? 0)}
+                {' '}due.
+              </>
+            )}
           </div>
         )}
         {bookingConfirmed && (
@@ -410,6 +455,24 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             >
               My Bookings
             </Link>
+            <button
+              type="button"
+              onClick={() => setShowPaymentModal(true)}
+              data-testid="pay-deposit-button"
+              className="mt-2 ml-4 inline-block text-indigo-600 underline text-sm"
+            >
+              Pay deposit
+            </button>
+            {bookingDetails && (
+              <button
+                type="button"
+                onClick={handleDownloadCalendar}
+                data-testid="add-calendar-button"
+                className="mt-2 ml-4 inline-block text-indigo-600 underline text-sm"
+              >
+                Add to calendar
+              </button>
+            )}
           </>
         )}
         {paymentStatus && (
