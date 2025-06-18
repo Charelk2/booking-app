@@ -110,7 +110,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           setBookingConfirmed(true);
           if (!bookingDetails) {
             try {
-              const details = await getBookingDetails(res.data.id);
+              const details = await getBookingDetails(res.data.booking_id);
               setBookingDetails(details.data);
             } catch (err2) {
               console.error('Failed to fetch booking details', err2);
