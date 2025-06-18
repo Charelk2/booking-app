@@ -22,7 +22,7 @@ export default function ChatThreadView({
     <div className="h-screen flex justify-center px-4 sm:px-6 py-6">
       <div className="max-w-2xl w-full mx-auto bg-white shadow-lg rounded-2xl overflow-hidden border flex flex-col">
         <header
-          className="sticky top-0 z-10 bg-[#2F2B5C] text-white px-4 py-3 flex items-center justify-between rounded-t-2xl"
+          className="sticky top-0 z-10 bg-brand-dark text-white px-4 py-3 flex items-center justify-between rounded-t-2xl"
         >
           <h2 className="font-medium" data-testid="contact-name">
             Chat with {contactName}
