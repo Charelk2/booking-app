@@ -7,12 +7,13 @@ import MainLayout from '@/components/layout/MainLayout';
 import MobileSaveBar from '@/components/dashboard/MobileSaveBar';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArtistProfile } from '@/types';
-// TODO: allow multiple portfolio images with drag-and-drop reordering
 import {
   getArtistProfileMe,
   updateMyArtistProfile,
   uploadMyArtistProfilePicture,
   uploadMyArtistCoverPhoto,
+  uploadMyArtistPortfolioImages,
+  updateMyArtistPortfolioImageOrder,
 } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import { DEFAULT_CURRENCY } from '@/lib/constants';
@@ -122,6 +123,9 @@ export default function EditArtistProfilePage(): JSX.Element {
   const [hourlyRateInput, setHourlyRateInput] = useState<string | number>('');
   const [specialtiesInput, setSpecialtiesInput] = useState('');
   const [portfolioUrlsInput, setPortfolioUrlsInput] = useState('');
+  const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
+  const dragIndex = useRef<number | null>(null);
+  const [uploadingPortfolioImages, setUploadingPortfolioImages] = useState(false);
 
   // Profile Picture States
   const [profilePictureUrlInput, setProfilePictureUrlInput] = useState('');
@@ -174,6 +178,7 @@ export default function EditArtistProfilePage(): JSX.Element {
         setHourlyRateInput(fetchedProfile.hourly_rate?.toString() || '');
         setSpecialtiesInput(fetchedProfile.specialties?.join(', ') || '');
         setPortfolioUrlsInput(fetchedProfile.portfolio_urls?.join(', ') || '');
+        setPortfolioImages(fetchedProfile.portfolio_image_urls || []);
 
         const currentRelativePic = fetchedProfile.profile_picture_url || '';
         setProfilePictureUrlInput(currentRelativePic);
@@ -233,6 +238,7 @@ export default function EditArtistProfilePage(): JSX.Element {
               ? u
               : `http://${u}`
           ),
+        portfolio_image_urls: portfolioImages,
         profile_picture_url: profilePictureUrlInput.trim()
           ? profilePictureUrlInput.trim()
           : undefined,
@@ -365,6 +371,47 @@ export default function EditArtistProfilePage(): JSX.Element {
       setUploadingCoverPhoto(false);
       e.target.value = '';
     }
+  };
+
+  const handlePortfolioFilesChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploadingPortfolioImages(true);
+    try {
+      const fileArray = Array.from(files);
+      const response = await uploadMyArtistPortfolioImages(fileArray);
+      const urls = response.data.portfolio_image_urls || [];
+      setPortfolioImages(urls);
+      setProfile((prev) => ({ ...prev, portfolio_image_urls: urls }));
+    } catch (err) {
+      console.error('Failed to upload portfolio images:', err);
+      setError('Failed to upload portfolio images.');
+    } finally {
+      setUploadingPortfolioImages(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDragStart = (index: number) => () => {
+    dragIndex.current = index;
+  };
+
+  const handleDrop = (index: number) => async (e: React.DragEvent<HTMLLIElement>) => {
+    e.preventDefault();
+    const from = dragIndex.current;
+    if (from === null || from === index) return;
+    setPortfolioImages((prev) => {
+      const arr = [...prev];
+      const [moved] = arr.splice(from, 1);
+      arr.splice(index, 0, moved);
+      updateMyArtistPortfolioImageOrder(arr).catch((err) => {
+        console.error('Failed to update portfolio order:', err);
+      });
+      return arr;
+    });
+    dragIndex.current = null;
   };
 
   const inputClasses =
@@ -544,6 +591,48 @@ export default function EditArtistProfilePage(): JSX.Element {
                 )}
               </div>
             </div>
+            {/* Portfolio Images */}
+            <div className="space-y-4 md:col-span-2">
+              <label htmlFor="portfolioImagesInput" className={labelClasses}>
+                Portfolio Images
+              </label>
+              <input
+                id="portfolioImagesInput"
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePortfolioFilesChange}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                disabled={uploadingPortfolioImages}
+              />
+              {uploadingPortfolioImages && (
+                <p className="text-sm text-indigo-600">Uploading images...</p>
+              )}
+              {portfolioImages.length > 0 && (
+                <ul className="grid grid-cols-3 gap-3" data-testid="portfolio-list">
+                  {portfolioImages.map((url, idx) => (
+                    <li
+                      key={url}
+                      data-testid="portfolio-item"
+                      draggable
+                      onDragStart={handleDragStart(idx)}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={handleDrop(idx)}
+                      className="border rounded-md overflow-hidden cursor-move"
+                    >
+                      <NextImage
+                        src={getFullImageUrl(url)}
+                        alt={`Portfolio ${idx + 1}`}
+                        width={120}
+                        height={120}
+                        className="w-full h-24 object-cover"
+                        loading="lazy"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </section>
 
@@ -664,14 +753,27 @@ export default function EditArtistProfilePage(): JSX.Element {
             <button
               type="submit"
               className={primaryButtonClasses}
-              disabled={loading || uploadingImage || uploadingCoverPhoto}
+              disabled={
+                loading ||
+                uploadingImage ||
+                uploadingCoverPhoto ||
+                uploadingPortfolioImages
+              }
             >
               {loading ? 'Saving Changes...' : 'Save Changes'}
             </button>
           </div>
         </form>
       </div>
-      <MobileSaveBar onSave={handleSaveClick} isSaving={loading} />
+      <MobileSaveBar
+        onSave={handleSaveClick}
+        isSaving={
+          loading ||
+          uploadingImage ||
+          uploadingCoverPhoto ||
+          uploadingPortfolioImages
+        }
+      />
     </MainLayout>
   );
 }
