@@ -6,6 +6,7 @@ import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import PaymentModal from '@/components/booking/PaymentModal';
 import toast from '@/components/ui/Toast';
+import { HelpPrompt } from '@/components/ui';
 import { getBookingDetails, downloadBookingIcs } from '@/lib/api';
 import type { Booking } from '@/types';
 import { formatCurrency } from '@/lib/utils';
@@ -126,6 +127,7 @@ export default function BookingDetailsPage() {
             Back to bookings
           </Link>
         </div>
+        <HelpPrompt />
       </div>
       <PaymentModal
         open={showPayment}
