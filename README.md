@@ -540,7 +540,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Booking details messages appear in chat threads inside a collapsible section with a **Show details** button that toggles to **Hide details** when expanded. Small chevron icons indicate the state.
 * Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews. Titles are limited to 36 characters and subtitles to 30 so long names don't wrap.
 * The drawer now opens as a rounded panel with a dark backdrop. Badges disappear when the unread count is 0. Adjust the badge styles in `frontend/src/components/layout/NotificationListItem.tsx`.
-* Deposit due and new booking alerts show money and calendar icons so clients can easily spot payment reminders and confirmations.
+* Deposit due and new booking alerts show money and calendar icons so clients can easily spot payment reminders and confirmations. Deposit reminders now parse the amount and due date from the message so the drawer subtitle shows e.g. `50.00 due by Jan 1, 2025`.
 * Chat message groups display a small unread badge on the right side when new messages arrive, clearing automatically once read.
 * Day divider lines show the full date, while relative times remain visible next to each message group.
 * Booking request notifications display the sender name as the title and the service type in the subtitle with contextual icons. Service names are converted from `PascalCase` or `snake_case` and truncated for readability. The `/api/v1/notifications` endpoint now includes `sender_name` and `booking_type` fields so the frontend no longer parses them from the message string.
@@ -739,7 +739,7 @@ When a client accepts a quote in the chat thread, the frontend now prompts them 
 The payment modal automatically fills in half the quote total as the suggested deposit, but clients can adjust the amount before submitting.
 The modal layout now adapts to narrow screens, trapping focus and scrolling internally so mobile users can submit using the keyboard's **Done** button.
 Accepting a quote also creates a **DEPOSIT_DUE** notification so the client receives a clear reminder to pay. The notification links to the dashboard at `/dashboard/client/bookings/{booking_id}?pay=1` where they can complete the deposit.
-The alert now displays the deposit amount and due date so clients know exactly what to pay and by when.
+The alert now displays the deposit amount and due date so clients know exactly what to pay and by when. The drawer also parses these values so the list shows `50.00 due by Jan 1, 2025` under the title.
 Clients can also pay outstanding deposits later from the bookings page. Each
 pending booking shows a **Pay deposit** button that fetches the latest deposit
 amount from the server before opening the payment modal.
