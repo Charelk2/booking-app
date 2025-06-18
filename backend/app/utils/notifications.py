@@ -15,9 +15,8 @@ TWILIO_FROM = os.getenv("TWILIO_FROM_NUMBER")
 logger = logging.getLogger(__name__)
 
 # Final system message indicating all automated prompts are complete.
-VIDEO_FLOW_READY_MESSAGE = (
-    "All details collected! The artist has been notified."
-)
+VIDEO_FLOW_READY_MESSAGE = "All details collected! The artist has been notified."
+
 
 def format_notification_message(
     ntype: NotificationType, **kwargs: str | int | None
@@ -46,7 +45,8 @@ def format_notification_message(
         return f"Deposit payment due for booking #{kwargs.get('booking_id')}"
     if ntype == NotificationType.REVIEW_REQUEST:
         return f"Please review your booking #{kwargs.get('booking_id')}"
-    return str(kwargs.get('content', ''))
+    return str(kwargs.get("content", ""))
+
 
 def _send_sms(phone: Optional[str], message: str) -> None:
     if not phone or not TWILIO_SID or not TWILIO_TOKEN or not TWILIO_FROM:
@@ -57,6 +57,7 @@ def _send_sms(phone: Optional[str], message: str) -> None:
         )
     except Exception as exc:
         logger.warning("SMS failed: %s", exc)
+
 
 BOOKING_DETAILS_PREFIX = "Booking details:"
 VIDEO_FLOW_QUESTIONS = [
@@ -84,9 +85,7 @@ def notify_user_new_message(
             logger.info("Skipping system message notification: %s", content)
             return
 
-    message = format_notification_message(
-        NotificationType.NEW_MESSAGE, content=content
-    )
+    message = format_notification_message(NotificationType.NEW_MESSAGE, content=content)
     crud_notification.create_notification(
         db,
         user_id=user.id,
@@ -211,7 +210,7 @@ def notify_new_booking(db: Session, user: Optional[User], booking_id: int) -> No
         user_id=user.id,
         type=NotificationType.NEW_BOOKING,
         message=message,
-        link=f"/bookings/{booking_id}",
+        link=f"/dashboard/client/bookings/{booking_id}",
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
