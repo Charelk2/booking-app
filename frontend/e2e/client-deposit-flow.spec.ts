@@ -1,4 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
+import { setupDepositStubs } from './stub-helpers';
 
 // Ensure mobile viewport for all tests in this file
 // This mirrors the setup used in mobile-booking.spec.ts
@@ -8,79 +9,7 @@ test.use({ ...devices['iPhone 14 Pro'] });
 
 test.describe('Client deposit flow from notification', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route('**/auth/login', async (route) => {
-      await route.fulfill({
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          access_token: 'token123',
-          user: { id: 1, name: 'Test Client', user_type: 'client' },
-        }),
-      });
-    });
-    await page.route('**/api/v1/notifications**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([
-          {
-            id: 1,
-            type: 'deposit_due',
-            timestamp: new Date().toISOString(),
-            is_read: false,
-            content: 'Deposit payment due for booking #5',
-            link: '/dashboard/client/bookings/5?pay=1',
-          },
-        ]),
-      });
-    });
-    await page.route('**/api/v1/bookings/5', async (route) => {
-      await route.fulfill({
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: 5,
-          deposit_amount: 50,
-          payment_status: 'pending',
-          source_quote: { booking_request_id: 42 },
-        }),
-      });
-    });
-    await page.route('**/api/v1/payments', async (route) => {
-      await route.fulfill({
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payment_id: 'pay_1' }),
-      });
-    });
-    await page.route('**/api/v1/payments/pay_1/receipt', async (route) => {
-      await route.fulfill({
-        status: 200,
-        headers: { 'Content-Type': 'application/pdf' },
-        body: '%PDF-1.4 placeholder',
-      });
-    });
-    await page.route('**/api/**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: '{}',
-      });
-    });
-    await page.route('https://maps.googleapis.com/**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/javascript',
-        body: 'window.google = window.google || { maps: {} };',
-      });
-    });
-    await page.route('https://maps.gstatic.com/**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/javascript',
-        body: '',
-      });
-    });
+    await setupDepositStubs(page);
   });
 
   test('pays deposit via notification link', async ({ page }) => {

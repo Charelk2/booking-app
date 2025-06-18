@@ -364,7 +364,9 @@ npx playwright install --with-deps
 ```
 
 The suite now includes `client-deposit-flow.spec.ts`, which verifies the
-deposit payment process on an iPhone 14 Pro viewport.
+deposit payment process on an iPhone 14 Pro viewport. A new
+`full-booking.spec.ts` exercise walks through signup, requesting a quote and
+paying the deposit using mocked APIs across all default Playwright projects.
 
 ### Offline Testing with Docker
 
