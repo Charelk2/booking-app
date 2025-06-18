@@ -72,4 +72,55 @@ describe('PaymentModal', () => {
     });
     root.unmount();
   });
+
+  it('prefills amount from prop when reopened', async () => {
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(
+        <PaymentModal
+          open
+          bookingRequestId={3}
+          onClose={() => {}}
+          onSuccess={() => {}}
+          onError={() => {}}
+          depositAmount={40}
+        />,
+      );
+    });
+    const input = div.querySelector('input[type="number"]') as HTMLInputElement;
+    act(() => {
+      input.value = '75';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    await act(async () => {
+      root.render(
+        <PaymentModal
+          open={false}
+          bookingRequestId={3}
+          onClose={() => {}}
+          onSuccess={() => {}}
+          onError={() => {}}
+          depositAmount={40}
+        />,
+      );
+    });
+
+    await act(async () => {
+      root.render(
+        <PaymentModal
+          open
+          bookingRequestId={3}
+          onClose={() => {}}
+          onSuccess={() => {}}
+          onError={() => {}}
+          depositAmount={40}
+        />,
+      );
+    });
+    const reopened = div.querySelector('input[type="number"]') as HTMLInputElement;
+    expect(reopened.value).toBe('40');
+    root.unmount();
+  });
 });

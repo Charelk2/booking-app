@@ -34,8 +34,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const modalRef = useRef<HTMLFormElement | null>(null);
 
   useEffect(() => {
-    if (open && depositAmount !== undefined) {
-      setAmount(depositAmount.toString());
+    if (open) {
+      setAmount(depositAmount !== undefined ? depositAmount.toString() : '');
     }
   }, [depositAmount, open]);
 
