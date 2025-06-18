@@ -45,6 +45,7 @@ describe('ClientBookingsPage', () => {
             deposit_amount: 50,
             deposit_due_by: new Date('2024-01-08').toISOString(),
             payment_status: 'deposit_paid',
+            payment_id: 'pay_upcoming',
             service: { title: 'Gig' },
             client: { id: 1 },
           },
@@ -92,6 +93,10 @@ describe('ClientBookingsPage', () => {
     expect(div.textContent).toContain('Completed');
     const link = div.querySelector('a[data-booking-id="1"]');
     expect(link?.getAttribute('href')).toBe('/dashboard/client/bookings/1');
+    const receipt = div.querySelector('[data-testid="booking-receipt-link"]');
+    expect(receipt?.getAttribute('href')).toBe(
+      '/api/v1/payments/pay_upcoming/receipt',
+    );
     const help = div.querySelector('[data-testid="help-prompt"]');
     expect(help).not.toBeNull();
 
