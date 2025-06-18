@@ -10,6 +10,7 @@ import { HelpPrompt } from '@/components/ui';
 import { getBookingDetails, downloadBookingIcs } from '@/lib/api';
 import type { Booking } from '@/types';
 import { formatCurrency } from '@/lib/utils';
+import { Spinner } from '@/components/ui';
 
 export default function BookingDetailsPage() {
   const params = useParams();
@@ -65,7 +66,7 @@ export default function BookingDetailsPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="p-8">Loading...</div>
+        <div className="p-8"><Spinner /></div>
       </MainLayout>
     );
   }

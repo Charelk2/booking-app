@@ -23,6 +23,7 @@ import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
 import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
 import SectionList from "@/components/dashboard/SectionList";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
+import { Spinner } from '@/components/ui';
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import Link from "next/link";
 import { Reorder, useDragControls } from "framer-motion";
@@ -289,7 +290,7 @@ export default function DashboardPage() {
     return (
       <MainLayout>
         <div className="flex justify-center items-center min-h-screen">
-          <p>Loading user data or redirecting...</p>
+          <Spinner />
         </div>
       </MainLayout>
     );

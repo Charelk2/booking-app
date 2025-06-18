@@ -5,7 +5,7 @@ import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { getMyClientQuotes } from '@/lib/api';
-import { HelpPrompt } from '@/components/ui';
+import { HelpPrompt, Spinner } from '@/components/ui';
 import type { Quote } from '@/types';
 
 export default function ClientQuotesPage() {
@@ -49,7 +49,9 @@ export default function ClientQuotesPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex justify-center items-center min-h-[60vh]">Loading...</div>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <Spinner />
+        </div>
       </MainLayout>
     );
   }
