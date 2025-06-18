@@ -89,4 +89,39 @@ describe('BookingDetailsPage', () => {
     act(() => { root.unmount(); });
     div.remove();
   });
+
+  it('renders the help prompt', async () => {
+    (useParams as jest.Mock).mockReturnValue({ id: '3' });
+    (getBookingDetails as jest.Mock).mockResolvedValue({
+      data: {
+        id: 3,
+        artist_id: 2,
+        client_id: 3,
+        service_id: 4,
+        start_time: new Date().toISOString(),
+        end_time: new Date().toISOString(),
+        status: 'confirmed',
+        total_price: 100,
+        notes: '',
+        deposit_amount: 50,
+        payment_status: 'pending',
+        service: { title: 'Gig' },
+        client: { id: 3 },
+      },
+    });
+    (downloadBookingIcs as jest.Mock).mockResolvedValue({ data: new Blob() });
+
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(<BookingDetailsPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    const help = div.querySelector('[data-testid="help-prompt"]');
+    expect(help).not.toBeNull();
+
+    act(() => { root.unmount(); });
+    div.remove();
+  });
 });
