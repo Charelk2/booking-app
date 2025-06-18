@@ -38,7 +38,7 @@ def setup_app():
     return Session
 
 
-def create_records(Session):
+def create_records(Session, deposit_amount=0):
     db = Session()
     client = User(
         email="client@test.com",
@@ -85,7 +85,7 @@ def create_records(Session):
         client_id=client.id,
         confirmed=True,
         payment_status="pending",
-        deposit_amount=0,
+        deposit_amount=deposit_amount,
         deposit_paid=False,
     )
     db.add(booking)
@@ -97,8 +97,10 @@ def create_records(Session):
 
 
 def override_client(user):
+    dummy = type("Dummy", (), {"id": user.id, "user_type": user.user_type})()
+
     def _override():
-        return user
+        return dummy
 
     return _override
 
@@ -172,6 +174,46 @@ def test_create_deposit_fake(monkeypatch):
     assert booking.deposit_paid is True
     assert booking.payment_status == "deposit_paid"
     assert booking.payment_id.startswith("fake_")
+    db.close()
+    if prev_db is not None:
+        app.dependency_overrides[get_db] = prev_db
+    else:
+        app.dependency_overrides.pop(get_db, None)
+    if prev_client is not None:
+        app.dependency_overrides[get_current_active_client] = prev_client
+    else:
+        app.dependency_overrides.pop(get_current_active_client, None)
+
+
+def test_create_deposit_default_amount(monkeypatch):
+    Session = setup_app()
+    client_user, br_id, Session = create_records(Session, deposit_amount=Decimal("40"))
+    prev_db = app.dependency_overrides.get(get_db)
+    prev_client = app.dependency_overrides.get(get_current_active_client)
+    app.dependency_overrides[get_current_active_client] = override_client(client_user)
+
+    def fake_post(url, json, timeout=10):
+        class Resp:
+            status_code = 201
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"id": "ch_test", "status": "succeeded"}
+
+        return Resp()
+
+    monkeypatch.setattr(api_payment.httpx, "post", fake_post)
+    client = TestClient(app)
+    res = client.post("/api/v1/payments/", json={"booking_request_id": br_id})
+    assert res.status_code == 201
+    db = Session()
+    booking = db.query(BookingSimple).first()
+    assert booking.deposit_amount == Decimal("40")
+    assert booking.deposit_paid is True
+    assert booking.payment_status == "deposit_paid"
+    assert booking.payment_id == "ch_test"
     db.close()
     if prev_db is not None:
         app.dependency_overrides[get_db] = prev_db

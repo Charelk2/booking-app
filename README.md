@@ -729,13 +729,14 @@ GET /api/v1/bookings/{booking_id}/calendar.ics
 
 ```
 POST /api/v1/payments
- Required: booking_request_id, amount
- Optional: full (bool)
+ Required: booking_request_id
+ Optional: amount (defaults to the booking deposit), full (bool)
 ```
 ```
 GET /api/v1/payments/{payment_id}/receipt
 ```
 Returns the PDF receipt for a completed payment.
+Omitting `amount` charges the booking's `deposit_amount`.
 Sending `full: true` charges the remaining balance and marks the booking paid. Omitting it records a deposit and sets the status to `deposit_paid`.
 The endpoint now verifies the booking belongs to the authenticated client and returns **403 Forbidden** if another user attempts payment.
 Payment processing now emits structured logs instead of printing to stdout so transactions can be traced in production.
