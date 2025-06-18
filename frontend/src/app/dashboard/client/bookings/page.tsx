@@ -9,6 +9,7 @@ import ReviewFormModal from '@/components/review/ReviewFormModal';
 import PaymentModal from '@/components/booking/PaymentModal';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
+import Link from 'next/link';
 import { HelpPrompt } from '@/components/ui';
 
 interface BookingWithReview extends Booking {
@@ -27,60 +28,66 @@ function BookingList({
   return (
     <ul className="space-y-3">
       {items.map((b) => (
-        <li key={b.id} className="bg-white p-4 shadow rounded-lg">
-          <div className="font-medium text-gray-900">{b.service.title}</div>
-          <div className="text-sm text-gray-500">
-            {format(new Date(b.start_time), 'MMM d, yyyy h:mm a')}
-          </div>
-          <div className="mt-2 flex justify-between items-center">
-            <span
-              className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                b.status === 'completed'
-                  ? 'bg-green-100 text-green-800'
-                  : b.status === 'cancelled'
-                    ? 'bg-red-100 text-red-800'
-                    : b.status === 'confirmed'
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-yellow-100 text-yellow-800'
-              }`}
-            >
-              {b.status}
-            </span>
-            <span className="text-sm text-gray-500">
-              {formatCurrency(Number(b.total_price))}
-            </span>
-          </div>
-          {b.deposit_amount !== undefined && (
-            <div className="text-sm text-gray-500 mt-1">
-              Deposit: {formatCurrency(Number(b.deposit_amount || 0))} (
-              {b.payment_status})
+        <li key={b.id}>
+          <Link
+            href={`/dashboard/client/bookings/${b.id}`}
+            data-booking-id={b.id}
+            className="block bg-white p-4 shadow rounded-lg hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+          >
+            <div className="font-medium text-gray-900">{b.service.title}</div>
+            <div className="text-sm text-gray-500">
+              {format(new Date(b.start_time), 'MMM d, yyyy h:mm a')}
             </div>
-          )}
-          <div className="flex justify-between text-xs text-gray-500 mt-2">
-            {['Requested', 'Confirmed', 'Deposit Paid',
-              b.status === 'cancelled' ? 'Cancelled' : 'Completed'].map(
-              (step, idx) => {
-                const activeIdx =
-                  b.status === 'pending'
-                    ? 0
-                    : b.status === 'confirmed'
-                      ? b.payment_status === 'deposit_paid' || b.payment_status === 'paid'
-                        ? 2
-                        : 1
-                      : 3;
-                return (
-                  <span
-                    key={step}
-                    className={
-                      idx <= activeIdx ? 'font-semibold text-indigo-600 flex-1 text-center' : 'flex-1 text-center'
-                    }
-                  >
-                    {step}
-                  </span>
-                );
-              },
+            <div className="mt-2 flex justify-between items-center">
+              <span
+                className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                  b.status === 'completed'
+                    ? 'bg-green-100 text-green-800'
+                    : b.status === 'cancelled'
+                      ? 'bg-red-100 text-red-800'
+                      : b.status === 'confirmed'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                }`}
+              >
+                {b.status}
+              </span>
+              <span className="text-sm text-gray-500">
+                {formatCurrency(Number(b.total_price))}
+              </span>
+            </div>
+            {b.deposit_amount !== undefined && (
+              <div className="text-sm text-gray-500 mt-1">
+                Deposit: {formatCurrency(Number(b.deposit_amount || 0))} (
+                {b.payment_status})
+              </div>
             )}
-          </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-2">
+              {['Requested', 'Confirmed', 'Deposit Paid',
+                b.status === 'cancelled' ? 'Cancelled' : 'Completed'].map(
+                (step, idx) => {
+                  const activeIdx =
+                    b.status === 'pending'
+                      ? 0
+                      : b.status === 'confirmed'
+                        ? b.payment_status === 'deposit_paid' || b.payment_status === 'paid'
+                          ? 2
+                          : 1
+                        : 3;
+                  return (
+                    <span
+                      key={step}
+                      className={
+                        idx <= activeIdx ? 'font-semibold text-indigo-600 flex-1 text-center' : 'flex-1 text-center'
+                      }
+                    >
+                      {step}
+                    </span>
+                  );
+                },
+              )}
+            </div>
+          </Link>
           {b.payment_status === 'pending' && (
             <button
               type="button"
