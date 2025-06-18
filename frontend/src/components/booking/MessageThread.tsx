@@ -404,7 +404,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
       <div className="bg-white shadow-lg rounded-2xl overflow-hidden border flex flex-col min-h-[70vh]">
-        <header className="sticky top-0 z-10 bg-[#2F2B5C] text-white px-4 py-3 flex items-center justify-between">
+        <header className="sticky top-0 z-10 bg-brand-dark text-white px-4 py-3 flex items-center justify-between">
           <span className="font-medium">
             Chat with {user?.user_type === 'artist' ? clientName : artistName}
           </span>
@@ -569,7 +569,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               )}
               {group.messages.map((msg, mIdx) => {
                 const bubbleClass = isSelf
-                  ? 'bg-[#4F46E5] text-white self-end'
+                  ? 'bg-brand text-white self-end'
                   : isSystem
                     ? 'bg-gray-200 text-gray-900 self-start'
                     : 'bg-gray-100 text-gray-800 self-start';
