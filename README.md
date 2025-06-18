@@ -825,7 +825,8 @@ instructions.
 
 The `HelpPrompt` component renders quick links to the FAQ and contact page. It
 appears beneath the booking confirmation banner in chat, on the booking details
-page, and at the bottom of the client bookings page so users always know where
+page, at the bottom of the client bookings page, and now on the client quotes
+page so users always know where
 to get assistance.
 
 ### Support Pages
