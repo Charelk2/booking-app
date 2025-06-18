@@ -6,6 +6,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import useNotifications from '@/hooks/useNotifications';
 import clsx from 'clsx';
+import { Spinner } from '@/components/ui';
 import {
   getMyBookingRequests,
   getBookingRequestsForArtist,
@@ -145,7 +146,7 @@ export default function BookingRequestsPage() {
     <MainLayout>
       <div className="max-w-4xl mx-auto space-y-4">
         <h1 className="text-xl font-semibold">Booking Requests</h1>
-        {loading && <p>Loading...</p>}
+        {loading && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}
         {!loading && !error && (
           <div className="bg-white rounded-md shadow overflow-hidden">

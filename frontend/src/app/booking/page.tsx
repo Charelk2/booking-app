@@ -5,6 +5,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import BookingWizard from '@/components/booking/BookingWizard';
 import { BookingProvider } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { Spinner } from '@/components/ui';
 
 export default function BookingPage() {
   const { user, loading } = useAuth();
@@ -16,7 +17,7 @@ export default function BookingPage() {
     return (
       <MainLayout>
         <div className="flex justify-center items-center min-h-screen">
-          <p>Loading...</p>
+          <Spinner />
         </div>
       </MainLayout>
     );

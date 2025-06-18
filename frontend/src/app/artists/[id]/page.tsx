@@ -34,7 +34,7 @@ import {
   normalizeService,
 } from '@/lib/utils';
 import ArtistServiceCard from '@/components/artist/ArtistServiceCard';
-import { Button, Tag, Toast } from '@/components/ui';
+import { Button, Tag, Toast, Spinner, SkeletonList } from '@/components/ui';
 
 // This profile page now lazy loads each section (services, reviews, other
 // artists) separately so the main artist info appears faster. Images use the
@@ -153,8 +153,8 @@ export default function ArtistProfilePage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex justify-center items-center min-h-[80vh]" role="status" aria-label="Loading">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600" />
+        <div className="flex justify-center items-center min-h-[80vh]">
+          <Spinner size="lg" />
         </div>
       </MainLayout>
     );
@@ -338,7 +338,7 @@ export default function ArtistProfilePage() {
               <section id="services" aria-labelledby="services-heading" role="region">
                 <h2 id="services-heading" className="text-2xl font-bold text-gray-800 mb-6">Services Offered</h2>
                 {servicesLoading ? (
-                  <p className="text-gray-600" role="status">Loading services...</p>
+                  <SkeletonList className="max-w-md" />
                 ) : services.length > 0 ? (
                   <ul className="space-y-6" role="list">
                     {services.map((service) => (
@@ -356,7 +356,7 @@ export default function ArtistProfilePage() {
               <section id="reviews" aria-labelledby="reviews-heading" role="region">
                 <h2 id="reviews-heading" className="text-2xl font-bold text-gray-800 mb-4">Reviews ({reviews.length})</h2>
                 {reviewsLoading ? (
-                  <p className="text-gray-600" role="status">Loading reviews...</p>
+                  <SkeletonList className="max-w-md" />
                 ) : reviews.length > 0 ? (
                   <ul className="space-y-6" role="list">
                     {reviews.map((review) => (
@@ -398,7 +398,7 @@ export default function ArtistProfilePage() {
 
           {/* ── “Explore Other Artists” Section ─────────────────────────────────────────── */}
           {othersLoading ? (
-            <p className="mt-16 text-center text-gray-600" role="status">Loading artists...</p>
+            <SkeletonList className="mt-16 max-w-md mx-auto" />
           ) : otherArtists.length > 0 ? (
             <section className="mt-16 pt-8 border-t border-gray-200" aria-labelledby="other-artists-heading" role="region">
               <h2 id="other-artists-heading" className="text-2xl font-bold text-gray-800 mb-8 text-center">

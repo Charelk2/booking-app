@@ -13,6 +13,7 @@ import {
 } from '@/lib/api';
 import { Booking } from '@/types';
 import { formatCurrency } from '@/lib/utils';
+import { Spinner } from '@/components/ui';
 
 export default function ArtistBookingsPage() {
   const { user } = useAuth();
@@ -92,7 +93,9 @@ export default function ArtistBookingsPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex justify-center items-center min-h-[60vh]">Loading...</div>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <Spinner />
+        </div>
       </MainLayout>
     );
   }
