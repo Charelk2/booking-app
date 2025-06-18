@@ -147,6 +147,25 @@ def test_create_deposit(monkeypatch):
         app.dependency_overrides.pop(get_current_active_client, None)
 
 
+def test_get_receipt(tmp_path):
+    payment_id = "abc123"
+    receipts_dir = tmp_path / "static" / "receipts"
+    receipts_dir.mkdir(parents=True)
+    pdf_path = receipts_dir / f"{payment_id}.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4 test receipt\n%%EOF")
+
+    prev_dir = api_payment.RECEIPT_DIR
+    api_payment.RECEIPT_DIR = str(receipts_dir)
+
+    client = TestClient(app)
+    res = client.get(f"/api/v1/payments/{payment_id}/receipt")
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "application/pdf"
+    assert res.content.startswith(b"%PDF")
+
+    api_payment.RECEIPT_DIR = prev_dir
+
+
 def test_payment_wrong_client_forbidden(monkeypatch):
     Session = setup_app()
     client_user, br_id, Session = create_records(Session)

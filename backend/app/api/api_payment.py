@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -78,3 +79,20 @@ def create_payment(
     db.refresh(booking)
 
     return {"status": "ok", "payment_id": charge.get("id")}
+
+
+RECEIPT_DIR = os.path.join(os.path.dirname(__file__), "..", "static", "receipts")
+
+
+@router.get("/{payment_id}/receipt")
+def get_payment_receipt(payment_id: str):
+    """Return the receipt PDF for the given payment id."""
+    path = os.path.abspath(os.path.join(RECEIPT_DIR, f"{payment_id}.pdf"))
+    if not os.path.exists(path):
+        logger.warning("Receipt %s not found", payment_id)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Receipt not found")
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        filename=f"{payment_id}.pdf",
+    )
