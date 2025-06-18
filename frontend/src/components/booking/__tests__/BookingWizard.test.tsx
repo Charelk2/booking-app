@@ -79,17 +79,18 @@ describe('BookingWizard flow', () => {
   });
 
   it('collapses inactive steps on mobile', async () => {
-    const details = () => Array.from(container.querySelectorAll('details'));
-    expect(details()[0].open).toBe(true);
-    expect(details()[1].open).toBe(false);
+    const sections = () =>
+      Array.from(container.querySelectorAll('section button[aria-controls]')) as HTMLButtonElement[];
+    expect(sections()[0].getAttribute('aria-expanded')).toBe('true');
+    expect(sections()[1].getAttribute('aria-expanded')).toBe('false');
     const next = getButton('Next');
     await act(async () => {
       next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await new Promise((r) => setTimeout(r, 0));
-    const updated = details();
-    expect(updated[0].open).toBe(false);
-    expect(updated[1].open).toBe(true);
+    const updated = sections();
+    expect(updated[0].getAttribute('aria-expanded')).toBe('false');
+    expect(updated[1].getAttribute('aria-expanded')).toBe('true');
   });
 
   it('shows summary only on the review step', async () => {

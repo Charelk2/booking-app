@@ -7,3 +7,4 @@ export { default as Toast } from './Toast';
 export { default as TimeAgo } from './TimeAgo';
 export { default as BottomSheet } from './BottomSheet';
 export { default as HelpPrompt } from './HelpPrompt';
+export { default as CollapsibleSection } from './CollapsibleSection';
