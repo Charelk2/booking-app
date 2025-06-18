@@ -55,6 +55,18 @@ describe('NotificationListItem', () => {
     expect(parsed.icon).toBe('💰');
   });
 
+  it('extracts amount and due date from deposit reminder', () => {
+    const n: UnifiedNotification = {
+      type: 'deposit_due',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Deposit of 50.00 due by 2025-01-01 for booking #42',
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.subtitle).toBe('50.00 due by Jan 1, 2025');
+    expect(parsed.icon).toBe('💰');
+  });
+
   it('parses new booking notifications', () => {
     const n: UnifiedNotification = {
       type: 'new_booking',
