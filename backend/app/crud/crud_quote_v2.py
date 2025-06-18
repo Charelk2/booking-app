@@ -52,7 +52,16 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
 
 
 def get_quote(db: Session, quote_id: int) -> Optional[models.QuoteV2]:
-    return db.query(models.QuoteV2).filter(models.QuoteV2.id == quote_id).first()
+    """Return a quote along with the booking_id if one exists."""
+    quote = db.query(models.QuoteV2).filter(models.QuoteV2.id == quote_id).first()
+    if quote:
+        booking = (
+            db.query(models.BookingSimple)
+            .filter(models.BookingSimple.quote_id == quote_id)
+            .first()
+        )
+        quote.booking_id = booking.id if booking else None
+    return quote
 
 
 def accept_quote(db: Session, quote_id: int) -> models.BookingSimple:
