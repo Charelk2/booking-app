@@ -13,7 +13,7 @@ class StubSocket {
   onopen: (() => void) | null = null;
   onmessage: ((e: MessageEvent) => void) | null = null;
   onerror: (() => void) | null = null;
-  onclose: (() => void) | null = null;
+  onclose: ((e?: CloseEvent) => void) | null = null;
   send = jest.fn();
   close() {}
 
@@ -102,6 +102,33 @@ describe('useWebSocket', () => {
     });
 
     expect(onError).toHaveBeenCalled();
+
+    jest.useRealTimers();
+  });
+
+  it('stops reconnecting when close code is 4401', () => {
+    jest.useFakeTimers();
+
+    function Test() {
+      useWebSocket('ws://test');
+      return null;
+    }
+
+    act(() => {
+      root.render(<Test />);
+    });
+
+    expect(StubSocket.instances.length).toBe(1);
+    const first = StubSocket.instances[0];
+
+    act(() => {
+      first.onclose?.({ code: 4401 } as CloseEvent);
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+    expect(StubSocket.instances.length).toBe(1);
 
     jest.useRealTimers();
   });
