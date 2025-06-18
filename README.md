@@ -355,6 +355,9 @@ with:
 npx playwright test
 ```
 
+The suite now includes `client-deposit-flow.spec.ts`, which verifies the
+deposit payment process on an iPhone 14 Pro viewport.
+
 ### Offline Testing with Docker
 
 If `setup.sh` cannot install dependencies (for example in an isolated CI
