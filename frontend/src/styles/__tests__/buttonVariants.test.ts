@@ -12,5 +12,9 @@ describe('buttonVariants', () => {
   it('provides classes for danger buttons', () => {
     expect(buttonVariants.danger).toMatch('bg-red-600');
   });
+
+  it('provides classes for link buttons', () => {
+    expect(buttonVariants.link).toMatch('text-indigo-600');
+  });
 });
 
