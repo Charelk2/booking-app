@@ -608,6 +608,77 @@ describe('MessageThread component', () => {
     expect(help).not.toBeNull();
   });
 
+  it('adds ring styles when deposit actions receive keyboard focus', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Quote',
+          message_type: 'quote',
+          quote_id: 11,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+    (api.getQuoteV2 as jest.Mock).mockResolvedValue({
+      data: {
+        id: 11,
+        status: 'pending',
+        services: [],
+        sound_fee: 0,
+        travel_fee: 0,
+        subtotal: 0,
+        total: 0,
+        artist_id: 2,
+        client_id: 1,
+        booking_request_id: 1,
+        created_at: '',
+        updated_at: '',
+      },
+    });
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const acceptBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Accept',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const payBtn = container.querySelector(
+      '[data-testid="pay-deposit-button"]',
+    ) as HTMLButtonElement;
+    const calBtn = container.querySelector(
+      '[data-testid="add-calendar-button"]',
+    ) as HTMLButtonElement;
+    act(() => {
+      payBtn.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }),
+      );
+      payBtn.focus();
+    });
+    expect(payBtn.className).toContain('focus-visible:ring-2');
+    expect(payBtn.className).toContain('focus-visible:ring-brand');
+    act(() => {
+      calBtn.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }),
+      );
+      calBtn.focus();
+    });
+    expect(calBtn.className).toContain('focus-visible:ring-2');
+    expect(calBtn.className).toContain('focus-visible:ring-brand');
+  });
+
   it('falls back to legacy endpoint when accept fails', async () => {
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
       data: [
