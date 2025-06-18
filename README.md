@@ -226,7 +226,8 @@ enabling MFA. Generate backup codes anytime with `POST /auth/recovery-codes` and
 store them somewhere safe. You can disable MFA later by calling
 `POST /auth/disable-mfa` with either a current TOTP or one of the recovery
 codes. Subsequent logins require the verification step provided by
-`POST /auth/verify-mfa`.
+`POST /auth/verify-mfa`. The login page automatically prompts for this
+verification code whenever a login response includes `mfa_required`.
 
 ---
 

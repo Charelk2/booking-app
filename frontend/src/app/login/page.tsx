@@ -1,9 +1,9 @@
 
 'use client';
 
-// TODO: Add multi-factor auth
-
 // Login form uses shared auth components and offers optional social login
+// MFA verification is supported when the login response indicates it is required
+
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -45,6 +45,7 @@ export default function LoginPage() {
     try {
       const res = await login(data.email, data.password, data.remember);
       if (res && res.mfaRequired) {
+        setError('');
         setMfaToken(res.token);
         setRememberState(data.remember);
         return;
@@ -58,6 +59,7 @@ export default function LoginPage() {
   const onVerify = async ({ code }: { code: string }) => {
     if (!mfaToken) return;
     try {
+      setError('');
       await verifyMfa(mfaToken, code, rememberState);
       router.push(next || '/dashboard');
     } catch (err) {
