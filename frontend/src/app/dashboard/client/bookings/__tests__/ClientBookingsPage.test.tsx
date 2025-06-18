@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 import ClientBookingsPage from '../page';
-import { getMyClientBookings } from '@/lib/api';
+import { getMyClientBookings, getBookingDetails } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -130,6 +130,78 @@ describe('ClientBookingsPage', () => {
     expect(div.textContent).toContain('Leave review');
     const help = div.querySelector('[data-testid="help-prompt"]');
     expect(help).not.toBeNull();
+
+    act(() => {
+      root.unmount();
+    });
+    div.remove();
+  });
+
+  it('opens payment modal with deposit amount when clicking pay button', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({
+      user: { id: 1, user_type: 'client', email: 'c@example.com', first_name: 'C' },
+    });
+    (getMyClientBookings as jest.Mock)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: 5,
+            artist_id: 2,
+            client_id: 1,
+            service_id: 4,
+            start_time: new Date().toISOString(),
+            end_time: new Date().toISOString(),
+            status: 'confirmed',
+            total_price: 120,
+            notes: '',
+            deposit_amount: 60,
+            payment_status: 'pending',
+            service: { title: 'Gig' },
+            client: { id: 1 },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ data: [] });
+    (getBookingDetails as jest.Mock).mockResolvedValue({
+      data: {
+        id: 5,
+        artist_id: 2,
+        client_id: 1,
+        service_id: 4,
+        start_time: new Date().toISOString(),
+        end_time: new Date().toISOString(),
+        status: 'confirmed',
+        total_price: 120,
+        notes: '',
+        deposit_amount: 60,
+        payment_status: 'pending',
+        service: { title: 'Gig' },
+        client: { id: 1 },
+        source_quote: { booking_request_id: 5 },
+      },
+    });
+
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+
+    await act(async () => {
+      root.render(<ClientBookingsPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    const payBtn = div.querySelector('[data-testid="pay-deposit-button"]') as HTMLButtonElement;
+    expect(payBtn).not.toBeNull();
+
+    await act(async () => {
+      payBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(getBookingDetails).toHaveBeenCalledWith(5);
+    const input = div.querySelector('input[type="number"]') as HTMLInputElement;
+    expect(input.value).toBe('60');
 
     act(() => {
       root.unmount();

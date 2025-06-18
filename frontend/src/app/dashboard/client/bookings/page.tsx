@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { getMyClientBookings } from '@/lib/api';
+import { getMyClientBookings, getBookingDetails } from '@/lib/api';
 import type { Booking, Review } from '@/types';
 import ReviewFormModal from '@/components/review/ReviewFormModal';
+import PaymentModal from '@/components/booking/PaymentModal';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import { HelpPrompt } from '@/components/ui';
@@ -17,9 +18,11 @@ interface BookingWithReview extends Booking {
 function BookingList({
   items,
   onReview,
+  onPayDeposit,
 }: {
   items: BookingWithReview[];
   onReview: (id: number) => void;
+  onPayDeposit: (id: number) => void;
 }) {
   return (
     <ul className="space-y-3">
@@ -78,6 +81,16 @@ function BookingList({
               },
             )}
           </div>
+          {b.payment_status === 'pending' && (
+            <button
+              type="button"
+              onClick={() => onPayDeposit(b.id)}
+              className="mt-2 text-indigo-600 underline text-sm"
+              data-testid="pay-deposit-button"
+            >
+              Pay deposit
+            </button>
+          )}
           {b.status === 'completed' && !b.review && (
             <button
               type="button"
@@ -105,6 +118,11 @@ export default function ClientBookingsPage() {
   const [reviewId, setReviewId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentBookingRequestId, setPaymentBookingRequestId] =
+    useState<number | null>(null);
+  const [paymentDeposit, setPaymentDeposit] = useState<number | undefined>();
+  const [paymentBookingId, setPaymentBookingId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -135,6 +153,21 @@ export default function ClientBookingsPage() {
 
   const handleOpenReview = (id: number) => {
     setReviewId(id);
+  };
+
+  const handleOpenPayment = async (id: number) => {
+    try {
+      const res = await getBookingDetails(id);
+      setPaymentDeposit(res.data.deposit_amount || undefined);
+      setPaymentBookingRequestId(
+        res.data.source_quote?.booking_request_id || res.data.id,
+      );
+      setPaymentBookingId(id);
+      setShowPayment(true);
+    } catch (err) {
+      console.error('Failed to load booking details for payment', err);
+      setError('Failed to load payment details');
+    }
   };
 
   const handleReviewSubmitted = (review: Review) => {
@@ -175,7 +208,11 @@ export default function ClientBookingsPage() {
           {upcoming.length === 0 ? (
             <p>No upcoming bookings.</p>
           ) : (
-            <BookingList items={upcoming} onReview={handleOpenReview} />
+            <BookingList
+              items={upcoming}
+              onReview={handleOpenReview}
+              onPayDeposit={handleOpenPayment}
+            />
           )}
         </section>
         <section>
@@ -183,7 +220,11 @@ export default function ClientBookingsPage() {
           {past.length === 0 ? (
             <p>No past bookings.</p>
           ) : (
-            <BookingList items={past} onReview={handleOpenReview} />
+            <BookingList
+              items={past}
+              onReview={handleOpenReview}
+              onPayDeposit={handleOpenPayment}
+            />
           )}
         </section>
         <HelpPrompt />
@@ -194,6 +235,32 @@ export default function ClientBookingsPage() {
           bookingId={reviewId}
           onClose={() => setReviewId(null)}
           onSubmitted={handleReviewSubmitted}
+        />
+      )}
+      {showPayment && paymentBookingRequestId !== null && (
+        <PaymentModal
+          open={showPayment}
+          bookingRequestId={paymentBookingRequestId}
+          depositAmount={paymentDeposit}
+          onClose={() => setShowPayment(false)}
+          onSuccess={(result) => {
+            setUpcoming((prev) =>
+              prev.map((b) =>
+                b.id === paymentBookingId
+                  ? { ...b, payment_status: result.status }
+                  : b,
+              ),
+            );
+            setPast((prev) =>
+              prev.map((b) =>
+                b.id === paymentBookingId
+                  ? { ...b, payment_status: result.status }
+                  : b,
+              ),
+            );
+            setShowPayment(false);
+          }}
+          onError={() => {}}
         />
       )}
     </MainLayout>
