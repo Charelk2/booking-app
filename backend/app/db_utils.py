@@ -150,6 +150,12 @@ def ensure_booking_simple_columns(engine: Engine) -> None:
     add_column_if_missing(
         engine,
         "bookings_simple",
+        "deposit_due_by",
+        "deposit_due_by DATETIME"
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
         "deposit_paid",
         "deposit_paid BOOLEAN NOT NULL DEFAULT FALSE",
     )

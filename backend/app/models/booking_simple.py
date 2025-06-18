@@ -25,6 +25,7 @@ class BookingSimple(BaseModel):
     payment_status = Column(String, nullable=False, default="pending")
     payment_id = Column(String, nullable=True)
     deposit_amount = Column(Numeric(10, 2), nullable=True, default=0)
+    deposit_due_by = Column(DateTime, nullable=True)
     deposit_paid = Column(Boolean, nullable=False, default=False)
 
     quote = relationship("QuoteV2")

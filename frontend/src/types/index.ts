@@ -66,6 +66,8 @@ export interface Booking {
   notes: string;
   /** Amount paid as a deposit toward this booking */
   deposit_amount?: number | null;
+  /** Date when the deposit is due */
+  deposit_due_by?: string | null;
   /** Current payment status, e.g. 'pending', 'deposit_paid', 'paid' */
   payment_status?: string;
   /** ID from the payment gateway used to fetch receipts */
@@ -192,6 +194,7 @@ export interface BookingSimple {
   date?: string | null;
   location?: string | null;
   payment_status: string;
+  deposit_due_by?: string | null;
   created_at: string;
   updated_at: string;
 }
