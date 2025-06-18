@@ -1,10 +1,11 @@
 "use client";
 
-import { useForm, SubmitHandler } from "react-hook-form";
-import { Service } from "@/types";
-import { updateService as apiUpdateService } from "@/lib/api";
-import { useState } from "react";
+import { useForm, type SubmitHandler } from 'react-hook-form';
+import { useState } from 'react';
+import { Service } from '@/types';
+import { updateService as apiUpdateService } from '@/lib/api';
 import { DEFAULT_CURRENCY } from '@/lib/constants';
+import Button from '../ui/Button';
 
 interface EditServiceModalProps {
   isOpen: boolean;
@@ -205,24 +206,20 @@ export default function EditServiceModal({
             )}
 
             <div className="items-center px-4 py-3 space-x-2">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 bg-brand text-white text-base font-medium rounded-md w-auto shadow-sm hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand disabled:opacity-50"
-              >
-                {isSubmitting ? "Saving..." : "Save Changes"}
-              </button>
-              <button
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => {
                   onClose();
                   reset();
                   setServerError(null);
                 }}
-                className="px-4 py-2 bg-gray-200 text-gray-700 text-base font-medium rounded-md w-auto shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         </div>

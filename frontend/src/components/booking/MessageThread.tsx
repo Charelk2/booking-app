@@ -784,8 +784,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             <Button
               type="submit"
               aria-label="Send message"
+              variant="primary"
+              className="rounded-full"
               disabled={uploading}
-              className="rounded-full bg-blue-600 text-white px-4 py-2 hover:bg-blue-700"
             >
               {uploading ? 'Uploading…' : 'Send'}
             </Button>
