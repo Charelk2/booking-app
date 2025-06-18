@@ -1,6 +1,7 @@
 import React from 'react';
 import Button from '../ui/Button';
 import { QuoteV2 } from '@/types';
+import { formatCurrency } from '@/lib/utils';
 
 interface Props {
   quote: QuoteV2;
@@ -27,19 +28,19 @@ const QuoteCard: React.FC<Props> = ({ quote, isClient, onAccept, onDecline, book
       </div>
       <ul className="list-disc list-inside text-sm mb-1">
         {quote.services.map((s, i) => (
-          <li key={i}>{s.description} – {Number(s.price).toFixed(2)}</li>
+          <li key={i}>{s.description} – {formatCurrency(Number(s.price))}</li>
         ))}
       </ul>
-      <p className="text-sm">Sound fee: {Number(quote.sound_fee).toFixed(2)}</p>
-      <p className="text-sm">Travel fee: {Number(quote.travel_fee).toFixed(2)}</p>
+      <p className="text-sm">Sound fee: {formatCurrency(Number(quote.sound_fee))}</p>
+      <p className="text-sm">Travel fee: {formatCurrency(Number(quote.travel_fee))}</p>
       {quote.accommodation && (
         <p className="text-sm">Accommodation: {quote.accommodation}</p>
       )}
-      <p className="text-sm font-medium">Subtotal: {Number(quote.subtotal).toFixed(2)}</p>
+      <p className="text-sm font-medium">Subtotal: {formatCurrency(Number(quote.subtotal))}</p>
       {quote.discount && (
-        <p className="text-sm">Discount: {Number(quote.discount).toFixed(2)}</p>
+        <p className="text-sm">Discount: {formatCurrency(Number(quote.discount))}</p>
       )}
-      <p className="font-semibold">Total: {Number(quote.total).toFixed(2)}</p>
+      <p className="font-semibold">Total: {formatCurrency(Number(quote.total))}</p>
       {quote.expires_at && (
         <span className="text-xs text-gray-500">Expires {new Date(quote.expires_at).toLocaleString()}</span>
       )}

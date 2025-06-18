@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Button from '../ui/Button';
 import { ServiceItem, QuoteV2Create, QuoteTemplate } from '@/types';
 import { getQuoteTemplates } from '@/lib/api';
+import { formatCurrency } from '@/lib/utils';
 
 interface Props {
   open: boolean;
@@ -169,9 +170,9 @@ const SendQuoteModal: React.FC<Props> = ({
             ))}
           </select>
           <div className="text-sm mt-2">
-            Subtotal: {subtotal.toFixed(2)}
+            Subtotal: {formatCurrency(subtotal)}
             <br />
-            Total: {total.toFixed(2)}
+            Total: {formatCurrency(total)}
           </div>
         </div>
         <div className="flex justify-end gap-2 mt-4">
