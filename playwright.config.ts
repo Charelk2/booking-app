@@ -6,6 +6,10 @@ export default defineConfig({
     { name: 'chromium', use: { browserName: 'chromium' } },
     { name: 'firefox',  use: { browserName: 'firefox'  } },
     { name: 'webkit',   use: { browserName: 'webkit'   } },
+    {
+      name: 'mobile',
+      use: { ...devices['iPhone 14 Pro'] },
+    },
   ],
   workers: 2,
   use: { headless: true, video: 'off', screenshot: 'off' },
