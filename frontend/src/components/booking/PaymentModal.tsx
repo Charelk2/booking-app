@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Button from '../ui/Button';
 import { createPayment } from '@/lib/api';
 
@@ -31,12 +31,44 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [full, setFull] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const modalRef = useRef<HTMLFormElement | null>(null);
 
   useEffect(() => {
     if (open && depositAmount !== undefined) {
       setAmount(depositAmount.toString());
     }
   }, [depositAmount, open]);
+
+  useEffect(() => {
+    if (!open || !modalRef.current) return undefined;
+    const modal = modalRef.current;
+    const focusable = modal.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const trap = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            (last || first).focus();
+          }
+        } else if (document.activeElement === last) {
+          e.preventDefault();
+          (first || last).focus();
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', trap);
+    (first || modal).focus();
+    return () => {
+      document.removeEventListener('keydown', trap);
+    };
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -69,8 +101,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-sm p-4">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center overflow-y-auto z-50">
+      <form
+        ref={modalRef}
+        onSubmit={(e) => {
+          e.preventDefault();
+          handlePay();
+        }}
+        className="bg-white rounded-lg shadow-lg w-full max-w-sm p-4 mx-2 max-h-[90vh] overflow-y-auto"
+      >
         <h2 className="text-lg font-medium mb-2">Pay Deposit</h2>
         <div className="space-y-2">
           <input
@@ -94,11 +133,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="button" onClick={handlePay} isLoading={loading}>
+          <Button type="submit" isLoading={loading}>
             Pay
           </Button>
         </div>
-      </div>
+      </form>
     </div>
   );
 };
