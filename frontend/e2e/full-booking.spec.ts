@@ -1,0 +1,44 @@
+import { test, expect } from '@playwright/test';
+import {
+  setupDepositStubs,
+  stubRegister,
+  stubArtist,
+} from './stub-helpers';
+
+test.describe('Signup to deposit flow', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupDepositStubs(page);
+    await stubRegister(page);
+    await stubArtist(page);
+  });
+
+  test('completes signup, requests quote, and pays deposit', async ({ page }) => {
+    await page.goto('/register');
+    await page.getByLabel('Email address').fill('new@test.com');
+    await page.getByLabel('First name').fill('New');
+    await page.getByLabel('Last name').fill('User');
+    await page.getByLabel('Phone number').fill('+1234567890');
+    await page.selectOption('#user_type', 'client');
+    await page.getByLabel('Password').fill('secret!1');
+    await page.getByLabel('Confirm password').fill('secret!1');
+    await page.getByRole('button', { name: /sign up/i }).click();
+    await expect(page).toHaveURL('/login');
+
+    await page.getByLabel('Email address').fill('new@test.com');
+    await page.getByLabel('Password').fill('secret!1');
+    await page.getByRole('button', { name: /sign in/i }).click();
+    await expect(page).toHaveURL('/dashboard');
+
+    await page.goto('/booking?artist_id=1&service_id=1');
+    await expect(page.getByTestId('step-heading')).toHaveText(/Date & Time/);
+    await page.getByTestId('date-next-button').click();
+    await expect(page.getByTestId('step-heading')).toHaveText(/Location/);
+
+    await page.goto('/dashboard/client/bookings/5?pay=1');
+    const responsePromise = page.waitForResponse('**/api/v1/payments');
+    await page.getByRole('button', { name: 'Pay' }).click();
+    const response = await responsePromise;
+    expect(response.status()).toBe(200);
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+  });
+});
