@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 import BookingDetailsPage from '../[id]/page';
 import { getBookingDetails, downloadBookingIcs } from '@/lib/api';
-import { useParams, usePathname } from 'next/navigation';
+import { useParams } from 'next/navigation';
 
 jest.mock('@/lib/api');
 jest.mock('next/navigation', () => ({
