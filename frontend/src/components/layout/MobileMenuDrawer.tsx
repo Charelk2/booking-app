@@ -122,6 +122,15 @@ export default function MobileMenuDrawer({
                     My Bookings
                   </Link>
                 )}
+                {user.user_type === 'client' && (
+                  <Link
+                    href="/dashboard/client/quotes"
+                    onClick={onClose}
+                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    My Quotes
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={() => {
