@@ -730,6 +730,7 @@ When a client accepts a quote in the chat thread, the frontend now prompts them 
 The payment modal automatically fills in half the quote total as the suggested deposit, but clients can adjust the amount before submitting.
 The modal layout now adapts to narrow screens, trapping focus and scrolling internally so mobile users can submit using the keyboard's **Done** button.
 Accepting a quote also creates a **DEPOSIT_DUE** notification so the client receives a clear reminder to pay. The notification links to the dashboard at `/dashboard/client/bookings/{booking_id}` where they can complete the deposit.
+The alert now displays the deposit amount and due date so clients know exactly what to pay and by when.
 Clients can also pay outstanding deposits later from the bookings page. Each
 pending booking shows a **Pay deposit** button that fetches the latest deposit
 amount from the server before opening the payment modal.
