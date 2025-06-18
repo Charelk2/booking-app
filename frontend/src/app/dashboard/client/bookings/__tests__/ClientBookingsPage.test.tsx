@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 import ClientBookingsPage from '../page';
 import { getMyClientBookings, getBookingDetails } from '@/lib/api';
+import { formatCurrency } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -215,8 +216,8 @@ describe('ClientBookingsPage', () => {
     await act(async () => { await Promise.resolve(); });
 
     expect(getBookingDetails).toHaveBeenCalledWith(5);
-    const input = div.querySelector('input[type="number"]') as HTMLInputElement;
-    expect(input.value).toBe('80');
+    const input = div.querySelector('input[type="text"]') as HTMLInputElement;
+    expect(input.value).toBe(formatCurrency(80));
 
     act(() => {
       root.unmount();
