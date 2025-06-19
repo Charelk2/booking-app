@@ -65,6 +65,7 @@ def create_payment(
         else float(booking.deposit_amount or 0)
     )
     logger.info("Resolved payment amount %s", amount)
+    charge_amount = Decimal(str(amount))
 
     if PAYMENT_GATEWAY_FAKE:
         logger.info(
@@ -86,7 +87,8 @@ def create_payment(
                 status.HTTP_502_BAD_GATEWAY, detail="Payment gateway error"
             )
 
-    booking.deposit_amount = Decimal(str(amount))
+    if not payment_in.full:
+        booking.deposit_amount = charge_amount
     booking.deposit_paid = True
     booking.payment_status = "paid" if payment_in.full else "deposit_paid"
     booking.payment_id = charge.get("id")
