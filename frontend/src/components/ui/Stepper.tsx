@@ -19,12 +19,14 @@ export default function Stepper({ steps, currentStep, maxStepCompleted, onStepCl
           <>
             <div
               className={`w-3 h-3 rounded-full ${
-                i === currentStep ? 'bg-black' : 'bg-gray-300'
+                i === currentStep ? 'bg-brand' : 'bg-gray-300'
               }`}
             />
             <span
               className={`mt-1 ${
-                i === currentStep ? 'font-medium text-black' : 'text-gray-400'
+                i === currentStep
+                  ? 'font-medium text-brand-dark'
+                  : 'text-gray-400'
               }`}
             >
               {label}
