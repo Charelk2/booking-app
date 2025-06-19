@@ -38,6 +38,9 @@ class BookingResponse(BookingBase):
     created_at: datetime
     updated_at: datetime
     deposit_due_by: Optional[datetime] = None
+    deposit_amount: Optional[Decimal] = None
+    payment_status: Optional[str] = None
+    deposit_paid: Optional[bool] = None
 
     # Include nested details for frontend dashboard
     client: Optional[UserResponse] = None
