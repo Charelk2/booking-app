@@ -17,7 +17,7 @@ describe('AlertBanner component', () => {
   it('renders info variant by default', () => {
     const { container, root } = renderBanner();
     const div = container.firstChild as HTMLElement;
-    expect(div.className).toContain('bg-blue-50');
+    expect(div.className).toContain('bg-brand-light');
     expect(div.textContent).toBe('Message');
     act(() => { root.unmount(); });
     container.remove();
