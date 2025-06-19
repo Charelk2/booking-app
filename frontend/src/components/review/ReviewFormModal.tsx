@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { createReviewForBooking } from '@/lib/api';
 import { Review } from '@/types';
-import { Button } from '@/components/ui';
+import { Button, TextInput, TextArea } from '@/components/ui';
 
 interface Props {
   isOpen: boolean;
@@ -56,27 +56,26 @@ export default function ReviewFormModal({
         <h3 className="text-lg font-medium text-gray-900 mb-4">Leave a Review</h3>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <label htmlFor="rating" className="block text-sm font-medium text-gray-700">Rating</label>
-            <select
+            <TextInput
               id="rating"
+              type="number"
+              min={1}
+              max={5}
+              label="Rating"
               {...register('rating', { required: true, valueAsNumber: true })}
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-            >
-              {[1,2,3,4,5].map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
+              className="mt-1"
+            />
             {errors.rating && (
               <p className="text-xs text-red-600 mt-1">Rating is required</p>
             )}
           </div>
           <div>
-            <label htmlFor="comment" className="block text-sm font-medium text-gray-700">Comment</label>
-            <textarea
+            <TextArea
               id="comment"
               rows={3}
+              label="Comment"
               {...register('comment')}
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
+              className="mt-1"
             />
           </div>
           {serverError && <p className="text-sm text-red-600">{serverError}</p>}
