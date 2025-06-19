@@ -22,6 +22,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Each booking item in this list now includes a `deposit_due_by` field when the booking was created from a quote.
 - Artists can mark bookings completed or cancelled and download confirmed bookings as calendar (.ics) files.
 - Clients can leave a star rating and comment once a booking is marked completed. Service detail pages now display these reviews.
+- A **Leave Review** button now appears in chat when a completed booking has no review.
 - After accepting a quote, clients see quick links in the chat to view that booking, pay the deposit, add it to a calendar, and jump to **My Bookings**.
 - Artists can upload multiple portfolio images and reorder them via drag-and-drop. Use `POST /api/v1/artist-profiles/me/portfolio-images` to upload and `PUT /api/v1/artist-profiles/me/portfolio-images` to save the order.
 
