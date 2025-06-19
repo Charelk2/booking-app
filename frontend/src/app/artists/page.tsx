@@ -76,7 +76,7 @@ export default function ArtistsPage() {
                 key={c}
                 type="button"
                 onClick={() => onCategory(c)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 text-gray-700 hover:bg-blue-100 transition${
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-brand-light text-gray-700 hover:bg-brand-light/70 transition${
                   category === c ? ' bg-indigo-100 text-indigo-600 font-semibold' : ''
                 }`}
               >

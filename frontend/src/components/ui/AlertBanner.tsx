@@ -16,7 +16,7 @@ export default function AlertBanner({
 }: AlertBannerProps) {
   const variantClasses = {
     success: 'bg-green-50 border border-green-200 text-green-800',
-    info: 'bg-blue-50 border border-blue-200 text-blue-800',
+    info: 'bg-brand-light border border-brand-light text-brand-dark',
     error: 'bg-red-50 border border-red-200 text-red-800',
   }[variant];
 
