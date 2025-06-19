@@ -552,3 +552,66 @@ def test_personalized_video_notifications_suppressed_until_final():
     notifs_after = crud_notification.get_notifications_for_user(db, artist.id)
     assert len(notifs_after) == 1
     assert notifs_after[0].type == NotificationType.NEW_BOOKING_REQUEST
+
+
+def test_review_request_notification():
+    db = setup_db()
+    artist = User(
+        email="rra@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="rrc@test.com",
+        password="x",
+        first_name="C",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    profile = models.ArtistProfile(user_id=artist.id)
+    service = models.Service(
+        artist_id=artist.id,
+        title="Gig",
+        price=100,
+        duration_minutes=60,
+    )
+    db.add_all([profile, service])
+    db.commit()
+    db.refresh(service)
+
+    booking = models.Booking(
+        artist_id=artist.id,
+        client_id=client.id,
+        service_id=service.id,
+        start_time=datetime(2030, 1, 1, 12, 0),
+        end_time=datetime(2030, 1, 1, 13, 0),
+        status=models.BookingStatus.CONFIRMED,
+        total_price=100,
+    )
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+
+    from app.api.api_booking import update_booking_status
+    from app.schemas.booking import BookingUpdate
+
+    update_booking_status(
+        db=db,
+        booking_id=booking.id,
+        status_update=BookingUpdate(status=models.BookingStatus.COMPLETED),
+        current_artist=artist,
+    )
+
+    notifs = crud_notification.get_notifications_for_user(db, client.id)
+    assert len(notifs) == 1
+    notif = notifs[0]
+    assert notif.type == NotificationType.REVIEW_REQUEST
+    assert notif.message == f"Please review your booking #{booking.id}"
+    assert notif.link == f"/dashboard/client/bookings/{booking.id}?review=1"
