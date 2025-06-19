@@ -489,7 +489,7 @@ describe('MessageThread component', () => {
     );
     expect(dashboardLink).not.toBeNull();
     const help = container.querySelector('[data-testid="help-prompt"]');
-    expect(help).not.toBeNull();
+    expect(help).toBeNull();
   });
 
   it('loads booking details when an accepted quote is fetched', async () => {
@@ -605,7 +605,7 @@ describe('MessageThread component', () => {
     const calBtn = container.querySelector('[data-testid="add-calendar-button"]');
     expect(calBtn).not.toBeNull();
     const help = container.querySelector('[data-testid="help-prompt"]');
-    expect(help).not.toBeNull();
+    expect(help).toBeNull();
   });
 
   it('adds ring styles when deposit actions receive keyboard focus', async () => {
