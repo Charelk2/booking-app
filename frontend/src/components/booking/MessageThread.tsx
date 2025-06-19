@@ -33,7 +33,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Button from '../ui/Button';
 import TextInput from '../ui/TextInput';
 import SendQuoteModal from './SendQuoteModal';
-import PaymentModal from './PaymentModal';
+import usePaymentModal from '@/hooks/usePaymentModal';
 import QuoteCard from './QuoteCard';
 import useWebSocket from '@/hooks/useWebSocket';
 import ReviewFormModal from '../review/ReviewFormModal';
@@ -84,7 +84,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [depositAmount, setDepositAmount] = useState<number | undefined>(
     undefined,
@@ -105,6 +104,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [announceNewMessage, setAnnounceNewMessage] = useState('');
   const [openDetails, setOpenDetails] = useState<Record<number, boolean>>({});
   const prevLengthRef = useRef(0);
+
+  const { openPaymentModal, paymentModal } = usePaymentModal(
+    ({ status, amount, receiptUrl: url }) => {
+      setPaymentStatus(status);
+      setPaymentAmount(amount);
+      setReceiptUrl(url ?? null);
+      setPaymentError(null);
+    },
+    (msg) => setPaymentError(msg),
+  );
 
   const ensureQuoteLoaded = useCallback(
     async (quoteId: number) => {
@@ -294,7 +303,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         setBookingConfirmed(true);
         const q = await getQuoteV2(quoteId);
         setDepositAmount(q.data.total * 0.5);
-        setShowPaymentModal(true);
+        openPaymentModal({
+          bookingRequestId,
+          depositAmount: q.data.total * 0.5,
+          depositDueBy: undefined,
+        });
         setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
         try {
           const details = await getBookingDetails(res.data.id);
@@ -308,7 +321,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           await updateQuoteAsClient(quoteId, { status: 'accepted_by_client' });
           const q = await getQuoteV2(quoteId);
           setDepositAmount(q.data.total * 0.5);
-          setShowPaymentModal(true);
+          openPaymentModal({
+            bookingRequestId,
+            depositAmount: q.data.total * 0.5,
+            depositDueBy: undefined,
+          });
           setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
         } catch (legacyErr) {
           console.error('Failed to accept quote', legacyErr);
@@ -316,7 +333,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         }
       }
     },
-    [],
+    [bookingRequestId, openPaymentModal],
   );
 
   const handleDeclineQuote = useCallback(
@@ -490,7 +507,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             </Link>
             <button
               type="button"
-              onClick={() => setShowPaymentModal(true)}
+              onClick={() =>
+                openPaymentModal({
+                  bookingRequestId,
+                  depositAmount:
+                    depositAmount !== undefined
+                      ? depositAmount
+                      : bookingDetails?.deposit_amount,
+                  depositDueBy: bookingDetails?.deposit_due_by ?? undefined,
+                })
+              }
               data-testid="pay-deposit-button"
               className="mt-2 ml-4 inline-block text-brand-dark underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
@@ -827,29 +853,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             clientId={clientId ?? messages.find((m) => m.sender_type === 'client')?.sender_id ?? 0}
             bookingRequestId={bookingRequestId}
           />
-          <PaymentModal
-            open={showPaymentModal}
-            onClose={() => {
-              setShowPaymentModal(false);
-              setPaymentError(null);
-              setDepositAmount(undefined);
-            }}
-            bookingRequestId={bookingRequestId}
-            depositAmount={
-              depositAmount !== undefined
-                ? depositAmount
-                : bookingDetails?.deposit_amount
-            }
-            depositDueBy={bookingDetails?.deposit_due_by ?? undefined}
-            onSuccess={({ status, amount, receiptUrl: url }) => {
-              setPaymentStatus(status);
-              setPaymentAmount(amount);
-              setReceiptUrl(url ?? null);
-              setShowPaymentModal(false);
-              setPaymentError(null);
-            }}
-            onError={(msg) => setPaymentError(msg)}
-          />
+          {paymentModal}
           {bookingDetails &&
             bookingDetails.status === 'completed' &&
             !(
