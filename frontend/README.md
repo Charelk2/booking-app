@@ -82,7 +82,7 @@ Passing `service_id` skips the service selection step when a user clicks "Book N
 
 ## Dashboard
 
-The artist dashboard includes a quotes page for managing offers. The `EditQuoteModal` allows artists to modify quote details and price inline without leaving the list. It opens when clicking the "Edit" button next to a pending quote and mirrors the style of `SendQuoteModal`.
+The artist dashboard includes a quotes page for managing offers. The `EditQuoteModal` allows artists to modify quote details and price inline without leaving the list. It opens when clicking the "Edit" button next to a pending quote and mirrors the style of `SendQuoteModal`. Both modals now wrap the sound fee, travel fee, discount, accommodation, and expiry fields in accessible labels so screen readers announce each input.
 
 ### Artist Listing
 
