@@ -37,6 +37,12 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
         .filter(models.BookingRequest.id == quote_in.booking_request_id)
         .first()
     )
+    if booking_request is None:
+        raise error_response(
+            "Booking request not found",
+            {"booking_request_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
     db_quote = models.QuoteV2(
         booking_request_id=quote_in.booking_request_id,
         artist_id=quote_in.artist_id,
