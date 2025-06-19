@@ -241,3 +241,27 @@ def notify_new_booking(db: Session, user: Optional[User], booking_id: int) -> No
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
+
+
+def notify_review_request(db: Session, user: Optional[User], booking_id: int) -> None:
+    """Notify a user to review a completed booking."""
+    if user is None:
+        logger.error(
+            "Failed to send review request notification: user missing for booking %s",
+            booking_id,
+        )
+        return
+
+    message = format_notification_message(
+        NotificationType.REVIEW_REQUEST,
+        booking_id=booking_id,
+    )
+    crud_notification.create_notification(
+        db,
+        user_id=user.id,
+        type=NotificationType.REVIEW_REQUEST,
+        message=message,
+        link=f"/dashboard/client/bookings/{booking_id}?review=1",
+    )
+    logger.info("Notify %s: %s", user.email, message)
+    _send_sms(user.phone_number, message)
