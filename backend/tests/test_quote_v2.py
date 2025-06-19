@@ -115,6 +115,65 @@ def test_create_and_accept_quote():
     assert db_booking.total_price == quote.total
 
 
+def test_create_quote_updates_request_status():
+    db = setup_db()
+    artist = User(
+        email="artist_status@test.com",
+        password="x",
+        first_name="A",
+        last_name="R",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="client_status@test.com",
+        password="x",
+        first_name="C",
+        last_name="L",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    service = Service(
+        artist_id=artist.id,
+        title="Show",
+        description="test",
+        price=Decimal("50"),
+        currency="ZAR",
+        duration_minutes=60,
+        service_type="Live Performance",
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    from datetime import datetime
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        service_id=service.id,
+        proposed_datetime_1=datetime(2035, 1, 1, 20, 0, 0),
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    quote_in = QuoteCreate(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=client.id,
+        services=[ServiceItem(description="Perf", price=Decimal("50"))],
+        sound_fee=Decimal("0"),
+        travel_fee=Decimal("0"),
+    )
+    api_quote_v2.create_quote(quote_in, db)
+    db.refresh(br)
+    assert br.status == BookingRequestStatus.QUOTE_PROVIDED
+
 def test_read_accepted_quote_has_booking_id():
     """GET /quotes/{id} returns booking_id for accepted quotes."""
     db = setup_db()
