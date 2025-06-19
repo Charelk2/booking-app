@@ -94,7 +94,7 @@ describe('BookingRequestsPage', () => {
       await Promise.resolve();
     });
     const aliceRow = container.querySelector('li[data-request-id="1"]');
-    expect(aliceRow?.className).toContain('bg-indigo-50');
+    expect(aliceRow?.className).toContain('bg-brand-light');
     const badge = aliceRow?.querySelector('span.bg-red-600');
     expect(badge?.textContent).toBe('1');
     act(() => {

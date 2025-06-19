@@ -33,7 +33,7 @@ function BookingList({
           <Link
             href={`/dashboard/client/bookings/${b.id}`}
             data-booking-id={b.id}
-            className="block bg-white p-4 shadow rounded-lg hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+            className="block bg-white p-4 shadow rounded-lg hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
           >
             <div className="font-medium text-gray-900">{b.service.title}</div>
             <div className="text-sm text-gray-500">
@@ -74,7 +74,7 @@ function BookingList({
                 href={`/api/v1/payments/${b.payment_id}/receipt`}
                 target="_blank"
                 rel="noopener"
-                className="mt-2 text-indigo-600 hover:underline text-sm"
+                className="mt-2 text-brand-dark hover:underline text-sm"
                 data-testid="booking-receipt-link"
               >
                 View receipt
@@ -101,7 +101,7 @@ function BookingList({
                     key={step}
                     className={
                       idx <= activeIdx
-                        ? "font-semibold text-indigo-600 flex-1 text-center"
+                        ? "font-semibold text-brand-dark flex-1 text-center"
                         : "flex-1 text-center"
                     }
                   >
@@ -115,7 +115,7 @@ function BookingList({
             <button
               type="button"
               onClick={() => onPayDeposit(b.id)}
-              className="mt-2 text-indigo-600 underline text-sm"
+              className="mt-2 text-brand-dark underline text-sm"
               data-testid="pay-deposit-button"
             >
               Pay deposit
@@ -125,7 +125,7 @@ function BookingList({
             <button
               type="button"
               onClick={() => onReview(b.id)}
-              className="mt-2 text-indigo-600 hover:underline text-sm"
+              className="mt-2 text-brand-dark hover:underline text-sm"
             >
               Leave review
             </button>
@@ -138,7 +138,7 @@ function BookingList({
           {b.source_quote?.booking_request_id && (
             <Link
               href={`/booking-requests/${b.source_quote.booking_request_id}`}
-              className="mt-2 text-indigo-600 hover:underline text-sm"
+              className="mt-2 text-brand-dark hover:underline text-sm"
               data-testid="message-artist-link"
             >
               Message Artist
@@ -146,7 +146,7 @@ function BookingList({
           )}
           <Link
             href={`/artists/${b.artist_id}`}
-            className="mt-2 text-indigo-600 hover:underline text-sm"
+            className="mt-2 text-brand-dark hover:underline text-sm"
             data-testid="view-artist-link"
           >
             View Artist
