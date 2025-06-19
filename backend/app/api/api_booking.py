@@ -117,7 +117,13 @@ def read_my_bookings(
 ) -> Any:
     """Return bookings for the authenticated client, optionally filtered."""
     query = (
-        db.query(Booking, BookingSimple.deposit_due_by)
+        db.query(
+            Booking,
+            BookingSimple.deposit_due_by,
+            BookingSimple.deposit_amount,
+            BookingSimple.payment_status,
+            BookingSimple.deposit_paid,
+        )
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
         .options(
             selectinload(Booking.client),
@@ -153,9 +159,15 @@ def read_my_bookings(
 
     rows = query.order_by(Booking.start_time.desc()).all()
     bookings: List[Booking] = []
-    for booking, deposit_due in rows:
+    for booking, deposit_due, deposit_amount, payment_status, deposit_paid in rows:
         if deposit_due is not None:
             booking.deposit_due_by = deposit_due
+        if deposit_amount is not None:
+            booking.deposit_amount = deposit_amount
+        if payment_status is not None:
+            booking.payment_status = payment_status
+        if deposit_paid is not None:
+            booking.deposit_paid = deposit_paid
         bookings.append(booking)
 
     return bookings
@@ -248,8 +260,15 @@ def read_booking_details(
     Return the details of a single booking.  
     Accessible if the current user is either the booking’s client or the booking’s artist.
     """
-    booking = (
-        db.query(Booking)
+    booking_row = (
+        db.query(
+            Booking,
+            BookingSimple.deposit_due_by,
+            BookingSimple.deposit_amount,
+            BookingSimple.payment_status,
+            BookingSimple.deposit_paid,
+        )
+        .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
         .options(
             selectinload(Booking.client),
             selectinload(Booking.service),
@@ -258,10 +277,12 @@ def read_booking_details(
         .filter(Booking.id == booking_id)
         .first()
     )
-    if not booking:
+    if not booking_row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found."
         )
+
+    booking, deposit_due, deposit_amount, payment_status, deposit_paid = booking_row
 
     # Only the client or the artist may see it:
     if not (
@@ -276,13 +297,14 @@ def read_booking_details(
             detail="You do not have permission to view this booking.",
         )
 
-    simple = (
-        db.query(BookingSimple)
-        .filter(BookingSimple.quote_id == booking.quote_id)
-        .first()
-    )
-    if simple:
-        booking.deposit_due_by = simple.deposit_due_by
+    if deposit_due is not None:
+        booking.deposit_due_by = deposit_due
+    if deposit_amount is not None:
+        booking.deposit_amount = deposit_amount
+    if payment_status is not None:
+        booking.payment_status = payment_status
+    if deposit_paid is not None:
+        booking.deposit_paid = deposit_paid
 
     return booking
 
