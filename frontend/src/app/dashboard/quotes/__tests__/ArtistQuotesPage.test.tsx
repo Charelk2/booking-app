@@ -5,9 +5,14 @@ import ArtistQuotesPage from '../page';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import toast from '@/components/ui/Toast';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
+jest.mock('@/components/ui/Toast', () => ({
+  __esModule: true,
+  default: { success: jest.fn(), error: jest.fn() },
+}));
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   usePathname: jest.fn(() => '/dashboard/quotes'),
@@ -52,6 +57,11 @@ describe('ArtistQuotesPage', () => {
       confirmBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(api.confirmQuoteBooking).toHaveBeenCalledWith(2);
+    expect(
+      (toast.success as jest.Mock).mock.calls.some(
+        (c) => c[0] === 'Booking confirmed',
+      ),
+    ).toBe(false);
 
     act(() => {
       root.unmount();
