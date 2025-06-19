@@ -8,7 +8,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - **Uvicorn** 0.34
 - **React** 18.3 and **Next.js** 14.2
 - **Python** 3.12
-- **Node.js** 21
+- **Node.js** 22
 - Minor fix: the artists listing now gracefully handles incomplete user data from the API.
 - Bookings now track `payment_status`, `deposit_amount`, and `deposit_paid` in
   `bookings_simple`. The deposit amount defaults to half of the accepted quote
