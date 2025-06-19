@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { HelpPrompt, Spinner } from "@/components/ui";
+import { Spinner } from "@/components/ui";
 
 interface BookingWithReview extends Booking {
   review?: Review | null;
@@ -315,7 +315,6 @@ export default function ClientBookingsPage() {
             />
           )}
         </section>
-        <HelpPrompt />
       </div>
       {reviewId && (
         <ReviewFormModal
