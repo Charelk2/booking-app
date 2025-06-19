@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import QuoteCard from '@/components/booking/QuoteCard';
 import { Spinner } from '@/components/ui';
-import { getQuoteV2, updateQuoteAsClient } from '@/lib/api';
+import { getQuoteV2, updateQuoteAsClient, acceptQuoteV2 } from '@/lib/api';
 import { QuoteV2 } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -71,7 +71,11 @@ export default function QuoteDetailPage() {
     if (!quote) return;
     setUpdating(true);
     try {
-      await updateQuoteAsClient(quote.id, { status });
+      if (status === 'accepted_by_client') {
+        await acceptQuoteV2(quote.id);
+      } else {
+        await updateQuoteAsClient(quote.id, { status });
+      }
       const res = await getQuoteV2(quote.id);
       setQuote(res.data);
     } catch (err) {
