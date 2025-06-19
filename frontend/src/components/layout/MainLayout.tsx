@@ -10,6 +10,7 @@ import NotificationBell from './NotificationBell';
 import BookingRequestIcon from './BookingRequestIcon';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import MobileBottomNav from './MobileBottomNav';
+import { HelpPrompt } from '../ui';
 
 const baseNavigation = [
   { name: 'Home', href: '/' },
@@ -229,6 +230,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           {children}
         </div>
+        <HelpPrompt className="mx-auto mt-10 max-w-7xl sm:px-6 lg:px-8" />
       </main>
       {user && <MobileBottomNav user={user} />}
     </div>
