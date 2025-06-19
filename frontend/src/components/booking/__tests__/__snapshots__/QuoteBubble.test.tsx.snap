@@ -1,0 +1,99 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`QuoteBubble matches snapshot 1`] = `
+<div
+  class="bg-brand/10 text-brand-dark rounded-xl p-4 max-w-xs sm:max-w-md dark:bg-brand-dark/30 dark:text-brand-light"
+>
+  <h4
+    class="text-sm font-semibold text-brand-dark dark:text-brand-light mb-1"
+  >
+    Quote
+  </h4>
+  <ul
+    class="space-y-1"
+  >
+    <li
+      class="text-sm text-gray-800 dark:text-gray-200"
+    >
+      Performance
+       –
+       
+      <span
+        class="font-semibold"
+      >
+        R 100,00
+      </span>
+    </li>
+    <li
+      class="text-sm text-gray-800 dark:text-gray-200"
+    >
+      Sound fee:
+       
+      <span
+        class="font-semibold"
+      >
+        R 10,00
+      </span>
+    </li>
+    <li
+      class="text-sm text-gray-800 dark:text-gray-200"
+    >
+      Travel fee:
+       
+      <span
+        class="font-semibold"
+      >
+        R 20,00
+      </span>
+    </li>
+    <li
+      class="text-sm text-gray-800 dark:text-gray-200"
+    >
+      Accommodation: 
+      Hotel
+    </li>
+    <li
+      class="text-sm text-gray-800 dark:text-gray-200"
+    >
+      Discount:
+       
+      <span
+        class="font-semibold"
+      >
+        R 5,00
+      </span>
+    </li>
+    <li
+      class="text-sm text-gray-800 dark:text-gray-200"
+    >
+      Subtotal:
+       
+      <span
+        class="font-semibold"
+      >
+        R 125,00
+      </span>
+    </li>
+    <li
+      class="text-sm text-gray-800 dark:text-gray-200"
+    >
+      Total:
+       
+      <span
+        class="font-semibold"
+      >
+        R 130,00
+      </span>
+    </li>
+  </ul>
+  <div
+    class="mt-2"
+  >
+    <span
+      class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800"
+    >
+      Pending
+    </span>
+  </div>
+</div>
+`;
