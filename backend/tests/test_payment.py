@@ -334,3 +334,57 @@ def test_full_payment_preserves_deposit(monkeypatch):
         app.dependency_overrides[get_current_active_client] = prev_client
     else:
         app.dependency_overrides.pop(get_current_active_client, None)
+
+
+def test_duplicate_payment_rejected(monkeypatch):
+    """Second payment attempt for same booking should be rejected."""
+    Session = setup_app()
+    client_user, br_id, Session = create_records(Session)
+    prev_db = app.dependency_overrides.get(get_db)
+    prev_client = app.dependency_overrides.get(get_current_active_client)
+    app.dependency_overrides[get_current_active_client] = override_client(client_user)
+
+    calls = []
+
+    def fake_post(url, json, timeout=10):
+        calls.append(1)
+
+        class Resp:
+            status_code = 201
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"id": "ch_first", "status": "succeeded"}
+
+        return Resp()
+
+    monkeypatch.setattr(api_payment.httpx, "post", fake_post)
+    client = TestClient(app)
+
+    res = client.post(
+        "/api/v1/payments/",
+        json={"booking_request_id": br_id, "amount": 50},
+    )
+    assert res.status_code == 201
+
+    res = client.post(
+        "/api/v1/payments/",
+        json={"booking_request_id": br_id, "amount": 50},
+    )
+    assert res.status_code == 400
+    assert len(calls) == 1
+
+    db = Session()
+    booking = db.query(BookingSimple).first()
+    assert booking.deposit_paid is True
+    db.close()
+    if prev_db is not None:
+        app.dependency_overrides[get_db] = prev_db
+    else:
+        app.dependency_overrides.pop(get_db, None)
+    if prev_client is not None:
+        app.dependency_overrides[get_current_active_client] = prev_client
+    else:
+        app.dependency_overrides.pop(get_current_active_client, None)
