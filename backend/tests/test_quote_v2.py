@@ -452,7 +452,9 @@ def test_accept_quote_deposit_notification_link():
 
     notifs = crud_notification.get_notifications_for_user(db, client.id)
     deposit = next(n for n in notifs if n.type == NotificationType.DEPOSIT_DUE)
-    assert deposit.link == f"/dashboard/client/bookings/{booking.id}?pay=1"
+    from app.models import Booking
+    db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
+    assert deposit.link == f"/dashboard/client/bookings/{db_booking.id}?pay=1"
 
 
 def test_accept_quote_new_booking_notification_link():
@@ -518,7 +520,9 @@ def test_accept_quote_new_booking_notification_link():
 
     notifs = crud_notification.get_notifications_for_user(db, client.id)
     new_booking = next(n for n in notifs if n.type == NotificationType.NEW_BOOKING)
-    assert new_booking.link == f"/dashboard/client/bookings/{booking.id}"
+    from app.models import Booking
+    db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
+    assert new_booking.link == f"/dashboard/client/bookings/{db_booking.id}"
 
 
 def test_accept_quote_supplies_missing_service_id():

@@ -163,8 +163,9 @@ def accept_quote(
     db.refresh(booking)
 
     # Create the full booking record
+    db_booking = None
     try:
-        create_booking_from_quote_v2(db, db_quote)
+        db_booking = create_booking_from_quote_v2(db, db_quote)
     except Exception as exc:  # pragma: no cover - logging path
         logger.error("Failed to create Booking from quote %s: %s", quote_id, exc)
 
@@ -172,13 +173,14 @@ def accept_quote(
     artist = db_quote.artist
     client = db_quote.client or db.query(models.User).get(db_quote.client_id)
     notify_quote_accepted(db, artist, db_quote.id, db_quote.booking_request_id)
-    notify_new_booking(db, client, booking.id)
-    notify_deposit_due(
-        db,
-        client,
-        booking.id,
-        float(booking.deposit_amount or 0),
-        booking.deposit_due_by,
-    )
+    if db_booking is not None:
+        notify_new_booking(db, client, db_booking.id)
+        notify_deposit_due(
+            db,
+            client,
+            db_booking.id,
+            float(booking.deposit_amount or 0),
+            booking.deposit_due_by,
+        )
 
     return booking
