@@ -550,7 +550,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           const isSystem = firstMsg.message_type === 'system';
           const isSelf = !isSystem && firstMsg.sender_id === user?.id;
           const anyUnread = group.messages.some((m) => m.unread);
-          const groupClass = `${idx > 0 ? 'mt-1' : ''} ${anyUnread ? 'bg-purple-50' : ''}`;
+          const groupClass = `${idx > 0 ? 'mt-1' : ''} ${anyUnread ? 'bg-indigo-50' : ''}`;
 
           return (
             <div
@@ -579,7 +579,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               />
               {anyUnread && (
                 <span
-                  className="absolute right-0 top-1 w-2 h-2 bg-purple-600 rounded-full"
+                  className="absolute right-0 top-1 w-2 h-2 bg-indigo-600 rounded-full"
                   aria-label="Unread messages"
                 />
               )}

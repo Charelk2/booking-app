@@ -121,7 +121,7 @@ describe('MessageThread component', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const highlightedRow = container.querySelector('.bg-purple-50');
+    const highlightedRow = container.querySelector('.bg-indigo-50');
     const senderName = container.querySelector('span.font-semibold');
     const badge = container.querySelector('span[aria-label="Unread messages"]');
     expect(highlightedRow).not.toBeNull();

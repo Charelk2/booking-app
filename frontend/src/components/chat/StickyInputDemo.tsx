@@ -45,7 +45,7 @@ export default function StickyInputDemo() {
         />
         <button
           type="submit"
-          className="bg-purple-600 text-white rounded px-4 py-2 text-sm"
+          className="bg-indigo-600 text-white rounded px-4 py-2 text-sm"
         >
           Send
         </button>

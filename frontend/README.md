@@ -46,9 +46,9 @@ Brand colors are declared in `tailwind.config.js` and exposed as CSS variables i
 // tailwind.config.js
 colors: {
   brand: {
-    DEFAULT: '#7c3aed',
-    dark: '#6d28d9',
-    light: '#c084fc',
+    DEFAULT: '#6366f1',
+    dark: '#4f46e5',
+    light: '#a5b4fc',
   },
 }
 ```
@@ -56,9 +56,9 @@ colors: {
 ```css
 /* globals.css */
 :root {
-  --brand-color: #7c3aed;
-  --brand-color-dark: #6d28d9;
-  --brand-color-light: #c084fc;
+  --brand-color: #6366f1;
+  --brand-color-dark: #4f46e5;
+  --brand-color-light: #a5b4fc;
 }
 ```
 
