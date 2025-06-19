@@ -10,8 +10,10 @@ The July 2025 update bumps key dependencies and Docker base images:
 - **Python** 3.12
 - **Node.js** 21
 - Minor fix: the artists listing now gracefully handles incomplete user data from the API.
-- Bookings now track `payment_status` and `deposit_amount` in `bookings_simple`.
-  The deposit amount defaults to half of the accepted quote total.
+- Bookings now track `payment_status`, `deposit_amount`, and `deposit_paid` in
+  `bookings_simple`. The deposit amount defaults to half of the accepted quote
+  total. Booking API responses now include these fields alongside
+  `deposit_due_by`.
 - A new `deposit_due_by` field records when the deposit is due, one week after a quote is accepted.
 - Payment receipts are stored with a `payment_id` so clients can view them from the dashboard.
 - Booking cards now show deposit and payment status with a simple progress timeline.
