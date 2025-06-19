@@ -629,6 +629,9 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * `GET /api/v1/reviews/{booking_id}`
 * `GET /api/v1/artist-profiles/{artist_id}/reviews`
 * `GET /api/v1/services/{service_id}/reviews`
+* Booking must have **status `completed`** before a review can be created.
+* Request body requires `rating` (1–5) and optional `comment`.
+* The review automatically stores the booking's `artist_id` and `service_id`.
 
 ### Redis Caching
 
