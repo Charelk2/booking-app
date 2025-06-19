@@ -650,3 +650,44 @@ def test_accept_quote_supplies_missing_service_id():
     assert db_booking is not None
     assert db_booking.service_id == service.id
     assert booking.id == db_booking.id
+
+
+def test_create_quote_returns_404_for_missing_request():
+    """Creating a quote for non-existent booking request should 404."""
+    db = setup_db()
+    artist = User(
+        email="missingreq@test.com",
+        password="x",
+        first_name="A",
+        last_name="R",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="missingreqc@test.com",
+        password="x",
+        first_name="C",
+        last_name="L",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    quote_in = QuoteCreate(
+        booking_request_id=999,
+        artist_id=artist.id,
+        client_id=client.id,
+        services=[ServiceItem(description="Performance", price=Decimal("50"))],
+        sound_fee=Decimal("0"),
+        travel_fee=Decimal("0"),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        api_quote_v2.create_quote(quote_in, db)
+
+    assert exc_info.value.status_code == 404
+    assert (
+        exc_info.value.detail["field_errors"]["booking_request_id"]
+        == "not_found"
+    )
