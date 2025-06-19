@@ -59,6 +59,14 @@ def create_payment(
         )
         raise HTTPException(status.HTTP_403_FORBIDDEN)
 
+    if booking.deposit_paid:
+        logger.warning(
+            "Duplicate payment attempt for booking %s", booking.id
+        )
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Deposit already paid"
+        )
+
     amount = (
         payment_in.amount
         if payment_in.amount is not None
