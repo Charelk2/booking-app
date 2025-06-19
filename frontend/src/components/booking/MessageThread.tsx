@@ -493,18 +493,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             >
               View booking
             </Link>
-            <Link
-              href={
-                bookingDetails
-                  ? `/dashboard/client/bookings/${bookingDetails.id}`
-                  : '/dashboard/client/bookings'
-              }
-              aria-label="Go to My Bookings"
-              data-testid="my-bookings-link"
-              className="mt-2 ml-4 inline-block text-brand-dark hover:underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              My Bookings
-            </Link>
             <button
               type="button"
               onClick={() =>
