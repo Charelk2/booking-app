@@ -40,8 +40,14 @@ def create_review_for_booking(
     if existing_review:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Review already submitted for this booking.")
 
-    db_review = Review(**review_in.model_dump(), booking_id=booking_id)
-    
+    db_review = Review(
+        booking_id=booking.id,
+        artist_id=booking.artist_id,
+        service_id=booking.service_id,
+        rating=review_in.rating,
+        comment=review_in.comment,
+    )
+
     db.add(db_review)
     db.commit()
     db.refresh(db_review)
