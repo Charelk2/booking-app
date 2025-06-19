@@ -45,21 +45,21 @@ def format_notification_message(
     if ntype == NotificationType.DEPOSIT_DUE:
         amount = kwargs.get("deposit_amount")
         due_by = kwargs.get("deposit_due_by")
-        booking_id = kwargs.get("booking_id")
-        msg = "Deposit payment due"
+        msg = "Booking confirmed"
         if amount is not None:
             try:
-                msg = f"Deposit of {float(amount):.2f} due"
+                amt_str = f"R{float(amount):.2f}"
             except Exception:  # pragma: no cover - formatting should not fail
-                msg = "Deposit payment due"
+                amt_str = f"R{amount}"
+            msg += f" \u2014 deposit {amt_str}"
+        else:
+            msg += " \u2014 deposit payment"
         if due_by is not None:
             try:
                 date_str = due_by.strftime("%Y-%m-%d")
-                msg += f" by {date_str}"
+                msg += f" due by {date_str}"
             except Exception:
                 pass
-        if booking_id is not None:
-            msg += f" for booking #{booking_id}"
         return msg
     if ntype == NotificationType.REVIEW_REQUEST:
         return f"Please review your booking #{kwargs.get('booking_id')}"
