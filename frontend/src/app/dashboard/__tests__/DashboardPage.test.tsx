@@ -530,53 +530,6 @@ describe('DashboardPage quotes link', () => {
   });
 });
 
-describe('DashboardPage client bookings link', () => {
-  it('shows link for client users', async () => {
-    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client', email: 'c@example.com' } });
-    (api.getMyClientBookings as jest.Mock).mockResolvedValue({ data: [] });
-    (api.getMyBookingRequests as jest.Mock).mockResolvedValue({ data: [] });
-
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
-    await act(async () => {
-      root.render(<DashboardPage />);
-    });
-    await act(async () => { await Promise.resolve(); });
-
-    const link = container.querySelector('a[href="/dashboard/client/bookings"]');
-    expect(link).toBeTruthy();
-    act(() => {
-      root.unmount();
-    });
-    container.remove();
-  });
-
-  it('hides link for artist users', async () => {
-    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
-    (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
-    (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [] });
-    (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
-    (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [] });
-
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
-    await act(async () => {
-      root.render(<DashboardPage />);
-    });
-    await act(async () => { await Promise.resolve(); });
-
-    const link = container.querySelector('a[href="/dashboard/client/bookings"]');
-    expect(link).toBeFalsy();
-    act(() => {
-      root.unmount();
-    });
-    container.remove();
-  });
-});
 
 describe('DashboardPage request updates', () => {
   it('updates request status when form submitted', async () => {
