@@ -12,3 +12,4 @@ export { default as CollapsibleSection } from './CollapsibleSection';
 export { default as Spinner } from './Spinner';
 export { default as SkeletonList } from './SkeletonList';
 export { default as AlertBanner } from './AlertBanner';
+export { default as StatusBadge } from './StatusBadge';
