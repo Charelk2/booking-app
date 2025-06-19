@@ -14,7 +14,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import TimeAgo from '../ui/TimeAgo';
 import { getFullImageUrl, formatCurrency } from '@/lib/utils';
-import HelpPrompt from '../ui/HelpPrompt';
 import AlertBanner from '../ui/AlertBanner';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
@@ -507,7 +506,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 Add to calendar
               </button>
             )}
-            <HelpPrompt />
           </>
         )}
         {paymentStatus && (
