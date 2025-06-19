@@ -1,21 +1,21 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import MainLayout from '@/components/layout/MainLayout';
-import PaymentModal from '@/components/booking/PaymentModal';
-import toast from '@/components/ui/Toast';
-import { HelpPrompt } from '@/components/ui';
-import { getBookingDetails, downloadBookingIcs } from '@/lib/api';
-import type { Booking } from '@/types';
-import { formatCurrency } from '@/lib/utils';
-import { Spinner } from '@/components/ui';
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import MainLayout from "@/components/layout/MainLayout";
+import PaymentModal from "@/components/booking/PaymentModal";
+import toast from "@/components/ui/Toast";
+import { HelpPrompt } from "@/components/ui";
+import { getBookingDetails, downloadBookingIcs } from "@/lib/api";
+import type { Booking } from "@/types";
+import { formatCurrency } from "@/lib/utils";
+import { Spinner } from "@/components/ui";
 
 export default function BookingDetailsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const pay = searchParams.get('pay');
+  const pay = searchParams.get("pay");
   const id = Number(params.id);
 
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -29,12 +29,12 @@ export default function BookingDetailsPage() {
       try {
         const res = await getBookingDetails(id);
         setBooking(res.data);
-        if (pay === '1' && res.data.payment_status === 'pending') {
+        if (pay === "1" && res.data.payment_status === "pending") {
           setShowPayment(true);
         }
       } catch (err) {
-        console.error('Failed to load booking', err);
-        setError('Failed to load booking');
+        console.error("Failed to load booking", err);
+        setError("Failed to load booking");
       } finally {
         setLoading(false);
       }
@@ -46,9 +46,9 @@ export default function BookingDetailsPage() {
     if (!booking) return;
     try {
       const res = await downloadBookingIcs(booking.id);
-      const blob = new Blob([res.data], { type: 'text/calendar' });
+      const blob = new Blob([res.data], { type: "text/calendar" });
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
       link.download = `booking-${booking.id}.ics`;
       document.body.appendChild(link);
@@ -56,9 +56,9 @@ export default function BookingDetailsPage() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Calendar download error', err);
+      console.error("Calendar download error", err);
       toast.error(
-        err instanceof Error ? err.message : 'Failed to download calendar',
+        err instanceof Error ? err.message : "Failed to download calendar",
       );
     }
   }, [booking]);
@@ -66,7 +66,9 @@ export default function BookingDetailsPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="p-8"><Spinner /></div>
+        <div className="p-8">
+          <Spinner />
+        </div>
       </MainLayout>
     );
   }
@@ -74,7 +76,7 @@ export default function BookingDetailsPage() {
   if (error || !booking) {
     return (
       <MainLayout>
-        <div className="p-8 text-red-600">{error || 'Booking not found'}</div>
+        <div className="p-8 text-red-600">{error || "Booking not found"}</div>
       </MainLayout>
     );
   }
@@ -86,6 +88,13 @@ export default function BookingDetailsPage() {
         <p className="text-sm text-gray-700">
           {new Date(booking.start_time).toLocaleString()}
         </p>
+        <Link
+          href={`/artists/${booking.artist_id}`}
+          className="text-indigo-600 underline text-sm"
+          data-testid="view-artist-link"
+        >
+          View Artist
+        </Link>
         {booking.deposit_amount !== undefined && (
           <p className="text-sm text-gray-700">
             Deposit: {formatCurrency(Number(booking.deposit_amount || 0))} (
@@ -94,7 +103,8 @@ export default function BookingDetailsPage() {
         )}
         {booking.deposit_due_by && (
           <p className="text-sm text-gray-700">
-            Deposit due by {new Date(booking.deposit_due_by).toLocaleDateString()}
+            Deposit due by{" "}
+            {new Date(booking.deposit_due_by).toLocaleDateString()}
           </p>
         )}
         {booking.payment_id && (
@@ -111,7 +121,7 @@ export default function BookingDetailsPage() {
           </p>
         )}
         <div className="mt-2 space-x-4">
-          {booking.payment_status === 'pending' && (
+          {booking.payment_status === "pending" && (
             <button
               type="button"
               onClick={() => setShowPayment(true)}
@@ -121,7 +131,7 @@ export default function BookingDetailsPage() {
               Pay deposit
             </button>
           )}
-          {booking.status === 'confirmed' && (
+          {booking.status === "confirmed" && (
             <button
               type="button"
               onClick={handleDownload}
@@ -152,13 +162,15 @@ export default function BookingDetailsPage() {
       <PaymentModal
         open={showPayment}
         onClose={() => setShowPayment(false)}
-        bookingRequestId={booking.source_quote?.booking_request_id || booking.id}
+        bookingRequestId={
+          booking.source_quote?.booking_request_id || booking.id
+        }
         depositAmount={booking.deposit_amount}
         depositDueBy={booking.deposit_due_by ?? undefined}
         onSuccess={({ paymentId }) => {
           setBooking({
             ...booking,
-            payment_status: 'deposit_paid',
+            payment_status: "deposit_paid",
             payment_id: paymentId ?? booking.payment_id,
           });
           setShowPayment(false);
