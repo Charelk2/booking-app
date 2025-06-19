@@ -71,30 +71,32 @@ export default function ArtistCard({
       )}
       {...props}
     >
-      <div className="relative h-48 w-full overflow-hidden rounded-t-xl">
-        {imageUrl ? (
-          <Image
-            src={imageUrl}
-            alt={name}
-            width={512}
-            height={512}
-            loading="lazy"
-            className="object-cover w-full h-full"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
-            }}
-          />
-        ) : (
-          <Image
-            src="/default-avatar.svg"
-            alt={name}
-            width={512}
-            height={512}
-            loading="lazy"
-            className="object-cover w-full h-full"
-          />
-        )}
-      </div>
+      <Link href={href} className="block">
+        <div className="relative h-48 w-full overflow-hidden rounded-t-xl">
+          {imageUrl ? (
+            <Image
+              src={imageUrl}
+              alt={name}
+              width={512}
+              height={512}
+              loading="lazy"
+              className="object-cover w-full h-full"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
+              }}
+            />
+          ) : (
+            <Image
+              src="/default-avatar.svg"
+              alt={name}
+              width={512}
+              height={512}
+              loading="lazy"
+              className="object-cover w-full h-full"
+            />
+          )}
+        </div>
+      </Link>
       <div className="flex flex-col flex-1 px-4">
         <div className="flex items-center">
           <h2 className="flex-1 text-lg font-semibold text-gray-900 truncate mt-3">{name}</h2>
