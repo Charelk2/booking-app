@@ -192,7 +192,6 @@ def accept_quote(
     client = db_quote.client or db.query(models.User).get(db_quote.client_id)
     notify_quote_accepted(db, artist, db_quote.id, db_quote.booking_request_id)
     if db_booking is not None:
-        notify_new_booking(db, client, db_booking.id)
         notify_deposit_due(
             db,
             client,
