@@ -153,7 +153,7 @@ export default function RegisterPage() {
                   <div className="mt-2 h-2 w-full rounded bg-gray-200">
                     <div
                       className={`h-full rounded ${
-                        ['bg-red-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-600'][Math.max(getPasswordStrength(password) - 1, 0)]
+                        ['bg-red-500', 'bg-yellow-500', 'bg-brand', 'bg-green-600'][Math.max(getPasswordStrength(password) - 1, 0)]
                       }`}
                       style={{ width: `${(getPasswordStrength(password) / 4) * 100}%` }}
                     />
