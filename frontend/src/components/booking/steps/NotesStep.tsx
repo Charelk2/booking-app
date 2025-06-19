@@ -92,7 +92,7 @@ export default function NotesStep({
           aria-live="polite"
         >
           <div className="w-full bg-gray-200 rounded h-2">
-            <div className="bg-blue-600 h-2 rounded" style={{ width: `${progress}%` }} />
+            <div className="bg-brand h-2 rounded" style={{ width: `${progress}%` }} />
           </div>
           <span className="text-xs">{progress}%</span>
         </div>

@@ -777,7 +777,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 aria-live="polite"
               >
                 <div className="w-16 bg-gray-200 rounded h-1">
-                  <div className="bg-blue-600 h-1 rounded" style={{ width: `${uploadProgress}%` }} />
+                  <div className="bg-brand h-1 rounded" style={{ width: `${uploadProgress}%` }} />
                 </div>
                 <span className="text-xs">{uploadProgress}%</span>
               </div>
@@ -786,7 +786,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               type="submit"
               aria-label="Send message"
               variant="primary"
-              className="rounded-full"
+              className="rounded-full bg-brand"
               disabled={uploading}
             >
               {uploading ? 'Uploading…' : 'Send'}
