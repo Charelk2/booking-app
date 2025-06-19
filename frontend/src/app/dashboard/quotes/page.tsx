@@ -84,7 +84,6 @@ export default function ArtistQuotesPage() {
           q.id === id ? { ...q, status: 'confirmed_by_artist' } : q,
         ),
       );
-      toast.success('Booking confirmed');
     } catch (err) {
       console.error('Confirm booking error', err);
       toast.error(err instanceof Error ? err.message : 'Failed to confirm');
