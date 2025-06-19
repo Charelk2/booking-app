@@ -271,6 +271,86 @@ def test_accept_quote_logs_db_error(monkeypatch, caplog):
     assert messages and messages[0].exc_info
 
 
+def test_accept_quote_booking_failure(monkeypatch, caplog):
+    """Return 500 when booking creation fails."""
+    db = setup_db()
+
+    artist = User(
+        email="failbook@test.com",
+        password="x",
+        first_name="A",
+        last_name="R",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="failbookc@test.com",
+        password="x",
+        first_name="C",
+        last_name="L",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    service = Service(
+        artist_id=artist.id,
+        title="Show",
+        description="test",
+        price=Decimal("80"),
+        currency="ZAR",
+        duration_minutes=60,
+        service_type="Live Performance",
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    from datetime import datetime
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        service_id=service.id,
+        proposed_datetime_1=datetime(2033, 1, 1, 20, 0, 0),
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    quote_in = QuoteCreate(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=client.id,
+        services=[ServiceItem(description="Performance", price=Decimal("80"))],
+        sound_fee=Decimal("0"),
+        travel_fee=Decimal("0"),
+    )
+    quote = api_quote_v2.create_quote(quote_in, db)
+
+    def fail_create_booking(*_, **__):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        api_quote_v2.crud_quote_v2,
+        "create_booking_from_quote_v2",
+        fail_create_booking,
+    )
+    caplog.set_level(logging.ERROR, logger="app.crud.crud_quote_v2")
+
+    with pytest.raises(HTTPException) as exc_info:
+        api_quote_v2.accept_quote(quote.id, db)
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail["message"] == "Internal Server Error"
+    assert exc_info.value.detail["field_errors"]["booking"] == "create_failed"
+    assert any(
+        "Failed to create Booking from quote" in r.getMessage() for r in caplog.records
+    )
+
+
 def test_accept_quote_missing_client(caplog):
     """Ensure accepting a quote succeeds even if the client record was deleted."""
     db = setup_db()
