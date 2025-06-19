@@ -110,9 +110,7 @@ def test_create_deposit(monkeypatch):
     client_user, br_id, Session = create_records(Session)
     prev_db = app.dependency_overrides.get(get_db)
     prev_client = app.dependency_overrides.get(get_current_active_client)
-    app.dependency_overrides[get_current_active_client] = override_client(
-        client_user
-    )
+    app.dependency_overrides[get_current_active_client] = override_client(client_user)
 
     def fake_post(url, json, timeout=10):
         class Resp:
@@ -154,9 +152,7 @@ def test_create_deposit_fake(monkeypatch):
     client_user, br_id, Session = create_records(Session)
     prev_db = app.dependency_overrides.get(get_db)
     prev_client = app.dependency_overrides.get(get_current_active_client)
-    app.dependency_overrides[get_current_active_client] = override_client(
-        client_user
-    )
+    app.dependency_overrides[get_current_active_client] = override_client(client_user)
 
     def should_not_call(*args, **kwargs):
         raise AssertionError("httpx.post should not be called")
@@ -262,9 +258,7 @@ def test_payment_wrong_client_forbidden(monkeypatch):
 
     prev_db = app.dependency_overrides.get(get_db)
     prev_client = app.dependency_overrides.get(get_current_active_client)
-    app.dependency_overrides[get_current_active_client] = override_client(
-        other_client
-    )
+    app.dependency_overrides[get_current_active_client] = override_client(other_client)
 
     def fake_post(url, json, timeout=10):
         class Resp:
@@ -287,6 +281,50 @@ def test_payment_wrong_client_forbidden(monkeypatch):
     db = Session()
     booking = db.query(BookingSimple).first()
     assert booking.deposit_paid is False
+    db.close()
+    if prev_db is not None:
+        app.dependency_overrides[get_db] = prev_db
+    else:
+        app.dependency_overrides.pop(get_db, None)
+    if prev_client is not None:
+        app.dependency_overrides[get_current_active_client] = prev_client
+    else:
+        app.dependency_overrides.pop(get_current_active_client, None)
+
+
+def test_full_payment_preserves_deposit(monkeypatch):
+    """Paying the full amount should not overwrite the deposit amount."""
+    Session = setup_app()
+    client_user, br_id, Session = create_records(Session, deposit_amount=Decimal("40"))
+    prev_db = app.dependency_overrides.get(get_db)
+    prev_client = app.dependency_overrides.get(get_current_active_client)
+    app.dependency_overrides[get_current_active_client] = override_client(client_user)
+
+    def fake_post(url, json, timeout=10):
+        class Resp:
+            status_code = 201
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"id": "ch_full", "status": "succeeded"}
+
+        return Resp()
+
+    monkeypatch.setattr(api_payment.httpx, "post", fake_post)
+    client = TestClient(app)
+    res = client.post(
+        "/api/v1/payments/",
+        json={"booking_request_id": br_id, "amount": 100, "full": True},
+    )
+    assert res.status_code == 201
+    db = Session()
+    booking = db.query(BookingSimple).first()
+    assert booking.deposit_amount == Decimal("40")
+    assert booking.deposit_paid is True
+    assert booking.payment_status == "paid"
+    assert booking.payment_id == "ch_full"
     db.close()
     if prev_db is not None:
         app.dependency_overrides[get_db] = prev_db
