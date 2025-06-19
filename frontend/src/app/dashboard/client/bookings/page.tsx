@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import MainLayout from '@/components/layout/MainLayout';
-import { useAuth } from '@/contexts/AuthContext';
-import { getMyClientBookings, getBookingDetails } from '@/lib/api';
-import type { Booking, Review } from '@/types';
-import ReviewFormModal from '@/components/review/ReviewFormModal';
-import PaymentModal from '@/components/booking/PaymentModal';
-import { format } from 'date-fns';
-import { formatCurrency } from '@/lib/utils';
-import Link from 'next/link';
-import { XMarkIcon } from '@heroicons/react/24/outline';
-import { HelpPrompt, Spinner } from '@/components/ui';
+import { useEffect, useState } from "react";
+import MainLayout from "@/components/layout/MainLayout";
+import { useAuth } from "@/contexts/AuthContext";
+import { getMyClientBookings, getBookingDetails } from "@/lib/api";
+import type { Booking, Review } from "@/types";
+import ReviewFormModal from "@/components/review/ReviewFormModal";
+import PaymentModal from "@/components/booking/PaymentModal";
+import { format } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
+import Link from "next/link";
+import { XMarkIcon } from "@heroicons/react/24/outline";
+import { HelpPrompt, Spinner } from "@/components/ui";
 
 interface BookingWithReview extends Booking {
   review?: Review | null;
@@ -37,18 +37,18 @@ function BookingList({
           >
             <div className="font-medium text-gray-900">{b.service.title}</div>
             <div className="text-sm text-gray-500">
-              {format(new Date(b.start_time), 'MMM d, yyyy h:mm a')}
+              {format(new Date(b.start_time), "MMM d, yyyy h:mm a")}
             </div>
             <div className="mt-2 flex justify-between items-center">
               <span
                 className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                  b.status === 'completed'
-                    ? 'bg-green-100 text-green-800'
-                    : b.status === 'cancelled'
-                      ? 'bg-red-100 text-red-800'
-                      : b.status === 'confirmed'
-                        ? 'bg-brand-light text-brand-dark'
-                        : 'bg-yellow-100 text-yellow-800'
+                  b.status === "completed"
+                    ? "bg-green-100 text-green-800"
+                    : b.status === "cancelled"
+                      ? "bg-red-100 text-red-800"
+                      : b.status === "confirmed"
+                        ? "bg-brand-light text-brand-dark"
+                        : "bg-yellow-100 text-yellow-800"
                 }`}
               >
                 {b.status}
@@ -63,49 +63,55 @@ function BookingList({
                 {b.payment_status})
               </div>
             )}
-          {b.deposit_due_by && (
-            <div className="text-sm text-gray-500 mt-1">
-              Deposit due by {format(new Date(b.deposit_due_by), 'MMM d, yyyy')}
-            </div>
-          )}
-          {b.payment_id && (
-            <a
-              href={`/api/v1/payments/${b.payment_id}/receipt`}
-              target="_blank"
-              rel="noopener"
-              className="mt-2 text-indigo-600 hover:underline text-sm"
-              data-testid="booking-receipt-link"
-            >
-              View receipt
-            </a>
-          )}
-          <div className="flex justify-between text-xs text-gray-500 mt-2">
-            {['Requested', 'Confirmed', 'Deposit Paid',
-              b.status === 'cancelled' ? 'Cancelled' : 'Completed'].map(
-                (step, idx) => {
-                  const activeIdx =
-                    b.status === 'pending'
-                      ? 0
-                      : b.status === 'confirmed'
-                        ? b.payment_status === 'deposit_paid' || b.payment_status === 'paid'
-                          ? 2
-                          : 1
-                        : 3;
-                  return (
-                    <span
-                      key={step}
-                      className={
-                        idx <= activeIdx ? 'font-semibold text-indigo-600 flex-1 text-center' : 'flex-1 text-center'
-                      }
-                    >
-                      {step}
-                    </span>
-                  );
-                },
-              )}
+            {b.deposit_due_by && (
+              <div className="text-sm text-gray-500 mt-1">
+                Deposit due by{" "}
+                {format(new Date(b.deposit_due_by), "MMM d, yyyy")}
+              </div>
+            )}
+            {b.payment_id && (
+              <a
+                href={`/api/v1/payments/${b.payment_id}/receipt`}
+                target="_blank"
+                rel="noopener"
+                className="mt-2 text-indigo-600 hover:underline text-sm"
+                data-testid="booking-receipt-link"
+              >
+                View receipt
+              </a>
+            )}
+            <div className="flex justify-between text-xs text-gray-500 mt-2">
+              {[
+                "Requested",
+                "Confirmed",
+                "Deposit Paid",
+                b.status === "cancelled" ? "Cancelled" : "Completed",
+              ].map((step, idx) => {
+                const activeIdx =
+                  b.status === "pending"
+                    ? 0
+                    : b.status === "confirmed"
+                      ? b.payment_status === "deposit_paid" ||
+                        b.payment_status === "paid"
+                        ? 2
+                        : 1
+                      : 3;
+                return (
+                  <span
+                    key={step}
+                    className={
+                      idx <= activeIdx
+                        ? "font-semibold text-indigo-600 flex-1 text-center"
+                        : "flex-1 text-center"
+                    }
+                  >
+                    {step}
+                  </span>
+                );
+              })}
             </div>
           </Link>
-          {b.payment_status === 'pending' && (
+          {b.payment_status === "pending" && (
             <button
               type="button"
               onClick={() => onPayDeposit(b.id)}
@@ -115,7 +121,7 @@ function BookingList({
               Pay deposit
             </button>
           )}
-          {b.status === 'completed' && !b.review && (
+          {b.status === "completed" && !b.review && (
             <button
               type="button"
               onClick={() => onReview(b.id)}
@@ -138,6 +144,13 @@ function BookingList({
               Message Artist
             </Link>
           )}
+          <Link
+            href={`/artists/${b.artist_id}`}
+            className="mt-2 text-indigo-600 hover:underline text-sm"
+            data-testid="view-artist-link"
+          >
+            View Artist
+          </Link>
         </li>
       ))}
     </ul>
@@ -150,10 +163,11 @@ export default function ClientBookingsPage() {
   const [past, setPast] = useState<BookingWithReview[]>([]);
   const [reviewId, setReviewId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showPayment, setShowPayment] = useState(false);
-  const [paymentBookingRequestId, setPaymentBookingRequestId] =
-    useState<number | null>(null);
+  const [paymentBookingRequestId, setPaymentBookingRequestId] = useState<
+    number | null
+  >(null);
   const [paymentDeposit, setPaymentDeposit] = useState<number | undefined>();
   const [paymentBookingId, setPaymentBookingId] = useState<number | null>(null);
   const [showPendingAlert, setShowPendingAlert] = useState(true);
@@ -164,24 +178,24 @@ export default function ClientBookingsPage() {
     const fetchData = async () => {
       try {
         const [upRes, pastRes] = await Promise.all([
-          getMyClientBookings({ status: 'upcoming' }),
-          getMyClientBookings({ status: 'past' }),
+          getMyClientBookings({ status: "upcoming" }),
+          getMyClientBookings({ status: "past" }),
         ]);
         setUpcoming(upRes.data);
         setPast(pastRes.data);
       } catch (err) {
-        console.error('Failed to load client bookings', err);
-        setError('Failed to load bookings');
+        console.error("Failed to load client bookings", err);
+        setError("Failed to load bookings");
       } finally {
         setLoading(false);
       }
     };
 
-    if (user.user_type === 'client') {
+    if (user.user_type === "client") {
       fetchData();
     } else {
       setLoading(false);
-      setError('Access denied');
+      setError("Access denied");
     }
   }, [user]);
 
@@ -199,8 +213,8 @@ export default function ClientBookingsPage() {
       setPaymentBookingId(id);
       setShowPayment(true);
     } catch (err) {
-      console.error('Failed to load booking details for payment', err);
-      setError('Failed to load payment details');
+      console.error("Failed to load booking details for payment", err);
+      setError("Failed to load payment details");
     }
   };
 
@@ -211,7 +225,7 @@ export default function ClientBookingsPage() {
   };
 
   const pendingBookings = [...upcoming, ...past].filter(
-    (b) => b.payment_status === 'pending',
+    (b) => b.payment_status === "pending",
   );
   const oldestPending = pendingBookings
     .slice()
@@ -258,7 +272,7 @@ export default function ClientBookingsPage() {
             <div className="flex items-start justify-between">
               <p className="text-sm text-yellow-700">
                 You have {pendingBookings.length} pending deposit
-                {pendingBookings.length > 1 ? 's' : ''}.{' '}
+                {pendingBookings.length > 1 ? "s" : ""}.{" "}
                 <Link
                   href={`/dashboard/client/bookings/${oldestPending.id}`}
                   className="font-medium underline"
@@ -318,11 +332,12 @@ export default function ClientBookingsPage() {
           depositAmount={
             paymentDeposit !== undefined
               ? paymentDeposit
-              : [...upcoming, ...past].find((b) => b.id === paymentBookingId)?.deposit_amount
+              : [...upcoming, ...past].find((b) => b.id === paymentBookingId)
+                  ?.deposit_amount
           }
           depositDueBy={
-            [...upcoming, ...past].find((b) => b.id === paymentBookingId)?.deposit_due_by ??
-            undefined
+            [...upcoming, ...past].find((b) => b.id === paymentBookingId)
+              ?.deposit_due_by ?? undefined
           }
           onClose={() => setShowPayment(false)}
           onSuccess={(result) => {
