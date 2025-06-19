@@ -209,6 +209,7 @@ def update_booking_status(
             detail="Booking not found or you lack permission to update it.",
         )
 
+    prev_status = booking.status
     if status_update.status is not None:
         booking.status = status_update.status
 
@@ -225,6 +226,14 @@ def update_booking_status(
         .filter(Booking.id == booking.id)
         .first()
     )
+
+    if (
+        prev_status != BookingStatus.COMPLETED
+        and booking.status == BookingStatus.COMPLETED
+    ):
+        from ..utils.notifications import notify_review_request
+
+        notify_review_request(db, booking.client, booking.id)
     return reloaded
 
 
