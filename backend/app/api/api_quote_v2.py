@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 import logging
@@ -34,6 +34,8 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
             attachment_url=None,
         )
         return quote
+    except HTTPException:
+        raise
     except Exception as exc:  # pragma: no cover - generic failure path
         logger.error(
             "Failed to create quote; artist_id=%s client_id=%s request_id=%s error=%s",
