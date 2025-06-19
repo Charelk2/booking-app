@@ -757,6 +757,7 @@ GET /api/v1/payments/{payment_id}/receipt
 Returns the PDF receipt for a completed payment.
 Omitting `amount` charges the booking's `deposit_amount`.
 Sending `full: true` charges the remaining balance and marks the booking paid. Omitting it records a deposit and sets the status to `deposit_paid`.
+The booking's `deposit_amount` field is preserved when paying the full amount so the original deposit total is retained.
 The endpoint now verifies the booking belongs to the authenticated client and returns **403 Forbidden** if another user attempts payment.
 Payment processing now emits structured logs instead of printing to stdout so transactions can be traced in production.
 Set `PAYMENT_GATEWAY_FAKE=1` in the environment to bypass the real gateway during local testing. When enabled, `/api/v1/payments` returns a dummy `payment_id` and immediately marks the booking paid.
