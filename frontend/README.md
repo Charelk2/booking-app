@@ -84,6 +84,12 @@ Passing `service_id` skips the service selection step when a user clicks "Book N
 
 The artist dashboard includes a quotes page for managing offers. The `EditQuoteModal` allows artists to modify quote details and price inline without leaving the list. It opens when clicking the "Edit" button next to a pending quote and mirrors the style of `SendQuoteModal`.
 
+### Artist Listing
+
+The filter chips on the artist listing page use a soft sky palette. Each chip has
+`bg-sky-100 text-sky-800` by default and switches to `bg-sky-200 text-sky-900`
+when selected.
+
 ## Testing
 
 Run `npm test` when you only want to execute the frontend Jest suite. The `pretest` script defined in

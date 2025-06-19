@@ -650,8 +650,8 @@ Profiles include `rating`, `rating_count`, and `is_available` fields. A new
 returned. Newly created profiles default to `true`.
 
 The redesigned listing page features a rounded filter bar wrapped in a white
-card with a subtle shadow. Chips use `rounded-full bg-gray-100 text-gray-700
-px-3 py-1.5 text-sm` styling and highlight in indigo when selected. The entire
+card with a subtle shadow. Chips use `rounded-full bg-sky-100 text-sky-800
+px-3 py-1.5 text-sm` styling and highlight in `bg-sky-200 text-sky-900` when selected. The entire
 page now rests on a soft gradient background from indigo to white. A new
 "Clear filters" button appears when any filter is active and resets all filter
 inputs. When no results match the current filters the page shows "No artists
