@@ -101,7 +101,7 @@ export default function BookingDetailsPage() {
             {booking.payment_status})
           </p>
         )}
-        {booking.deposit_due_by && (
+        {booking.payment_status === "pending" && booking.deposit_due_by && (
           <p className="text-sm text-gray-700">
             Deposit due by{" "}
             {new Date(booking.deposit_due_by).toLocaleDateString()}

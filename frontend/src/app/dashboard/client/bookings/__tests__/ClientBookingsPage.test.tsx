@@ -97,7 +97,7 @@ describe("ClientBookingsPage", () => {
     expect(div.textContent).toContain("Past Bookings");
     expect(div.textContent).toContain("Deposit:");
     expect(div.textContent).toContain("Deposit Paid");
-    expect(div.textContent).toContain("Deposit due by");
+    expect(div.textContent).not.toContain("Deposit due by");
     expect(div.textContent).toContain("Requested");
     expect(div.textContent).toContain("Completed");
     const link = div.querySelector('a[data-booking-id="1"]');
