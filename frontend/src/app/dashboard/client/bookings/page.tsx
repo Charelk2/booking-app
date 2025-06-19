@@ -47,7 +47,7 @@ function BookingList({
                     : b.status === 'cancelled'
                       ? 'bg-red-100 text-red-800'
                       : b.status === 'confirmed'
-                        ? 'bg-blue-100 text-blue-800'
+                        ? 'bg-brand-light text-brand-dark'
                         : 'bg-yellow-100 text-yellow-800'
                 }`}
               >

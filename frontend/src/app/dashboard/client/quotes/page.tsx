@@ -71,7 +71,7 @@ export default function ClientQuotesPage() {
       case 'rejected_by_client':
         return 'bg-red-100 text-red-800';
       case 'confirmed_by_artist':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-brand-light text-brand-dark';
       case 'withdrawn_by_artist':
         return 'bg-gray-100 text-gray-800';
       default:
