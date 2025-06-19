@@ -68,3 +68,9 @@ These sample commands demonstrate the basic booking flow using the API. Replace 
    curl -H "Authorization: Bearer CLIENT_TOKEN" \
      http://localhost:8000/api/v1/bookings/my-bookings
    ```
+
+8. **Run database migrations**
+   ```bash
+   alembic upgrade head
+   ```
+   This includes the new migration for creating the `reviews` table.
