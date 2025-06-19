@@ -57,6 +57,98 @@ export async function stubBooking(page: Page, bookingId = 5) {
   });
 }
 
+export async function stubBookingRequest(page: Page, requestId = 42) {
+  await page.route(`**/api/v1/booking-requests/${requestId}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: requestId,
+        client_id: 1,
+        artist_id: 1,
+        service_id: 1,
+        status: 'quote_provided',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        client: { first_name: 'Client' },
+        artist: { user: { first_name: 'Artist' } },
+        service: { title: 'Gig' },
+      }),
+    });
+  });
+}
+
+export async function stubMessages(page: Page, requestId = 42, quoteId = 1) {
+  await page.route(
+    `**/api/v1/booking-requests/${requestId}/messages`,
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([
+          {
+            id: 1,
+            booking_request_id: requestId,
+            sender_id: 1,
+            sender_type: 'artist',
+            content: 'Quote',
+            message_type: 'quote',
+            quote_id: quoteId,
+            timestamp: new Date().toISOString(),
+          },
+        ]),
+      });
+    },
+  );
+}
+
+export async function stubQuoteFlow(
+  page: Page,
+  quoteId = 1,
+  bookingId = 5,
+) {
+  let status = 'pending';
+  await page.route(`**/api/v1/quotes/${quoteId}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: quoteId,
+        booking_id: status === 'accepted' ? bookingId : null,
+        booking_request_id: 42,
+        artist_id: 1,
+        client_id: 1,
+        services: [{ description: 'Gig', price: 100 }],
+        sound_fee: 0,
+        travel_fee: 0,
+        subtotal: 100,
+        total: 100,
+        status,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }),
+    });
+  });
+
+  await page.route(`**/api/v1/quotes/${quoteId}/accept`, async (route) => {
+    status = 'accepted';
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: bookingId,
+        quote_id: quoteId,
+        artist_id: 1,
+        client_id: 1,
+        confirmed: true,
+        payment_status: 'pending',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }),
+    });
+  });
+}
+
 export async function stubPayments(page: Page, paymentId = 'pay_1') {
   await page.route('**/api/v1/payments', async (route) => {
     await route.fulfill({
@@ -122,6 +214,9 @@ export async function setupDepositStubs(page: Page) {
   await stubLogin(page);
   await stubNotifications(page);
   await stubBooking(page);
+  await stubBookingRequest(page);
+  await stubMessages(page);
+  await stubQuoteFlow(page);
   await stubPayments(page);
   await stubCatchAllApi(page);
   await stubGoogleMaps(page);
