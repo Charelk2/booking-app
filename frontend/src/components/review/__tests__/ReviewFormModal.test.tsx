@@ -11,6 +11,32 @@ describe('ReviewFormModal', () => {
     jest.clearAllMocks();
   });
 
+  it('renders labels and input classes correctly', () => {
+    const div = document.createElement('div');
+    const root = createRoot(div);
+
+    act(() => {
+      root.render(
+        <ReviewFormModal isOpen bookingId={1} onClose={() => {}} onSubmitted={() => {}} />,
+      );
+    });
+
+    const ratingLabel = div.querySelector('label[for="rating"]');
+    const ratingInput = div.querySelector('input#rating') as HTMLInputElement;
+    const commentLabel = div.querySelector('label[for="comment"]');
+    const textarea = div.querySelector('textarea');
+
+    expect(ratingLabel?.textContent).toBe('Rating');
+    expect(ratingInput.className).toContain('rounded-md');
+    expect(commentLabel?.textContent).toBe('Comment');
+    expect(textarea?.className).toContain('rounded-md');
+
+    act(() => {
+      root.unmount();
+    });
+    div.remove();
+  });
+
   it('submits review and closes', async () => {
     (createReviewForBooking as jest.Mock).mockResolvedValue({
       data: { id: 1, booking_id: 1, rating: 5, comment: 'Great', created_at: '', updated_at: '' },
@@ -26,11 +52,11 @@ describe('ReviewFormModal', () => {
       );
     });
 
-    const select = div.querySelector('select') as HTMLSelectElement;
+    const ratingInput = div.querySelector('input#rating') as HTMLInputElement;
     const textarea = div.querySelector('textarea') as HTMLTextAreaElement;
     act(() => {
-      select.value = '5';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
+      ratingInput.value = '5';
+      ratingInput.dispatchEvent(new Event('input', { bubbles: true }));
       textarea.value = 'Great';
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
     });
