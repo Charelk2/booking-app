@@ -171,16 +171,21 @@ def accept_quote(
         deposit_paid=False,
     )
     db.add(booking)
-    db.commit()
-    db.refresh(db_quote)
-    db.refresh(booking)
 
-    # Create the full booking record
+    # Create the full booking record and persist both tables
     db_booking = None
     try:
         db_booking = create_booking_from_quote_v2(db, db_quote)
-    except Exception as exc:  # pragma: no cover - logging path
-        logger.error("Failed to create Booking from quote %s: %s", quote_id, exc)
+    except Exception as exc:
+        logger.exception("Failed to create Booking from quote %s", quote_id)
+        db.rollback()
+        raise error_response(
+            "Internal Server Error",
+            {"booking": "create_failed"},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    db.refresh(db_quote)
+    db.refresh(booking)
 
     # Send notifications to both artist and client
     artist = db_quote.artist
