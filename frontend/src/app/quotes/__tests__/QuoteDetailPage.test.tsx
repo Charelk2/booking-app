@@ -58,4 +58,27 @@ describe('QuoteDetailPage', () => {
     });
     div.remove();
   });
+
+  it('accepts quote using new endpoint', async () => {
+    const { div, root } = setup();
+    (api.acceptQuoteV2 as jest.Mock).mockResolvedValue({ data: { id: 1 } });
+    await act(async () => {
+      root.render(<QuoteDetailPage />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const acceptBtn = Array.from(div.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Accept',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(api.acceptQuoteV2).toHaveBeenCalledWith(5);
+    act(() => {
+      root.unmount();
+    });
+    div.remove();
+  });
 });
