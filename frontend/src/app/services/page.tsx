@@ -86,7 +86,7 @@ export default function ServicesPage() {
                     legacyBehavior
                     passHref
                   >
-                    <a className="mt-4 inline-block bg-indigo-600 text-white px-4 py-2 rounded-md text-center hover:bg-indigo-700">
+                    <a className="mt-4 inline-block bg-brand-dark text-white px-4 py-2 rounded-md text-center hover:bg-brand-dark">
                       View Artist
                     </a>
                   </Link>

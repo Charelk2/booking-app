@@ -342,17 +342,17 @@ describe('Service card drag handle', () => {
     const card = container.querySelector('[data-testid="service-item"]') as HTMLElement;
     const handle = card.querySelector('div[aria-hidden="true"]') as HTMLElement;
     expect(card.className).not.toMatch('select-none');
-    expect(card.className).not.toMatch('ring-indigo-400');
+    expect(card.className).not.toMatch('ring-brand-light');
     await act(async () => {
       handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     });
     expect(card.className).toMatch('select-none');
-    expect(card.className).toMatch('ring-indigo-400');
+    expect(card.className).toMatch('ring-brand-light');
     await act(async () => {
       handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
     });
     expect(card.className).not.toMatch('select-none');
-    expect(card.className).not.toMatch('ring-indigo-400');
+    expect(card.className).not.toMatch('ring-brand-light');
   });
 
   it('vibrates when reordering starts', async () => {
