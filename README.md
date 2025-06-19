@@ -843,7 +843,7 @@ formatCurrency(99.5, 'USD', 'en-US'); // => 'US$99.50'
 ### Brand Colors
 
 The frontend uses a small **brand** palette defined in `tailwind.config.js`. The
-primary hue is purple (`#7c3aed`), with `brand-dark` and `brand-light` variants.
+primary hue is indigo (`#6366f1`), with `brand-dark` and `brand-light` variants.
 Components reference these via utility classes such as `bg-brand` and
 `bg-brand-dark`.
 
