@@ -102,6 +102,9 @@ def test_filter_upcoming_and_past():
     assert len(data_upcoming) == 1
     assert data_upcoming[0]['status'] == 'confirmed'
     assert 'deposit_due_by' in data_upcoming[0]
+    assert 'deposit_amount' in data_upcoming[0]
+    assert 'payment_status' in data_upcoming[0]
+    assert 'deposit_paid' in data_upcoming[0]
 
     res_past = api_client.get('/api/v1/bookings/my-bookings?status=past')
     assert res_past.status_code == 200
@@ -109,6 +112,9 @@ def test_filter_upcoming_and_past():
     assert len(data_past) == 1
     assert data_past[0]['status'] == 'completed'
     assert 'deposit_due_by' in data_past[0]
+    assert 'deposit_amount' in data_past[0]
+    assert 'payment_status' in data_past[0]
+    assert 'deposit_paid' in data_past[0]
 
     app.dependency_overrides.clear()
 
