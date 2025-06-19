@@ -130,45 +130,61 @@ const SendQuoteModal: React.FC<Props> = ({
           <Button type="button" onClick={addService} className="text-sm" variant="secondary">
             Add Item
           </Button>
-          <input
-            type="number"
-            className="w-full border rounded p-1"
-            placeholder="Sound fee"
-            value={soundFee}
-            onChange={(e) => setSoundFee(Number(e.target.value))}
-          />
-          <input
-            type="number"
-            className="w-full border rounded p-1"
-            placeholder="Travel fee"
-            value={travelFee}
-            onChange={(e) => setTravelFee(Number(e.target.value))}
-          />
-          <textarea
-            className="w-full border rounded p-1"
-            placeholder="Accommodation (optional)"
-            value={accommodation}
-            onChange={(e) => setAccommodation(e.target.value)}
-          />
-          <input
-            type="number"
-            className="w-full border rounded p-1"
-            placeholder="Discount (optional)"
-            value={discount}
-            onChange={(e) => setDiscount(Number(e.target.value))}
-          />
-          <select
-            className="w-full border rounded p-1"
-            value={expiresHours ?? ''}
-            onChange={(e) => setExpiresHours(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">No expiry</option>
-            {expiryOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <label htmlFor="sound-fee" className="flex flex-col text-sm">
+            Sound fee
+            <input
+              id="sound-fee"
+              type="number"
+              className="w-full border rounded p-1"
+              value={soundFee}
+              onChange={(e) => setSoundFee(Number(e.target.value))}
+            />
+          </label>
+          <label htmlFor="travel-fee" className="flex flex-col text-sm">
+            Travel fee
+            <input
+              id="travel-fee"
+              type="number"
+              className="w-full border rounded p-1"
+              value={travelFee}
+              onChange={(e) => setTravelFee(Number(e.target.value))}
+            />
+          </label>
+          <label htmlFor="accommodation" className="flex flex-col text-sm">
+            Accommodation (optional)
+            <textarea
+              id="accommodation"
+              className="w-full border rounded p-1"
+              value={accommodation}
+              onChange={(e) => setAccommodation(e.target.value)}
+            />
+          </label>
+          <label htmlFor="discount" className="flex flex-col text-sm">
+            Discount (optional)
+            <input
+              id="discount"
+              type="number"
+              className="w-full border rounded p-1"
+              value={discount}
+              onChange={(e) => setDiscount(Number(e.target.value))}
+            />
+          </label>
+          <label htmlFor="expires-hours" className="flex flex-col text-sm">
+            Expires in
+            <select
+              id="expires-hours"
+              className="w-full border rounded p-1"
+              value={expiresHours ?? ''}
+              onChange={(e) => setExpiresHours(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">No expiry</option>
+              {expiryOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="text-sm mt-2">
             Subtotal: {formatCurrency(subtotal)}
             <br />
