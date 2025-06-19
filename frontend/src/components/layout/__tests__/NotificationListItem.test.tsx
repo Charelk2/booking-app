@@ -78,4 +78,37 @@ describe('NotificationListItem', () => {
     expect(parsed.title).toBe('Booking Confirmed');
     expect(parsed.icon).toBe('📅');
   });
+
+  it('parses review request notifications', () => {
+    const n: UnifiedNotification = {
+      type: 'review_request',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Please review your booking #7',
+      link: '/dashboard/client/bookings/7?review=1',
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.title).toBe('Review Request');
+    expect(parsed.icon).toBe('🔔');
+  });
+
+  it('sets title attribute for review request', () => {
+    const n: UnifiedNotification = {
+      type: 'review_request',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Please review your booking #8',
+      link: '/dashboard/client/bookings/8?review=1',
+    } as UnifiedNotification;
+    act(() => {
+      root.render(
+        React.createElement(NotificationListItem, {
+          n,
+          onClick: () => {},
+        }),
+      );
+    });
+    const span = container.querySelector('span[title]');
+    expect(span?.getAttribute('title')).toBe('Review Request');
+  });
 });
