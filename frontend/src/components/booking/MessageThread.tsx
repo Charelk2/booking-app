@@ -94,6 +94,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const payDepositLabel = 'Pay deposit';
   const [wsFailed, setWsFailed] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -508,7 +509,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               data-testid="pay-deposit-button"
               className="mt-2 ml-4 inline-block text-brand-dark underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
-              Pay deposit
+              {payDepositLabel}
             </button>
             {bookingDetails && (
               <button

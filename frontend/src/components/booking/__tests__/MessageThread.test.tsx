@@ -598,6 +598,7 @@ describe('MessageThread component', () => {
     expect(banner?.textContent).toContain('Gig');
     const payBtn = container.querySelector('[data-testid="pay-deposit-button"]');
     expect(payBtn).not.toBeNull();
+    expect(payBtn?.textContent).toBe('Pay deposit');
     const calBtn = container.querySelector('[data-testid="add-calendar-button"]');
     expect(calBtn).not.toBeNull();
     const help = container.querySelector('[data-testid="help-prompt"]');

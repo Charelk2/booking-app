@@ -156,11 +156,15 @@ describe('PaymentModal', () => {
         />,
       );
     });
+    const heading = div.querySelector('h2');
+    expect(heading?.textContent).toContain(
+      `Due by ${format(new Date(due), 'PPP')}`,
+    );
     const notes = div.querySelectorAll('p.text-sm.text-gray-600');
     const note = notes[0];
     expect(note).not.toBeNull();
     expect(note.textContent).toContain(
-      `${formatCurrency(25)} due by ${format(new Date(due), 'PPP')}`,
+      `Deposit of ${formatCurrency(25)}`,
     );
     const help = notes[1];
     expect(help.textContent).toContain('deposit');
@@ -186,9 +190,10 @@ describe('PaymentModal', () => {
     await act(async () => {
       checkbox.click();
     });
-    const help = div.querySelector('p.text-sm.text-gray-600');
+    const notes = div.querySelectorAll('p.text-sm.text-gray-600');
+    const help = notes[1];
     expect(help).not.toBeNull();
-    expect(help?.textContent).toContain('full amount');
+    expect(help.textContent).toContain('full amount');
     root.unmount();
   });
 });
