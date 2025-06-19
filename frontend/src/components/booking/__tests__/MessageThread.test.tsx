@@ -855,6 +855,65 @@ describe('MessageThread component', () => {
     expect(link).not.toBeNull();
   });
 
+  it('shows Leave Review button for completed booking', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Quote',
+          message_type: 'quote',
+          quote_id: 12,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+    (api.getQuoteV2 as jest.Mock).mockResolvedValue({
+      data: {
+        id: 12,
+        status: 'accepted',
+        booking_id: 3,
+        services: [],
+        sound_fee: 0,
+        travel_fee: 0,
+        subtotal: 0,
+        total: 0,
+        artist_id: 2,
+        client_id: 1,
+        booking_request_id: 1,
+        created_at: '',
+        updated_at: '',
+      },
+    });
+    (api.getBookingDetails as jest.Mock).mockResolvedValue({
+      data: {
+        id: 3,
+        status: 'completed',
+        service: { title: 'Gig' },
+        start_time: '2024-01-01T00:00:00Z',
+        deposit_amount: 0,
+        review: null,
+      },
+    });
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const reviewBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Leave Review',
+    );
+    expect(reviewBtn).not.toBeUndefined();
+  });
+
   it('links the avatar to the artist profile when artistId is provided', async () => {
     await act(async () => {
       root.render(

@@ -37,6 +37,7 @@ import SendQuoteModal from './SendQuoteModal';
 import PaymentModal from './PaymentModal';
 import QuoteCard from './QuoteCard';
 import useWebSocket from '@/hooks/useWebSocket';
+import ReviewFormModal from '../review/ReviewFormModal';
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const wsBase =
@@ -85,6 +86,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [depositAmount, setDepositAmount] = useState<number | undefined>(
     undefined,
   );
@@ -849,6 +851,27 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               setPaymentError(null);
             }}
             onError={(msg) => setPaymentError(msg)}
+          />
+          {bookingDetails &&
+            bookingDetails.status === 'completed' &&
+            !(bookingDetails as any).review && (
+              <Button
+                type="button"
+                onClick={() => setShowReviewModal(true)}
+                className="mt-2 text-sm text-indigo-600 underline"
+              >
+                Leave Review
+              </Button>
+            )}
+          <ReviewFormModal
+            isOpen={showReviewModal}
+            bookingId={bookingDetails?.id ?? 0}
+            onClose={() => setShowReviewModal(false)}
+            onSubmitted={(rev) =>
+              setBookingDetails((prev) =>
+                prev ? { ...prev, review: rev } : prev,
+              )
+            }
           />
         </>
       )}
