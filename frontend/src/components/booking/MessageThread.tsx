@@ -51,6 +51,8 @@ interface MessageThreadProps {
   bookingRequestId: number;
   /** Optional callback invoked after a message is successfully sent */
   onMessageSent?: () => void;
+  /** Optional callback invoked after a quote is successfully sent */
+  onQuoteSent?: () => void;
   clientName?: string;
   artistName?: string;
   clientId?: number;
@@ -64,6 +66,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     {
       bookingRequestId,
       onMessageSent,
+      onQuoteSent,
       clientName = 'Client',
       artistName = 'Artist',
       clientId,
@@ -274,12 +277,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         setShowQuoteModal(false);
         fetchMessages();
         if (onMessageSent) onMessageSent();
+        if (onQuoteSent) onQuoteSent();
       } catch (err) {
         console.error('Failed to send quote', err);
         setErrorMsg((err as Error).message);
       }
     },
-    [fetchMessages, onMessageSent],
+    [fetchMessages, onMessageSent, onQuoteSent],
   );
 
   const handleAcceptQuote = useCallback(
