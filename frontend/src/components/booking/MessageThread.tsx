@@ -34,7 +34,7 @@ import Button from '../ui/Button';
 import TextInput from '../ui/TextInput';
 import SendQuoteModal from './SendQuoteModal';
 import usePaymentModal from '@/hooks/usePaymentModal';
-import QuoteCard from './QuoteCard';
+import QuoteBubble from './QuoteBubble';
 import useWebSocket from '@/hooks/useWebSocket';
 import ReviewFormModal from '../review/ReviewFormModal';
 
@@ -626,7 +626,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                       >
                         <div className="flex-1">
                           {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
-                            <QuoteCard
+                            <QuoteBubble
                               quote={quotes[msg.quote_id]}
                               isClient={user?.user_type === 'client'}
                               onAccept={() => handleAcceptQuote(msg.quote_id!)}

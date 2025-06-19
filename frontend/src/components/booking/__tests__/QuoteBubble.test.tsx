@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import QuoteCard from '../QuoteCard';
+import QuoteBubble from '../QuoteBubble';
 import { act } from 'react';
 import { formatCurrency } from '@/lib/utils';
 
@@ -21,13 +21,13 @@ const quote = {
   updated_at: '',
 };
 
-describe('QuoteCard', () => {
+describe('QuoteBubble', () => {
   it('renders service items and buttons', () => {
     const div = document.createElement('div');
     const root = createRoot(div);
     act(() => {
       root.render(
-        <QuoteCard quote={quote} isClient onAccept={() => {}} onDecline={() => {}} bookingConfirmed={false} />,
+        <QuoteBubble quote={quote} isClient onAccept={() => {}} onDecline={() => {}} bookingConfirmed={false} />,
       );
     });
     expect(div.textContent).toContain('Perf');
