@@ -58,6 +58,10 @@ export default function NotificationBell(): JSX.Element {
     setOpen(false);
     if (item.type === 'message' && item.booking_request_id) {
       router.push(`/messages/thread/${item.booking_request_id}`);
+    } else if (item.type === 'review_request' && item.link) {
+      const match = item.link.match(/bookings\/(\d+)/);
+      const bid = match ? match[1] : '';
+      router.push(`/dashboard/client/bookings/${bid}`);
     } else if (item.link) {
       router.push(item.link);
     } else {
