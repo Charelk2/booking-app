@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from decimal import Decimal
+import httpx
 
 from app.main import app
 from app.models import (
@@ -380,6 +381,40 @@ def test_duplicate_payment_rejected(monkeypatch):
     booking = db.query(BookingSimple).first()
     assert booking.deposit_paid is True
     db.close()
+    if prev_db is not None:
+        app.dependency_overrides[get_db] = prev_db
+    else:
+        app.dependency_overrides.pop(get_db, None)
+    if prev_client is not None:
+        app.dependency_overrides[get_current_active_client] = prev_client
+    else:
+        app.dependency_overrides.pop(get_current_active_client, None)
+
+
+def test_payment_gateway_error(monkeypatch):
+    """Return 502 when the payment gateway request fails."""
+    Session = setup_app()
+    client_user, br_id, Session = create_records(Session)
+    prev_db = app.dependency_overrides.get(get_db)
+    prev_client = app.dependency_overrides.get(get_current_active_client)
+    app.dependency_overrides[get_current_active_client] = override_client(client_user)
+
+    def raise_error(*args, **kwargs):
+        raise httpx.RequestError("boom")
+
+    monkeypatch.setattr(api_payment.httpx, "post", raise_error)
+    client = TestClient(app)
+    res = client.post(
+        "/api/v1/payments/",
+        json={"booking_request_id": br_id, "amount": 50},
+    )
+    assert res.status_code == 502
+
+    db = Session()
+    booking = db.query(BookingSimple).first()
+    assert booking.deposit_paid is False
+    db.close()
+
     if prev_db is not None:
         app.dependency_overrides[get_db] = prev_db
     else:
