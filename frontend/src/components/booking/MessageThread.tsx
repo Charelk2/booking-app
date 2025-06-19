@@ -24,6 +24,8 @@ import {
   uploadMessageAttachment,
   createQuoteV2,
   getQuoteV2,
+  acceptQuoteV2,
+  updateQuoteAsClient,
   getBookingDetails,
   downloadBookingIcs,
 } from '@/lib/api';
@@ -291,6 +293,49 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       }
     },
     [fetchMessages, onMessageSent, onQuoteSent],
+  );
+
+  const handleAcceptQuote = useCallback(
+    async (q: QuoteV2) => {
+      try {
+        await acceptQuoteV2(q.id);
+      } catch (err) {
+        console.error('acceptQuoteV2 failed', err);
+        try {
+          await updateQuoteAsClient(q.id, { status: 'accepted_by_client' });
+        } catch (err2) {
+          console.error('Failed legacy accept', err2);
+        }
+      }
+      try {
+        const fresh = await getQuoteV2(q.id);
+        setQuotes((prev) => ({ ...prev, [q.id]: fresh.data }));
+        setBookingConfirmed(true);
+        const details = await getBookingDetails(fresh.data.booking_id);
+        setBookingDetails(details.data);
+        openPaymentModal({
+          bookingRequestId,
+          depositAmount: details.data.deposit_amount,
+          depositDueBy: details.data.deposit_due_by ?? undefined,
+        });
+      } catch (err3) {
+        console.error('Failed to finalize acceptance', err3);
+      }
+    },
+    [bookingRequestId, openPaymentModal],
+  );
+
+  const handleDeclineQuote = useCallback(
+    async (q: QuoteV2) => {
+      try {
+        await updateQuoteAsClient(q.id, { status: 'rejected_by_client' });
+        const res = await getQuoteV2(q.id);
+        setQuotes((prev) => ({ ...prev, [q.id]: res.data }));
+      } catch (err) {
+        console.error('Failed to decline quote', err);
+      }
+    },
+    [],
   );
 
 
@@ -570,6 +615,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                       >
                         <div className="flex-1">
                           {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
+                            <>
                             <QuoteBubble
                               description={quotes[msg.quote_id].services[0]?.description || ''}
                               price={Number(quotes[msg.quote_id].services[0]?.price || 0)}
@@ -588,6 +634,32 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                                 }[quotes[msg.quote_id].status]
                               }
                             />
+                            {user?.user_type === 'client' &&
+                              quotes[msg.quote_id].status === 'pending' &&
+                              !bookingConfirmed && (
+                                <div className="mt-2 flex gap-2">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleAcceptQuote(quotes[msg.quote_id])
+                                    }
+                                  >
+                                    Accept
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() =>
+                                      handleDeclineQuote(quotes[msg.quote_id])
+                                    }
+                                  >
+                                    Decline
+                                  </Button>
+                                </div>
+                              )}
+                            </>
                           ) : msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX) ? (
                             <div data-testid="booking-details">
                               <button
