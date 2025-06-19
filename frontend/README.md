@@ -29,6 +29,7 @@ configuration includes this directory in its `content` array so these constant
 class names are preserved during production builds.
 All text inputs should use the `TextInput` component in `src/components/ui` so
 form fields share consistent spacing and focus styles.
+The `Stepper` progress bar highlights the active step with `bg-brand` and `text-brand-dark` to reinforce the brand palette.
 
 ### Loading Indicators
 
