@@ -32,6 +32,11 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
         {"description": s.description, "price": float(s.price)}
         for s in quote_in.services
     ]
+    booking_request = (
+        db.query(models.BookingRequest)
+        .filter(models.BookingRequest.id == quote_in.booking_request_id)
+        .first()
+    )
     db_quote = models.QuoteV2(
         booking_request_id=quote_in.booking_request_id,
         artist_id=quote_in.artist_id,
@@ -47,6 +52,8 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
         expires_at=quote_in.expires_at,
     )
     db.add(db_quote)
+    if booking_request:
+        booking_request.status = models.BookingRequestStatus.QUOTE_PROVIDED
     db.commit()
     db.refresh(db_quote)
     return db_quote
