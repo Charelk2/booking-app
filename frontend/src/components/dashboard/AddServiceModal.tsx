@@ -68,7 +68,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                 type="text"
                 id="title"
                 {...register('title', { required: 'Service title is required' })}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus-visible:ring-2 focus-visible:ring-brand focus:border-brand sm:text-sm"
               />
               {errors.title && <p className="mt-1 text-xs text-red-600">{errors.title.message}</p>}
             </div>
@@ -79,7 +79,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                 id="description"
                 rows={3}
                 {...register('description', { required: 'Description is required' })}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus-visible:ring-2 focus-visible:ring-brand focus:border-brand sm:text-sm"
               />
               {errors.description && <p className="mt-1 text-xs text-red-600">{errors.description.message}</p>}
             </div>
@@ -89,7 +89,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
               <select
                 id="service_type"
                 {...register('service_type', { required: 'Service type is required' })}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus-visible:ring-2 focus-visible:ring-brand focus:border-brand sm:text-sm"
               >
                 <option value="Live Performance">Live Performance</option>
                 <option value="Virtual Appearance">Virtual Appearance</option>
@@ -113,7 +113,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                   valueAsNumber: true,
                   min: { value: 0, message: 'Price cannot be negative' } 
                 })}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus-visible:ring-2 focus-visible:ring-brand focus:border-brand sm:text-sm"
               />
               {errors.price && <p className="mt-1 text-xs text-red-600">{errors.price.message}</p>}
             </div>
@@ -128,7 +128,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                   valueAsNumber: true,
                   min: { value: 1, message: 'Duration must be at least 1 minute' } 
                 })}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus-visible:ring-2 focus-visible:ring-brand focus:border-brand sm:text-sm"
               />
               {errors.duration_minutes && <p className="mt-1 text-xs text-red-600">{errors.duration_minutes.message}</p>}
             </div>
