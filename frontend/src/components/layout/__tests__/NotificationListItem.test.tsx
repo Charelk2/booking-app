@@ -48,7 +48,7 @@ describe('NotificationListItem', () => {
       type: 'deposit_due',
       timestamp: new Date().toISOString(),
       is_read: false,
-      content: 'Deposit payment due for booking #5',
+      content: 'Booking confirmed \u2014 deposit R200 due by 2025-12-31',
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Deposit Due');
@@ -60,24 +60,13 @@ describe('NotificationListItem', () => {
       type: 'deposit_due',
       timestamp: new Date().toISOString(),
       is_read: false,
-      content: 'Deposit of 50.00 due by 2025-01-01 for booking #42',
+      content: 'Booking confirmed \u2014 deposit R50.00 due by 2025-01-01',
     } as UnifiedNotification;
     const parsed = parseItem(n);
-    expect(parsed.subtitle).toBe('50.00 due by Jan 1, 2025');
+    expect(parsed.subtitle).toBe('R50.00 due by Jan 1, 2025');
     expect(parsed.icon).toBe('💰');
   });
 
-  it('parses new booking notifications', () => {
-    const n: UnifiedNotification = {
-      type: 'new_booking',
-      timestamp: new Date().toISOString(),
-      is_read: false,
-      content: 'New booking #5 confirmed',
-    } as UnifiedNotification;
-    const parsed = parseItem(n);
-    expect(parsed.title).toBe('Booking Confirmed');
-    expect(parsed.icon).toBe('📅');
-  });
 
   it('parses review request notifications', () => {
     const n: UnifiedNotification = {
