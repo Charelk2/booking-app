@@ -480,14 +480,10 @@ describe('MessageThread component', () => {
     const banner = container.querySelector('[data-testid="booking-confirmed-banner"]');
     expect(banner?.textContent).toContain('Booking confirmed for DJ');
     expect(banner?.textContent).toContain('due by');
-    const viewLink = container.querySelector(
+    const dashboardLink = container.querySelectorAll(
       'a[href="/dashboard/client/bookings/1"]',
     );
-    expect(viewLink).not.toBeNull();
-    const dashboardLink = container.querySelector(
-      'a[href="/dashboard/client/bookings/1"]',
-    );
-    expect(dashboardLink).not.toBeNull();
+    expect(dashboardLink.length).toBe(1);
     const help = container.querySelector('[data-testid="help-prompt"]');
     expect(help).toBeNull();
   });
@@ -543,10 +539,10 @@ describe('MessageThread component', () => {
       await Promise.resolve();
     });
     expect(api.getBookingDetails).toHaveBeenCalledWith(42);
-    const dashboardLink = container.querySelector(
+    const dashboardLink = container.querySelectorAll(
       'a[href="/dashboard/client/bookings/42"]',
     );
-    expect(dashboardLink).not.toBeNull();
+    expect(dashboardLink.length).toBe(1);
   });
 
   it('opens payment modal after accepting quote', async () => {
