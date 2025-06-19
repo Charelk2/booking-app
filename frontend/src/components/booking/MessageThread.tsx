@@ -18,7 +18,7 @@ import HelpPrompt from '../ui/HelpPrompt';
 import AlertBanner from '../ui/AlertBanner';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
-import { Booking, Message, MessageCreate, QuoteV2 } from '@/types';
+import { Booking, Review, Message, MessageCreate, QuoteV2 } from '@/types';
 import {
   getMessagesForBookingRequest,
   postMessageToBookingRequest,
@@ -854,7 +854,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           />
           {bookingDetails &&
             bookingDetails.status === 'completed' &&
-            !(bookingDetails as any).review && (
+            !(
+              (
+                bookingDetails as Booking & {
+                  review?: Review;
+                }
+              ).review
+            ) && (
               <Button
                 type="button"
                 onClick={() => setShowReviewModal(true)}
