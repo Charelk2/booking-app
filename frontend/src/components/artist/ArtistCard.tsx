@@ -108,7 +108,7 @@ export default function ArtistCard({
             {limitedTags.map((s) => (
               <span
                 key={`${id}-${s}`}
-                className="text-[10px] px-1.5 py-0.5 bg-brand-light text-gray-700 rounded-full"
+                className="text-[10px] px-1.5 py-0.5 bg-sky-100 text-sky-800 rounded-full"
               >
                 {s}
               </span>
