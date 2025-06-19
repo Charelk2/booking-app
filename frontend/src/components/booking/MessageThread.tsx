@@ -668,7 +668,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                             <a
                               href={msg.attachment_url}
                               target="_blank"
-                              className="block text-blue-600 underline mt-1 text-sm"
+                              className="block text-indigo-600 underline mt-1 text-sm"
                               rel="noopener noreferrer"
                             >
                               View attachment
