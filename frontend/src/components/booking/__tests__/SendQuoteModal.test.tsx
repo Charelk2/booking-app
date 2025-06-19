@@ -49,6 +49,16 @@ describe('SendQuoteModal', () => {
     expect(inputs[0].value).toBe('5');
     expect(inputs[1].value).toBe('1');
     expect(inputs[2].value).toBe('2');
+    const soundLabel = div.querySelector('label[for="sound-fee"]');
+    const travelLabel = div.querySelector('label[for="travel-fee"]');
+    const discountLabel = div.querySelector('label[for="discount"]');
+    const accommodationLabel = div.querySelector('label[for="accommodation"]');
+    const expiryLabel = div.querySelector('label[for="expires-hours"]');
+    expect(soundLabel?.textContent).toContain('Sound fee');
+    expect(travelLabel?.textContent).toContain('Travel fee');
+    expect(discountLabel?.textContent).toContain('Discount');
+    expect(accommodationLabel?.textContent).toContain('Accommodation');
+    expect(expiryLabel?.textContent).toContain('Expires in');
     root.unmount();
   });
 
@@ -90,6 +100,26 @@ describe('SendQuoteModal', () => {
     });
     const summary = div.querySelector('div.text-sm.mt-2') as HTMLDivElement;
     expect(summary.textContent).toContain(formatCurrency(8));
+    root.unmount();
+  });
+
+  it('matches snapshot', async () => {
+    (api.getQuoteTemplates as jest.Mock).mockResolvedValue({ data: [] });
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(
+        <SendQuoteModal
+          open
+          onClose={() => {}}
+          onSubmit={() => {}}
+          artistId={1}
+          clientId={2}
+          bookingRequestId={3}
+        />,
+      );
+    });
+    expect(div.firstChild).toMatchSnapshot();
     root.unmount();
   });
 });

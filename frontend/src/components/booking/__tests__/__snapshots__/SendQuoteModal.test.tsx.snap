@@ -1,0 +1,155 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`SendQuoteModal matches snapshot 1`] = `
+<div
+  class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+>
+  <div
+    class="bg-white rounded-lg shadow-lg w-full max-w-md p-4"
+  >
+    <h2
+      class="text-lg font-medium mb-2"
+    >
+      Send Quote
+    </h2>
+    <div
+      class="space-y-2 max-h-[60vh] overflow-y-auto"
+    >
+      <div
+        class="flex gap-2 items-center"
+      >
+        <input
+          class="flex-1 border rounded p-1"
+          placeholder="Description"
+          type="text"
+          value=""
+        />
+        <input
+          class="w-24 border rounded p-1"
+          placeholder="Price"
+          type="number"
+          value="0"
+        />
+      </div>
+      <button
+        aria-busy="false"
+        class="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform active:scale-95 bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 focus:ring-gray-300 text-sm"
+        type="button"
+      >
+        <span
+          class=""
+        >
+          Add Item
+        </span>
+      </button>
+      <label
+        class="flex flex-col text-sm"
+        for="sound-fee"
+      >
+        Sound fee
+        <input
+          class="w-full border rounded p-1"
+          id="sound-fee"
+          type="number"
+          value="0"
+        />
+      </label>
+      <label
+        class="flex flex-col text-sm"
+        for="travel-fee"
+      >
+        Travel fee
+        <input
+          class="w-full border rounded p-1"
+          id="travel-fee"
+          type="number"
+          value="0"
+        />
+      </label>
+      <label
+        class="flex flex-col text-sm"
+        for="accommodation"
+      >
+        Accommodation (optional)
+        <textarea
+          class="w-full border rounded p-1"
+          id="accommodation"
+        />
+      </label>
+      <label
+        class="flex flex-col text-sm"
+        for="discount"
+      >
+        Discount (optional)
+        <input
+          class="w-full border rounded p-1"
+          id="discount"
+          type="number"
+          value="0"
+        />
+      </label>
+      <label
+        class="flex flex-col text-sm"
+        for="expires-hours"
+      >
+        Expires in
+        <select
+          class="w-full border rounded p-1"
+          id="expires-hours"
+        >
+          <option
+            value=""
+          >
+            No expiry
+          </option>
+          <option
+            value="24"
+          >
+            24h
+          </option>
+          <option
+            value="72"
+          >
+            3 days
+          </option>
+        </select>
+      </label>
+      <div
+        class="text-sm mt-2"
+      >
+        Subtotal: 
+        R 0,00
+        <br />
+        Total: 
+        R 0,00
+      </div>
+    </div>
+    <div
+      class="flex justify-end gap-2 mt-4"
+    >
+      <button
+        aria-busy="false"
+        class="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform active:scale-95 bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 focus:ring-gray-300"
+        type="button"
+      >
+        <span
+          class=""
+        >
+          Cancel
+        </span>
+      </button>
+      <button
+        aria-busy="false"
+        class="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform active:scale-95 bg-brand hover:bg-brand-dark text-white focus:ring-brand-dark"
+        type="button"
+      >
+        <span
+          class=""
+        >
+          Send
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+`;
