@@ -1,24 +1,27 @@
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import { act } from 'react';
-import BookingDetailsPage from '../[id]/page';
-import { getBookingDetails, downloadBookingIcs } from '@/lib/api';
-import { useParams, useSearchParams } from 'next/navigation';
+import React from "react";
+import { createRoot } from "react-dom/client";
+import { act } from "react";
+import BookingDetailsPage from "../[id]/page";
+import { getBookingDetails, downloadBookingIcs } from "@/lib/api";
+import { useParams, useSearchParams } from "next/navigation";
 
-jest.mock('@/lib/api');
-jest.mock('next/navigation', () => ({
+jest.mock("@/lib/api");
+jest.mock("next/navigation", () => ({
   useParams: jest.fn(),
   useSearchParams: jest.fn(),
-  usePathname: jest.fn(() => '/dashboard/client/bookings/1'),
+  usePathname: jest.fn(() => "/dashboard/client/bookings/1"),
 }));
 /* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
-jest.mock('next/link', () => {
-  const React = require('react');
-  return { __esModule: true, default: (props: any) => React.createElement('a', props) };
+jest.mock("next/link", () => {
+  const React = require("react");
+  return {
+    __esModule: true,
+    default: (props: any) => React.createElement("a", props),
+  };
 });
 /* eslint-enable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
 
-describe('BookingDetailsPage', () => {
+describe("BookingDetailsPage", () => {
   beforeEach(() => {
     (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
   });
@@ -26,8 +29,8 @@ describe('BookingDetailsPage', () => {
     jest.clearAllMocks();
   });
 
-  it('renders booking details and shows pay button when pending', async () => {
-    (useParams as jest.Mock).mockReturnValue({ id: '1' });
+  it("renders booking details and shows pay button when pending", async () => {
+    (useParams as jest.Mock).mockReturnValue({ id: "1" });
     (getBookingDetails as jest.Mock).mockResolvedValue({
       data: {
         id: 1,
@@ -36,37 +39,43 @@ describe('BookingDetailsPage', () => {
         service_id: 4,
         start_time: new Date().toISOString(),
         end_time: new Date().toISOString(),
-        status: 'confirmed',
+        status: "confirmed",
         total_price: 100,
-        notes: '',
+        notes: "",
         deposit_amount: 50,
-        deposit_due_by: new Date('2024-01-08').toISOString(),
-        payment_status: 'pending',
-        service: { title: 'Gig' },
+        deposit_due_by: new Date("2024-01-08").toISOString(),
+        payment_status: "pending",
+        service: { title: "Gig" },
         client: { id: 3 },
       },
     });
     (downloadBookingIcs as jest.Mock).mockResolvedValue({ data: new Blob() });
 
-    const div = document.createElement('div');
+    const div = document.createElement("div");
     const root = createRoot(div);
     await act(async () => {
       root.render(<BookingDetailsPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     expect(getBookingDetails).toHaveBeenCalledWith(1);
-    expect(div.textContent).toContain('Gig');
-    expect(div.textContent).toContain('Deposit due');
+    expect(div.textContent).toContain("Gig");
+    expect(div.textContent).toContain("Deposit due");
+    const artistLink = div.querySelector('[data-testid="view-artist-link"]');
+    expect(artistLink?.getAttribute("href")).toBe("/artists/2");
     const pay = div.querySelector('[data-testid="pay-deposit-button"]');
     expect(pay).not.toBeNull();
 
-    act(() => { root.unmount(); });
+    act(() => {
+      root.unmount();
+    });
     div.remove();
   });
 
-  it('shows receipt link when payment_id is present', async () => {
-    (useParams as jest.Mock).mockReturnValue({ id: '2' });
+  it("shows receipt link when payment_id is present", async () => {
+    (useParams as jest.Mock).mockReturnValue({ id: "2" });
     (getBookingDetails as jest.Mock).mockResolvedValue({
       data: {
         id: 2,
@@ -75,36 +84,40 @@ describe('BookingDetailsPage', () => {
         service_id: 4,
         start_time: new Date().toISOString(),
         end_time: new Date().toISOString(),
-        status: 'confirmed',
+        status: "confirmed",
         total_price: 100,
-        notes: '',
+        notes: "",
         deposit_amount: 50,
-        deposit_due_by: new Date('2024-01-08').toISOString(),
-        payment_status: 'deposit_paid',
-        payment_id: 'pay_123',
-        service: { title: 'Gig' },
+        deposit_due_by: new Date("2024-01-08").toISOString(),
+        payment_status: "deposit_paid",
+        payment_id: "pay_123",
+        service: { title: "Gig" },
         client: { id: 3 },
       },
     });
     (downloadBookingIcs as jest.Mock).mockResolvedValue({ data: new Blob() });
 
-    const div = document.createElement('div');
+    const div = document.createElement("div");
     const root = createRoot(div);
     await act(async () => {
       root.render(<BookingDetailsPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     const link = div.querySelector('[data-testid="booking-receipt-link"]');
     expect(link).not.toBeNull();
-    expect(link?.getAttribute('href')).toBe('/api/v1/payments/pay_123/receipt');
+    expect(link?.getAttribute("href")).toBe("/api/v1/payments/pay_123/receipt");
 
-    act(() => { root.unmount(); });
+    act(() => {
+      root.unmount();
+    });
     div.remove();
   });
 
-  it('renders the help prompt', async () => {
-    (useParams as jest.Mock).mockReturnValue({ id: '3' });
+  it("renders the help prompt", async () => {
+    (useParams as jest.Mock).mockReturnValue({ id: "3" });
     (getBookingDetails as jest.Mock).mockResolvedValue({
       data: {
         id: 3,
@@ -113,34 +126,38 @@ describe('BookingDetailsPage', () => {
         service_id: 4,
         start_time: new Date().toISOString(),
         end_time: new Date().toISOString(),
-        status: 'confirmed',
+        status: "confirmed",
         total_price: 100,
-        notes: '',
+        notes: "",
         deposit_amount: 50,
-        deposit_due_by: new Date('2024-01-08').toISOString(),
-        payment_status: 'pending',
-        service: { title: 'Gig' },
+        deposit_due_by: new Date("2024-01-08").toISOString(),
+        payment_status: "pending",
+        service: { title: "Gig" },
         client: { id: 3 },
       },
     });
     (downloadBookingIcs as jest.Mock).mockResolvedValue({ data: new Blob() });
 
-    const div = document.createElement('div');
+    const div = document.createElement("div");
     const root = createRoot(div);
     await act(async () => {
       root.render(<BookingDetailsPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     const help = div.querySelector('[data-testid="help-prompt"]');
     expect(help).not.toBeNull();
 
-    act(() => { root.unmount(); });
+    act(() => {
+      root.unmount();
+    });
     div.remove();
   });
 
-  it('shows a link to message the artist', async () => {
-    (useParams as jest.Mock).mockReturnValue({ id: '4' });
+  it("shows a link to message the artist", async () => {
+    (useParams as jest.Mock).mockReturnValue({ id: "4" });
     (getBookingDetails as jest.Mock).mockResolvedValue({
       data: {
         id: 4,
@@ -149,31 +166,36 @@ describe('BookingDetailsPage', () => {
         service_id: 4,
         start_time: new Date().toISOString(),
         end_time: new Date().toISOString(),
-        status: 'confirmed',
+        status: "confirmed",
         total_price: 100,
-        notes: '',
+        notes: "",
         deposit_amount: 50,
-        deposit_due_by: new Date('2024-01-08').toISOString(),
-        payment_status: 'deposit_paid',
-        service: { title: 'Gig' },
+        deposit_due_by: new Date("2024-01-08").toISOString(),
+        payment_status: "deposit_paid",
+        service: { title: "Gig" },
         client: { id: 3 },
         source_quote: { booking_request_id: 7 },
       },
     });
     (downloadBookingIcs as jest.Mock).mockResolvedValue({ data: new Blob() });
 
-    const div = document.createElement('div');
+    const div = document.createElement("div");
     const root = createRoot(div);
     await act(async () => {
       root.render(<BookingDetailsPage />);
     });
-    await act(async () => { await Promise.resolve(); });
-    await act(async () => { await Promise.resolve(); });
-    
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     const msg = div.querySelector('[data-testid="message-artist-link"]');
     expect(msg).not.toBeNull();
-    expect(msg?.getAttribute('href')).toBe('/booking-requests/7');
+    expect(msg?.getAttribute("href")).toBe("/booking-requests/7");
+    const artistLink = div.querySelector('[data-testid="view-artist-link"]');
+    expect(artistLink?.getAttribute("href")).toBe("/artists/2");
 
     act(() => {
       root.unmount();
@@ -181,10 +203,10 @@ describe('BookingDetailsPage', () => {
     div.remove();
   });
 
-  it('opens the payment modal when ?pay=1 and payment pending', async () => {
-    (useParams as jest.Mock).mockReturnValue({ id: '5' });
+  it("opens the payment modal when ?pay=1 and payment pending", async () => {
+    (useParams as jest.Mock).mockReturnValue({ id: "5" });
     (useSearchParams as jest.Mock).mockReturnValue({
-      get: (key: string) => (key === 'pay' ? '1' : null),
+      get: (key: string) => (key === "pay" ? "1" : null),
     });
     (getBookingDetails as jest.Mock).mockResolvedValue({
       data: {
@@ -194,19 +216,19 @@ describe('BookingDetailsPage', () => {
         service_id: 4,
         start_time: new Date().toISOString(),
         end_time: new Date().toISOString(),
-        status: 'confirmed',
+        status: "confirmed",
         total_price: 100,
-        notes: '',
+        notes: "",
         deposit_amount: 50,
-        deposit_due_by: new Date('2024-01-08').toISOString(),
-        payment_status: 'pending',
-        service: { title: 'Gig' },
+        deposit_due_by: new Date("2024-01-08").toISOString(),
+        payment_status: "pending",
+        service: { title: "Gig" },
         client: { id: 3 },
       },
     });
     (downloadBookingIcs as jest.Mock).mockResolvedValue({ data: new Blob() });
 
-    const div = document.createElement('div');
+    const div = document.createElement("div");
     const root = createRoot(div);
     await act(async () => {
       root.render(<BookingDetailsPage />);
@@ -215,8 +237,8 @@ describe('BookingDetailsPage', () => {
       await Promise.resolve();
     });
 
-    const modalHeading = div.querySelector('h2');
-    expect(modalHeading?.textContent).toBe('Pay Deposit');
+    const modalHeading = div.querySelector("h2");
+    expect(modalHeading?.textContent).toBe("Pay Deposit");
 
     act(() => {
       root.unmount();
@@ -224,4 +246,3 @@ describe('BookingDetailsPage', () => {
     div.remove();
   });
 });
-
