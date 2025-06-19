@@ -97,6 +97,16 @@ describe('ArtistCard optional fields', () => {
     container.remove();
   });
 
+  it('wraps the image in a link to the artist profile', () => {
+    const { container, root } = setup({ imageUrl: '/a.jpg', href: '/artists/9' });
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    const anchor = img?.closest('a');
+    expect(anchor?.getAttribute('href')).toBe('/artists/9');
+    act(() => root.unmount());
+    container.remove();
+  });
+
 
   it('applies rounded-md class to the action button', () => {
     const { container, root } = setup();
