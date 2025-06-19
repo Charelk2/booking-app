@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getMyClientBookings, getBookingDetails } from "@/lib/api";
 import type { Booking, Review } from "@/types";
 import ReviewFormModal from "@/components/review/ReviewFormModal";
-import PaymentModal from "@/components/booking/PaymentModal";
+import usePaymentModal from "@/hooks/usePaymentModal";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
@@ -164,12 +164,22 @@ export default function ClientBookingsPage() {
   const [reviewId, setReviewId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showPayment, setShowPayment] = useState(false);
-  const [paymentBookingRequestId, setPaymentBookingRequestId] = useState<
-    number | null
-  >(null);
-  const [paymentDeposit, setPaymentDeposit] = useState<number | undefined>();
   const [paymentBookingId, setPaymentBookingId] = useState<number | null>(null);
+  const { openPaymentModal, paymentModal } = usePaymentModal(
+    (result) => {
+      setUpcoming((prev) =>
+        prev.map((b) =>
+          b.id === paymentBookingId ? { ...b, payment_status: result.status } : b,
+        ),
+      );
+      setPast((prev) =>
+        prev.map((b) =>
+          b.id === paymentBookingId ? { ...b, payment_status: result.status } : b,
+        ),
+      );
+    },
+    () => {},
+  );
   const [showPendingAlert, setShowPendingAlert] = useState(true);
 
   useEffect(() => {
@@ -206,12 +216,12 @@ export default function ClientBookingsPage() {
   const handleOpenPayment = async (id: number) => {
     try {
       const res = await getBookingDetails(id);
-      setPaymentDeposit(res.data.deposit_amount || undefined);
-      setPaymentBookingRequestId(
-        res.data.source_quote?.booking_request_id || res.data.id,
-      );
       setPaymentBookingId(id);
-      setShowPayment(true);
+      openPaymentModal({
+        bookingRequestId: res.data.source_quote?.booking_request_id || res.data.id,
+        depositAmount: res.data.deposit_amount || undefined,
+        depositDueBy: res.data.deposit_due_by ?? undefined,
+      });
     } catch (err) {
       console.error("Failed to load booking details for payment", err);
       setError("Failed to load payment details");
@@ -324,41 +334,7 @@ export default function ClientBookingsPage() {
           onSubmitted={handleReviewSubmitted}
         />
       )}
-      {showPayment && paymentBookingRequestId !== null && (
-        <PaymentModal
-          open={showPayment}
-          bookingRequestId={paymentBookingRequestId}
-          depositAmount={
-            paymentDeposit !== undefined
-              ? paymentDeposit
-              : [...upcoming, ...past].find((b) => b.id === paymentBookingId)
-                  ?.deposit_amount
-          }
-          depositDueBy={
-            [...upcoming, ...past].find((b) => b.id === paymentBookingId)
-              ?.deposit_due_by ?? undefined
-          }
-          onClose={() => setShowPayment(false)}
-          onSuccess={(result) => {
-            setUpcoming((prev) =>
-              prev.map((b) =>
-                b.id === paymentBookingId
-                  ? { ...b, payment_status: result.status }
-                  : b,
-              ),
-            );
-            setPast((prev) =>
-              prev.map((b) =>
-                b.id === paymentBookingId
-                  ? { ...b, payment_status: result.status }
-                  : b,
-              ),
-            );
-            setShowPayment(false);
-          }}
-          onError={() => {}}
-        />
-      )}
+      {paymentModal}
     </MainLayout>
   );
 }

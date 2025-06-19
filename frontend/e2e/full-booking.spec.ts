@@ -34,10 +34,18 @@ test.describe('Signup to deposit flow', () => {
     await page.getByTestId('date-next-button').click();
     await expect(page.getByTestId('step-heading')).toHaveText(/Location/);
 
-    await page.goto('/dashboard/client/bookings/5?pay=1');
-    const responsePromise = page.waitForResponse('**/api/v1/payments');
+    await page.goto('/booking-requests/42');
+    await page.getByRole('button', { name: 'Accept' }).click();
+    let responsePromise = page.waitForResponse('**/api/v1/payments');
     await page.getByRole('button', { name: 'Pay' }).click();
-    const response = await responsePromise;
+    let response = await responsePromise;
+    expect(response.status()).toBe(200);
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+
+    await page.goto('/dashboard/client/bookings');
+    responsePromise = page.waitForResponse('**/api/v1/payments');
+    await page.getByTestId('pay-deposit-button').first().click();
+    response = await responsePromise;
     expect(response.status()).toBe(200);
     await expect(page.getByRole('dialog')).not.toBeVisible();
   });
