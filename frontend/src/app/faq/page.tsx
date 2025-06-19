@@ -9,7 +9,7 @@ export default function FaqPage() {
         <p>Find answers to common questions about using our booking platform.</p>
         <p>
           Still need help?{' '}
-          <Link href="/contact" className="text-indigo-600 hover:underline">
+          <Link href="/contact" className="text-brand-dark hover:underline">
             Contact support
           </Link>
           .

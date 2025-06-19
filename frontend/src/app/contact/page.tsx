@@ -8,14 +8,14 @@ export default function ContactPage() {
         <h1>Contact Support</h1>
         <p>
           Email us&nbsp;
-          <a href="mailto:support@example.com" className="text-indigo-600 hover:underline">
+          <a href="mailto:support@example.com" className="text-brand-dark hover:underline">
             support@example.com
           </a>
           &nbsp;and we&apos;ll get back to you shortly.
         </p>
         <p>
           You can also check our&nbsp;
-          <Link href="/faq" className="text-indigo-600 hover:underline">
+          <Link href="/faq" className="text-brand-dark hover:underline">
             FAQ
           </Link>
           &nbsp;for quick answers.
