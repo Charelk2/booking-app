@@ -142,7 +142,7 @@ export default function ArtistQuotesPage() {
                       <button
                         type="button"
                         onClick={() => handleEdit(q)}
-                        className="text-indigo-600 hover:underline text-sm"
+                        className="text-brand-dark hover:underline text-sm"
                       >
                         Edit
                       </button>

@@ -142,7 +142,7 @@ export default function ArtistCard({
           <Link href={href} className="shrink-0">
             <button
               type="button"
-              className="bg-indigo-500 text-white text-sm px-4 py-1.5 rounded-md hover:bg-indigo-600"
+              className="bg-brand text-white text-sm px-4 py-1.5 rounded-md hover:bg-brand-dark"
             >
               View Profile
             </button>

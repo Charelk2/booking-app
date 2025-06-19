@@ -91,7 +91,7 @@ export default function NotificationDrawer({
                       <button
                         type="button"
                         onClick={markAllRead}
-                        className="text-sm text-indigo-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="text-sm text-brand-dark hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                       >
                         Mark All as Read
                       </button>
@@ -145,7 +145,7 @@ export default function NotificationDrawer({
                                 type="button"
                                 aria-label="Load more notifications"
                                 onClick={loadMore}
-                                className="text-sm text-indigo-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                                className="text-sm text-brand-dark hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                               >
                                 Load more
                               </button>

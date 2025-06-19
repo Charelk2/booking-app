@@ -88,12 +88,12 @@ export default function ArtistsPage() {
             placeholder="Location"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            className="text-sm px-3 py-1.5 rounded-md border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-[140px]"
+            className="text-sm px-3 py-1.5 rounded-md border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-brand w-[140px]"
           />
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value || undefined)}
-            className="text-sm px-3 py-1.5 rounded-md border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="text-sm px-3 py-1.5 rounded-md border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-brand"
           >
             <option value="">Sort</option>
             <option value="top_rated">Top Rated</option>

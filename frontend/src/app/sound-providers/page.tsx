@@ -151,7 +151,7 @@ export default function SoundProvidersPage() {
             />
           </div>
           {error && <p className="text-red-600 text-sm">{error}</p>}
-          <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded">
+          <button type="submit" className="px-4 py-2 bg-brand-dark text-white rounded">
             Add Provider
           </button>
         </form>
@@ -230,7 +230,7 @@ export default function SoundProvidersPage() {
                 onChange={(e) => setPrefPriority(e.target.value)}
               />
             </div>
-            <button data-add-pref type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded">Add Preference</button>
+            <button data-add-pref type="submit" className="px-4 py-2 bg-brand-dark text-white rounded">Add Preference</button>
             <div className="space-y-1">
               {preferences.map((pref) => (
                 <div key={pref.id} className="flex justify-between border p-2 rounded bg-gray-50">
