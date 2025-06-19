@@ -64,7 +64,7 @@ def test_create_and_accept_quote():
     db.commit()
     db.refresh(service)
 
-    from datetime import datetime
+    from datetime import datetime, timedelta
 
     br = BookingRequest(
         client_id=client.id,
@@ -92,16 +92,17 @@ def test_create_and_accept_quote():
     assert len(msgs) == 1
     assert msgs[0].quote_id == quote.id
 
+    before = datetime.utcnow()
     booking = api_quote_v2.accept_quote(quote.id, db)
+    after = datetime.utcnow()
     assert booking.quote_id == quote.id
     assert booking.artist_id == artist.id
     assert booking.client_id == client.id
     assert booking.confirmed is True
     assert booking.payment_status == "pending"
     assert booking.deposit_amount == quote.total * Decimal("0.5")
-    from datetime import timedelta
 
-    assert booking.deposit_due_by == quote.created_at + timedelta(days=7)
+    assert before + timedelta(days=7) <= booking.deposit_due_by <= after + timedelta(days=7)
     assert booking.deposit_paid is False
 
     db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()

@@ -1,5 +1,5 @@
 from decimal import Decimal
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -167,7 +167,7 @@ def accept_quote(
         # No charge is triggered yet; payment will be collected later
         payment_status="pending",
         deposit_amount=db_quote.total * Decimal("0.5"),
-        deposit_due_by=db_quote.created_at + timedelta(days=7),
+        deposit_due_by=datetime.utcnow() + timedelta(days=7),
         deposit_paid=False,
     )
     db.add(booking)
