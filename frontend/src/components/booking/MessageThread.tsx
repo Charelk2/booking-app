@@ -24,8 +24,6 @@ import {
   uploadMessageAttachment,
   createQuoteV2,
   getQuoteV2,
-  acceptQuoteV2,
-  updateQuoteAsClient,
   getBookingDetails,
   downloadBookingIcs,
 } from '@/lib/api';
@@ -34,7 +32,7 @@ import Button from '../ui/Button';
 import TextInput from '../ui/TextInput';
 import SendQuoteModal from './SendQuoteModal';
 import usePaymentModal from '@/hooks/usePaymentModal';
-import QuoteCard from './QuoteCard';
+import QuoteBubble from './QuoteBubble';
 import useWebSocket from '@/hooks/useWebSocket';
 import ReviewFormModal from '../review/ReviewFormModal';
 
@@ -85,9 +83,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [depositAmount, setDepositAmount] = useState<number | undefined>(
-    undefined,
-  );
+  const [depositAmount] = useState<number | undefined>(undefined);
   const [bookingDetails, setBookingDetails] = useState<Booking | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
@@ -297,58 +293,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     [fetchMessages, onMessageSent, onQuoteSent],
   );
 
-  const handleAcceptQuote = useCallback(
-    async (quoteId: number) => {
-      try {
-        const res = await acceptQuoteV2(quoteId);
-        setBookingConfirmed(true);
-        const q = await getQuoteV2(quoteId);
-        setDepositAmount(q.data.total * 0.5);
-        openPaymentModal({
-          bookingRequestId,
-          depositAmount: q.data.total * 0.5,
-          depositDueBy: undefined,
-        });
-        setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
-        try {
-          const details = await getBookingDetails(res.data.id);
-          setBookingDetails(details.data);
-        } catch (detailsErr) {
-          console.error('Failed to fetch booking details', detailsErr);
-        }
-      } catch (err) {
-        console.warn('Failed to accept quote via V2, trying legacy endpoint', err);
-        try {
-          await updateQuoteAsClient(quoteId, { status: 'accepted_by_client' });
-          const q = await getQuoteV2(quoteId);
-          setDepositAmount(q.data.total * 0.5);
-          openPaymentModal({
-            bookingRequestId,
-            depositAmount: q.data.total * 0.5,
-            depositDueBy: undefined,
-          });
-          setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
-        } catch (legacyErr) {
-          console.error('Failed to accept quote', legacyErr);
-          setErrorMsg((legacyErr as Error).message);
-        }
-      }
-    },
-    [bookingRequestId, openPaymentModal],
-  );
-
-  const handleDeclineQuote = useCallback(
-    async (quoteId: number) => {
-      try {
-        await updateQuoteAsClient(quoteId, { status: 'rejected_by_client' });
-        const q = await getQuoteV2(quoteId);
-        setQuotes((prev) => ({ ...prev, [quoteId]: q.data }));
-      } catch (err) {
-        console.error('Failed to decline quote', err);
-      }
-    },
-    [],
-  );
 
   const handleDownloadCalendar = useCallback(async () => {
     if (!bookingDetails) return;
@@ -626,12 +570,23 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                       >
                         <div className="flex-1">
                           {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
-                            <QuoteCard
-                              quote={quotes[msg.quote_id]}
-                              isClient={user?.user_type === 'client'}
-                              onAccept={() => handleAcceptQuote(msg.quote_id!)}
-                              onDecline={() => handleDeclineQuote(msg.quote_id!)}
-                              bookingConfirmed={bookingConfirmed}
+                            <QuoteBubble
+                              description={quotes[msg.quote_id].services[0]?.description || ''}
+                              price={Number(quotes[msg.quote_id].services[0]?.price || 0)}
+                              soundFee={Number(quotes[msg.quote_id].sound_fee)}
+                              travelFee={Number(quotes[msg.quote_id].travel_fee)}
+                              accommodation={quotes[msg.quote_id].accommodation || undefined}
+                              discount={quotes[msg.quote_id].discount || undefined}
+                              subtotal={Number(quotes[msg.quote_id].subtotal)}
+                              total={Number(quotes[msg.quote_id].total)}
+                              status={
+                                {
+                                  pending: 'Pending',
+                                  accepted: 'Accepted',
+                                  rejected: 'Rejected',
+                                  expired: 'Rejected',
+                                }[quotes[msg.quote_id].status]
+                              }
                             />
                           ) : msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX) ? (
                             <div data-testid="booking-details">
