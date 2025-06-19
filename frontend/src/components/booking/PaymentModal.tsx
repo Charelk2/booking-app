@@ -120,7 +120,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         }}
         className="bg-white rounded-lg shadow-lg w-full max-w-sm p-4 mx-2 max-h-[90vh] overflow-y-auto"
       >
-        <h2 className="text-lg font-medium mb-2">Pay Deposit</h2>
+        <h2 className="text-lg font-medium mb-2">
+          Pay Deposit
+          {depositDueBy && (
+            <span className="block text-sm font-normal text-gray-600" data-testid="deposit-due">
+              Due by {format(new Date(depositDueBy), 'PPP')}
+            </span>
+          )}
+        </h2>
         <div className="space-y-2">
           <TextInput
             id="deposit-amount"
@@ -135,10 +142,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               if (!Number.isNaN(num)) setAmount(num);
             }}
           />
-          {depositDueBy && (
+          {depositAmount !== undefined && (
             <p className="text-sm text-gray-600">
-              {formatCurrency(depositAmount ?? amount)} due by{' '}
-              {format(new Date(depositDueBy), 'PPP')}
+              Deposit of {formatCurrency(depositAmount)}
             </p>
           )}
           <p className="text-sm text-gray-600">

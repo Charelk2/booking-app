@@ -1,6 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
+import { format } from "date-fns";
 import BookingDetailsPage from "../[id]/page";
 import { getBookingDetails, downloadBookingIcs } from "@/lib/api";
 import { useParams, useSearchParams } from "next/navigation";
@@ -238,7 +239,10 @@ describe("BookingDetailsPage", () => {
     });
 
     const modalHeading = div.querySelector("h2");
-    expect(modalHeading?.textContent).toBe("Pay Deposit");
+    expect(modalHeading?.textContent).toContain("Pay Deposit");
+    expect(modalHeading?.textContent).toContain(
+      format(new Date("2024-01-08"), "PPP"),
+    );
 
     act(() => {
       root.unmount();
