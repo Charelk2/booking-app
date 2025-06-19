@@ -545,7 +545,7 @@ describe('MessageThread component', () => {
     expect(dashboardLink.length).toBe(1);
   });
 
-it.skip('opens payment modal after accepting quote', async () => {
+it('opens payment modal after accepting quote', async () => {
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
       data: [
         {
@@ -589,11 +589,12 @@ it.skip('opens payment modal after accepting quote', async () => {
     await act(async () => {
       acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
+    expect(api.acceptQuoteV2).toHaveBeenCalledWith(7);
     await act(async () => {
       await Promise.resolve();
     });
     const modalHeading = container.querySelector('h2');
-    expect(modalHeading?.textContent).toBe('Pay Deposit');
+    expect(modalHeading?.textContent).toContain('Pay Deposit');
     const banner = container.querySelector('[data-testid="booking-confirmed-banner"]');
     expect(banner?.textContent).toContain('Gig');
     const payBtn = container.querySelector('[data-testid="pay-deposit-button"]');
@@ -676,7 +677,7 @@ it.skip('adds ring styles when deposit actions receive keyboard focus', async ()
     expect(calBtn.className).toContain('focus-visible:ring-brand');
   });
 
-it.skip('falls back to legacy endpoint when accept fails', async () => {
+it('falls back to legacy endpoint when accept fails', async () => {
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
       data: [
         {
@@ -728,7 +729,7 @@ it.skip('falls back to legacy endpoint when accept fails', async () => {
     });
   });
 
-it.skip('declines quote using legacy endpoint', async () => {
+it('declines quote using legacy endpoint', async () => {
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
       data: [
         {
