@@ -28,7 +28,7 @@ export default function BookingPage() {
       <MainLayout>
         <div className="flex justify-center items-center min-h-screen text-center space-y-4 flex-col">
           <p>You must log in to create a booking.</p>
-          <Link href="/login" className="text-indigo-600 underline">
+          <Link href="/login" className="text-brand-dark underline">
             Login
           </Link>
         </div>

@@ -94,7 +94,7 @@ export default function QuoteCalculatorPage() {
               onChange={(e) => setAccommodation(e.target.value)}
             />
           </div>
-          <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded">
+          <button type="submit" className="px-4 py-2 bg-brand-dark text-white rounded">
             Calculate
           </button>
         </form>

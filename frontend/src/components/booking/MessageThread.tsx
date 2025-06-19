@@ -473,7 +473,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               }
               aria-label="View booking details"
               data-testid="view-booking-link"
-              className="mt-2 inline-block text-indigo-600 hover:underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className="mt-2 inline-block text-brand-dark hover:underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               View booking
             </Link>
@@ -485,7 +485,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               }
               aria-label="Go to My Bookings"
               data-testid="my-bookings-link"
-              className="mt-2 ml-4 inline-block text-indigo-600 hover:underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className="mt-2 ml-4 inline-block text-brand-dark hover:underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               My Bookings
             </Link>
@@ -493,7 +493,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               type="button"
               onClick={() => setShowPaymentModal(true)}
               data-testid="pay-deposit-button"
-              className="mt-2 ml-4 inline-block text-indigo-600 underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="mt-2 ml-4 inline-block text-brand-dark underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               Pay deposit
             </button>
@@ -502,7 +502,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 type="button"
                 onClick={handleDownloadCalendar}
                 data-testid="add-calendar-button"
-                className="mt-2 ml-4 inline-block text-indigo-600 underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="mt-2 ml-4 inline-block text-brand-dark underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               >
                 Add to calendar
               </button>
@@ -538,7 +538,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         >
         {loading ? (
           <div className="flex justify-center py-4" aria-label="Loading messages">
-            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-600" />
+            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-brand" />
           </div>
         ) : (
           visibleMessages.length === 0 && !isSystemTyping && (
@@ -631,7 +631,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                                     [msg.id]: !prev[msg.id],
                                   }))
                                 }
-                                className="flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+                                className="flex items-center gap-1 text-sm font-medium text-brand-dark hover:text-brand-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
                               >
                                 {openDetails[msg.id] ? (
                                   <ChevronDownIcon className="h-4 w-4" aria-hidden="true" />
@@ -703,7 +703,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           onClick={() =>
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
           }
-          className="fixed bottom-20 right-4 z-50 md:hidden rounded-full bg-indigo-600 p-2 text-white shadow"
+          className="fixed bottom-20 right-4 z-50 md:hidden rounded-full bg-brand-dark p-2 text-white shadow"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -816,7 +816,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             <Button
               type="button"
               onClick={() => setShowQuoteModal(true)}
-              className="mt-2 text-sm text-indigo-600 underline"
+              className="mt-2 text-sm text-brand-dark underline"
             >
               Send Quote
             </Button>
@@ -858,7 +858,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               <Button
                 type="button"
                 onClick={() => setShowReviewModal(true)}
-                className="mt-2 text-sm text-indigo-600 underline"
+                className="mt-2 text-sm text-brand-dark underline"
               >
                 Leave Review
               </Button>

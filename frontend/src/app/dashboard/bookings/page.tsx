@@ -146,7 +146,7 @@ export default function ArtistBookingsPage() {
                 {b.source_quote && (
                   <Link
                     href={`/quotes/${b.source_quote.id}`}
-                    className="text-indigo-600 hover:underline text-sm mt-1 inline-block"
+                    className="text-brand-dark hover:underline text-sm mt-1 inline-block"
                   >
                     View Quote
                   </Link>
@@ -174,7 +174,7 @@ export default function ArtistBookingsPage() {
                     <button
                       type="button"
                       onClick={() => handleDownload(b.id)}
-                      className="text-indigo-600 hover:underline text-sm"
+                      className="text-brand-dark hover:underline text-sm"
                     >
                       Add to Calendar
                     </button>
