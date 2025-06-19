@@ -91,6 +91,12 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       metadata,
     };
   }
+  if (n.type === 'review_request') {
+    const title = 'Review Request';
+    const subtitle =
+      n.content.length > 30 ? `${n.content.slice(0, 30)}...` : n.content;
+    return { title, subtitle, icon: '🔔' };
+  }
   if (/deposit.*due/i.test(n.content)) {
     let subtitle =
       n.content.length > 30 ? `${n.content.slice(0, 30)}...` : n.content;
