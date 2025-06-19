@@ -418,6 +418,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             <div className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center text-sm font-medium">
               {(user?.user_type === 'artist' ? clientName : artistName)?.charAt(0)}
             </div>
+          ) : artistId ? (
+            <Link href={`/artists/${artistId}`} aria-label="Artist profile">
+              <Image
+                src={getFullImageUrl(artistAvatarUrl) as string}
+                alt="avatar"
+                width={32}
+                height={32}
+                loading="lazy"
+                className="h-8 w-8 rounded-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
+                }}
+              />
+            </Link>
           ) : (
             <Image
               src={getFullImageUrl(artistAvatarUrl) as string}

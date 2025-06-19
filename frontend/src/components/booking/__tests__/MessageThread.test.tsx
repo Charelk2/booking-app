@@ -855,6 +855,25 @@ describe('MessageThread component', () => {
     expect(link).not.toBeNull();
   });
 
+  it('links the avatar to the artist profile when artistId is provided', async () => {
+    await act(async () => {
+      root.render(
+        <MessageThread
+          bookingRequestId={1}
+          artistAvatarUrl="/avatar.jpg"
+          artistId={3}
+        />,
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    const anchor = img?.closest('a');
+    expect(anchor?.getAttribute('href')).toBe('/artists/3');
+  });
+
   it('shows an alert when the WebSocket fails', async () => {
     await act(async () => {
       root.render(<MessageThread bookingRequestId={1} />);
