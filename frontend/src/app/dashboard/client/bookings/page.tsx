@@ -63,7 +63,7 @@ function BookingList({
                 {b.payment_status})
               </div>
             )}
-            {b.deposit_due_by && (
+            {b.payment_status === "pending" && b.deposit_due_by && (
               <div className="text-sm text-gray-500 mt-1">
                 Deposit due by{" "}
                 {format(new Date(b.deposit_due_by), "MMM d, yyyy")}
