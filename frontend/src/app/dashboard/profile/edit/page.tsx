@@ -416,10 +416,10 @@ export default function EditArtistProfilePage(): JSX.Element {
   };
 
   const inputClasses =
-    'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm placeholder-gray-400';
+    'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm placeholder-gray-400';
   const labelClasses = 'block text-sm font-medium text-gray-700 mb-1';
   const primaryButtonClasses =
-    'inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-dark hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand disabled:opacity-50';
+    'inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50';
 
   if (authLoading || loading) {
     return (
@@ -491,7 +491,7 @@ export default function EditArtistProfilePage(): JSX.Element {
                   type="file"
                   accept="image/*"
                   onChange={handleImageFileChange}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-light file:text-brand-dark hover:file:bg-brand-light"
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                 />
               </div>
 
@@ -580,11 +580,11 @@ export default function EditArtistProfilePage(): JSX.Element {
                   type="file"
                   accept="image/*"
                   onChange={handleCoverPhotoFileChange}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-light file:text-brand-dark hover:file:bg-brand-light"
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                   disabled={uploadingCoverPhoto}
                 />
                 {uploadingCoverPhoto && (
-                  <p className="text-sm text-brand-dark">Uploading cover photo...</p>
+                  <p className="text-sm text-indigo-600">Uploading cover photo...</p>
                 )}
                 {coverPhotoError && <p className="text-sm text-red-600">{coverPhotoError}</p>}
                 {coverPhotoSuccessMessage && (
@@ -603,11 +603,11 @@ export default function EditArtistProfilePage(): JSX.Element {
                 accept="image/*"
                 multiple
                 onChange={handlePortfolioFilesChange}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-light file:text-brand-dark hover:file:bg-brand-light"
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
                 disabled={uploadingPortfolioImages}
               />
               {uploadingPortfolioImages && (
-                <p className="text-sm text-brand-dark">Uploading images...</p>
+                <p className="text-sm text-indigo-600">Uploading images...</p>
               )}
               {portfolioImages.length > 0 && (
                 <ul className="grid grid-cols-3 gap-3" data-testid="portfolio-list">

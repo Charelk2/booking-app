@@ -227,7 +227,7 @@ export default function ArtistProfilePage() {
                 {user && user.user_type === 'artist' && artist.user_id === user.id && (
                   <button
                     type="button"
-                    className="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow focus:outline-none focus:ring-2 focus:ring-brand-dark"
+                    className="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow focus:outline-none focus:ring-2 focus:ring-indigo-600"
                     aria-label="Edit profile photo"
                   >
                     <PencilIcon className="h-4 w-4 text-gray-600" />
@@ -321,9 +321,9 @@ export default function ArtistProfilePage() {
                           href={url.startsWith('http') ? url : `http://${url}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center text-sm text-brand-dark hover:text-brand-dark hover:underline bg-brand-light hover:bg-brand-light px-3 py-1.5 rounded-md transition-colors duration-150 shadow-sm border border-brand-light"
+                          className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 hover:underline bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-md transition-colors duration-150 shadow-sm border border-indigo-200"
                         >
-                          <IconComponent className="h-4 w-4 mr-2 text-brand" />
+                          <IconComponent className="h-4 w-4 mr-2 text-indigo-500" />
                           {text}
                         </a>
                       );
@@ -453,7 +453,7 @@ export default function ArtistProfilePage() {
                           )}
                         </div>
                         <div className="p-4">
-                          <h3 className="text-lg font-semibold text-gray-800 truncate group-hover:text-brand-dark">
+                          <h3 className="text-lg font-semibold text-gray-800 truncate group-hover:text-indigo-600">
                             {otherArtist.business_name ||
                               `${otherArtist.user.first_name} ${otherArtist.user.last_name}`}
                           </h3>

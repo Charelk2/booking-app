@@ -96,7 +96,7 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
           </div>
           <div className="w-full bg-gray-200 rounded h-2" aria-hidden="true">
             <div
-              className="bg-brand h-2 rounded"
+              className="bg-indigo-600 h-2 rounded"
               style={{ width: `${(progress / videoQuestions.length) * 100}%` }}
             />
           </div>

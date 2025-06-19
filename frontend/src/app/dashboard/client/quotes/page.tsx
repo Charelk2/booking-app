@@ -114,7 +114,7 @@ export default function ClientQuotesPage() {
                   </span>
                   <Link
                     href={`/quotes/${q.id}`}
-                    className="text-brand-dark hover:underline text-sm"
+                    className="text-indigo-600 hover:underline text-sm"
                   >
                     View
                   </Link>

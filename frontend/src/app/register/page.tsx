@@ -121,7 +121,7 @@ export default function RegisterPage() {
                 <select
                   id="user_type"
                   {...register('user_type', { required: 'Please select your role' })}
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-brand-dark sm:text-sm sm:leading-6"
+                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                 >
                   <option value="">Select role</option>
                   <option value="artist">Artist</option>
@@ -198,7 +198,7 @@ export default function RegisterPage() {
             Already have an account?{' '}
             <Link
               href={`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`}
-              className="font-semibold leading-6 text-brand-dark hover:text-brand"
+              className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
             >
               Sign in
             </Link>

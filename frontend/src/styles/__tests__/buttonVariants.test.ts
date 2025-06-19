@@ -14,7 +14,7 @@ describe('buttonVariants', () => {
   });
 
   it('provides classes for link buttons', () => {
-    expect(buttonVariants.link).toMatch('text-brand-dark');
+    expect(buttonVariants.link).toMatch('text-indigo-600');
   });
 });
 

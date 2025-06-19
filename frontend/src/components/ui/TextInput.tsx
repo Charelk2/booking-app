@@ -22,14 +22,14 @@ const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
           ref={ref}
           id={id}
           className={clsx(
-            'block w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm',
+            'block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm',
             className,
           )}
           {...props}
         />
         {loading && (
           <span className="absolute inset-y-0 right-2 flex items-center" aria-label="Loading">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
           </span>
         )}
       </div>

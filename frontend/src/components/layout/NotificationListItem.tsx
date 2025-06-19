@@ -158,10 +158,10 @@ export default function NotificationListItem({ n, onClick, style, className = ''
       style={style}
       onClick={onClick}
       className={classNames(
-        'group flex w-full items-start px-3 sm:px-4 py-2.5 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light hover:bg-gray-50 transition cursor-pointer border-b border-gray-200',
+        'group flex w-full items-start px-3 sm:px-4 py-2.5 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:bg-gray-50 transition cursor-pointer border-b border-gray-200',
         n.is_read
           ? 'bg-white border-l border-transparent text-gray-600'
-          : 'bg-brand-light border-l-4 border-brand text-gray-900 font-medium',
+          : 'bg-indigo-50 border-l-4 border-indigo-500 text-gray-900 font-medium',
         className,
       )}
     >
@@ -179,12 +179,12 @@ export default function NotificationListItem({ n, onClick, style, className = ''
             }}
           />
         ) : (
-          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-brand-light flex items-center justify-center text-brand-dark font-medium">
+          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
             {parsed.initials}
           </div>
         )
       ) : (
-        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-brand-light flex items-center justify-center text-brand-dark font-medium">
+        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
           {parsed.icon}
         </div>
       )}

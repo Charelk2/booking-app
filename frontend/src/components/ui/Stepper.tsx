@@ -43,7 +43,7 @@ export default function Stepper({ steps, currentStep, maxStepCompleted, onStepCl
               key={label}
               onClick={() => i <= maxStep && i !== currentStep && onStepClick(i)}
               disabled={i > maxStep || i === currentStep}
-              className={`flex flex-col items-center text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+              className={`flex flex-col items-center text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                 i > maxStep
                   ? 'cursor-not-allowed'
                   : i === currentStep

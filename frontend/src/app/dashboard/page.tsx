@@ -93,7 +93,7 @@ function ServiceCard({
       dragControls={dragControls}
       dragConstraints={dragConstraints}
       data-testid="service-item"
-      className={`relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 hover:border-gray-400 transition-colors ${pressing ? "select-none ring-2 ring-brand-light bg-brand-light" : ""}`}
+      className={`relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2 hover:border-gray-400 transition-colors ${pressing ? "select-none ring-2 ring-indigo-400 bg-indigo-50" : ""}`}
     >
       <div
         className="absolute right-2 top-2 cursor-grab active:cursor-grabbing text-gray-400 touch-none"
@@ -121,7 +121,7 @@ function ServiceCard({
       <div className="sm:ml-4 flex items-center space-x-2">
         <button
           type="button"
-          className="p-1 text-brand-dark hover:text-brand-dark"
+          className="p-1 text-indigo-600 hover:text-indigo-800"
           onClick={() => onEdit(service)}
           aria-label="Edit"
         >
@@ -303,7 +303,7 @@ export default function DashboardPage() {
     return (
       <MainLayout>
         <div className="flex justify-center items-center min-h-screen">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-dark"></div>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
         </div>
       </MainLayout>
     );
@@ -380,13 +380,13 @@ export default function DashboardPage() {
           />
           {user.user_type === 'artist' && (
             <div className="mt-2 space-x-4">
-              <Link href="/dashboard/quotes" className="text-brand-dark hover:underline text-sm">
+              <Link href="/dashboard/quotes" className="text-indigo-600 hover:underline text-sm">
                 View All Quotes
               </Link>
-              <Link href="/sound-providers" className="text-brand-dark hover:underline text-sm">
+              <Link href="/sound-providers" className="text-indigo-600 hover:underline text-sm">
                 Sound Providers
               </Link>
-              <Link href="/quote-calculator" className="text-brand-dark hover:underline text-sm">
+              <Link href="/quote-calculator" className="text-indigo-600 hover:underline text-sm">
                 Quote Calculator
               </Link>
             </div>
@@ -395,7 +395,7 @@ export default function DashboardPage() {
             <div className="mt-2">
               <Link
                 href="/dashboard/client/bookings"
-                className="text-brand-dark hover:underline text-sm"
+                className="text-indigo-600 hover:underline text-sm"
               >
                 My Bookings
               </Link>
@@ -450,7 +450,7 @@ export default function DashboardPage() {
                     </div>
                     <Link
                       href={`/booking-requests/${req.id}`}
-                      className="mt-2 inline-block text-brand-dark hover:underline text-sm"
+                      className="mt-2 inline-block text-indigo-600 hover:underline text-sm"
                     >
                       View Chat
                     </Link>
@@ -458,7 +458,7 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={() => setRequestToUpdate(req)}
-                        className="ml-4 mt-2 inline-block text-brand-dark hover:underline text-sm"
+                        className="ml-4 mt-2 inline-block text-indigo-600 hover:underline text-sm"
                       >
                         Update
                       </button>
@@ -475,7 +475,7 @@ export default function DashboardPage() {
                 )}
                 footer={
                   bookingRequests.length > visibleRequests.length ? (
-                    <Link href="/booking-requests" className="text-brand-dark hover:underline text-sm">
+                    <Link href="/booking-requests" className="text-indigo-600 hover:underline text-sm">
                       View All Requests
                     </Link>
                   ) : null
@@ -527,7 +527,7 @@ export default function DashboardPage() {
                 <div className="mt-2">
                   <Link
                     href="/dashboard/bookings"
-                    className="text-brand-dark hover:underline text-sm"
+                    className="text-indigo-600 hover:underline text-sm"
                   >
                     View All Bookings
                   </Link>

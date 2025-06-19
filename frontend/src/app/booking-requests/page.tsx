@@ -201,7 +201,7 @@ export default function BookingRequestsPage() {
                     }
                     aria-expanded={openClients[g.clientId] || false}
                     aria-controls={`requests-${g.clientId}`}
-                    className="w-full text-left p-4 bg-gray-50 font-medium flex items-center justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
+                    className="w-full text-left p-4 bg-gray-50 font-medium flex items-center justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
                   >
                     <span>
                       {openClients[g.clientId] ? '▼' : '▶'} {g.clientName} ({g.requests.length} requests)
@@ -222,7 +222,7 @@ export default function BookingRequestsPage() {
                             onKeyPress={() => handleRowClick(r.id)}
                             className={clsx(
                               'grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 pl-6 cursor-pointer hover:bg-gray-50 focus:outline-none',
-                              unread ? 'bg-brand-light border-l-4 border-brand' : 'bg-white',
+                              unread ? 'bg-indigo-50 border-l-4 border-indigo-500' : 'bg-white',
                             )}
                           >
                             <div className="text-sm sm:text-center">

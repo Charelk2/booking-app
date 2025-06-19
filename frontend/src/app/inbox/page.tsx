@@ -83,7 +83,7 @@ export default function InboxPage() {
             className={clsx(
               'shadow rounded-lg p-4 space-y-2 cursor-pointer active:bg-gray-100 transition',
               b.unread > 0
-                ? 'bg-brand-light border-l-4 border-brand'
+                ? 'bg-indigo-50 border-l-4 border-indigo-500'
                 : 'bg-white'
             )}
           >
@@ -181,7 +181,7 @@ export default function InboxPage() {
             type="button"
             onClick={() => setActiveTab('requests')}
             className={`pb-2 font-medium ${
-              activeTab === 'requests' ? 'border-b-2 border-brand-dark' : 'text-gray-500'
+              activeTab === 'requests' ? 'border-b-2 border-indigo-600' : 'text-gray-500'
             }`}
           >
             Booking Requests
@@ -190,7 +190,7 @@ export default function InboxPage() {
             type="button"
             onClick={() => setActiveTab('chats')}
             className={`pb-2 font-medium ${
-              activeTab === 'chats' ? 'border-b-2 border-brand-dark' : 'text-gray-500'
+              activeTab === 'chats' ? 'border-b-2 border-indigo-600' : 'text-gray-500'
             }`}
           >
             Chats

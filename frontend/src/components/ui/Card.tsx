@@ -23,7 +23,7 @@ export default function Card({
     >
       {loading && (
         <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10" aria-label="Loading">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-brand-dark border-t-transparent" />
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
         </div>
       )}
       <div className={clsx(loading && 'opacity-50')}>{children}</div>

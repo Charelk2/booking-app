@@ -112,6 +112,6 @@ describe('Stepper progress bar', () => {
       button.focus();
     });
     expect(button.className).toContain('focus-visible:ring-2');
-    expect(button.className).toContain('focus-visible:ring-brand');
+    expect(button.className).toContain('focus-visible:ring-indigo-500');
   });
 });

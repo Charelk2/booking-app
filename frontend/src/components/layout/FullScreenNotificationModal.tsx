@@ -94,7 +94,7 @@ export default function FullScreenNotificationModal({
               >
                 {showUnread ? 'Show All' : 'Unread Only'}
               </button>
-              <button type="button" onClick={markAllRead} className="text-sm text-brand-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              <button type="button" onClick={markAllRead} className="text-sm text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
                 Mark All as Read
               </button>
               <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
@@ -145,7 +145,7 @@ export default function FullScreenNotificationModal({
                         type="button"
                         aria-label="Load more notifications"
                         onClick={loadMore}
-                        className="text-sm text-brand-dark hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="text-sm text-indigo-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                       >
                         Load more
                       </button>

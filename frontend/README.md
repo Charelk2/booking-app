@@ -49,6 +49,7 @@ colors: {
     DEFAULT: '#7c3aed',
     dark: '#6d28d9',
     light: '#c084fc',
+    indigo: '#6366f1',
   },
 }
 ```
@@ -59,6 +60,7 @@ colors: {
   --brand-color: #7c3aed;
   --brand-color-dark: #6d28d9;
   --brand-color-light: #c084fc;
+  --brand-color-indigo: #6366f1;
 }
 ```
 

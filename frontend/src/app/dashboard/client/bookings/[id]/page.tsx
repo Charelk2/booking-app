@@ -90,7 +90,7 @@ export default function BookingDetailsPage() {
         </p>
         <Link
           href={`/artists/${booking.artist_id}`}
-          className="text-brand-dark underline text-sm"
+          className="text-indigo-600 underline text-sm"
           data-testid="view-artist-link"
         >
           View Artist
@@ -113,7 +113,7 @@ export default function BookingDetailsPage() {
               href={`/api/v1/payments/${booking.payment_id}/receipt`}
               target="_blank"
               rel="noopener"
-              className="text-brand-dark underline text-sm"
+              className="text-indigo-600 underline text-sm"
               data-testid="booking-receipt-link"
             >
               View receipt
@@ -125,7 +125,7 @@ export default function BookingDetailsPage() {
             <button
               type="button"
               onClick={() => setShowPayment(true)}
-              className="text-brand-dark underline text-sm"
+              className="text-indigo-600 underline text-sm"
               data-testid="pay-deposit-button"
             >
               Pay deposit
@@ -135,7 +135,7 @@ export default function BookingDetailsPage() {
             <button
               type="button"
               onClick={handleDownload}
-              className="text-brand-dark underline text-sm"
+              className="text-indigo-600 underline text-sm"
               data-testid="add-calendar-button"
             >
               Add to calendar
@@ -144,7 +144,7 @@ export default function BookingDetailsPage() {
           {booking.source_quote?.booking_request_id && (
             <Link
               href={`/booking-requests/${booking.source_quote.booking_request_id}`}
-              className="text-brand-dark underline text-sm"
+              className="text-indigo-600 underline text-sm"
               data-testid="message-artist-link"
             >
               Message Artist
@@ -152,7 +152,7 @@ export default function BookingDetailsPage() {
           )}
           <Link
             href="/dashboard/client/bookings"
-            className="text-brand-dark underline text-sm"
+            className="text-indigo-600 underline text-sm"
           >
             Back to bookings
           </Link>

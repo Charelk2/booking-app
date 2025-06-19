@@ -36,7 +36,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-light to-white">
+    <div className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
       <Disclosure as="nav" className="bg-white shadow-sm">
         {() => (
           <>
@@ -44,7 +44,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
               <div className="flex h-16 justify-between">
                 <div className="flex">
                   <div className="flex flex-shrink-0 items-center">
-                    <Link href="/" className="text-xl font-bold text-brand-dark">
+                    <Link href="/" className="text-xl font-bold text-indigo-600">
                       Artist Booking
                     </Link>
                   </div>
@@ -55,7 +55,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                         href={item.href}
                         className={classNames(
                           pathname === item.href
-                            ? 'border-brand text-gray-900'
+                            ? 'border-indigo-500 text-gray-900'
                             : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
                           'inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium'
                         )}
@@ -71,10 +71,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   {user ? (
                     <Menu as="div" className="relative ml-3">
                       <div>
-                        <Menu.Button className="flex rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2">
+                        <Menu.Button className="flex rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
                           <span className="sr-only">Open user menu</span>
-                          <div className="h-8 w-8 rounded-full bg-brand-light flex items-center justify-center">
-                            <span className="text-brand-dark font-medium">
+                          <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                            <span className="text-indigo-600 font-medium">
                               {user.first_name?.[0] || user.email[0]}
                             </span>
                           </div>
@@ -189,7 +189,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                       </Link>
                       <Link
                         href="/register"
-                        className="bg-brand-dark text-white hover:bg-brand-dark px-3 py-2 rounded-md text-sm font-medium"
+                        className="bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-2 rounded-md text-sm font-medium"
                       >
                         Sign up
                       </Link>
@@ -202,7 +202,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   <button
                     type="button"
                     onClick={() => setMenuOpen(true)}
-                    className="-mr-2 ml-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand"
+                    className="-mr-2 ml-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
                   >
                     <span className="sr-only">Open main menu</span>
                     <Bars3Icon className="block h-6 w-6" aria-hidden="true" />

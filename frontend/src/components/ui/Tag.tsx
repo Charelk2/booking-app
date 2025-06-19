@@ -9,7 +9,7 @@ export default function Tag({ className, children, ...props }: TagProps) {
     <span
       {...props}
       className={clsx(
-        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-light text-brand-dark',
+        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700',
         className,
       )}
     >

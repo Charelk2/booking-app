@@ -116,14 +116,14 @@ export default function LoginPage() {
                     type="checkbox"
                     aria-label="Remember me"
                     {...register('remember')}
-                    className="h-4 w-4 rounded border-gray-300 text-brand-dark focus:ring-brand-dark"
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
                   />
                   <label htmlFor="remember" className="ml-2 block text-sm text-gray-900">
                     Remember me
                   </label>
                 </div>
                 <div className="text-sm">
-                  <Link href="/forgot-password" className="font-semibold text-brand-dark hover:text-brand">
+                  <Link href="/forgot-password" className="font-semibold text-indigo-600 hover:text-indigo-500">
                     Forgot password?
                   </Link>
                 </div>
@@ -181,7 +181,7 @@ export default function LoginPage() {
             Not a member?{' '}
             <Link
               href={`/register${next ? `?next=${encodeURIComponent(next)}` : ''}`}
-              className="font-semibold leading-6 text-brand-dark hover:text-brand"
+              className="font-semibold leading-6 text-indigo-600 hover:text-indigo-500"
             >
               Sign up now
             </Link>

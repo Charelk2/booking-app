@@ -661,7 +661,7 @@ returned. Newly created profiles default to `true`.
 The redesigned listing page features a rounded filter bar wrapped in a white
 card with a subtle shadow. Chips use `rounded-full bg-sky-100 text-sky-800
 px-3 py-1.5 text-sm` styling and highlight in `bg-sky-200 text-sky-900` when selected. The entire
-page now rests on a soft gradient background from the brand color to white. A new
+page now rests on a soft gradient background from indigo to white. A new
 "Clear filters" button appears when any filter is active and resets all filter
 inputs. When no results match the current filters the page shows "No artists
 found" beneath the filter bar.
@@ -677,7 +677,7 @@ found" beneath the filter bar.
 * `/booking-requests` lists all requests with search and filters. Search and filter inputs now include hidden labels for screen readers.
 * `ChatThreadView` component for mobile-friendly chat threads using a modern card-style layout.
 * Tap a booking request card to open `/booking-requests/[id]`.
-* Unread booking requests are highlighted in the brand palette so they stand out.
+* Unread booking requests are highlighted in indigo so they stand out.
 * Requests from the same client are grouped under a collapsible heading for a cleaner overview.
 * Toggle buttons now include `aria-expanded` and `aria-controls` attributes and display a focus ring for keyboard users.
 * Each request row now shows a red badge with its unread count next to the status.
@@ -843,9 +843,9 @@ formatCurrency(99.5, 'USD', 'en-US'); // => 'US$99.50'
 ### Brand Colors
 
 The frontend uses a small **brand** palette defined in `tailwind.config.js`. The
-primary hue is purple (`#7c3aed`), with `brand-dark` and `brand-light` variants.
-Components reference these via utility classes such as `bg-brand` and
-`bg-brand-dark`.
+primary hue is purple (`#7c3aed`) with `brand-dark`, `brand-light`, and now
+`brand-indigo` variants. Components reference these via utility classes such as
+`bg-brand` and `bg-brand-dark`.
 
 Update these colors in `frontend/tailwind.config.js` and
 `frontend/src/app/globals.css` to adjust the site's look and feel. The Tailwind
