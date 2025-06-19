@@ -134,7 +134,7 @@ export default function InboxPage() {
             onKeyPress={() => handleClick(t.booking_request_id)}
             className="flex items-center space-x-3 px-4 py-3 border-b cursor-pointer hover:bg-gray-50 active:bg-gray-100"
           >
-            <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm">
+            <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
               {initials}
             </div>
             <div className="flex-1 overflow-hidden">
