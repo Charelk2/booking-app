@@ -3,6 +3,7 @@ export { default as Card } from './Card';
 export { default as Tag } from './Tag';
 export { default as Stepper } from './Stepper';
 export { default as TextInput } from './TextInput';
+export { default as TextArea } from './TextArea';
 export { default as Toast } from './Toast';
 export { default as TimeAgo } from './TimeAgo';
 export { default as BottomSheet } from './BottomSheet';
