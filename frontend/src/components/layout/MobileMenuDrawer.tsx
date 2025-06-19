@@ -76,7 +76,7 @@ export default function MobileMenuDrawer({
                     onClick={onClose}
                     className={classNames(
                       pathname === item.href
-                        ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                        ? 'bg-brand-light border-brand text-brand-dark'
                         : 'border-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900',
                       'block border-l-4 px-3 py-2 text-base font-medium'
                     )}

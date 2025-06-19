@@ -61,7 +61,7 @@ describe('InboxPage unread badge', () => {
       root.render(<InboxPage />);
     });
     const card = container.querySelector('li div');
-    expect(card?.className).toContain('bg-indigo-50');
+    expect(card?.className).toContain('bg-brand-light');
     const badge = container.querySelector('span.bg-red-600');
     expect(badge?.textContent).toBe('2');
     const dot = container.querySelector('span[aria-label="Unread messages"]');
