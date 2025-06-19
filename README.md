@@ -12,14 +12,14 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Minor fix: the artists listing now gracefully handles incomplete user data from the API.
 - Bookings now track `payment_status` and `deposit_amount` in `bookings_simple`.
   The deposit amount defaults to half of the accepted quote total.
-- A new `deposit_due_by` field records when the deposit should be paid.
+- A new `deposit_due_by` field records when the deposit is due, one week after a quote is accepted.
 - Payment receipts are stored with a `payment_id` so clients can view them from the dashboard.
 - Booking cards now show deposit and payment status with a simple progress timeline.
 - Booking wizard includes a required **Guests** step.
 - Date picker and quote calculator show skeleton loaders while data fetches.
 - Google Maps and large images load lazily once in view to reduce first paint time.
 - Client dashboards now include a bookings list with upcoming and past filters via `/api/v1/bookings/my-bookings?status=`.
-- Each booking item in this list now includes a `deposit_due_by` field when the booking was created from a quote.
+- Each booking item in this list now includes a `deposit_due_by` field when the booking was created from a quote. This due date is calculated one week from the moment the quote is accepted.
 - Artists can mark bookings completed or cancelled and download confirmed bookings as calendar (.ics) files.
 - Clients can leave a star rating and comment once a booking is marked completed. Service detail pages now display these reviews.
 - A **Leave Review** button now appears in chat when a completed booking has no review.
