@@ -22,6 +22,7 @@ from .db_utils import (
     ensure_mfa_columns,
     ensure_request_attachment_column,
     ensure_booking_simple_columns,
+    ensure_calendar_account_email_column,
 )
 from .models.user import User
 from .models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
@@ -69,6 +70,7 @@ ensure_portfolio_image_urls_column(engine)
 ensure_currency_column(engine)
 ensure_mfa_columns(engine)
 ensure_booking_simple_columns(engine)
+ensure_calendar_account_email_column(engine)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Artist Booking API")
