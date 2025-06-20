@@ -4,12 +4,13 @@ import { createRoot } from 'react-dom/client';
 import EditArtistProfilePage from '../edit/page';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  useSearchParams: jest.fn(),
   usePathname: jest.fn(() => '/dashboard/profile/edit'),
 }));
 jest.mock('@/components/layout/MainLayout', () => {
@@ -21,6 +22,7 @@ jest.mock('@/components/layout/MainLayout', () => {
 function setup() {
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'artist' } });
   (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+  (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
   (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: { user_id: 1, portfolio_image_urls: ['/img1.jpg', '/img2.jpg'] } });
   (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({ data: { connected: false } });
   const div = document.createElement('div');

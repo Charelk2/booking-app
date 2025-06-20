@@ -143,3 +143,49 @@ def test_calendar_status_endpoint():
     result2 = api_calendar.google_calendar_status(db, user)
     assert result2 == {'connected': True}
 
+
+def test_callback_success(monkeypatch):
+    db = setup_db()
+    user = User(
+        email='cb@test.com',
+        password='x',
+        first_name='Call',
+        last_name='Back',
+        user_type=UserType.ARTIST,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    called = {}
+
+    def dummy_exchange(uid, code, uri, session):
+        called['uid'] = uid
+
+    monkeypatch.setattr(calendar_service, 'exchange_code', dummy_exchange)
+    monkeypatch.setattr(api_calendar.settings, 'FRONTEND_URL', 'http://frontend', raising=False)
+
+    resp = api_calendar.google_calendar_callback('code', str(user.id), db)
+    assert resp.headers['location'] == 'http://frontend/dashboard/profile/edit?calendarSync=success'
+    assert called['uid'] == user.id
+
+
+def test_callback_error(monkeypatch):
+    db = setup_db()
+    user = User(email='err@test.com', password='x', first_name='Err', last_name='User', user_type=UserType.ARTIST)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    def raise_exc(*a, **k):
+        raise RuntimeError('boom')
+
+    monkeypatch.setattr(calendar_service, 'exchange_code', raise_exc)
+    mock_logger = Mock()
+    monkeypatch.setattr(api_calendar, 'logger', mock_logger)
+    monkeypatch.setattr(api_calendar.settings, 'FRONTEND_URL', 'http://frontend', raising=False)
+
+    resp = api_calendar.google_calendar_callback('c', str(user.id), db)
+    assert resp.headers['location'] == 'http://frontend/dashboard/profile/edit?calendarSync=error'
+    mock_logger.error.assert_called()
+
