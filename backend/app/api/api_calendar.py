@@ -16,6 +16,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["google-calendar"])
 
 
+@router.get("/google-calendar/status")
+def google_calendar_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return whether the user has a connected Google Calendar."""
+    account = (
+        db.query(CalendarAccount)
+        .filter(
+            CalendarAccount.user_id == current_user.id,
+            CalendarAccount.provider == CalendarProvider.GOOGLE,
+        )
+        .first()
+    )
+    return {"connected": account is not None}
+
+
 @router.get("/google-calendar/connect")
 def connect_google_calendar(
     db: Session = Depends(get_db),
