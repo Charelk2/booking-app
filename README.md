@@ -498,6 +498,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Accepted quotes now include a `booking_id` when retrieved via `GET /api/v1/quotes/{id}` so clients can load booking details.
 * `POST /api/v1/quotes/{id}/accept` accepts an optional `service_id` query
   parameter when the related booking request was created without one.
+* Frontend helper `acceptQuoteV2(quoteId, serviceId?)` automatically appends
+  `?service_id={serviceId}` to this request when a service ID is provided.
 * The client quote detail page now uses this endpoint when clients click **Accept**.
 * Quote V2 error handling logs the acting user and quote details and returns structured responses for easier debugging.
 * Accepting a quote may respond with **500 Internal Server Error** if booking creation fails.
