@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
+from ics import Calendar
 from app.models import User, UserType, Booking, BookingStatus, Service
 from app.models.artist_profile_v2 import ArtistProfileV2
 from app.models.base import BaseModel
@@ -44,5 +45,9 @@ def test_calendar_download_returns_ics():
 
     response = download_booking_calendar(db=db, booking_id=booking.id, current_user=client_user)
     assert response.media_type == 'text/calendar'
-    assert 'BEGIN:VCALENDAR' in response.body.decode()
+    cal = Calendar(response.body.decode())
+    event = next(iter(cal.events))
+    assert event.name == 'Gig'
+    assert event.begin.datetime == datetime.fromisoformat('2025-01-01T12:00:00+00:00')
+    assert event.end.datetime == datetime.fromisoformat('2025-01-01T13:00:00+00:00')
 

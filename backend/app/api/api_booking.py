@@ -4,6 +4,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, selectinload
 from fastapi.responses import Response
+from ics import Calendar, Event
 from typing import List, Any
 from decimal import Decimal
 
@@ -338,19 +339,13 @@ def download_booking_calendar(
     if booking.status != BookingStatus.CONFIRMED:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Booking is not confirmed")
 
-    def fmt(dt):
-        return dt.strftime("%Y%m%dT%H%M%SZ")
-
-    ics = (
-        "BEGIN:VCALENDAR\n"
-        "VERSION:2.0\n"
-        "BEGIN:VEVENT\n"
-        f"SUMMARY:{booking.service.title}\n"
-        f"DTSTART:{fmt(booking.start_time)}\n"
-        f"DTEND:{fmt(booking.end_time)}\n"
-        "END:VEVENT\n"
-        "END:VCALENDAR"
-    )
+    calendar = Calendar()
+    event = Event()
+    event.name = booking.service.title
+    event.begin = booking.start_time
+    event.end = booking.end_time
+    calendar.events.add(event)
+    ics = calendar.serialize()
 
     headers = {"Content-Disposition": f"attachment; filename=booking-{booking_id}.ics"}
     return Response(ics, media_type="text/calendar", headers=headers)
