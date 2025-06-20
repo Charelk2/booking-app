@@ -118,6 +118,23 @@ def test_unavailable_dates_include_calendar(monkeypatch):
     assert resp['unavailable_dates'] == ['2025-01-01', '2025-01-02']
 
 
+def test_flow_includes_openid_scope(monkeypatch):
+    captured = {}
+
+    def dummy_from_client_config(config, scopes=None, redirect_uri=None):
+        captured['scopes'] = scopes
+
+        class DummyFlow:
+            def authorization_url(self, *args, **kwargs):
+                return 'http://auth', None
+
+        return DummyFlow()
+
+    monkeypatch.setattr(calendar_service.Flow, 'from_client_config', dummy_from_client_config)
+    calendar_service.get_auth_url(1, 'http://localhost')
+    assert 'openid' in captured['scopes']
+
+
 def test_calendar_status_endpoint():
     db = setup_db()
     user = User(
