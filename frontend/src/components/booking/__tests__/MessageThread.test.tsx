@@ -546,6 +546,7 @@ describe('MessageThread component', () => {
   });
 
 it('opens payment modal after accepting quote', async () => {
+    let resolveAccept: () => void;
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
       data: [
         {
@@ -576,6 +577,9 @@ it('opens payment modal after accepting quote', async () => {
         updated_at: '',
       },
     });
+    (api.acceptQuoteV2 as jest.Mock).mockImplementation(() => new Promise((res) => {
+      resolveAccept = () => res({ data: {} });
+    }));
 
     await act(async () => {
       root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
@@ -589,7 +593,12 @@ it('opens payment modal after accepting quote', async () => {
     await act(async () => {
       acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
+    expect(acceptBtn.disabled).toBe(true);
+    expect(acceptBtn.querySelector('.animate-spin')).not.toBeNull();
     expect(api.acceptQuoteV2).toHaveBeenCalledWith(7, 4);
+    await act(async () => {
+      resolveAccept();
+    });
     await act(async () => {
       await Promise.resolve();
     });
