@@ -759,7 +759,7 @@ it.skip('adds ring styles when deposit actions receive keyboard focus', async ()
     expect(calBtn.className).toContain('focus-visible:ring-brand');
   });
 
-it('falls back to legacy endpoint when accept fails', async () => {
+it('shows an error when acceptQuoteV2 fails', async () => {
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
       data: [
         {
@@ -790,8 +790,8 @@ it('falls back to legacy endpoint when accept fails', async () => {
         updated_at: '',
       },
     });
-    (api.acceptQuoteV2 as jest.Mock).mockRejectedValue(new Error('fail'));
-    (api.updateQuoteAsClient as jest.Mock).mockResolvedValue({ data: {} });
+  (api.acceptQuoteV2 as jest.Mock).mockRejectedValue(new Error('fail'));
+  (api.updateQuoteAsClient as jest.Mock).mockResolvedValue({ data: {} });
 
     await act(async () => {
       root.render(<MessageThread bookingRequestId={1} />);
@@ -806,9 +806,9 @@ it('falls back to legacy endpoint when accept fails', async () => {
     await act(async () => {
       acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-  expect(api.updateQuoteAsClient).toHaveBeenCalledWith(8, {
-    status: 'accepted_by_client',
-  });
+  const alert = container.querySelector('p[role="alert"]');
+  expect(alert?.textContent).toContain('fail');
+  expect(api.updateQuoteAsClient).not.toHaveBeenCalled();
 });
 
 it('shows an error when quote acceptance fails', async () => {
@@ -860,9 +860,10 @@ it('shows an error when quote acceptance fails', async () => {
   });
 
   const alert = container.querySelector('p[role="alert"]');
-  expect(alert?.textContent).toContain('Failed to accept quote');
+  expect(alert?.textContent).toContain('nope');
   const modalHeading = container.querySelector('h2');
   expect(modalHeading).toBeNull();
+  expect(api.updateQuoteAsClient).not.toHaveBeenCalled();
 });
 
 it('declines quote using legacy endpoint', async () => {
