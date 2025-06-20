@@ -8,6 +8,7 @@ from app.db_utils import (
     ensure_currency_column,
     ensure_booking_simple_columns,
     ensure_mfa_columns,
+    ensure_calendar_account_email_column,
 )
 
 
@@ -105,6 +106,26 @@ def setup_user_engine() -> Engine:
     return engine
 
 
+def setup_calendar_account_engine() -> Engine:
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE calendar_accounts (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER,
+                    provider VARCHAR,
+                    refresh_token VARCHAR,
+                    access_token VARCHAR,
+                    token_expiry DATETIME
+                )
+                """
+            )
+        )
+    return engine
+
+
 def test_add_price_visible_column():
     engine = setup_artist_engine()
     ensure_price_visible_column(engine)
@@ -142,3 +163,12 @@ def test_mfa_columns():
     assert "mfa_secret" in cols
     assert "mfa_enabled" in cols
     assert "mfa_recovery_tokens" in cols
+
+
+def test_calendar_account_email_column():
+    engine = setup_calendar_account_engine()
+    ensure_calendar_account_email_column(engine)
+    inspector = inspect(engine)
+    cols = [c["name"] for c in inspector.get_columns("calendar_accounts")]
+    assert "email" in cols
+
