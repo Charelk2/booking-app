@@ -1,6 +1,6 @@
 # backend/app/api/auth.py
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -17,6 +17,8 @@ from ..models.user import User, UserType
 from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
 from ..schemas.user import UserCreate, UserResponse, TokenData, MFAVerify, MFACode
 from ..utils.auth import get_password_hash, verify_password
+from ..utils.redis_cache import get_redis_client
+import redis
 
 try:
     import pyotp
@@ -37,6 +39,10 @@ router = APIRouter(tags=["auth"])
 SECRET_KEY = os.getenv("SECRET_KEY", "a_default_fallback_secret_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+
+# Login attempt throttling
+MAX_LOGIN_ATTEMPTS = int(os.getenv("MAX_LOGIN_ATTEMPTS", 5))
+LOGIN_ATTEMPT_WINDOW = int(os.getenv("LOGIN_ATTEMPT_WINDOW", 300))  # seconds
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -93,11 +99,37 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 # TODO: Add rate limiting and lockout after repeated failures
 @router.post("/login")
 def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
+    ip = request.client.host if request.client else "unknown"
+    user_key = f"login_fail:user:{form_data.username}"
+    ip_key = f"login_fail:ip:{ip}"
+    client = get_redis_client()
+    try:
+        user_attempts = int(client.get(user_key) or 0)
+        ip_attempts = int(client.get(ip_key) or 0)
+        if user_attempts >= MAX_LOGIN_ATTEMPTS or ip_attempts >= MAX_LOGIN_ATTEMPTS:
+            logger.info(
+                "Login locked out for %s from %s", form_data.username, ip
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many login attempts. Try again later.",
+            )
+    except redis.exceptions.ConnectionError as exc:
+        logger.warning("Redis unavailable for login tracking: %s", exc)
+
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password):
+        try:
+            client.incr(user_key)
+            client.expire(user_key, LOGIN_ATTEMPT_WINDOW)
+            client.incr(ip_key)
+            client.expire(ip_key, LOGIN_ATTEMPT_WINDOW)
+        except redis.exceptions.ConnectionError as exc:
+            logger.warning("Could not update login attempt counters: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -116,6 +148,12 @@ def login(
         except Exception as exc:  # pragma: no cover - SMS failures shouldn't crash
             logger.warning("Unable to send MFA code: %s", exc)
         return {"mfa_required": True, "mfa_token": temp_token}
+
+    try:
+        client.delete(user_key)
+        client.delete(ip_key)
+    except redis.exceptions.ConnectionError as exc:
+        logger.warning("Could not reset login counters: %s", exc)
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
