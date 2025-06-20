@@ -155,6 +155,7 @@ export default function EditArtistProfilePage(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [calendarConnected, setCalendarConnected] = useState(false);
+  const [calendarEmail, setCalendarEmail] = useState<string | null>(null);
 
   const searchParams = useSearchParams();
 
@@ -215,8 +216,14 @@ export default function EditArtistProfilePage(): JSX.Element {
 
     fetchProfile();
     getGoogleCalendarStatus()
-      .then((res) => setCalendarConnected(res.data.connected))
-      .catch(() => setCalendarConnected(false));
+      .then((res) => {
+        setCalendarConnected(res.data.connected);
+        setCalendarEmail(res.data.email || null);
+      })
+      .catch(() => {
+        setCalendarConnected(false);
+        setCalendarEmail(null);
+      });
   }, [user, authLoading, router, pathname, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -446,6 +453,7 @@ export default function EditArtistProfilePage(): JSX.Element {
     try {
       await disconnectGoogleCalendar();
       setCalendarConnected(false);
+      setCalendarEmail(null);
     } catch (err) {
       console.error('Failed to disconnect calendar:', err);
       setError('Failed to disconnect Google Calendar.');
@@ -789,7 +797,10 @@ export default function EditArtistProfilePage(): JSX.Element {
             <section className="pt-8">
               <h2 className="text-xl font-medium text-gray-700 mb-6">Sync Google Calendar</h2>
               <p className="text-sm text-gray-600 mb-4">
-                Status: {calendarConnected ? 'Connected' : 'Not connected'}
+                Status:
+                {calendarConnected
+                  ? ` Connected${calendarEmail ? ` - ${calendarEmail}` : ''}`
+                  : ' Not connected'}
               </p>
               <div className="flex gap-4">
                 <button
