@@ -302,18 +302,23 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const handleAcceptQuote = useCallback(
     async (q: QuoteV2) => {
       setAcceptingQuoteId(q.id);
+      let accepted = false;
       try {
         await acceptQuoteV2(q.id, serviceId);
+        accepted = true;
       } catch (err) {
         console.error('acceptQuoteV2 failed', err);
         try {
           await updateQuoteAsClient(q.id, { status: 'accepted_by_client' });
+          accepted = true;
         } catch (err2) {
           console.error('Failed legacy accept', err2);
-          setErrorMsg('Failed to accept quote. Please refresh and try again.');
-          setAcceptingQuoteId(null);
-          return;
         }
+      }
+      if (!accepted) {
+        setErrorMsg('Failed to accept quote. Please refresh and try again.');
+        setAcceptingQuoteId(null);
+        return;
       }
       try {
         const fresh = await getQuoteV2(q.id);
@@ -344,6 +349,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         setQuotes((prev) => ({ ...prev, [q.id]: res.data }));
       } catch (err) {
         console.error('Failed to decline quote', err);
+        setErrorMsg('Failed to decline quote. Please refresh and try again.');
       }
     },
     [],
