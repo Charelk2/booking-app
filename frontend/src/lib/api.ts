@@ -67,7 +67,9 @@ api.interceptors.response.use(
           422: 'Validation failed. Please check your input.',
           500: 'Server error. Please try again later.',
         };
-        message = map[status] || message;
+        if (message === 'An unexpected error occurred.') {
+          message = map[status] || message;
+        }
       } else {
         message = 'Network error. Please check your connection.';
       }
