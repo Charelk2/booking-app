@@ -35,7 +35,9 @@ function BookingList({
             data-booking-id={b.id}
             className="block bg-white p-4 shadow rounded-lg hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
           >
-            <div className="font-medium text-gray-900">{b.service.title}</div>
+            <div className="font-medium text-gray-900">
+              {b.service.title} - {b.service.artist.business_name}
+            </div>
             <div className="text-sm text-gray-500">
               {format(new Date(b.start_time), "MMM d, yyyy h:mm a")}
             </div>

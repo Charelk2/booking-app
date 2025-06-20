@@ -83,7 +83,9 @@ export default function BookingDetailsPage() {
   return (
     <MainLayout>
       <div className="max-w-xl mx-auto p-4 space-y-3">
-        <h1 className="text-xl font-semibold">{booking.service.title}</h1>
+        <h1 className="text-xl font-semibold">
+          {booking.service.title} - {booking.service.artist.business_name}
+        </h1>
         <p className="text-sm text-gray-700">
           {new Date(booking.start_time).toLocaleString()}
         </p>

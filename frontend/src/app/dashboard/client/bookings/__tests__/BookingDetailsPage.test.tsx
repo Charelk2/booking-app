@@ -46,7 +46,7 @@ describe("BookingDetailsPage", () => {
         deposit_amount: 50,
         deposit_due_by: new Date("2024-01-08").toISOString(),
         payment_status: "pending",
-        service: { title: "Gig" },
+        service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 3 },
       },
     });
@@ -62,7 +62,7 @@ describe("BookingDetailsPage", () => {
     });
 
     expect(getBookingDetails).toHaveBeenCalledWith(1);
-    expect(div.textContent).toContain("Gig");
+    expect(div.textContent).toContain("Gig - Artist");
     expect(div.textContent).toContain("Deposit due");
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
     expect(artistLink?.getAttribute("href")).toBe("/artists/2");
@@ -92,7 +92,7 @@ describe("BookingDetailsPage", () => {
         deposit_due_by: new Date("2024-01-08").toISOString(),
         payment_status: "deposit_paid",
         payment_id: "pay_123",
-        service: { title: "Gig" },
+        service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 3 },
       },
     });
@@ -133,7 +133,7 @@ describe("BookingDetailsPage", () => {
         deposit_amount: 50,
         deposit_due_by: new Date("2024-01-08").toISOString(),
         payment_status: "pending",
-        service: { title: "Gig" },
+        service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 3 },
       },
     });
@@ -173,7 +173,7 @@ describe("BookingDetailsPage", () => {
         deposit_amount: 50,
         deposit_due_by: new Date("2024-01-08").toISOString(),
         payment_status: "deposit_paid",
-        service: { title: "Gig" },
+        service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 3 },
         source_quote: { booking_request_id: 7 },
       },
@@ -223,7 +223,7 @@ describe("BookingDetailsPage", () => {
         deposit_amount: 50,
         deposit_due_by: new Date("2024-01-08").toISOString(),
         payment_status: "pending",
-        service: { title: "Gig" },
+        service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 3 },
       },
     });
