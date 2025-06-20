@@ -2,10 +2,10 @@
 
 exports[`QuoteBubble matches snapshot 1`] = `
 <div
-  class="bg-brand/10 text-brand-dark rounded-xl p-4 max-w-xs sm:max-w-md dark:bg-brand-dark/30 dark:text-brand-light"
+  class="bg-brand/10 rounded-xl p-4 max-w-xs sm:max-w-md dark:bg-brand-dark/30"
 >
   <h4
-    class="text-sm font-semibold text-brand-dark dark:text-brand-light mb-1"
+    class="text-sm font-semibold mb-1"
   >
     Quote
   </h4>
@@ -13,7 +13,7 @@ exports[`QuoteBubble matches snapshot 1`] = `
     class="space-y-1"
   >
     <li
-      class="text-sm text-gray-800 dark:text-gray-200"
+      class="text-sm"
     >
       Performance
        –
@@ -25,7 +25,7 @@ exports[`QuoteBubble matches snapshot 1`] = `
       </span>
     </li>
     <li
-      class="text-sm text-gray-800 dark:text-gray-200"
+      class="text-sm"
     >
       Sound fee:
        
@@ -36,7 +36,7 @@ exports[`QuoteBubble matches snapshot 1`] = `
       </span>
     </li>
     <li
-      class="text-sm text-gray-800 dark:text-gray-200"
+      class="text-sm"
     >
       Travel fee:
        
@@ -47,13 +47,13 @@ exports[`QuoteBubble matches snapshot 1`] = `
       </span>
     </li>
     <li
-      class="text-sm text-gray-800 dark:text-gray-200"
+      class="text-sm"
     >
       Accommodation: 
       Hotel
     </li>
     <li
-      class="text-sm text-gray-800 dark:text-gray-200"
+      class="text-sm"
     >
       Discount:
        
@@ -64,7 +64,7 @@ exports[`QuoteBubble matches snapshot 1`] = `
       </span>
     </li>
     <li
-      class="text-sm text-gray-800 dark:text-gray-200"
+      class="text-sm"
     >
       Subtotal:
        
@@ -75,7 +75,7 @@ exports[`QuoteBubble matches snapshot 1`] = `
       </span>
     </li>
     <li
-      class="text-sm text-gray-800 dark:text-gray-200"
+      class="text-sm"
     >
       Total:
        
