@@ -106,6 +106,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [announceNewMessage, setAnnounceNewMessage] = useState('');
   const [openDetails, setOpenDetails] = useState<Record<number, boolean>>({});
   const prevLengthRef = useRef(0);
+  const [acceptingQuoteId, setAcceptingQuoteId] = useState<number | null>(null);
 
   const { openPaymentModal, paymentModal } = usePaymentModal(
     ({ status, amount, receiptUrl: url }) => {
@@ -300,6 +301,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
 
   const handleAcceptQuote = useCallback(
     async (q: QuoteV2) => {
+      setAcceptingQuoteId(q.id);
       try {
         await acceptQuoteV2(q.id, serviceId);
       } catch (err) {
@@ -309,6 +311,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         } catch (err2) {
           console.error('Failed legacy accept', err2);
           setErrorMsg('Failed to accept quote. Please refresh and try again.');
+          setAcceptingQuoteId(null);
           return;
         }
       }
@@ -325,6 +328,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         });
       } catch (err3) {
         console.error('Failed to finalize acceptance', err3);
+      } finally {
+        setAcceptingQuoteId(null);
       }
     },
     [bookingRequestId, openPaymentModal, serviceId],
@@ -646,6 +651,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                                   <Button
                                     type="button"
                                     size="sm"
+                                    isLoading={acceptingQuoteId === msg.quote_id}
                                     onClick={() =>
                                       handleAcceptQuote(quotes[msg.quote_id])
                                     }
