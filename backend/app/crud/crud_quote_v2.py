@@ -99,15 +99,15 @@ def accept_quote(
     booking_request = db_quote.booking_request
     if not booking_request or not booking_request.proposed_datetime_1:
         logger.error(
-            "Booking request %s missing service_id or proposed_datetime_1 when accepting quote %s; artist_id=%s client_id=%s",
+            "Booking request %s missing proposed_datetime_1 when accepting quote %s; artist_id=%s client_id=%s",
             getattr(booking_request, "id", None),
             quote_id,
             db_quote.artist_id,
             db_quote.client_id,
         )
         raise error_response(
-            "Booking request missing service_id or proposed_datetime_1",
-            {"booking_request_id": "invalid"},
+            "Booking request is missing a proposed date/time. Please update the request before accepting this quote.",
+            {"proposed_datetime_1": "missing"},
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
