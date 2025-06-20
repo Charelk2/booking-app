@@ -8,6 +8,7 @@ import api, {
   updateQuoteAsArtist,
   updateQuoteAsClient,
   confirmQuoteBooking,
+  acceptQuoteV2,
   createReviewForBooking,
   getReview,
   getServiceReviews,
@@ -200,6 +201,29 @@ describe('confirmQuoteBooking', () => {
       .mockResolvedValue({ data: {} } as unknown as { data: unknown });
     await confirmQuoteBooking(3);
     expect(spy).toHaveBeenCalledWith('/api/v1/quotes/3/confirm-booking', {});
+    spy.mockRestore();
+  });
+});
+
+describe('acceptQuoteV2', () => {
+  it('posts to accept endpoint', async () => {
+    const spy = jest
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await acceptQuoteV2(2);
+    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/2/accept', {});
+    spy.mockRestore();
+  });
+
+  it('appends service_id when provided', async () => {
+    const spy = jest
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await acceptQuoteV2(2, 5);
+    expect(spy).toHaveBeenCalledWith(
+      '/api/v1/quotes/2/accept?service_id=5',
+      {},
+    );
     spy.mockRestore();
   });
 });

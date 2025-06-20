@@ -312,8 +312,12 @@ export const createQuoteV2 = (data: QuoteV2Create) =>
 export const getQuoteV2 = (quoteId: number) =>
   api.get<QuoteV2>(`${API_V1}/quotes/${quoteId}`);
 
-export const acceptQuoteV2 = (quoteId: number) =>
-  api.post<BookingSimple>(`${API_V1}/quotes/${quoteId}/accept`, {});
+export const acceptQuoteV2 = (quoteId: number, serviceId?: number) => {
+  const url = serviceId
+    ? `${API_V1}/quotes/${quoteId}/accept?service_id=${serviceId}`
+    : `${API_V1}/quotes/${quoteId}/accept`;
+  return api.post<BookingSimple>(url, {});
+};
 
 export const getMyArtistQuotes = (params: { skip?: number; limit?: number } = {}) =>
   api.get<Quote[]>(`${API_V1}/quotes/me/artist`, { params });

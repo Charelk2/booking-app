@@ -79,6 +79,7 @@ export default function ThreadPage() {
       <div className="max-w-3xl mx-auto p-4">
         <MessageThread
           bookingRequestId={request.id}
+          serviceId={request.service_id ?? undefined}
           clientName={request.client?.first_name}
           artistName={
             request.artist?.business_name || request.artist?.user?.first_name
