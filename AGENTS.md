@@ -22,6 +22,7 @@ For setup instructions see [README.md](README.md).
 | **Availability** | Checks artist/service availability in real time | `backend/app/api/v1/api_artist.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | On date selection and booking start |
 | **Form State** | Maintains booking progress across steps | `frontend/src/components/booking/BookingWizard.tsx`<br>`frontend/src/contexts/BookingContext.tsx` | Throughout the user session |
 | **Validation** | Validates user input and business logic | `frontend/src/components/booking/BookingWizard.tsx`<br>`backend/app/schemas/` | At every form step and backend endpoint |
+| **Calendar Sync** | Imports Google Calendar events and merges them into `read_artist_availability` | `backend/app/api/api_calendar.py`<br>`backend/app/services/calendar_service.py`<br>`frontend/src/app/dashboard/profile/edit/page.tsx` | When artists connect or disconnect Google Calendar |
 
 ---
 
@@ -140,7 +141,7 @@ For setup instructions see [README.md](README.md).
 
 ## Last Updated
 
-2025-06-10
+2025-06-20
 
 ---
 
