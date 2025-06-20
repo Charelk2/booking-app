@@ -8,7 +8,7 @@ import type { Booking, Review } from "@/types";
 import ReviewFormModal from "@/components/review/ReviewFormModal";
 import usePaymentModal from "@/hooks/usePaymentModal";
 import { format } from "date-fns";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatStatus } from "@/lib/utils";
 import Link from "next/link";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { Spinner } from "@/components/ui";
@@ -51,7 +51,7 @@ function BookingList({
                         : "bg-yellow-100 text-yellow-800"
                 }`}
               >
-                {b.status}
+                {formatStatus(b.status)}
               </span>
               <span className="text-sm text-gray-500">
                 {formatCurrency(Number(b.total_price))}
@@ -60,7 +60,7 @@ function BookingList({
             {b.deposit_amount !== undefined && (
               <div className="text-sm text-gray-500 mt-1">
                 Deposit: {formatCurrency(Number(b.deposit_amount || 0))} (
-                {b.payment_status})
+                {formatStatus(b.payment_status)})
               </div>
             )}
             {b.payment_status === "pending" && b.deposit_due_by && (

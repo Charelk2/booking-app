@@ -12,7 +12,7 @@ import {
   downloadBookingIcs,
 } from '@/lib/api';
 import { Booking } from '@/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatStatus } from '@/lib/utils';
 import { Spinner } from '@/components/ui';
 
 export default function ArtistBookingsPage() {
@@ -137,7 +137,7 @@ export default function ArtistBookingsPage() {
                         : 'bg-yellow-100 text-yellow-800'
                     }`}
                   >
-                    {b.status}
+                    {formatStatus(b.status)}
                   </span>
                   <span className="text-sm text-gray-500">
                     {formatCurrency(Number(b.total_price))}
