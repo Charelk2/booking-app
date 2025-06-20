@@ -99,7 +99,7 @@ describe('ArtistBookingsPage', () => {
     });
     await act(async () => { await Promise.resolve(); });
     expect(api.updateBookingStatus).toHaveBeenCalledWith(1, 'completed');
-    expect(div.textContent).toContain('completed');
+    expect(div.textContent).toContain('Completed');
 
     act(() => {
       root.unmount();

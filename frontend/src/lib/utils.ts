@@ -97,3 +97,38 @@ export const getNextAvailableDates = (
   }
   return results;
 };
+
+/** Mapping of internal status codes to user-friendly labels. */
+export const STATUS_LABELS: Record<string, string> = {
+  pending_quote: 'Pending Quote',
+  quote_provided: 'Quote Provided',
+  pending_artist_confirmation: 'Pending Artist Confirmation',
+  request_confirmed: 'Request Confirmed',
+  request_completed: 'Request Completed',
+  request_declined: 'Request Declined',
+  request_withdrawn: 'Request Withdrawn',
+  quote_rejected: 'Quote Rejected',
+  pending_client_action: 'Pending Client Action',
+  accepted_by_client: 'Accepted by Client',
+  rejected_by_client: 'Rejected by Client',
+  confirmed_by_artist: 'Confirmed by Artist',
+  withdrawn_by_artist: 'Withdrawn by Artist',
+  expired: 'Expired',
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+  deposit_paid: 'Deposit Paid',
+  paid: 'Paid',
+};
+
+const capitalize = (word: string): string =>
+  word.charAt(0).toUpperCase() + word.slice(1);
+
+/**
+ * Convert an internal status string like `pending_quote` to a human readable
+ * label ("Pending Quote"). Unknown statuses are humanised by splitting on
+ * underscores and capitalising each word.
+ */
+export const formatStatus = (status: string): string =>
+  STATUS_LABELS[status] || status.split('_').map(capitalize).join(' ');

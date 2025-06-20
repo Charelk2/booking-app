@@ -16,7 +16,7 @@ import {
   deleteService,
 } from "@/lib/api";
 import { format } from "date-fns";
-import { formatCurrency, normalizeService } from "@/lib/utils";
+import { formatCurrency, normalizeService, formatStatus } from "@/lib/utils";
 import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
@@ -435,7 +435,7 @@ export default function DashboardPage() {
                       {req.service?.title || '—'}
                     </div>
                     <div className="mt-2 flex justify-between text-sm text-gray-500">
-                      <span>{req.status}</span>
+                      <span>{formatStatus(req.status)}</span>
                       <span>{new Date(req.created_at).toLocaleDateString()}</span>
                     </div>
                     <Link
@@ -504,7 +504,7 @@ export default function DashboardPage() {
                           : 'bg-yellow-100 text-yellow-800'
                       }`}
                     >
-                      {booking.status}
+                      {formatStatus(booking.status)}
                     </span>
                     <span className="text-sm text-gray-500">
                       {formatCurrency(Number(booking.total_price))}
