@@ -193,3 +193,14 @@ def ensure_mfa_columns(engine: Engine) -> None:
         "mfa_recovery_tokens TEXT"
     )
 
+
+def ensure_calendar_account_email_column(engine: Engine) -> None:
+    """Add the ``email`` column to ``calendar_accounts`` if it's missing."""
+
+    add_column_if_missing(
+        engine,
+        "calendar_accounts",
+        "email",
+        "email VARCHAR",
+    )
+
