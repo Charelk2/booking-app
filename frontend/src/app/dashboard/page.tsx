@@ -24,6 +24,8 @@ import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
 import SectionList from "@/components/dashboard/SectionList";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
 import { Spinner, Button } from '@/components/ui';
+import clsx from 'clsx';
+import { buttonVariants } from '@/styles/buttonVariants';
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import Link from "next/link";
 import { Reorder, useDragControls } from "framer-motion";
@@ -431,18 +433,23 @@ export default function DashboardPage() {
                     </div>
                     <Link
                       href={`/booking-requests/${req.id}`}
-                      className="mt-2 inline-block text-brand-dark hover:underline text-sm"
+                      className={clsx(
+                        'mt-2',
+                        'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 transition-transform active:scale-95',
+                        buttonVariants.secondary,
+                      )}
                     >
                       View Chat
                     </Link>
                     {user.user_type === 'artist' && (
-                      <button
+                      <Button
                         type="button"
                         onClick={() => setRequestToUpdate(req)}
-                        className="ml-4 mt-2 inline-block text-brand-dark hover:underline text-sm"
+                        variant="secondary"
+                        className="ml-4 mt-2"
                       >
                         Update
-                      </button>
+                      </Button>
                     )}
                     {req.accepted_quote_id && (
                       <Link
