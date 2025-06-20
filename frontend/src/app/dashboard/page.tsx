@@ -393,15 +393,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-          {user.user_type === "artist" && activeTab === 'services' && (
-            <button
-              type="button"
-              onClick={() => setIsAddServiceModalOpen(true)}
-              className="hidden sm:inline-flex bg-brand text-white text-base py-3 rounded-lg mt-4 shadow-md hover:bg-brand-dark"
-            >
-              Add Service
-            </button>
-          )}
 
           <div className="mt-4">
             <DashboardTabs
@@ -559,7 +550,7 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setIsAddServiceModalOpen(true)}
-                  className="mt-4 w-full sm:hidden bg-brand text-white text-base py-3 rounded-lg shadow-md hover:bg-brand-dark"
+                  className="mt-4 w-full sm:w-auto bg-brand text-white text-base py-3 rounded-lg shadow-md hover:bg-brand-dark"
                 >
                   Add Service
                 </button>
