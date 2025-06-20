@@ -434,9 +434,8 @@ export default function DashboardPage() {
                     <Link
                       href={`/booking-requests/${req.id}`}
                       className={clsx(
-                        'mt-2',
-                        'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 transition-transform active:scale-95',
-                        buttonVariants.secondary,
+                        'mt-2 inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 transition-transform active:scale-95',
+                        buttonVariants.primary,
                       )}
                     >
                       View Chat
@@ -445,7 +444,8 @@ export default function DashboardPage() {
                       <Button
                         type="button"
                         onClick={() => setRequestToUpdate(req)}
-                        variant="secondary"
+                        variant="primary"
+                        size="sm"
                         className="ml-4 mt-2"
                       >
                         Update
