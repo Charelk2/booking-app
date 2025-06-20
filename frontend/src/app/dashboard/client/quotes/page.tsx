@@ -5,6 +5,7 @@ import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { getMyClientQuotes } from '@/lib/api';
+import { formatStatus } from '@/lib/utils';
 import { Spinner } from '@/components/ui';
 import type { Quote } from '@/types';
 
@@ -110,7 +111,7 @@ export default function ClientQuotesPage() {
                   <span
                     className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${badgeClasses(q.status)}`}
                   >
-                    {q.status}
+                    {formatStatus(q.status)}
                   </span>
                   <Link
                     href={`/quotes/${q.id}`}
