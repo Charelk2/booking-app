@@ -19,6 +19,7 @@ from app.models import (
 )
 from app.models.base import BaseModel
 from app.api.v1 import api_artist
+from app.api import api_calendar
 from app.services import calendar_service
 
 
@@ -110,4 +111,35 @@ def test_unavailable_dates_include_calendar(monkeypatch):
 
     resp = api_artist.read_artist_availability(user.id, db)
     assert resp['unavailable_dates'] == ['2025-01-01', '2025-01-02']
+
+
+def test_calendar_status_endpoint():
+    db = setup_db()
+    user = User(
+        email='status@test.com',
+        password='x',
+        first_name='Status',
+        last_name='User',
+        user_type=UserType.ARTIST,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    # Initially not connected
+    result = api_calendar.google_calendar_status(db, user)
+    assert result == {'connected': False}
+
+    acc = CalendarAccount(
+        user_id=user.id,
+        provider=CalendarProvider.GOOGLE,
+        refresh_token='r',
+        access_token='a',
+        token_expiry=datetime.utcnow(),
+    )
+    db.add(acc)
+    db.commit()
+
+    result2 = api_calendar.google_calendar_status(db, user)
+    assert result2 == {'connected': True}
 
