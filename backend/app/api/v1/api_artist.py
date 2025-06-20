@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
-from datetime import datetime
+from datetime import datetime, timedelta
 import re, shutil
 from pathlib import Path
 from typing import List, Optional
@@ -11,6 +11,7 @@ from pydantic import BaseModel
 import logging
 
 from app.utils.redis_cache import get_cached_artist_list, cache_artist_list
+from app.services import calendar_service
 
 from app.database import get_db
 from app.models.user import User
@@ -451,6 +452,14 @@ def read_artist_availability(artist_id: int, db: Session = Depends(get_db)):
             dates.add(r.proposed_datetime_1.date().isoformat())
         if r.proposed_datetime_2:
             dates.add(r.proposed_datetime_2.date().isoformat())
+
+    start = datetime.utcnow()
+    end = start + timedelta(days=365)
+    try:
+        for ev in calendar_service.fetch_events(artist_id, start, end, db):
+            dates.add(ev.date().isoformat())
+    except HTTPException:
+        pass
 
     return {"unavailable_dates": sorted(dates)}
 
