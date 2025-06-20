@@ -30,7 +30,9 @@ def google_calendar_status(
         )
         .first()
     )
-    return {"connected": account is not None}
+    if account is None:
+        return {"connected": False}
+    return {"connected": True, "email": account.email}
 
 
 @router.get("/google-calendar/connect")
