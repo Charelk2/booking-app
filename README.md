@@ -189,6 +189,9 @@ callback completes, the API redirects to
 `DELETE /api/v1/google-calendar` or check the connection status with
 `GET /api/v1/google-calendar/status` which now also returns the connected
 email address when available.
+The authorization URL now includes `prompt=consent` so Google always returns a
+refresh token. If the callback does not receive one, the API responds with HTTP
+400 and logs the error instead of failing a database insert.
 
 After installing new dependencies, run `./scripts/test-all.sh` once to refresh the caches.
 

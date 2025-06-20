@@ -64,6 +64,34 @@ def test_exchange_code_saves_tokens(monkeypatch):
     assert acc.refresh_token == 'rt'
 
 
+def test_exchange_code_missing_refresh_token(monkeypatch):
+    db = setup_db()
+    user = User(email='nrt@test.com', password='x', first_name='No', last_name='Token', user_type=UserType.ARTIST)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    class DummyFlow:
+        def __init__(self):
+            self.credentials = Credentials(
+                token='at',
+                refresh_token=None,
+                token_uri='u',
+                client_id='id',
+                client_secret='sec',
+            )
+            self.credentials.expiry = datetime.utcnow()
+
+        def fetch_token(self, code):
+            pass
+
+    monkeypatch.setattr(calendar_service, '_flow', lambda uri: DummyFlow())
+
+    with pytest.raises(HTTPException) as exc:
+        calendar_service.exchange_code(user.id, 'code', 'uri', db)
+    assert exc.value.status_code == 400
+
+
 def test_fetch_events_http_error(monkeypatch):
     db = setup_db()
     user = User(email='c@test.com', password='x', first_name='C', last_name='U', user_type=UserType.ARTIST)
@@ -126,6 +154,7 @@ def test_flow_includes_openid_scope(monkeypatch):
 
         class DummyFlow:
             def authorization_url(self, *args, **kwargs):
+                captured['auth_kwargs'] = kwargs
                 return 'http://auth', None
 
         return DummyFlow()
@@ -133,6 +162,7 @@ def test_flow_includes_openid_scope(monkeypatch):
     monkeypatch.setattr(calendar_service.Flow, 'from_client_config', dummy_from_client_config)
     calendar_service.get_auth_url(1, 'http://localhost')
     assert 'openid' in captured['scopes']
+    assert captured['auth_kwargs']['prompt'] == 'consent'
 
 
 def test_calendar_status_endpoint():

@@ -44,7 +44,10 @@ def get_auth_url(user_id: int, redirect_uri: str) -> str:
     """Return the Google OAuth authorization URL for the user."""
     flow = _flow(redirect_uri)
     auth_url, _ = flow.authorization_url(
-        access_type="offline", include_granted_scopes="true", state=str(user_id)
+        access_type="offline",
+        include_granted_scopes="true",
+        prompt="consent",
+        state=str(user_id),
     )
     return auth_url
 
@@ -54,6 +57,9 @@ def exchange_code(user_id: int, code: str, redirect_uri: str, db: Session) -> No
     flow = _flow(redirect_uri)
     flow.fetch_token(code=code)
     creds = flow.credentials
+    if not creds.refresh_token:
+        logger.error("Google OAuth flow returned no refresh token")
+        raise HTTPException(400, "Missing refresh token from Google")
     email = None
     try:
         user_service = build("oauth2", "v2", credentials=creds)
