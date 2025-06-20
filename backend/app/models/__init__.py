@@ -11,6 +11,7 @@ from .sound_provider import SoundProvider
 from .artist_sound_preference import ArtistSoundPreference
 from .message import Message, SenderType, MessageType
 from .notification import Notification, NotificationType
+from .calendar_account import CalendarAccount, CalendarProvider
 
 __all__ = [
     "User",
@@ -35,4 +36,6 @@ __all__ = [
     "MessageType",
     "Notification",
     "NotificationType",
+    "CalendarAccount",
+    "CalendarProvider",
 ]
