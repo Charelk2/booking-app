@@ -52,6 +52,11 @@ def test_exchange_code_saves_tokens(monkeypatch):
             pass
 
     monkeypatch.setattr(calendar_service, '_flow', lambda uri: DummyFlow())
+    monkeypatch.setattr(
+        calendar_service,
+        'build',
+        lambda *a, **k: Mock(userinfo=lambda: Mock(get=lambda: Mock(execute=lambda: {'email': 'e@example.com'}))),
+    )
 
     calendar_service.exchange_code(user.id, 'code', 'uri', db)
 
@@ -141,7 +146,7 @@ def test_calendar_status_endpoint():
     db.commit()
 
     result2 = api_calendar.google_calendar_status(db, user)
-    assert result2 == {'connected': True}
+    assert result2 == {'connected': True, 'email': None}
 
 
 def test_callback_success(monkeypatch):

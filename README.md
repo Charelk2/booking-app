@@ -184,7 +184,8 @@ callback completes, the API redirects to
 `FRONTEND_URL/dashboard/profile/edit?calendarSync=success` on success or
 `calendarSync=error` when the exchange fails. Artists can disconnect via
 `DELETE /api/v1/google-calendar` or check the connection status with
-`GET /api/v1/google-calendar/status`.
+`GET /api/v1/google-calendar/status` which now also returns the connected
+email address when available.
 
 After installing new dependencies, run `./scripts/test-all.sh` once to refresh the caches.
 
