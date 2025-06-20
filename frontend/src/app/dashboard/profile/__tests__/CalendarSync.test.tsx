@@ -26,7 +26,9 @@ function setup(calendarParam: string | null = null, status = false) {
     get: (key: string) => (key === 'calendarSync' ? calendarParam : null),
   });
   (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: { user_id: 1 } });
-  (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({ data: { connected: status } });
+  (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({
+    data: { connected: status, email: status ? 'test@example.com' : undefined },
+  });
   const div = document.createElement('div');
   document.body.appendChild(div);
   const root = createRoot(div);
@@ -56,7 +58,9 @@ describe('Google Calendar connect/disconnect', () => {
     await act(async () => { await Promise.resolve(); });
     act(() => { root.unmount(); });
     const newRoot = createRoot(div);
-    (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({ data: { connected: true } });
+    (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({
+      data: { connected: true, email: 'test@example.com' },
+    });
     await act(async () => { newRoot.render(<EditArtistProfilePage />); });
     await act(async () => { await Promise.resolve(); });
     const disconnectBtn = Array.from(div.querySelectorAll('button')).find((b) => b.textContent === 'Disconnect') as HTMLButtonElement;
@@ -77,10 +81,12 @@ describe('Google Calendar connect/disconnect', () => {
     expect(div.textContent).toContain('Status: Not connected');
     act(() => { root.unmount(); });
     const newRoot = createRoot(div);
-    (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({ data: { connected: true } });
+    (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({
+      data: { connected: true, email: 'test@example.com' },
+    });
     await act(async () => { newRoot.render(<EditArtistProfilePage />); });
     await act(async () => { await Promise.resolve(); });
-    expect(div.textContent).toContain('Status: Connected');
+    expect(div.textContent).toContain('Status: Connected - test@example.com');
     act(() => { newRoot.unmount(); });
     div.remove();
   });
@@ -92,7 +98,7 @@ describe('Google Calendar connect/disconnect', () => {
     });
     await act(async () => { await Promise.resolve(); });
     expect(div.textContent).toContain('Google Calendar connected successfully!');
-    expect(div.textContent).toContain('Status: Connected');
+    expect(div.textContent).toContain('Status: Connected - test@example.com');
     act(() => { root.unmount(); });
     div.remove();
   });

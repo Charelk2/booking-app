@@ -455,7 +455,9 @@ export const markThreadRead = (bookingRequestId: number) =>
 
 // ─── GOOGLE CALENDAR ─────────────────────────────────────────────────────────
 export const getGoogleCalendarStatus = () =>
-  api.get<{ connected: boolean }>(`${API_V1}/google-calendar/status`);
+  api.get<{ connected: boolean; email?: string }>(
+    `${API_V1}/google-calendar/status`,
+  );
 
 export const connectGoogleCalendar = () =>
   api.get<{ auth_url: string }>(`${API_V1}/google-calendar/connect`);
