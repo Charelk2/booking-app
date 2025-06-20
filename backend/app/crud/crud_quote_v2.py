@@ -8,6 +8,7 @@ import logging
 from fastapi import status
 
 from .. import models, schemas
+from ..models.service import ServiceType
 from ..utils.notifications import (
     notify_quote_accepted,
     notify_new_booking,
@@ -97,21 +98,25 @@ def accept_quote(
         raise ValueError("Quote cannot be accepted")
 
     booking_request = db_quote.booking_request
-    if not booking_request or not booking_request.proposed_datetime_1:
+    if booking_request is None:
         logger.error(
-            "Booking request %s missing proposed_datetime_1 when accepting quote %s; artist_id=%s client_id=%s",
-            getattr(booking_request, "id", None),
+            "Booking request missing when accepting quote %s; artist_id=%s client_id=%s",
             quote_id,
             db_quote.artist_id,
             db_quote.client_id,
         )
         raise error_response(
-            "Booking request is missing a proposed date/time. Please update the request before accepting this quote.",
-            {"proposed_datetime_1": "missing"},
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Booking request missing", {"booking_request_id": "invalid"}, status.HTTP_422_UNPROCESSABLE_ENTITY
         )
 
-    if not booking_request.service_id:
+    service = None
+    if booking_request.service_id:
+        service = (
+            db.query(models.Service)
+            .filter(models.Service.id == booking_request.service_id)
+            .first()
+        )
+    else:
         if service_id is None:
             logger.error(
                 "Booking request %s missing service_id when accepting quote %s and no service_id provided",
@@ -143,6 +148,41 @@ def accept_quote(
             )
         booking_request.service_id = service_id
         db.commit()
+
+    if service is None:
+        service = booking_request.service
+
+    if (
+        service is None
+        or service.artist_id != db_quote.artist_id
+    ):
+        logger.error(
+            "Service lookup failed for booking request %s when accepting quote %s",
+            booking_request.id,
+            quote_id,
+        )
+        raise error_response(
+            "Invalid service_id",
+            {"service_id": "invalid"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+    if (
+        service.service_type == ServiceType.LIVE_PERFORMANCE
+        and not booking_request.proposed_datetime_1
+    ):
+        logger.error(
+            "Booking request %s missing proposed_datetime_1 when accepting quote %s; artist_id=%s client_id=%s",
+            booking_request.id,
+            quote_id,
+            db_quote.artist_id,
+            db_quote.client_id,
+        )
+        raise error_response(
+            "Booking request is missing a proposed date/time. Please update the request before accepting this quote.",
+            {"proposed_datetime_1": "missing"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
 
     db_quote.status = models.QuoteStatusV2.ACCEPTED
 

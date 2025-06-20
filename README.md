@@ -498,10 +498,10 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Accepted quotes now include a `booking_id` when retrieved via `GET /api/v1/quotes/{id}` so clients can load booking details.
 * `POST /api/v1/quotes/{id}/accept` accepts an optional `service_id` query
   parameter when the related booking request was created without one.
-* If a booking request lacks a `proposed_datetime_1`, the accept endpoint now
-  returns `422` with the message "Booking request is missing a proposed
-  date/time." This ensures personalized video requests surface a clear error
-  before a booking is created.
+* If the booking request is for a **Live Performance** and lacks a
+  `proposed_datetime_1`, the accept endpoint returns `422` with the message
+  "Booking request is missing a proposed date/time." Other service types can be
+  accepted without supplying a date.
 * Frontend helper `acceptQuoteV2(quoteId, serviceId?)` automatically appends
   `?service_id={serviceId}` to this request when a service ID is provided.
 * The client quote detail page now uses this endpoint when clients click **Accept**.
