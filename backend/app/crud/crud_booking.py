@@ -1,10 +1,11 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional, Type
 from decimal import Decimal
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from .. import models, schemas
-from ..models.booking import BookingStatus # For BookingStatus enum
+from ..models.booking import BookingStatus  # For BookingStatus enum
+from ..models.service import ServiceType
 
 
 class CRUDBooking:
@@ -154,20 +155,24 @@ def create_booking_from_quote_v2(db: Session, quote: models.QuoteV2) -> models.B
     if booking_request is None:
         raise ValueError("Quote is missing booking_request relationship")
 
-    if not booking_request.service_id or not booking_request.proposed_datetime_1:
-        raise ValueError("Booking request lacks service_id or proposed_datetime_1")
+    if not booking_request.service_id:
+        raise ValueError("Booking request lacks service_id")
 
     service = db.query(models.Service).filter(models.Service.id == booking_request.service_id).first()
     if service is None:
         raise ValueError(f"Service id {booking_request.service_id} not found")
 
-    end_time = booking_request.proposed_datetime_1 + timedelta(minutes=service.duration_minutes)
+    if service.service_type == ServiceType.LIVE_PERFORMANCE and not booking_request.proposed_datetime_1:
+        raise ValueError("Booking request lacks proposed_datetime_1 for live performance")
 
+    start_time = booking_request.proposed_datetime_1 or datetime.utcnow()
+
+    end_time = start_time + timedelta(minutes=service.duration_minutes)
     db_booking = models.Booking(
         artist_id=quote.artist_id,
         client_id=quote.client_id,
         service_id=service.id,
-        start_time=booking_request.proposed_datetime_1,
+        start_time=start_time,
         end_time=end_time,
         status=models.BookingStatus.CONFIRMED,
         total_price=quote.total,
