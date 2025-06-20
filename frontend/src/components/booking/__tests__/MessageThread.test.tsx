@@ -612,8 +612,81 @@ it('opens payment modal after accepting quote', async () => {
     const calBtn = container.querySelector('[data-testid="add-calendar-button"]');
     expect(calBtn).not.toBeNull();
     const help = container.querySelector('[data-testid="help-prompt"]');
-    expect(help).toBeNull();
+  expect(help).toBeNull();
+});
+
+it('refreshes messages after accepting a quote', async () => {
+  let resolveAccept: () => void;
+  (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+    data: [
+      {
+        id: 1,
+        booking_request_id: 1,
+        sender_id: 2,
+        sender_type: 'artist',
+        content: 'Quote',
+        message_type: 'quote',
+        quote_id: 13,
+        timestamp: new Date().toISOString(),
+      },
+    ],
   });
+  (api.getQuoteV2 as jest.Mock).mockResolvedValue({
+    data: {
+      id: 13,
+      status: 'pending',
+      services: [],
+      sound_fee: 0,
+      travel_fee: 0,
+      subtotal: 0,
+      total: 0,
+      artist_id: 2,
+      client_id: 1,
+      booking_request_id: 1,
+      created_at: '',
+      updated_at: '',
+    },
+  });
+  (api.acceptQuoteV2 as jest.Mock).mockImplementation(() =>
+    new Promise((res) => {
+      resolveAccept = () => res({ data: {} });
+    }),
+  );
+  (api.getBookingDetails as jest.Mock).mockResolvedValue({
+    data: {
+      id: 11,
+      service: { title: 'Gig' },
+      start_time: '2024-01-01T00:00:00Z',
+      deposit_amount: 0,
+    },
+  });
+
+  await act(async () => {
+    root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
+  });
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  (api.getMessagesForBookingRequest as jest.Mock).mockClear();
+
+  const acceptBtn = Array.from(container.querySelectorAll('button')).find(
+    (b) => b.textContent === 'Accept',
+  ) as HTMLButtonElement;
+
+  await act(async () => {
+    acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+
+  await act(async () => {
+    resolveAccept();
+  });
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect((api.getMessagesForBookingRequest as jest.Mock).mock.calls.length).toBeGreaterThan(0);
+});
 
 it.skip('adds ring styles when deposit actions receive keyboard focus', async () => {
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
