@@ -55,7 +55,7 @@ describe("ClientBookingsPage", () => {
             deposit_due_by: new Date("2024-01-08").toISOString(),
             payment_status: "deposit_paid",
             payment_id: "pay_upcoming",
-            service: { title: "Gig" },
+            service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },
           },
         ],
@@ -74,7 +74,7 @@ describe("ClientBookingsPage", () => {
             notes: "",
             deposit_amount: 100,
             payment_status: "paid",
-            service: { title: "Gig" },
+            service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },
           },
         ],
@@ -95,6 +95,7 @@ describe("ClientBookingsPage", () => {
     expect(getMyClientBookings).toHaveBeenCalledWith({ status: "past" });
     expect(div.textContent).toContain("Upcoming Bookings");
     expect(div.textContent).toContain("Past Bookings");
+    expect(div.textContent).toContain("Gig - Artist");
     expect(div.textContent).toContain("Deposit:");
     expect(div.textContent).toContain("Deposit Paid");
     expect(div.textContent).not.toContain("Deposit due by");
@@ -143,7 +144,7 @@ describe("ClientBookingsPage", () => {
             notes: "",
             deposit_amount: 50,
             payment_status: "deposit_paid",
-            service: { title: "Gig" },
+            service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },
           },
         ],
@@ -195,7 +196,7 @@ describe("ClientBookingsPage", () => {
             notes: "",
             deposit_amount: 60,
             payment_status: "pending",
-            service: { title: "Gig" },
+            service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },
           },
         ],
@@ -214,7 +215,7 @@ describe("ClientBookingsPage", () => {
         notes: "",
         deposit_amount: 80,
         payment_status: "pending",
-        service: { title: "Gig" },
+        service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 1 },
         source_quote: { booking_request_id: 5 },
       },
@@ -278,7 +279,7 @@ describe("ClientBookingsPage", () => {
             notes: "",
             deposit_amount: 50,
             payment_status: "deposit_paid",
-            service: { title: "Gig" },
+            service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },
             source_quote: { booking_request_id: 12 },
           },
@@ -334,7 +335,7 @@ describe("ClientBookingsPage", () => {
             notes: "",
             deposit_amount: 50,
             payment_status: "pending",
-            service: { title: "Gig" },
+            service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },
           },
         ],
