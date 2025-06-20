@@ -17,7 +17,10 @@ from app.models import CalendarAccount, CalendarProvider
 
 logger = logging.getLogger(__name__)
 
-SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+SCOPES = [
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/userinfo.email",
+]
 
 
 def _flow(redirect_uri: str) -> Flow:
@@ -50,6 +53,12 @@ def exchange_code(user_id: int, code: str, redirect_uri: str, db: Session) -> No
     flow = _flow(redirect_uri)
     flow.fetch_token(code=code)
     creds = flow.credentials
+    email = None
+    try:
+        user_service = build("oauth2", "v2", credentials=creds)
+        email = user_service.userinfo().get().execute().get("email")
+    except HttpError as exc:  # noqa: BLE001
+        logger.error("Failed to fetch Google account email: %s", exc, exc_info=True)
 
     account = (
         db.query(CalendarAccount)
@@ -66,6 +75,8 @@ def exchange_code(user_id: int, code: str, redirect_uri: str, db: Session) -> No
     account.refresh_token = creds.refresh_token
     account.access_token = creds.token
     account.token_expiry = creds.expiry
+    if email:
+        account.email = email
     db.add(account)
     db.commit()
 
