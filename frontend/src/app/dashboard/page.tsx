@@ -23,7 +23,7 @@ import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
 import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
 import SectionList from "@/components/dashboard/SectionList";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
-import { Spinner } from '@/components/ui';
+import { Spinner, Button } from '@/components/ui';
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import Link from "next/link";
 import { Reorder, useDragControls } from "framer-motion";
@@ -547,13 +547,14 @@ export default function DashboardPage() {
                     ))}
                   </Reorder.Group>
                 )}
-                <button
+                <Button
                   type="button"
                   onClick={() => setIsAddServiceModalOpen(true)}
-                  className="mt-4 w-full sm:w-auto bg-brand text-white text-base py-3 rounded-lg shadow-md hover:bg-brand-dark"
+                  className="mt-4 sm:w-auto"
+                  fullWidth
                 >
                   Add Service
-                </button>
+                </Button>
               </div>
             </CollapsibleSection>
           )}
