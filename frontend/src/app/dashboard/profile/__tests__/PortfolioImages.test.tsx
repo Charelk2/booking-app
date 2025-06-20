@@ -22,6 +22,7 @@ function setup() {
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'artist' } });
   (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
   (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: { user_id: 1, portfolio_image_urls: ['/img1.jpg', '/img2.jpg'] } });
+  (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({ data: { connected: false } });
   const div = document.createElement('div');
   document.body.appendChild(div);
   const root = createRoot(div);
