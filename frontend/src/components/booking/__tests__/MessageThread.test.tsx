@@ -74,7 +74,7 @@ describe('MessageThread component', () => {
 
   it('shows scroll-to-latest button when scrolled away from bottom', async () => {
     await act(async () => {
-      root.render(<MessageThread bookingRequestId={1} />);
+      root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
     });
     await new Promise((r) => setTimeout(r, 0));
     await act(async () => {
@@ -115,7 +115,7 @@ describe('MessageThread component', () => {
     });
 
     await act(async () => {
-      root.render(<MessageThread bookingRequestId={1} />);
+      root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
     });
     
     await act(async () => {
@@ -154,7 +154,7 @@ describe('MessageThread component', () => {
     });
 
     await act(async () => {
-      root.render(<MessageThread bookingRequestId={1} />);
+      root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
     });
 
     const messageBubbles = container.querySelectorAll('.whitespace-pre-wrap');
@@ -197,7 +197,7 @@ describe('MessageThread component', () => {
     });
 
     await act(async () => {
-      root.render(<MessageThread bookingRequestId={1} />);
+      root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
     });
 
     const groups = container.querySelectorAll('.text-xs.text-gray-400.mb-1');
@@ -229,7 +229,7 @@ describe('MessageThread component', () => {
     });
 
     await act(async () => {
-      root.render(<MessageThread bookingRequestId={1} />);
+      root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
     });
 
     const divider = container.querySelector('[data-testid="day-divider"]');
@@ -257,7 +257,7 @@ describe('MessageThread component', () => {
       data: [msg],
     });
     await act(async () => {
-      root.render(<MessageThread bookingRequestId={1} />);
+      root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
     });
 
     await act(async () => {
@@ -288,7 +288,7 @@ describe('MessageThread component', () => {
     );
 
     await act(async () => {
-      root.render(<MessageThread bookingRequestId={1} />);
+      root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
     });
     await act(async () => {
       await Promise.resolve();
@@ -578,7 +578,7 @@ it('opens payment modal after accepting quote', async () => {
     });
 
     await act(async () => {
-      root.render(<MessageThread bookingRequestId={1} />);
+      root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
     });
     await act(async () => {
       await Promise.resolve();
@@ -589,7 +589,7 @@ it('opens payment modal after accepting quote', async () => {
     await act(async () => {
       acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(api.acceptQuoteV2).toHaveBeenCalledWith(7);
+    expect(api.acceptQuoteV2).toHaveBeenCalledWith(7, 4);
     await act(async () => {
       await Promise.resolve();
     });

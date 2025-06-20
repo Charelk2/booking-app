@@ -119,6 +119,7 @@ export default function BookingRequestDetailPage() {
         ) : (
           <MessageThread
             bookingRequestId={request.id}
+            serviceId={request.service_id ?? undefined}
             clientName={request.client?.first_name}
             artistName={artistName || request.artist?.user?.first_name}
             artistAvatarUrl={artistAvatar}

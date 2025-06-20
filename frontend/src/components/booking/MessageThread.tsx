@@ -53,6 +53,8 @@ interface MessageThreadProps {
   onMessageSent?: () => void;
   /** Optional callback invoked after a quote is successfully sent */
   onQuoteSent?: () => void;
+  /** Service ID for accepting quotes when the request lacks one */
+  serviceId?: number;
   clientName?: string;
   artistName?: string;
   clientId?: number;
@@ -67,6 +69,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       bookingRequestId,
       onMessageSent,
       onQuoteSent,
+      serviceId,
       clientName = 'Client',
       artistName = 'Artist',
       clientId,
@@ -298,7 +301,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const handleAcceptQuote = useCallback(
     async (q: QuoteV2) => {
       try {
-        await acceptQuoteV2(q.id);
+        await acceptQuoteV2(q.id, serviceId);
       } catch (err) {
         console.error('acceptQuoteV2 failed', err);
         try {
@@ -324,7 +327,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         console.error('Failed to finalize acceptance', err3);
       }
     },
-    [bookingRequestId, openPaymentModal],
+    [bookingRequestId, openPaymentModal, serviceId],
   );
 
   const handleDeclineQuote = useCallback(
