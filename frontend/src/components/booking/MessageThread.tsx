@@ -326,14 +326,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           depositAmount: details.data.deposit_amount,
           depositDueBy: details.data.deposit_due_by ?? undefined,
         });
+        fetchMessages();
       } catch (err3) {
         console.error('Failed to finalize acceptance', err3);
       } finally {
         setAcceptingQuoteId(null);
       }
-    },
-    [bookingRequestId, openPaymentModal, serviceId],
-  );
+  },
+  [bookingRequestId, fetchMessages, openPaymentModal, serviceId],
+);
 
   const handleDeclineQuote = useCallback(
     async (q: QuoteV2) => {
