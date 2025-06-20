@@ -9,6 +9,7 @@ import {
   updateQuoteAsArtist,
   confirmQuoteBooking,
 } from '@/lib/api';
+import { formatStatus } from '@/lib/utils';
 import type { Quote } from '@/types';
 import EditQuoteModal from '@/components/booking/EditQuoteModal';
 import { Spinner } from '@/components/ui';
@@ -127,7 +128,7 @@ export default function ArtistQuotesPage() {
             {quotes.map((q) => (
               <li key={q.id} className="bg-white p-4 shadow rounded-lg">
                 <div className="font-medium text-gray-900">{q.quote_details}</div>
-                <div className="text-sm text-gray-500">{q.status}</div>
+                <div className="text-sm text-gray-500">{formatStatus(q.status)}</div>
                 <div className="mt-2 flex space-x-4">
                   {q.status === 'pending_client_action' && (
                     <>

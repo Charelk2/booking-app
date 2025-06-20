@@ -4,6 +4,7 @@ import {
   getNextAvailableDates,
   getFullImageUrl,
   formatCurrency,
+  formatStatus,
 } from '../utils';
 import { DEFAULT_CURRENCY } from '../constants';
 import api from '../api';
@@ -90,5 +91,15 @@ describe('formatCurrency', () => {
 
   it('accepts a custom locale', () => {
     expect(formatCurrency(100, DEFAULT_CURRENCY, 'en-US')).toBe('ZAR\u00A0100.00');
+  });
+});
+
+describe('formatStatus', () => {
+  it('uses predefined labels when available', () => {
+    expect(formatStatus('pending_quote')).toBe('Pending Quote');
+  });
+
+  it('humanises unknown values', () => {
+    expect(formatStatus('foo_bar')).toBe('Foo Bar');
   });
 });

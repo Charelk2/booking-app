@@ -581,7 +581,7 @@ describe('DashboardPage request updates', () => {
     await act(async () => { await Promise.resolve(); });
 
     expect(api.updateBookingRequestArtist).toHaveBeenCalledWith(1, { status: 'request_declined' });
-    expect(container.textContent).toContain('request_declined');
+    expect(container.textContent).toContain('Request Declined');
 
     act(() => {
       root.unmount();
