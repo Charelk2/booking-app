@@ -160,4 +160,24 @@ describe('BookingWizard flow', () => {
     const wrapper = container.querySelector('[aria-label="Progress"]')?.parentElement;
     expect(wrapper?.className).toContain('sticky');
   });
+
+  it('disables dates returned from Google Calendar', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-01-01T00:00:00Z'));
+    (api.getArtistAvailability as jest.Mock).mockResolvedValue({
+      data: { unavailable_dates: ['2025-01-02'] },
+    });
+    act(() => {
+      root.unmount();
+    });
+    container.innerHTML = '';
+    root = createRoot(container);
+    await act(async () => {
+      root.render(React.createElement(Wrapper));
+    });
+    await act(async () => {});
+    const disabledButtons = container.querySelectorAll('button[disabled]');
+    expect(disabledButtons.length).toBeGreaterThan(1);
+    jest.useRealTimers();
+  });
 });
