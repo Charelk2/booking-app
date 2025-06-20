@@ -11,6 +11,7 @@ import {
   getMyBookingRequests,
   getBookingRequestsForArtist,
 } from '@/lib/api';
+import { formatStatus } from '@/lib/utils';
 import type { BookingRequest } from '@/types';
 
 export default function BookingRequestsPage() {
@@ -25,18 +26,7 @@ export default function BookingRequestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [openClients, setOpenClients] = useState<Record<number, boolean>>({});
 
-  const statusLabels: Record<string, string> = {
-    pending_quote: 'Pending Quote',
-    quote_provided: 'Quote Provided',
-    completed: 'Completed',
-  };
 
-  const formatStatus = (status: string) =>
-    statusLabels[status] ||
-    status
-      .split('_')
-      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-      .join(' ');
 
   useEffect(() => {
     const fetchRequests = async () => {
