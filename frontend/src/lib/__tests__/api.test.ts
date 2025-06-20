@@ -116,11 +116,11 @@ describe('response interceptor', () => {
   };
   const rejected = typedApi.interceptors.response.handlers[0].rejected;
 
-  it('maps HTTP status to user message', async () => {
+  it('maps HTTP status to user message when detail is missing', async () => {
     expect.assertions(1);
     const err: unknown = {
       isAxiosError: true,
-      response: { status: 401, data: { detail: 'unauth' } },
+      response: { status: 401, data: { detail: null } },
     };
     await rejected(err).catch((e: Error) => {
       expect(e.message).toBe('Authentication required. Please log in.');
@@ -139,6 +139,17 @@ describe('response interceptor', () => {
     });
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
+  });
+
+  it('uses server detail when provided for 422', async () => {
+    expect.assertions(1);
+    const err: unknown = {
+      isAxiosError: true,
+      response: { status: 422, data: { detail: 'missing date' } },
+    };
+    await rejected(err).catch((e: Error) => {
+      expect(e.message).toBe('missing date');
+    });
   });
 });
 
