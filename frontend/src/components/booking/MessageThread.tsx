@@ -305,6 +305,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           await updateQuoteAsClient(q.id, { status: 'accepted_by_client' });
         } catch (err2) {
           console.error('Failed legacy accept', err2);
+          setErrorMsg('Failed to accept quote. Please refresh and try again.');
+          return;
         }
       }
       try {
