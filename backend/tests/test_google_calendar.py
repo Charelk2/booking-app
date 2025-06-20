@@ -1,0 +1,113 @@
+from datetime import datetime, timedelta
+from unittest.mock import Mock
+
+from google.oauth2.credentials import Credentials
+
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from fastapi import HTTPException
+from googleapiclient.errors import HttpError
+
+from app.models import (
+    User,
+    UserType,
+    CalendarAccount,
+    CalendarProvider,
+    Booking,
+    BookingStatus,
+)
+from app.models.base import BaseModel
+from app.api.v1 import api_artist
+from app.services import calendar_service
+
+
+def setup_db():
+    engine = create_engine('sqlite:///:memory:', connect_args={'check_same_thread': False})
+    BaseModel.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    return Session()
+
+
+def test_exchange_code_saves_tokens(monkeypatch):
+    db = setup_db()
+    user = User(email='g@test.com', password='x', first_name='G', last_name='User', user_type=UserType.ARTIST)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    class DummyFlow:
+        def __init__(self):
+            self.credentials = Credentials(
+                token='at',
+                refresh_token='rt',
+                token_uri='u',
+                client_id='id',
+                client_secret='sec',
+            )
+            self.credentials.expiry = datetime.utcnow()
+
+        def fetch_token(self, code):
+            pass
+
+    monkeypatch.setattr(calendar_service, '_flow', lambda uri: DummyFlow())
+
+    calendar_service.exchange_code(user.id, 'code', 'uri', db)
+
+    acc = db.query(CalendarAccount).filter(CalendarAccount.user_id == user.id).first()
+    assert acc.refresh_token == 'rt'
+
+
+def test_fetch_events_http_error(monkeypatch):
+    db = setup_db()
+    user = User(email='c@test.com', password='x', first_name='C', last_name='U', user_type=UserType.ARTIST)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    acc = CalendarAccount(
+        user_id=user.id,
+        provider=CalendarProvider.GOOGLE,
+        refresh_token='r',
+        access_token='a',
+        token_expiry=datetime.utcnow(),
+    )
+    db.add(acc)
+    db.commit()
+
+    def raise_error(*args, **kwargs):
+        raise HttpError(resp=Mock(status=500), content=b'')
+
+    monkeypatch.setattr(calendar_service, 'build', lambda *a, **k: Mock(events=lambda: Mock(list=raise_error)))
+
+    with pytest.raises(HTTPException) as exc:
+        calendar_service.fetch_events(user.id, datetime.utcnow(), datetime.utcnow() + timedelta(days=1), db)
+    assert exc.value.status_code == 502
+
+
+def test_unavailable_dates_include_calendar(monkeypatch):
+    db = setup_db()
+    user = User(email='a@test.com', password='x', first_name='A', last_name='A', user_type=UserType.ARTIST)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    booking = Booking(
+        artist_id=user.id,
+        client_id=1,
+        service_id=1,
+        start_time=datetime(2025, 1, 1, 12, 0),
+        end_time=datetime(2025, 1, 1, 13, 0),
+        status=BookingStatus.CONFIRMED,
+        total_price=10,
+    )
+    db.add(booking)
+    db.commit()
+
+    monkeypatch.setattr(
+        calendar_service,
+        'fetch_events',
+        lambda uid, s, e, d: [datetime(2025, 1, 2, 10, 0)],
+    )
+
+    resp = api_artist.read_artist_availability(user.id, db)
+    assert resp['unavailable_dates'] == ['2025-01-01', '2025-01-02']
+

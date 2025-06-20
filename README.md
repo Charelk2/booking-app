@@ -168,6 +168,18 @@ For quick local testing you can bypass specific origins entirely by setting `COR
 
 Unhandled exceptions are returned as JSON 500 responses. The middleware now injects the appropriate `Access-Control-Allow-Origin` header even when errors occur, so browser clients never see a CORS failure when the API throws an exception.
 
+### Google Calendar OAuth
+
+Set these variables in your `.env` file to enable syncing with Google Calendar:
+
+```env
+GOOGLE_CLIENT_ID=<your-client-id>
+GOOGLE_CLIENT_SECRET=<your-client-secret>
+GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/google-calendar/callback
+```
+
+After installing new dependencies, run `./scripts/test-all.sh` once to refresh the caches.
+
 ---
 
 ## Frontend
