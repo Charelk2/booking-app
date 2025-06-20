@@ -5,6 +5,8 @@ import { buttonVariants, type ButtonVariant } from '@/styles/buttonVariants';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
+  /** Small vs regular size */
+  size?: 'sm' | 'md';
   /** Show loading spinner and disable button */
   isLoading?: boolean;
   /** Stretch button to full width (useful on mobile) */
@@ -15,6 +17,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
       variant = 'primary',
+      size = 'md',
       isLoading = false,
       fullWidth = false,
       className,
@@ -23,8 +26,12 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     }: ButtonProps,
     ref,
   ) => {
+    const sizeClass =
+      size === 'sm'
+        ? 'px-3 py-1.5 text-sm'
+        : 'px-4 py-2 text-sm';
     const base =
-      'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform active:scale-95';
+      'inline-flex items-center justify-center rounded-md font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform active:scale-95';
     const variantClass = buttonVariants[variant];
     return (
       <button
@@ -33,7 +40,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={isLoading || props.disabled}
         ref={ref}
         {...props}
-        className={clsx(base, variantClass, fullWidth && 'w-full', className)}
+        className={clsx(base, sizeClass, variantClass, fullWidth && 'w-full', className)}
       >
         {isLoading && (
           <span
