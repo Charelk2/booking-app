@@ -505,6 +505,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Accepting a quote may respond with **500 Internal Server Error** if booking creation fails.
 * Legacy quotes can still be accepted or rejected via `PUT /api/v1/quotes/{id}/client` when the newer `/accept` route is unavailable.
 * Artists can save **Quote Templates** via `/api/v1/quote-templates` and apply them when composing a quote.
+* Failed quote acceptance or decline attempts now display a clear error message in the chat thread.
 
 ### Booking Wizard
 
