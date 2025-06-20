@@ -724,10 +724,62 @@ it('falls back to legacy endpoint when accept fails', async () => {
     await act(async () => {
       acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(api.updateQuoteAsClient).toHaveBeenCalledWith(8, {
-      status: 'accepted_by_client',
-    });
+  expect(api.updateQuoteAsClient).toHaveBeenCalledWith(8, {
+    status: 'accepted_by_client',
   });
+});
+
+it('shows an error when quote acceptance fails', async () => {
+  (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+    data: [
+      {
+        id: 1,
+        booking_request_id: 1,
+        sender_id: 2,
+        sender_type: 'artist',
+        content: 'Quote',
+        message_type: 'quote',
+        quote_id: 81,
+        timestamp: new Date().toISOString(),
+      },
+    ],
+  });
+  (api.getQuoteV2 as jest.Mock).mockResolvedValue({
+    data: {
+      id: 81,
+      status: 'pending',
+      services: [],
+      sound_fee: 0,
+      travel_fee: 0,
+      subtotal: 0,
+      total: 0,
+      artist_id: 2,
+      client_id: 1,
+      booking_request_id: 1,
+      created_at: '',
+      updated_at: '',
+    },
+  });
+  (api.acceptQuoteV2 as jest.Mock).mockRejectedValue(new Error('nope'));
+  (api.updateQuoteAsClient as jest.Mock).mockRejectedValue(new Error('fail'));
+
+  await act(async () => {
+    root.render(<MessageThread bookingRequestId={1} />);
+  });
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  const acceptBtn = Array.from(container.querySelectorAll('button')).find(
+    (b) => b.textContent === 'Accept',
+  ) as HTMLButtonElement;
+  await act(async () => {
+    acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+
+  const alert = container.querySelector('p[role="alert"]');
+  expect(alert?.textContent).toContain('Failed to accept quote');
+});
 
 it('declines quote using legacy endpoint', async () => {
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
