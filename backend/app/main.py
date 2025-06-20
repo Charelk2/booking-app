@@ -45,6 +45,7 @@ from .api import (
     api_message,
     api_notification,
     api_payment,
+    api_calendar,
     api_quote_template,
 )
 
@@ -215,6 +216,13 @@ app.include_router(
     api_sound_provider.router,
     prefix=f"{api_prefix}/sound-providers",
     tags=["sound-providers"],
+)
+
+# ─── CALENDAR ROUTES (under /api/v1/google-calendar) ─────────────────────────
+app.include_router(
+    api_calendar.router,
+    prefix=f"{api_prefix}",
+    tags=["google-calendar"],
 )
 
 # ─── PAYMENT ROUTES (under /api/v1/payments) ─────────────────────────────
