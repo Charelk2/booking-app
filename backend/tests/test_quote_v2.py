@@ -704,3 +704,66 @@ def test_create_quote_returns_404_for_missing_request():
         exc_info.value.detail["field_errors"]["booking_request_id"]
         == "not_found"
     )
+
+
+def test_accept_quote_without_date_for_video_service():
+    db = setup_db()
+    artist = User(
+        email="video@test.com",
+        password="x",
+        first_name="A",
+        last_name="R",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="videoc@test.com",
+        password="x",
+        first_name="C",
+        last_name="L",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    service = Service(
+        artist_id=artist.id,
+        title="Video",
+        description="",
+        price=Decimal("100"),
+        currency="ZAR",
+        duration_minutes=5,
+        service_type="Personalized Video",
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        service_id=service.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    quote_in = QuoteCreate(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=client.id,
+        services=[ServiceItem(description="Video", price=Decimal("100"))],
+        sound_fee=Decimal("0"),
+        travel_fee=Decimal("0"),
+    )
+    quote = api_quote_v2.create_quote(quote_in, db)
+    booking = api_quote_v2.accept_quote(quote.id, db)
+
+    from app.models import Booking
+
+    db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
+    assert db_booking is not None
+    assert booking.id == db_booking.id
+    assert db_booking.start_time is not None
