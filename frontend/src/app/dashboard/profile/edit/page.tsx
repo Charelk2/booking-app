@@ -14,6 +14,9 @@ import {
   uploadMyArtistCoverPhoto,
   uploadMyArtistPortfolioImages,
   updateMyArtistPortfolioImageOrder,
+  getGoogleCalendarStatus,
+  connectGoogleCalendar,
+  disconnectGoogleCalendar,
 } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import { DEFAULT_CURRENCY } from '@/lib/constants';
@@ -151,6 +154,7 @@ export default function EditArtistProfilePage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [calendarConnected, setCalendarConnected] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -200,6 +204,9 @@ export default function EditArtistProfilePage(): JSX.Element {
     };
 
     fetchProfile();
+    getGoogleCalendarStatus()
+      .then((res) => setCalendarConnected(res.data.connected))
+      .catch(() => setCalendarConnected(false));
   }, [user, authLoading, router, pathname]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -413,6 +420,26 @@ export default function EditArtistProfilePage(): JSX.Element {
       return arr;
     });
     dragIndex.current = null;
+  };
+
+  const handleConnectCalendar = async () => {
+    try {
+      const res = await connectGoogleCalendar();
+      window.location.href = res.data.auth_url;
+    } catch (err) {
+      console.error('Failed to connect calendar:', err);
+      setError('Failed to initiate Google Calendar sync.');
+    }
+  };
+
+  const handleDisconnectCalendar = async () => {
+    try {
+      await disconnectGoogleCalendar();
+      setCalendarConnected(false);
+    } catch (err) {
+      console.error('Failed to disconnect calendar:', err);
+      setError('Failed to disconnect Google Calendar.');
+    }
   };
 
   const inputClasses =
@@ -746,6 +773,32 @@ export default function EditArtistProfilePage(): JSX.Element {
                     placeholder="e.g., https://myportfolio.com, https://instagram.com/me"
                   />
                 </div>
+              </div>
+            </section>
+
+            <section className="pt-8">
+              <h2 className="text-xl font-medium text-gray-700 mb-6">Sync Google Calendar</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Status: {calendarConnected ? 'Connected' : 'Not connected'}
+              </p>
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={handleConnectCalendar}
+                  className={primaryButtonClasses}
+                  disabled={calendarConnected}
+                >
+                  Connect
+                </button>
+                {calendarConnected && (
+                  <button
+                    type="button"
+                    onClick={handleDisconnectCalendar}
+                    className={primaryButtonClasses}
+                  >
+                    Disconnect
+                  </button>
+                )}
               </div>
             </section>
           </div>
