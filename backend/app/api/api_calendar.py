@@ -49,8 +49,17 @@ def google_calendar_callback(
     db: Session = Depends(get_db),
 ):
     user_id = int(state)
-    calendar_service.exchange_code(user_id, code, settings.GOOGLE_REDIRECT_URI, db)
-    redirect_target = getattr(settings, "FRONTEND_URL", "/")
+    status = "success"
+    try:
+        calendar_service.exchange_code(
+            user_id, code, settings.GOOGLE_REDIRECT_URI, db
+        )
+    except Exception as exc:  # noqa: BLE001
+        status = "error"
+        logger.error(
+            "Failed to exchange Google Calendar auth code: %s", exc, exc_info=True
+        )
+    redirect_target = f"{settings.FRONTEND_URL}/dashboard/profile/edit?calendarSync={status}"
     return RedirectResponse(url=redirect_target)
 
 
