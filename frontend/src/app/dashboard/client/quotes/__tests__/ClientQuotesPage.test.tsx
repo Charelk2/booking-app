@@ -41,8 +41,8 @@ describe('ClientQuotesPage', () => {
 
     expect(getMyClientQuotes).toHaveBeenCalled();
     expect(div.textContent).toContain('My Quotes');
-    expect(div.textContent).toContain('pending_client_action');
-    expect(div.textContent).toContain('confirmed_by_artist');
+    expect(div.textContent).toContain('Pending Client Action');
+    expect(div.textContent).toContain('Confirmed by Artist');
 
     act(() => {
       root.unmount();
@@ -102,7 +102,7 @@ describe('ClientQuotesPage', () => {
     await act(async () => { await Promise.resolve(); });
 
     expect(getMyClientQuotes).toHaveBeenLastCalledWith({ status: 'accepted' });
-    expect(div.textContent).toContain('accepted_by_client');
+    expect(div.textContent).toContain('Accepted by Client');
     act(() => {
       root.unmount();
     });

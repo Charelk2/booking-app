@@ -8,7 +8,7 @@ import PaymentModal from "@/components/booking/PaymentModal";
 import toast from "@/components/ui/Toast";
 import { getBookingDetails, downloadBookingIcs } from "@/lib/api";
 import type { Booking } from "@/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatStatus } from "@/lib/utils";
 import { Spinner } from "@/components/ui";
 
 export default function BookingDetailsPage() {
@@ -97,7 +97,7 @@ export default function BookingDetailsPage() {
         {booking.deposit_amount !== undefined && (
           <p className="text-sm text-gray-700">
             Deposit: {formatCurrency(Number(booking.deposit_amount || 0))} (
-            {booking.payment_status})
+            {formatStatus(booking.payment_status)})
           </p>
         )}
         {booking.payment_status === "pending" && booking.deposit_due_by && (
