@@ -176,7 +176,13 @@ Set these variables in your `.env` file to enable syncing with Google Calendar:
 GOOGLE_CLIENT_ID=<your-client-id>
 GOOGLE_CLIENT_SECRET=<your-client-secret>
 GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/google-calendar/callback
+FRONTEND_URL=http://localhost:3000/calendar-sync
 ```
+
+Use `GET /api/v1/google-calendar/connect` to begin OAuth. After the Google
+callback completes, the API redirects to `FRONTEND_URL`. Artists can disconnect
+via `DELETE /api/v1/google-calendar` or check the connection status with
+`GET /api/v1/google-calendar/status`.
 
 After installing new dependencies, run `./scripts/test-all.sh` once to refresh the caches.
 

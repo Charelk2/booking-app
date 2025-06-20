@@ -453,4 +453,14 @@ export const getMessageThreads = () =>
 export const markThreadRead = (bookingRequestId: number) =>
   api.put(`${API_V1}/notifications/message-threads/${bookingRequestId}/read`);
 
+// ─── GOOGLE CALENDAR ─────────────────────────────────────────────────────────
+export const getGoogleCalendarStatus = () =>
+  api.get<{ connected: boolean }>(`${API_V1}/google-calendar/status`);
+
+export const connectGoogleCalendar = () =>
+  api.get<{ auth_url: string }>(`${API_V1}/google-calendar/connect`);
+
+export const disconnectGoogleCalendar = () =>
+  api.delete(`${API_V1}/google-calendar`);
+
 export default api;
