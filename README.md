@@ -260,6 +260,14 @@ codes. Subsequent logins require the verification step provided by
 `POST /auth/verify-mfa`. The login page automatically prompts for this
 verification code whenever a login response includes `mfa_required`.
 
+### Login rate limiting
+
+Failed login attempts are tracked per user and IP using Redis. After
+`MAX_LOGIN_ATTEMPTS` failures within `LOGIN_ATTEMPT_WINDOW` seconds,
+`POST /auth/login` responds with **429 Too Many Requests**. A successful
+login resets these counters. Configure the limits via environment variables
+if the defaults are too strict.
+
 ---
 
 ## Development
