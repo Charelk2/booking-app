@@ -36,7 +36,7 @@ export default function CollapsibleSection({
             aria-hidden="true"
             className={clsx('ml-2 transition-transform', open ? 'rotate-180' : 'rotate-0')}
           >
-            \u203a
+            {'›'}
           </span>
         </button>
       </h3>
