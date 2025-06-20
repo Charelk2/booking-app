@@ -22,7 +22,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Google Maps and large images load lazily once in view to reduce first paint time.
 - Client dashboards now include a bookings list with upcoming and past filters via `/api/v1/bookings/my-bookings?status=`.
 - Each booking item in this list now includes a `deposit_due_by` field when the booking was created from a quote. This due date is calculated one week from the moment the quote is accepted.
-- Artists can mark bookings completed or cancelled and download confirmed bookings as calendar (.ics) files.
+- Artists can mark bookings completed or cancelled and download confirmed bookings as calendar (.ics) files generated with the `ics` library.
 - Clients can leave a star rating and comment once a booking is marked completed. Service detail pages now display these reviews.
 - A **Leave Review** button now appears in chat when a completed booking has no review.
 - After accepting a quote, clients see quick links in the chat to view that booking, pay the deposit, and add it to a calendar.
@@ -789,6 +789,7 @@ GET /api/v1/artist-profiles/{artist_id}/availability
 ```
 GET /api/v1/bookings/{booking_id}/calendar.ics
 ```
+Returns an RFC 5545 compatible calendar entry using the `ics` library.
 
 ### Payments
 
