@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import NextImage from 'next/image';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import MobileSaveBar from '@/components/dashboard/MobileSaveBar';
 import { useAuth } from '@/contexts/AuthContext';
@@ -156,6 +156,8 @@ export default function EditArtistProfilePage(): JSX.Element {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [calendarConnected, setCalendarConnected] = useState(false);
 
+  const searchParams = useSearchParams();
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -203,11 +205,19 @@ export default function EditArtistProfilePage(): JSX.Element {
       }
     };
 
+    const syncStatus = searchParams.get('calendarSync');
+    if (syncStatus === 'success') {
+      setSuccessMessage('Google Calendar connected successfully!');
+      setCalendarConnected(true);
+    } else if (syncStatus === 'error') {
+      setError('Failed to connect Google Calendar.');
+    }
+
     fetchProfile();
     getGoogleCalendarStatus()
       .then((res) => setCalendarConnected(res.data.connected))
       .catch(() => setCalendarConnected(false));
-  }, [user, authLoading, router, pathname]);
+  }, [user, authLoading, router, pathname, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/google-calendar/callback"
 
+    # Base frontend URL used for OAuth redirects
+    FRONTEND_URL: str = "http://localhost:3000"
+
     @field_validator("CORS_ORIGINS", mode="before")
     def split_origins(cls, v: Any) -> list[str]:
         """Parse comma-separated or JSON list of origins from environment."""
