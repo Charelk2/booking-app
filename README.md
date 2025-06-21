@@ -550,7 +550,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 ### Booking Wizard
 
 * Reusable, centered progress bar and `useBookingForm` hook.
-* “Book Now” buttons on service cards.
+* “Request Booking” buttons on service cards.
 * New **Review** step showing cost breakdown and selections.
 * Success toasts when saving a draft or submitting a request.
 * Simplified buttons sit below each step in a responsive button group.

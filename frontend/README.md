@@ -79,7 +79,7 @@ The `/booking` page requires an `artist_id` query parameter and accepts an optio
 /booking?artist_id=123&service_id=456
 ```
 
-Passing `service_id` skips the service selection step when a user clicks "Book Now" on a service card.
+Passing `service_id` skips the service selection step when a user clicks "Request Booking" on a service card.
 
 ## Dashboard
 
