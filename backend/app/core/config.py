@@ -3,6 +3,7 @@ from pydantic import field_validator, model_validator
 from typing import Any, ClassVar
 import json
 from pathlib import Path
+import os
 
 
 class Settings(BaseSettings):
@@ -64,7 +65,10 @@ class Settings(BaseSettings):
         return values
 
     class Config:
-        env_file = ".env"
+        env_file = os.getenv(
+            "ENV_FILE",
+            str(Path(__file__).resolve().parents[3] / ".env"),
+        )
         case_sensitive = True
 
 
