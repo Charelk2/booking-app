@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock
 
 from google.oauth2.credentials import Credentials
+from google.auth.exceptions import RefreshError
 
 import pytest
 from sqlalchemy import create_engine
@@ -116,6 +117,38 @@ def test_fetch_events_http_error(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         calendar_service.fetch_events(user.id, datetime.utcnow(), datetime.utcnow() + timedelta(days=1), db)
     assert exc.value.status_code == 502
+
+
+def test_fetch_events_refresh_error(monkeypatch):
+    db = setup_db()
+    user = User(email='refresh@test.com', password='x', first_name='R', last_name='U', user_type=UserType.ARTIST)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    acc = CalendarAccount(
+        user_id=user.id,
+        provider=CalendarProvider.GOOGLE,
+        refresh_token='r',
+        access_token='a',
+        token_expiry=datetime.utcnow(),
+    )
+    db.add(acc)
+    db.commit()
+
+    class DummyCred:
+        def __init__(self, **kwargs):
+            self.expired = True
+
+        def refresh(self, request):
+            raise RefreshError('invalid_request')
+
+    monkeypatch.setattr(calendar_service, 'Credentials', lambda **kw: DummyCred())
+
+    with pytest.raises(HTTPException) as exc:
+        calendar_service.fetch_events(user.id, datetime.utcnow(), datetime.utcnow() + timedelta(days=1), db)
+    assert exc.value.status_code == 502
+    # account removed on refresh failure
+    assert db.query(CalendarAccount).count() == 0
 
 
 def test_unavailable_dates_include_calendar(monkeypatch):
