@@ -15,9 +15,19 @@ from dotenv import load_dotenv
 from ..database import get_db
 from ..models.user import User, UserType
 from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
-from ..schemas.user import UserCreate, UserResponse, TokenData, MFAVerify, MFACode
+from ..models.email_token import EmailToken
+from ..schemas.user import (
+    UserCreate,
+    UserResponse,
+    TokenData,
+    MFAVerify,
+    MFACode,
+    EmailConfirmRequest,
+)
 from ..utils.auth import get_password_hash, verify_password
+from ..utils.email import send_email
 from ..utils.redis_cache import get_redis_client
+from app.core.config import settings
 import redis
 
 try:
@@ -85,6 +95,23 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
             artist_profile = ArtistProfile(user_id=db_user.id)
             db.add(artist_profile)
             db.commit()
+
+        token_value = secrets.token_urlsafe(32)
+        expires = datetime.utcnow() + timedelta(hours=24)
+        email_token = EmailToken(
+            user_id=db_user.id,
+            token=token_value,
+            expires_at=expires,
+        )
+        db.add(email_token)
+        db.commit()
+
+        verify_link = f"{settings.FRONTEND_URL}/confirm-email?token={token_value}"
+        send_email(
+            db_user.email,
+            "Confirm your email",
+            f"Click the link to verify your account: {verify_link}",
+        )
 
         return db_user
     except Exception as e:
@@ -313,4 +340,21 @@ def disable_mfa(
     current_user.mfa_recovery_tokens = None
     db.commit()
     return {"message": "MFA disabled"}
+
+
+@router.post("/confirm-email")
+def confirm_email(data: EmailConfirmRequest, db: Session = Depends(get_db)):
+    record = db.query(EmailToken).filter(EmailToken.token == data.token).first()
+    if not record or record.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    user = db.query(User).filter(User.id == record.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_verified = True
+    db.delete(record)
+    db.commit()
+    return {"message": "Email confirmed"}
+
 
