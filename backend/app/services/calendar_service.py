@@ -91,6 +91,9 @@ def exchange_code(user_id: int, code: str, redirect_uri: str, db: Session) -> No
 
 def fetch_events(user_id: int, start: datetime, end: datetime, db: Session) -> List[datetime]:
     """Return start times of events from the user's Google Calendar."""
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        logger.warning("Google Calendar credentials not configured; skipping fetch")
+        return []
     account = (
         db.query(CalendarAccount)
         .filter(
@@ -143,6 +146,11 @@ def fetch_events(user_id: int, start: datetime, end: datetime, db: Session) -> L
     except HttpError as exc:
         logger.error("Google Calendar API error: %s", exc, exc_info=True)
         raise HTTPException(502, "Failed to fetch calendar events") from exc
+    except RefreshError as exc:
+        logger.error("Google token refresh failed for user %s: %s", user_id, exc, exc_info=True)
+        db.delete(account)
+        db.commit()
+        raise HTTPException(502, "Failed to refresh calendar credentials") from exc
 
     results: List[datetime] = []
     for item in events.get("items", []):
