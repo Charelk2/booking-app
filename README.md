@@ -130,6 +130,8 @@ frontend packages.
 
 The SQLite database path is automatically resolved to the project root, so you can start the backend from either the repo root or the `backend/` folder without creating duplicate database files.
 
+Environment variables are loaded from `.env` in the repository root. Set `ENV_FILE` to point elsewhere if you need a different configuration during testing or deployment.
+
 ### Database migrations
 
 Run `alembic upgrade head` whenever you pull changes that modify the database schema. The API will attempt to add missing columns such as `artist_profiles.price_visible`, `services.currency`, `bookings_simple.date`/`location`, `bookings_simple.payment_status`, `users.mfa_secret`/`mfa_enabled`, and `calendar_accounts.email` automatically for SQLite setups. Non-SQLite deployments should run the new Alembic migration after pulling this update. Simply starting the API will also add the new `calendar_accounts.email` column if it is missing.
@@ -170,7 +172,7 @@ Unhandled exceptions are returned as JSON 500 responses. The middleware now inje
 
 ### Google Calendar OAuth
 
-Set these variables in your `.env` file to enable syncing with Google Calendar:
+Set these variables in your `.env` file (in the repo root) to enable syncing with Google Calendar:
 
 ```env
 GOOGLE_CLIENT_ID=<your-client-id>
@@ -233,7 +235,7 @@ The embedded map only loads after a location is selected so the page renders
 quickly.
 
 To expose the app on your local network, replace `192.168.3.203` with your
-machine's LAN IP. Set the same address in `backend/.env` under
+machine's LAN IP. Set the same address in `.env` under
 `CORS_ORIGINS=["http://<your-ip>:3000"]`, then start the backend with
 `--host 0.0.0.0` and run `npm run dev -- -H 0.0.0.0` so both servers listen on
 all interfaces.
@@ -266,7 +268,7 @@ GITHUB_CLIENT_SECRET=<your-github-client-secret>
 
 To connect an account:
 
-1. Add the above credentials to `.env` and start the server.
+1. Add the above credentials to `.env` in the project root and start the server.
 2. Visit `/auth/google/login?next=/dashboard` or `/auth/github/login?next=/dashboard`.
 3. Approve the permissions requested by the provider.
 4. The API creates or updates the user, marks them verified, issues a JWT, and
@@ -902,7 +904,7 @@ also override it on the client by setting `NEXT_PUBLIC_DEFAULT_CURRENCY` in
 `frontend/.env.local`.
 
 ```env
-# backend/.env
+# .env
 DEFAULT_CURRENCY=USD
 
 # optional frontend override
