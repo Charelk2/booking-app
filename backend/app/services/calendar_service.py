@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google.auth.exceptions import RefreshError
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from sqlalchemy.orm import Session
@@ -110,7 +111,19 @@ def fetch_events(user_id: int, start: datetime, end: datetime, db: Session) -> L
     )
     try:
         if creds.expired:
-            creds.refresh(Request())
+            try:
+                creds.refresh(Request())
+            except RefreshError as exc:
+                logger.error(
+                    "Failed to refresh Google token for user %s: %s",
+                    user_id,
+                    exc,
+                    exc_info=True,
+                )
+                db.delete(account)
+                db.commit()
+                raise HTTPException(502, "Failed to refresh calendar credentials") from exc
+
             account.access_token = creds.token
             account.token_expiry = creds.expiry
             db.add(account)
