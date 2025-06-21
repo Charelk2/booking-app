@@ -838,6 +838,22 @@ formatCurrency(125); // => 'R 125,00'
 formatCurrency(99.5, 'USD', 'en-US'); // => 'US$99.50'
 ```
 
+### Customizing the currency
+
+Set `DEFAULT_CURRENCY` in your `.env` file to change the backend currency code.
+The value is exposed at `/api/v1/settings` so the frontend can fetch it. You can
+also override it on the client by setting `NEXT_PUBLIC_DEFAULT_CURRENCY` in
+`frontend/.env.local`.
+
+```env
+# backend/.env
+DEFAULT_CURRENCY=USD
+
+# optional frontend override
+NEXT_PUBLIC_DEFAULT_CURRENCY=EUR
+```
+
+
 ---
 
 ## Troubleshooting & Common Errors

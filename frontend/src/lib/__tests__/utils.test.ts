@@ -92,6 +92,31 @@ describe('formatCurrency', () => {
   it('accepts a custom locale', () => {
     expect(formatCurrency(100, DEFAULT_CURRENCY, 'en-US')).toBe('ZAR\u00A0100.00');
   });
+
+  it('uses currency from environment variable', async () => {
+    process.env.NEXT_PUBLIC_DEFAULT_CURRENCY = 'EUR';
+    jest.resetModules();
+    const { formatCurrency: fmt } = await import('../utils');
+    const { DEFAULT_CURRENCY: cur } = await import('../constants');
+    expect(cur).toBe('EUR');
+    expect(fmt(10)).toBe('€10,00');
+    delete process.env.NEXT_PUBLIC_DEFAULT_CURRENCY;
+  });
+
+  it('fetches currency from API when env missing', async () => {
+    delete process.env.NEXT_PUBLIC_DEFAULT_CURRENCY;
+    jest.resetModules();
+    const globals = global as typeof global & { fetch: jest.Mock };
+    globals.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ default_currency: 'EUR' }),
+    });
+    const { fetchDefaultCurrency } = await import('../constants');
+    const { formatCurrency: fmt } = await import('../utils');
+    await fetchDefaultCurrency();
+    expect(fmt(20)).toBe('€20,00');
+    globals.fetch.mockRestore();
+  });
 });
 
 describe('formatStatus', () => {

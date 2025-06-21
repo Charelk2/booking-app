@@ -48,6 +48,7 @@ from .api import (
     api_payment,
     api_calendar,
     api_quote_template,
+    api_settings,
 )
 
 # The “artist‐profiles” router lives under app/api/v1/
@@ -233,6 +234,13 @@ app.include_router(
     api_payment.router,
     prefix=f"{api_prefix}/payments",
     tags=["payments"],
+)
+
+# ─── SETTINGS ROUTES (under /api/v1) ─────────────────────────────────────────
+app.include_router(
+    api_settings.router,
+    prefix=f"{api_prefix}",
+    tags=["settings"],
 )
 
 
