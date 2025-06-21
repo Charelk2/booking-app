@@ -192,6 +192,10 @@ email address when available.
 The authorization URL now includes `prompt=consent` so Google always returns a
 refresh token. If the callback does not receive one, the API responds with HTTP
 400 and logs the error instead of failing a database insert.
+If a stored refresh token becomes invalid (e.g. revoked), the calendar sync
+logic now removes the credentials and returns an empty availability list rather
+than failing with a 500 error. Artists will need to reconnect their Google
+Calendar account.
 
 After installing new dependencies, run `./scripts/test-all.sh` once to refresh the caches.
 
