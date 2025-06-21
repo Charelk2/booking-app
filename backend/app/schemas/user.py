@@ -45,3 +45,8 @@ class MFAVerify(BaseModel):
 
 class MFACode(BaseModel):
     code: str
+
+
+class EmailConfirmRequest(BaseModel):
+    token: str
+

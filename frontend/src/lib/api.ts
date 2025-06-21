@@ -110,6 +110,9 @@ export const generateRecoveryCodes = () => api.post('/auth/recovery-codes');
 export const disableMfa = (code: string) =>
   api.post('/auth/disable-mfa', { code });
 
+export const confirmEmail = (token: string) =>
+  api.post('/auth/confirm-email', { token });
+
 // ─── All other resources live under /api/v1 ────────────────────────────────────
 
 const API_V1 = '/api/v1';
