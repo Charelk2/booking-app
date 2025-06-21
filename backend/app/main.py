@@ -2,7 +2,7 @@
 
 import os
 import logging
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -116,9 +116,12 @@ logger.info("CORS origins set to: %s", allow_origins)
 
 @app.middleware("http")
 async def catch_exceptions(request: Request, call_next):
-    """Return JSON 500 errors so CORS headers are included."""
+    """Return JSON responses for HTTP errors and log them."""
     try:
         response = await call_next(request)
+    except HTTPException as exc:  # return the original status and detail
+        logger.error("HTTP error %s at %s: %s", exc.status_code, request.url.path, exc.detail)
+        response = JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     except Exception as exc:  # pragma: no cover - generic handler
         logger.exception("Unhandled error: %s", exc)
         response = JSONResponse(
