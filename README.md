@@ -130,7 +130,7 @@ frontend packages.
 
 The SQLite database path is automatically resolved to the project root, so you can start the backend from either the repo root or the `backend/` folder without creating duplicate database files.
 
-Environment variables are loaded from `.env` in the repository root. Set `ENV_FILE` to point elsewhere if you need a different configuration during testing or deployment.
+`uvicorn` loads environment variables from `backend/.env` because the `Settings` class uses that file by default. Copy `.env.example` to both `.env` and `backend/.env` so the API and tests share the same configuration, or set `ENV_FILE` to point to another path if needed.
 
 ### Database migrations
 
@@ -268,7 +268,7 @@ GITHUB_CLIENT_SECRET=<your-github-client-secret>
 
 To connect an account:
 
-1. Add the above credentials to `.env` in the project root and start the server.
+1. Copy `.env.example` to both `.env` and `backend/.env`, add the above credentials, then start the server (or set `ENV_FILE` to your chosen path). This prevents `Google OAuth not configured` errors.
 2. Visit `/auth/google/login?next=/dashboard` or `/auth/github/login?next=/dashboard`.
 3. Approve the permissions requested by the provider.
 4. The API creates or updates the user, marks them verified, issues a JWT, and
