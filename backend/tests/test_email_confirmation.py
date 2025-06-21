@@ -31,7 +31,7 @@ def setup_app():
     return Session
 
 
-def create_user(Session):
+def create_user(Session, expired: bool = False):
     db = Session()
     user = User(
         email='new@test.com',
@@ -44,10 +44,11 @@ def create_user(Session):
     db.add(user)
     db.commit()
     db.refresh(user)
+    expiry = datetime.utcnow() + timedelta(hours=-1 if expired else 1)
     token = EmailToken(
         user_id=user.id,
         token='tok',
-        expires_at=datetime.utcnow() + timedelta(hours=1),
+        expires_at=expiry,
     )
     db.add(token)
     db.commit()
@@ -83,7 +84,8 @@ def test_token_created_on_register():
 
 
 def test_confirm_email():
-    user_id, token, Session = create_user(setup_app())
+    Session = setup_app()
+    user_id, token, _ = create_user(Session)
     client = TestClient(app)
     res = client.post('/auth/confirm-email', json={'token': token})
     assert res.status_code == 200
@@ -94,6 +96,29 @@ def test_confirm_email():
     db.close()
     assert verified is True
     assert remaining is None
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_confirm_email_invalid_token():
+    Session = setup_app()
+    client = TestClient(app)
+    res = client.post('/auth/confirm-email', json={'token': 'bad'})
+    assert res.status_code == 400
+    assert res.json()['detail'] == 'Invalid or expired token'
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_confirm_email_expired_token():
+    Session = setup_app()
+    user_id, token, _ = create_user(Session, expired=True)
+    client = TestClient(app)
+    res = client.post('/auth/confirm-email', json={'token': token})
+    assert res.status_code == 400
+    assert res.json()['detail'] == 'Invalid or expired token'
+    db = Session()
+    user = db.query(User).filter(User.id == user_id).first()
+    db.close()
+    assert user.is_verified is False
     app.dependency_overrides.pop(get_db, None)
 
 
