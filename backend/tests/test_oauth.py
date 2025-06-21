@@ -9,6 +9,8 @@ from app.models import User, UserType
 from app.models.base import BaseModel
 from app.api.dependencies import get_db
 from app.api import api_oauth
+from app.api.auth import SECRET_KEY, ALGORITHM
+import jwt
 
 
 def setup_app(monkeypatch):
@@ -67,6 +69,9 @@ def test_google_oauth_creates_user(monkeypatch):
     res = client.get('/auth/google/callback?code=x&state=/done', follow_redirects=False)
     assert res.status_code == 307
     assert res.headers['location'].startswith('/done?token=')
+    token = res.headers['location'].split('token=')[1]
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    assert payload['sub'] == 'new@example.com'
 
     db = Session()
     user = db.query(User).filter(User.email == 'new@example.com').first()
@@ -112,6 +117,9 @@ def test_github_oauth_updates_user(monkeypatch):
     res = client.get('/auth/github/callback?code=x&state=/next', follow_redirects=False)
     assert res.status_code == 307
     assert res.headers['location'].startswith('/next?token=')
+    token = res.headers['location'].split('token=')[1]
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    assert payload['sub'] == 'gh@example.com'
 
     db = Session()
     updated = db.query(User).filter(User.email == 'gh@example.com').first()

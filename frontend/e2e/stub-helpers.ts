@@ -23,6 +23,16 @@ export async function stubRegister(page: Page) {
   });
 }
 
+export async function stubConfirmEmail(page: Page, status = 200) {
+  await page.route('**/auth/confirm-email', async (route) => {
+    await route.fulfill({
+      status,
+      headers: { 'Content-Type': 'application/json' },
+      body: status === 200 ? '{}' : JSON.stringify({ detail: 'Invalid or expired token' }),
+    });
+  });
+}
+
 export async function stubNotifications(page: Page) {
   await page.route('**/api/v1/notifications**', async (route) => {
     await route.fulfill({
