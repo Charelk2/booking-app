@@ -270,6 +270,13 @@ code for profile information, creates or updates the user record with
 `is_verified` set to `true`, issues a JWT, and finally redirects the browser to
 `next` with `?token=<jwt>` appended.
 
+### Email confirmation
+
+Users registering via `/auth/register` receive a short-lived token in an email
+pointing to `/confirm-email?token=<token>`. Submitting this token through the
+new `POST /auth/confirm-email` endpoint marks the user as verified and removes
+the token from the `email_tokens` table.
+
 
 ### Multi-factor authentication
 
