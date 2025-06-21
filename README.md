@@ -253,6 +253,24 @@ API responses are now handled by a global interceptor which maps common HTTP
 status codes to human-friendly error messages and logs server errors to the
 console. Hooks and components no longer need to parse Axios errors manually.
 
+### Google & GitHub OAuth login
+
+Set these variables in `.env` to enable social sign-in:
+
+```env
+GOOGLE_OAUTH_CLIENT_ID=<your-google-client-id>
+GOOGLE_OAUTH_CLIENT_SECRET=<your-google-client-secret>
+GITHUB_CLIENT_ID=<your-github-client-id>
+GITHUB_CLIENT_SECRET=<your-github-client-secret>
+```
+
+Users are redirected to `/auth/google/login` or `/auth/github/login` with a
+`next` query parameter. After the provider grants access, the API exchanges the
+code for profile information, creates or updates the user record with
+`is_verified` set to `true`, issues a JWT, and finally redirects the browser to
+`next` with `?token=<jwt>` appended.
+
+
 ### Multi-factor authentication
 
 Run `POST /auth/setup-mfa` while authenticated to generate a TOTP secret.
