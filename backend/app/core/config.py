@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Base frontend URL used for OAuth redirects
     FRONTEND_URL: str = "http://localhost:3000"
 
+    # Default currency code used across the application
+    DEFAULT_CURRENCY: str = "ZAR"
+
     @field_validator("CORS_ORIGINS", mode="before")
     def split_origins(cls, v: Any) -> list[str]:
         """Parse comma-separated or JSON list of origins from environment."""
