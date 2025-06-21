@@ -113,6 +113,8 @@ def test_fetch_events_http_error(monkeypatch):
         raise HttpError(resp=Mock(status=500), content=b'')
 
     monkeypatch.setattr(calendar_service, 'build', lambda *a, **k: Mock(events=lambda: Mock(list=raise_error)))
+    monkeypatch.setattr(calendar_service.settings, 'GOOGLE_CLIENT_ID', 'id', raising=False)
+    monkeypatch.setattr(calendar_service.settings, 'GOOGLE_CLIENT_SECRET', 'sec', raising=False)
 
     with pytest.raises(HTTPException) as exc:
         calendar_service.fetch_events(user.id, datetime.utcnow(), datetime.utcnow() + timedelta(days=1), db)
@@ -143,12 +145,42 @@ def test_fetch_events_refresh_error(monkeypatch):
             raise RefreshError('invalid_request')
 
     monkeypatch.setattr(calendar_service, 'Credentials', lambda **kw: DummyCred())
+    monkeypatch.setattr(calendar_service.settings, 'GOOGLE_CLIENT_ID', 'id', raising=False)
+    monkeypatch.setattr(calendar_service.settings, 'GOOGLE_CLIENT_SECRET', 'sec', raising=False)
 
     with pytest.raises(HTTPException) as exc:
         calendar_service.fetch_events(user.id, datetime.utcnow(), datetime.utcnow() + timedelta(days=1), db)
     assert exc.value.status_code == 502
     # account removed on refresh failure
     assert db.query(CalendarAccount).count() == 0
+
+
+def test_fetch_events_missing_credentials(monkeypatch):
+    db = setup_db()
+    user = User(email='nocred@test.com', password='x', first_name='No', last_name='Cred', user_type=UserType.ARTIST)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    acc = CalendarAccount(
+        user_id=user.id,
+        provider=CalendarProvider.GOOGLE,
+        refresh_token='r',
+        access_token='a',
+        token_expiry=datetime.utcnow(),
+    )
+    db.add(acc)
+    db.commit()
+
+    monkeypatch.setattr(calendar_service.settings, 'GOOGLE_CLIENT_ID', '', raising=False)
+    monkeypatch.setattr(calendar_service.settings, 'GOOGLE_CLIENT_SECRET', '', raising=False)
+
+    events = calendar_service.fetch_events(
+        user.id,
+        datetime.utcnow(),
+        datetime.utcnow() + timedelta(days=1),
+        db,
+    )
+    assert events == []
 
 
 def test_unavailable_dates_include_calendar(monkeypatch):

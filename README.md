@@ -166,7 +166,7 @@ When the server starts it logs the resolved origins, e.g. `CORS origins set to: 
 
 For quick local testing you can bypass specific origins entirely by setting `CORS_ALLOW_ALL=true` in `.env`. When enabled the API responds with `Access-Control-Allow-Origin: *`.
 
-Unhandled exceptions are returned as JSON 500 responses. The middleware now injects the appropriate `Access-Control-Allow-Origin` header even when errors occur, so browser clients never see a CORS failure when the API throws an exception.
+Unhandled exceptions are returned as JSON 500 responses. The middleware now injects the appropriate `Access-Control-Allow-Origin` header even when errors occur, so browser clients never see a CORS failure when the API throws an exception. HTTP errors raised with `HTTPException` keep their original status codes and messages instead of always becoming 500 errors.
 
 ### Google Calendar OAuth
 
@@ -196,6 +196,7 @@ If a stored refresh token becomes invalid (e.g. revoked), the calendar sync
 logic now removes the credentials and returns an empty availability list rather
 than failing with a 500 error. Artists will need to reconnect their Google
 Calendar account.
+If the API starts without `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` set, calendar syncing is disabled and a warning is logged.
 
 After installing new dependencies, run `./scripts/test-all.sh` once to refresh the caches.
 
