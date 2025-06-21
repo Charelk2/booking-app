@@ -690,6 +690,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Cache keys include page number and filter parameters so each combination is stored separately.
 * Default Redis URL: `redis://localhost:6379/0`.
 * Fallback to DB if Redis is unavailable.
+* Connections close cleanly on API shutdown.
 
 ### Artist Listing Filters
 

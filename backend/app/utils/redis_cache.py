@@ -65,3 +65,15 @@ def cache_artist_list(
     except redis.exceptions.ConnectionError as exc:
         logging.warning("Could not cache artist list: %s", exc)
     return None
+
+
+def close_redis_client() -> None:
+    """Close the global Redis client if it exists."""
+    global _redis_client
+    if _redis_client is not None:
+        try:
+            _redis_client.close()
+        except redis.exceptions.ConnectionError as exc:  # pragma: no cover - best effort
+            logging.warning("Error closing Redis client: %s", exc)
+        finally:
+            _redis_client = None

@@ -54,6 +54,7 @@ from .api import (
 from .api.v1 import api_artist
 
 from .core.config import settings
+from .utils.redis_cache import close_redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -239,3 +240,10 @@ app.include_router(
 @app.get("/")
 async def root():
     return {"message": "Welcome to Artist Booking API"}
+
+
+@app.on_event("shutdown")
+def shutdown_redis_client() -> None:
+    """Close Redis connections when the application shuts down."""
+    logger.info("Closing Redis client")
+    close_redis_client()
