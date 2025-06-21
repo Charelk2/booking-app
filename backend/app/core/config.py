@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/google-calendar/callback"
 
+    # Social login OAuth credentials
+    GOOGLE_OAUTH_CLIENT_ID: str = ""
+    GOOGLE_OAUTH_CLIENT_SECRET: str = ""
+    GITHUB_CLIENT_ID: str = ""
+    GITHUB_CLIENT_SECRET: str = ""
+
     # Base frontend URL used for OAuth redirects
     FRONTEND_URL: str = "http://localhost:3000"
 

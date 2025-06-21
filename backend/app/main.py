@@ -34,6 +34,7 @@ from .models.notification import Notification
 
 # Routers under app/api/
 from .api import auth
+from .api import api_oauth
 from .api import (
     api_service,
     api_booking,
@@ -156,6 +157,7 @@ api_prefix = settings.API_V1_STR  # usually something like "/api/v1"
 # ─── AUTH ROUTES (no version prefix) ────────────────────────────────────────────────
 # Clients will POST to /auth/register and /auth/login
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(api_oauth.router, prefix="/auth", tags=["auth"])
 
 
 # ─── ARTIST‐PROFILE ROUTES (under /api/v1/artist-profiles) ──────────────────────────
