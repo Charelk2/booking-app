@@ -264,11 +264,28 @@ GITHUB_CLIENT_ID=<your-github-client-id>
 GITHUB_CLIENT_SECRET=<your-github-client-secret>
 ```
 
-Users are redirected to `/auth/google/login` or `/auth/github/login` with a
-`next` query parameter. After the provider grants access, the API exchanges the
-code for profile information, creates or updates the user record with
-`is_verified` set to `true`, issues a JWT, and finally redirects the browser to
-`next` with `?token=<jwt>` appended.
+To connect an account:
+
+1. Add the above credentials to `.env` and start the server.
+2. Visit `/auth/google/login?next=/dashboard` or `/auth/github/login?next=/dashboard`.
+3. Approve the permissions requested by the provider.
+4. The API creates or updates the user, marks them verified, issues a JWT, and
+   redirects to the `next` URL with `?token=<jwt>` appended.
+
+### SMTP email settings
+
+Outgoing mail uses these variables:
+
+```env
+SMTP_HOST=localhost
+SMTP_PORT=25
+SMTP_USERNAME=
+SMTP_PASSWORD=
+SMTP_FROM=no-reply@localhost
+```
+
+If `SMTP_USERNAME` and `SMTP_PASSWORD` are provided, TLS is automatically used
+when sending email.
 
 ### Email confirmation
 
@@ -276,6 +293,13 @@ Users registering via `/auth/register` receive a short-lived token in an email
 pointing to `/confirm-email?token=<token>`. Submitting this token through the
 new `POST /auth/confirm-email` endpoint marks the user as verified and removes
 the token from the `email_tokens` table.
+
+Steps to confirm an email address:
+
+1. Register an account using `POST /auth/register`.
+2. Click the link in the email or send `POST /auth/confirm-email` with
+   `{"token": "<token>"}`.
+3. A success response confirms the account is verified and the token deleted.
 
 
 ### Multi-factor authentication
