@@ -53,8 +53,9 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
           }}
           className="ml-auto"
           fullWidth={false}
+          title="The artist will respond with a quote"
         >
-          Book Now
+          Request Booking
         </Button>
       </div>
       {expanded && (
