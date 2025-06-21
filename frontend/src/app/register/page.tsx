@@ -41,8 +41,8 @@ export default function RegisterPage() {
       const { confirmPassword, ...userData } = data;
       void confirmPassword;
       await registerUser(userData);
-      toast.success('Registration successful! Please log in.');
-      router.push(`/login${next ? `?next=${encodeURIComponent(next)}` : ''}`);
+      toast.success('Registration successful! Check your email to verify.');
+      router.push('/confirm-email');
     } catch (err: unknown) {
       console.error('Registration error:', err);
       const message =
