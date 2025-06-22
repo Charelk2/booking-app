@@ -69,7 +69,7 @@ def test_google_oauth_creates_user(monkeypatch):
     client = TestClient(app)
     res = client.get('/auth/google/callback?code=x&state=/done', follow_redirects=False)
     assert res.status_code == 307
-    assert res.headers['location'].startswith('/done?token=')
+    assert res.headers['location'].startswith('http://localhost:3000/done?token=')
     token = res.headers['location'].split('token=')[1]
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     assert payload['sub'] == 'new@example.com'
@@ -117,7 +117,7 @@ def test_github_oauth_updates_user(monkeypatch):
     client = TestClient(app)
     res = client.get('/auth/github/callback?code=x&state=/next', follow_redirects=False)
     assert res.status_code == 307
-    assert res.headers['location'].startswith('/next?token=')
+    assert res.headers['location'].startswith('http://localhost:3000/next?token=')
     token = res.headers['location'].split('token=')[1]
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     assert payload['sub'] == 'gh@example.com'

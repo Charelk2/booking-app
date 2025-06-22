@@ -55,6 +55,8 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     if not hasattr(oauth, 'google'):
         raise HTTPException(500, "Google OAuth not configured")
     next_url = request.query_params.get("state") or settings.FRONTEND_URL
+    if next_url.startswith("/"):
+        next_url = settings.FRONTEND_URL.rstrip("/") + next_url
     token = await oauth.google.authorize_access_token(request)
     profile = None
     try:
@@ -114,6 +116,8 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
     if not hasattr(oauth, 'github'):
         raise HTTPException(500, "GitHub OAuth not configured")
     next_url = request.query_params.get("state") or settings.FRONTEND_URL
+    if next_url.startswith("/"):
+        next_url = settings.FRONTEND_URL.rstrip("/") + next_url
     token = await oauth.github.authorize_access_token(request)
     resp = await oauth.github.get("user", token=token)
     profile = resp.json()
