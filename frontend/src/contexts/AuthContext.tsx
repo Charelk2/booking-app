@@ -9,6 +9,7 @@ import {
   confirmMfa as apiConfirmMfa,
   generateRecoveryCodes as apiGenerateRecoveryCodes,
   disableMfa as apiDisableMfa,
+  getCurrentUser,
 } from '@/lib/api';
 
 interface AuthContextType {
@@ -40,6 +41,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get('token');
+
+    if (urlToken) {
+      localStorage.setItem('token', urlToken);
+      setToken(urlToken);
+      params.delete('token');
+      const newUrl = `${window.location.pathname}${
+        params.toString() ? `?${params.toString()}` : ''}`;
+      window.history.replaceState({}, '', newUrl);
+      (async () => {
+        try {
+          const res = await getCurrentUser();
+          setUser(res.data);
+          localStorage.setItem('user', JSON.stringify(res.data));
+        } catch (err) {
+          console.error('Failed to fetch current user:', err);
+        } finally {
+          setLoading(false);
+        }
+      })();
+      return;
+    }
+
     const storedUser =
       localStorage.getItem('user') || sessionStorage.getItem('user');
     const storedToken =
