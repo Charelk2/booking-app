@@ -1,17 +1,18 @@
-import os
 import asyncio
 import logging
 from email.message import EmailMessage
 
 import aiosmtplib
 
+from ..core.config import settings
+
 logger = logging.getLogger(__name__)
 
-SMTP_HOST = os.getenv("SMTP_HOST", "localhost")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "25"))
-SMTP_USERNAME = os.getenv("SMTP_USERNAME")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-SMTP_FROM = os.getenv("SMTP_FROM", "no-reply@localhost")
+SMTP_HOST = settings.SMTP_HOST
+SMTP_PORT = settings.SMTP_PORT
+SMTP_USERNAME = settings.SMTP_USERNAME
+SMTP_PASSWORD = settings.SMTP_PASSWORD
+SMTP_FROM = settings.SMTP_FROM
 
 
 async def _send_async(msg: EmailMessage) -> None:
