@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import timedelta
 import secrets
 import logging
@@ -11,7 +12,7 @@ from app.core.config import settings
 from app.database import get_db
 from app.models import User, UserType
 from app.api.auth import create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
-from app.utils.auth import get_password_hash
+from app.utils.auth import get_password_hash, normalize_email
 
 router = APIRouter()
 
@@ -81,7 +82,8 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     first_name = profile.get("given_name") or ""
     last_name = profile.get("family_name") or ""
 
-    user = db.query(User).filter(User.email == email).first()
+    email = normalize_email(email)
+    user = db.query(User).filter(func.lower(User.email) == email).first()
     if not user:
         user = User(
             email=email,
@@ -142,7 +144,8 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
     parts = name.split()
     first_name = parts[0]
     last_name = "".join(parts[1:]) if len(parts) > 1 else ""
-    user = db.query(User).filter(User.email == email).first()
+    email = normalize_email(email)
+    user = db.query(User).filter(func.lower(User.email) == email).first()
     if not user:
         user = User(
             email=email,
