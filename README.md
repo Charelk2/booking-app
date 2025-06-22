@@ -285,6 +285,8 @@ To connect an account:
 3. Approve the permissions requested by the provider.
 4. The API creates or updates the user, marks them verified, issues a JWT, and
    redirects to the `next` URL with `?token=<jwt>` appended.
+5. Token exchange or profile retrieval failures now log the underlying error and
+   return `400` responses like `Google authentication failed` to aid debugging.
 
 ### SMTP email settings
 
