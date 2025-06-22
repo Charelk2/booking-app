@@ -319,6 +319,9 @@ new `POST /auth/confirm-email` endpoint marks the user as verified and removes
 the token from the `email_tokens` table.
 All email addresses are normalized to lowercase during registration and login so
 `User@Example.com` and `user@example.com` refer to the same account.
+Gmail addresses are further canonicalized: dots and `+tags` are ignored and
+`googlemail.com` maps to `gmail.com`. This prevents duplicate users when signing
+in with Google OAuth.
 
 Steps to confirm an email address:
 
