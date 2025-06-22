@@ -149,7 +149,7 @@ function ServiceCard({
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -187,6 +187,7 @@ export default function DashboardPage() {
   const visibleBookings = bookings.slice(0, 5);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       router.push(`/login?next=${encodeURIComponent(pathname)}`);
       return;
@@ -231,7 +232,7 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
-  }, [user, router, pathname]);
+  }, [user, authLoading, router, pathname]);
 
   const handleServiceAdded = (newService: Service) => {
     const processedService = normalizeService(newService);
