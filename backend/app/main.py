@@ -4,6 +4,7 @@ import os
 import logging
 from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -113,6 +114,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 logger.info("CORS origins set to: %s", allow_origins)
+
+# OAuthlib's Starlette integration stores the authorization state in a
+# session cookie. Add SessionMiddleware so Authlib can sign and read
+# that cookie using our SECRET_KEY.
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 
 @app.middleware("http")

@@ -266,6 +266,10 @@ GITHUB_CLIENT_ID=<your-github-client-id>
 GITHUB_CLIENT_SECRET=<your-github-client-secret>
 ```
 
+OAuth routes store the provider state in a session cookie signed with
+`SECRET_KEY`. Ensure the same key is set in `.env` and `backend/.env`
+so logins work across environments.
+
 To connect an account:
 
 1. Copy `.env.example` to both `.env` and `backend/.env`, add the above credentials, then start the server (or set `ENV_FILE` to your chosen path). This prevents `Google OAuth not configured` errors.
