@@ -25,3 +25,19 @@ def test_env_file_override(tmp_path, monkeypatch):
     resp = override_client.get('/api/v1/settings')
     assert resp.status_code == 200
     assert resp.json() == {'default_currency': 'CHF'}
+
+
+def test_smtp_settings_from_env_file(tmp_path, monkeypatch):
+    env_file = tmp_path / 'smtp.env'
+    env_file.write_text(
+        'SMTP_HOST=mail.test\nSMTP_PORT=1025\nSMTP_USERNAME=user\nSMTP_PASSWORD=pass\nSMTP_FROM=from@test\n'
+    )
+    monkeypatch.setenv('ENV_FILE', str(env_file))
+    import app.core.config as config
+    import importlib
+    importlib.reload(config)
+    assert config.settings.SMTP_HOST == 'mail.test'
+    assert config.settings.SMTP_PORT == 1025
+    assert config.settings.SMTP_USERNAME == 'user'
+    assert config.settings.SMTP_PASSWORD == 'pass'
+    assert config.settings.SMTP_FROM == 'from@test'
