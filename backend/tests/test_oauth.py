@@ -171,3 +171,37 @@ def test_google_login_default_next(monkeypatch):
     assert resp.status_code == 307
     assert captured['state'] == settings.FRONTEND_URL.rstrip('/') + '/dashboard'
     app.dependency_overrides.pop(get_db, None)
+
+
+def test_google_login_redirects_to_dashboard(monkeypatch):
+    """Login without ?next= should redirect to /dashboard."""
+    Session = setup_app(monkeypatch)
+    captured = {}
+
+    async def fake_redirect(req, redirect_uri, state=None):
+        captured['state'] = state
+        return RedirectResponse(url=redirect_uri)
+
+    monkeypatch.setattr(
+        api_oauth.oauth,
+        'google',
+        types.SimpleNamespace(
+            authorize_redirect=fake_redirect,
+            authorize_access_token=fake_authorize_access_token,
+            parse_id_token=fake_parse_id_token,
+        ),
+        raising=False,
+    )
+    client = TestClient(app)
+
+    resp = client.get('/auth/google/login', follow_redirects=False)
+    assert resp.status_code == 307
+    assert captured['state'] == settings.FRONTEND_URL.rstrip('/') + '/dashboard'
+
+    cb = client.get(f'/auth/google/callback?code=x&state={captured["state"]}', follow_redirects=False)
+    assert cb.status_code == 307
+    assert cb.headers['location'].startswith(
+        settings.FRONTEND_URL.rstrip('/') + '/dashboard?token='
+    )
+
+    app.dependency_overrides.pop(get_db, None)
