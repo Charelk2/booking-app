@@ -52,7 +52,11 @@ export default function LoginPage() {
       }
       router.push(next || '/dashboard');
     } catch (err) {
-      setError('Invalid email or password');
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Invalid email or password');
+      }
     }
   };
 
