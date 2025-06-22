@@ -113,6 +113,8 @@ export const disableMfa = (code: string) =>
 export const confirmEmail = (token: string) =>
   api.post('/auth/confirm-email', { token });
 
+export const getCurrentUser = () => api.get<User>('/auth/me');
+
 // ─── All other resources live under /api/v1 ────────────────────────────────────
 
 const API_V1 = '/api/v1';
