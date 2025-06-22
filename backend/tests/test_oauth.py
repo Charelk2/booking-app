@@ -305,3 +305,24 @@ def test_oauth_merges_case_insensitive_email(monkeypatch):
     db.close()
 
     app.dependency_overrides.pop(get_db, None)
+
+
+def test_google_oauth_token_error(monkeypatch):
+    Session = setup_app(monkeypatch)
+
+    async def bad_authorize_access_token(request):
+        raise Exception("boom")
+
+    monkeypatch.setattr(
+        api_oauth.oauth,
+        'google',
+        types.SimpleNamespace(authorize_access_token=bad_authorize_access_token),
+        raising=False,
+    )
+
+    client = TestClient(app)
+    res = client.get('/auth/google/callback?code=x&state=/done', follow_redirects=False)
+    assert res.status_code == 400
+    assert res.json()['detail'] == 'Google authentication failed'
+
+    app.dependency_overrides.pop(get_db, None)
