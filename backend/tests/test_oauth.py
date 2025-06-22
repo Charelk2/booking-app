@@ -84,6 +84,49 @@ def test_google_oauth_creates_user(monkeypatch):
     app.dependency_overrides.pop(get_db, None)
 
 
+def test_google_oauth_updates_user(monkeypatch):
+    Session = setup_app(monkeypatch)
+    db = Session()
+    user = User(
+        email='new@example.com',
+        password='x',
+        first_name='Existing',
+        last_name='User',
+        user_type=UserType.CLIENT,
+        is_verified=False,
+    )
+    db.add(user)
+    db.commit()
+    db.close()
+
+    monkeypatch.setattr(
+        api_oauth.oauth,
+        'google',
+        types.SimpleNamespace(
+            authorize_access_token=fake_authorize_access_token,
+            parse_id_token=fake_parse_id_token,
+        ),
+        raising=False,
+    )
+
+    client = TestClient(app)
+    res = client.get('/auth/google/callback?code=x&state=/here', follow_redirects=False)
+    assert res.status_code == 307
+    assert res.headers['location'].startswith('http://localhost:3000/here?token=')
+    token = res.headers['location'].split('token=')[1]
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    assert payload['sub'] == 'new@example.com'
+
+    db = Session()
+    users = db.query(User).filter(User.email == 'new@example.com').all()
+    assert len(users) == 1
+    assert users[0].first_name == 'Existing'
+    assert users[0].is_verified is True
+    db.close()
+
+    app.dependency_overrides.pop(get_db, None)
+
+
 async def fake_github_get(endpoint, token=None):
     if endpoint == 'user':
         return DummyResponse({'login': 'gh', 'name': 'GH User', 'email': 'gh@example.com'})
