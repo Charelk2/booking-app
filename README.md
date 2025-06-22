@@ -266,6 +266,10 @@ GITHUB_CLIENT_ID=<your-github-client-id>
 GITHUB_CLIENT_SECRET=<your-github-client-secret>
 ```
 
+The backend registers Google OAuth with
+`api_base_url` set to `https://openidconnect.googleapis.com/v1/`, ensuring the
+`userinfo` endpoint resolves correctly when exchanging the access token.
+
 OAuth routes store the provider state in a session cookie signed with
 `SECRET_KEY`. Ensure the same key is set in `.env` and `backend/.env`
 so logins work across environments.
