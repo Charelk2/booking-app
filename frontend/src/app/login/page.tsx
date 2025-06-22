@@ -147,7 +147,7 @@ export default function LoginPage() {
             </div>
 
               <div className="pt-2">
-                <SocialLoginButtons />
+                <SocialLoginButtons redirectPath={next || '/dashboard'} />
               </div>
             </form>
           )}
