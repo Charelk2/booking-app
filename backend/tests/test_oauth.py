@@ -11,6 +11,7 @@ from app.models.base import BaseModel
 from app.api.dependencies import get_db
 from app.api import api_oauth
 from app.api.auth import SECRET_KEY, ALGORITHM
+from app.core.config import settings
 import jwt
 
 
@@ -148,4 +149,25 @@ def test_google_login_sets_session(monkeypatch):
     resp = client.get('/auth/google/login?next=/dash', follow_redirects=False)
     assert resp.status_code == 307
     assert 'session=' in resp.headers.get('set-cookie', '')
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_google_login_default_next(monkeypatch):
+    Session = setup_app(monkeypatch)
+    captured = {}
+
+    async def fake_redirect(req, redirect_uri, state=None):
+        captured['state'] = state
+        return RedirectResponse(url=redirect_uri)
+
+    monkeypatch.setattr(
+        api_oauth.oauth,
+        'google',
+        types.SimpleNamespace(authorize_redirect=fake_redirect),
+        raising=False,
+    )
+    client = TestClient(app)
+    resp = client.get('/auth/google/login', follow_redirects=False)
+    assert resp.status_code == 307
+    assert captured['state'] == settings.FRONTEND_URL.rstrip('/') + '/dashboard'
     app.dependency_overrides.pop(get_db, None)

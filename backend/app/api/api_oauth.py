@@ -42,7 +42,10 @@ if settings.GITHUB_CLIENT_ID:
 
 
 @router.get("/google/login")
-async def google_login(request: Request, next: str = settings.FRONTEND_URL):
+async def google_login(
+    request: Request,
+    next: str = settings.FRONTEND_URL.rstrip("/") + "/dashboard",
+):
     """Start Google OAuth flow."""
     if not hasattr(oauth, 'google'):
         raise HTTPException(500, "Google OAuth not configured")
