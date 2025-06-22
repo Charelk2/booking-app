@@ -342,6 +342,12 @@ Failed login attempts are tracked per user and IP using Redis. After
 login resets these counters. Configure the limits via environment variables
 if the defaults are too strict.
 
+### Retrieve current user
+
+`GET /auth/me` returns the authenticated user's profile when supplied with a
+valid bearer token. Use this after OAuth logins where the frontend only gets a
+JWT in the redirect URL.
+
 ---
 
 ## Development
