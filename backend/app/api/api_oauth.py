@@ -11,7 +11,11 @@ from authlib.integrations.starlette_client import OAuth
 from app.core.config import settings
 from app.database import get_db
 from app.models import User, UserType
-from app.api.auth import create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.api.auth import (
+    create_access_token,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    get_user_by_email,
+)
 from app.utils.auth import get_password_hash, normalize_email
 
 router = APIRouter()
@@ -94,7 +98,8 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     last_name = profile.get("family_name") or ""
 
     email = normalize_email(email)
-    user = db.query(User).filter(func.lower(User.email) == email).first()
+    # Reuse any existing account matching this canonicalized email
+    user = get_user_by_email(db, email)
     if not user:
         user = User(
             email=email,
@@ -156,7 +161,7 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
     first_name = parts[0]
     last_name = "".join(parts[1:]) if len(parts) > 1 else ""
     email = normalize_email(email)
-    user = db.query(User).filter(func.lower(User.email) == email).first()
+    user = get_user_by_email(db, email)
     if not user:
         user = User(
             email=email,
