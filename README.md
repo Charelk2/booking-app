@@ -130,7 +130,7 @@ frontend packages.
 
 The SQLite database path is automatically resolved to the project root, so you can start the backend from either the repo root or the `backend/` folder without creating duplicate database files.
 
-`uvicorn` loads environment variables from `backend/.env` because the `Settings` class uses that file by default. Copy `.env.example` to both `.env` and `backend/.env` so the API and tests share the same configuration, or set `ENV_FILE` to point to another path if needed.
+`uvicorn` loads environment variables from `backend/.env` because the `Settings` class uses that file by default. Copy `.env.example` to both `.env` and `backend/.env` so the API and tests share the same configuration, or set `ENV_FILE` to point to another path if needed. Missing SMTP fields cause the application to exit on startup so the email confirmation feature cannot be misconfigured.
 
 ### Database migrations
 
@@ -291,7 +291,9 @@ when sending email.
 
 These values correspond to `Settings.SMTP_HOST`, `Settings.SMTP_PORT`,
 `Settings.SMTP_USERNAME`, `Settings.SMTP_PASSWORD`, and `Settings.SMTP_FROM`
-defined in `backend/app/core/config.py`.
+defined in `backend/app/core/config.py`. They are required for the email
+confirmation feature—missing values will cause the backend to exit during
+startup.
 
 ### Email confirmation
 
