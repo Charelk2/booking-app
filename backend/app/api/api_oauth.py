@@ -61,21 +61,32 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     next_url = request.query_params.get("state") or settings.FRONTEND_URL
     if next_url.startswith("/"):
         next_url = settings.FRONTEND_URL.rstrip("/") + next_url
-    token = await oauth.google.authorize_access_token(request)
+    try:
+        token = await oauth.google.authorize_access_token(request)
+    except Exception as exc:  # pragma: no cover - network/token errors
+        logger.error("Google token exchange failed: %s", exc)
+        raise HTTPException(status_code=400, detail="Google authentication failed")
+
     profile = None
     try:
         profile = await oauth.google.parse_id_token(request, token)
     except KeyError:
         # Older API responses may not include an id_token field
         profile = None
+    except Exception as exc:  # pragma: no cover - unexpected parsing issue
+        logger.warning("Failed to parse Google id_token: %s", exc)
+        profile = None
     if not profile:
         resp = await oauth.google.get("userinfo", token=token)
         if resp.status_code == 200:
             profile = resp.json()
         else:
-            profile = None
+            logger.error(
+                "Failed Google userinfo fetch: %s %s", resp.status_code, resp.text
+            )
+            raise HTTPException(status_code=400, detail="Failed to fetch Google profile")
     if not profile:
-        raise HTTPException(400, "Failed to fetch Google profile")
+        raise HTTPException(status_code=400, detail="Failed to fetch Google profile")
     email = profile.get("email")
     if not email:
         raise HTTPException(400, "Email not available from Google")
