@@ -358,3 +358,9 @@ def confirm_email(data: EmailConfirmRequest, db: Session = Depends(get_db)):
     return {"message": "Email confirmed"}
 
 
+@router.get("/me", response_model=UserResponse)
+def read_current_user(current_user: User = Depends(get_current_user)):
+    """Return details for the authenticated user."""
+    return current_user
+
+
