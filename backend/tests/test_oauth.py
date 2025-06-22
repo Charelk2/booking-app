@@ -133,6 +133,58 @@ def test_github_oauth_updates_user(monkeypatch):
     app.dependency_overrides.pop(get_db, None)
 
 
+def test_github_login_default_next(monkeypatch):
+    Session = setup_app(monkeypatch)
+    captured = {}
+
+    async def fake_redirect(req, redirect_uri, state=None):
+        captured['state'] = state
+        return RedirectResponse(url=redirect_uri)
+
+    monkeypatch.setattr(
+        api_oauth.oauth,
+        'github',
+        types.SimpleNamespace(authorize_redirect=fake_redirect),
+        raising=False,
+    )
+    client = TestClient(app)
+    resp = client.get('/auth/github/login', follow_redirects=False)
+    assert resp.status_code == 307
+    assert captured['state'] == settings.FRONTEND_URL.rstrip('/') + '/dashboard'
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_github_login_redirects_to_dashboard(monkeypatch):
+    Session = setup_app(monkeypatch)
+    captured = {}
+
+    async def fake_redirect(req, redirect_uri, state=None):
+        captured['state'] = state
+        return RedirectResponse(url=redirect_uri)
+
+    monkeypatch.setattr(
+        api_oauth.oauth,
+        'github',
+        types.SimpleNamespace(
+            authorize_redirect=fake_redirect,
+            authorize_access_token=fake_authorize_access_token,
+            get=fake_github_get,
+        ),
+        raising=False,
+    )
+    client = TestClient(app)
+    resp = client.get('/auth/github/login', follow_redirects=False)
+    assert resp.status_code == 307
+    assert captured['state'] == settings.FRONTEND_URL.rstrip('/') + '/dashboard'
+
+    cb = client.get(f'/auth/github/callback?code=x&state={captured["state"]}', follow_redirects=False)
+    assert cb.status_code == 307
+    assert cb.headers['location'].startswith(
+        settings.FRONTEND_URL.rstrip('/') + '/dashboard?token='
+    )
+    app.dependency_overrides.pop(get_db, None)
+
+
 def test_google_login_sets_session(monkeypatch):
     Session = setup_app(monkeypatch)
     async def fake_redirect(req, redirect_uri, state=None):

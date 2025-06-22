@@ -106,7 +106,10 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/github/login")
-async def github_login(request: Request, next: str = settings.FRONTEND_URL):
+async def github_login(
+    request: Request,
+    next: str = settings.FRONTEND_URL.rstrip("/") + "/dashboard",
+):
     """Start GitHub OAuth flow."""
     if not hasattr(oauth, 'github'):
         raise HTTPException(500, "GitHub OAuth not configured")
