@@ -55,8 +55,19 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(500, "Google OAuth not configured")
     next_url = request.query_params.get("state") or settings.FRONTEND_URL
     token = await oauth.google.authorize_access_token(request)
-    profile = await oauth.google.parse_id_token(request, token)
-    if profile is None:
+    profile = None
+    try:
+        profile = await oauth.google.parse_id_token(request, token)
+    except KeyError:
+        # Older API responses may not include an id_token field
+        profile = None
+    if not profile:
+        resp = await oauth.google.get("userinfo", token=token)
+        if resp.status_code == 200:
+            profile = resp.json()
+        else:
+            profile = None
+    if not profile:
         raise HTTPException(400, "Failed to fetch Google profile")
     email = profile.get("email")
     if not email:
