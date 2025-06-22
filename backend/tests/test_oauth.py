@@ -307,6 +307,53 @@ def test_oauth_merges_case_insensitive_email(monkeypatch):
     app.dependency_overrides.pop(get_db, None)
 
 
+def test_oauth_merges_gmail_alias(monkeypatch):
+    """Gmail aliases should resolve to an existing user."""
+    Session = setup_app(monkeypatch)
+    db = Session()
+    user = User(
+        email='user@gmail.com',
+        password='x',
+        first_name='Us',
+        last_name='Er',
+        user_type=UserType.CLIENT,
+        is_verified=False,
+    )
+    db.add(user)
+    db.commit()
+    db.close()
+
+    async def fake_authorize_access_token(request):
+        return {'access_token': 'token'}
+
+    async def fake_parse_id_token(request, token):
+        return {
+            'email': 'u.ser+spam@googlemail.com',
+            'given_name': 'New',
+            'family_name': 'Name',
+        }
+
+    monkeypatch.setattr(
+        api_oauth.oauth,
+        'google',
+        types.SimpleNamespace(
+            authorize_access_token=fake_authorize_access_token,
+            parse_id_token=fake_parse_id_token,
+        ),
+        raising=False,
+    )
+    client = TestClient(app)
+    res = client.get('/auth/google/callback?code=x&state=/done', follow_redirects=False)
+    assert res.status_code == 307
+
+    db = Session()
+    users = db.query(User).filter(func.lower(User.email) == 'user@gmail.com').all()
+    assert len(users) == 1
+    db.close()
+
+    app.dependency_overrides.pop(get_db, None)
+
+
 def test_google_oauth_token_error(monkeypatch):
     Session = setup_app(monkeypatch)
 
