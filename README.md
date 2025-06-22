@@ -277,7 +277,8 @@ so logins work across environments.
 To connect an account:
 
 1. Copy `.env.example` to both `.env` and `backend/.env`, add the above credentials, then start the server (or set `ENV_FILE` to your chosen path). This prevents `Google OAuth not configured` errors.
-2. Visit `/auth/google/login?next=/dashboard` or `/auth/github/login?next=/dashboard`.
+2. Visit `/auth/google/login` or `/auth/github/login` to be redirected back to
+   your dashboard, or pass `?next=/some/path` to override the destination.
 3. Approve the permissions requested by the provider.
 4. The API creates or updates the user, marks them verified, issues a JWT, and
    redirects to the `next` URL with `?token=<jwt>` appended.
