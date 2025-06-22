@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import field_validator, model_validator
 from typing import Any, ClassVar
 import json
@@ -44,6 +44,13 @@ class Settings(BaseSettings):
     # Default currency code used across the application
     DEFAULT_CURRENCY: str = "ZAR"
 
+    # SMTP email settings
+    SMTP_HOST: str = "localhost"
+    SMTP_PORT: int = 25
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = "no-reply@localhost"
+
     @field_validator("CORS_ORIGINS", mode="before")
     def split_origins(cls, v: Any) -> list[str]:
         """Parse comma-separated or JSON list of origins from environment."""
@@ -64,12 +71,13 @@ class Settings(BaseSettings):
             values.CORS_ORIGINS = ["*"]
         return values
 
-    class Config:
-        env_file = os.getenv(
-            "ENV_FILE",
-            str(Path(__file__).resolve().parents[3] / ".env"),
-        )
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        extra="forbid",
+        env_file=os.getenv(
+            "ENV_FILE", str(Path(__file__).resolve().parents[3] / ".env")
+        ),
+        case_sensitive=True,
+    )
 
 
 settings = Settings()

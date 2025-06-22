@@ -289,6 +289,10 @@ SMTP_FROM=no-reply@localhost
 If `SMTP_USERNAME` and `SMTP_PASSWORD` are provided, TLS is automatically used
 when sending email.
 
+These values correspond to `Settings.SMTP_HOST`, `Settings.SMTP_PORT`,
+`Settings.SMTP_USERNAME`, `Settings.SMTP_PASSWORD`, and `Settings.SMTP_FROM`
+defined in `backend/app/core/config.py`.
+
 ### Email confirmation
 
 Users registering via `/auth/register` receive a short-lived token in an email
