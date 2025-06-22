@@ -1,11 +1,13 @@
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from jose import JWTError, jwt
 
 from ..database import SessionLocal, get_db
 from ..models.user import User, UserType
 from ..models import ArtistProfile
-from .auth import oauth2_scheme, SECRET_KEY, ALGORITHM
+from .auth import oauth2_scheme, SECRET_KEY, ALGORITHM, get_user_by_email
+from ..utils.auth import normalize_email
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     credentials_exception = HTTPException(
@@ -21,7 +23,9 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise credentials_exception
     # Eager load artist_profile if it exists, to potentially save queries in dependent functions
-    user = db.query(User).options(joinedload(User.artist_profile)).filter(User.email == email).first()
+    user = db.query(User).options(joinedload(User.artist_profile)).filter(
+        func.lower(User.email) == normalize_email(email)
+    ).first()
     if user is None:
         raise credentials_exception
     return user
