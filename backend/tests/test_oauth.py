@@ -1,5 +1,6 @@
 import types
 from fastapi.testclient import TestClient
+from fastapi.responses import RedirectResponse
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
@@ -128,4 +129,23 @@ def test_github_oauth_updates_user(monkeypatch):
     assert updated.first_name == 'Existing'
     db.close()
 
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_google_login_sets_session(monkeypatch):
+    Session = setup_app(monkeypatch)
+    async def fake_redirect(req, redirect_uri, state=None):
+        req.session['oauth_state'] = state
+        return RedirectResponse(url=redirect_uri)
+
+    monkeypatch.setattr(
+        api_oauth.oauth,
+        'google',
+        types.SimpleNamespace(authorize_redirect=fake_redirect),
+        raising=False,
+    )
+    client = TestClient(app)
+    resp = client.get('/auth/google/login?next=/dash', follow_redirects=False)
+    assert resp.status_code == 307
+    assert 'session=' in resp.headers.get('set-cookie', '')
     app.dependency_overrides.pop(get_db, None)
