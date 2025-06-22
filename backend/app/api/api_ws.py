@@ -18,7 +18,7 @@ import logging
 from .dependencies import get_db
 from ..models.user import User
 from ..crud import crud_booking_request
-from .auth import SECRET_KEY, ALGORITHM
+from .auth import SECRET_KEY, ALGORITHM, get_user_by_email
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ async def booking_request_ws(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email = payload.get("sub")
         if email:
-            user = db.query(User).filter(User.email == email).first()
+            user = get_user_by_email(db, email)
     except JWTError:
         logger.warning("Rejecting WebSocket for request %s: invalid token", request_id)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")

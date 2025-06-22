@@ -1,7 +1,7 @@
 import types
 from fastapi.testclient import TestClient
 from fastapi.responses import RedirectResponse
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 
@@ -255,5 +255,53 @@ def test_google_login_redirects_to_dashboard(monkeypatch):
     assert cb.headers['location'].startswith(
         settings.FRONTEND_URL.rstrip('/') + '/dashboard?token='
     )
+
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_oauth_merges_case_insensitive_email(monkeypatch):
+    Session = setup_app(monkeypatch)
+    db = Session()
+    user = User(
+        email='Case@Example.com',
+        password='x',
+        first_name='Case',
+        last_name='User',
+        user_type=UserType.CLIENT,
+        is_verified=False,
+    )
+    db.add(user)
+    db.commit()
+    db.close()
+
+    async def fake_authorize_access_token(request):
+        return {'access_token': 'token'}
+
+    async def fake_parse_id_token(request, token):
+        return {
+            'email': 'case@example.com',
+            'given_name': 'New',
+            'family_name': 'Name',
+        }
+
+    monkeypatch.setattr(
+        api_oauth.oauth,
+        'google',
+        types.SimpleNamespace(
+            authorize_access_token=fake_authorize_access_token,
+            parse_id_token=fake_parse_id_token,
+        ),
+        raising=False,
+    )
+    client = TestClient(app)
+    res = client.get('/auth/google/callback?code=x&state=/done', follow_redirects=False)
+    assert res.status_code == 307
+
+    db = Session()
+    users = db.query(User).filter(func.lower(User.email) == 'case@example.com').all()
+    assert len(users) == 1
+    assert users[0].first_name == 'Case'
+    assert users[0].is_verified is True
+    db.close()
 
     app.dependency_overrides.pop(get_db, None)
