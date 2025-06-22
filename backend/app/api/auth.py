@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import datetime, timedelta
 from typing import Optional
 import os
@@ -24,7 +25,7 @@ from ..schemas.user import (
     MFACode,
     EmailConfirmRequest,
 )
-from ..utils.auth import get_password_hash, verify_password
+from ..utils.auth import get_password_hash, verify_password, normalize_email
 from ..utils.email import send_email
 from ..utils.redis_cache import get_redis_client
 from app.core.config import settings
@@ -69,7 +70,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 @router.post("/register", response_model=UserResponse)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    email = normalize_email(user_data.email)
+    existing_user = db.query(User).filter(func.lower(User.email) == email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -78,7 +80,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
     hashed_password = get_password_hash(user_data.password)
     db_user = User(
-        email=user_data.email,
+        email=email,
         password=hashed_password,
         first_name=user_data.first_name,
         last_name=user_data.last_name,
@@ -131,16 +133,15 @@ def login(
     db: Session = Depends(get_db)
 ):
     ip = request.client.host if request.client else "unknown"
-    user_key = f"login_fail:user:{form_data.username}"
+    email = normalize_email(form_data.username)
+    user_key = f"login_fail:user:{email}"
     ip_key = f"login_fail:ip:{ip}"
     client = get_redis_client()
     try:
         user_attempts = int(client.get(user_key) or 0)
         ip_attempts = int(client.get(ip_key) or 0)
         if user_attempts >= MAX_LOGIN_ATTEMPTS or ip_attempts >= MAX_LOGIN_ATTEMPTS:
-            logger.info(
-                "Login locked out for %s from %s", form_data.username, ip
-            )
+            logger.info("Login locked out for %s from %s", email, ip)
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many login attempts. Try again later.",
@@ -148,7 +149,7 @@ def login(
     except redis.exceptions.ConnectionError as exc:
         logger.warning("Redis unavailable for login tracking: %s", exc)
 
-    user = db.query(User).filter(User.email == form_data.username).first()
+    user = db.query(User).filter(func.lower(User.email) == email).first()
     if not user or not verify_password(form_data.password, user.password):
         try:
             client.incr(user_key)
@@ -203,7 +204,8 @@ def login(
 
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
-    return db.query(User).filter(User.email == email).first()
+    email = normalize_email(email)
+    return db.query(User).filter(func.lower(User.email) == email).first()
 
 
 def get_current_user(
