@@ -35,4 +35,7 @@ WORKDIR /app
 COPY --from=builder /app /app
 COPY setup.sh scripts/test-all.sh ./
 RUN chmod +x setup.sh scripts/test-all.sh
+ENV CONTENT_SECURITY_POLICY="default-src 'self'" \
+    STRICT_TRANSPORT_SECURITY="max-age=63072000; includeSubDomains" \
+    X_FRAME_OPTIONS="DENY"
 ENTRYPOINT ["bash","-lc","./setup.sh && ./scripts/test-all.sh"]
