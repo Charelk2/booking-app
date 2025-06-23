@@ -11,15 +11,18 @@ export default function ThemeSwitcher() {
     if (stored === 'high-contrast') {
       setHighContrast(true);
       document.documentElement.setAttribute('data-theme', 'high-contrast');
+      document.body.classList.add('high-contrast');
     }
   }, []);
 
   useEffect(() => {
     if (highContrast) {
       document.documentElement.setAttribute('data-theme', 'high-contrast');
+      document.body.classList.add('high-contrast');
       localStorage.setItem('theme', 'high-contrast');
     } else {
       document.documentElement.removeAttribute('data-theme');
+      document.body.classList.remove('high-contrast');
       localStorage.setItem('theme', 'default');
     }
   }, [highContrast]);
