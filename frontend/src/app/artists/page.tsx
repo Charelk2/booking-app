@@ -23,6 +23,9 @@ export default function ArtistsPage() {
   const [location, setLocation] = useState('');
   const [sort, setSort] = useState<string | undefined>();
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const LIMIT = 20;
 
   const clearFilters = () => {
     setCategory(undefined);
@@ -34,13 +37,30 @@ export default function ArtistsPage() {
   const filtersActive =
     Boolean(category) || Boolean(location) || Boolean(sort) || verifiedOnly;
 
-  const fetchArtists = async (params?: { category?: string; location?: string; sort?: string }) => {
+  const fetchArtists = async (params: {
+    category?: string;
+    location?: string;
+    sort?: string;
+    page: number;
+    append?: boolean;
+  }) => {
     try {
-      const res = await getArtists(params);
+      const res = await getArtists({
+        category: params.category,
+        location: params.location,
+        sort: params.sort,
+        page: params.page,
+        limit: LIMIT,
+      });
       const filtered = verifiedOnly
         ? res.data.filter((a) => (a as Partial<typeof a>).user?.is_verified)
         : res.data;
-      setArtists(filtered);
+      setHasMore(res.data.length === LIMIT);
+      if (params.append) {
+        setArtists((prev) => [...prev, ...filtered]);
+      } else {
+        setArtists(filtered);
+      }
     } catch (err) {
       console.error('Error fetching artists:', err);
       setError('Failed to load artists.');
@@ -50,12 +70,33 @@ export default function ArtistsPage() {
   };
 
   useEffect(() => {
-    fetchArtists({ category, location: location || undefined, sort });
+    setLoading(true);
+    setPage(1);
+    setHasMore(true);
+    fetchArtists({
+      category,
+      location: location || undefined,
+      sort,
+      page: 1,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, location, sort, verifiedOnly]);
 
   const onCategory = (c: string) => {
     setCategory((prev) => (prev === c ? undefined : c));
+  };
+
+  const loadMore = () => {
+    const next = page + 1;
+    setLoading(true);
+    setPage(next);
+    fetchArtists({
+      category,
+      location: location || undefined,
+      sort,
+      page: next,
+      append: true,
+    });
   };
 
   return (
@@ -125,7 +166,7 @@ export default function ArtistsPage() {
             <p>No artists found</p>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {artists.map((a) => {
+          {artists.map((a) => {
               const user = (a as Partial<typeof a>).user as ArtistProfile['user'] | null | undefined;
               const name = a.business_name || (user ? `${user.first_name} ${user.last_name}` : 'Unknown Artist');
 
@@ -151,10 +192,21 @@ export default function ArtistsPage() {
                 verified={user?.is_verified}
                 isAvailable={a.is_available}
                 href={`/artists/${a.id}`}
-              />
-            );
-          })}
+            />
+          );
+        })}
           </div>
+          {hasMore && !loading && (
+            <div className="flex justify-center mt-4">
+              <button
+                type="button"
+                onClick={loadMore}
+                className="px-4 py-2 rounded-md bg-brand text-white hover:bg-brand-dark"
+              >
+                Load More
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>
