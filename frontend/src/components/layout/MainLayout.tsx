@@ -33,6 +33,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     navigation.push(
       { name: 'Sound Providers', href: '/sound-providers' },
       { name: 'Quote Calculator', href: '/quote-calculator' },
+      { name: 'Quote Templates', href: '/dashboard/profile/quote-templates' },
     );
   }
 
@@ -130,6 +131,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                                   )}
                                 >
                                   Quotes
+                                </Link>
+                              )}
+                            </Menu.Item>
+                          )}
+                          {user && user.user_type === 'artist' && (
+                            <Menu.Item>
+                              {({ active }) => (
+                                <Link
+                                  href="/dashboard/profile/quote-templates"
+                                  className={classNames(
+                                    active ? 'bg-gray-100' : '',
+                                    'block px-4 py-2 text-sm text-gray-700'
+                                  )}
+                                >
+                                  Quote Templates
                                 </Link>
                               )}
                             </Menu.Item>

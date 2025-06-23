@@ -9,6 +9,7 @@ const nav = [
   { name: 'Artists', href: '/artists' },
   { name: 'Sound Providers', href: '/sound-providers' },
   { name: 'Quote Calculator', href: '/quote-calculator' },
+  { name: 'Quote Templates', href: '/dashboard/profile/quote-templates' },
 ];
 
 describe('MobileMenuDrawer', () => {
@@ -49,6 +50,7 @@ describe('MobileMenuDrawer', () => {
     expect(bodyText).toContain('Artists');
     expect(bodyText).toContain('Sound Providers');
     expect(bodyText).toContain('Quote Calculator');
+    expect(bodyText).toContain('Quote Templates');
   });
 
   it('close button has focus ring classes', async () => {
@@ -93,6 +95,7 @@ describe('MobileMenuDrawer', () => {
     expect(body).toContain('Quotes');
     expect(body).toContain('Sound Providers');
     expect(body).toContain('Quote Calculator');
+    expect(body).toContain('Quote Templates');
   });
 
   it('shows My Bookings link for clients', async () => {

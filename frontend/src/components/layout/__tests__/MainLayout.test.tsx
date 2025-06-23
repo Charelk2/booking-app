@@ -25,6 +25,7 @@ describe('MainLayout user menu', () => {
     await act(async () => { await Promise.resolve(); });
     expect(div.textContent).toContain('Sound Providers');
     expect(div.textContent).toContain('Quote Calculator');
+    expect(div.textContent).toContain('Quote Templates');
     const menuBtn = Array.from(div.querySelectorAll('button')).find(b => b.textContent?.includes('Open user menu')) as HTMLButtonElement;
     expect(menuBtn).toBeTruthy();
     await act(async () => {
@@ -32,6 +33,7 @@ describe('MainLayout user menu', () => {
     });
     await act(async () => { await Promise.resolve(); });
     expect(div.textContent).toContain('Quotes');
+    expect(div.textContent).toContain('Quote Templates');
     act(() => { root.unmount(); });
     div.remove();
   });
