@@ -1040,9 +1040,9 @@ Components reference these via utility classes such as `bg-brand` and
 A **High Contrast** theme can be enabled from the user menu via the
 `ThemeSwitcher` component. When toggled, CSS variables update site-wide colors
 and the preference is stored in `localStorage`.
-The high contrast palette now uses pure black (`#000`) and pure white (`#fff`)
-for all accents and backgrounds, so black buttons render white text and white
-buttons render black text for maximum readability.
+The high contrast palette uses pure black (`#000`) for page backgrounds and
+white (`#fff`) for text. Elements styled with `bg-brand-dark` also switch to a
+black background in this mode so button wording stays visible.
 
 Update these colors in `frontend/tailwind.config.js` and
 `frontend/src/app/globals.css` to adjust the site's look and feel. The Tailwind

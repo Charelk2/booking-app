@@ -15,11 +15,13 @@
 }
 
 [data-theme='high-contrast'] {
-  --brand-color: var(--hc-foreground);
-  --brand-color-dark: var(--hc-foreground);
-  --brand-color-light: var(--hc-foreground);
   --color-background: var(--hc-background);
   --color-foreground: var(--hc-foreground);
+}
+
+[data-theme='high-contrast'] .bg-brand-dark,
+[data-theme='high-contrast'] .hover\:bg-brand-dark:hover {
+  background-color: var(--hc-background) !important;
 }
 
 @layer base {
