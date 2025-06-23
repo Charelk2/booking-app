@@ -13,7 +13,11 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import TimeAgo from '../ui/TimeAgo';
-import { getFullImageUrl, formatCurrency } from '@/lib/utils';
+import {
+  getFullImageUrl,
+  formatCurrency,
+  formatDepositReminder,
+} from '@/lib/utils';
 import AlertBanner from '../ui/AlertBanner';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
@@ -467,11 +471,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             {bookingDetails && (
               <>
                 {bookingDetails.service?.title} on{' '}
-                {new Date(bookingDetails.start_time).toLocaleString()}. Deposit{' '}
-                {formatCurrency(depositAmount ?? bookingDetails.deposit_amount ?? 0)}
-                {bookingDetails.deposit_due_by
-                  ? ` due by ${new Date(bookingDetails.deposit_due_by).toLocaleDateString()}`
-                  : ' due.'}
+                {new Date(bookingDetails.start_time).toLocaleString()}.{' '}
+                {formatDepositReminder(
+                  depositAmount ?? bookingDetails.deposit_amount ?? 0,
+                  bookingDetails.deposit_due_by ?? undefined,
+                )}
               </>
             )}
           </AlertBanner>

@@ -462,7 +462,7 @@ def test_format_notification_message_new_types():
     msg_booking = format_notification_message(
         NotificationType.NEW_BOOKING, booking_id=8
     )
-    assert msg_deposit == "Booking confirmed \u2014 deposit R50.00 due by 2025-01-01"
+    assert msg_deposit == "Deposit R50.00 due by 2025-01-01"
     assert msg_review == "Please review your booking #42"
     assert msg_quote == "Quote #7 accepted"
     assert msg_booking == "New booking #8"

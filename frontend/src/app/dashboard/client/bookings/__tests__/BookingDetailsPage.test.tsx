@@ -4,6 +4,7 @@ import { act } from "react";
 import { format } from "date-fns";
 import BookingDetailsPage from "../[id]/page";
 import { getBookingDetails, downloadBookingIcs } from "@/lib/api";
+import { formatDepositReminder } from "@/lib/utils";
 import { useParams, useSearchParams } from "next/navigation";
 
 jest.mock("@/lib/api");
@@ -63,7 +64,9 @@ describe("BookingDetailsPage", () => {
 
     expect(getBookingDetails).toHaveBeenCalledWith(1);
     expect(div.textContent).toContain("Gig - Artist");
-    expect(div.textContent).toContain("Deposit due");
+    expect(div.textContent).toContain(
+      formatDepositReminder(50, new Date("2024-01-08")),
+    );
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
     expect(artistLink?.getAttribute("href")).toBe("/artists/2");
     const pay = div.querySelector('[data-testid="pay-deposit-button"]');
