@@ -7,8 +7,8 @@ The July 2025 update bumps key dependencies and Docker base images:
 - **FastAPI** 0.115.12 (requires Starlette 0.46+)
 - **Uvicorn** 0.34
 - **React** 18.3 and **Next.js** 14.2
-- **Python** 3.12
-- **Node.js** 22
+- **Python** 3.12.11
+- **Node.js** 22 (v22.16.0)
 - Minor fix: the artists listing now gracefully handles incomplete user data from the API.
 - Artists page adds a **Load More** button that fetches additional results using
   the API's pagination parameters.
