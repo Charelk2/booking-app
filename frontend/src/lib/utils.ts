@@ -1,6 +1,6 @@
 import api from './api';
 import { DEFAULT_CURRENCY } from './constants';
-import { Service } from '@/types';
+import { Service, QuoteTemplate } from '@/types';
 import { addDays, format } from 'date-fns';
 
 export const getFullImageUrl = (
@@ -69,6 +69,30 @@ export const normalizeService = (service: Service): Service => ({
     typeof service.duration_minutes === 'string'
       ? parseInt(service.duration_minutes as unknown as string, 10)
       : service.duration_minutes,
+});
+
+export const normalizeQuoteTemplate = (
+  tmpl: QuoteTemplate,
+): QuoteTemplate => ({
+  ...tmpl,
+  sound_fee:
+    typeof tmpl.sound_fee === 'string'
+      ? parseFloat(tmpl.sound_fee)
+      : tmpl.sound_fee,
+  travel_fee:
+    typeof tmpl.travel_fee === 'string'
+      ? parseFloat(tmpl.travel_fee)
+      : tmpl.travel_fee,
+  discount:
+    tmpl.discount == null
+      ? tmpl.discount
+      : typeof tmpl.discount === 'string'
+        ? parseFloat(tmpl.discount)
+        : tmpl.discount,
+  services: tmpl.services.map((s) => ({
+    ...s,
+    price: typeof s.price === 'string' ? parseFloat(s.price as unknown as string) : s.price,
+  })),
 });
 
 /**
