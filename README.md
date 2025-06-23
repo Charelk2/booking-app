@@ -249,9 +249,10 @@ fail.
 avoid hydration errors when rendering responsive components.
 
 Protected pages redirect unauthenticated visitors to `/login?next=<path>`. After
-sign in or sign up, the app automatically returns to the original URL. The
-dashboard now waits for the authentication state to load before performing this
-redirect, preventing a loop after social login.
+sign in or sign up, the app automatically returns to the original URL. If a
+session already exists when visiting the login page, it immediately forwards to
+the target location. The dashboard now waits for the authentication state to
+load before performing this redirect, preventing a loop after social login.
 
 API responses are now handled by a global interceptor which maps common HTTP
 status codes to human-friendly error messages and logs server errors to the
