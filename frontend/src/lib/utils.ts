@@ -1,7 +1,7 @@
 import api from './api';
 import { DEFAULT_CURRENCY } from './constants';
 import { Service } from '@/types';
-import { addDays } from 'date-fns';
+import { addDays, format } from 'date-fns';
 
 export const getFullImageUrl = (
   relativePath: string | undefined | null,
@@ -132,3 +132,24 @@ const capitalize = (word: string): string =>
  */
 export const formatStatus = (status: string): string =>
   STATUS_LABELS[status] || status.split('_').map(capitalize).join(' ');
+
+export const formatDepositReminder = (
+  amount?: number,
+  dueDate?: string | Date,
+): string => {
+  const parts: string[] = [];
+  const formattedAmount =
+    amount !== undefined ? formatCurrency(Number(amount)) : undefined;
+  if (formattedAmount) {
+    parts.push(`Deposit ${formattedAmount}`);
+  } else {
+    parts.push('Deposit');
+  }
+  if (dueDate) {
+    const d = typeof dueDate === 'string' ? new Date(dueDate) : dueDate;
+    parts.push(`due by ${format(d, 'MMM d, yyyy')}`);
+  } else {
+    parts.push('due');
+  }
+  return parts.join(' ');
+};

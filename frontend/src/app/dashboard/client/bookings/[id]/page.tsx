@@ -8,7 +8,11 @@ import PaymentModal from "@/components/booking/PaymentModal";
 import toast from "@/components/ui/Toast";
 import { getBookingDetails, downloadBookingIcs } from "@/lib/api";
 import type { Booking } from "@/types";
-import { formatCurrency, formatStatus } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatStatus,
+  formatDepositReminder,
+} from "@/lib/utils";
 import { Spinner } from "@/components/ui";
 
 export default function BookingDetailsPage() {
@@ -104,8 +108,10 @@ export default function BookingDetailsPage() {
         )}
         {booking.payment_status === "pending" && booking.deposit_due_by && (
           <p className="text-sm text-gray-700">
-            Deposit due by{" "}
-            {new Date(booking.deposit_due_by).toLocaleDateString()}
+            {formatDepositReminder(
+              Number(booking.deposit_amount || 0),
+              booking.deposit_due_by,
+            )}
           </p>
         )}
         {booking.payment_id && (
