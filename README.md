@@ -1023,6 +1023,10 @@ primary hue is indigo (`#6366f1`), with `brand-dark` and `brand-light` variants.
 Components reference these via utility classes such as `bg-brand` and
 `bg-brand-dark`.
 
+A **High Contrast** theme can be enabled from the user menu via the
+`ThemeSwitcher` component. When toggled, CSS variables update site-wide colors
+and the preference is stored in `localStorage`.
+
 Update these colors in `frontend/tailwind.config.js` and
 `frontend/src/app/globals.css` to adjust the site's look and feel. The Tailwind
 config also scans `src/styles/**/*` so constants like `buttonVariants.ts` are
