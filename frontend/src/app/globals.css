@@ -86,6 +86,42 @@
   box-shadow: none !important;
 }
 
+[data-theme='high-contrast'] *,
+[data-theme='high-contrast'] *::before,
+[data-theme='high-contrast'] *::after {
+  transition: none !important;
+  background-image: none !important;
+}
+
+[data-theme='high-contrast'] [class*='bg-gray'],
+[data-theme='high-contrast'] [class*='bg-sky'],
+[data-theme='high-contrast'] [class*='bg-red'],
+[data-theme='high-contrast'] [class*='bg-yellow'],
+[data-theme='high-contrast'] [class*='bg-blue'],
+[data-theme='high-contrast'] [class*='bg-green'],
+[data-theme='high-contrast'] [class*='bg-indigo'],
+[data-theme='high-contrast'] [class*='bg-purple'],
+[data-theme='high-contrast'] [class*='bg-pink'] {
+  background-color: var(--hc-background) !important;
+  color: var(--hc-foreground) !important;
+}
+
+[data-theme='high-contrast'] button,
+[data-theme='high-contrast'] a,
+[data-theme='high-contrast'] .badge,
+[data-theme='high-contrast'] .pill {
+  border-width: 1px !important;
+  border-color: var(--hc-foreground) !important;
+}
+
+[data-theme='high-contrast'] button:hover,
+[data-theme='high-contrast'] a:hover,
+[data-theme='high-contrast'] .badge:hover,
+[data-theme='high-contrast'] .pill:hover {
+  background-color: var(--hc-foreground) !important;
+  color: var(--hc-background) !important;
+}
+
 @layer base {
   body {
     background-color: var(--color-background);
