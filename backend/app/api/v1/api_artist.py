@@ -338,12 +338,14 @@ def read_all_artist_profiles(
     location: Optional[str] = Query(None),
     sort: Optional[str] = Query(None, pattern="^(top_rated|most_booked|newest)$"),
     page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
 ):
     """Return a list of all artist profiles with optional filters."""
 
     cache_category = category.value if isinstance(category, ServiceType) else category
     cached = get_cached_artist_list(
         page=page,
+        limit=limit,
         category=cache_category,
         location=location,
         sort=sort,
@@ -388,7 +390,8 @@ def read_all_artist_profiles(
     elif sort == "newest":
         query = query.order_by(desc(Artist.created_at))
 
-    artists = query.all()
+    offset = (page - 1) * limit
+    artists = query.offset(offset).limit(limit).all()
 
     profiles: List[ArtistProfileResponse] = []
     for artist, rating, rating_count, book_count in artists:
@@ -409,6 +412,7 @@ def read_all_artist_profiles(
             for profile in profiles
         ],
         page=page,
+        limit=limit,
         category=cache_category,
         location=location,
         sort=sort,
