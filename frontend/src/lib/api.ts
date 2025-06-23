@@ -133,6 +133,8 @@ export const getArtists = async (params?: {
   category?: string;
   location?: string;
   sort?: string;
+  page?: number;
+  limit?: number;
 }) => {
   const res = await api.get<ArtistProfile[]>(`${API_V1}/artist-profiles/`, {
     params,
