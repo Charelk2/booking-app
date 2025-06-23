@@ -1043,6 +1043,9 @@ and the preference is stored in `localStorage`.
 The high contrast palette uses pure black (`#000`) for page backgrounds and
 white (`#fff`) for text. Elements styled with `bg-brand-dark` also switch to a
 black background in this mode so button wording stays visible.
+The `ThemeSwitcher` now adds a `high-contrast` class to `<body>` so every
+component can conditionally style itself using Tailwind. The preference is still
+stored in `localStorage` and applied on page load via a small inline script.
 
 Update these colors in `frontend/tailwind.config.js` and
 `frontend/src/app/globals.css` to adjust the site's look and feel. The Tailwind
