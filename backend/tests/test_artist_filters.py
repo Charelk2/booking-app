@@ -76,10 +76,23 @@ def test_filters_and_sorting(monkeypatch):
     create_artist(db, 'Alpha', 'New York', ServiceType.LIVE_PERFORMANCE, rating=4, bookings=2)
     create_artist(db, 'Beta', 'San Francisco', ServiceType.OTHER, rating=5, bookings=5)
 
-    monkeypatch.setattr('app.utils.redis_cache.get_cached_artist_list', lambda: None)
-    monkeypatch.setattr('app.utils.redis_cache.cache_artist_list', lambda data: None)
+    monkeypatch.setattr(
+        'app.utils.redis_cache.get_cached_artist_list',
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        'app.utils.redis_cache.cache_artist_list',
+        lambda *args, **kwargs: None,
+    )
 
-    results = read_all_artist_profiles(category=ServiceType.OTHER, location='San', sort='most_booked', db=db, page=1)
+    results = read_all_artist_profiles(
+        category=ServiceType.OTHER,
+        location='San',
+        sort='most_booked',
+        db=db,
+        page=1,
+        limit=20,
+    )
     assert len(results) == 1
     assert results[0].business_name == 'Beta'
     assert results[0].rating == 5
