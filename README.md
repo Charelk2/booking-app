@@ -1046,6 +1046,9 @@ black background in this mode so button wording stays visible.
 The `ThemeSwitcher` now adds a `high-contrast` class to `<body>` so every
 component can conditionally style itself using Tailwind. The preference is still
 stored in `localStorage` and applied on page load via a small inline script.
+Additional rules force all gray text utilities to switch to white on dark
+backgrounds and black on white backgrounds. Drop shadows are removed and links
+are always underlined to meet WCAG contrast guidelines.
 
 Update these colors in `frontend/tailwind.config.js` and
 `frontend/src/app/globals.css` to adjust the site's look and feel. The Tailwind
