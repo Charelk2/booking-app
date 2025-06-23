@@ -1,5 +1,5 @@
 # builder stage
-FROM python:3.12-slim AS builder
+FROM python:3.12.11-slim AS builder
 WORKDIR /app
 RUN apt-get update && apt-get install -y curl gnupg ca-certificates \
     libnss3 libatk1.0-0 libcups2 libdrm2 libgbm1 libgtk-3-0 libasound2 \
@@ -30,7 +30,7 @@ RUN npm ci --silent \
     && touch node_modules/.install_complete
 
 # final stage
-FROM python:3.12-slim
+FROM python:3.12.11-slim
 WORKDIR /app
 COPY --from=builder /app /app
 COPY setup.sh scripts/test-all.sh ./
