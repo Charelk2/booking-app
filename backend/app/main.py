@@ -255,6 +255,16 @@ app.include_router(
 )
 
 
+# Warn if the payment gateway URL is not configured
+@app.on_event("startup")
+def check_payment_gateway_url() -> None:
+    """Log a warning when PAYMENT_GATEWAY_URL uses the default placeholder."""
+    if settings.PAYMENT_GATEWAY_URL == "https://example.com":
+        logger.warning(
+            "PAYMENT_GATEWAY_URL is set to the default placeholder; update .env to your gateway URL"
+        )
+
+
 # ─── A simple root check ─────────────────────────────────────────────────────────────
 @app.get("/")
 async def root():
