@@ -13,6 +13,7 @@ describe('ThemeSwitcher', () => {
     root = createRoot(container);
     localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
+    document.body.className = '';
   });
 
   afterEach(() => {
@@ -38,12 +39,14 @@ describe('ThemeSwitcher', () => {
       button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(document.documentElement.getAttribute('data-theme')).toBe('high-contrast');
+    expect(document.body.classList.contains('high-contrast')).toBe(true);
     expect(localStorage.getItem('theme')).toBe('high-contrast');
 
     act(() => {
       button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+    expect(document.body.classList.contains('high-contrast')).toBe(false);
     expect(localStorage.getItem('theme')).toBe('default');
   });
 });
