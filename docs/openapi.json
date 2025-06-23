@@ -3050,41 +3050,6 @@
         }
       }
     },
-    "/api/v1/notifications/grouped": {
-      "get": {
-        "tags": [
-          "notifications",
-          "notifications"
-        ],
-        "summary": "Read My Notifications Grouped",
-        "description": "Retrieve notifications grouped by type for the current user.",
-        "operationId": "read_my_notifications_grouped_api_v1_notifications_grouped_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "items": {
-                      "$ref": "#/components/schemas/NotificationResponse"
-                    },
-                    "type": "array"
-                  },
-                  "type": "object",
-                  "title": "Response Read My Notifications Grouped Api V1 Notifications Grouped Get"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
-      }
-    },
     "/api/v1/notifications/{notification_id}/read": {
       "put": {
         "tags": [
