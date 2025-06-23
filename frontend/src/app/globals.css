@@ -15,13 +15,43 @@
 }
 
 [data-theme='high-contrast'] {
+  --brand-color: #ffffff;
+  --brand-color-dark: #000000;
+  --brand-color-light: #ffffff;
   --color-background: var(--hc-background);
   --color-foreground: var(--hc-foreground);
 }
 
+[data-theme='high-contrast'] .bg-brand,
+[data-theme='high-contrast'] .bg-brand-light,
 [data-theme='high-contrast'] .bg-brand-dark,
 [data-theme='high-contrast'] .hover\:bg-brand-dark:hover {
   background-color: var(--hc-background) !important;
+  color: var(--hc-foreground) !important;
+}
+
+[data-theme='high-contrast'] a {
+  text-decoration: underline;
+  font-weight: 700;
+}
+
+[data-theme='high-contrast'] button {
+  background-color: var(--hc-background);
+  color: var(--hc-foreground);
+  border-color: var(--hc-foreground);
+}
+
+[data-theme='high-contrast'] button:hover {
+  background-color: var(--hc-foreground);
+  color: var(--hc-background);
+}
+
+[data-theme='high-contrast'] input,
+[data-theme='high-contrast'] select,
+[data-theme='high-contrast'] textarea {
+  background-color: #ffffff;
+  color: #000000;
+  border-color: #000000;
 }
 
 @layer base {
