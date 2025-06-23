@@ -191,7 +191,7 @@ export default function ArtistProfilePage() {
               src={coverPhotoUrl}
               alt="Cover photo"
               fill
-              loading="lazy"
+              priority
               className="object-cover"
               sizes="(min-width: 768px) 100vw, 100vw"
             />
@@ -214,7 +214,7 @@ export default function ArtistProfilePage() {
                     height={160}
                     className="h-32 w-32 md:h-40 md:w-40 rounded-full ring-4 ring-white object-cover shadow-lg"
                     alt={artist.business_name || 'Artist'}
-                    loading="lazy"
+                    priority
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
                     }}
