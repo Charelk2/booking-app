@@ -33,7 +33,13 @@ describe('Artists page filters', () => {
       catBtn.click();
       await Promise.resolve();
     });
-    expect(spy).toHaveBeenLastCalledWith({ category: 'Live Performance', location: undefined, sort: undefined });
+    expect(spy).toHaveBeenLastCalledWith({
+      category: 'Live Performance',
+      location: undefined,
+      sort: undefined,
+      page: 1,
+      limit: 20,
+    });
     act(() => root.unmount());
     container.remove();
   });
@@ -130,6 +136,53 @@ describe('Artists page filters', () => {
     container.remove();
   });
 
+  it('loads more artists when Load More clicked', async () => {
+    const firstPage = {
+      data: Array.from({ length: 20 }, (_, i) => ({
+        id: i + 1,
+        business_name: `Name${i + 1}`,
+        user: { first_name: 'A', last_name: 'B', is_verified: false },
+        user_id: i + 1,
+      })) as unknown as ArtistProfile[],
+    };
+    const secondPage = {
+      data: [
+        {
+          id: 21,
+          business_name: 'Name21',
+          user: { first_name: 'C', last_name: 'D', is_verified: false },
+          user_id: 21,
+        },
+      ] as unknown as ArtistProfile[],
+    };
+    const spy = jest
+      .spyOn(api, 'getArtists')
+      .mockResolvedValueOnce(firstPage)
+      .mockResolvedValueOnce(secondPage);
+    const { container, root } = setup();
+    await act(async () => {
+      root.render(React.createElement(ArtistsPage));
+      await Promise.resolve();
+    });
+    const loadBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Load More',
+    ) as HTMLButtonElement;
+    expect(loadBtn).not.toBeNull();
+    await act(async () => {
+      loadBtn.click();
+      await Promise.resolve();
+    });
+    expect(spy).toHaveBeenLastCalledWith({
+      category: undefined,
+      location: undefined,
+      sort: undefined,
+      page: 2,
+      limit: 20,
+    });
+    act(() => root.unmount());
+    container.remove();
+  });
+
   it('clears all filters', async () => {
     const spy = jest.spyOn(api, 'getArtists').mockResolvedValue({ data: [] });
     const { container, root } = setup();
@@ -154,7 +207,13 @@ describe('Artists page filters', () => {
       button.click();
       await Promise.resolve();
     });
-    expect(spy).toHaveBeenLastCalledWith({ category: undefined, location: undefined, sort: undefined });
+    expect(spy).toHaveBeenLastCalledWith({
+      category: undefined,
+      location: undefined,
+      sort: undefined,
+      page: 1,
+      limit: 20,
+    });
     act(() => root.unmount());
     container.remove();
   });
