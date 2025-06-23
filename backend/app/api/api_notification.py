@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Dict, List
+from typing import List
 import enum
 import logging
 
@@ -67,19 +67,6 @@ def read_my_notifications(
     return [_build_response(db, n) for n in notifs]
 
 
-@router.get(
-    "/notifications/grouped",
-    response_model=Dict[str, List[schemas.NotificationResponse]],
-)
-def read_my_notifications_grouped(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    """Retrieve notifications grouped by type for the current user."""
-    grouped = crud.crud_notification.get_notifications_grouped_by_type(db, current_user.id)
-    return {
-        k: [_build_response(db, n) for n in v] for k, v in grouped.items()
-    }
 
 
 @router.put(
