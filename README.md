@@ -1039,7 +1039,8 @@ Components reference these via utility classes such as `bg-brand` and
 
 A **High Contrast** theme can be enabled from the user menu via the
 `ThemeSwitcher` component. When toggled, CSS variables update site-wide colors
-and the preference is stored in `localStorage`.
+and the preference is stored in `localStorage`. The high contrast palette now
+uses only black and white for maximum readability.
 
 Update these colors in `frontend/tailwind.config.js` and
 `frontend/src/app/globals.css` to adjust the site's look and feel. The Tailwind
