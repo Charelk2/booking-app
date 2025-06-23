@@ -5,6 +5,7 @@ from sqlalchemy import func
 from datetime import timedelta
 import secrets
 import logging
+from urllib.parse import quote
 
 from authlib.integrations.starlette_client import OAuth
 
@@ -52,7 +53,7 @@ async def google_login(
     next: str = settings.FRONTEND_URL.rstrip("/") + "/dashboard",
 ):
     """Start Google OAuth flow."""
-    if not hasattr(oauth, 'google'):
+    if not hasattr(oauth, "google"):
         raise HTTPException(500, "Google OAuth not configured")
     redirect_uri = request.url_for("google_callback")
     return await oauth.google.authorize_redirect(request, redirect_uri, state=next)
@@ -60,7 +61,7 @@ async def google_login(
 
 @router.get("/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
-    if not hasattr(oauth, 'google'):
+    if not hasattr(oauth, "google"):
         raise HTTPException(500, "Google OAuth not configured")
     next_url = request.query_params.get("state") or settings.FRONTEND_URL
     if next_url.startswith("/"):
@@ -88,7 +89,9 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             logger.error(
                 "Failed Google userinfo fetch: %s %s", resp.status_code, resp.text
             )
-            raise HTTPException(status_code=400, detail="Failed to fetch Google profile")
+            raise HTTPException(
+                status_code=400, detail="Failed to fetch Google profile"
+            )
     if not profile:
         raise HTTPException(status_code=400, detail="Failed to fetch Google profile")
     email = profile.get("email")
@@ -119,8 +122,16 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
     expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     jwt_token = create_access_token({"sub": user.email}, expires)
-    redirect = f"{next_url}?token={jwt_token}"
-    return RedirectResponse(url=redirect)
+    next_part = (
+        next_url[len(settings.FRONTEND_URL.rstrip("/")) :]
+        if next_url.startswith(settings.FRONTEND_URL)
+        else next_url
+    )
+    login_redirect = (
+        f"{settings.FRONTEND_URL.rstrip('/')}/login?token={jwt_token}"
+        f"&next={quote(next_part, safe='')}"
+    )
+    return RedirectResponse(url=login_redirect)
 
 
 @router.get("/github/login")
@@ -129,7 +140,7 @@ async def github_login(
     next: str = settings.FRONTEND_URL.rstrip("/") + "/dashboard",
 ):
     """Start GitHub OAuth flow."""
-    if not hasattr(oauth, 'github'):
+    if not hasattr(oauth, "github"):
         raise HTTPException(500, "GitHub OAuth not configured")
     redirect_uri = request.url_for("github_callback")
     return await oauth.github.authorize_redirect(request, redirect_uri, state=next)
@@ -137,7 +148,7 @@ async def github_login(
 
 @router.get("/github/callback")
 async def github_callback(request: Request, db: Session = Depends(get_db)):
-    if not hasattr(oauth, 'github'):
+    if not hasattr(oauth, "github"):
         raise HTTPException(500, "GitHub OAuth not configured")
     next_url = request.query_params.get("state") or settings.FRONTEND_URL
     if next_url.startswith("/"):
@@ -181,5 +192,13 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
 
     expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     jwt_token = create_access_token({"sub": user.email}, expires)
-    redirect = f"{next_url}?token={jwt_token}"
-    return RedirectResponse(url=redirect)
+    next_part = (
+        next_url[len(settings.FRONTEND_URL.rstrip("/")) :]
+        if next_url.startswith(settings.FRONTEND_URL)
+        else next_url
+    )
+    login_redirect = (
+        f"{settings.FRONTEND_URL.rstrip('/')}/login?token={jwt_token}"
+        f"&next={quote(next_part, safe='')}"
+    )
+    return RedirectResponse(url=login_redirect)
