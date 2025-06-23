@@ -41,6 +41,13 @@
   border-color: var(--hc-foreground);
 }
 
+[data-theme='high-contrast'] button:disabled {
+  background-color: transparent;
+  color: var(--hc-foreground);
+  border-style: solid;
+  border-width: 1px;
+}
+
 [data-theme='high-contrast'] button:hover {
   background-color: var(--hc-foreground);
   color: var(--hc-background);
@@ -52,6 +59,31 @@
   background-color: #ffffff;
   color: #000000;
   border-color: #000000;
+}
+
+[data-theme='high-contrast'] input::placeholder,
+[data-theme='high-contrast'] textarea::placeholder {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='high-contrast'] .bg-white {
+  color: #000000;
+}
+
+[data-theme='high-contrast'] .bg-black {
+  color: #ffffff;
+}
+
+[data-theme='high-contrast'] [class*='text-gray'] {
+  color: var(--hc-foreground) !important;
+}
+
+[data-theme='high-contrast'] .bg-white [class*='text-gray'] {
+  color: #000000 !important;
+}
+
+[data-theme='high-contrast'] [class*='shadow'] {
+  box-shadow: none !important;
 }
 
 @layer base {
