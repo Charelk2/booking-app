@@ -728,6 +728,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Mark-as-read endpoints and “Mark All as Read”.
 * "Unread Only" toggle filters message threads and alerts in the drawer and full-screen modal.
 * Notification lists now use **react-window** for virtualization so scrolling large histories is smoother. Install `react-window` if you upgrade dependencies manually.
+* Grouped notification views are now generated in the UI from `/notifications` and the old `/notifications/grouped` endpoint was removed.
 * Optional SMS alerts when `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` are set in the backend environment.
 * Personalized video flows suppress chat alerts until all prompts are answered. A single notification is sent with the booking type once complete.
 * System-generated booking details messages do not create extra chat alerts; a single booking request notification is sent after the form is submitted.
