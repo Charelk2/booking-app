@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     MAX_LOGIN_ATTEMPTS: int = 5
     LOGIN_ATTEMPT_WINDOW: int = 300  # seconds
 
+    # Payment gateway base URL
+    PAYMENT_GATEWAY_URL: str = "https://example.com"
+
     # SMTP email settings
     SMTP_HOST: str = "localhost"
     SMTP_PORT: int = 25
