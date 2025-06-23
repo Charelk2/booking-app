@@ -782,17 +782,17 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 ### Redis Caching
 
 * Caches `/api/v1/artist-profiles/` GET responses.
-* Cache keys include page number and filter parameters so each combination is stored separately.
+* Cache keys include page number, limit, and filter parameters so each combination is stored separately.
 * Default Redis URL: `redis://localhost:6379/0`.
 * Fallback to DB if Redis is unavailable.
 * Connections close cleanly on API shutdown.
 
 ### Artist Listing Filters
 
-`GET /api/v1/artist-profiles/` supports optional query parameters:
+`GET /api/v1/artist-profiles/` supports pagination and optional filters:
 
 ```
-category=<ServiceType>&location=<substring>&sort=<top_rated|most_booked|newest>
+page=<number>&limit=<1-100>&category=<ServiceType>&location=<substring>&sort=<top_rated|most_booked|newest>
 ```
 
 Profiles include `rating`, `rating_count`, and `is_available` fields. A new
