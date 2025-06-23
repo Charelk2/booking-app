@@ -1,5 +1,4 @@
 import json
-import json
 import logging
 import redis
 from typing import List, Optional
