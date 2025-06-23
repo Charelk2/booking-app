@@ -5,7 +5,7 @@
 // MFA verification is supported when the login response indicates it is required
 
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,7 +22,7 @@ interface LoginForm {
 }
 
 export default function LoginPage() {
-  const { login, verifyMfa } = useAuth();
+  const { login, verifyMfa, user } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next');
@@ -34,6 +34,12 @@ export default function LoginPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<LoginForm>({ defaultValues: { remember: false } });
+
+  useEffect(() => {
+    if (user) {
+      router.replace(next || '/dashboard');
+    }
+  }, [user, next, router]);
 
   const {
     register: registerMfa,
