@@ -11,30 +11,37 @@ jest.mock('next/navigation', () => ({
   useSearchParams: jest.fn(),
   usePathname: jest.fn(() => '/login'),
 }));
+jest.mock('@/components/layout/MainLayout', () => {
+  const Mock = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+  Mock.displayName = 'MockMainLayout';
+  return Mock;
+});
 
-describe('LoginPage remember me option', () => {
+describe('LoginPage redirect', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders a remember me checkbox with label', async () => {
-    (useAuth as jest.Mock).mockReturnValue({ login: jest.fn() });
-    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
+  it('redirects when already authenticated', async () => {
+    const replace = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ replace });
+    (useSearchParams as jest.Mock).mockReturnValue({ get: () => '/profile' });
+    (useAuth as jest.Mock).mockReturnValue({
+      login: jest.fn(),
+      verifyMfa: jest.fn(),
+      user: { id: 1, email: 'u@example.com', user_type: 'client' },
+    });
+
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
     await act(async () => {
       root.render(<LoginPage />);
     });
-    const checkbox = container.querySelector('#remember') as HTMLInputElement;
-    expect(checkbox).toBeTruthy();
-    expect(checkbox.getAttribute('aria-label')).toBe('Remember me');
-    const label = container.querySelector('label[for="remember"]');
-    expect(label?.textContent).toContain('Remember me');
+    expect(replace).toHaveBeenCalledWith('/profile');
     act(() => {
       root.unmount();
     });
-    container.remove();
+    div.remove();
   });
 });
