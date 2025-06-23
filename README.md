@@ -1050,6 +1050,12 @@ Additional rules force all gray text utilities to switch to white on dark
 backgrounds and black on white backgrounds. Drop shadows are removed and links
 are always underlined to meet WCAG contrast guidelines.
 
+As of July 2025 high contrast mode also disables all CSS transitions and
+background images to prevent motion issues. Colored Tailwind backgrounds such as
+`bg-gray-100` or `bg-red-500` are forced to pure black with white text, while
+interactive elements gain a visible border and invert colors on hover. These
+rules keep every page readable with zero gradients or muted shades.
+
 Update these colors in `frontend/tailwind.config.js` and
 `frontend/src/app/globals.css` to adjust the site's look and feel. The Tailwind
 config also scans `src/styles/**/*` so constants like `buttonVariants.ts` are
