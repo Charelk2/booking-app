@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     # Default currency code used across the application
     DEFAULT_CURRENCY: str = "ZAR"
 
+    # Login rate limiting
+    MAX_LOGIN_ATTEMPTS: int = 5
+    LOGIN_ATTEMPT_WINDOW: int = 300  # seconds
+
     # SMTP email settings
     SMTP_HOST: str = "localhost"
     SMTP_PORT: int = 25
