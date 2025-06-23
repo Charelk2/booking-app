@@ -18,12 +18,34 @@ def test_cache_artist_list_page_specific(monkeypatch):
     monkeypatch.setattr(redis_cache, "get_redis_client", lambda: fake)
 
     data = [{"id": 2, "business_name": "Another"}]
-    redis_cache.cache_artist_list(data, page=2, category="A", location="NY", sort="newest")
+    redis_cache.cache_artist_list(
+        data,
+        page=2,
+        limit=15,
+        category="A",
+        location="NY",
+        sort="newest",
+    )
     assert (
-        redis_cache.get_cached_artist_list(page=2, category="A", location="NY", sort="newest")
+        redis_cache.get_cached_artist_list(
+            page=2,
+            limit=15,
+            category="A",
+            location="NY",
+            sort="newest",
+        )
         == data
     )
-    assert redis_cache.get_cached_artist_list(page=1, category="A", location="NY", sort="newest") is None
+    assert (
+        redis_cache.get_cached_artist_list(
+            page=1,
+            limit=15,
+            category="A",
+            location="NY",
+            sort="newest",
+        )
+        is None
+    )
 
 
 from types import SimpleNamespace
@@ -115,11 +137,25 @@ def test_read_all_artist_profiles_uses_cache(monkeypatch):
     db.add(profile)
     db.commit()
 
-    first = api_artist.read_all_artist_profiles(db=db, category=None, location=None, sort=None, page=1)
+    first = api_artist.read_all_artist_profiles(
+        db=db,
+        category=None,
+        location=None,
+        sort=None,
+        page=1,
+        limit=20,
+    )
     assert len(first) == 1
 
     # Use failing DB to ensure cache is consulted on second call
-    second = api_artist.read_all_artist_profiles(db=FailingDB([]), category=None, location=None, sort=None, page=1)
+    second = api_artist.read_all_artist_profiles(
+        db=FailingDB([]),
+        category=None,
+        location=None,
+        sort=None,
+        page=1,
+        limit=20,
+    )
     assert second == first
 
 
@@ -143,5 +179,12 @@ def test_fallback_when_redis_unavailable(monkeypatch):
     db.add(profile)
     db.commit()
 
-    result = api_artist.read_all_artist_profiles(db=db, category=None, location=None, sort=None, page=1)
+    result = api_artist.read_all_artist_profiles(
+        db=db,
+        category=None,
+        location=None,
+        sort=None,
+        page=1,
+        limit=20,
+    )
     assert len(result) == 1
