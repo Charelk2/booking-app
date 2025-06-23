@@ -51,9 +51,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "a_default_fallback_secret_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
-# Login attempt throttling
-MAX_LOGIN_ATTEMPTS = int(os.getenv("MAX_LOGIN_ATTEMPTS", 5))
-LOGIN_ATTEMPT_WINDOW = int(os.getenv("LOGIN_ATTEMPT_WINDOW", 300))  # seconds
+# Login attempt throttling configured via settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -140,7 +138,7 @@ def login(
     try:
         user_attempts = int(client.get(user_key) or 0)
         ip_attempts = int(client.get(ip_key) or 0)
-        if user_attempts >= MAX_LOGIN_ATTEMPTS or ip_attempts >= MAX_LOGIN_ATTEMPTS:
+        if user_attempts >= settings.MAX_LOGIN_ATTEMPTS or ip_attempts >= settings.MAX_LOGIN_ATTEMPTS:
             logger.info("Login locked out for %s from %s", email, ip)
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -153,9 +151,9 @@ def login(
     if not user or not verify_password(form_data.password, user.password):
         try:
             client.incr(user_key)
-            client.expire(user_key, LOGIN_ATTEMPT_WINDOW)
+            client.expire(user_key, settings.LOGIN_ATTEMPT_WINDOW)
             client.incr(ip_key)
-            client.expire(ip_key, LOGIN_ATTEMPT_WINDOW)
+            client.expire(ip_key, settings.LOGIN_ATTEMPT_WINDOW)
         except redis.exceptions.ConnectionError as exc:
             logger.warning("Could not update login attempt counters: %s", exc)
         raise HTTPException(

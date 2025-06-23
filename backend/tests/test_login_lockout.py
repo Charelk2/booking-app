@@ -59,8 +59,8 @@ def test_lockout_and_reset(monkeypatch):
     user = create_user(Session)
     client = TestClient(app)
 
-    monkeypatch.setattr(auth_module, 'MAX_LOGIN_ATTEMPTS', 3)
-    monkeypatch.setattr(auth_module, 'LOGIN_ATTEMPT_WINDOW', 1)
+    monkeypatch.setattr(auth_module.settings, 'MAX_LOGIN_ATTEMPTS', 3, raising=False)
+    monkeypatch.setattr(auth_module.settings, 'LOGIN_ATTEMPT_WINDOW', 1, raising=False)
 
     for _ in range(3):
         res = client.post('/auth/login', data={'username': user.email, 'password': 'bad'})
