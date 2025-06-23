@@ -1037,30 +1037,6 @@ primary hue is indigo (`#6366f1`), with `brand-dark` and `brand-light` variants.
 Components reference these via utility classes such as `bg-brand` and
 `bg-brand-dark`.
 
-A **High Contrast** theme can be enabled from the user menu via the
-`ThemeSwitcher` component. When toggled, CSS variables update site-wide colors
-and the preference is stored in `localStorage`.
-The high contrast palette uses pure black (`#000`) for page backgrounds and
-white (`#fff`) for text. Elements styled with `bg-brand-dark` also switch to a
-black background in this mode so button wording stays visible.
-The `ThemeSwitcher` now adds a `high-contrast` class to `<body>` so every
-component can conditionally style itself using Tailwind. The preference is still
-stored in `localStorage` and applied on page load via a small inline script.
-Additional rules force all gray text utilities to switch to white on dark
-backgrounds and black on white backgrounds. Drop shadows are removed and links
-are always underlined to meet WCAG contrast guidelines.
-
-As of July 2025 high contrast mode also disables all CSS transitions and
-background images to prevent motion issues. Colored Tailwind backgrounds such as
-`bg-gray-100` or `bg-red-500` are forced to pure black with white text, while
-interactive elements gain a visible border and invert colors on hover. These
-rules keep every page readable with zero gradients or muted shades.
-
-Update these colors in `frontend/tailwind.config.js` and
-`frontend/src/app/globals.css` to adjust the site's look and feel. The Tailwind
-config also scans `src/styles/**/*` so constants like `buttonVariants.ts` are
-included in the final build. See `frontend/README.md` for detailed theming
-instructions.
 
 ### Help Prompt
 
