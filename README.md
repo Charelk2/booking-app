@@ -354,8 +354,12 @@ verification code whenever a login response includes `mfa_required`.
 Failed login attempts are tracked per user and IP using Redis. After
 `MAX_LOGIN_ATTEMPTS` failures within `LOGIN_ATTEMPT_WINDOW` seconds,
 `POST /auth/login` responds with **429 Too Many Requests**. A successful
-login resets these counters. Configure the limits via environment variables
-if the defaults are too strict.
+login resets these counters. Set the limits in your `.env` file:
+
+```bash
+MAX_LOGIN_ATTEMPTS=5       # number of failures before lockout
+LOGIN_ATTEMPT_WINDOW=300   # rolling window in seconds
+```
 
 ### Retrieve current user
 
