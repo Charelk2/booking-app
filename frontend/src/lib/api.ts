@@ -1,7 +1,7 @@
 // frontend/src/lib/api.ts
 
 import axios, { AxiosProgressEvent } from 'axios';
-import { extractErrorMessage } from './utils';
+import { extractErrorMessage, normalizeQuoteTemplate } from './utils';
 import {
   User,
   ArtistProfile,
@@ -21,6 +21,7 @@ import {
   ArtistSoundPreference,
   QuoteCalculationResponse,
   QuoteTemplate,
+  
   Notification,
   ThreadNotification,
 } from '@/types';
@@ -384,16 +385,25 @@ export const uploadBookingAttachment = (
   );
 
 // ─── QUOTE TEMPLATES ─────────────────────────────────────────────────────────
-export const getQuoteTemplates = (artistId: number) =>
-  api.get<QuoteTemplate[]>(`${API_V1}/quote-templates/artist/${artistId}`);
+export const getQuoteTemplates = async (artistId: number) => {
+  const res = await api.get<QuoteTemplate[]>(
+    `${API_V1}/quote-templates/artist/${artistId}`,
+  );
+  return { ...res, data: res.data.map(normalizeQuoteTemplate) };
+};
 
-export const createQuoteTemplate = (data: Partial<QuoteTemplate>) =>
-  api.post<QuoteTemplate>(`${API_V1}/quote-templates`, data);
+export const createQuoteTemplate = async (data: Partial<QuoteTemplate>) => {
+  const res = await api.post<QuoteTemplate>(`${API_V1}/quote-templates`, data);
+  return { ...res, data: normalizeQuoteTemplate(res.data) };
+};
 
 export const updateQuoteTemplate = (
   id: number,
   data: Partial<QuoteTemplate>,
-) => api.put<QuoteTemplate>(`${API_V1}/quote-templates/${id}`, data);
+) =>
+  api
+    .put<QuoteTemplate>(`${API_V1}/quote-templates/${id}`, data)
+    .then((res) => ({ ...res, data: normalizeQuoteTemplate(res.data) }));
 
 export const deleteQuoteTemplate = (id: number) =>
   api.delete(`${API_V1}/quote-templates/${id}`);
