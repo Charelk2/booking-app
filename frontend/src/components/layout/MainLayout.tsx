@@ -10,7 +10,6 @@ import NotificationBell from './NotificationBell';
 import BookingRequestIcon from './BookingRequestIcon';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import MobileBottomNav from './MobileBottomNav';
-import ThemeSwitcher from './ThemeSwitcher';
 import { HelpPrompt } from '../ui';
 
 const baseNavigation = [
@@ -165,18 +164,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                               )}
                             </Menu.Item>
                           )}
-                          <Menu.Item>
-                            {({ active }) => (
-                              <div
-                                className={classNames(
-                                  active ? 'bg-gray-100' : '',
-                                  'block px-4 py-2'
-                                )}
-                              >
-                                <ThemeSwitcher />
-                              </div>
-                            )}
-                          </Menu.Item>
                           <Menu.Item>
                             {({ active }) => (
                               <button

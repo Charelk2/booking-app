@@ -20,11 +20,6 @@ module.exports = {
         },
         background: 'var(--color-background)',
         foreground: 'var(--color-foreground)',
-        contrast: {
-          brand: 'var(--hc-brand-color)',
-          background: 'var(--hc-background)',
-          foreground: 'var(--hc-foreground)',
-        },
       },
     },
   },
