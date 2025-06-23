@@ -19,24 +19,31 @@ def get_redis_client() -> redis.Redis:
 ARTIST_LIST_KEY_PREFIX = "artist_profiles:list"
 
 
-def _make_key(page: int, category: Optional[str], location: Optional[str], sort: Optional[str]) -> str:
+def _make_key(
+    page: int,
+    limit: int,
+    category: Optional[str],
+    location: Optional[str],
+    sort: Optional[str],
+) -> str:
     """Return a Redis key for the given parameter combination."""
     cat = category or ""
     loc = location or ""
     srt = sort or ""
-    return f"{ARTIST_LIST_KEY_PREFIX}:{page}:{cat}:{loc}:{srt}"
+    return f"{ARTIST_LIST_KEY_PREFIX}:{page}:{limit}:{cat}:{loc}:{srt}"
 
 
 def get_cached_artist_list(
     page: int = 1,
     *,
+    limit: int = 20,
     category: Optional[str] = None,
     location: Optional[str] = None,
     sort: Optional[str] = None,
 ) -> List[dict] | None:
     """Retrieve a cached artist list for the given parameters if available."""
     client = get_redis_client()
-    key = _make_key(page, category, location, sort)
+    key = _make_key(page, limit, category, location, sort)
     try:
         data = client.get(key)
     except redis.exceptions.ConnectionError as exc:
@@ -51,6 +58,7 @@ def cache_artist_list(
     data: List[dict],
     page: int = 1,
     *,
+    limit: int = 20,
     category: Optional[str] = None,
     location: Optional[str] = None,
     sort: Optional[str] = None,
@@ -58,7 +66,7 @@ def cache_artist_list(
 ) -> None:
     """Cache the artist list for the given parameter combination."""
     client = get_redis_client()
-    key = _make_key(page, category, location, sort)
+    key = _make_key(page, limit, category, location, sort)
     try:
         client.setex(key, expire, dumps(data))
     except redis.exceptions.ConnectionError as exc:
