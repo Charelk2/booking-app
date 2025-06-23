@@ -14,9 +14,16 @@ module.exports = {
       },
       colors: {
         brand: {
-          DEFAULT: '#6366f1',
-          dark: '#4f46e5',
-          light: '#a5b4fc',
+          DEFAULT: 'var(--brand-color)',
+          dark: 'var(--brand-color-dark)',
+          light: 'var(--brand-color-light)',
+        },
+        background: 'var(--color-background)',
+        foreground: 'var(--color-foreground)',
+        contrast: {
+          brand: 'var(--hc-brand-color)',
+          background: 'var(--hc-background)',
+          foreground: 'var(--hc-foreground)',
         },
       },
     },
