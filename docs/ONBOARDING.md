@@ -10,7 +10,7 @@ Enabling MFA greatly reduces the risk of unauthorized access. Keep your recovery
 
 ## Quickstart Booking Walkthrough
 
-These sample commands demonstrate the basic booking flow using the API. Replace `CLIENT_TOKEN`, `ARTIST_TOKEN`, `ARTIST_ID`, `SERVICE_ID`, `REQUEST_ID`, and `QUOTE_ID` with actual values from your environment. Set `PAYMENT_GATEWAY_FAKE=1` when testing locally so payments use the built-in fake gateway.
+These sample commands demonstrate the basic booking flow using the API. Replace `CLIENT_TOKEN`, `ARTIST_TOKEN`, `ARTIST_ID`, `SERVICE_ID`, `REQUEST_ID`, and `QUOTE_ID` with actual values from your environment. Set `PAYMENT_GATEWAY_FAKE=1` when testing locally so payments use the built-in fake gateway. Configure `PAYMENT_GATEWAY_URL` to point at your real payment processor; the default `https://example.com` only serves as a placeholder.
 
 1. **Create users**
    ```bash

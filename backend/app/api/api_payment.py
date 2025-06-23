@@ -11,10 +11,10 @@ import uuid
 
 from ..models import User, BookingSimple, QuoteV2
 from .dependencies import get_db, get_current_active_client
+from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 
-PAYMENT_GATEWAY_URL = os.getenv("PAYMENT_GATEWAY_URL", "https://example.com")
 PAYMENT_GATEWAY_FAKE = os.getenv("PAYMENT_GATEWAY_FAKE")
 
 router = APIRouter(tags=["payments"])
@@ -83,7 +83,7 @@ def create_payment(
     else:
         try:
             response = httpx.post(
-                f"{PAYMENT_GATEWAY_URL}/charges",
+                f"{settings.PAYMENT_GATEWAY_URL}/charges",
                 json={"amount": amount, "currency": "ZAR"},
                 timeout=10,
             )
