@@ -48,6 +48,7 @@ from .api import (
     api_message,
     api_notification,
     api_payment,
+    api_user,
     api_calendar,
     api_quote_template,
     api_settings,
@@ -245,6 +246,13 @@ app.include_router(
     api_payment.router,
     prefix=f"{api_prefix}/payments",
     tags=["payments"],
+)
+
+# ─── USER ROUTES (under /api/v1/users) ─────────────────────────────────────
+app.include_router(
+    api_user.router,
+    prefix=f"{api_prefix}",
+    tags=["users"],
 )
 
 # ─── SETTINGS ROUTES (under /api/v1) ─────────────────────────────────────────
