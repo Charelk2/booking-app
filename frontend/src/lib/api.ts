@@ -472,4 +472,11 @@ export const connectGoogleCalendar = () =>
 export const disconnectGoogleCalendar = () =>
   api.delete(`${API_V1}/google-calendar`);
 
+// ─── USER ACCOUNT ────────────────────────────────────────────────────────────
+export const exportMyAccount = () =>
+  api.get(`${API_V1}/users/me/export`);
+
+export const deleteMyAccount = (password: string) =>
+  api.delete(`${API_V1}/users/me`, { data: { password } });
+
 export default api;

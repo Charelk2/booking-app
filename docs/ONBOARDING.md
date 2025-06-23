@@ -69,6 +69,19 @@ These sample commands demonstrate the basic booking flow using the API. Replace 
      http://localhost:8000/api/v1/bookings/my-bookings
    ```
 
+9. **Export or delete your account**
+   ```bash
+   # Download a JSON export
+   curl -H "Authorization: Bearer CLIENT_TOKEN" \
+     http://localhost:8000/api/v1/users/me/export
+
+   # Delete the account after confirming the password
+   curl -X DELETE http://localhost:8000/api/v1/users/me \
+     -H "Authorization: Bearer CLIENT_TOKEN" \
+     -H 'Content-Type: application/json' \
+     -d '{"password":"pass"}'
+   ```
+
 8. **Run database migrations**
    ```bash
    alembic upgrade head
