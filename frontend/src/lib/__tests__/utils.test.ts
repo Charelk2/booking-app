@@ -1,6 +1,7 @@
 import {
   extractErrorMessage,
   normalizeService,
+  normalizeQuoteTemplate,
   getNextAvailableDates,
   getFullImageUrl,
   formatCurrency,
@@ -9,7 +10,7 @@ import {
 import { DEFAULT_CURRENCY } from '../constants';
 import api from '../api';
 import { format } from 'date-fns';
-import type { Service, ArtistProfile } from '@/types';
+import type { Service, ArtistProfile, QuoteTemplate } from '@/types';
 
 describe('extractErrorMessage', () => {
   it('returns the string unchanged when given a string', () => {
@@ -50,6 +51,28 @@ describe('normalizeService', () => {
     expect(typeof normalized.duration_minutes).toBe('number');
     expect(normalized.price).toBeCloseTo(12.5);
     expect(normalized.duration_minutes).toBe(30);
+  });
+});
+
+describe('normalizeQuoteTemplate', () => {
+  it('converts numeric strings to numbers', () => {
+    const input = {
+      id: 1,
+      artist_id: 1,
+      name: 'Foo',
+      services: [{ description: 'X', price: '10' as unknown as number }],
+      sound_fee: '2' as unknown as number,
+      travel_fee: '3' as unknown as number,
+      accommodation: null,
+      discount: '1' as unknown as number,
+      created_at: '',
+      updated_at: '',
+    } as QuoteTemplate;
+    const tmpl = normalizeQuoteTemplate(input);
+    expect(typeof tmpl.sound_fee).toBe('number');
+    expect(typeof tmpl.services[0].price).toBe('number');
+    expect(tmpl.sound_fee).toBe(2);
+    expect(tmpl.services[0].price).toBe(10);
   });
 });
 
