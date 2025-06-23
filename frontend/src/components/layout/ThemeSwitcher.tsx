@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import clsx from 'clsx';
 
 export default function ThemeSwitcher() {
   const [highContrast, setHighContrast] = useState(false);
@@ -28,7 +29,12 @@ export default function ThemeSwitcher() {
       type="button"
       aria-pressed={highContrast}
       onClick={() => setHighContrast(!highContrast)}
-      className="px-3 py-1.5 rounded-md border text-sm bg-background text-foreground border-foreground"
+      className={clsx(
+        'px-3 py-1.5 rounded-md border text-sm',
+        highContrast
+          ? 'bg-black text-white border-white'
+          : 'bg-white text-black border-black',
+      )}
     >
       {highContrast ? 'Standard colors' : 'High contrast'}
     </button>
