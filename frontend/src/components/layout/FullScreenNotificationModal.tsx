@@ -82,8 +82,8 @@ export default function FullScreenNotificationModal({
           <div className="fixed inset-0 bg-gray-600 bg-opacity-75 hidden sm:block" />
         </Transition.Child>
 
-        <Dialog.Panel className="flex h-full w-full flex-col bg-white">
-          <div className="sticky top-0 z-20 flex items-center justify-between bg-white border-b px-4 py-3">
+        <Dialog.Panel className="flex h-full w-full flex-col bg-background">
+          <div className="sticky top-0 z-20 flex items-center justify-between bg-background border-b px-4 py-3">
             <h2 className="text-lg font-semibold">Notifications</h2>
             <div className="flex items-center gap-2">
               <button

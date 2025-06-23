@@ -51,7 +51,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   return (
     <nav
       className={classNames(
-        'fixed bottom-0 w-full h-[56px] py-1 bg-white border-t shadow z-50 sm:hidden transition-transform',
+        'fixed bottom-0 w-full h-[56px] py-1 bg-background border-t shadow z-50 sm:hidden transition-transform',
         scrollDir === 'down' ? 'translate-y-full' : 'translate-y-0',
       )}
       aria-label="Mobile navigation"

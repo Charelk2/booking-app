@@ -76,8 +76,8 @@ export default function NotificationDrawer({
                 leaveFrom="translate-x-0"
                 leaveTo="translate-x-full"
               >
-                <Dialog.Panel className="pointer-events-auto w-screen max-w-sm bg-white shadow-xl flex flex-col">
-                  <div className="sticky top-0 z-20 flex items-center justify-between bg-white px-4 py-3 border-b border-gray-200">
+                <Dialog.Panel className="pointer-events-auto w-screen max-w-sm bg-background shadow-xl flex flex-col">
+                  <div className="sticky top-0 z-20 flex items-center justify-between bg-background px-4 py-3 border-b border-gray-200">
                     <Dialog.Title className="text-lg font-medium text-gray-900">Notifications</Dialog.Title>
                     <div className="flex items-center gap-2">
                       <button

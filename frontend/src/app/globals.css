@@ -7,11 +7,25 @@
   --brand-color: #6366f1;
   --brand-color-dark: #4f46e5;
   --brand-color-light: #a5b4fc;
+  --color-background: #ffffff;
+  --color-foreground: #111827;
+  --hc-brand-color: #ffff00;
+  --hc-background: #000000;
+  --hc-foreground: #ffffff;
+}
+
+[data-theme='high-contrast'] {
+  --brand-color: var(--hc-brand-color);
+  --brand-color-dark: var(--hc-brand-color);
+  --brand-color-light: #ffff66;
+  --color-background: var(--hc-background);
+  --color-foreground: var(--hc-foreground);
 }
 
 @layer base {
   body {
-    @apply bg-white text-gray-900;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
   }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);

@@ -1,0 +1,11 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ThemeSwitcher matches snapshot 1`] = `
+<button
+  aria-pressed="false"
+  class="px-3 py-1.5 rounded-md border text-sm bg-background text-foreground border-foreground"
+  type="button"
+>
+  High contrast
+</button>
+`;
