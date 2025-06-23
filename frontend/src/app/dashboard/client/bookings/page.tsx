@@ -8,7 +8,11 @@ import type { Booking, Review } from "@/types";
 import ReviewFormModal from "@/components/review/ReviewFormModal";
 import usePaymentModal from "@/hooks/usePaymentModal";
 import { format } from "date-fns";
-import { formatCurrency, formatStatus } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatStatus,
+  formatDepositReminder,
+} from "@/lib/utils";
 import Link from "next/link";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { Spinner } from "@/components/ui";
@@ -67,8 +71,10 @@ function BookingList({
             )}
             {b.payment_status === "pending" && b.deposit_due_by && (
               <div className="text-sm text-gray-500 mt-1">
-                Deposit due by{" "}
-                {format(new Date(b.deposit_due_by), "MMM d, yyyy")}
+                {formatDepositReminder(
+                  Number(b.deposit_amount || 0),
+                  b.deposit_due_by,
+                )}
               </div>
             )}
             {b.payment_id && (
