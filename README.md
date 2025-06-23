@@ -173,6 +173,20 @@ For quick local testing you can bypass specific origins entirely by setting `COR
 
 Unhandled exceptions are returned as JSON 500 responses. The middleware now injects the appropriate `Access-Control-Allow-Origin` header even when errors occur, so browser clients never see a CORS failure when the API throws an exception. HTTP errors raised with `HTTPException` keep their original status codes and messages instead of always becoming 500 errors.
 
+### OpenAPI schema
+
+Generate the latest API specification with:
+
+```bash
+npm run make-openapi
+```
+
+This command writes `docs/openapi.json`. If the server is running you can also download the file directly:
+
+```bash
+curl http://localhost:8000/openapi.json -o docs/openapi.json
+```
+
 ### Google Calendar OAuth
 
 Set these variables in your `.env` file (in the repo root) to enable syncing with Google Calendar:

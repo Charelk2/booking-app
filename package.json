@@ -2,6 +2,7 @@
   "name": "booking-app-root",
   "private": true,
   "scripts": {
-    "test": "npm --prefix frontend test --silent"
+    "test": "npm --prefix frontend test --silent",
+    "make-openapi": "bash scripts/make-openapi.sh"
   }
 }
