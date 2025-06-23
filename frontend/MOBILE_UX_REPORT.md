@@ -44,12 +44,6 @@ This document outlines key friction points in the current booking wizard and pro
 * Provide skeleton loaders for availability checks and quote calculations.
 * Maintain the existing <code>MobileBottomNav</code> for consistent navigation.
 
-## Accessibility Settings
-The app now includes a **High Contrast** mode for better readability. Users can
-toggle the setting from the menu, and their preference is saved to
-`localStorage`. When enabled, the application switches CSS variables to ensure
-sufficient color contrast across all components.
-
 ## Collapsible Sections Component
 The `CollapsibleSection` component replaces raw `<details>` elements in the booking wizard. Each step header is rendered as a button with proper `aria-expanded` state so screen readers and keyboard users can toggle sections just as easily as touch users.
 
