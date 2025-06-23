@@ -10,6 +10,7 @@ import NotificationBell from './NotificationBell';
 import BookingRequestIcon from './BookingRequestIcon';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import MobileBottomNav from './MobileBottomNav';
+import ThemeSwitcher from './ThemeSwitcher';
 import { HelpPrompt } from '../ui';
 
 const baseNavigation = [
@@ -37,8 +38,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-light to-white">
-      <Disclosure as="nav" className="bg-white shadow-sm">
+    <div className="min-h-screen bg-gradient-to-b from-brand-light to-background">
+      <Disclosure as="nav" className="bg-background shadow-sm">
         {() => (
           <>
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -72,7 +73,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   {user ? (
                     <Menu as="div" className="relative ml-3">
                       <div>
-                        <Menu.Button className="flex rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2">
+                        <Menu.Button className="flex rounded-full bg-background text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2">
                           <span className="sr-only">Open user menu</span>
                           <div className="h-8 w-8 rounded-full bg-brand-light flex items-center justify-center">
                             <span className="text-brand-dark font-medium">
@@ -90,7 +91,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                         leaveFrom="transform opacity-100 scale-100"
                         leaveTo="transform opacity-0 scale-95"
                       >
-                        <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                        <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-background py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                           <Menu.Item>
                             {({ active }) => (
                               <Link
@@ -164,6 +165,18 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                               )}
                             </Menu.Item>
                           )}
+                          <Menu.Item>
+                            {({ active }) => (
+                              <div
+                                className={classNames(
+                                  active ? 'bg-gray-100' : '',
+                                  'block px-4 py-2'
+                                )}
+                              >
+                                <ThemeSwitcher />
+                              </div>
+                            )}
+                          </Menu.Item>
                           <Menu.Item>
                             {({ active }) => (
                               <button
