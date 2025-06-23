@@ -287,7 +287,8 @@ To connect an account:
    authentication.
 3. Approve the permissions requested by the provider.
 4. The API creates or updates the user, marks them verified, issues a JWT, and
-   redirects to the `next` URL with `?token=<jwt>` appended.
+   redirects to `/login?token=<jwt>&next=<path>` where `<path>` is the original
+   destination. The login page saves the token then forwards to that path.
    If an account with the same email already exists, Google sign-in now logs
    into that account instead of creating a duplicate.
 5. Token exchange or profile retrieval failures now log the underlying error and
