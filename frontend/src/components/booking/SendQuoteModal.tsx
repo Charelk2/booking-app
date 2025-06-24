@@ -188,7 +188,7 @@ const SendQuoteModal: React.FC<Props> = ({
                 value={s.price}
                 onChange={(e) => updateService(i, 'price', e.target.value)}
               />
-              {services.length > 1 && (
+              {services.length > 0 && (
                 <button
                   type="button"
                   onClick={() => removeService(i)}

@@ -171,6 +171,34 @@ describe('SendQuoteModal', () => {
     root.unmount();
   });
 
+  it('shows remove button for a single added item', async () => {
+    (api.getQuoteTemplates as jest.Mock).mockResolvedValue({ data: [] });
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(
+        <SendQuoteModal
+          open
+          onClose={() => {}}
+          onSubmit={() => {}}
+          artistId={1}
+          clientId={2}
+          bookingRequestId={3}
+          serviceName="Live Performance"
+        />,
+      );
+    });
+    const addButton = Array.from(div.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Add Item'),
+    ) as HTMLButtonElement;
+    await act(async () => {
+      addButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    const removeButton = div.querySelector('button[aria-label="Remove item"]');
+    expect(removeButton).not.toBeNull();
+    root.unmount();
+  });
+
   it('matches snapshot', async () => {
     (api.getQuoteTemplates as jest.Mock).mockResolvedValue({ data: [] });
     jest.spyOn(Math, 'random').mockReturnValue(0.3772);
