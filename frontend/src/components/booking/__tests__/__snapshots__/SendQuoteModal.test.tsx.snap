@@ -15,8 +15,25 @@ exports[`SendQuoteModal matches snapshot 1`] = `
     <div
       class="space-y-3 max-h-[60vh] overflow-y-auto"
     >
+      <div
+        class="flex flex-col gap-y-2 mb-2 text-sm"
+      >
+        <div>
+          Quote #
+          2025-3772
+        </div>
+        <div>
+          June 24th, 2025
+        </div>
+        <input
+          class="border rounded p-1"
+          placeholder="Description"
+          type="text"
+          value=""
+        />
+      </div>
       <label
-        class="flex flex-col text-sm font-bold"
+        class="flex flex-col text-sm"
         for="service-fee"
       >
         Live Performance
@@ -25,12 +42,13 @@ exports[`SendQuoteModal matches snapshot 1`] = `
           class="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
           id="service-fee"
           inputmode="numeric"
+          placeholder="Enter amount"
           type="number"
           value="0"
         />
       </label>
       <label
-        class="flex flex-col text-sm font-bold"
+        class="flex flex-col text-sm"
         for="sound-fee"
       >
         Sound fee
@@ -38,12 +56,13 @@ exports[`SendQuoteModal matches snapshot 1`] = `
           class="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
           id="sound-fee"
           inputmode="numeric"
+          placeholder="Enter amount"
           type="number"
           value="0"
         />
       </label>
       <label
-        class="flex flex-col text-sm font-bold"
+        class="flex flex-col text-sm"
         for="travel-fee"
       >
         Travel fee
@@ -51,6 +70,7 @@ exports[`SendQuoteModal matches snapshot 1`] = `
           class="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
           id="travel-fee"
           inputmode="numeric"
+          placeholder="Enter amount"
           type="number"
           value="0"
         />
@@ -67,17 +87,18 @@ exports[`SendQuoteModal matches snapshot 1`] = `
         </span>
       </button>
       <label
-        class="flex flex-col text-sm font-bold"
+        class="flex flex-col text-sm"
         for="accommodation"
       >
         Accommodation (optional)
         <textarea
           class="w-full border rounded p-1 focus:outline-none focus:ring-2 focus:ring-brand"
           id="accommodation"
+          placeholder="Optional: e.g. 500"
         />
       </label>
       <label
-        class="flex flex-col text-sm font-bold"
+        class="flex flex-col text-sm"
         for="discount"
       >
         Discount (optional)
@@ -85,12 +106,13 @@ exports[`SendQuoteModal matches snapshot 1`] = `
           class="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
           id="discount"
           inputmode="numeric"
+          placeholder="Optional: e.g. 500"
           type="number"
           value="0"
         />
       </label>
       <label
-        class="flex flex-col text-sm font-bold"
+        class="flex flex-col text-sm"
         for="expires-hours"
       >
         Expires in
@@ -106,27 +128,43 @@ exports[`SendQuoteModal matches snapshot 1`] = `
           <option
             value="24"
           >
-            24h
+            1 day
           </option>
           <option
             value="72"
           >
             3 days
           </option>
+          <option
+            value="168"
+          >
+            7 days
+          </option>
         </select>
       </label>
+      <hr
+        class="border-t my-2"
+      />
       <div
-        class="text-sm mt-2"
+        class="text-sm"
       >
-        Subtotal: 
-        R 0,00
+        <span
+          class="text-gray-500"
+        >
+          Subtotal: 
+          R 0,00
+        </span>
         <br />
-        Total: 
-        R 0,00
+        <span
+          class="font-medium"
+        >
+          Total (after discount): 
+          R 0,00
+        </span>
       </div>
     </div>
     <div
-      class="flex justify-end gap-2 mt-4"
+      class="flex gap-2 mt-4"
     >
       <button
         aria-busy="false"
@@ -142,6 +180,7 @@ exports[`SendQuoteModal matches snapshot 1`] = `
       <button
         aria-busy="false"
         class="inline-flex items-center justify-center rounded-md font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform active:scale-95 px-4 py-2 text-sm bg-brand hover:bg-brand-dark text-white focus:ring-brand-dark"
+        title="This quote will be sent to the client"
         type="button"
       >
         <span
