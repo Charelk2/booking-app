@@ -144,8 +144,7 @@ const SendQuoteModal: React.FC<Props> = ({
               className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
               placeholder="Enter amount"
               value={serviceFee}
-              disabled
-              readOnly
+              onChange={(e) => setServiceFee(Number(e.target.value))}
             />
           </label>
           <label htmlFor="sound-fee" className="flex items-center gap-2 text-sm font-normal mb-2 border rounded p-2">
@@ -157,8 +156,7 @@ const SendQuoteModal: React.FC<Props> = ({
               className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
               placeholder="Enter amount"
               value={soundFee}
-              disabled
-              readOnly
+              onChange={(e) => setSoundFee(Number(e.target.value))}
             />
           </label>
           <label htmlFor="travel-fee" className="flex items-center gap-2 text-sm font-normal mb-2 border rounded p-2">
@@ -170,8 +168,7 @@ const SendQuoteModal: React.FC<Props> = ({
               className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
               placeholder="Enter amount"
               value={travelFee}
-              disabled
-              readOnly
+              onChange={(e) => setTravelFee(Number(e.target.value))}
             />
           </label>
           {services.map((s, i) => (
