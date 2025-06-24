@@ -203,7 +203,7 @@ export default function QuoteTemplatesPage() {
                 value={s.price}
                 onChange={(e) => updateService(i, 'price', e.target.value)}
               />
-              {services.length > 1 && (
+              {services.length > 0 && (
                 <button type="button" onClick={() => removeService(i)} className="text-red-600" aria-label="Remove">
                   ×
                 </button>
@@ -280,7 +280,7 @@ export default function QuoteTemplatesPage() {
                         value={s.price}
                         onChange={(e) => updateEditService(i, 'price', e.target.value)}
                       />
-                      {editServices.length > 1 && (
+                      {editServices.length > 0 && (
                         <button type="button" onClick={() => removeEditService(i)} className="text-red-600" aria-label="Remove">
                           ×
                         </button>
