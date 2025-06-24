@@ -205,8 +205,7 @@ export default function BookingWizard({
         `Guests: ${vals.guests}`,
         `Sound: ${vals.sound}`,
         `Venue Type: ${vals.venueType}`,
-        vals.notes ? `Notes: ${vals.notes}` : null,
-      ].filter(Boolean).join('\n');
+      ].join('\n');
       await postMessageToBookingRequest(idToUse, {
         content: `Booking details:\n${detailLines}`,
         message_type: 'system',

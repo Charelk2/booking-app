@@ -127,6 +127,11 @@ export default function BookingDetailsPage() {
             </a>
           </p>
         )}
+        {booking.notes && (
+          <p className="border p-2 bg-white rounded-md whitespace-pre-wrap">
+            {booking.notes}
+          </p>
+        )}
         <div className="mt-2 space-x-4">
           {booking.payment_status === "pending" && (
             <button
