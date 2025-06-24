@@ -85,6 +85,7 @@ export default function ThreadPage() {
             request.artist?.business_name || request.artist?.user?.first_name
           }
           artistAvatarUrl={artistAvatar}
+          serviceName={request.service?.title}
         />
       </div>
     </MainLayout>
