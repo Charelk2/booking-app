@@ -710,7 +710,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Floating “scroll to latest” button on small screens.
 * File uploads show an inline progress bar and the send button is disabled until complete.
 * Artists can now send itemized quotes directly in the thread via a **Send Quote** modal. Quote numbers are generated automatically, today's date appears, and a short description can be added. A compact **Choose template** dropdown sits beside the "Send Quote" title and the **Add Item** button now sits below the travel fee. Totals highlight both the subtotal and overall total. Clients can accept or decline, and accepted quotes show a confirmation banner.
-* The modal uses the same horizontal layout for service, sound, travel, and discount fees as the "Add Item" rows. Future releases will add PDF preview, currency symbols inside inputs, and an artist signature/terms block.
+* The modal uses the same horizontal layout for service, sound, travel, and discount fees as the "Add Item" rows. These fee fields are now editable so artists can enter amounts directly. Future releases will add PDF preview, currency symbols inside inputs, and an artist signature/terms block.
 * Accepting a quote now creates a booking instantly and notifies both parties.
 * Clients can once again accept quotes directly from the message thread.
 * Fixed issue where quotes sent via the thread were missing because no chat message was recorded.
