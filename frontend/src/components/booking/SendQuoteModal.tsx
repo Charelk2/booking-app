@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import Button from '../ui/Button';
 import { ServiceItem, QuoteV2Create, QuoteTemplate } from '@/types';
 import { getQuoteTemplates } from '@/lib/api';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 
 interface Props {
   open: boolean;
@@ -49,10 +49,7 @@ const SendQuoteModal: React.FC<Props> = ({
       getQuoteTemplates(artistId)
         .then((res) => setTemplates(res.data))
         .catch(() => setTemplates([]));
-      const num = `${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)
-        .toString()
-        .padStart(4, '0')}`;
-      setQuoteNumber(num);
+      setQuoteNumber(generateQuoteNumber());
     }
   }, [open, artistId]);
 
@@ -110,7 +107,7 @@ const SendQuoteModal: React.FC<Props> = ({
         <h2 className="text-lg font-medium mb-2">Send Quote</h2>
         <div className="space-y-3 max-h-[60vh] overflow-y-auto">
           <div className="flex flex-col gap-y-2 mb-2 text-sm">
-            <div>Quote #{quoteNumber}</div>
+            <div>{quoteNumber}</div>
             <div>{currentDate}</div>
             <input
               type="text"

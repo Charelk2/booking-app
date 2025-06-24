@@ -6,6 +6,7 @@ import {
   getFullImageUrl,
   formatCurrency,
   formatStatus,
+  generateQuoteNumber,
 } from '../utils';
 import { DEFAULT_CURRENCY } from '../constants';
 import api from '../api';
@@ -149,5 +150,12 @@ describe('formatStatus', () => {
 
   it('humanises unknown values', () => {
     expect(formatStatus('foo_bar')).toBe('Foo Bar');
+  });
+});
+
+describe('generateQuoteNumber', () => {
+  it('returns a formatted quote number', () => {
+    const quote = generateQuoteNumber();
+    expect(quote).toMatch(/^Quote #\d{4}-\d{4}$/);
   });
 });
