@@ -19,8 +19,7 @@ exports[`SendQuoteModal matches snapshot 1`] = `
         class="flex flex-col gap-y-2 mb-2 text-sm"
       >
         <div>
-          Quote #
-          2025-3772
+          Quote #2025-4394
         </div>
         <div>
           June 24th, 2025
