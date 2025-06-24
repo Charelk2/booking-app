@@ -734,7 +734,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Optional SMS alerts when `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER` are set in the backend environment.
 * Personalized video flows suppress chat alerts until all prompts are answered. A single notification is sent with the booking type once complete.
 * System-generated booking details messages do not create extra chat alerts; a single booking request notification is sent after the form is submitted.
-* Booking notes are visible only on the Booking details page and are hidden from chat threads and booking request screens.
+* Booking notes are visible only on the Booking details page, appearing beneath the Venue Type line in the details box, and are hidden from chat threads and booking request screens.
 * Booking details messages appear in chat threads inside a collapsible section with a **Show details** button that toggles to **Hide details** when expanded. Small chevron icons indicate the state.
 * Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews. Titles are limited to 36 characters and subtitles to 30 so long names don't wrap.
 * The drawer now opens as a rounded panel with a dark backdrop. Badges disappear when the unread count is 0. Adjust the badge styles in `frontend/src/components/layout/NotificationListItem.tsx`.
