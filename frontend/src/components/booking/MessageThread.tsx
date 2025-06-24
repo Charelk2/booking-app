@@ -706,7 +706,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                                     .trim()
                                     .split('\n')
                                     .map((line) => line.split(':'))
-                                    .filter((parts) => parts.length === 2)
+                                    .filter(
+                                      (parts) =>
+                                        parts.length === 2 &&
+                                        parts[0].trim().toLowerCase() !== 'notes',
+                                    )
                                     .map(([label, value]) => (
                                       <React.Fragment key={label.trim()}>
                                         <dt className="font-medium">{label.trim()}</dt>

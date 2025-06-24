@@ -104,11 +104,6 @@ export default function BookingRequestDetailPage() {
             </p>
           )}
         </div>
-        {request.message && (
-          <p className="border p-2 bg-white rounded-md whitespace-pre-wrap">
-            {request.message}
-          </p>
-        )}
         {request.service?.service_type === 'Personalized Video' ? (
           <PersonalizedVideoFlow
             bookingRequestId={request.id}
