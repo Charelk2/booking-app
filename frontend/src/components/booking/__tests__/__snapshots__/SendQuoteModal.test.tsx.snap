@@ -13,24 +13,48 @@ exports[`SendQuoteModal matches snapshot 1`] = `
       Send Quote
     </h2>
     <div
-      class="space-y-2 max-h-[60vh] overflow-y-auto"
+      class="space-y-3 max-h-[60vh] overflow-y-auto"
     >
-      <div
-        class="flex gap-2 items-center"
+      <label
+        class="flex flex-col text-sm font-bold"
+        for="service-fee"
       >
+        Live Performance
+         fee
         <input
-          class="flex-1 border rounded p-1"
-          placeholder="Description"
-          type="text"
-          value=""
-        />
-        <input
-          class="w-24 border rounded p-1"
-          placeholder="Price"
+          class="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+          id="service-fee"
+          inputmode="numeric"
           type="number"
           value="0"
         />
-      </div>
+      </label>
+      <label
+        class="flex flex-col text-sm font-bold"
+        for="sound-fee"
+      >
+        Sound fee
+        <input
+          class="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+          id="sound-fee"
+          inputmode="numeric"
+          type="number"
+          value="0"
+        />
+      </label>
+      <label
+        class="flex flex-col text-sm font-bold"
+        for="travel-fee"
+      >
+        Travel fee
+        <input
+          class="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+          id="travel-fee"
+          inputmode="numeric"
+          type="number"
+          value="0"
+        />
+      </label>
       <button
         aria-busy="false"
         class="inline-flex items-center justify-center rounded-md font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform active:scale-95 px-4 py-2 text-sm bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 focus:ring-gray-300 text-sm"
@@ -43,58 +67,35 @@ exports[`SendQuoteModal matches snapshot 1`] = `
         </span>
       </button>
       <label
-        class="flex flex-col text-sm"
-        for="sound-fee"
-      >
-        Sound fee
-        <input
-          class="w-full border rounded p-1"
-          id="sound-fee"
-          type="number"
-          value="0"
-        />
-      </label>
-      <label
-        class="flex flex-col text-sm"
-        for="travel-fee"
-      >
-        Travel fee
-        <input
-          class="w-full border rounded p-1"
-          id="travel-fee"
-          type="number"
-          value="0"
-        />
-      </label>
-      <label
-        class="flex flex-col text-sm"
+        class="flex flex-col text-sm font-bold"
         for="accommodation"
       >
         Accommodation (optional)
         <textarea
-          class="w-full border rounded p-1"
+          class="w-full border rounded p-1 focus:outline-none focus:ring-2 focus:ring-brand"
           id="accommodation"
         />
       </label>
       <label
-        class="flex flex-col text-sm"
+        class="flex flex-col text-sm font-bold"
         for="discount"
       >
         Discount (optional)
         <input
-          class="w-full border rounded p-1"
+          class="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
           id="discount"
+          inputmode="numeric"
           type="number"
           value="0"
         />
       </label>
       <label
-        class="flex flex-col text-sm"
+        class="flex flex-col text-sm font-bold"
         for="expires-hours"
       >
         Expires in
         <select
-          class="w-full border rounded p-1"
+          class="w-full border rounded p-1 focus:outline-none focus:ring-2 focus:ring-brand"
           id="expires-hours"
         >
           <option

@@ -36,6 +36,7 @@ describe('SendQuoteModal', () => {
           artistId={2}
           clientId={3}
           bookingRequestId={4}
+          serviceName="Live Performance"
         />,
       );
     });
@@ -46,14 +47,16 @@ describe('SendQuoteModal', () => {
       select.dispatchEvent(new Event('change', { bubbles: true }));
     });
     const inputs = div.querySelectorAll('input[type="number"]');
-    expect(inputs[0].value).toBe('5');
-    expect(inputs[1].value).toBe('1');
-    expect(inputs[2].value).toBe('2');
+    expect(inputs[0].value).toBe('5'); // service fee
+    expect(inputs[1].value).toBe('1'); // sound fee
+    expect(inputs[2].value).toBe('2'); // travel fee
+    const serviceLabel = div.querySelector('label[for="service-fee"]');
     const soundLabel = div.querySelector('label[for="sound-fee"]');
     const travelLabel = div.querySelector('label[for="travel-fee"]');
     const discountLabel = div.querySelector('label[for="discount"]');
     const accommodationLabel = div.querySelector('label[for="accommodation"]');
     const expiryLabel = div.querySelector('label[for="expires-hours"]');
+    expect(serviceLabel?.textContent).toContain('Live Performance fee');
     expect(soundLabel?.textContent).toContain('Sound fee');
     expect(travelLabel?.textContent).toContain('Travel fee');
     expect(discountLabel?.textContent).toContain('Discount');
@@ -90,6 +93,7 @@ describe('SendQuoteModal', () => {
           artistId={2}
           clientId={3}
           bookingRequestId={4}
+          serviceName="Live Performance"
         />,
       );
     });
@@ -116,6 +120,7 @@ describe('SendQuoteModal', () => {
           artistId={1}
           clientId={2}
           bookingRequestId={3}
+          serviceName="Live Performance"
         />,
       );
     });
