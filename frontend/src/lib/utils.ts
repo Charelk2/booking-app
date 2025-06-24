@@ -177,3 +177,12 @@ export const formatDepositReminder = (
   }
   return parts.join(' ');
 };
+
+/**
+ * Generate a human-readable quote number like "Quote #2025-1234".
+ */
+export function generateQuoteNumber(): string {
+  const year = new Date().getFullYear();
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `Quote #${year}-${rand}`;
+}
