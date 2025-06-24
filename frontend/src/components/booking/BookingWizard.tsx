@@ -199,13 +199,17 @@ export default function BookingWizard({
         setRequestId(res.data.id);
       }
       const idToUse = requestId || res.data.id;
-      const detailLines = [
+      const lines = [
         `Date: ${format(vals.date, 'yyyy-MM-dd')}`,
         `Location: ${vals.location}`,
         `Guests: ${vals.guests}`,
         `Sound: ${vals.sound}`,
         `Venue Type: ${vals.venueType}`,
-      ].join('\n');
+      ];
+      if (vals.notes) {
+        lines.push(`Notes: ${vals.notes}`);
+      }
+      const detailLines = lines.join('\n');
       await postMessageToBookingRequest(idToUse, {
         content: `Booking details:\n${detailLines}`,
         message_type: 'system',
