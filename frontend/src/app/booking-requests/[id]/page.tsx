@@ -119,6 +119,7 @@ export default function BookingRequestDetailPage() {
           artistName={artistName || request.artist?.user?.first_name}
           artistAvatarUrl={artistAvatar}
           serviceName={request.service?.title}
+          initialNotes={request.message ?? null}
         />
         )}
       </div>

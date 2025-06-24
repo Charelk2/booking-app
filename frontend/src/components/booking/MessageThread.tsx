@@ -66,6 +66,9 @@ interface MessageThreadProps {
   artistAvatarUrl?: string | null;
   isSystemTyping?: boolean;
   serviceName?: string;
+  /** Initial notes entered with the booking request. These may exist as a
+   * message in older threads but should be hidden from the conversation view. */
+  initialNotes?: string | null;
 }
 
 const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
@@ -82,6 +85,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       artistAvatarUrl = null,
       isSystemTyping = false,
       serviceName,
+      initialNotes = null,
     }: MessageThreadProps,
     ref,
   ) {
@@ -152,12 +156,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const fetchMessages = useCallback(async () => {
     try {
       const res = await getMessagesForBookingRequest(bookingRequestId);
-      const filtered = res.data.filter(
-        (m) =>
-          !(
-            m.message_type === 'text' && m.content.startsWith('Requesting ')
-          ),
-      );
+      const filtered = res.data.filter((m) => {
+        if (m.message_type === 'text' && m.content.startsWith('Requesting ')) {
+          return false;
+        }
+        if (
+          initialNotes &&
+          m.message_type === 'text' &&
+          m.content.trim() === initialNotes.trim()
+        ) {
+          return false;
+        }
+        return true;
+      });
       setMessages(filtered);
       filtered.forEach((m) => {
         if (m.message_type === 'quote' && m.quote_id) {
@@ -171,7 +182,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       setErrorMsg((err as Error).message);
       setLoading(false);
     }
-  }, [bookingRequestId, ensureQuoteLoaded]);
+  }, [bookingRequestId, ensureQuoteLoaded, initialNotes]);
 
   useImperativeHandle(ref, () => ({
     refreshMessages: async () => {
@@ -207,7 +218,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         const msg: Message = JSON.parse(event.data);
         // keep only the latest 200 messages to avoid excessive memory usage
         setMessages((prev) => {
-          if (prev.some((m) => m.id === msg.id)) {
+          if (
+            prev.some((m) => m.id === msg.id) ||
+            (initialNotes &&
+              msg.message_type === 'text' &&
+              msg.content.trim() === initialNotes.trim())
+          ) {
             return prev;
           }
           return [...prev.slice(-199), msg];
@@ -216,7 +232,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           ensureQuoteLoaded(msg.quote_id);
         }
       }),
-    [onSocketMessage, ensureQuoteLoaded],
+    [onSocketMessage, ensureQuoteLoaded, initialNotes],
   );
 
   // Create a preview URL whenever the file changes
