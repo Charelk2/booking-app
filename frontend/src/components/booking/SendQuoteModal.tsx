@@ -104,22 +104,11 @@ const SendQuoteModal: React.FC<Props> = ({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-4">
-        <h2 className="text-lg font-medium mb-2">Send Quote</h2>
-        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-          <div className="flex flex-col gap-y-2 mb-2 text-sm">
-            <div>{quoteNumber}</div>
-            <div>{currentDate}</div>
-            <input
-              type="text"
-              className="border rounded p-1"
-              placeholder="Description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-medium">Send Quote</h2>
           {templates.length > 0 && (
             <select
-              className="w-full border rounded p-1"
+              className="border rounded px-2 py-1 text-sm"
               value={selectedTemplate}
               onChange={(e) =>
                 setSelectedTemplate(e.target.value ? Number(e.target.value) : '')
@@ -133,6 +122,19 @@ const SendQuoteModal: React.FC<Props> = ({
               ))}
             </select>
           )}
+        </div>
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          <div className="flex flex-col gap-y-2 mb-2 text-sm">
+            <div>{quoteNumber}</div>
+            <div>{currentDate}</div>
+            <input
+              type="text"
+              className="border rounded p-1"
+              placeholder="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
           {services.map((s, i) => (
             <div key={i} className="flex gap-2 items-center mb-2">
               <input
@@ -157,37 +159,37 @@ const SendQuoteModal: React.FC<Props> = ({
               )}
             </div>
           ))}
-          <label htmlFor="service-fee" className="flex flex-col text-sm">
-            {serviceName ?? 'Service'} fee
+          <label htmlFor="service-fee" className="flex items-center gap-2 text-sm font-normal mb-2">
+            <span className="flex-1">{serviceName ?? 'Service'} fee</span>
             <input
               id="service-fee"
               type="number"
               inputMode="numeric"
-              className="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
               placeholder="Enter amount"
               value={serviceFee}
               onChange={(e) => setServiceFee(Number(e.target.value))}
             />
           </label>
-          <label htmlFor="sound-fee" className="flex flex-col text-sm">
-            Sound fee
+          <label htmlFor="sound-fee" className="flex items-center gap-2 text-sm font-normal mb-2">
+            <span className="flex-1">Sound fee</span>
             <input
               id="sound-fee"
               type="number"
               inputMode="numeric"
-              className="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
               placeholder="Enter amount"
               value={soundFee}
               onChange={(e) => setSoundFee(Number(e.target.value))}
             />
           </label>
-          <label htmlFor="travel-fee" className="flex flex-col text-sm">
-            Travel fee
+          <label htmlFor="travel-fee" className="flex items-center gap-2 text-sm font-normal mb-2">
+            <span className="flex-1">Travel fee</span>
             <input
               id="travel-fee"
               type="number"
               inputMode="numeric"
-              className="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
               placeholder="Enter amount"
               value={travelFee}
               onChange={(e) => setTravelFee(Number(e.target.value))}
@@ -196,7 +198,7 @@ const SendQuoteModal: React.FC<Props> = ({
           <Button type="button" onClick={addService} className="text-sm" variant="secondary">
             Add Item
           </Button>
-          <label htmlFor="accommodation" className="flex flex-col text-sm">
+          <label htmlFor="accommodation" className="flex flex-col text-sm font-normal">
             Accommodation (optional)
             <textarea
               id="accommodation"
@@ -206,19 +208,19 @@ const SendQuoteModal: React.FC<Props> = ({
               onChange={(e) => setAccommodation(e.target.value)}
             />
           </label>
-          <label htmlFor="discount" className="flex flex-col text-sm">
-            Discount (optional)
+          <label htmlFor="discount" className="flex items-center gap-2 text-sm font-normal mb-2">
+            <span className="flex-1">Discount (optional)</span>
             <input
               id="discount"
               type="number"
               inputMode="numeric"
-              className="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
               placeholder="Optional: e.g. 500"
               value={discount}
               onChange={(e) => setDiscount(Number(e.target.value))}
             />
           </label>
-          <label htmlFor="expires-hours" className="flex flex-col text-sm">
+          <label htmlFor="expires-hours" className="flex flex-col text-sm font-normal">
             Expires in
             <select
               id="expires-hours"
