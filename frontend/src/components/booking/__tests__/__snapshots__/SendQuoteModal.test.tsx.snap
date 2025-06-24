@@ -7,11 +7,15 @@ exports[`SendQuoteModal matches snapshot 1`] = `
   <div
     class="bg-white rounded-lg shadow-lg w-full max-w-md p-4"
   >
-    <h2
-      class="text-lg font-medium mb-2"
+    <div
+      class="flex items-center justify-between mb-2"
     >
-      Send Quote
-    </h2>
+      <h2
+        class="text-lg font-medium"
+      >
+        Send Quote
+      </h2>
+    </div>
     <div
       class="space-y-3 max-h-[60vh] overflow-y-auto"
     >
@@ -32,13 +36,17 @@ exports[`SendQuoteModal matches snapshot 1`] = `
         />
       </div>
       <label
-        class="flex flex-col text-sm"
+        class="flex items-center gap-2 text-sm font-normal mb-2"
         for="service-fee"
       >
-        Live Performance
-         fee
+        <span
+          class="flex-1"
+        >
+          Live Performance
+           fee
+        </span>
         <input
-          class="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+          class="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
           id="service-fee"
           inputmode="numeric"
           placeholder="Enter amount"
@@ -47,12 +55,16 @@ exports[`SendQuoteModal matches snapshot 1`] = `
         />
       </label>
       <label
-        class="flex flex-col text-sm"
+        class="flex items-center gap-2 text-sm font-normal mb-2"
         for="sound-fee"
       >
-        Sound fee
+        <span
+          class="flex-1"
+        >
+          Sound fee
+        </span>
         <input
-          class="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+          class="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
           id="sound-fee"
           inputmode="numeric"
           placeholder="Enter amount"
@@ -61,12 +73,16 @@ exports[`SendQuoteModal matches snapshot 1`] = `
         />
       </label>
       <label
-        class="flex flex-col text-sm"
+        class="flex items-center gap-2 text-sm font-normal mb-2"
         for="travel-fee"
       >
-        Travel fee
+        <span
+          class="flex-1"
+        >
+          Travel fee
+        </span>
         <input
-          class="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+          class="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
           id="travel-fee"
           inputmode="numeric"
           placeholder="Enter amount"
@@ -86,7 +102,7 @@ exports[`SendQuoteModal matches snapshot 1`] = `
         </span>
       </button>
       <label
-        class="flex flex-col text-sm"
+        class="flex flex-col text-sm font-normal"
         for="accommodation"
       >
         Accommodation (optional)
@@ -97,12 +113,16 @@ exports[`SendQuoteModal matches snapshot 1`] = `
         />
       </label>
       <label
-        class="flex flex-col text-sm"
+        class="flex items-center gap-2 text-sm font-normal mb-2"
         for="discount"
       >
-        Discount (optional)
+        <span
+          class="flex-1"
+        >
+          Discount (optional)
+        </span>
         <input
-          class="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+          class="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
           id="discount"
           inputmode="numeric"
           placeholder="Optional: e.g. 500"
@@ -111,7 +131,7 @@ exports[`SendQuoteModal matches snapshot 1`] = `
         />
       </label>
       <label
-        class="flex flex-col text-sm"
+        class="flex flex-col text-sm font-normal"
         for="expires-hours"
       >
         Expires in
