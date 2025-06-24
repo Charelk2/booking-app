@@ -172,7 +172,7 @@ const SendQuoteModal: React.FC<Props> = ({
             />
           </label>
           {services.map((s, i) => (
-            <div key={i} className="flex gap-2 items-center mb-2">
+            <div key={i} className="flex items-center gap-2 text-sm font-normal mb-2 border rounded p-2">
               <input
                 type="text"
                 className="flex-1 border rounded p-1"
@@ -189,7 +189,12 @@ const SendQuoteModal: React.FC<Props> = ({
                 onChange={(e) => updateService(i, 'price', e.target.value)}
               />
               {services.length > 1 && (
-                <button type="button" onClick={() => removeService(i)} aria-label="Remove item" className="text-red-600">
+                <button
+                  type="button"
+                  onClick={() => removeService(i)}
+                  aria-label="Remove item"
+                  className="text-red-600"
+                >
                   ×
                 </button>
               )}

@@ -123,6 +123,54 @@ describe('SendQuoteModal', () => {
     root.unmount();
   });
 
+  it('adds item row styled like fee rows', async () => {
+    (api.getQuoteTemplates as jest.Mock).mockResolvedValue({ data: [] });
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(
+        <SendQuoteModal
+          open
+          onClose={() => {}}
+          onSubmit={() => {}}
+          artistId={1}
+          clientId={2}
+          bookingRequestId={3}
+          serviceName="Live Performance"
+        />,
+      );
+    });
+    const addButton = Array.from(div.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Add Item'),
+    ) as HTMLButtonElement;
+    expect(addButton).not.toBeNull();
+    await act(async () => {
+      addButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    const dynamicRow = Array.from(div.querySelectorAll('div')).find((el) =>
+      el.className.includes('border') &&
+      Array.from(el.children).some(
+        (c) => (c as HTMLElement).getAttribute('placeholder') === 'Description',
+      ),
+    ) as HTMLDivElement;
+    expect(dynamicRow).not.toBeNull();
+    const classes = [
+      'flex',
+      'items-center',
+      'gap-2',
+      'text-sm',
+      'font-normal',
+      'mb-2',
+      'border',
+      'rounded',
+      'p-2',
+    ];
+    classes.forEach((cls) => {
+      expect(dynamicRow.className).toContain(cls);
+    });
+    root.unmount();
+  });
+
   it('matches snapshot', async () => {
     (api.getQuoteTemplates as jest.Mock).mockResolvedValue({ data: [] });
     jest.spyOn(Math, 'random').mockReturnValue(0.3772);
