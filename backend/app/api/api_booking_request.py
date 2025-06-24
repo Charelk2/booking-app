@@ -92,16 +92,9 @@ def create_booking_request(
     new_request = crud.crud_booking_request.create_booking_request(
         db=db, booking_request=request_in, client_id=current_user.id
     )
-    if request_in.message:
-        crud.crud_message.create_message(
-            db=db,
-            booking_request_id=new_request.id,
-            sender_id=current_user.id,
-            sender_type=models.SenderType.CLIENT,
-            content=request_in.message,
-            message_type=models.MessageType.TEXT,
-            attachment_url=request_in.attachment_url,
-        )
+    # Store the initial notes on the booking request but avoid posting them as
+    # a separate chat message. The details system message posted later contains
+    # these notes, so creating a text message here would duplicate the content.
     # The chat thread used to include a generic "Booking request sent" system
     # message immediately after creation. This extra message cluttered the
     # conversation view, so it has been removed.
