@@ -135,6 +135,45 @@ const SendQuoteModal: React.FC<Props> = ({
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
+          <label htmlFor="service-fee" className="flex items-center gap-2 text-sm font-normal mb-2 border rounded p-2">
+            <span className="flex-1">{serviceName ?? 'Service'} fee</span>
+            <input
+              id="service-fee"
+              type="number"
+              inputMode="numeric"
+              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+              placeholder="Enter amount"
+              value={serviceFee}
+              disabled
+              readOnly
+            />
+          </label>
+          <label htmlFor="sound-fee" className="flex items-center gap-2 text-sm font-normal mb-2 border rounded p-2">
+            <span className="flex-1">Sound fee</span>
+            <input
+              id="sound-fee"
+              type="number"
+              inputMode="numeric"
+              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+              placeholder="Enter amount"
+              value={soundFee}
+              disabled
+              readOnly
+            />
+          </label>
+          <label htmlFor="travel-fee" className="flex items-center gap-2 text-sm font-normal mb-2 border rounded p-2">
+            <span className="flex-1">Travel fee</span>
+            <input
+              id="travel-fee"
+              type="number"
+              inputMode="numeric"
+              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+              placeholder="Enter amount"
+              value={travelFee}
+              disabled
+              readOnly
+            />
+          </label>
           {services.map((s, i) => (
             <div key={i} className="flex gap-2 items-center mb-2">
               <input
@@ -159,42 +198,6 @@ const SendQuoteModal: React.FC<Props> = ({
               )}
             </div>
           ))}
-          <label htmlFor="service-fee" className="flex items-center gap-2 text-sm font-normal mb-2">
-            <span className="flex-1">{serviceName ?? 'Service'} fee</span>
-            <input
-              id="service-fee"
-              type="number"
-              inputMode="numeric"
-              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="Enter amount"
-              value={serviceFee}
-              onChange={(e) => setServiceFee(Number(e.target.value))}
-            />
-          </label>
-          <label htmlFor="sound-fee" className="flex items-center gap-2 text-sm font-normal mb-2">
-            <span className="flex-1">Sound fee</span>
-            <input
-              id="sound-fee"
-              type="number"
-              inputMode="numeric"
-              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="Enter amount"
-              value={soundFee}
-              onChange={(e) => setSoundFee(Number(e.target.value))}
-            />
-          </label>
-          <label htmlFor="travel-fee" className="flex items-center gap-2 text-sm font-normal mb-2">
-            <span className="flex-1">Travel fee</span>
-            <input
-              id="travel-fee"
-              type="number"
-              inputMode="numeric"
-              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="Enter amount"
-              value={travelFee}
-              onChange={(e) => setTravelFee(Number(e.target.value))}
-            />
-          </label>
           <Button type="button" onClick={addService} className="text-sm" variant="secondary">
             Add Item
           </Button>
