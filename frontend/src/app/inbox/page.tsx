@@ -109,9 +109,6 @@ export default function InboxPage() {
             <div className="text-sm text-gray-600">
               📍 {b.location || '—'} | 👥 {b.guests || '—'} | 🏠 {b.venueType || '—'}
             </div>
-            {b.notes && (
-              <div className="text-xs text-gray-500 truncate">📝 {b.notes}</div>
-            )}
           </div>
         </li>
       ))}
