@@ -20,7 +20,7 @@ import {
 } from '@/lib/utils';
 import AlertBanner from '../ui/AlertBanner';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
-import { ChevronRightIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
+import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Booking, Review, Message, MessageCreate, QuoteV2 } from '@/types';
 import {
   getMessagesForBookingRequest,
@@ -430,10 +430,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   }, [visibleMessages, shouldShowTimestampGroup]);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6">
+    <div className="max-w-xl mx-auto px-4 sm:px-6 py-6">
       <div className="bg-white shadow-lg rounded-2xl overflow-hidden border flex flex-col min-h-[70vh]">
         <header className="sticky top-0 z-10 bg-brand-dark text-white px-4 py-3 flex items-center justify-between">
-          <span className="font-medium">
+          <span className="font-medium text-sm sm:text-base">
             Chat with {user?.user_type === 'artist' ? clientName : artistName}
           </span>
           {user?.user_type === 'artist' || !artistAvatarUrl ? (
@@ -676,32 +676,45 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                               )}
                             </>
                           ) : msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX) ? (
-                            <div data-testid="booking-details">
+                            <div data-testid="booking-details" className="rounded-lg border border-gray-300 bg-gray-100 mt-1">
                               <button
                                 type="button"
                                 data-testid="booking-details-button"
+                                aria-expanded={openDetails[msg.id] ? 'true' : 'false'}
                                 onClick={() =>
                                   setOpenDetails((prev) => ({
                                     ...prev,
                                     [msg.id]: !prev[msg.id],
                                   }))
                                 }
-                                className="flex items-center gap-1 text-sm font-medium text-brand-dark hover:text-brand-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
+                                className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium text-brand-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
                               >
-                                {openDetails[msg.id] ? (
-                                  <ChevronDownIcon className="h-4 w-4" aria-hidden="true" />
-                                ) : (
-                                  <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
-                                )}
-                                {openDetails[msg.id] ? 'Hide details' : 'Show details'}
+                                <span>Booking details</span>
+                                <ChevronDownIcon
+                                  className={`h-4 w-4 transition-transform ${openDetails[msg.id] ? 'rotate-180' : ''}`}
+                                  aria-hidden="true"
+                                />
                               </button>
-                              {openDetails[msg.id] && (
-                                <div className="mt-2 rounded-lg bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-800 font-mono whitespace-pre-wrap" data-testid="booking-details-content">
+                              <div
+                                className={`overflow-hidden transition-all ${openDetails[msg.id] ? 'max-h-96' : 'max-h-0'}`}
+                                data-testid="booking-details-content"
+                                aria-hidden={openDetails[msg.id] ? 'false' : 'true'}
+                              >
+                                <dl className="px-4 py-3 text-sm text-gray-800 grid grid-cols-[auto,1fr] gap-x-2 gap-y-1">
                                   {msg.content
                                     .slice(BOOKING_DETAILS_PREFIX.length)
-                                    .trim()}
-                                </div>
-                              )}
+                                    .trim()
+                                    .split('\n')
+                                    .map((line) => line.split(':'))
+                                    .filter((parts) => parts.length === 2)
+                                    .map(([label, value]) => (
+                                      <React.Fragment key={label.trim()}>
+                                        <dt className="font-medium">{label.trim()}</dt>
+                                        <dd>{value.trim()}</dd>
+                                      </React.Fragment>
+                                    ))}
+                                </dl>
+                              </div>
                             </div>
                           ) : (
                             msg.content
@@ -871,7 +884,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             <Button
               type="button"
               onClick={() => setShowQuoteModal(true)}
-              className="mt-2 text-sm text-brand-dark underline"
+              className="mt-2 text-sm text-brand-dark underline hover:bg-indigo-600 hover:text-white transition-colors fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] sm:static sm:translate-x-0 sm:w-auto"
             >
               Send Quote
             </Button>
