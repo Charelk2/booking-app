@@ -86,6 +86,7 @@ export default function ThreadPage() {
           }
           artistAvatarUrl={artistAvatar}
           serviceName={request.service?.title}
+          initialNotes={request.message ?? null}
         />
       </div>
     </MainLayout>

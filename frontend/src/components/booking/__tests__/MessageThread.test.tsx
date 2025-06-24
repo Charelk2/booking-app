@@ -163,6 +163,39 @@ describe('MessageThread component', () => {
     expect(messageBubbles[1].textContent).toContain('Hello there');
   });
 
+  it('filters the initial notes message', async () => {
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 1,
+          sender_type: 'client',
+          content: 'none',
+          message_type: 'text',
+          timestamp: '2024-01-01T00:00:00Z',
+        },
+        {
+          id: 2,
+          booking_request_id: 1,
+          sender_id: 2,
+          sender_type: 'artist',
+          content: 'Booking details:\nNotes: none',
+          message_type: 'system',
+          timestamp: '2024-01-01T00:00:01Z',
+        },
+      ],
+    });
+
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} initialNotes="none" />);
+    });
+
+    const bubbles = container.querySelectorAll('.whitespace-pre-wrap');
+    expect(bubbles.length).toBe(1);
+    expect(bubbles[0].textContent).toContain('Booking details');
+  });
+
   it('groups messages into timestamp windows', async () => {
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
       data: [
