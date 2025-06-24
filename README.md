@@ -710,6 +710,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Floating “scroll to latest” button on small screens.
 * File uploads show an inline progress bar and the send button is disabled until complete.
 * Artists can now send itemized quotes directly in the thread via a **Send Quote** modal. Clients can accept or decline, and accepted quotes show a confirmation banner.
+* The modal now includes a dynamic **[Service Type] fee** field and improved layout for easier data entry.
 * Accepting a quote now creates a booking instantly and notifies both parties.
 * Clients can once again accept quotes directly from the message thread.
 * Fixed issue where quotes sent via the thread were missing because no chat message was recorded.
