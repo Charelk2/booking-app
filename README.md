@@ -30,6 +30,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - A **Leave Review** button now appears in chat when a completed booking has no review.
 - After accepting a quote, clients see quick links in the chat to view that booking, pay the deposit, and add it to a calendar.
 - Artists can upload multiple portfolio images and reorder them via drag-and-drop. Use `POST /api/v1/artist-profiles/me/portfolio-images` to upload and `PUT /api/v1/artist-profiles/me/portfolio-images` to save the order.
+- Quote modal items can now be removed even when only one item is present.
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
