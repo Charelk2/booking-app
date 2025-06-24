@@ -342,7 +342,7 @@ describe('MessageThread component', () => {
           booking_request_id: 1,
           sender_id: 2,
           sender_type: 'artist',
-          content: 'Booking details:\nLocation: Test City',
+          content: 'Booking details:\nLocation: Test City\nNotes: Hello',
           message_type: 'system',
           timestamp: '2024-01-01T00:00:00Z',
         },
@@ -370,10 +370,10 @@ describe('MessageThread component', () => {
     });
     const content = container.querySelector('[data-testid="booking-details-content"]');
     expect(button?.getAttribute('aria-expanded')).toBe('true');
-    const dt = content?.querySelector('dt');
-    const dd = content?.querySelector('dd');
-    expect(dt?.textContent).toBe('Location');
-    expect(dd?.textContent).toBe('Test City');
+    const terms = Array.from(content?.querySelectorAll('dt') || []);
+    const values = Array.from(content?.querySelectorAll('dd') || []);
+    expect(terms.map((n) => n.textContent)).toEqual(['Location', 'Notes']);
+    expect(values.map((n) => n.textContent)).toEqual(['Test City', 'Hello']);
   });
 
   it('announces new messages when scrolled away from bottom', async () => {
