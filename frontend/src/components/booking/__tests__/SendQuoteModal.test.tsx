@@ -102,13 +102,16 @@ describe('SendQuoteModal', () => {
       select.value = '1';
       select.dispatchEvent(new Event('change', { bubbles: true }));
     });
-    const summary = div.querySelector('div.text-sm.mt-2') as HTMLDivElement;
+    const summary = Array.from(div.querySelectorAll('div.text-sm')).find((el) =>
+      el.textContent?.includes('Subtotal')
+    ) as HTMLDivElement;
     expect(summary.textContent).toContain(formatCurrency(8));
     root.unmount();
   });
 
   it('matches snapshot', async () => {
     (api.getQuoteTemplates as jest.Mock).mockResolvedValue({ data: [] });
+    jest.spyOn(Math, 'random').mockReturnValue(0.3772);
     const div = document.createElement('div');
     const root = createRoot(div);
     await act(async () => {
@@ -126,5 +129,6 @@ describe('SendQuoteModal', () => {
     });
     expect(div.firstChild).toMatchSnapshot();
     root.unmount();
+    (Math.random as jest.Mock).mockRestore();
   });
 });

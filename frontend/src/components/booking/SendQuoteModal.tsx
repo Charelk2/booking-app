@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import Button from '../ui/Button';
 import { ServiceItem, QuoteV2Create, QuoteTemplate } from '@/types';
 import { getQuoteTemplates } from '@/lib/api';
@@ -15,8 +16,9 @@ interface Props {
 }
 
 const expiryOptions = [
-  { label: '24h', value: 24 },
+  { label: '1 day', value: 24 },
   { label: '3 days', value: 72 },
+  { label: '7 days', value: 168 },
 ];
 
 const SendQuoteModal: React.FC<Props> = ({
@@ -37,12 +39,20 @@ const SendQuoteModal: React.FC<Props> = ({
   const [expiresHours, setExpiresHours] = useState<number | null>(null);
   const [templates, setTemplates] = useState<QuoteTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<number | ''>('');
+  const [quoteNumber, setQuoteNumber] = useState('');
+  const [description, setDescription] = useState('');
+
+  const currentDate = format(new Date(), 'PPP');
 
   useEffect(() => {
     if (open) {
       getQuoteTemplates(artistId)
         .then((res) => setTemplates(res.data))
         .catch(() => setTemplates([]));
+      const num = `${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)
+        .toString()
+        .padStart(4, '0')}`;
+      setQuoteNumber(num);
     }
   }, [open, artistId]);
 
@@ -99,6 +109,17 @@ const SendQuoteModal: React.FC<Props> = ({
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-4">
         <h2 className="text-lg font-medium mb-2">Send Quote</h2>
         <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          <div className="flex flex-col gap-y-2 mb-2 text-sm">
+            <div>Quote #{quoteNumber}</div>
+            <div>{currentDate}</div>
+            <input
+              type="text"
+              className="border rounded p-1"
+              placeholder="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
           {templates.length > 0 && (
             <select
               className="w-full border rounded p-1"
@@ -116,7 +137,7 @@ const SendQuoteModal: React.FC<Props> = ({
             </select>
           )}
           {services.map((s, i) => (
-            <div key={i} className="flex gap-2 items-center">
+            <div key={i} className="flex gap-2 items-center mb-2">
               <input
                 type="text"
                 className="flex-1 border rounded p-1"
@@ -128,7 +149,7 @@ const SendQuoteModal: React.FC<Props> = ({
                 type="number"
                 className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
                 inputMode="numeric"
-                placeholder="Price"
+                placeholder="Enter amount"
                 value={s.price}
                 onChange={(e) => updateService(i, 'price', e.target.value)}
               />
@@ -139,35 +160,38 @@ const SendQuoteModal: React.FC<Props> = ({
               )}
             </div>
           ))}
-          <label htmlFor="service-fee" className="flex flex-col text-sm font-bold">
+          <label htmlFor="service-fee" className="flex flex-col text-sm">
             {serviceName ?? 'Service'} fee
             <input
               id="service-fee"
               type="number"
               inputMode="numeric"
               className="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+              placeholder="Enter amount"
               value={serviceFee}
               onChange={(e) => setServiceFee(Number(e.target.value))}
             />
           </label>
-          <label htmlFor="sound-fee" className="flex flex-col text-sm font-bold">
+          <label htmlFor="sound-fee" className="flex flex-col text-sm">
             Sound fee
             <input
               id="sound-fee"
               type="number"
               inputMode="numeric"
               className="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+              placeholder="Enter amount"
               value={soundFee}
               onChange={(e) => setSoundFee(Number(e.target.value))}
             />
           </label>
-          <label htmlFor="travel-fee" className="flex flex-col text-sm font-bold">
+          <label htmlFor="travel-fee" className="flex flex-col text-sm">
             Travel fee
             <input
               id="travel-fee"
               type="number"
               inputMode="numeric"
               className="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+              placeholder="Enter amount"
               value={travelFee}
               onChange={(e) => setTravelFee(Number(e.target.value))}
             />
@@ -175,27 +199,29 @@ const SendQuoteModal: React.FC<Props> = ({
           <Button type="button" onClick={addService} className="text-sm" variant="secondary">
             Add Item
           </Button>
-          <label htmlFor="accommodation" className="flex flex-col text-sm font-bold">
+          <label htmlFor="accommodation" className="flex flex-col text-sm">
             Accommodation (optional)
             <textarea
               id="accommodation"
               className="w-full border rounded p-1 focus:outline-none focus:ring-2 focus:ring-brand"
+              placeholder="Optional: e.g. 500"
               value={accommodation}
               onChange={(e) => setAccommodation(e.target.value)}
             />
           </label>
-          <label htmlFor="discount" className="flex flex-col text-sm font-bold">
+          <label htmlFor="discount" className="flex flex-col text-sm">
             Discount (optional)
             <input
               id="discount"
               type="number"
               inputMode="numeric"
               className="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+              placeholder="Optional: e.g. 500"
               value={discount}
               onChange={(e) => setDiscount(Number(e.target.value))}
             />
           </label>
-          <label htmlFor="expires-hours" className="flex flex-col text-sm font-bold">
+          <label htmlFor="expires-hours" className="flex flex-col text-sm">
             Expires in
             <select
               id="expires-hours"
@@ -211,17 +237,20 @@ const SendQuoteModal: React.FC<Props> = ({
               ))}
             </select>
           </label>
-          <div className="text-sm mt-2">
-            Subtotal: {formatCurrency(subtotal)}
+          <hr className="border-t my-2" />
+          <div className="text-sm">
+            <span className="text-gray-500">Subtotal: {formatCurrency(subtotal)}</span>
             <br />
-            Total: {formatCurrency(total)}
+            <span className="font-medium">
+              Total (after discount): {formatCurrency(total)}
+            </span>
           </div>
         </div>
-        <div className="flex justify-end gap-2 mt-4">
+        <div className="flex gap-2 mt-4">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleSubmit}>
+          <Button type="button" onClick={handleSubmit} title="This quote will be sent to the client">
             Send
           </Button>
         </div>
