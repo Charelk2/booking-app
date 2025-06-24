@@ -50,6 +50,20 @@ describe('SendQuoteModal', () => {
     expect(inputs[0].value).toBe('5'); // service fee
     expect(inputs[1].value).toBe('1'); // sound fee
     expect(inputs[2].value).toBe('2'); // travel fee
+    expect(inputs[0].disabled).toBe(false);
+    expect(inputs[1].disabled).toBe(false);
+    expect(inputs[2].disabled).toBe(false);
+    await act(async () => {
+      inputs[0].value = '6';
+      inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+      inputs[1].value = '2';
+      inputs[1].dispatchEvent(new Event('input', { bubbles: true }));
+      inputs[2].value = '3';
+      inputs[2].dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(inputs[0].value).toBe('6');
+    expect(inputs[1].value).toBe('2');
+    expect(inputs[2].value).toBe('3');
     const serviceLabel = div.querySelector('label[for="service-fee"]');
     const soundLabel = div.querySelector('label[for="sound-fee"]');
     const travelLabel = div.querySelector('label[for="travel-fee"]');
