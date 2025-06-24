@@ -16,7 +16,6 @@ interface BookingPreview {
   location?: string;
   guests?: string;
   venueType?: string;
-  notes?: string;
   unread: number;
 }
 
@@ -46,7 +45,6 @@ export default function InboxPage() {
           location: t.booking_details.location,
           guests: t.booking_details.guests,
           venueType: t.booking_details.venue_type,
-          notes: t.booking_details.notes,
           unread: t.unread_count,
         });
       } else {

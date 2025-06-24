@@ -12,7 +12,6 @@ def parse_booking_details(content: str) -> Dict[str, Optional[str]]:
         "location": None,
         "guests": None,
         "venue_type": None,
-        "notes": None,
     }
     lines = content.splitlines()[1:]
     for line in lines:
