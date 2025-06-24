@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class ServiceItem(BaseModel):
@@ -36,8 +37,8 @@ class QuoteTemplateUpdate(BaseModel):
 
 class QuoteTemplateRead(QuoteTemplateBase):
     id: int
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 
