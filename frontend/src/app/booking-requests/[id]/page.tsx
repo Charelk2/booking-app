@@ -117,13 +117,14 @@ export default function BookingRequestDetailPage() {
             artistAvatarUrl={artistAvatar}
           />
         ) : (
-          <MessageThread
-            bookingRequestId={request.id}
-            serviceId={request.service_id ?? undefined}
-            clientName={request.client?.first_name}
-            artistName={artistName || request.artist?.user?.first_name}
-            artistAvatarUrl={artistAvatar}
-          />
+        <MessageThread
+          bookingRequestId={request.id}
+          serviceId={request.service_id ?? undefined}
+          clientName={request.client?.first_name}
+          artistName={artistName || request.artist?.user?.first_name}
+          artistAvatarUrl={artistAvatar}
+          serviceName={request.service?.title}
+        />
         )}
       </div>
     </MainLayout>
