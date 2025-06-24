@@ -11,6 +11,7 @@ interface Props {
   artistId: number;
   clientId: number;
   bookingRequestId: number;
+  serviceName?: string;
 }
 
 const expiryOptions = [
@@ -25,10 +26,10 @@ const SendQuoteModal: React.FC<Props> = ({
   artistId,
   clientId,
   bookingRequestId,
+  serviceName,
 }) => {
-  const [services, setServices] = useState<ServiceItem[]>([
-    { description: '', price: 0 },
-  ]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [serviceFee, setServiceFee] = useState(0);
   const [soundFee, setSoundFee] = useState(0);
   const [travelFee, setTravelFee] = useState(0);
   const [accommodation, setAccommodation] = useState('');
@@ -48,7 +49,13 @@ const SendQuoteModal: React.FC<Props> = ({
   useEffect(() => {
     const tmpl = templates.find((t) => t.id === selectedTemplate);
     if (tmpl) {
-      setServices(tmpl.services);
+      if (tmpl.services.length > 0) {
+        setServiceFee(Number(tmpl.services[0].price));
+        setServices(tmpl.services.slice(1));
+      } else {
+        setServiceFee(0);
+        setServices([]);
+      }
       setSoundFee(tmpl.sound_fee);
       setTravelFee(tmpl.travel_fee);
       setAccommodation(tmpl.accommodation || '');
@@ -56,7 +63,8 @@ const SendQuoteModal: React.FC<Props> = ({
     }
   }, [selectedTemplate, templates]);
 
-  const subtotal = services.reduce((acc, s) => acc + Number(s.price), 0) + soundFee + travelFee;
+  const subtotal =
+    serviceFee + services.reduce((acc, s) => acc + Number(s.price), 0) + soundFee + travelFee;
   const total = subtotal - (discount || 0);
 
   const addService = () => setServices([...services, { description: '', price: 0 }]);
@@ -73,7 +81,10 @@ const SendQuoteModal: React.FC<Props> = ({
       booking_request_id: bookingRequestId,
       artist_id: artistId,
       client_id: clientId,
-      services,
+      services: [
+        { description: serviceName ?? 'Service fee', price: serviceFee },
+        ...services,
+      ],
       sound_fee: soundFee,
       travel_fee: travelFee,
       accommodation: accommodation || null,
@@ -87,7 +98,7 @@ const SendQuoteModal: React.FC<Props> = ({
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-4">
         <h2 className="text-lg font-medium mb-2">Send Quote</h2>
-        <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
           {templates.length > 0 && (
             <select
               className="w-full border rounded p-1"
@@ -115,7 +126,8 @@ const SendQuoteModal: React.FC<Props> = ({
               />
               <input
                 type="number"
-                className="w-24 border rounded p-1"
+                className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+                inputMode="numeric"
                 placeholder="Price"
                 value={s.price}
                 onChange={(e) => updateService(i, 'price', e.target.value)}
@@ -127,53 +139,67 @@ const SendQuoteModal: React.FC<Props> = ({
               )}
             </div>
           ))}
-          <Button type="button" onClick={addService} className="text-sm" variant="secondary">
-            Add Item
-          </Button>
-          <label htmlFor="sound-fee" className="flex flex-col text-sm">
+          <label htmlFor="service-fee" className="flex flex-col text-sm font-bold">
+            {serviceName ?? 'Service'} fee
+            <input
+              id="service-fee"
+              type="number"
+              inputMode="numeric"
+              className="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+              value={serviceFee}
+              onChange={(e) => setServiceFee(Number(e.target.value))}
+            />
+          </label>
+          <label htmlFor="sound-fee" className="flex flex-col text-sm font-bold">
             Sound fee
             <input
               id="sound-fee"
               type="number"
-              className="w-full border rounded p-1"
+              inputMode="numeric"
+              className="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
               value={soundFee}
               onChange={(e) => setSoundFee(Number(e.target.value))}
             />
           </label>
-          <label htmlFor="travel-fee" className="flex flex-col text-sm">
+          <label htmlFor="travel-fee" className="flex flex-col text-sm font-bold">
             Travel fee
             <input
               id="travel-fee"
               type="number"
-              className="w-full border rounded p-1"
+              inputMode="numeric"
+              className="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
               value={travelFee}
               onChange={(e) => setTravelFee(Number(e.target.value))}
             />
           </label>
-          <label htmlFor="accommodation" className="flex flex-col text-sm">
+          <Button type="button" onClick={addService} className="text-sm" variant="secondary">
+            Add Item
+          </Button>
+          <label htmlFor="accommodation" className="flex flex-col text-sm font-bold">
             Accommodation (optional)
             <textarea
               id="accommodation"
-              className="w-full border rounded p-1"
+              className="w-full border rounded p-1 focus:outline-none focus:ring-2 focus:ring-brand"
               value={accommodation}
               onChange={(e) => setAccommodation(e.target.value)}
             />
           </label>
-          <label htmlFor="discount" className="flex flex-col text-sm">
+          <label htmlFor="discount" className="flex flex-col text-sm font-bold">
             Discount (optional)
             <input
               id="discount"
               type="number"
-              className="w-full border rounded p-1"
+              inputMode="numeric"
+              className="w-full border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
               value={discount}
               onChange={(e) => setDiscount(Number(e.target.value))}
             />
           </label>
-          <label htmlFor="expires-hours" className="flex flex-col text-sm">
+          <label htmlFor="expires-hours" className="flex flex-col text-sm font-bold">
             Expires in
             <select
               id="expires-hours"
-              className="w-full border rounded p-1"
+              className="w-full border rounded p-1 focus:outline-none focus:ring-2 focus:ring-brand"
               value={expiresHours ?? ''}
               onChange={(e) => setExpiresHours(e.target.value ? Number(e.target.value) : null)}
             >

@@ -65,6 +65,7 @@ interface MessageThreadProps {
   artistId?: number;
   artistAvatarUrl?: string | null;
   isSystemTyping?: boolean;
+  serviceName?: string;
 }
 
 const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
@@ -80,6 +81,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       artistId,
       artistAvatarUrl = null,
       isSystemTyping = false,
+      serviceName,
     }: MessageThreadProps,
     ref,
   ) {
@@ -111,6 +113,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const [openDetails, setOpenDetails] = useState<Record<number, boolean>>({});
   const prevLengthRef = useRef(0);
   const [acceptingQuoteId, setAcceptingQuoteId] = useState<number | null>(null);
+  const computedServiceName = serviceName ?? bookingDetails?.service?.title;
 
   const { openPaymentModal, paymentModal } = usePaymentModal(
     ({ status, amount, receiptUrl: url }) => {
@@ -880,6 +883,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             artistId={artistId ?? user.id}
             clientId={clientId ?? messages.find((m) => m.sender_type === 'client')?.sender_id ?? 0}
             bookingRequestId={bookingRequestId}
+            serviceName={computedServiceName}
           />
           {paymentModal}
           {bookingDetails &&
