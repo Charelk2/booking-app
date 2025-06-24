@@ -47,11 +47,9 @@ exports[`SendQuoteModal matches snapshot 1`] = `
         </span>
         <input
           class="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
-          disabled=""
           id="service-fee"
           inputmode="numeric"
           placeholder="Enter amount"
-          readonly=""
           type="number"
           value="0"
         />
@@ -67,11 +65,9 @@ exports[`SendQuoteModal matches snapshot 1`] = `
         </span>
         <input
           class="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
-          disabled=""
           id="sound-fee"
           inputmode="numeric"
           placeholder="Enter amount"
-          readonly=""
           type="number"
           value="0"
         />
@@ -87,11 +83,9 @@ exports[`SendQuoteModal matches snapshot 1`] = `
         </span>
         <input
           class="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
-          disabled=""
           id="travel-fee"
           inputmode="numeric"
           placeholder="Enter amount"
-          readonly=""
           type="number"
           value="0"
         />
