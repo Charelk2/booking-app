@@ -183,9 +183,11 @@ export default function DashboardPage() {
     })
     .reduce((acc, booking) => acc + booking.total_price, 0);
 
-  const overviewPrimaryStats = [{ label: 'Total Bookings', value: bookings.length }];
+  const overviewPrimaryStats = [
+    { label: 'Total Bookings', value: bookings.length },
+  ];
   const overviewSecondaryStats: { label: string; value: string | number }[] = [];
-  if (user.user_type === 'artist') {
+  if (user?.user_type === 'artist') {
     overviewPrimaryStats.push({ label: 'Total Earnings', value: formatCurrency(totalEarnings) });
     overviewSecondaryStats.push({ label: 'Total Services', value: servicesCount });
     overviewSecondaryStats.push({ label: 'Earnings This Month', value: formatCurrency(earningsThisMonth) });
@@ -203,7 +205,7 @@ export default function DashboardPage() {
 
     const fetchDashboardData = async () => {
       try {
-        if (user.user_type === "artist") {
+        if (user?.user_type === "artist") {
           const [
             bookingsData,
             servicesDataResponse,
@@ -308,7 +310,7 @@ export default function DashboardPage() {
   }
 
   const showLocationPrompt =
-    user.user_type === "artist" && artistProfile && !artistProfile.location;
+    user?.user_type === "artist" && artistProfile && !artistProfile.location;
 
   if (loading) {
     return (
@@ -383,7 +385,7 @@ export default function DashboardPage() {
             primaryStats={overviewPrimaryStats}
             secondaryStats={overviewSecondaryStats}
           />
-          {user.user_type === 'artist' && (
+          {user?.user_type === 'artist' && (
             <div className="mt-2 space-x-4">
               <Link href="/dashboard/quotes" className="text-brand-dark hover:underline text-sm">
                 View All Quotes
@@ -421,7 +423,7 @@ export default function DashboardPage() {
                 renderItem={(req) => (
                   <div key={req.id} className="bg-white p-4 shadow rounded-lg">
                     <div className="font-medium text-gray-900">
-                      {user.user_type === 'artist'
+                      {user?.user_type === 'artist'
                         ? `${req.client?.first_name} ${req.client?.last_name}`
                         :
                             req.artist?.business_name ||
@@ -443,7 +445,7 @@ export default function DashboardPage() {
                     >
                       View Chat
                     </Link>
-                    {user.user_type === 'artist' && (
+                    {user?.user_type === 'artist' && (
                       <Button
                         type="button"
                         onClick={() => setRequestToUpdate(req)}
@@ -526,7 +528,7 @@ export default function DashboardPage() {
               )}
             </>
           )}
-          {user.user_type === "artist" && activeTab === 'services' && (
+          {user?.user_type === "artist" && activeTab === 'services' && (
             <CollapsibleSection
               title="Your Services"
               open={servicesOpen}
