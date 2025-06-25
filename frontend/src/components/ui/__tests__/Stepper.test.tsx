@@ -27,6 +27,12 @@ describe('Stepper progress bar', () => {
     const spans = container.querySelectorAll('span');
     expect(spans[1].className).toContain('font-medium');
     expect(container.textContent).toContain('Three');
+    const wrapper = container.querySelector('div[role="list"]');
+    expect(wrapper).not.toBeNull();
+    const items = container.querySelectorAll('[role="listitem"]');
+    expect(items).toHaveLength(3);
+    expect(items[1].getAttribute('aria-current')).toBe('step');
+    expect(items[0].getAttribute('aria-disabled')).toBe('true');
   });
 
   it('calls onStepClick when clicking completed steps', () => {
@@ -67,6 +73,7 @@ describe('Stepper progress bar', () => {
     });
     const buttons = container.querySelectorAll('button');
     expect((buttons[2] as HTMLButtonElement).disabled).toBe(false);
+    expect(buttons[2].getAttribute('aria-disabled')).toBeNull();
     act(() => {
       buttons[2].dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
@@ -86,7 +93,9 @@ describe('Stepper progress bar', () => {
     const buttons = container.querySelectorAll('button');
     expect(buttons).toHaveLength(3);
     expect((buttons[1] as HTMLButtonElement).disabled).toBe(true);
+    expect(buttons[1].getAttribute('aria-disabled')).toBe('true');
     expect((buttons[2] as HTMLButtonElement).disabled).toBe(true);
+    expect(buttons[2].getAttribute('aria-disabled')).toBe('true');
   });
 
   it('shows default cursor on the current step', () => {
