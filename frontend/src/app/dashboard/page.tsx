@@ -183,6 +183,14 @@ export default function DashboardPage() {
     })
     .reduce((acc, booking) => acc + booking.total_price, 0);
 
+  const overviewPrimaryStats = [{ label: 'Total Bookings', value: bookings.length }];
+  const overviewSecondaryStats: { label: string; value: string | number }[] = [];
+  if (user.user_type === 'artist') {
+    overviewPrimaryStats.push({ label: 'Total Earnings', value: formatCurrency(totalEarnings) });
+    overviewSecondaryStats.push({ label: 'Total Services', value: servicesCount });
+    overviewSecondaryStats.push({ label: 'Earnings This Month', value: formatCurrency(earningsThisMonth) });
+  }
+
   const visibleRequests = bookingRequests.slice(0, 5);
   const visibleBookings = bookings.slice(0, 5);
 
@@ -372,14 +380,8 @@ export default function DashboardPage() {
           {/* Stats */}
           <div className="mt-8">
           <OverviewAccordion
-            primaryStats={[
-              { label: 'Total Bookings', value: bookings.length },
-              { label: 'Total Earnings', value: formatCurrency(totalEarnings) },
-            ]}
-            secondaryStats={[
-              { label: 'Total Services', value: servicesCount },
-              { label: 'Earnings This Month', value: formatCurrency(earningsThisMonth) },
-            ]}
+            primaryStats={overviewPrimaryStats}
+            secondaryStats={overviewSecondaryStats}
           />
           {user.user_type === 'artist' && (
             <div className="mt-2 space-x-4">
