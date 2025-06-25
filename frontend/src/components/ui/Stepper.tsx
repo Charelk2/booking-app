@@ -13,7 +13,7 @@ interface StepperProps {
 
 export default function Stepper({ steps, currentStep, maxStepCompleted, onStepClick }: StepperProps) {
   return (
-    <div className="flex justify-center space-x-4 my-6" aria-label="Progress">
+    <div className="flex justify-center space-x-4 my-6" aria-label="Progress" role="list">
       {steps.map((label, i) => {
         const content = (
           <>
@@ -36,15 +36,20 @@ export default function Stepper({ steps, currentStep, maxStepCompleted, onStepCl
 
         const maxStep =
           typeof maxStepCompleted === 'number' ? maxStepCompleted : currentStep;
+        const isClickable = !!onStepClick && i <= maxStep && i !== currentStep;
+
         if (onStepClick) {
           return (
             <button
               type="button"
               key={label}
-              onClick={() => i <= maxStep && i !== currentStep && onStepClick(i)}
-              disabled={i > maxStep || i === currentStep}
+              role="listitem"
+              aria-current={i === currentStep ? 'step' : undefined}
+              aria-disabled={isClickable ? undefined : true}
+              onClick={() => isClickable && onStepClick(i)}
+              disabled={!isClickable}
               className={`flex flex-col items-center text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
-                i > maxStep
+                !isClickable && i !== currentStep
                   ? 'cursor-not-allowed'
                   : i === currentStep
                     ? 'cursor-default'
@@ -57,7 +62,13 @@ export default function Stepper({ steps, currentStep, maxStepCompleted, onStepCl
         }
 
         return (
-          <div key={label} className="flex flex-col items-center text-sm">
+          <div
+            key={label}
+            role="listitem"
+            aria-current={i === currentStep ? 'step' : undefined}
+            aria-disabled="true"
+            className="flex flex-col items-center text-sm"
+          >
             {content}
           </div>
         );
