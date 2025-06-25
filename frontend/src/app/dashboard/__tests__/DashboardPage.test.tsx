@@ -152,6 +152,57 @@ describe('DashboardPage artist stats', () => {
   });
 });
 
+describe('DashboardPage client stats', () => {
+  let container: HTMLDivElement;
+  let root: ReturnType<typeof createRoot>;
+
+  beforeEach(async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 3, user_type: 'client', email: 'c@example.com' } });
+    (api.getMyClientBookings as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          artist_id: 2,
+          client_id: 3,
+          service_id: 4,
+          start_time: new Date().toISOString(),
+          end_time: new Date().toISOString(),
+          status: 'completed',
+          total_price: 100,
+          notes: '',
+          artist: {} as ArtistProfile,
+          client: {} as User,
+          service: {} as Service,
+        },
+      ],
+    });
+    (api.getMyBookingRequests as jest.Mock).mockResolvedValue({ data: [] });
+
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root.render(<DashboardPage />);
+    });
+    await act(async () => { await Promise.resolve(); });
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    jest.clearAllMocks();
+  });
+
+  it('hides earnings cards for clients', () => {
+    expect(container.textContent).not.toContain('Total Earnings');
+    expect(container.textContent).not.toContain('Earnings This Month');
+  });
+});
+
 describe('DashboardPage list toggles', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
