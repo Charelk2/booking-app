@@ -50,6 +50,7 @@ from .api import (
     api_message,
     api_notification,
     api_payment,
+    api_invoice,
     api_user,
     api_calendar,
     api_quote_template,
@@ -90,11 +91,13 @@ APP_STATIC_DIR = os.path.join(THIS_DIR, "static")  # backend/app/static
 PROFILE_PICS_DIR = os.path.join(APP_STATIC_DIR, "profile_pics")
 COVER_PHOTOS_DIR = os.path.join(APP_STATIC_DIR, "cover_photos")
 ATTACHMENTS_DIR = os.path.join(APP_STATIC_DIR, "attachments")
+INVOICE_PDFS_DIR = os.path.join(APP_STATIC_DIR, "invoices")
 
 # Ensure all the subfolders exist
 os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
 os.makedirs(COVER_PHOTOS_DIR, exist_ok=True)
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
+os.makedirs(INVOICE_PDFS_DIR, exist_ok=True)
 
 
 # ─── Mount “/static” so that requests to /static/... serve from backend/app/static/... ────
@@ -249,6 +252,13 @@ app.include_router(
     api_payment.router,
     prefix=f"{api_prefix}/payments",
     tags=["payments"],
+)
+
+# ─── INVOICE ROUTES (under /api/v1/invoices) ───────────────────────────
+app.include_router(
+    api_invoice.router,
+    prefix=f"{api_prefix}/invoices",
+    tags=["invoices"],
 )
 
 # ─── USER ROUTES (under /api/v1/users) ─────────────────────────────────────
