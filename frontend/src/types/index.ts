@@ -73,6 +73,8 @@ export interface Booking {
   payment_status?: string;
   /** ID from the payment gateway used to fetch receipts */
   payment_id?: string | null;
+  /** Booking request associated with this booking */
+  booking_request_id?: number;
   artist: ArtistProfile;
   client: User;
   service: Service;

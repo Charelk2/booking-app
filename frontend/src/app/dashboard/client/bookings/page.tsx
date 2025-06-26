@@ -143,9 +143,9 @@ function BookingList({
               You rated {b.review.rating}/5
             </p>
           )}
-          {b.source_quote?.booking_request_id && (
+          {b.booking_request_id && (
             <Link
-              href={`/booking-requests/${b.source_quote.booking_request_id}`}
+              href={`/booking-requests/${b.booking_request_id}`}
               className="mt-2 text-brand-dark hover:underline text-sm"
               data-testid="message-artist-link"
             >
@@ -226,7 +226,7 @@ export default function ClientBookingsPage() {
       const res = await getBookingDetails(id);
       setPaymentBookingId(id);
       openPaymentModal({
-        bookingRequestId: res.data.source_quote?.booking_request_id || res.data.id,
+        bookingRequestId: res.data.booking_request_id,
         depositAmount: res.data.deposit_amount || undefined,
         depositDueBy: res.data.deposit_due_by ?? undefined,
       });

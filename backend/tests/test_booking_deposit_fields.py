@@ -109,18 +109,21 @@ def create_records(db):
     db.commit()
     db.refresh(simple)
 
-    return client, booking
+    return client, booking, br.id
 
 
 def test_booking_endpoints_include_deposit_fields():
     db = setup_db()
-    client, booking = create_records(db)
+    client, booking, br_id = create_records(db)
 
-    result = api_booking.read_my_bookings(db=db, current_client=client, status_filter=None)
+    result = api_booking.read_my_bookings(
+        db=db, current_client=client, status_filter=None
+    )
     assert result[0].deposit_amount == Decimal("50")
     assert result[0].payment_status == "pending"
     assert result[0].deposit_paid is False
     assert result[0].deposit_due_by == datetime.datetime(2029, 12, 25)
+    assert result[0].booking_request_id == br_id
 
     detail = api_booking.read_booking_details(
         db=db, booking_id=booking.id, current_user=client
@@ -129,5 +132,6 @@ def test_booking_endpoints_include_deposit_fields():
     assert detail.payment_status == "pending"
     assert detail.deposit_paid is False
     assert detail.deposit_due_by == datetime.datetime(2029, 12, 25)
+    assert detail.booking_request_id == br_id
 
 
