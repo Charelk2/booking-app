@@ -8,6 +8,16 @@ import { format } from 'date-fns';
 
 jest.mock('@/lib/api');
 
+const ORIGINAL_FAKE = process.env.NEXT_PUBLIC_FAKE_PAYMENTS;
+
+afterEach(() => {
+  process.env.NEXT_PUBLIC_FAKE_PAYMENTS = ORIGINAL_FAKE;
+});
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
 describe('PaymentModal', () => {
   it('submits payment', async () => {
     (api.createPayment as jest.Mock).mockResolvedValue({
@@ -194,6 +204,32 @@ describe('PaymentModal', () => {
     const help = notes[1];
     expect(help).not.toBeNull();
     expect(help.textContent).toContain('full amount');
+    root.unmount();
+  });
+
+  it('bypasses API when NEXT_PUBLIC_FAKE_PAYMENTS=1', async () => {
+    process.env.NEXT_PUBLIC_FAKE_PAYMENTS = '1';
+    const onSuccess = jest.fn();
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(
+        <PaymentModal
+          open
+          bookingRequestId={6}
+          onClose={() => {}}
+          onSuccess={onSuccess}
+          onError={() => {}}
+          depositAmount={20}
+        />,
+      );
+    });
+    const form = div.querySelector('form') as HTMLFormElement;
+    await act(async () => {
+      form.dispatchEvent(new Event('submit', { bubbles: true }));
+    });
+    expect(api.createPayment).not.toHaveBeenCalled();
+    expect(onSuccess).toHaveBeenCalledWith({ status: 'deposit_paid', amount: 20 });
     root.unmount();
   });
 });
