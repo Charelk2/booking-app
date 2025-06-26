@@ -61,7 +61,7 @@ export async function stubBooking(page: Page, bookingId = 5) {
         id: bookingId,
         deposit_amount: 50,
         payment_status: 'pending',
-        source_quote: { booking_request_id: 42 },
+        booking_request_id: 42,
       }),
     });
   });
