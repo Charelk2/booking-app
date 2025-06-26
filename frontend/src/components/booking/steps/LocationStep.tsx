@@ -13,7 +13,7 @@ const Marker = dynamic(
   { ssr: false },
 );
 import { useRef, useState, useEffect } from 'react';
-import { Button, TextInput } from '../../ui';
+import { Button, TextInput, Tooltip } from '../../ui';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
 
 // Keeping the libraries array stable avoids unnecessary re-renders from
@@ -230,12 +230,10 @@ export default function LocationStep({
       >
         Use my location
       </Button>
-      <span
-        className="ml-1 text-gray-500 cursor-help"
-        title="A warning appears if this address is over 100km from the artist."
-      >
-        ?
-      </span>
+      <Tooltip
+        text="A warning appears if this address is over 100km from the artist."
+        className="ml-1"
+      />
       {geoError && <p className="text-red-600 text-sm">{geoError}</p>}
       <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
         {step > 0 && (
