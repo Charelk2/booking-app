@@ -959,6 +959,17 @@ include this query string so clients can pay with one click.
 
 All prices and quotes now default to **South African Rand (ZAR)**. Update your environment or tests if you previously assumed USD values.
 
+### Invoices
+
+```
+GET /api/v1/invoices/{invoice_id}
+POST /api/v1/invoices/{invoice_id}/mark-paid
+GET /api/v1/invoices/{invoice_id}/pdf
+```
+Fetching an invoice returns details including the amount due and current status.
+`mark-paid` updates the invoice status to **paid** and records an optional payment method.
+The PDF endpoint generates and downloads a basic invoice document.
+
 `DEFAULT_CURRENCY` in `frontend/src/lib/constants.ts` exports this value for use across the app. Call `formatCurrency(value, currency?, locale?)` from `frontend/src/lib/utils.ts` to format amounts consistently. UI labels such as "Price" and "Hourly Rate" automatically display this currency.
 
 Example usage:

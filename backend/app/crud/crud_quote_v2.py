@@ -16,6 +16,7 @@ from ..utils.notifications import (
 )
 from ..utils import error_response
 from .crud_booking import create_booking_from_quote_v2
+from . import crud_invoice
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +227,10 @@ def accept_quote(
         )
     db.refresh(db_quote)
     db.refresh(booking)
+
+    # Auto-create an invoice for this booking using the quote total
+    invoice = crud_invoice.create_invoice_from_quote(db, db_quote, booking)
+    db.refresh(invoice)
 
     # Send notifications to both artist and client
     artist = db_quote.artist
