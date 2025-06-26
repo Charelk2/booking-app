@@ -52,4 +52,17 @@ describe('LocationStep selection', () => {
     });
     expect(container.querySelector('[data-testid="map"]')).not.toBeNull();
   });
+
+  it('reveals tooltip on focus', async () => {
+    await act(async () => {
+      root.render(React.createElement(Wrapper));
+    });
+    const tooltipButton = container.querySelector('button[aria-describedby]') as HTMLButtonElement;
+    act(() => {
+      tooltipButton.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
+      tooltipButton.focus();
+    });
+    const tip = container.querySelector('[role="tooltip"]');
+    expect(tip).not.toBeNull();
+  });
 });

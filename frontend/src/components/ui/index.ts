@@ -14,3 +14,4 @@ export { default as SkeletonList } from './SkeletonList';
 export { default as AlertBanner } from './AlertBanner';
 export { default as StatusBadge } from './StatusBadge';
 export { default as QuoteBubble } from '../booking/QuoteBubble';
+export { default as Tooltip } from './Tooltip';
