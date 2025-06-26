@@ -13,6 +13,7 @@ from .message import Message, SenderType, MessageType
 from .notification import Notification, NotificationType
 from .calendar_account import CalendarAccount, CalendarProvider
 from .email_token import EmailToken
+from .invoice import Invoice, InvoiceStatus
 
 __all__ = [
     "User",
@@ -40,4 +41,6 @@ __all__ = [
     "CalendarAccount",
     "CalendarProvider",
     "EmailToken",
+    "Invoice",
+    "InvoiceStatus",
 ]
