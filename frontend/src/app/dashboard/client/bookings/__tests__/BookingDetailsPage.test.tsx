@@ -178,7 +178,7 @@ describe("BookingDetailsPage", () => {
         payment_status: "deposit_paid",
         service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 3 },
-        source_quote: { booking_request_id: 7 },
+        booking_request_id: 7,
       },
     });
     (downloadBookingIcs as jest.Mock).mockResolvedValue({ data: new Blob() });

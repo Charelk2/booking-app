@@ -217,7 +217,7 @@ describe("ClientBookingsPage", () => {
         payment_status: "pending",
         service: { title: "Gig", artist: { business_name: "Artist" } },
         client: { id: 1 },
-        source_quote: { booking_request_id: 5 },
+        booking_request_id: 5,
       },
     });
 
@@ -281,7 +281,7 @@ describe("ClientBookingsPage", () => {
             payment_status: "deposit_paid",
             service: { title: "Gig", artist: { business_name: "Artist" } },
             client: { id: 1 },
-            source_quote: { booking_request_id: 12 },
+            booking_request_id: 12,
           },
         ],
       })

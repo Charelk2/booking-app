@@ -14,6 +14,7 @@ from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
 from ..models.service import Service
 from ..models.booking import Booking, BookingStatus
 from ..models.booking_simple import BookingSimple
+from ..models.quote_v2 import QuoteV2
 from ..schemas.booking import BookingCreate, BookingUpdate, BookingResponse
 from .dependencies import (
     get_current_user,
@@ -124,8 +125,10 @@ def read_my_bookings(
             BookingSimple.deposit_amount,
             BookingSimple.payment_status,
             BookingSimple.deposit_paid,
+            QuoteV2.booking_request_id,
         )
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
+        .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
         .options(
             selectinload(Booking.client),
             selectinload(Booking.service),
@@ -160,7 +163,14 @@ def read_my_bookings(
 
     rows = query.order_by(Booking.start_time.desc()).all()
     bookings: List[Booking] = []
-    for booking, deposit_due, deposit_amount, payment_status, deposit_paid in rows:
+    for (
+        booking,
+        deposit_due,
+        deposit_amount,
+        payment_status,
+        deposit_paid,
+        booking_request_id,
+    ) in rows:
         if deposit_due is not None:
             booking.deposit_due_by = deposit_due
         if deposit_amount is not None:
@@ -169,6 +179,8 @@ def read_my_bookings(
             booking.payment_status = payment_status
         if deposit_paid is not None:
             booking.deposit_paid = deposit_paid
+        if booking_request_id is not None:
+            booking.booking_request_id = booking_request_id
         bookings.append(booking)
 
     return bookings
@@ -268,8 +280,10 @@ def read_booking_details(
             BookingSimple.deposit_amount,
             BookingSimple.payment_status,
             BookingSimple.deposit_paid,
+            QuoteV2.booking_request_id,
         )
         .outerjoin(BookingSimple, BookingSimple.quote_id == Booking.quote_id)
+        .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
         .options(
             selectinload(Booking.client),
             selectinload(Booking.service),
@@ -283,7 +297,14 @@ def read_booking_details(
             status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found."
         )
 
-    booking, deposit_due, deposit_amount, payment_status, deposit_paid = booking_row
+    (
+        booking,
+        deposit_due,
+        deposit_amount,
+        payment_status,
+        deposit_paid,
+        booking_request_id,
+    ) = booking_row
 
     # Only the client or the artist may see it:
     if not (
@@ -306,6 +327,8 @@ def read_booking_details(
         booking.payment_status = payment_status
     if deposit_paid is not None:
         booking.deposit_paid = deposit_paid
+    if booking_request_id is not None:
+        booking.booking_request_id = booking_request_id
 
     return booking
 

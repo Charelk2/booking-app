@@ -153,15 +153,15 @@ export default function BookingDetailsPage() {
               Add to calendar
             </button>
           )}
-          {booking.source_quote?.booking_request_id && (
-            <Link
-              href={`/booking-requests/${booking.source_quote.booking_request_id}`}
-              className="text-brand-dark underline text-sm"
-              data-testid="message-artist-link"
-            >
-              Message Artist
-            </Link>
-          )}
+        {booking.booking_request_id && (
+          <Link
+            href={`/booking-requests/${booking.booking_request_id}`}
+            className="text-brand-dark underline text-sm"
+            data-testid="message-artist-link"
+          >
+            Message Artist
+          </Link>
+        )}
           <Link
             href="/dashboard/client/bookings"
             className="text-brand-dark underline text-sm"
@@ -173,9 +173,7 @@ export default function BookingDetailsPage() {
       <PaymentModal
         open={showPayment}
         onClose={() => setShowPayment(false)}
-        bookingRequestId={
-          booking.source_quote?.booking_request_id || booking.id
-        }
+        bookingRequestId={booking.booking_request_id as number}
         depositAmount={booking.deposit_amount}
         depositDueBy={booking.deposit_due_by ?? undefined}
         onSuccess={({ paymentId }) => {
