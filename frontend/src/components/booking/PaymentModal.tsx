@@ -5,8 +5,6 @@ import { createPayment } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
 
-const FAKE_PAYMENTS = process.env.NEXT_PUBLIC_FAKE_PAYMENTS === '1';
-
 interface PaymentSuccess {
   status: string;
   amount: number;
@@ -33,6 +31,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   depositAmount,
   depositDueBy,
 }) => {
+  // Check the environment variable at runtime so tests can override it
+  const FAKE_PAYMENTS = process.env.NEXT_PUBLIC_FAKE_PAYMENTS === '1';
   const [amount, setAmount] = useState<number>(depositAmount ?? 0);
   const [amountInput, setAmountInput] = useState(
     depositAmount !== undefined ? formatCurrency(depositAmount) : '',
