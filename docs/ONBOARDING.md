@@ -63,6 +63,10 @@ These sample commands demonstrate the basic booking flow using the API. Replace 
      -d '{"booking_request_id":REQUEST_ID,"amount":250}'
    ```
 
+   If testing entirely in the browser, set `NEXT_PUBLIC_FAKE_PAYMENTS=1` in
+   `frontend/.env.local` so the payment modal succeeds without hitting the
+   API.
+
 7. **Check your bookings**
    ```bash
    curl -H "Authorization: Bearer CLIENT_TOKEN" \
