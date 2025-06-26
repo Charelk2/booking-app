@@ -5,6 +5,8 @@ import { createPayment } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 import { format } from 'date-fns';
 
+const FAKE_PAYMENTS = process.env.NEXT_PUBLIC_FAKE_PAYMENTS === '1';
+
 interface PaymentSuccess {
   status: string;
   amount: number;
@@ -84,6 +86,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const handlePay = async () => {
     setLoading(true);
     setError(null);
+    if (FAKE_PAYMENTS) {
+      onSuccess({
+        status: full ? 'paid' : 'deposit_paid',
+        amount: Number(amount),
+      });
+      setLoading(false);
+      return;
+    }
     try {
       const res = await createPayment({
         booking_request_id: bookingRequestId,
