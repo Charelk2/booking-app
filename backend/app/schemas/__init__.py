@@ -39,6 +39,7 @@ from .notification import (
     ThreadNotificationResponse,
     BookingDetailsSummary,
 )
+from .invoice import InvoiceRead, InvoiceMarkPaid
 
 __all__ = [
     "UserBase",
@@ -92,4 +93,6 @@ __all__ = [
     "SoundProviderResponse",
     "ArtistSoundPreferenceBase",
     "ArtistSoundPreferenceResponse",
+    "InvoiceRead",
+    "InvoiceMarkPaid",
 ]
