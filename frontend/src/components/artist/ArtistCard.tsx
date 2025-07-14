@@ -2,12 +2,14 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type { HTMLAttributes } from 'react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import clsx from 'clsx';
+import { motion } from 'framer-motion';
 import {
   StarIcon,
   CheckBadgeIcon,
 } from '@heroicons/react/24/solid';
+import { Tag } from '@/components/ui';
 
 export interface ArtistCardProps extends HTMLAttributes<HTMLDivElement> {
   id: number;
@@ -62,17 +64,20 @@ export default function ArtistCard({
   // Display at most two tags so pills remain compact.
   const maxTags = 2;
   const limitedTags = tags.slice(0, maxTags);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -4, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}
       className={clsx(
-        'rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden transition hover:shadow-md p-0 pb-4',
+        'rounded-2xl border border-border bg-white shadow-sm overflow-hidden transition-shadow p-0 pb-4',
         className,
       )}
       {...props}
     >
-      <Link href={href} className="block">
-        <div className="relative h-48 w-full overflow-hidden rounded-t-xl">
+      <Link href={href} className="block group relative">
+        <div className="relative h-48 w-full overflow-hidden rounded-t-2xl bg-gray-100">
+          {!imgLoaded && <div className="absolute inset-0 animate-pulse bg-gray-200" />}
           {imageUrl ? (
             <Image
               src={imageUrl}
@@ -81,6 +86,7 @@ export default function ArtistCard({
               height={512}
               loading="lazy"
               className="object-cover w-full h-full"
+              onLoad={() => setImgLoaded(true)}
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
               }}
@@ -93,8 +99,19 @@ export default function ArtistCard({
               height={512}
               loading="lazy"
               className="object-cover w-full h-full"
+              onLoad={() => setImgLoaded(true)}
             />
           )}
+          <div
+            className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition"
+          >
+            <button
+              type="button"
+              className="text-sm bg-brand text-white px-4 py-1.5 rounded-md focus:outline-none focus-visible:ring"
+            >
+              Book Now
+            </button>
+          </div>
         </div>
       </Link>
       <div className="flex flex-col flex-1 px-4">
@@ -104,16 +121,11 @@ export default function ArtistCard({
         </div>
         {subtitle && <p className="text-sm text-gray-500 leading-tight mt-0.5 line-clamp-2">{subtitle}</p>}
         {limitedTags.length > 0 && (
-          <div
-            className="flex flex-nowrap overflow-hidden gap-1 mt-2 whitespace-nowrap"
-          >
+          <div className="flex flex-nowrap overflow-hidden gap-1 mt-2 whitespace-nowrap">
             {limitedTags.map((s) => (
-              <span
-                key={`${id}-${s}`}
-                className="text-[10px] px-1.5 py-0.5 bg-sky-100 text-sky-800 rounded-full"
-              >
+              <Tag key={`${id}-${s}`} className="text-[10px]">
                 {s}
-              </span>
+              </Tag>
             ))}
           </div>
         )}
@@ -149,6 +161,6 @@ export default function ArtistCard({
           </Link>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
