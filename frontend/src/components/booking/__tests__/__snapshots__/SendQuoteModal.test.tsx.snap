@@ -92,7 +92,7 @@ exports[`SendQuoteModal matches snapshot 1`] = `
       </label>
       <button
         aria-busy="false"
-        class="inline-flex items-center justify-center rounded-md font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform active:scale-95 px-4 py-2 text-sm bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 focus:ring-gray-300 text-sm"
+        class="inline-flex items-center justify-center rounded-md font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform transition-colors active:scale-95 min-h-12 min-w-12 px-4 py-2 text-sm bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 focus:ring-gray-300 text-sm"
         type="button"
       >
         <span
@@ -187,7 +187,7 @@ exports[`SendQuoteModal matches snapshot 1`] = `
     >
       <button
         aria-busy="false"
-        class="inline-flex items-center justify-center rounded-md font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform active:scale-95 px-4 py-2 text-sm bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 focus:ring-gray-300"
+        class="inline-flex items-center justify-center rounded-md font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform transition-colors active:scale-95 min-h-12 min-w-12 px-4 py-2 text-sm bg-white border border-gray-300 text-gray-800 hover:bg-gray-50 focus:ring-gray-300"
         type="button"
       >
         <span
@@ -198,7 +198,7 @@ exports[`SendQuoteModal matches snapshot 1`] = `
       </button>
       <button
         aria-busy="false"
-        class="inline-flex items-center justify-center rounded-md font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform active:scale-95 px-4 py-2 text-sm bg-brand hover:bg-brand-dark text-white focus:ring-brand-dark"
+        class="inline-flex items-center justify-center rounded-md font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform transition-colors active:scale-95 min-h-12 min-w-12 px-4 py-2 text-sm bg-brand hover:bg-brand-dark text-white focus:ring-brand-dark"
         title="This quote will be sent to the client"
         type="button"
       >
