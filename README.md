@@ -12,6 +12,8 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Minor fix: the artists listing now gracefully handles incomplete user data from the API.
 - Artists page adds a **Load More** button that fetches additional results using
   the API's pagination parameters.
+- Artists page redesigned with a responsive grid, animated filter bar, skeleton
+  loaders and hover "Book Now" overlay for a modern, accessible look.
 - Homepage includes a central search bar so visitors can quickly look up artists by
   destination and date.
 - Bookings now track `payment_status`, `deposit_amount`, and `deposit_paid` in
