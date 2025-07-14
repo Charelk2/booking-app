@@ -68,8 +68,9 @@ as `bg-brand` or `bg-brand-dark`.
 ### Fonts & Global Styles
 
 `globals.css` also defines the base font family using CSS variables. The default
-font (`--font-inter`) is provided by `next/font`. Replace this variable to use a
-different typeface across the site.
+font (`--font-inter`) is provided by `next/font`. The body font size is set to
+`16px` for readability. Replace the `--font-inter` variable to use a different
+typeface across the site.
 
 ### Booking Wizard URL Parameters
 
