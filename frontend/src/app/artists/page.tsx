@@ -5,6 +5,7 @@ import { getArtists } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCard from '@/components/artist/ArtistCard';
+import FilterBar from '@/components/artist/FilterBar';
 import { Spinner } from '@/components/ui';
 
 const CATEGORIES = [
@@ -103,69 +104,33 @@ export default function ArtistsPage() {
     <MainLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         <div className="mb-4 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">
             Browse and book talented performers
           </h1>
           <p className="text-sm text-gray-500">
             Compare artists, check ratings, and book instantly.
           </p>
         </div>
-        <div className="mt-6 mb-4 px-6 py-4 bg-white rounded-xl shadow-sm flex flex-wrap items-center gap-2">
-          <div className="flex gap-2 overflow-x-auto whitespace-nowrap">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => onCategory(c)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-sky-100 text-sky-800 hover:bg-sky-200 transition${
-                  category === c ? ' bg-sky-200 text-sky-900 font-semibold' : ''
-                }`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-          <input
-            placeholder="Location"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            className="text-sm px-3 py-1.5 rounded-md border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-brand w-[140px]"
-          />
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value || undefined)}
-            className="text-sm px-3 py-1.5 rounded-md border border-gray-300 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-brand"
-          >
-            <option value="">Sort</option>
-            <option value="top_rated">Top Rated</option>
-            <option value="most_booked">Most Booked</option>
-            <option value="newest">Newest</option>
-          </select>
-          <label className="flex items-center gap-1 text-sm">
-            <input
-              type="checkbox"
-              checked={verifiedOnly}
-              onChange={(e) => setVerifiedOnly(e.target.checked)}
-            />
-            Verified Only
-          </label>
-          {filtersActive && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="text-sm text-blue-600 hover:underline ml-auto"
-            >
-              Clear filters
-            </button>
-          )}
-        </div>
+        <FilterBar
+          categories={CATEGORIES}
+          category={category}
+          onCategory={onCategory}
+          location={location}
+          onLocation={(e) => setLocation(e.target.value)}
+          sort={sort}
+          onSort={(e) => setSort(e.target.value || undefined)}
+          verifiedOnly={verifiedOnly}
+          onVerifiedOnly={(e) => setVerifiedOnly(e.target.checked)}
+          onClear={clearFilters}
+          filtersActive={filtersActive}
+        />
         <div>
           {loading && <Spinner className="my-4" />}
           {error && <p className="text-red-600">{error}</p>}
           {!loading && artists.length === 0 && !error && (
             <p>No artists found</p>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {artists.map((a) => {
               const user = (a as Partial<typeof a>).user as ArtistProfile['user'] | null | undefined;
               const name = a.business_name || (user ? `${user.first_name} ${user.last_name}` : 'Unknown Artist');
