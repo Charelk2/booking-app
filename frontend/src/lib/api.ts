@@ -450,8 +450,8 @@ export const createPayment = (data: {
 }) => api.post(`${API_V1}/payments`, data);
 
 // ─── NOTIFICATIONS ───────────────────────────────────────────────────────────
-// Notifications endpoints live under /api, not /api/v1
-const API_NOTIFICATIONS = '/api';
+// Notifications endpoints live under /api/v1
+const API_NOTIFICATIONS = API_V1;
 
 export const getNotifications = (skip = 0, limit = 20) =>
   api.get<Notification[]>(
@@ -459,10 +459,10 @@ export const getNotifications = (skip = 0, limit = 20) =>
   );
 
 export const markNotificationRead = (id: number) =>
-  api.put<Notification>(`${API_NOTIFICATIONS}/notifications/${id}`);
+  api.put<Notification>(`${API_NOTIFICATIONS}/notifications/${id}/read`);
 
 export const markAllNotificationsRead = () =>
-  api.patch(`${API_NOTIFICATIONS}/notifications/mark-all-read`);
+  api.put(`${API_NOTIFICATIONS}/notifications/read-all`);
 
 export const getMessageThreads = () =>
   api.get<ThreadNotification[]>(
@@ -470,7 +470,7 @@ export const getMessageThreads = () =>
   );
 
 export const markThreadRead = (bookingRequestId: number) =>
-  api.patch(
+  api.put(
     `${API_NOTIFICATIONS}/notifications/message-threads/${bookingRequestId}/read`,
   );
 
