@@ -192,7 +192,7 @@ export default function InboxPage() {
           </button>
         </div>
         {loading && <Spinner className="my-4" />}
-        {error && <p className="text-red-600">{error}</p>}
+        {error && <p className="text-red-600">{error.message}</p>}
         {!loading && !error && bookings.length === 0 && chats.length === 0 && (
           <p className="text-sm text-gray-500">No messages yet.</p>
         )}
