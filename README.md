@@ -685,7 +685,9 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * “Request Booking” buttons on service cards.
 * New **Review** step showing cost breakdown and selections.
 * Success toasts when saving a draft or submitting a request.
-* Simplified buttons sit below each step in a responsive button group.
+* Simplified buttons sit below each step in a responsive button group. On phones
+  the order is **Next**, **Save Draft**, **Back** but remains **Back**, **Save Draft**,
+  **Next** on larger screens.
 * Guests step now matches the others with Back, Save Draft, and Next buttons.
 * Attachment uploads in the notes step display a progress bar and disable the Next button until finished.
 * Collapsible sections ensure only the active step is expanded on phones.
