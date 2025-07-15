@@ -1,6 +1,6 @@
 'use client';
-import clsx from 'clsx';
 import type { ChangeEventHandler } from 'react';
+import { PillButton } from '@/components/ui';
 
 export interface FilterBarProps {
   categories: string[];
@@ -33,19 +33,13 @@ export default function FilterBar({
     <div className="mt-6 mb-4 px-6 py-4 bg-white rounded-2xl shadow flex flex-wrap items-center gap-2">
       <div className="flex gap-2 overflow-x-auto whitespace-nowrap">
         {categories.map((c) => (
-          <button
+          <PillButton
             key={c}
-            type="button"
+            label={c}
+            selected={category === c}
             onClick={() => onCategory?.(c)}
-            className={clsx(
-              'px-3 py-1.5 rounded-full text-sm ring-1 ring-gray-200 transition-colors duration-200 focus:outline-none focus-visible:ring-primary',
-              category === c
-                ? 'bg-primary text-white ring-primary'
-                : 'bg-white text-gray-800 hover:bg-gray-100',
-            )}
-          >
-            {c}
-          </button>
+            className="text-sm"
+          />
         ))}
       </div>
       <input
