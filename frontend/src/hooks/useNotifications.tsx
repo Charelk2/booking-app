@@ -14,8 +14,10 @@ import toast from 'react-hot-toast';
 import useWebSocket from './useWebSocket';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Use the root API URL and include the /api prefix on each request so
+// paths match the FastAPI router mounted with prefix="/api".
 const api = axios.create({
-  baseURL: `${process.env.NEXT_PUBLIC_API_URL}/api`,
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
   withCredentials: true,
 });
 
@@ -75,7 +77,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<Notification[]>('/notifications', {
+      const res = await api.get<Notification[]>('/api/notifications', {
         params: { limit: 20, unreadOnly: false },
       });
       setNotifications(res.data);
@@ -116,24 +118,23 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
 
-  const markAsRead = useCallback(
-    async (id: string) => {
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+  const markAsRead = useCallback(async (id: string) => {
+    // 1) optimistic update
+    setNotifications(prev =>
+      prev.map(n => (n.id === id ? { ...n, read: true } : n)),
+    );
+    setUnreadCount(c => Math.max(0, c - 1));
+    try {
+      await api.patch(`/api/notifications/${id}`);
+    } catch {
+      // rollback on failure
+      setNotifications(prev =>
+        prev.map(n => (n.id === id ? { ...n, read: false } : n)),
       );
-      setUnreadCount((c) => Math.max(0, c - 1));
-      try {
-        await api.patch(`/notifications/${id}`);
-      } catch {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, read: false } : n)),
-        );
-        setUnreadCount((c) => c + 1);
-        toast.error('Failed to mark notification read');
-      }
-    },
-    [api],
-  );
+      setUnreadCount(c => c + 1);
+      toast.error('Failed to mark notification read');
+    }
+  }, [api]);
 
   const markAllAsRead = useCallback(
     async () => {
@@ -142,7 +143,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setNotifications((p) => p.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
       try {
-        await api.patch('/notifications/mark-all-read');
+        await api.patch('/api/notifications/mark-all-read');
       } catch {
         setNotifications(prev);
         setUnreadCount(prevCount);
@@ -154,7 +155,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const deleteNotification = useCallback(async (id: string) => {
     try {
-      await api.delete(`/notifications/${id}`);
+      await api.delete(`/api/notifications/${id}`);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       setUnreadCount((c) => Math.max(0, c - 1));
     } catch (err) {
@@ -165,7 +166,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const loadMore = useCallback(async () => {
     try {
-      const res = await api.get<Notification[]>('/notifications', {
+      const res = await api.get<Notification[]>('/api/notifications', {
         params: {
           offset: notifications.length,
           limit: 20,
