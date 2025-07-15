@@ -1,6 +1,6 @@
 'use client';
 import { Controller, Control, FieldValues } from 'react-hook-form';
-import { Button } from '../../ui';
+import WizardNav from '../WizardNav';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { format, parseISO } from 'date-fns';
@@ -56,7 +56,7 @@ export default function DateTimeStep({
             return isMobile ? (
               <input
                 type="date"
-                className="border p-2 rounded w-full min-h-[44px]"
+                className="w-full border border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300"
                 min={format(new Date(), 'yyyy-MM-dd')}
                 name={field.name}
                 ref={field.ref}
@@ -65,48 +65,27 @@ export default function DateTimeStep({
                 onChange={(e) => field.onChange(e.target.value)}
               />
             ) : (
-              <Calendar
-                {...field}
-                value={currentValue}
-                locale="en-US"
-                formatLongDate={formatLongDate}
-                onChange={(date) => field.onChange(date as Date)}
-                tileDisabled={tileDisabled}
-              />
+              <div className="mx-auto w-fit border border-gray-200 rounded-lg hover:shadow-lg">
+                <Calendar
+                  {...field}
+                  value={currentValue}
+                  locale="en-US"
+                  formatLongDate={formatLongDate}
+                  onChange={(date) => field.onChange(date as Date)}
+                  tileDisabled={tileDisabled}
+                />
+              </div>
             );
           }}
         />
       )}
-      <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
-        {step > 0 && (
-          <Button
-            type="button"
-            onClick={onBack}
-            variant="secondary"
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            Back
-          </Button>
-        )}
-
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
-          <Button
-            type="button"
-            onClick={onSaveDraft}
-            variant="secondary"
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            Save Draft
-          </Button>
-          <Button
-            type="button"
-            onClick={onNext}
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            {step === steps.length - 1 ? 'Submit Request' : 'Next'}
-          </Button>
-        </div>
-      </div>
+      <WizardNav
+        step={step}
+        steps={steps}
+        onBack={onBack}
+        onSaveDraft={onSaveDraft}
+        onNext={onNext}
+      />
     </div>
   );
 }
