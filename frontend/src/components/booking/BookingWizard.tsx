@@ -9,6 +9,7 @@ import * as yup from 'yup';
 import { format } from 'date-fns';
 import Stepper from '../ui/Stepper'; // progress indicator
 import CollapsibleSection from '../ui/CollapsibleSection';
+import Card from '../ui/Card';
 import { AnimatePresence, motion } from 'framer-motion';
 import toast from '../ui/Toast';
 import {
@@ -312,7 +313,7 @@ export default function BookingWizard({
   };
 
   return (
-    <div className="px-4">
+    <div className="px-4 py-16">
       <div className="sticky top-0 z-10 bg-white">
         <Stepper
           steps={steps}
@@ -343,7 +344,7 @@ export default function BookingWizard({
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.3 }}
                     >
-                      {renderStep(i)}
+                      <Card variant="wizard">{renderStep(i)}</Card>
                     </motion.div>
                   </AnimatePresence>
                   {warning && (
@@ -359,7 +360,7 @@ export default function BookingWizard({
           ))}
         </div>
       ) : (
-        <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md space-y-6">
+        <Card variant="wizard" className="space-y-6">
           <h2 className="text-2xl font-bold" data-testid="step-heading">
             {steps[step]}
           </h2>
@@ -379,7 +380,7 @@ export default function BookingWizard({
             <p className="text-red-600 text-sm">Please fix the errors above.</p>
           )}
           {error && <p className="text-red-600 text-sm">{error}</p>}
-        </div>
+        </Card>
       )}
     </div>
   );
