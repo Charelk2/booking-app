@@ -101,6 +101,9 @@ appear as animated pill buttons that transition smoothly on hover and when
 selected. These filters leverage the reusable `PillButton` component for
 consistent sizing and accessibility. Each artist card displays a skeleton placeholder until the image
 loads and reveals a **Book Now** overlay button when hovered.
+The filter bar itself is built from the `FilterBar` component which combines these pills with
+location, sort and verification inputs. Pills scroll horizontally on overflow and the entire bar
+uses a softly rounded container for a polished look.
 
 ## Testing
 
