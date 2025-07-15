@@ -81,7 +81,7 @@ export default function NotificationDrawer({ isOpen, onClose }: Props) {
               {loading && <Spinner className="mt-4" />}
               {error && (
                 <AlertBanner variant="error" className="mt-2">
-                  {error.message}
+                  {error?.message}
                 </AlertBanner>
               )}
             </div>
