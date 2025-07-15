@@ -87,7 +87,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const wsBase =
     process.env.NEXT_PUBLIC_WS_URL ||
     process.env.NEXT_PUBLIC_API_URL.replace(/^http/, 'ws');
-  const wsUrl = `${wsBase}/ws/notifications?token=${encodeURIComponent(token)}`;
+  const wsUrl = `${wsBase}/ws/notifications?token=${encodeURIComponent(
+    token || '',
+  )}`;
 
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
@@ -102,9 +104,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const { onMessage } = useWebSocket(wsUrl);
 
-  useEffect(() => {
-    return onMessage(handleMessage);
-  }, [onMessage, handleMessage]);
+  useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
 
   const markAsRead = useCallback(
     async (id: string) => {
