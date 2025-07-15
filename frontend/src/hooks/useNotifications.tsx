@@ -10,6 +10,7 @@ import {
   ReactNode,
 } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import useWebSocket from './useWebSocket';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -116,15 +117,21 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
 
   const markAsRead = useCallback(async (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
+    setUnreadCount((c) => Math.max(0, c - 1));
     try {
-      await api.put(`/notifications/${id}/read`);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-      );
-      setUnreadCount((c) => Math.max(0, c - 1));
+      await api.patch(`/notifications/${id}`, { read: true });
     } catch (err) {
       console.error('Failed to mark notification read:', err);
+      toast.error('Failed to mark notification read');
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: false } : n)),
+      );
+      setUnreadCount((c) => c + 1);
       setError(err as Error);
+      throw err;
     }
   }, []);
 
