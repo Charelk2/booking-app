@@ -13,6 +13,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import useWebSocket from './useWebSocket';
 import { useAuth } from '@/contexts/AuthContext';
+import type { Notification } from '@/types';
 
 // Use the root API URL and include the /api prefix on each request so
 // paths match the FastAPI router mounted with prefix="/api".
@@ -35,23 +36,15 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export interface Notification {
-  id: string;
-  type: string;
-  title: string;
-  body: string;
-  timestamp: string;
-  read: boolean;
-}
 
 interface NotificationsContextValue {
   notifications: Notification[];
   unreadCount: number;
   loading: boolean;
   error: Error | null;
-  markAsRead: (id: string) => Promise<void>;
+  markAsRead: (id: number) => Promise<void>;
   markAllAsRead: () => Promise<void>;
-  deleteNotification: (id: string) => Promise<void>;
+  deleteNotification: (id: number) => Promise<void>;
   /** compatibility with legacy hooks */
   items: Notification[];
   markItem: (notification: Notification) => Promise<void>;
@@ -83,7 +76,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         params: { limit: 20, unreadOnly: false },
       });
       setNotifications(res.data);
-      setUnreadCount(res.data.filter((n) => !n.read).length);
+      setUnreadCount(res.data.filter((n) => !n.is_read).length);
       setHasMore(res.data.length === 20);
       setError(null);
     } catch (err) {
@@ -116,8 +109,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
-      const data = JSON.parse(event.data) as Omit<Notification, 'read'>;
-      const newNotif: Notification = { ...data, read: false };
+      const data = JSON.parse(event.data) as Omit<Notification, 'is_read'>;
+      const newNotif: Notification = { ...data, is_read: false };
       setNotifications((prev) => [newNotif, ...prev]);
       setUnreadCount((c) => c + 1);
     } catch (e) {
@@ -129,15 +122,19 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
 
-  const markAsRead = useCallback(async (id: string) => {
+  const markAsRead = useCallback(async (id: number) => {
     // 1) optimistic update
-    setNotifications((ns) => ns.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setNotifications((ns) =>
+      ns.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+    );
     setUnreadCount((c) => Math.max(0, c - 1));
     try {
       await api.put(`/notifications/${id}/read`);
     } catch {
       // rollback
-      setNotifications((ns) => ns.map((n) => (n.id === id ? { ...n, read: false } : n)));
+      setNotifications((ns) =>
+        ns.map((n) => (n.id === id ? { ...n, is_read: false } : n)),
+      );
       setUnreadCount((c) => c + 1);
       toast.error('Failed to mark notification read');
     }
@@ -147,7 +144,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     async () => {
       const prev = notifications;
       const prevCount = unreadCount;
-      setNotifications((p) => p.map((n) => ({ ...n, read: true })));
+      setNotifications((p) => p.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
       try {
         await api.put('/notifications/read-all');
@@ -160,7 +157,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     [api, notifications, unreadCount],
   );
 
-  const deleteNotification = useCallback(async (id: string) => {
+  const deleteNotification = useCallback(async (id: number) => {
     try {
       await api.delete(`/notifications/${id}`);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
