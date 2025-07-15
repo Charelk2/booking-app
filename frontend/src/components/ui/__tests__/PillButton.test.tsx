@@ -20,28 +20,15 @@ describe('PillButton component', () => {
     container.remove();
   });
 
-  it('renders default styles', () => {
+  it('matches snapshot for default and selected states', () => {
     act(() => {
-      root.render(<PillButton label="Test" />);
+      root.render(<PillButton label="Demo" selected={false} onClick={() => {}} />);
     });
-    const btn = container.querySelector('button') as HTMLButtonElement;
-    expect(btn.className).toContain('h-10');
-    expect(btn.className).toContain('px-4');
-    expect(btn.className).toContain('mx-1');
-    expect(btn.className).toContain('rounded-full');
-    expect(btn.className).toContain('bg-white');
-    expect(btn.className).toContain('text-gray-700');
-    expect(btn.getAttribute('aria-pressed')).toBe('false');
-  });
+    expect(container.firstChild).toMatchSnapshot();
 
-  it('shows selected state', () => {
     act(() => {
-      root.render(<PillButton label="Active" selected />);
+      root.render(<PillButton label="Demo" selected onClick={() => {}} />);
     });
-    const btn = container.querySelector('button') as HTMLButtonElement;
-    expect(btn.className).toContain('bg-indigo-600');
-    expect(btn.className).toContain('text-white');
-    expect(btn.className).not.toContain('ring-gray-200');
-    expect(btn.getAttribute('aria-pressed')).toBe('true');
+    expect(container.firstChild).toMatchSnapshot();
   });
 });
