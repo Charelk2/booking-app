@@ -93,7 +93,8 @@ The Send Quote modal also generates a quote number automatically, shows today's 
 The artists page now uses a responsive grid that shows one card per row on
 mobile, two cards on tablets and three or more on larger screens. Filter options
 appear as animated pill buttons that transition smoothly on hover and when
-selected. Each artist card displays a skeleton placeholder until the image
+selected. These filters leverage the reusable `PillButton` component for
+consistent sizing and accessibility. Each artist card displays a skeleton placeholder until the image
 loads and reveals a **Book Now** overlay button when hovered.
 
 ## Testing
