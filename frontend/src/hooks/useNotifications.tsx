@@ -19,7 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 // All REST requests use the v1 prefix so calls line up with the backend router
 // mounted at /api/v1.
 const api = axios.create({
-  baseURL: `${process.env.NEXT_PUBLIC_API_URL}/api/v1`,
+  baseURL: process.env.NEXT_PUBLIC_API_URL + '/api/v1',
   withCredentials: true,
 });
 
