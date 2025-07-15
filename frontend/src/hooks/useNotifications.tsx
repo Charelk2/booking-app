@@ -14,7 +14,7 @@ import useWebSocket from './useWebSocket';
 import { useAuth } from '@/contexts/AuthContext';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: `${process.env.NEXT_PUBLIC_API_URL}/api/v1`,
   withCredentials: true,
 });
 
@@ -74,7 +74,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<Notification[]>('/api/v1/notifications', {
+      const res = await api.get<Notification[]>('/notifications', {
         params: { limit: 20, unreadOnly: false },
       });
       setNotifications(res.data);
@@ -117,7 +117,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const markAsRead = useCallback(async (id: string) => {
     try {
-      await api.patch(`/api/v1/notifications/${id}`);
+      await api.patch(`/notifications/${id}`);
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
       );
@@ -130,7 +130,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await api.patch('/api/v1/notifications/mark-all-read');
+      await api.patch('/notifications/mark-all-read');
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (err) {
@@ -141,7 +141,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const deleteNotification = useCallback(async (id: string) => {
     try {
-      await api.delete(`/api/v1/notifications/${id}`);
+      await api.delete(`/notifications/${id}`);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       setUnreadCount((c) => Math.max(0, c - 1));
     } catch (err) {
@@ -152,7 +152,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const loadMore = useCallback(async () => {
     try {
-      const res = await api.get<Notification[]>('/api/v1/notifications', {
+      const res = await api.get<Notification[]>('/notifications', {
         params: {
           offset: notifications.length,
           limit: 20,
