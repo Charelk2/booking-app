@@ -53,7 +53,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<Notification[]>('/api/notifications', {
+      const res = await api.get<Notification[]>('/api/v1/notifications', {
         params: { limit: 20, unreadOnly: false },
       });
       setNotifications(res.data);
@@ -72,9 +72,17 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     fetchNotifications();
   }, [fetchNotifications]);
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
   const wsBase =
     process.env.NEXT_PUBLIC_WS_URL ||
-    process.env.NEXT_PUBLIC_API_URL.replace(/^http/, 'ws');
+    (() => {
+      try {
+        const { protocol, host } = new URL(apiUrl);
+        return `${protocol.replace(/^http/, 'ws')}//${host}`;
+      } catch {
+        return apiUrl.replace(/^http/, 'ws');
+      }
+    })();
 
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
@@ -89,12 +97,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const { onMessage } = useWebSocket(`${wsBase}/ws/notifications`);
 
-  useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
+  useEffect(() => {
+    return onMessage(handleMessage);
+  }, [onMessage, handleMessage]);
 
   const markAsRead = useCallback(
     async (id: string) => {
       try {
-        await api.patch(`/api/notifications/${id}`);
+        await api.patch(`/api/v1/notifications/${id}`);
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
         );
@@ -109,7 +119,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const markAllAsRead = useCallback(async () => {
     try {
-      await api.patch('/api/notifications/mark-all-read');
+      await api.patch('/api/v1/notifications/mark-all-read');
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch (err) {
@@ -121,7 +131,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const deleteNotification = useCallback(
     async (id: string) => {
       try {
-        await api.delete(`/api/notifications/${id}`);
+        await api.delete(`/api/v1/notifications/${id}`);
         setNotifications((prev) => prev.filter((n) => n.id !== id));
         setUnreadCount((c) => Math.max(0, c - 1));
       } catch (err) {
@@ -134,7 +144,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const loadMore = useCallback(async () => {
     try {
-      const res = await api.get<Notification[]>('/api/notifications', {
+      const res = await api.get<Notification[]>('/api/v1/notifications', {
         params: {
           offset: notifications.length,
           limit: 20,
