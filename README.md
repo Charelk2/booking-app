@@ -735,6 +735,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Clipboard icon opens `/booking-requests` with an unread badge.
 * Unified feed combines booking updates and message threads.
 * Mark-as-read endpoints and “Mark All as Read”.
+* Individual notifications are updated via `PATCH /api/notifications/{id}` and all can be cleared with `PATCH /api/notifications/mark-all-read`.
 * "Unread Only" toggle filters message threads and alerts in the drawer and full-screen modal.
 * Notification lists now use **react-window** for virtualization so scrolling large histories is smoother. Install `react-window` if you upgrade dependencies manually.
 * Grouped notification views are now generated in the UI from `/notifications` and the old `/notifications/grouped` endpoint was removed.
