@@ -729,13 +729,13 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 
 ### Notifications
 
-* Persisted via `/api/notifications` & `/api/notifications/message-threads`.
+* Persisted via `/api/v1/notifications` & `/api/v1/notifications/message-threads`.
 * `/notifications/message-threads` now returns a `booking_details` object when a thread contains a booking details message.
 * Bell icon in header; slide-out drawer on mobile.
 * Clipboard icon opens `/booking-requests` with an unread badge.
 * Unified feed combines booking updates and message threads.
 * Mark-as-read endpoints and “Mark All as Read”.
-* Individual notifications are updated via `PATCH /api/notifications/{id}` and all can be cleared with `PATCH /api/notifications/mark-all-read`.
+* Individual notifications are updated via `PATCH /api/v1/notifications/{id}` and all can be cleared with `PATCH /api/v1/notifications/mark-all-read`.
 * "Unread Only" toggle filters message threads and alerts in the drawer and full-screen modal.
 * Notification lists now use **react-window** for virtualization so scrolling large histories is smoother. Install `react-window` if you upgrade dependencies manually.
 * Grouped notification views are now generated in the UI from `/notifications` and the old `/notifications/grouped` endpoint was removed.
@@ -750,8 +750,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Artists marking a booking **completed** now trigger a **REVIEW_REQUEST** notification. The alert links to `/dashboard/client/bookings/{booking_id}` so clients can quickly rate their experience.
 * Chat message groups display a small unread badge on the right side when new messages arrive, clearing automatically once read.
 * Day divider lines show the full date, while relative times remain visible next to each message group.
-* Booking request notifications display the sender name as the title and the service type in the subtitle with contextual icons. Service names are converted from `PascalCase` or `snake_case` and truncated for readability. The `/api/notifications` endpoint now includes `sender_name` and `booking_type` fields so the frontend no longer parses them from the message string.
-* New `useNotifications` context fetches `/api/notifications` with auth and listens on `/ws/notifications?token=...` for real-time updates. Notifications are reloaded every 30&nbsp;seconds via a shared Axios instance. The drawer components live under `components/notifications/`.
+* Booking request notifications display the sender name as the title and the service type in the subtitle with contextual icons. Service names are converted from `PascalCase` or `snake_case` and truncated for readability. The `/api/v1/notifications` endpoint now includes `sender_name` and `booking_type` fields so the frontend no longer parses them from the message string.
+* New `useNotifications` context fetches `/api/v1/notifications` with auth and listens on `/ws/notifications?token=...` for real-time updates. Notifications are reloaded every 30&nbsp;seconds via a shared Axios instance. The drawer components live under `components/notifications/`.
 * Wrap the root layout in `<NotificationsProvider>` so badges and drawers update automatically across the app.
 
 ### Artist Profile Enhancements
