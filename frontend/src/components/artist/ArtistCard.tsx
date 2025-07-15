@@ -70,7 +70,7 @@ export default function ArtistCard({
     <motion.div
       whileHover={{ y: -4, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}
       className={clsx(
-        'rounded-2xl border border-border bg-white shadow-sm overflow-hidden transition-shadow p-0 pb-4',
+        'rounded-2xl bg-white shadow-lg overflow-hidden transition-shadow',
         className,
       )}
       {...props}
@@ -114,12 +114,12 @@ export default function ArtistCard({
           </div>
         </div>
       </Link>
-      <div className="flex flex-col flex-1 px-4">
+      <div className="flex flex-col flex-1 p-6">
         <div className="flex items-center">
-          <h2 className="flex-1 text-lg font-semibold text-gray-900 truncate mt-3">{name}</h2>
+          <h2 className="flex-1 text-lg font-semibold text-gray-900 truncate mt-4 mb-2">{name}</h2>
           {verified && <CheckBadgeIcon className="h-4 w-4 text-brand" aria-label="Verified" />}
         </div>
-        {subtitle && <p className="text-sm text-gray-500 leading-tight mt-0.5 line-clamp-2">{subtitle}</p>}
+        {subtitle && <p className="text-sm text-gray-500 leading-tight line-clamp-2">{subtitle}</p>}
         {limitedTags.length > 0 && (
           <div className="flex flex-nowrap overflow-hidden gap-1 mt-2 whitespace-nowrap">
             {limitedTags.map((s) => (
@@ -129,7 +129,7 @@ export default function ArtistCard({
             ))}
           </div>
         )}
-        <hr className="my-3 border-gray-200" />
+        <hr className="mt-4 mb-4 border-gray-200" />
         <div className="flex justify-between items-center text-sm text-gray-700">
           <span className="flex items-center">
             <StarIcon className="h-4 w-4 mr-1 text-yellow-400" />
@@ -145,7 +145,7 @@ export default function ArtistCard({
             </span>
           )}
         </div>
-        <div className="flex justify-between items-center mt-2">
+        <div className="flex justify-between items-center mt-4">
           {location ? (
             <span className="text-sm text-gray-600 truncate">{location}</span>
           ) : (

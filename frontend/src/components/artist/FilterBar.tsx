@@ -38,10 +38,10 @@ export default function FilterBar({
             type="button"
             onClick={() => onCategory?.(c)}
             className={clsx(
-              'px-3 py-1.5 rounded-full text-sm transition-colors border border-border focus:outline-none focus-visible:ring',
+              'px-3 py-1.5 rounded-full text-sm ring-1 ring-gray-200 transition-colors duration-200 focus:outline-none focus-visible:ring-primary',
               category === c
-                ? 'bg-primary text-white'
-                : 'bg-white text-gray-800 hover:bg-primary hover:text-white',
+                ? 'bg-primary text-white ring-primary'
+                : 'bg-white text-gray-800 hover:bg-gray-100',
             )}
           >
             {c}
@@ -52,12 +52,12 @@ export default function FilterBar({
         placeholder="Location"
         value={location}
         onChange={onLocation}
-        className="text-sm px-3 py-1.5 rounded-md border border-border bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-primary w-[140px]"
+        className="text-sm px-3 py-1.5 rounded-md border border-border bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-primary transition-colors duration-200 w-[140px]"
       />
       <select
         value={sort}
         onChange={onSort}
-        className="text-sm px-3 py-1.5 rounded-md border border-border bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
+        className="text-sm px-3 py-1.5 rounded-md border border-border bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-primary transition-colors duration-200"
       >
         <option value="">Sort</option>
         <option value="top_rated">Top Rated</option>
@@ -77,7 +77,7 @@ export default function FilterBar({
         <button
           type="button"
           onClick={onClear}
-          className="text-sm text-primary hover:underline ml-auto"
+          className="text-sm text-primary hover:underline ml-auto transition-colors duration-200"
         >
           Clear filters
         </button>
