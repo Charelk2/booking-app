@@ -10,6 +10,7 @@ import {
 } from 'react';
 import axios from 'axios';
 import useWebSocket from './useWebSocket';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface Notification {
   id: string;
@@ -45,9 +46,20 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const { token } = useAuth();
 
   const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || '',
+    baseURL: process.env.NEXT_PUBLIC_API_URL,
+    withCredentials: true,
+  });
+  api.interceptors.request.use((config) => {
+    if (token) {
+      config.headers = {
+        ...config.headers,
+        Authorization: `Bearer ${token}`,
+      };
+    }
+    return config;
   });
 
   const fetchNotifications = useCallback(async () => {
@@ -72,17 +84,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
   const wsBase =
     process.env.NEXT_PUBLIC_WS_URL ||
-    (() => {
-      try {
-        const { protocol, host } = new URL(apiUrl);
-        return `${protocol.replace(/^http/, 'ws')}//${host}`;
-      } catch {
-        return apiUrl.replace(/^http/, 'ws');
-      }
-    })();
+    process.env.NEXT_PUBLIC_API_URL.replace(/^http/, 'ws');
+  const wsUrl = `${wsBase}/ws/notifications?token=${encodeURIComponent(token)}`;
 
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
@@ -95,7 +100,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const { onMessage } = useWebSocket(`${wsBase}/ws/notifications`);
+  const { onMessage } = useWebSocket(wsUrl);
 
   useEffect(() => {
     return onMessage(handleMessage);
