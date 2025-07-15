@@ -49,7 +49,7 @@ describe('FullScreenNotificationModal', () => {
       root.render(
         React.createElement(FullScreenNotificationModal, {
           ...baseProps,
-          error: 'Failed to load',
+          error: new Error('Failed to load'),
         }),
       );
       await Promise.resolve();
