@@ -11,7 +11,7 @@ import {
 import axios from 'axios';
 import useWebSocket from './useWebSocket';
 
-interface Notification {
+export interface Notification {
   id: string;
   type: string;
   title: string;
@@ -32,6 +32,8 @@ interface NotificationsContextValue {
   items: Notification[];
   markItem: (notification: Notification) => Promise<void>;
   markAll: () => Promise<void>;
+  loadMore: () => Promise<void>;
+  hasMore: boolean;
 }
 
 const NotificationsContext =
@@ -42,6 +44,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [hasMore, setHasMore] = useState(false);
 
   const api = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_URL || '',
@@ -55,6 +58,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       });
       setNotifications(res.data);
       setUnreadCount(res.data.filter((n) => !n.read).length);
+      setHasMore(res.data.length === 20);
       setError(null);
     } catch (err) {
       console.error('Failed to load notifications:', err);
@@ -127,6 +131,24 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     [api],
   );
 
+  const loadMore = useCallback(async () => {
+    try {
+      const res = await api.get<Notification[]>('/api/notifications', {
+        params: {
+          offset: notifications.length,
+          limit: 20,
+          unreadOnly: false,
+        },
+      });
+      setNotifications((prev) => [...prev, ...res.data]);
+      setHasMore(res.data.length === 20);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load more notifications:', err);
+      setError(err as Error);
+    }
+  }, [api, notifications]);
+
   const value: NotificationsContextValue = {
     notifications,
     unreadCount,
@@ -139,6 +161,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     items: notifications,
     markItem: (n: Notification) => markAsRead(n.id),
     markAll: markAllAsRead,
+    loadMore,
+    hasMore,
   };
 
   return (
@@ -162,6 +186,8 @@ export function useNotifications() {
       items: [],
       markItem: async () => {},
       markAll: async () => {},
+      loadMore: async () => {},
+      hasMore: false,
     } as NotificationsContextValue;
   }
   return ctx;
