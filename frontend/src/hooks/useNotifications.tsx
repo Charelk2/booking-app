@@ -130,7 +130,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setNotifications((ns) => ns.map((n) => (n.id === id ? { ...n, read: true } : n)));
     setUnreadCount((c) => Math.max(0, c - 1));
     try {
-      await api.patch(`/notifications/${id}`);
+      await api.put(`/notifications/${id}/read`);
     } catch {
       // rollback
       setNotifications((ns) => ns.map((n) => (n.id === id ? { ...n, read: false } : n)));
@@ -146,7 +146,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setNotifications((p) => p.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
       try {
-        await api.patch('/notifications/mark-all-read');
+        await api.put('/notifications/read-all');
       } catch {
         setNotifications(prev);
         setUnreadCount(prevCount);
