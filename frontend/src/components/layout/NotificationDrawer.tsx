@@ -107,7 +107,7 @@ export default function NotificationDrawer({
                   </div>
                   {error && (
                     <div className="bg-red-100 text-red-800 text-sm px-4 py-2" data-testid="notification-error">
-                      {error instanceof Error ? error.message : error}
+                      {error?.message}
                     </div>
                   )}
                   <div
