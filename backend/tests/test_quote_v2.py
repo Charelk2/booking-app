@@ -232,9 +232,11 @@ def test_read_accepted_quote_has_booking_id():
         travel_fee=Decimal("30"),
     )
     quote = api_quote_v2.create_quote(quote_in, db)
-    booking = api_quote_v2.accept_quote(quote.id, db)
+    booking_simple = api_quote_v2.accept_quote(quote.id, db)
+    db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
+    assert db_booking is not None
     result = api_quote_v2.read_quote(quote.id, db)
-    assert result.booking_id == booking.id
+    assert result.booking_id == db_booking.id
 
 
 def test_read_quote_not_found():
