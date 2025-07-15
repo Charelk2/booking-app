@@ -2986,7 +2986,7 @@
         }
       }
     },
-    "/api/v1/notifications": {
+    "/api/notifications": {
       "get": {
         "tags": [
           "notifications",
@@ -3050,7 +3050,7 @@
         }
       }
     },
-    "/api/v1/notifications/{notification_id}/read": {
+    "/api/notifications/{notification_id}/read": {
       "put": {
         "tags": [
           "notifications",
@@ -3099,7 +3099,7 @@
         }
       }
     },
-    "/api/v1/notifications/message-threads": {
+    "/api/notifications/message-threads": {
       "get": {
         "tags": [
           "notifications",
@@ -3131,7 +3131,7 @@
         ]
       }
     },
-    "/api/v1/notifications/message-threads/{booking_request_id}/read": {
+    "/api/notifications/message-threads/{booking_request_id}/read": {
       "put": {
         "tags": [
           "notifications",
@@ -3178,7 +3178,7 @@
         }
       }
     },
-    "/api/v1/notifications/read-all": {
+    "/api/notifications/read-all": {
       "put": {
         "tags": [
           "notifications",
