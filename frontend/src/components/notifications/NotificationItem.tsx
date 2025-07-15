@@ -2,20 +2,20 @@
 import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
 import { useEffect, useState } from 'react';
-import type { Notification } from '@/hooks/useNotifications';
+import type { Notification } from '@/types';
 
 interface Props {
   notification: Notification;
-  onMarkRead: (id: string) => Promise<void>;
-  onDelete: (id: string) => void;
+  onMarkRead: (id: number) => Promise<void>;
+  onDelete: (id: number) => void;
 }
 
 export default function NotificationItem({ notification, onMarkRead, onDelete }: Props) {
-  const [localRead, setLocalRead] = useState(notification.read);
+  const [localRead, setLocalRead] = useState(notification.is_read);
 
   useEffect(() => {
-    setLocalRead(notification.read);
-  }, [notification.read]);
+    setLocalRead(notification.is_read);
+  }, [notification.is_read]);
 
   const handleClick = async () => {
     if (localRead) return;
