@@ -105,12 +105,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [fetchNotifications, token]);
 
-  // Build the WebSocket URL without the REST prefix.
+  // Build the WebSocket URL including the API prefix so it matches
+  // the FastAPI router mounted at `/api/v1`.
   const wsHost =
     process.env.NEXT_PUBLIC_WS_URL ||
     process.env.NEXT_PUBLIC_API_URL.replace(/^http/, 'ws');
   const wsUrl = token
-    ? `${wsHost}/ws/notifications?token=${encodeURIComponent(token)}`
+    ? `${wsHost}/api/v1/ws/notifications?token=${encodeURIComponent(token)}`
     : null;
 
   const handleMessage = useCallback((event: MessageEvent) => {
