@@ -100,4 +100,15 @@ describe('NotificationListItem', () => {
     const span = container.querySelector('span[title]');
     expect(span?.getAttribute('title')).toBe('Review Request');
   });
+
+  it('handles missing content gracefully', () => {
+    const n: UnifiedNotification = {
+      type: 'deposit_due',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.title).toBe('Notification');
+    expect(parsed.subtitle).toBe('');
+  });
 });
