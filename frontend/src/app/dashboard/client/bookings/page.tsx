@@ -16,6 +16,7 @@ import {
 import Link from "next/link";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { Spinner } from "@/components/ui";
+import BookingCard, { BookingCardAction } from "@/components/booking/BookingCard";
 
 interface BookingWithReview extends Booking {
   review?: Review | null;
@@ -31,44 +32,59 @@ function BookingList({
   onPayDeposit: (id: number) => void;
 }) {
   return (
-    <ul className="space-y-3">
-      {items.map((b) => (
-        <li key={b.id}>
-          <Link
-            href={`/dashboard/client/bookings/${b.id}`}
-            data-booking-id={b.id}
-            className="block bg-white p-4 shadow rounded-lg hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
+    <div>
+      {items.map((b) => {
+        const actions: BookingCardAction[] = [];
+        if (b.payment_status === "pending") {
+          actions.push({
+            label: "Pay deposit",
+            onClick: () => onPayDeposit(b.id),
+            primary: true,
+            ariaLabel: `Pay deposit for ${b.service.title} – ${b.service.artist.business_name}`,
+            dataTestId: "pay-deposit-button",
+          });
+        }
+        if (b.booking_request_id) {
+          actions.push({
+            label: "Message Artist",
+            href: `/booking-requests/${b.booking_request_id}`,
+            ariaLabel: `Message artist about ${b.service.title} – ${b.service.artist.business_name}`,
+            dataTestId: "message-artist-link",
+          });
+        }
+        actions.push({
+          label: "View Artist",
+          href: `/artists/${b.artist_id}`,
+          ariaLabel: `View ${b.service.artist.business_name} profile`,
+          dataTestId: "view-artist-link",
+        });
+
+        return (
+          <BookingCard
+            key={b.id}
+            title={`${b.service.title} - ${b.service.artist.business_name}`}
+            date={format(new Date(b.start_time), "MMM d, yyyy h:mm a")}
+            status={formatStatus(b.status)}
+            deposit={
+              b.deposit_amount !== undefined
+                ? `Deposit: ${formatCurrency(Number(b.deposit_amount || 0))} (${formatStatus(b.payment_status)})`
+                : undefined
+            }
+            price={formatCurrency(Number(b.total_price))}
+            actions={actions}
           >
-            <div className="font-medium text-gray-900">
-              {b.service.title} - {b.service.artist.business_name}
-            </div>
-            <div className="text-sm text-gray-500">
-              {format(new Date(b.start_time), "MMM d, yyyy h:mm a")}
-            </div>
-            <div className="mt-2 flex justify-between items-center">
-              <span
-                className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                  b.status === "completed"
-                    ? "bg-green-100 text-green-800"
-                    : b.status === "cancelled"
-                      ? "bg-red-100 text-red-800"
-                      : b.status === "confirmed"
-                        ? "bg-brand-light text-brand-dark"
-                        : "bg-yellow-100 text-yellow-800"
-                }`}
-              >
-                {formatStatus(b.status)}
-              </span>
-              <span className="text-sm text-gray-500">
-                {formatCurrency(Number(b.total_price))}
-              </span>
-            </div>
-            {b.deposit_amount !== undefined && (
-              <div className="text-sm text-gray-500 mt-1">
-                Deposit: {formatCurrency(Number(b.deposit_amount || 0))} (
-                {formatStatus(b.payment_status)})
+            <Link
+              href={`/dashboard/client/bookings/${b.id}`}
+              data-booking-id={b.id}
+              className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
+            >
+              <div className="font-medium text-gray-900">
+                {b.service.title} - {b.service.artist.business_name}
               </div>
-            )}
+              <div className="text-sm text-gray-500">
+                {format(new Date(b.start_time), "MMM d, yyyy h:mm a")}
+              </div>
+            </Link>
             {b.payment_status === "pending" && b.deposit_due_by && (
               <div className="text-sm text-gray-500 mt-1">
                 {formatDepositReminder(
@@ -118,50 +134,24 @@ function BookingList({
                 );
               })}
             </div>
-          </Link>
-          {b.payment_status === "pending" && (
-            <button
-              type="button"
-              onClick={() => onPayDeposit(b.id)}
-              className="mt-2 text-brand-dark underline text-sm"
-              data-testid="pay-deposit-button"
-            >
-              Pay deposit
-            </button>
-          )}
-          {b.status === "completed" && !b.review && (
-            <button
-              type="button"
-              onClick={() => onReview(b.id)}
-              className="mt-2 text-brand-dark hover:underline text-sm"
-            >
-              Leave review
-            </button>
-          )}
-          {b.review && (
-            <p className="mt-2 text-sm text-gray-600">
-              You rated {b.review.rating}/5
-            </p>
-          )}
-          {b.booking_request_id && (
-            <Link
-              href={`/booking-requests/${b.booking_request_id}`}
-              className="mt-2 text-brand-dark hover:underline text-sm"
-              data-testid="message-artist-link"
-            >
-              Message Artist
-            </Link>
-          )}
-          <Link
-            href={`/artists/${b.artist_id}`}
-            className="mt-2 text-brand-dark hover:underline text-sm"
-            data-testid="view-artist-link"
-          >
-            View Artist
-          </Link>
-        </li>
-      ))}
-    </ul>
+            {b.status === "completed" && !b.review && (
+              <button
+                type="button"
+                onClick={() => onReview(b.id)}
+                className="mt-2 text-brand-dark hover:underline text-sm"
+              >
+                Leave review
+              </button>
+            )}
+            {b.review && (
+              <p className="mt-2 text-sm text-gray-600">
+                You rated {b.review.rating}/5
+              </p>
+            )}
+          </BookingCard>
+        );
+      })}
+    </div>
   );
 }
 
