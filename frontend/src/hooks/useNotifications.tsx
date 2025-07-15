@@ -6,6 +6,8 @@ import {
   useContext,
   useEffect,
   useState,
+  useMemo,
+  useRef,
   ReactNode,
 } from 'react';
 import axios from 'axios';
@@ -47,42 +49,50 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const { token } = useAuth();
+  const tokenRef = useRef<string | null>(token);
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
 
-  const api = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL,
-    withCredentials: true,
-  });
-  api.interceptors.request.use((config) => {
-    if (token) {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${token}`,
-      };
-    }
-    return config;
-  });
-
-  const fetchNotifications = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get<Notification[]>('/api/v1/notifications', {
-        params: { limit: 20, unreadOnly: false },
-      });
-      setNotifications(res.data);
-      setUnreadCount(res.data.filter((n) => !n.read).length);
-      setHasMore(res.data.length === 20);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to load notifications:', err);
-      setError(err as Error);
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
+  const api = useMemo(() => {
+    const instance = axios.create({
+      baseURL: process.env.NEXT_PUBLIC_API_URL,
+      withCredentials: true,
+    });
+    instance.interceptors.request.use((config) => {
+      const t = tokenRef.current;
+      if (t) {
+        config.headers = {
+          ...config.headers,
+          Authorization: `Bearer ${t}`,
+        };
+      }
+      return config;
+    });
+    return instance;
+  }, []);
 
   useEffect(() => {
+    const fetchNotifications = async () => {
+      setLoading(true);
+      try {
+        const res = await api.get<Notification[]>('/api/v1/notifications', {
+          params: { limit: 20, unreadOnly: false },
+        });
+        setNotifications(res.data);
+        setUnreadCount(res.data.filter((n) => !n.read).length);
+        setHasMore(res.data.length === 20);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load notifications:', err);
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchNotifications();
-  }, [fetchNotifications]);
+  }, []);
 
   const wsBase =
     process.env.NEXT_PUBLIC_WS_URL ||
@@ -104,7 +114,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const { onMessage } = useWebSocket(wsUrl);
 
-  useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
+  useEffect(() => onMessage(handleMessage), [handleMessage]);
 
   const markAsRead = useCallback(
     async (id: string) => {
