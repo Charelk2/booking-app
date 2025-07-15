@@ -39,8 +39,8 @@ export default function FilterBar({
   };
 
   return (
-    <div className="mt-6 mb-4 flex flex-wrap gap-2 bg-white p-3 rounded-xl shadow-sm items-center">
-      <div className="flex gap-2 overflow-x-auto whitespace-nowrap">
+    <div className="flex flex-wrap items-center gap-2 bg-white p-4 rounded-2xl shadow-sm">
+      <div className="flex flex-wrap gap-2 overflow-x-auto whitespace-nowrap">
         {categories.map((c) => (
           <PillButton
             key={c}
@@ -50,42 +50,42 @@ export default function FilterBar({
           />
         ))}
       </div>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex flex-wrap items-center gap-2">
         <input
           placeholder="Location"
           value={location}
           onChange={onLocation}
-          className="text-sm px-3 py-1.5 rounded-md border border-border bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-primary transition-colors duration-200 w-[140px]"
+          className="h-10 px-3 rounded-lg border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-300"
         />
         <select
           value={sort}
           onChange={onSort}
-          className="text-sm px-3 py-1.5 rounded-md border border-border bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-primary transition-colors duration-200"
+          className="h-10 px-3 rounded-lg border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-300"
         >
           <option value="">Sort</option>
           <option value="top_rated">Top Rated</option>
           <option value="most_booked">Most Booked</option>
           <option value="newest">Newest</option>
         </select>
-        <label className="flex items-center gap-1 text-sm text-gray-700">
+        <label className="flex items-center gap-1 text-gray-700">
           <input
             type="checkbox"
             checked={verifiedOnly}
             onChange={(e) => setVerifiedOnly(e.target.checked)}
-            className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-300"
           />
           Verified Only
         </label>
+        {filtersActive && (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="text-indigo-600 hover:underline text-sm transition-colors duration-200"
+          >
+            Clear filters
+          </button>
+        )}
       </div>
-      {filtersActive && onClear && (
-        <button
-          type="button"
-          onClick={clearAll}
-          className="text-sm text-primary hover:underline transition-colors duration-200"
-        >
-          Clear filters
-        </button>
-      )}
     </div>
   );
 }
