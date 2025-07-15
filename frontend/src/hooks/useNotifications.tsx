@@ -86,7 +86,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setError(null);
     } catch (err) {
       console.error('Failed to load notifications:', err);
-      setError(err as Error);
+      if (axios.isAxiosError(err)) {
+        setError(new Error(err.message));
+      } else {
+        setError(err as Error);
+      }
     } finally {
       setLoading(false);
     }
@@ -119,18 +123,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
 
   const markAsRead = useCallback(async (id: string) => {
-    // 1) optimistic update
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n)),
-    );
+    // optimistic
+    setNotifications(ns => ns.map(n => (n.id === id ? { ...n, read: true } : n)));
     setUnreadCount(c => Math.max(0, c - 1));
     try {
       await api.patch(`/api/notifications/${id}`);
     } catch {
-      // rollback on failure
-      setNotifications(prev =>
-        prev.map(n => (n.id === id ? { ...n, read: false } : n)),
-      );
+      // rollback
+      setNotifications(ns => ns.map(n => (n.id === id ? { ...n, read: false } : n)));
       setUnreadCount(c => c + 1);
       toast.error('Failed to mark notification read');
     }
