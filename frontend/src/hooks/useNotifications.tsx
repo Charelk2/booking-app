@@ -99,16 +99,19 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!tokenRef.current) return;
     fetchNotifications();
     const id = setInterval(fetchNotifications, 30_000);
     return () => clearInterval(id);
-  }, [fetchNotifications]);
+  }, [fetchNotifications, token]);
 
   // Build the WebSocket URL without the REST prefix.
   const wsHost =
     process.env.NEXT_PUBLIC_WS_URL ||
     process.env.NEXT_PUBLIC_API_URL.replace(/^http/, 'ws');
-  const wsUrl = `${wsHost}/ws/notifications${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  const wsUrl = token
+    ? `${wsHost}/ws/notifications?token=${encodeURIComponent(token)}`
+    : null;
 
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
