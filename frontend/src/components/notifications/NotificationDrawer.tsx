@@ -29,7 +29,7 @@ export default function NotificationDrawer({ isOpen, onClose }: Props) {
   const toggleUnreadOnly = () => setUnreadOnly((v) => !v);
 
   const filtered = unreadOnly
-    ? notifications.filter((n) => !n.read)
+    ? notifications.filter((n) => !n.is_read)
     : notifications;
 
   return (
