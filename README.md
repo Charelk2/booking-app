@@ -751,6 +751,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Day divider lines show the full date, while relative times remain visible next to each message group.
 * Booking request notifications display the sender name as the title and the service type in the subtitle with contextual icons. Service names are converted from `PascalCase` or `snake_case` and truncated for readability. The `/api/v1/notifications` endpoint now includes `sender_name` and `booking_type` fields so the frontend no longer parses them from the message string.
 * New `useNotifications` context fetches `/api/notifications` and listens on `/ws/notifications` for real-time updates. The drawer components live under `components/notifications/`.
+* Wrap the root layout in `<NotificationsProvider>` so badges and drawers update automatically across the app.
 
 ### Artist Profile Enhancements
 
