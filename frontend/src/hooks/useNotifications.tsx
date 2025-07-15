@@ -74,21 +74,22 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const wsBase =
     process.env.NEXT_PUBLIC_WS_URL ||
-    (process.env.NEXT_PUBLIC_API_URL || '').replace(/^http/, 'ws');
+    process.env.NEXT_PUBLIC_API_URL.replace(/^http/, 'ws');
+
+  const handleMessage = useCallback((event: MessageEvent) => {
+    try {
+      const data = JSON.parse(event.data) as Omit<Notification, 'read'>;
+      const newNotif: Notification = { ...data, read: false };
+      setNotifications((prev) => [newNotif, ...prev]);
+      setUnreadCount((c) => c + 1);
+    } catch (e) {
+      console.error('Failed to parse notification message', e);
+    }
+  }, []);
+
   const { onMessage } = useWebSocket(`${wsBase}/ws/notifications`);
 
-  useEffect(() => {
-    return onMessage((event) => {
-      try {
-        const data = JSON.parse(event.data) as Omit<Notification, 'read'>;
-        const newNotif: Notification = { ...data, read: false };
-        setNotifications((prev) => [newNotif, ...prev]);
-        setUnreadCount((c) => c + 1);
-      } catch (e) {
-        console.error('Failed to parse notification message', e);
-      }
-    });
-  }, [onMessage]);
+  useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
 
   const markAsRead = useCallback(
     async (id: string) => {
