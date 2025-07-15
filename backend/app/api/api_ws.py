@@ -48,6 +48,31 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+class NotificationManager:
+    """Track WebSocket connections per user for real-time notifications."""
+
+    def __init__(self) -> None:
+        self.active_connections: Dict[int, List[WebSocket]] = {}
+
+    async def connect(self, user_id: int, websocket: WebSocket) -> None:
+        await websocket.accept()
+        self.active_connections.setdefault(user_id, []).append(websocket)
+
+    def disconnect(self, user_id: int, websocket: WebSocket) -> None:
+        conns = self.active_connections.get(user_id)
+        if conns and websocket in conns:
+            conns.remove(websocket)
+            if not conns:
+                del self.active_connections[user_id]
+
+    async def broadcast(self, user_id: int, message: Any) -> None:
+        for ws in self.active_connections.get(user_id, []):
+            await ws.send_json(message)
+
+
+notifications_manager = NotificationManager()
+
+
 @router.websocket("/ws/booking-requests/{request_id}")
 async def booking_request_ws(
     websocket: WebSocket,
@@ -93,3 +118,35 @@ async def booking_request_ws(
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(request_id, websocket)
+
+
+@router.websocket("/ws/notifications")
+async def notifications_ws(
+    websocket: WebSocket,
+    token: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """WebSocket endpoint pushing real-time notifications to a user."""
+    user: User | None = None
+    if not token:
+        logger.warning("Rejecting notifications WebSocket: missing token")
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if email:
+            user = get_user_by_email(db, email)
+    except JWTError:
+        logger.warning("Rejecting notifications WebSocket: invalid token")
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
+
+    if not user:
+        logger.warning("Rejecting notifications WebSocket: user not found")
+        raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Invalid token")
+
+    await notifications_manager.connect(user.id, websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        notifications_manager.disconnect(user.id, websocket)
