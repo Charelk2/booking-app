@@ -22,8 +22,9 @@ export interface ParsedNotification {
 }
 
 export function parseItem(n: UnifiedNotification): ParsedNotification {
+  const content = typeof n.content === 'string' ? n.content : '';
   if (n.type === 'message') {
-    const cleaned = n.content.replace(/^New message:\s*/i, '').trim();
+    const cleaned = content.replace(/^New message:\s*/i, '').trim();
     const snippet = cleaned.length > 30 ? `${cleaned.slice(0, 30)}...` : cleaned;
     const titleRaw = n.name || '';
     const title = titleRaw.length > 36 ? `${titleRaw.slice(0, 36)}...` : titleRaw;
@@ -67,8 +68,8 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       : 'sent a new booking request';
     const subtitle =
       subtitleBase.length > 36 ? `${subtitleBase.slice(0, 36)}...` : subtitleBase;
-    const locMatch = n.content.match(/Location:\s*(.+)/i);
-    const dateMatch = n.content.match(/Date:\s*(.+)/i);
+    const locMatch = content.match(/Location:\s*(.+)/i);
+    const dateMatch = content.match(/Date:\s*(.+)/i);
     let metadata: string | undefined;
     if (locMatch || dateMatch) {
       const loc = locMatch ? locMatch[1].split('\n')[0].trim() : '';
@@ -94,13 +95,13 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
   if (n.type === 'review_request') {
     const title = 'Review Request';
     const subtitle =
-      n.content.length > 30 ? `${n.content.slice(0, 30)}...` : n.content;
+      content.length > 30 ? `${content.slice(0, 30)}...` : content;
     return { title, subtitle, icon: '🔔' };
   }
-  if (/deposit.*due/i.test(n.content)) {
+  if (/deposit.*due/i.test(content)) {
     let subtitle =
-      n.content.length > 30 ? `${n.content.slice(0, 30)}...` : n.content;
-    const match = n.content.match(/deposit\s+(?:of\s*)?R?([\d.,]+)\s*due(?:\s*by\s*(\d{4}-\d{2}-\d{2}))?/i);
+      content.length > 30 ? `${content.slice(0, 30)}...` : content;
+    const match = content.match(/deposit\s+(?:of\s*)?R?([\d.,]+)\s*due(?:\s*by\s*(\d{4}-\d{2}-\d{2}))?/i);
     if (match) {
       const [, amt, dateStr] = match;
       const parts: string[] = [];
@@ -119,28 +120,28 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       icon: '💰',
     };
   }
-  if (/new booking/i.test(n.content)) {
+  if (/new booking/i.test(content)) {
     const subtitle =
-      n.content.length > 30 ? `${n.content.slice(0, 30)}...` : n.content;
+      content.length > 30 ? `${content.slice(0, 30)}...` : content;
     return {
       title: 'Booking Confirmed',
       subtitle,
       icon: '📅',
     };
   }
-  if (/quote accepted/i.test(n.content)) {
-    const match = n.content.match(/Quote accepted by (.+)/i);
+  if (/quote accepted/i.test(content)) {
+    const match = content.match(/Quote accepted by (.+)/i);
     const rawTitle = match ? `Quote accepted by ${match[1]}` : 'Quote accepted';
     const title = rawTitle.length > 36 ? `${rawTitle.slice(0, 36)}...` : rawTitle;
-    const subtitle = n.content.length > 30 ? `${n.content.slice(0, 30)}...` : n.content;
+    const subtitle = content.length > 30 ? `${content.slice(0, 30)}...` : content;
     return {
       title,
       subtitle,
       icon: '✅',
     };
   }
-  const defaultTitle = n.content.length > 36 ? `${n.content.slice(0, 36)}...` : n.content;
-  return { title: defaultTitle, subtitle: '', icon: '🔔' };
+  const defaultTitle = content.length > 36 ? `${content.slice(0, 36)}...` : content;
+  return { title: defaultTitle || 'Notification', subtitle: '', icon: '🔔' };
 }
 
 interface NotificationListItemProps {
