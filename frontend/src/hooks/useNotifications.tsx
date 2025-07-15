@@ -122,19 +122,26 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
 
-  const markAsRead = useCallback(async (id: string) => {
-    // optimistic
-    setNotifications(ns => ns.map(n => (n.id === id ? { ...n, read: true } : n)));
-    setUnreadCount(c => Math.max(0, c - 1));
-    try {
-      await api.patch(`/api/notifications/${id}`);
-    } catch {
-      // rollback
-      setNotifications(ns => ns.map(n => (n.id === id ? { ...n, read: false } : n)));
-      setUnreadCount(c => c + 1);
-      toast.error('Failed to mark notification read');
-    }
-  }, [api]);
+  const markAsRead = useCallback(
+    async (id: string) => {
+      // 1) optimistic update
+      setNotifications((ns) =>
+        ns.map((n) => (n.id === id ? { ...n, read: true } : n)),
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+      try {
+        await api.patch(`/api/notifications/${id}`);
+      } catch {
+        // 2) rollback if request fails
+        setNotifications((ns) =>
+          ns.map((n) => (n.id === id ? { ...n, read: false } : n)),
+        );
+        setUnreadCount((c) => c + 1);
+        toast.error('Failed to mark notification read');
+      }
+    },
+    [api],
+  );
 
   const markAllAsRead = useCallback(
     async () => {

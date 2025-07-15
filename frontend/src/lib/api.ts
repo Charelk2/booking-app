@@ -450,23 +450,29 @@ export const createPayment = (data: {
 }) => api.post(`${API_V1}/payments`, data);
 
 // ─── NOTIFICATIONS ───────────────────────────────────────────────────────────
+// Notifications endpoints live under /api, not /api/v1
+const API_NOTIFICATIONS = '/api';
+
 export const getNotifications = (skip = 0, limit = 20) =>
   api.get<Notification[]>(
-    `${API_V1}/notifications?skip=${skip}&limit=${limit}`,
+    `${API_NOTIFICATIONS}/notifications?skip=${skip}&limit=${limit}`,
   );
 
-
 export const markNotificationRead = (id: number) =>
-  api.put<Notification>(`${API_V1}/notifications/${id}/read`);
+  api.put<Notification>(`${API_NOTIFICATIONS}/notifications/${id}`);
 
 export const markAllNotificationsRead = () =>
-  api.put<{ updated: number }>(`${API_V1}/notifications/read-all`);
+  api.patch(`${API_NOTIFICATIONS}/notifications/mark-all-read`);
 
 export const getMessageThreads = () =>
-  api.get<ThreadNotification[]>(`${API_V1}/notifications/message-threads`);
+  api.get<ThreadNotification[]>(
+    `${API_NOTIFICATIONS}/notifications/message-threads`,
+  );
 
 export const markThreadRead = (bookingRequestId: number) =>
-  api.put(`${API_V1}/notifications/message-threads/${bookingRequestId}/read`);
+  api.patch(
+    `${API_NOTIFICATIONS}/notifications/message-threads/${bookingRequestId}/read`,
+  );
 
 // ─── GOOGLE CALENDAR ─────────────────────────────────────────────────────────
 export const getGoogleCalendarStatus = () =>
