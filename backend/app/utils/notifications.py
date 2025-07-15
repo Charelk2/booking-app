@@ -2,7 +2,10 @@ from sqlalchemy.orm import Session
 from ..models import User, NotificationType
 from .. import models
 from ..crud import crud_notification
+from ..schemas.notification import NotificationResponse
+from ..api.api_ws import notifications_manager
 from typing import Optional
+import asyncio
 from datetime import datetime
 import os
 import logging
@@ -77,6 +80,32 @@ def _send_sms(phone: Optional[str], message: str) -> None:
         logger.warning("SMS failed: %s", exc)
 
 
+def _create_and_broadcast(
+    db: Session,
+    user_id: int,
+    ntype: NotificationType,
+    message: str,
+    link: str,
+    **extra: str | int | None,
+) -> None:
+    """Persist a notification then broadcast it via WebSocket."""
+    notif = crud_notification.create_notification(
+        db,
+        user_id=user_id,
+        type=ntype,
+        message=message,
+        link=link,
+    )
+    data = NotificationResponse.model_validate(notif).model_dump()
+    for k, v in extra.items():
+        data[k] = v
+    try:
+        asyncio.create_task(notifications_manager.broadcast(user_id, data))
+    except RuntimeError:
+        # If no event loop is running (e.g., in tests), send synchronously
+        notifications_manager.broadcast(user_id, data)
+
+
 BOOKING_DETAILS_PREFIX = "Booking details:"
 VIDEO_FLOW_QUESTIONS = [
     "Who is the video for?",
@@ -104,12 +133,12 @@ def notify_user_new_message(
             return
 
     message = format_notification_message(NotificationType.NEW_MESSAGE, content=content)
-    crud_notification.create_notification(
+    _create_and_broadcast(
         db,
-        user_id=user.id,
-        type=NotificationType.NEW_MESSAGE,
-        message=message,
-        link=f"/booking-requests/{booking_request_id}",
+        user.id,
+        NotificationType.NEW_MESSAGE,
+        message,
+        f"/booking-requests/{booking_request_id}",
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
@@ -136,12 +165,12 @@ def notify_deposit_due(
         deposit_amount=deposit_amount,
         deposit_due_by=deposit_due_by,
     )
-    crud_notification.create_notification(
+    _create_and_broadcast(
         db,
-        user_id=user.id,
-        type=NotificationType.DEPOSIT_DUE,
-        message=message,
-        link=f"/dashboard/client/bookings/{booking_id}?pay=1",
+        user.id,
+        NotificationType.DEPOSIT_DUE,
+        message,
+        f"/dashboard/client/bookings/{booking_id}?pay=1",
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
@@ -161,12 +190,14 @@ def notify_user_new_booking_request(
         sender_name=sender_name,
         booking_type=booking_type,
     )
-    crud_notification.create_notification(
+    _create_and_broadcast(
         db,
-        user_id=user.id,
-        type=NotificationType.NEW_BOOKING_REQUEST,
-        message=message,
-        link=f"/booking-requests/{request_id}",
+        user.id,
+        NotificationType.NEW_BOOKING_REQUEST,
+        message,
+        f"/booking-requests/{request_id}",
+        sender_name=sender_name,
+        booking_type=booking_type,
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
@@ -184,12 +215,14 @@ def notify_booking_status_update(
         request_id=request_id,
         status=status,
     )
-    crud_notification.create_notification(
+    _create_and_broadcast(
         db,
-        user_id=user.id,
-        type=NotificationType.BOOKING_STATUS_UPDATED,
-        message=message,
-        link=f"/booking-requests/{request_id}",
+        user.id,
+        NotificationType.BOOKING_STATUS_UPDATED,
+        message,
+        f"/booking-requests/{request_id}",
+        status=status,
+        request_id=request_id,
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
@@ -203,12 +236,13 @@ def notify_quote_accepted(
         NotificationType.QUOTE_ACCEPTED,
         quote_id=quote_id,
     )
-    crud_notification.create_notification(
+    _create_and_broadcast(
         db,
-        user_id=user.id,
-        type=NotificationType.QUOTE_ACCEPTED,
-        message=message,
-        link=f"/booking-requests/{booking_request_id}",
+        user.id,
+        NotificationType.QUOTE_ACCEPTED,
+        message,
+        f"/booking-requests/{booking_request_id}",
+        quote_id=quote_id,
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
@@ -232,12 +266,13 @@ def notify_new_booking(db: Session, user: Optional[User], booking_id: int) -> No
         NotificationType.NEW_BOOKING,
         booking_id=booking_id,
     )
-    crud_notification.create_notification(
+    _create_and_broadcast(
         db,
-        user_id=user.id,
-        type=NotificationType.NEW_BOOKING,
-        message=message,
-        link=f"/dashboard/client/bookings/{booking_id}",
+        user.id,
+        NotificationType.NEW_BOOKING,
+        message,
+        f"/dashboard/client/bookings/{booking_id}",
+        booking_id=booking_id,
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
@@ -256,12 +291,13 @@ def notify_review_request(db: Session, user: Optional[User], booking_id: int) ->
         NotificationType.REVIEW_REQUEST,
         booking_id=booking_id,
     )
-    crud_notification.create_notification(
+    _create_and_broadcast(
         db,
-        user_id=user.id,
-        type=NotificationType.REVIEW_REQUEST,
-        message=message,
-        link=f"/dashboard/client/bookings/{booking_id}?review=1",
+        user.id,
+        NotificationType.REVIEW_REQUEST,
+        message,
+        f"/dashboard/client/bookings/{booking_id}?review=1",
+        booking_id=booking_id,
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
