@@ -2,6 +2,9 @@
 import type { ChangeEventHandler } from 'react';
 import { useState } from 'react';
 import { PillButton } from '@/components/ui';
+import useIsMobile from '@/hooks/useIsMobile';
+import FilterPopover from './FilterPopover';
+import FilterSheet from './FilterSheet';
 
 export interface FilterBarProps {
   categories: string[];
@@ -26,9 +29,11 @@ export default function FilterBar({
 }: FilterBarProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleCategory = (c: string) => {
-    setSelectedCategory(c);
+    setSelectedCategory((prev) => (prev === c ? undefined : c));
     onCategory?.(c);
   };
 
@@ -39,53 +44,74 @@ export default function FilterBar({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 bg-white p-4 rounded-2xl shadow-sm">
-      <div className="flex flex-wrap gap-2 overflow-x-auto whitespace-nowrap">
-        {categories.map((c) => (
-          <PillButton
-            key={c}
-            label={c}
-            selected={c === selectedCategory}
-            onClick={() => handleCategory(c)}
-          />
-        ))}
-      </div>
-      <div className="ml-auto flex flex-wrap items-center gap-2">
-        <input
-          placeholder="Location"
-          value={location}
-          onChange={onLocation}
-          className="h-10 px-3 rounded-lg border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-300"
-        />
-        <select
-          value={sort}
-          onChange={onSort}
-          className="h-10 px-3 rounded-lg border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-300"
-        >
-          <option value="">Sort</option>
-          <option value="top_rated">Top Rated</option>
-          <option value="most_booked">Most Booked</option>
-          <option value="newest">Newest</option>
-        </select>
-        <label className="flex items-center gap-1 text-gray-700">
-          <input
-            type="checkbox"
-            checked={verifiedOnly}
-            onChange={(e) => setVerifiedOnly(e.target.checked)}
-            className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-300"
-          />
-          Verified Only
-        </label>
-        {filtersActive && (
+    <div className="flex items-center gap-2 p-4 bg-white rounded-2xl shadow-sm overflow-x-auto whitespace-nowrap">
+      {isMobile ? (
+        <>
           <button
             type="button"
-            onClick={clearAll}
-            className="text-indigo-600 hover:underline text-sm transition-colors duration-200"
+            onClick={() => setSheetOpen(true)}
+            className="flex items-center text-sm hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-300"
           >
-            Clear filters
+            Filters
           </button>
-        )}
-      </div>
+          <FilterSheet
+            open={sheetOpen}
+            onClose={() => setSheetOpen(false)}
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onSelectCategory={handleCategory}
+            verifiedOnly={verifiedOnly}
+            onVerifiedOnly={setVerifiedOnly}
+            sort={sort}
+            onSort={onSort}
+            onClear={clearAll}
+            onApply={() => {}}
+          />
+        </>
+      ) : (
+        <div className="flex items-center gap-2 overflow-x-auto">
+          {categories.slice(0, 3).map((c) => (
+            <PillButton
+              key={c}
+              label={c}
+              selected={c === selectedCategory}
+              onClick={() => handleCategory(c)}
+            />
+          ))}
+          <FilterPopover
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onSelect={handleCategory}
+            verifiedOnly={verifiedOnly}
+            onVerified={setVerifiedOnly}
+          />
+        </div>
+      )}
+      <input
+        placeholder="Location"
+        value={location}
+        onChange={onLocation}
+        className="h-10 px-3 rounded-lg border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-300"
+      />
+      <select
+        value={sort}
+        onChange={onSort}
+        className="h-10 px-3 rounded-lg border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-300"
+      >
+        <option value="">Sort</option>
+        <option value="top_rated">Top Rated</option>
+        <option value="most_booked">Most Booked</option>
+        <option value="newest">Newest</option>
+      </select>
+      {filtersActive && (
+        <button
+          type="button"
+          onClick={clearAll}
+          className="text-indigo-600 hover:underline text-sm transition-colors duration-200"
+        >
+          Clear filters
+        </button>
+      )}
     </div>
   );
 }
