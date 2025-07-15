@@ -5,6 +5,7 @@ import { Disclosure, Menu, Transition } from '@headlessui/react';
 import { Bars3Icon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import NavLink from './NavLink';
 import { usePathname } from 'next/navigation';
 import NotificationBell from './NotificationBell';
 import BookingRequestIcon from './BookingRequestIcon';
@@ -38,7 +39,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-light to-background">
+    <div className="min-h-screen bg-gray-50 bg-gradient-to-b from-brand-light/50 to-gray-50">
       <Disclosure as="nav" className="bg-background shadow-sm">
         {() => (
           <>
@@ -52,18 +53,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                   </div>
                   <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                     {navigation.map((item) => (
-                      <Link
+                      <NavLink
                         key={item.name}
                         href={item.href}
-                        className={classNames(
-                          pathname === item.href
-                            ? 'border-brand text-gray-900'
-                            : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700',
-                          'inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium'
-                        )}
+                        isActive={pathname === item.href}
                       >
                         {item.name}
-                      </Link>
+                      </NavLink>
                     ))}
                   </div>
                 </div>

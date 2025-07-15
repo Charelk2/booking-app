@@ -12,7 +12,8 @@
   --color-foreground: #111827;
   --brand-color: var(--color-primary);
   --brand-color-dark: var(--color-secondary);
-  --brand-color-light: #a5b4fc;
+  /* lighter tint used for subtle page gradients */
+  --brand-color-light: #eef2ff;
   --color-link: var(--brand-color-dark);
   --color-link-hover: var(--brand-color);
 }
@@ -27,11 +28,12 @@
 
   a {
     color: var(--color-link);
-    text-decoration: underline;
+    text-decoration: none;
   }
 
   a:hover {
     color: var(--color-link-hover);
+    text-decoration: underline;
   }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
