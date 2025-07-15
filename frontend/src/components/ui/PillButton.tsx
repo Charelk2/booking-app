@@ -1,29 +1,23 @@
 'use client';
-import type { ButtonHTMLAttributes } from 'react';
 import clsx from 'clsx';
 
-export interface PillButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface PillButtonProps {
   label: string;
-  selected?: boolean;
+  selected: boolean;
+  onClick: () => void;
 }
 
-export default function PillButton({
-  label,
-  selected = false,
-  className,
-  ...props
-}: PillButtonProps) {
+export default function PillButton({ label, selected, onClick }: PillButtonProps) {
   return (
     <button
       type="button"
       aria-pressed={selected}
-      {...props}
+      onClick={onClick}
       className={clsx(
-        'inline-flex items-center justify-center h-10 px-4 mx-1 rounded-full font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1',
+        'h-10 px-4 mx-1 rounded-full font-medium transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-50 focus:ring-offset-default',
         selected
-          ? 'bg-indigo-600 text-white'
-          : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-100',
-        className,
+          ? 'bg-primary-600 text-white ring-0'
+          : 'bg-white ring-1 ring-gray-200 text-gray-700 hover:bg-gray-100'
       )}
     >
       {label}
