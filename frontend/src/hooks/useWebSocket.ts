@@ -15,7 +15,7 @@ interface UseWebSocketReturn {
 export type ErrorHandler = (event?: CloseEvent) => void;
 
 export default function useWebSocket(
-  url: string,
+  url?: string | null,
   onError?: ErrorHandler,
 ): UseWebSocketReturn {
   const socketRef = useRef<WebSocket | null>(null);
@@ -37,6 +37,7 @@ export default function useWebSocket(
   }, []);
 
   useEffect(() => {
+    if (!url) return undefined;
     let cancelled = false;
 
     const connect = () => {

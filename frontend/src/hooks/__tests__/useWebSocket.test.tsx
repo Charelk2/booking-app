@@ -132,4 +132,18 @@ describe('useWebSocket', () => {
 
     jest.useRealTimers();
   });
+
+  it('does not connect when url is null', () => {
+    function Test() {
+      // explicitly pass null to skip connection
+      useWebSocket(null);
+      return null;
+    }
+
+    act(() => {
+      root.render(<Test />);
+    });
+
+    expect(StubSocket.instances.length).toBe(0);
+  });
 });
