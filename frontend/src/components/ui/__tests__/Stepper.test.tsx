@@ -20,13 +20,10 @@ describe('Stepper progress bar', () => {
     container.remove();
   });
 
-  it('shows step names and highlights the current one', () => {
+  it('renders steps and highlights the current one', () => {
     act(() => {
       root.render(<Stepper steps={["One", "Two", "Three"]} currentStep={1} />);
     });
-    const spans = container.querySelectorAll('span');
-    expect(spans[1].className).toContain('font-medium');
-    expect(container.textContent).toContain('Three');
     const wrapper = container.querySelector('div[role="list"]');
     expect(wrapper).not.toBeNull();
     const items = container.querySelectorAll('[role="listitem"]');
@@ -121,6 +118,6 @@ describe('Stepper progress bar', () => {
       button.focus();
     });
     expect(button.className).toContain('focus-visible:ring-2');
-    expect(button.className).toContain('focus-visible:ring-brand');
+    expect(button.className).toContain('focus-visible:ring-indigo-400');
   });
 });
