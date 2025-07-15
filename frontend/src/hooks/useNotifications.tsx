@@ -6,13 +6,29 @@ import {
   useContext,
   useEffect,
   useState,
-  useMemo,
   useRef,
   ReactNode,
 } from 'react';
 import axios from 'axios';
 import useWebSocket from './useWebSocket';
 import { useAuth } from '@/contexts/AuthContext';
+
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  withCredentials: true,
+});
+
+let currentToken: string | null = null;
+
+api.interceptors.request.use((config) => {
+  if (currentToken) {
+    config.headers = {
+      ...(config.headers || {}),
+      Authorization: `Bearer ${currentToken}`,
+    };
+  }
+  return config;
+});
 
 export interface Notification {
   id: string;
@@ -52,54 +68,37 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const tokenRef = useRef<string | null>(token);
   useEffect(() => {
     tokenRef.current = token;
+    currentToken = token;
   }, [token]);
 
-  const api = useMemo(() => {
-    const instance = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL,
-      withCredentials: true,
-    });
-    instance.interceptors.request.use((config) => {
-      const t = tokenRef.current;
-      if (t) {
-        config.headers = {
-          ...config.headers,
-          Authorization: `Bearer ${t}`,
-        };
-      }
-      return config;
-    });
-    return instance;
+  const fetchNotifications = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get<Notification[]>('/api/v1/notifications', {
+        params: { limit: 20, unreadOnly: false },
+      });
+      setNotifications(res.data);
+      setUnreadCount(res.data.filter((n) => !n.read).length);
+      setHasMore(res.data.length === 20);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load notifications:', err);
+      setError(err as Error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    const fetchNotifications = async () => {
-      setLoading(true);
-      try {
-        const res = await api.get<Notification[]>('/api/v1/notifications', {
-          params: { limit: 20, unreadOnly: false },
-        });
-        setNotifications(res.data);
-        setUnreadCount(res.data.filter((n) => !n.read).length);
-        setHasMore(res.data.length === 20);
-        setError(null);
-      } catch (err) {
-        console.error('Failed to load notifications:', err);
-        setError(err as Error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchNotifications();
-  }, []);
+    const id = setInterval(fetchNotifications, 30_000);
+    return () => clearInterval(id);
+  }, [fetchNotifications]);
 
   const wsBase =
     process.env.NEXT_PUBLIC_WS_URL ||
     process.env.NEXT_PUBLIC_API_URL.replace(/^http/, 'ws');
-  const wsUrl = `${wsBase}/ws/notifications?token=${encodeURIComponent(
-    token || '',
-  )}`;
+  const wsUrl = `${wsBase}/ws/notifications${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
@@ -114,23 +113,20 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const { onMessage } = useWebSocket(wsUrl);
 
-  useEffect(() => onMessage(handleMessage), [handleMessage]);
+  useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
 
-  const markAsRead = useCallback(
-    async (id: string) => {
-      try {
-        await api.patch(`/api/v1/notifications/${id}`);
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-        );
-        setUnreadCount((c) => Math.max(0, c - 1));
-      } catch (err) {
-        console.error('Failed to mark notification read:', err);
-        setError(err as Error);
-      }
-    },
-    [api],
-  );
+  const markAsRead = useCallback(async (id: string) => {
+    try {
+      await api.patch(`/api/v1/notifications/${id}`);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+    } catch (err) {
+      console.error('Failed to mark notification read:', err);
+      setError(err as Error);
+    }
+  }, []);
 
   const markAllAsRead = useCallback(async () => {
     try {
@@ -141,21 +137,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       console.error('Failed to mark all notifications read:', err);
       setError(err as Error);
     }
-  }, [api]);
+  }, []);
 
-  const deleteNotification = useCallback(
-    async (id: string) => {
-      try {
-        await api.delete(`/api/v1/notifications/${id}`);
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
-        setUnreadCount((c) => Math.max(0, c - 1));
-      } catch (err) {
-        console.error('Failed to delete notification:', err);
-        setError(err as Error);
-      }
-    },
-    [api],
-  );
+  const deleteNotification = useCallback(async (id: string) => {
+    try {
+      await api.delete(`/api/v1/notifications/${id}`);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      setUnreadCount((c) => Math.max(0, c - 1));
+    } catch (err) {
+      console.error('Failed to delete notification:', err);
+      setError(err as Error);
+    }
+  }, []);
 
   const loadMore = useCallback(async () => {
     try {
@@ -173,7 +166,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       console.error('Failed to load more notifications:', err);
       setError(err as Error);
     }
-  }, [api, notifications]);
+  }, [notifications.length]);
 
   const value: NotificationsContextValue = {
     notifications,

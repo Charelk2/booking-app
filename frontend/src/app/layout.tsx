@@ -24,10 +24,8 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body className="font-sans antialiased">
         <AuthProvider>
-          <NotificationsProvider>
-            {children}
-            <Toaster position="top-right" />
-          </NotificationsProvider>
+          <NotificationsProvider>{children}</NotificationsProvider>
+          <Toaster position="top-right" />
         </AuthProvider>
       </body>
     </html>
