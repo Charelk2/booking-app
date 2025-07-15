@@ -1,34 +1,41 @@
 'use client';
 import type { ChangeEventHandler } from 'react';
+import { useState } from 'react';
 import { PillButton } from '@/components/ui';
 
 export interface FilterBarProps {
   categories: string[];
-  category?: string;
   onCategory?: (c: string) => void;
   location: string;
   onLocation: ChangeEventHandler<HTMLInputElement>;
   sort?: string;
   onSort: ChangeEventHandler<HTMLSelectElement>;
-  verifiedOnly: boolean;
-  onVerifiedOnly: ChangeEventHandler<HTMLInputElement>;
   onClear?: () => void;
   filtersActive: boolean;
 }
 
 export default function FilterBar({
   categories,
-  category,
   onCategory,
   location,
   onLocation,
   sort,
   onSort,
-  verifiedOnly,
-  onVerifiedOnly,
   onClear,
   filtersActive,
 }: FilterBarProps) {
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+
+  const handleCategory = (c: string) => {
+    setSelectedCategory(c);
+    onCategory?.(c);
+  };
+
+  const clearAll = () => {
+    setSelectedCategory(undefined);
+    onClear?.();
+  };
+
   return (
     <div className="mt-6 mb-4 px-6 py-4 bg-white rounded-2xl shadow flex flex-wrap items-center gap-2">
       <div className="flex gap-2 overflow-x-auto whitespace-nowrap">
@@ -36,9 +43,8 @@ export default function FilterBar({
           <PillButton
             key={c}
             label={c}
-            selected={category === c}
-            onClick={() => onCategory?.(c)}
-            className="text-sm"
+            selected={c === selectedCategory}
+            onClick={() => handleCategory(c)}
           />
         ))}
       </div>
@@ -58,19 +64,10 @@ export default function FilterBar({
         <option value="most_booked">Most Booked</option>
         <option value="newest">Newest</option>
       </select>
-      <label className="flex items-center gap-1 text-sm">
-        <input
-          type="checkbox"
-          checked={verifiedOnly}
-          onChange={onVerifiedOnly}
-          aria-label="Verified Only"
-        />
-        Verified Only
-      </label>
       {filtersActive && onClear && (
         <button
           type="button"
-          onClick={onClear}
+          onClick={clearAll}
           className="text-sm text-primary hover:underline ml-auto transition-colors duration-200"
         >
           Clear filters

@@ -23,7 +23,6 @@ export default function ArtistsPage() {
   const [category, setCategory] = useState<string | undefined>();
   const [location, setLocation] = useState('');
   const [sort, setSort] = useState<string | undefined>();
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const LIMIT = 20;
@@ -32,11 +31,9 @@ export default function ArtistsPage() {
     setCategory(undefined);
     setLocation('');
     setSort(undefined);
-    setVerifiedOnly(false);
   };
 
-  const filtersActive =
-    Boolean(category) || Boolean(location) || Boolean(sort) || verifiedOnly;
+  const filtersActive = Boolean(category) || Boolean(location) || Boolean(sort);
 
   const fetchArtists = async (params: {
     category?: string;
@@ -53,14 +50,11 @@ export default function ArtistsPage() {
         page: params.page,
         limit: LIMIT,
       });
-      const filtered = verifiedOnly
-        ? res.data.filter((a) => (a as Partial<typeof a>).user?.is_verified)
-        : res.data;
       setHasMore(res.data.length === LIMIT);
       if (params.append) {
-        setArtists((prev) => [...prev, ...filtered]);
+        setArtists((prev) => [...prev, ...res.data]);
       } else {
-        setArtists(filtered);
+        setArtists(res.data);
       }
     } catch (err) {
       console.error('Error fetching artists:', err);
@@ -81,7 +75,7 @@ export default function ArtistsPage() {
       page: 1,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, location, sort, verifiedOnly]);
+  }, [category, location, sort]);
 
   const onCategory = (c: string) => {
     setCategory((prev) => (prev === c ? undefined : c));
@@ -113,14 +107,11 @@ export default function ArtistsPage() {
         </div>
         <FilterBar
           categories={CATEGORIES}
-          category={category}
           onCategory={onCategory}
           location={location}
           onLocation={(e) => setLocation(e.target.value)}
           sort={sort}
           onSort={(e) => setSort(e.target.value || undefined)}
-          verifiedOnly={verifiedOnly}
-          onVerifiedOnly={(e) => setVerifiedOnly(e.target.checked)}
           onClear={clearFilters}
           filtersActive={filtersActive}
         />
