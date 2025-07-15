@@ -1,42 +1,55 @@
 'use client';
 import { useBooking } from '@/contexts/BookingContext';
 import { format, parseISO, isValid } from 'date-fns';
+import { motion } from 'framer-motion';
 
 export default function SummarySidebar() {
   const { details } = useBooking();
   const dateValue =
     typeof details.date === 'string' ? parseISO(details.date) : details.date;
   return (
-    <div className="space-y-4">
+    <motion.div
+      layout
+      initial={{ x: 20, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      className="space-y-4"
+    >
       <h2 className="text-lg font-medium">Summary</h2>
-      <div className="bg-gray-100 p-4 rounded-md space-y-2 text-sm">
+      <dl className="bg-gray-50 p-4 rounded-lg text-sm space-y-1">
         {details.date && isValid(dateValue) && (
-          <p>
-            <strong>Date:</strong> {format(dateValue, 'PP')}
-            {details.time && ` ${details.time}`}
-          </p>
+          <div className="flex justify-between">
+            <dt className="font-semibold text-gray-800">Date</dt>
+            <dd className="text-gray-600">
+              {format(dateValue, 'PP')}
+              {details.time && ` ${details.time}`}
+            </dd>
+          </div>
         )}
         {details.location && (
-          <p>
-            <strong>Location:</strong> {details.location}
-          </p>
+          <div className="flex justify-between">
+            <dt className="font-semibold text-gray-800">Location</dt>
+            <dd className="text-gray-600">{details.location}</dd>
+          </div>
         )}
         {details.guests && (
-          <p>
-            <strong>Guests:</strong> {details.guests}
-          </p>
+          <div className="flex justify-between">
+            <dt className="font-semibold text-gray-800">Guests</dt>
+            <dd className="text-gray-600">{details.guests}</dd>
+          </div>
         )}
         {details.venueType && (
-          <p>
-            <strong>Venue:</strong> {details.venueType}
-          </p>
+          <div className="flex justify-between">
+            <dt className="font-semibold text-gray-800">Venue</dt>
+            <dd className="text-gray-600">{details.venueType}</dd>
+          </div>
         )}
         {details.notes && (
-          <p>
-            <strong>Notes:</strong> {details.notes}
-          </p>
+          <div className="flex justify-between">
+            <dt className="font-semibold text-gray-800">Notes</dt>
+            <dd className="text-gray-600">{details.notes}</dd>
+          </div>
         )}
-      </div>
-    </div>
+      </dl>
+    </motion.div>
   );
 }
