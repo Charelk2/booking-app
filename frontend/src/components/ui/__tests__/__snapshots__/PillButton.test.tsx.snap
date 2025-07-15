@@ -1,0 +1,21 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`PillButton component matches snapshot for default and selected states 1`] = `
+<button
+  aria-pressed="false"
+  class="h-10 px-4 mx-1 rounded-full font-medium transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-50 focus:ring-offset-default bg-white ring-1 ring-gray-200 text-gray-700 hover:bg-gray-100"
+  type="button"
+>
+  Demo
+</button>
+`;
+
+exports[`PillButton component matches snapshot for default and selected states 2`] = `
+<button
+  aria-pressed="true"
+  class="h-10 px-4 mx-1 rounded-full font-medium transition-colors duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-50 focus:ring-offset-default bg-primary-600 text-white ring-0"
+  type="button"
+>
+  Demo
+</button>
+`;

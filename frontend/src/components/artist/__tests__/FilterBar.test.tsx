@@ -14,14 +14,11 @@ describe('FilterBar component', () => {
       root.render(
         <FilterBar
           categories={categories}
-          category="Band"
           onCategory={() => {}}
           location=""
           onLocation={() => {}}
           sort=""
           onSort={() => {}}
-          verifiedOnly={false}
-          onVerifiedOnly={() => {}}
           filtersActive={false}
         />,
       );
@@ -33,11 +30,15 @@ describe('FilterBar component', () => {
     document.body.innerHTML = '';
   });
 
-  it('renders pill buttons for categories and highlights selected', () => {
+  it('updates selected state when a pill is clicked', () => {
     const { container, root } = renderBar();
     const buttons = container.querySelectorAll('button');
     expect(buttons).toHaveLength(categories.length);
-    expect(buttons[1].getAttribute('aria-pressed')).toBe('true');
+    expect(buttons[0].getAttribute('aria-pressed')).toBe('false');
+    act(() => {
+      buttons[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
     act(() => root.unmount());
     container.remove();
   });

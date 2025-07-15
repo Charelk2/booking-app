@@ -65,40 +65,6 @@ describe('Artists page filters', () => {
     container.remove();
   });
 
-  it('filters to verified artists only', async () => {
-    jest.spyOn(api, 'getArtists').mockResolvedValue({
-      data: [
-        {
-          id: 1,
-          user: { first_name: 'A', last_name: 'B', is_verified: true },
-          business_name: 'Alpha',
-          user_id: 1,
-        } as unknown as ArtistProfile,
-        {
-          id: 2,
-          user: { first_name: 'C', last_name: 'D', is_verified: false },
-          business_name: null,
-          user_id: 2,
-        } as unknown as ArtistProfile,
-      ],
-    });
-    const { container, root } = setup();
-    await act(async () => {
-      root.render(React.createElement(ArtistsPage));
-      await Promise.resolve();
-    });
-    expect(container.textContent).toContain('Alpha');
-    expect(container.textContent).toContain('C D');
-    const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
-    await act(async () => {
-      checkbox.click();
-      await Promise.resolve();
-    });
-    expect(container.textContent).toContain('Alpha');
-    expect(container.textContent).not.toContain('C D');
-    act(() => root.unmount());
-    container.remove();
-  });
 
   it('renders rating and verified badge', async () => {
     jest.spyOn(api, 'getArtists').mockResolvedValue({
@@ -192,13 +158,11 @@ describe('Artists page filters', () => {
     });
     const locationInput = container.querySelector('input[placeholder="Location"]') as HTMLInputElement;
     const sortSelect = container.querySelector('select') as HTMLSelectElement;
-    const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
     await act(async () => {
       locationInput.value = 'NY';
       locationInput.dispatchEvent(new Event('input', { bubbles: true }));
       sortSelect.value = 'newest';
       sortSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      checkbox.click();
       await Promise.resolve();
     });
     const button = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Clear filters') as HTMLButtonElement;
