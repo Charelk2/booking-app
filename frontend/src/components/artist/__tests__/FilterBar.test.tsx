@@ -2,9 +2,12 @@ import { createRoot } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import React from 'react';
 import FilterBar from '../FilterBar';
+import useIsMobile from '@/hooks/useIsMobile';
+
+jest.mock('@/hooks/useIsMobile');
 
 describe('FilterBar component', () => {
-  const categories = ['All', 'Band'];
+  const categories = ['A', 'B', 'C', 'D'];
 
   function renderBar() {
     const container = document.createElement('div');
@@ -30,15 +33,26 @@ describe('FilterBar component', () => {
     document.body.innerHTML = '';
   });
 
-  it('updates selected state when a pill is clicked', () => {
+  it('shows pills and popover on desktop', () => {
+    (useIsMobile as jest.Mock).mockReturnValue(false);
     const { container, root } = renderBar();
-    const buttons = container.querySelectorAll('button');
-    expect(buttons).toHaveLength(categories.length);
-    expect(buttons[0].getAttribute('aria-pressed')).toBe('false');
+    const pills = container.querySelectorAll('button[aria-pressed]');
+    expect(pills).toHaveLength(3);
+    const more = container.querySelector('[data-testid="more-filters"]');
+    expect(more).not.toBeNull();
     act(() => {
-      buttons[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      (more as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    expect(buttons[0].getAttribute('aria-pressed')).toBe('true');
+    expect(container.querySelector('input[type="checkbox"]')).not.toBeNull();
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('shows single Filters button on mobile', () => {
+    (useIsMobile as jest.Mock).mockReturnValue(true);
+    const { container, root } = renderBar();
+    const btn = container.querySelector('button');
+    expect(btn?.textContent).toContain('Filters');
     act(() => root.unmount());
     container.remove();
   });
