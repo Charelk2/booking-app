@@ -12,11 +12,18 @@ module.exports = {
       fontFamily: {
         sans: ['var(--font-sans)'],
       },
+      borderRadius: {
+        xxl: '1.25rem',
+      },
       colors: {
         brand: {
           DEFAULT: 'var(--brand-color)',
           dark: 'var(--brand-color-dark)',
           light: 'var(--brand-color-light)',
+        },
+        wizard: {
+          step: '#6366f1',
+          pending: '#e5e7eb',
         },
         primary: 'var(--color-primary)',
         secondary: 'var(--color-secondary)',
