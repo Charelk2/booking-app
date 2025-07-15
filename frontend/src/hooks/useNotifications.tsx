@@ -16,8 +16,10 @@ import { useAuth } from '@/contexts/AuthContext';
 
 // Use the root API URL and include the /api prefix on each request so
 // paths match the FastAPI router mounted with prefix="/api".
+// All REST requests use the v1 prefix so calls line up with the backend router
+// mounted at /api/v1.
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: `${process.env.NEXT_PUBLIC_API_URL}/api/v1`,
   withCredentials: true,
 });
 
@@ -77,7 +79,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<Notification[]>('/api/notifications', {
+      const res = await api.get<Notification[]>('/notifications', {
         params: { limit: 20, unreadOnly: false },
       });
       setNotifications(res.data);
@@ -102,10 +104,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [fetchNotifications]);
 
-  const wsBase =
+  // Build the WebSocket URL without the REST prefix.
+  const wsHost =
     process.env.NEXT_PUBLIC_WS_URL ||
     process.env.NEXT_PUBLIC_API_URL.replace(/^http/, 'ws');
-  const wsUrl = `${wsBase}/ws/notifications${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  const wsUrl = `${wsHost}/ws/notifications${token ? `?token=${encodeURIComponent(token)}` : ''}`;
 
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
@@ -122,26 +125,19 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
 
-  const markAsRead = useCallback(
-    async (id: string) => {
-      // 1) optimistic update
-      setNotifications((ns) =>
-        ns.map((n) => (n.id === id ? { ...n, read: true } : n)),
-      );
-      setUnreadCount((c) => Math.max(0, c - 1));
-      try {
-        await api.patch(`/api/notifications/${id}`);
-      } catch {
-        // 2) rollback if request fails
-        setNotifications((ns) =>
-          ns.map((n) => (n.id === id ? { ...n, read: false } : n)),
-        );
-        setUnreadCount((c) => c + 1);
-        toast.error('Failed to mark notification read');
-      }
-    },
-    [api],
-  );
+  const markAsRead = useCallback(async (id: string) => {
+    // 1) optimistic update
+    setNotifications((ns) => ns.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setUnreadCount((c) => Math.max(0, c - 1));
+    try {
+      await api.patch(`/notifications/${id}`);
+    } catch {
+      // rollback
+      setNotifications((ns) => ns.map((n) => (n.id === id ? { ...n, read: false } : n)));
+      setUnreadCount((c) => c + 1);
+      toast.error('Failed to mark notification read');
+    }
+  }, [api]);
 
   const markAllAsRead = useCallback(
     async () => {
@@ -150,7 +146,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setNotifications((p) => p.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
       try {
-        await api.patch('/api/notifications/mark-all-read');
+        await api.patch('/notifications/mark-all-read');
       } catch {
         setNotifications(prev);
         setUnreadCount(prevCount);
@@ -162,7 +158,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const deleteNotification = useCallback(async (id: string) => {
     try {
-      await api.delete(`/api/notifications/${id}`);
+      await api.delete(`/notifications/${id}`);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
       setUnreadCount((c) => Math.max(0, c - 1));
     } catch (err) {
@@ -173,7 +169,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const loadMore = useCallback(async () => {
     try {
-      const res = await api.get<Notification[]>('/api/notifications', {
+      const res = await api.get<Notification[]>('/notifications', {
         params: {
           offset: notifications.length,
           limit: 20,

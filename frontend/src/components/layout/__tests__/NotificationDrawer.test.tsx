@@ -119,7 +119,7 @@ describe('NotificationDrawer component', () => {
           markAllRead: jest.fn(),
           loadMore: jest.fn(),
           hasMore: false,
-          error: 'Failed to load',
+          error: new Error('Failed to load'),
         }),
       );
       await Promise.resolve();
