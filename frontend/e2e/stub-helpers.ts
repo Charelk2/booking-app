@@ -34,7 +34,7 @@ export async function stubConfirmEmail(page: Page, status = 200) {
 }
 
 export async function stubNotifications(page: Page) {
-  await page.route('**/api/v1/notifications**', async (route) => {
+  await page.route('**/api/notifications**', async (route) => {
     await route.fulfill({
       status: 200,
       headers: { 'Content-Type': 'application/json' },
