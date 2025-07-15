@@ -1,6 +1,7 @@
 import { Inter } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { NotificationsProvider } from '@/hooks/useNotifications';
 import './globals.css';
 
 const inter = Inter({ 
@@ -23,8 +24,10 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body className="font-sans antialiased">
         <AuthProvider>
-          {children}
-          <Toaster position="top-right" />
+          <NotificationsProvider>
+            {children}
+            <Toaster position="top-right" />
+          </NotificationsProvider>
         </AuthProvider>
       </body>
     </html>
