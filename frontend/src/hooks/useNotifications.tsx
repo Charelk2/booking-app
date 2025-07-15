@@ -15,7 +15,7 @@ import useWebSocket from './useWebSocket';
 import { useAuth } from '@/contexts/AuthContext';
 
 const api = axios.create({
-  baseURL: `${process.env.NEXT_PUBLIC_API_URL}/api/v1`,
+  baseURL: `${process.env.NEXT_PUBLIC_API_URL}/api`,
   withCredentials: true,
 });
 
@@ -116,35 +116,41 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
 
-  const markAsRead = useCallback(async (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-    );
-    setUnreadCount((c) => Math.max(0, c - 1));
-    try {
-      await api.patch(`/notifications/${id}`, { read: true });
-    } catch (err) {
-      console.error('Failed to mark notification read:', err);
-      toast.error('Failed to mark notification read');
+  const markAsRead = useCallback(
+    async (id: string) => {
       setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: false } : n)),
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
       );
-      setUnreadCount((c) => c + 1);
-      setError(err as Error);
-      throw err;
-    }
-  }, []);
+      setUnreadCount((c) => Math.max(0, c - 1));
+      try {
+        await api.patch(`/notifications/${id}`);
+      } catch {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, read: false } : n)),
+        );
+        setUnreadCount((c) => c + 1);
+        toast.error('Failed to mark notification read');
+      }
+    },
+    [api],
+  );
 
-  const markAllAsRead = useCallback(async () => {
-    try {
-      await api.put('/notifications/read-all');
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const markAllAsRead = useCallback(
+    async () => {
+      const prev = notifications;
+      const prevCount = unreadCount;
+      setNotifications((p) => p.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
-    } catch (err) {
-      console.error('Failed to mark all notifications read:', err);
-      setError(err as Error);
-    }
-  }, []);
+      try {
+        await api.patch('/notifications/mark-all-read');
+      } catch {
+        setNotifications(prev);
+        setUnreadCount(prevCount);
+        toast.error('Failed to mark notifications read');
+      }
+    },
+    [api, notifications, unreadCount],
+  );
 
   const deleteNotification = useCallback(async (id: string) => {
     try {

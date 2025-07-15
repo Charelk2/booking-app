@@ -15,7 +15,7 @@ interface NotificationDrawerProps {
   markAllRead: () => Promise<void>;
   loadMore: () => Promise<void>;
   hasMore: boolean;
-  error?: string | null;
+  error?: Error | string | null;
 }
 
 
@@ -107,7 +107,7 @@ export default function NotificationDrawer({
                   </div>
                   {error && (
                     <div className="bg-red-100 text-red-800 text-sm px-4 py-2" data-testid="notification-error">
-                      {error}
+                      {error instanceof Error ? error.message : error}
                     </div>
                   )}
                   <div
