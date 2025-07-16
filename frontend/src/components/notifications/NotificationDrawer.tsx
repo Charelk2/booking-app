@@ -71,7 +71,7 @@ export default function NotificationDrawer({ isOpen, onClose }: Props) {
                 </button>
               </div>
             </header>
-            <div className="flex-1 overflow-y-auto px-4 py-2 space-y-1 pb-20">
+            <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
               {filtered.map((n) => (
                 <NotificationItem
                   key={n.id}
@@ -87,7 +87,7 @@ export default function NotificationDrawer({ isOpen, onClose }: Props) {
                 </AlertBanner>
               )}
             </div>
-            <footer className="sticky bottom-0 flex items-center justify-between p-4 border-t bg-white">
+            <footer className="flex items-center justify-between p-4 border-t bg-white">
               {hasMore && (
                 <button
                   onClick={loadMore}
