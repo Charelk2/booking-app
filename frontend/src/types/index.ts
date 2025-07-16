@@ -257,6 +257,8 @@ export interface Notification {
     | 'new_message'
     | 'new_booking_request'
     | 'booking_status_updated'
+    | 'quote_accepted'
+    | 'new_booking'
     | 'deposit_due'
     | 'review_request';
   message: string;
