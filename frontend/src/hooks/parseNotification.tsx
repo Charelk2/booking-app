@@ -27,6 +27,12 @@ export default function parseNotification(n: Notification): ParsedNotification {
         title: n.sender_name ?? 'New message',
         subtitle: truncate(n.message.replace(/^New message:\s*/i, '').trim()),
       };
+    case 'message_thread_notification':
+      return {
+        icon: <ChatBubbleLeftRightIcon className="w-5 h-5 text-indigo-600" />,
+        title: n.sender_name ?? 'Message thread',
+        subtitle: truncate(n.message),
+      };
     case 'new_booking_request':
       return {
         icon: <CalendarDaysIcon className="w-5 h-5 text-indigo-600" />,
