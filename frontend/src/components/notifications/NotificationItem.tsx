@@ -3,6 +3,8 @@ import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
 import { useEffect, useState } from 'react';
 import type { Notification } from '@/types';
+import { parseItem } from '../layout/NotificationListItem';
+import { toUnifiedFromNotification } from '@/hooks/notificationUtils';
 
 interface Props {
   notification: Notification;
@@ -12,6 +14,7 @@ interface Props {
 
 export default function NotificationItem({ notification, onMarkRead, onDelete }: Props) {
   const [localRead, setLocalRead] = useState(notification.is_read);
+  const parsed = parseItem(toUnifiedFromNotification(notification));
 
   useEffect(() => {
     setLocalRead(notification.is_read);
@@ -36,32 +39,37 @@ export default function NotificationItem({ notification, onMarkRead, onDelete }:
         if (e.key === 'Enter') handleClick();
       }}
       className={clsx(
-        'flex items-start justify-between p-3 rounded-xl transition-colors cursor-pointer',
-        localRead ? 'bg-white border border-transparent' : 'bg-indigo-50 border-l-4 border-indigo-600',
+        'flex items-start gap-3 p-2 border-b cursor-pointer transition-colors',
+        localRead ? 'bg-white' : 'bg-indigo-50',
       )}
     >
+      <div className="h-8 w-8 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center">
+        {parsed.icon}
+      </div>
       <div className="flex-1">
-        <div className="flex items-center justify-between">
-          <h3 className={clsx('font-medium', localRead ? 'text-gray-500' : 'text-gray-800')}>
-            {notification.title}
+        <div className="flex items-start justify-between">
+          <h3
+            className={clsx('text-sm font-medium truncate', localRead ? 'text-gray-500' : 'text-gray-800')}
+            title={parsed.title}
+          >
+            {parsed.title}
           </h3>
-          <span className="text-sm text-gray-400">
+          <span className="text-xs text-gray-400">
             {formatDistanceToNow(new Date(notification.timestamp))} ago
           </span>
         </div>
-        <p className={clsx('mt-1 text-sm', localRead ? 'text-gray-500' : 'text-gray-600')}>
-          {notification.body}
-        </p>
+        <p className="text-xs text-gray-700 truncate">{parsed.subtitle}</p>
+        {parsed.metadata && (
+          <p className="text-xs text-gray-500 truncate">{parsed.metadata}</p>
+        )}
       </div>
-      <div className="ml-4 flex flex-col space-y-2" onClick={(e) => e.stopPropagation()}>
-        <button
-          onClick={() => onDelete(notification.id)}
-          className="text-gray-500 hover:text-gray-700 text-sm"
-          type="button"
-        >
-          Delete
-        </button>
-      </div>
+      <button
+        onClick={() => onDelete(notification.id)}
+        className="ml-2 text-xs text-gray-500 hover:text-gray-700"
+        type="button"
+      >
+        Delete
+      </button>
     </div>
   );
 }
