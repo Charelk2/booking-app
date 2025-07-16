@@ -37,9 +37,39 @@ describe('parseNotification', () => {
     expect(parsed.subtitle).toBe('sent a new booking request for Performance');
   });
 
-  it('defaults for unknown type', () => {
+  it('parses quote accepted', () => {
     const n: Notification = {
       id: 3,
+      user_id: 1,
+      type: 'quote_accepted',
+      message: 'Quote 5 accepted',
+      link: '/quotes/5',
+      is_read: false,
+      timestamp: new Date().toISOString(),
+    } as Notification;
+    const parsed = parseNotification(n);
+    expect(parsed.title).toBe('Quote Accepted');
+    expect(parsed.subtitle).toBe('Quote 5 accepted');
+  });
+
+  it('parses new booking', () => {
+    const n: Notification = {
+      id: 4,
+      user_id: 1,
+      type: 'new_booking',
+      message: 'New booking #10 confirmed',
+      link: '/dashboard/client/bookings/10',
+      is_read: false,
+      timestamp: new Date().toISOString(),
+    } as Notification;
+    const parsed = parseNotification(n);
+    expect(parsed.title).toBe('Booking Confirmed');
+    expect(parsed.subtitle).toBe('New booking #10 confirmed');
+  });
+
+  it('parses review request', () => {
+    const n: Notification = {
+      id: 5,
       user_id: 1,
       type: 'review_request',
       message: 'Please review',
