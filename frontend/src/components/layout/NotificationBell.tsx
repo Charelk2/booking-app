@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation';
 import { BellIcon } from '@heroicons/react/24/outline';
 import dynamic from 'next/dynamic';
 
-const NotificationDrawer = dynamic(() => import('./NotificationDrawer'), {
-  loading: () => <div className="p-4">Loading...</div>,
-  ssr: false,
-});
+const NotificationDrawer = dynamic(
+  () => import('../notifications/NotificationDrawer'),
+  {
+    loading: () => <div className="p-4">Loading...</div>,
+    ssr: false,
+  },
+);
 
 const FullScreenNotificationModal = dynamic(
   () => import('./FullScreenNotificationModal'),
@@ -16,7 +19,7 @@ const FullScreenNotificationModal = dynamic(
 );
 
 function prefetchNotifications() {
-  import('./NotificationDrawer');
+  import('../notifications/NotificationDrawer');
   import('./FullScreenNotificationModal');
 }
 import useIsMobile from '@/hooks/useIsMobile';
@@ -103,16 +106,7 @@ export default function NotificationBell(): JSX.Element {
           error={error}
         />
       ) : (
-        <NotificationDrawer
-          open={open}
-          onClose={() => setOpen(false)}
-          items={items}
-          onItemClick={handleItemClick}
-          markAllRead={markAllRead}
-          loadMore={loadMore}
-          hasMore={hasMore}
-          error={error}
-        />
+        <NotificationDrawer isOpen={open} onClose={() => setOpen(false)} />
       )}
     </div>
   );
