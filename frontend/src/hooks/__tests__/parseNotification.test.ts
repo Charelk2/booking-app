@@ -81,4 +81,20 @@ describe('parseNotification', () => {
     expect(parsed.title).toBe('Review Request');
     expect(parsed.subtitle).toBe('Please review');
   });
+
+  it('parses message thread notification', () => {
+    const n: Notification = {
+      id: 6,
+      user_id: 1,
+      type: 'message_thread_notification',
+      message: 'Last message preview',
+      link: '/messages/2',
+      is_read: false,
+      timestamp: new Date().toISOString(),
+      sender_name: 'Thread with Bob',
+    } as Notification;
+    const parsed = parseNotification(n);
+    expect(parsed.title).toBe('Thread with Bob');
+    expect(parsed.subtitle).toBe('Last message preview');
+  });
 });
