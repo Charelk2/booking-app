@@ -45,7 +45,7 @@ export default function NotificationItem({ notification, onMarkRead, onDelete }:
       }}
       className={clsx(
         'flex items-center gap-3 p-2 border-b cursor-pointer transition-colors',
-        localRead ? 'bg-white' : 'bg-indigo-50 border-l-4 border-indigo-500',
+        localRead ? 'bg-white border-transparent' : 'bg-indigo-50 border-l-4 border-indigo-500',
       )}
     >
       <div className="h-8 w-8 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center">
