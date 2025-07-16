@@ -2,9 +2,9 @@
 import clsx from 'clsx';
 import { formatDistanceToNow } from 'date-fns';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Notification } from '@/types';
-import { parseItem } from '../layout/NotificationListItem';
-import { toUnifiedFromNotification } from '@/hooks/notificationUtils';
+import parseNotification from '@/hooks/parseNotification';
 
 interface Props {
   notification: Notification;
@@ -14,19 +14,24 @@ interface Props {
 
 export default function NotificationItem({ notification, onMarkRead, onDelete }: Props) {
   const [localRead, setLocalRead] = useState(notification.is_read);
-  const parsed = parseItem(toUnifiedFromNotification(notification));
+  const parsed = parseNotification(notification);
+  const router = useRouter();
 
   useEffect(() => {
     setLocalRead(notification.is_read);
   }, [notification.is_read]);
 
   const handleClick = async () => {
-    if (localRead) return;
-    setLocalRead(true);
-    try {
-      await onMarkRead(notification.id);
-    } catch {
-      setLocalRead(false);
+    if (!localRead) {
+      setLocalRead(true);
+      try {
+        await onMarkRead(notification.id);
+      } catch {
+        setLocalRead(false);
+      }
+    }
+    if (notification.link) {
+      router.push(notification.link);
     }
   };
 
@@ -59,9 +64,6 @@ export default function NotificationItem({ notification, onMarkRead, onDelete }:
           </span>
         </div>
         <p className="text-xs text-gray-700 truncate">{parsed.subtitle}</p>
-        {parsed.metadata && (
-          <p className="text-xs text-gray-500 truncate">{parsed.metadata}</p>
-        )}
       </div>
       <button
         onClick={() => onDelete(notification.id)}
