@@ -44,15 +44,15 @@ export default function NotificationItem({ notification, onMarkRead, onDelete }:
         if (e.key === 'Enter') handleClick();
       }}
       className={clsx(
-        'flex items-start gap-3 p-2 border-b border-l-4 cursor-pointer transition-colors',
-        localRead ? 'bg-white border-transparent' : 'bg-indigo-50 border-indigo-500',
+        'flex items-center gap-3 p-2 border-b cursor-pointer transition-colors',
+        localRead ? 'bg-white' : 'bg-indigo-50 border-l-4 border-indigo-500',
       )}
     >
       <div className="h-8 w-8 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center">
         {parsed.icon}
       </div>
       <div className="flex-1">
-        <div className="flex items-start justify-between">
+      <div className="flex items-center justify-between">
           <h3
             className={clsx('text-sm font-medium truncate', localRead ? 'text-gray-500' : 'text-gray-800')}
             title={parsed.title}
