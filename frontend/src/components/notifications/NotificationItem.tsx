@@ -4,7 +4,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Notification } from '@/types';
-import parseNotification from '@/hooks/parseNotification.tsx';
+import { TrashIcon } from '@heroicons/react/24/outline';
+import parseNotification from '@/hooks/parseNotification';
 
 interface Props {
   notification: Notification;
@@ -44,38 +45,30 @@ export default function NotificationItem({ notification, onMarkRead, onDelete }:
         if (e.key === 'Enter') handleClick();
       }}
       className={clsx(
-        'flex items-center gap-3 p-2 border-b cursor-pointer transition-colors',
-        localRead ? 'bg-white border-transparent' : 'bg-indigo-50 border-l-4 border-indigo-500',
+        'flex items-center gap-3 p-3 rounded-lg transition-shadow cursor-pointer',
+        localRead
+          ? 'bg-white/80 shadow-sm'
+          : 'bg-indigo-50/70 border-l-4 border-indigo-500 shadow-md hover:shadow-lg',
       )}
     >
-      <div className="h-8 w-8 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center">
+      <div className="h-10 w-10 rounded-full flex items-center justify-center bg-indigo-100">
         {parsed.icon}
       </div>
       <div className="flex-1">
-        <h3
-          className={clsx(
-            'text-sm font-medium truncate',
-            localRead ? 'text-gray-500' : 'text-gray-800',
-          )}
-          title={parsed.title}
-        >
-          {parsed.title}
-        </h3>
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs text-gray-700 truncate" title={parsed.subtitle}>
-            {parsed.subtitle}
-          </p>
-          <span className="text-xs text-gray-400 flex-shrink-0">
+        <div className="flex justify-between items-center">
+          <h3 className="text-sm font-semibold truncate">{parsed.title}</h3>
+          <span className="text-xs text-gray-400">
             {formatDistanceToNow(new Date(notification.timestamp))} ago
           </span>
         </div>
+        <p className="mt-1 text-xs text-gray-700 truncate">{parsed.subtitle}</p>
       </div>
       <button
         onClick={() => onDelete(notification.id)}
-        className="ml-2 text-xs text-gray-500 hover:text-gray-700"
+        className="ml-2 text-gray-500 hover:text-gray-700"
         type="button"
       >
-        Delete
+        <TrashIcon className="w-4 h-4" />
       </button>
     </div>
   );
