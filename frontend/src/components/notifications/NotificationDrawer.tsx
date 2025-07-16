@@ -2,7 +2,6 @@
 import { Dialog } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
-import Link from 'next/link';
 import { useState } from 'react';
 import useNotifications from '@/hooks/useNotifications';
 import NotificationItem from './NotificationItem';
