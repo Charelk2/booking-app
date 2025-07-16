@@ -141,7 +141,15 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     };
   }
   const defaultTitle = content.length > 36 ? `${content.slice(0, 36)}...` : content;
-  return { title: defaultTitle || 'Notification', subtitle: '', icon: '🔔' };
+  const typeTitle = n.type
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+  return {
+    title: defaultTitle || typeTitle || 'Notification',
+    subtitle: '',
+    icon: '🔔',
+  };
 }
 
 interface NotificationListItemProps {
