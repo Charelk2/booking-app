@@ -39,16 +39,21 @@ export default function NotificationDrawer({ isOpen, onClose }: Props) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <Dialog open={isOpen} onClose={onClose} className="fixed inset-0 z-50">
-          <div className="fixed inset-0 bg-black bg-opacity-30" />
-          <motion.div
+        <Dialog
+          open={isOpen}
+          onClose={onClose}
+          className="fixed inset-0 z-50 flex justify-end"
+        >
+          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-30" />
+          <Dialog.Panel
+            as={motion.div}
             initial={{ x: 300 }}
             animate={{ x: 0 }}
             exit={{ x: 300 }}
             transition={{ type: 'tween' }}
-            className="fixed right-0 top-0 h-full w-80 bg-white/60 backdrop-blur-lg rounded-l-2xl shadow-lg flex flex-col"
+            className="h-full w-80 bg-white/60 backdrop-blur-md rounded-l-2xl shadow-md flex flex-col"
           >
-            <header className="flex items-center border-b bg-white/60 backdrop-blur-lg px-4 py-3">
+            <header className="flex items-center border-b bg-white/60 backdrop-blur-md px-4 py-3">
               <h2 className="flex-1 text-lg font-bold">Notifications</h2>
               <div className="flex-1 flex justify-center items-center gap-4">
                 <label className="flex items-center gap-1">
@@ -85,7 +90,7 @@ export default function NotificationDrawer({ isOpen, onClose }: Props) {
               {loading && <Spinner />}
               {error && <AlertBanner variant="error">{error?.message}</AlertBanner>}
             </div>
-            <footer className="sticky bottom-0 bg-white/60 backdrop-blur-lg p-4 border-t flex justify-between">
+            <footer className="sticky bottom-0 bg-white/60 backdrop-blur-md p-4 border-t flex justify-between">
               {hasMore && (
                 <button onClick={loadMore} className="text-sm hover:underline" type="button">
                   Load more
@@ -95,7 +100,7 @@ export default function NotificationDrawer({ isOpen, onClose }: Props) {
                 Clear All
               </button>
             </footer>
-          </motion.div>
+          </Dialog.Panel>
         </Dialog>
       )}
     </AnimatePresence>

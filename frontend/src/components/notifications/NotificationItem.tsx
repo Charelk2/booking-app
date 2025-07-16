@@ -47,8 +47,8 @@ export default function NotificationItem({ notification, onMarkRead, onDelete }:
       className={clsx(
         'flex items-center gap-3 p-3 rounded-lg transition-shadow cursor-pointer',
         localRead
-          ? 'bg-white/80 shadow-sm'
-          : 'bg-indigo-50/70 border-l-4 border-indigo-500 shadow-md hover:shadow-lg',
+          ? 'bg-white/80 shadow hover:shadow-md'
+          : 'bg-indigo-50/70 border-l-4 border-indigo-500 shadow hover:shadow-md',
       )}
     >
       <div className="h-10 w-10 rounded-full flex items-center justify-center bg-indigo-100">
