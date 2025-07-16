@@ -665,6 +665,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
   retrieved via `GET /api/v1/quotes/{id}` so clients can load booking details.
 * `POST /api/v1/quotes/{id}/accept` accepts an optional `service_id` query
   parameter when the related booking request was created without one.
+  The response now returns the newly created `BookingSimple` so the frontend
+  can immediately fetch full booking details using the returned `id`.
 * If the booking request is for a **Live Performance** and lacks a
   `proposed_datetime_1`, the accept endpoint returns `422` with the message
   "Booking request is missing a proposed date/time." Other service types can be

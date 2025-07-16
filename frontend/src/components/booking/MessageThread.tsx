@@ -325,8 +325,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const handleAcceptQuote = useCallback(
     async (q: QuoteV2) => {
       setAcceptingQuoteId(q.id);
+      let bookingId: number | undefined;
       try {
-        await acceptQuoteV2(q.id, serviceId);
+        const acceptRes = await acceptQuoteV2(q.id, serviceId);
+        bookingId = acceptRes.data.id;
       } catch (err) {
         console.error('acceptQuoteV2 failed', err);
         setErrorMsg((err as Error).message);
@@ -337,7 +339,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         const fresh = await getQuoteV2(q.id);
         setQuotes((prev) => ({ ...prev, [q.id]: fresh.data }));
         setBookingConfirmed(true);
-        const details = await getBookingDetails(fresh.data.booking_id);
+        const details = await getBookingDetails(bookingId || fresh.data.booking_id);
         setBookingDetails(details.data);
         openPaymentModal({
           bookingRequestId,
