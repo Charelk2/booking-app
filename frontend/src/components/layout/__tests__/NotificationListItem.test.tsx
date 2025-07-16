@@ -108,7 +108,7 @@ describe('NotificationListItem', () => {
       is_read: false,
     } as UnifiedNotification;
     const parsed = parseItem(n);
-    expect(parsed.title).toBe('Notification');
+    expect(parsed.title).toBe('Deposit Due');
     expect(parsed.subtitle).toBe('');
   });
 });
