@@ -4,7 +4,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Notification } from '@/types';
-import parseNotification from '@/hooks/parseNotification';
+import parseNotification from '@/hooks/parseNotification.tsx';
 
 interface Props {
   notification: Notification;
