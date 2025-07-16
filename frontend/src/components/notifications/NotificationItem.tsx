@@ -52,18 +52,23 @@ export default function NotificationItem({ notification, onMarkRead, onDelete }:
         {parsed.icon}
       </div>
       <div className="flex-1">
-      <div className="flex items-center justify-between">
-          <h3
-            className={clsx('text-sm font-medium truncate', localRead ? 'text-gray-500' : 'text-gray-800')}
-            title={parsed.title}
-          >
-            {parsed.title}
-          </h3>
-          <span className="text-xs text-gray-400">
+        <h3
+          className={clsx(
+            'text-sm font-medium truncate',
+            localRead ? 'text-gray-500' : 'text-gray-800',
+          )}
+          title={parsed.title}
+        >
+          {parsed.title}
+        </h3>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-gray-700 truncate" title={parsed.subtitle}>
+            {parsed.subtitle}
+          </p>
+          <span className="text-xs text-gray-400 flex-shrink-0">
             {formatDistanceToNow(new Date(notification.timestamp))} ago
           </span>
         </div>
-        <p className="text-xs text-gray-700 truncate">{parsed.subtitle}</p>
       </div>
       <button
         onClick={() => onDelete(notification.id)}
