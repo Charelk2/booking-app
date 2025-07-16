@@ -613,9 +613,11 @@ it('opens payment modal after accepting quote', async () => {
         updated_at: '',
       },
     });
-    (api.acceptQuoteV2 as jest.Mock).mockImplementation(() => new Promise((res) => {
-      resolveAccept = () => res({ data: {} });
-    }));
+    (api.acceptQuoteV2 as jest.Mock).mockImplementation(() =>
+      new Promise((res) => {
+        resolveAccept = () => res({ data: { id: 42 } });
+      }),
+    );
 
     await act(async () => {
       root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
@@ -638,6 +640,7 @@ it('opens payment modal after accepting quote', async () => {
     await act(async () => {
       await Promise.resolve();
     });
+    expect(api.getBookingDetails).toHaveBeenCalledWith(42);
     const modalHeading = container.querySelector('h2');
     expect(modalHeading?.textContent).toContain('Pay Deposit');
     const banner = container.querySelector('[data-testid="booking-confirmed-banner"]');
