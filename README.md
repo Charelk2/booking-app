@@ -758,7 +758,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * New `useNotifications` context fetches `/api/v1/notifications` with auth and listens on `/api/v1/ws/notifications?token=...` for real-time updates. Notifications are reloaded every 30&nbsp;seconds via a shared Axios instance. The drawer components live under `components/notifications/`.
 * Wrap the root layout in `<NotificationsProvider>` so badges and drawers update automatically across the app.
 * A new `parseNotification` utility maps each notification type to a friendly title, subtitle and icon. `<NotificationItem>` consumes this data and opens the related link while marking the item read.
-* The drawer footer now keeps a **Load more** button visible whenever additional notifications are available.
+* Unread notifications now have a colored left border so they stand out in the drawer.
+* The drawer footer keeps a **Load more** button visible whenever additional notifications are available.
 
 ### Artist Profile Enhancements
 
