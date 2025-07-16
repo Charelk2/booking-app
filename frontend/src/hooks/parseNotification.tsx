@@ -1,4 +1,10 @@
-import { ChatBubbleLeftRightIcon, CalendarDaysIcon, CheckCircleIcon, CurrencyDollarIcon, BellAlertIcon } from '@heroicons/react/24/outline';
+import {
+  ChatBubbleLeftRightIcon,
+  CalendarDaysIcon,
+  CheckCircleIcon,
+  CurrencyDollarIcon,
+  BellAlertIcon,
+} from '@heroicons/react/24/outline';
 import type { Notification } from '@/types';
 import React from 'react';
 
@@ -43,6 +49,18 @@ export default function parseNotification(n: Notification): ParsedNotification {
         title: 'Deposit Due',
         subtitle: truncate(n.message),
       };
+    case 'quote_accepted':
+      return {
+        icon: <CheckCircleIcon className="w-5 h-5 text-indigo-600" />,
+        title: 'Quote Accepted',
+        subtitle: truncate(n.message),
+      };
+    case 'new_booking':
+      return {
+        icon: <CheckCircleIcon className="w-5 h-5 text-indigo-600" />,
+        title: 'Booking Confirmed',
+        subtitle: truncate(n.message),
+      };
     case 'review_request':
       return {
         icon: <BellAlertIcon className="w-5 h-5 text-indigo-600" />,
@@ -52,8 +70,12 @@ export default function parseNotification(n: Notification): ParsedNotification {
     default:
       return {
         icon: <BellAlertIcon className="w-5 h-5 text-indigo-600" />,
-        title: truncate(n.message || 'Notification'),
-        subtitle: '',
+        title:
+          n.type
+            .split('_')
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ') || 'Notification',
+        subtitle: truncate(n.message),
       };
   }
 }
