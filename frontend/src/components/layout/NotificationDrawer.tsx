@@ -61,7 +61,7 @@ export default function NotificationDrawer({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity" />
+          <div className="fixed inset-0 bg-gray-900/50 transition-opacity" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-hidden">
@@ -76,34 +76,36 @@ export default function NotificationDrawer({
                 leaveFrom="translate-x-0"
                 leaveTo="translate-x-full"
               >
-                <Dialog.Panel className="pointer-events-auto w-screen max-w-sm bg-background shadow-xl flex flex-col">
-                  <div className="sticky top-0 z-20 flex items-center justify-between bg-background px-4 py-3 border-b border-gray-200">
-                    <Dialog.Title className="text-lg font-medium text-gray-900">Notifications</Dialog.Title>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowUnread((prev) => !prev)}
-                        className="text-sm text-gray-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                        data-testid="toggle-unread"
-                      >
-                        {showUnread ? 'Show All' : 'Unread Only'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={markAllRead}
-                        className="text-sm text-brand-dark hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                      >
-                        Mark All as Read
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-md text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                        onClick={onClose}
-                      >
-                        <span className="sr-only">Close panel</span>
-                        <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-                      </button>
-                    </div>
+                <Dialog.Panel
+                  className="pointer-events-auto w-screen max-w-sm sm:max-w-md rounded-l-2xl bg-white/60 backdrop-blur-md ring-1 ring-black/10 shadow-2xl flex flex-col"
+                >
+                  <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 backdrop-blur-md bg-white/60 border-b border-black/10">
+                    <Dialog.Title className="text-lg font-semibold text-gray-900">Notifications</Dialog.Title>
+                    <button
+                      type="button"
+                      className="rounded-md text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      onClick={onClose}
+                    >
+                      <span className="sr-only">Close panel</span>
+                      <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="sticky top-[48px] z-10 flex items-center justify-center gap-2 px-4 py-2 backdrop-blur-md bg-white/60 border-b border-black/10">
+                    <button
+                      type="button"
+                      onClick={() => setShowUnread((prev) => !prev)}
+                      className="text-sm text-gray-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      data-testid="toggle-unread"
+                    >
+                      {showUnread ? 'Show All' : 'Unread Only'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={markAllRead}
+                      className="text-sm text-brand-dark hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    >
+                      Mark All as Read
+                    </button>
                   </div>
                   {error && (
                     <div className="bg-red-100 text-red-800 text-sm px-4 py-2" data-testid="notification-error">
@@ -120,39 +122,44 @@ export default function NotificationDrawer({
                     ) : (
                       <List
                         height={listHeight}
-                        itemCount={filtered.length + (hasMore ? 1 : 0)}
+                        itemCount={filtered.length}
                         itemSize={84}
                         width="100%"
                         overscanCount={3}
                       >
                         {({ index, style }: ListChildComponentProps) => {
-                          if (index < filtered.length) {
-                            const n = filtered[index];
-                            return (
-                              <div style={style}>
-                                <NotificationListItem
-                                  n={n}
-                                  onClick={() =>
-                                    onItemClick(n.id || (n.booking_request_id as number))
-                                  }
-                                />
-                              </div>
-                            );
-                          }
+                          const n = filtered[index];
                           return (
-                            <div style={style} className="px-4 py-2 border-t border-gray-200 text-center">
-                              <button
-                                type="button"
-                                aria-label="Load more notifications"
-                                onClick={loadMore}
-                                className="text-sm text-brand-dark hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                              >
-                                Load more
-                              </button>
+                            <div style={style}>
+                              <NotificationListItem
+                                n={n}
+                                onClick={() =>
+                                  onItemClick(n.id || (n.booking_request_id as number))
+                                }
+                              />
                             </div>
                           );
                         }}
                       </List>
+                    )}
+                  </div>
+                  <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 px-4 py-3 backdrop-blur-md bg-white/60 border-t border-black/10">
+                    <button
+                      type="button"
+                      onClick={markAllRead}
+                      className="rounded-full bg-brand-light px-3 py-1 text-sm font-medium text-brand-dark shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    >
+                      Clear All
+                    </button>
+                    {hasMore && (
+                      <button
+                        type="button"
+                        aria-label="Load more notifications"
+                        onClick={loadMore}
+                        className="text-sm text-brand-dark hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      >
+                        Load more
+                      </button>
                     )}
                   </div>
                 </Dialog.Panel>
