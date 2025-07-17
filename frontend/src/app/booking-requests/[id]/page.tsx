@@ -83,7 +83,7 @@ export default function BookingRequestDetailPage() {
     <MainLayout>
       <div className="max-w-3xl mx-auto p-4 space-y-4">
         <h1 className="text-xl font-semibold">
-          Chat with {artistName || request.artist?.user?.first_name}
+          Chat with {artistName || request.artist?.first_name}
         </h1>
         <div className="space-y-1 text-sm text-gray-700">
           {request.client && (
@@ -108,7 +108,7 @@ export default function BookingRequestDetailPage() {
           <PersonalizedVideoFlow
             bookingRequestId={request.id}
             clientName={request.client?.first_name}
-            artistName={artistName || request.artist?.user?.first_name}
+            artistName={artistName || request.artist?.first_name}
             artistAvatarUrl={artistAvatar}
           />
         ) : (
@@ -116,7 +116,7 @@ export default function BookingRequestDetailPage() {
           bookingRequestId={request.id}
           serviceId={request.service_id ?? undefined}
           clientName={request.client?.first_name}
-          artistName={artistName || request.artist?.user?.first_name}
+          artistName={artistName || request.artist?.first_name}
           artistAvatarUrl={artistAvatar}
           serviceName={request.service?.title}
           initialNotes={request.message ?? null}
