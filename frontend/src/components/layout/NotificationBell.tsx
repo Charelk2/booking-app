@@ -89,8 +89,9 @@ export default function NotificationBell(): JSX.Element {
         <span className="sr-only">View notifications</span>
         <BellIcon className="h-6 w-6" aria-hidden="true" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1 py-0.5 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
-            {unreadCount}
+          <span className="absolute -top-1.5 -right-1.5 flex h-3 w-3">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-600" />
           </span>
         )}
       </button>

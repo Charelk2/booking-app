@@ -23,12 +23,11 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
   if (n.type === 'message') {
     const cleaned = content.replace(/^New message:\s*/i, '').trim();
     const snippet = cleaned.length > 30 ? `${cleaned.slice(0, 30)}...` : cleaned;
-    const titleRaw = n.name || '';
-    const title = titleRaw.length > 36 ? `${titleRaw.slice(0, 36)}...` : titleRaw;
+    const title = n.name || 'Message';
     const unreadCount = Number(n.unread_count) || 0;
     return {
       title,
-      subtitle: `Last message: "${snippet}"`,
+      subtitle: snippet,
       icon: '💬',
       avatarUrl: n.avatar_url || undefined,
       initials: n.name
@@ -41,7 +40,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     };
   }
   if (n.type === 'new_booking_request') {
-    const sender = n.sender_name || '';
+    const sender = n.sender_name || n.name || '';
     const btype = n.booking_type || '';
     const iconMap: Record<string, string> = {
       video: '🎥',
@@ -60,11 +59,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
         .toLowerCase()
         .replace(/\b\w/g, (c) => c.toUpperCase());
     }
-    const subtitleBase = formattedType
-      ? `sent a new booking request for ${formattedType}`
-      : 'sent a new booking request';
-    const subtitle =
-      subtitleBase.length > 36 ? `${subtitleBase.slice(0, 36)}...` : subtitleBase;
+    const subtitle = formattedType || 'Booking Request';
     const locMatch = content.match(/Location:\s*(.+)/i);
     const dateMatch = content.match(/Date:\s*(.+)/i);
     let metadata: string | undefined;
@@ -79,12 +74,18 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       }
       metadata = parts.join(' \u2014 '); // —
     }
-    const titleRaw = sender || 'New booking request';
-    const title = titleRaw.length > 36 ? `${titleRaw.slice(0, 36)}...` : titleRaw;
+    const title = sender || 'New booking request';
     return {
       title,
       subtitle,
       icon,
+      avatarUrl: n.avatar_url || undefined,
+      initials: sender
+        ? sender
+            .split(' ')
+            .map((w) => w[0])
+            .join('')
+        : undefined,
       bookingType: formattedType,
       metadata,
     };
@@ -127,14 +128,22 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     };
   }
   if (/quote accepted/i.test(content)) {
-    const match = content.match(/Quote accepted by (.+)/i);
-    const rawTitle = match ? `Quote accepted by ${match[1]}` : 'Quote accepted';
-    const title = rawTitle.length > 36 ? `${rawTitle.slice(0, 36)}...` : rawTitle;
-    const subtitle = content.length > 30 ? `${content.slice(0, 30)}...` : content;
+    const name =
+      n.sender_name || n.name || content.match(/Quote accepted by (.+)/i)?.[1];
+    const title = name ? `Quote accepted by ${name}` : 'Quote accepted';
+    const subtitle =
+      content.length > 30 ? `${content.slice(0, 30)}...` : content;
     return {
       title,
       subtitle,
       icon: '✅',
+      avatarUrl: n.avatar_url || undefined,
+      initials: name
+        ? name
+            .split(' ')
+            .map((w) => w[0])
+            .join('')
+        : undefined,
     };
   }
   const defaultTitle = content.length > 36 ? `${content.slice(0, 36)}...` : content;
@@ -178,8 +187,8 @@ export default function NotificationListItem({ n, onClick, style, className = ''
       <Avatar src={parsed.avatarUrl} initials={parsed.initials} icon={parsed.icon} size={44} />
       <div className="flex-1 mx-3">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2 truncate">
-            <span className="font-semibold text-gray-900 truncate" title={parsed.title}>{parsed.title}</span>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-gray-900 line-clamp-2" title={parsed.title}>{parsed.title}</span>
             {parsed.unreadCount > 0 && (
               <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full">
                 {parsed.unreadCount > 99 ? '99+' : parsed.unreadCount}
@@ -188,7 +197,7 @@ export default function NotificationListItem({ n, onClick, style, className = ''
           </div>
           <TimeAgo timestamp={n.timestamp} className="text-xs text-gray-500" />
         </div>
-        <p className="mt-1 text-sm text-gray-700 truncate">{parsed.subtitle}</p>
+        <p className="mt-1 text-sm text-gray-700 line-clamp-2">{parsed.subtitle}</p>
         {parsed.metadata && (
           <p className="text-sm text-gray-500 truncate">{parsed.metadata}</p>
         )}
