@@ -1,12 +1,31 @@
 'use client';
 import { useState } from 'react';
 import { BellIcon } from '@heroicons/react/24/outline';
-import NotificationDrawer from './notifications/NotificationDrawer';
+import NotificationDrawer from './layout/NotificationDrawer';
 import useNotifications, { NotificationsProvider } from '@/hooks/useNotifications';
 
 export default function NavBar() {
   const [open, setOpen] = useState(false);
-  const { unreadCount } = useNotifications();
+  const {
+    items,
+    unreadCount,
+    markItem,
+    markAll,
+    loadMore,
+    hasMore,
+    error,
+  } = useNotifications();
+  const handleItemClick = async (itemId: number) => {
+    const item = items.find((i) => (i.id || i.booking_request_id) === itemId);
+    if (!item) return;
+    if (!item.is_read) {
+      await markItem(item);
+    }
+    setOpen(false);
+  };
+  const markAllRead = async () => {
+    await markAll();
+  };
   const toggleDrawer = () => setOpen((v) => !v);
 
   return (
@@ -22,7 +41,16 @@ export default function NavBar() {
           )}
         </button>
       </div>
-      <NotificationDrawer isOpen={open} onClose={toggleDrawer} />
+      <NotificationDrawer
+        open={open}
+        onClose={toggleDrawer}
+        items={items}
+        onItemClick={handleItemClick}
+        markAllRead={markAllRead}
+        loadMore={loadMore}
+        hasMore={hasMore}
+        error={error}
+      />
     </nav>
   );
 }
