@@ -51,7 +51,7 @@ export default function NotificationDrawer({ isOpen, onClose }: Props) {
             animate={{ x: 0 }}
             exit={{ x: 300 }}
             transition={{ type: 'tween' }}
-            className="h-full w-80 bg-white/50 backdrop-blur-lg rounded-l-2xl shadow-lg border border-white/20 flex flex-col"
+            className="h-full w-96 bg-white/50 backdrop-blur-lg rounded-l-2xl shadow-lg border border-white/20 flex flex-col"
           >
             <header className="flex items-center justify-between px-4 py-3 border-b border-white/20 bg-white/50 backdrop-blur-lg">
               <h2 className="text-lg font-bold">Notifications</h2>
