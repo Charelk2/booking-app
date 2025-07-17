@@ -43,6 +43,11 @@ describe('NotificationListItem', () => {
     expect(span?.getAttribute('title')).toBe('Alice');
   });
 
+  it('parses message preview from content', () => {
+    const parsed = parseItem(baseNotification);
+    expect(parsed.subtitle).toBe('Hi');
+  });
+
   it('parses deposit due notifications', () => {
     const n: UnifiedNotification = {
       type: 'deposit_due',
@@ -138,5 +143,17 @@ describe('NotificationListItem', () => {
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Quote accepted by Bob Builder');
     expect(parsed.initials).toBe('BB');
+  });
+
+  it('falls back to type when content lacks quote text', () => {
+    const n: UnifiedNotification = {
+      type: 'quote_accepted',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: '',
+      sender_name: 'Sam Client',
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.title).toBe('Quote accepted by Sam Client');
   });
 });

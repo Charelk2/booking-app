@@ -23,7 +23,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
   if (n.type === 'message') {
     const cleaned = content.replace(/^New message:\s*/i, '').trim();
     const snippet = cleaned.length > 30 ? `${cleaned.slice(0, 30)}...` : cleaned;
-    const title = n.name || 'Message';
+    const title = n.name || n.sender_name || 'Message';
     const unreadCount = Number(n.unread_count) || 0;
     return {
       title,
@@ -59,7 +59,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
         .toLowerCase()
         .replace(/\b\w/g, (c) => c.toUpperCase());
     }
-    const subtitle = formattedType || 'Booking Request';
+    const subtitle = formattedType;
     const locMatch = content.match(/Location:\s*(.+)/i);
     const dateMatch = content.match(/Date:\s*(.+)/i);
     let metadata: string | undefined;
@@ -127,7 +127,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       icon: '📅',
     };
   }
-  if (/quote accepted/i.test(content)) {
+  if (n.type === 'quote_accepted' || /quote accepted/i.test(content)) {
     const name =
       n.sender_name || n.name || content.match(/Quote accepted by (.+)/i)?.[1];
     const title = name ? `Quote accepted by ${name}` : 'Quote accepted';
