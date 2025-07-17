@@ -12,7 +12,7 @@ import {
   getBookingRequestsForArtist,
 } from '@/lib/api';
 import { formatStatus } from '@/lib/utils';
-import type { BookingRequest } from '@/types';
+import type { BookingRequest, ThreadNotification } from '@/types';
 
 export default function BookingRequestsPage() {
   const { user } = useAuth();
@@ -51,10 +51,12 @@ export default function BookingRequestsPage() {
   const unreadCounts = useMemo(() => {
     const map: Record<number, number> = {};
     items.forEach((n) => {
-      if (n.type === 'message' && n.booking_request_id) {
-        const count = n.unread_count ?? 0;
+      const thread = n as unknown as ThreadNotification;
+      const brId = thread.booking_request_id;
+      if (n.type === 'new_message' && brId) {
+        const count = thread.unread_count ?? 0;
         if (count > 0) {
-          map[n.booking_request_id] = (map[n.booking_request_id] || 0) + count;
+          map[brId] = (map[brId] || 0) + count;
         }
       }
       if (n.type === 'new_booking_request' && !n.is_read) {
@@ -109,8 +111,9 @@ export default function BookingRequestsPage() {
 
   const handleRowClick = async (id: number) => {
     const related = items.filter((n) => {
-      if (n.type === 'message' && n.booking_request_id === id) {
-        return (n.unread_count ?? 0) > 0;
+      const thread = n as unknown as ThreadNotification;
+      if (n.type === 'new_message' && thread.booking_request_id === id) {
+        return (thread.unread_count ?? 0) > 0;
       }
       if (n.type === 'new_booking_request' && !n.is_read) {
         const match = n.link?.match(/booking-requests\/(\d+)/);
@@ -167,7 +170,7 @@ export default function BookingRequestsPage() {
                 className="border rounded-md p-1 text-sm"
               >
                 <option value="">All Services</option>
-                {[...new Set(requests.map((r) => r.service?.service_type))]
+                {Array.from(new Set(requests.map((r) => r.service?.service_type)))
                   .filter(Boolean)
                   .map((s) => (
                     <option key={s as string} value={s as string}>
