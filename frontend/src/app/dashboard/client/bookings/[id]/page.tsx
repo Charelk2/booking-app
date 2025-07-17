@@ -103,7 +103,7 @@ export default function BookingDetailsPage() {
         {booking.deposit_amount !== undefined && (
           <p className="text-sm text-gray-700">
             Deposit: {formatCurrency(Number(booking.deposit_amount || 0))} (
-            {formatStatus(booking.payment_status)})
+            {formatStatus(booking.payment_status || '')})
           </p>
         )}
         {booking.payment_status === "pending" && booking.deposit_due_by && (
@@ -174,7 +174,7 @@ export default function BookingDetailsPage() {
         open={showPayment}
         onClose={() => setShowPayment(false)}
         bookingRequestId={booking.booking_request_id as number}
-        depositAmount={booking.deposit_amount}
+        depositAmount={booking.deposit_amount ?? undefined}
         depositDueBy={booking.deposit_due_by ?? undefined}
         onSuccess={({ paymentId }) => {
           setBooking({

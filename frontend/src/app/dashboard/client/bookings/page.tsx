@@ -67,7 +67,7 @@ function BookingList({
             status={formatStatus(b.status)}
             deposit={
               b.deposit_amount !== undefined
-                ? `Deposit: ${formatCurrency(Number(b.deposit_amount || 0))} (${formatStatus(b.payment_status)})`
+                ? `Deposit: ${formatCurrency(Number(b.deposit_amount || 0))} (${formatStatus(b.payment_status || '')})`
                 : undefined
             }
             price={formatCurrency(Number(b.total_price))}
@@ -216,7 +216,7 @@ export default function ClientBookingsPage() {
       const res = await getBookingDetails(id);
       setPaymentBookingId(id);
       openPaymentModal({
-        bookingRequestId: res.data.booking_request_id,
+        bookingRequestId: res.data.booking_request_id ?? 0,
         depositAmount: res.data.deposit_amount || undefined,
         depositDueBy: res.data.deposit_due_by ?? undefined,
       });
