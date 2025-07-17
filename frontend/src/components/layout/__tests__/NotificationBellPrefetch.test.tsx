@@ -11,7 +11,7 @@ jest.mock('@/hooks/useIsMobile');
 /* eslint-disable @typescript-eslint/no-var-requires */
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-jest.mock('../../notifications/NotificationDrawer', () => {
+jest.mock('../NotificationDrawer', () => {
   const React = require('react');
   return {
     __esModule: true,
