@@ -46,8 +46,6 @@ describe('Notification virtualization', () => {
         React.createElement(NotificationDrawer, {
           ...baseProps,
           items,
-          loadMore: jest.fn(),
-          hasMore: false,
         }),
       );
     });
@@ -55,23 +53,7 @@ describe('Notification virtualization', () => {
       await Promise.resolve();
     });
     const list = document.querySelector('[data-testid="notification-list"]') as HTMLElement;
-    expect(list.querySelectorAll('button').length).toBeLessThan(items.length);
-    const loadMore = jest.fn();
-    await act(async () => {
-      root.render(
-        React.createElement(NotificationDrawer, {
-          ...baseProps,
-          items,
-          loadMore,
-          hasMore: true,
-        }),
-      );
-    });
-    const btn = document.querySelector('button[aria-label="Load more notifications"]') as HTMLButtonElement | null;
-    btn?.click();
-    if (btn) {
-      expect(loadMore).toHaveBeenCalled();
-    }
+    expect(list.querySelectorAll('div[style]').length).toBeLessThan(items.length);
   });
 
   it('virtualizes FullScreenNotificationModal list', async () => {

@@ -113,8 +113,6 @@ export default function NotificationBell(): JSX.Element {
           items={items}
           onItemClick={handleItemClick}
           markAllRead={markAllRead}
-          loadMore={loadMore}
-          hasMore={hasMore}
           error={error}
         />
       )}
