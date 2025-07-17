@@ -749,7 +749,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Booking details messages appear in chat threads inside a collapsible section with a **Show details** button that toggles to **Hide details** when expanded. Small chevron icons indicate the state.
 * Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews. Titles are limited to 36 characters and subtitles to 30 so long names don't wrap.
 * The drawer now opens as a rounded panel with a dark backdrop. Badges disappear when the unread count is 0. Adjust the badge styles in `frontend/src/components/layout/NotificationListItem.tsx`.
-* Drawer panel uses a frosted-glass style with a stronger blur, drop shadow and subtle border for better contrast. The panel width is now **w-96** so content has more breathing room.
+* Drawer panel uses a frosted-glass style with a stronger blur, drop shadow and subtle border for better contrast. The panel width is now **w-80** so content has more breathing room.
 * Filter and bulk actions now appear in a separate sub-header below the title so the close button aligns cleanly to the right.
 * Notification cards feature extra padding, improved spacing and a chevron arrow to indicate navigation. Unread items use a solid white background with a bold shadow, while read items fade into a translucent background with a subtle divider.
 * Deposit due alerts now display "Booking confirmed – deposit R{amount} due by {date}" so clients immediately see the payment deadline. The drawer parses this format to show `R50.00 due by Jan 1, 2025` as the subtitle and links directly to the booking.
