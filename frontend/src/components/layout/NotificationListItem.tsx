@@ -1,10 +1,14 @@
 'use client';
 
 import { format } from 'date-fns';
-import { ChevronRightIcon } from '@heroicons/react/24/outline';
+import {
+  CheckCircleIcon,
+  CalendarIcon,
+  ExclamationCircleIcon,
+} from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import TimeAgo from '../ui/TimeAgo';
-import { Avatar, IconButton } from '../ui';
+import { Avatar } from '../ui';
 import type { UnifiedNotification } from '@/types';
 
 export interface ParsedNotification {
@@ -16,6 +20,7 @@ export interface ParsedNotification {
   bookingType?: string;
   metadata?: string;
   unreadCount?: number;
+  status?: 'confirmed' | 'reminder' | 'due';
 }
 
 function toInitials(name?: string): string | undefined {
@@ -87,13 +92,14 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       initials: toInitials(sender),
       bookingType: formattedType,
       metadata,
+      status: 'reminder',
     };
   }
   if (n.type === 'review_request') {
     const title = 'Review Request';
     const subtitle =
       content.length > 30 ? `${content.slice(0, 30)}...` : content;
-    return { title, subtitle, icon: '🔔' };
+    return { title, subtitle, icon: '🔔', status: 'reminder' };
   }
   if (/deposit.*due/i.test(content)) {
     let subtitle =
@@ -117,6 +123,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       icon: '💰',
       avatarUrl: n.avatar_url || undefined,
       initials: toInitials(n.sender_name || n.name),
+      status: 'due',
     };
   }
   if (/new booking/i.test(content)) {
@@ -128,6 +135,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       icon: '📅',
       avatarUrl: n.avatar_url || undefined,
       initials: toInitials(n.sender_name || n.name),
+      status: 'confirmed',
     };
   }
   if (n.type === 'quote_accepted' || /quote accepted/i.test(content)) {
@@ -142,6 +150,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       icon: '✅',
       avatarUrl: n.avatar_url || undefined,
       initials: toInitials(name),
+      status: 'confirmed',
     };
   }
   const defaultTitle = content.length > 36 ? `${content.slice(0, 36)}...` : content;
@@ -155,6 +164,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     icon: '🔔',
     avatarUrl: n.avatar_url || undefined,
     initials: toInitials(n.sender_name || n.name),
+    status: undefined,
   };
 }
 
@@ -179,8 +189,8 @@ export default function NotificationListItem({ n, onClick, style, className = ''
       className={clsx(
         'flex items-center p-3 mb-2 rounded-xl transition-shadow cursor-pointer',
         n.is_read
-          ? 'bg-white/80 hover:shadow-lg'
-          : 'bg-indigo-50/70 border-l-4 border-indigo-500 shadow-sm',
+          ? 'bg-white shadow'
+          : 'bg-brand-light border-l-4 border-brand shadow-md',
         className,
       )}
     >
@@ -202,9 +212,15 @@ export default function NotificationListItem({ n, onClick, style, className = ''
           <p className="text-sm text-gray-500 truncate">{parsed.metadata}</p>
         )}
       </div>
-      <IconButton variant="ghost" aria-label="Open notification" className="ml-2">
-        <ChevronRightIcon className="h-5 w-5" />
-      </IconButton>
+      {parsed.status === 'confirmed' && (
+        <CheckCircleIcon className="h-5 w-5 text-brand-dark" />
+      )}
+      {parsed.status === 'reminder' && (
+        <CalendarIcon className="h-5 w-5 text-brand-dark" />
+      )}
+      {parsed.status === 'due' && (
+        <ExclamationCircleIcon className="h-5 w-5 text-brand-dark" />
+      )}
     </div>
   );
 }
