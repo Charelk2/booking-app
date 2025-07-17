@@ -111,4 +111,32 @@ describe('NotificationListItem', () => {
     expect(parsed.title).toBe('Deposit Due');
     expect(parsed.subtitle).toBe('');
   });
+
+  it('parses new booking request with sender and service', () => {
+    const n: UnifiedNotification = {
+      type: 'new_booking_request',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Location: Cape Town',
+      sender_name: 'Jane Doe',
+      booking_type: 'Acoustic Duo Performance',
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.title).toBe('Jane Doe');
+    expect(parsed.subtitle).toBe('Acoustic Duo Performance');
+    expect(parsed.initials).toBe('JD');
+  });
+
+  it('parses quote accepted with client name', () => {
+    const n: UnifiedNotification = {
+      type: 'quote_accepted',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Quote accepted by Bob Builder',
+      sender_name: 'Bob Builder',
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.title).toBe('Quote accepted by Bob Builder');
+    expect(parsed.initials).toBe('BB');
+  });
 });
