@@ -44,13 +44,13 @@ export default function NotificationItem({ notification, onMarkRead }: Props) {
         if (e.key === 'Enter') handleClick();
       }}
       className={clsx(
-        'group flex items-center gap-4 px-4 py-3 rounded-lg cursor-pointer transition',
+        'group flex items-start gap-4 p-4 rounded-lg cursor-pointer transition',
         localRead
-          ? 'bg-white/60 border-b border-white/20 shadow-none'
-          : 'bg-white shadow-lg',
+          ? 'bg-white/80 hover:shadow-md'
+          : 'bg-indigo-50/70 border-l-4 border-indigo-500 shadow-sm',
       )}
     >
-      <div className="h-11 w-11 rounded-full flex items-center justify-center ring-1 ring-white/50 bg-indigo-100">
+      <div className="h-11 w-11 rounded-full flex items-center justify-center ring-1 ring-white/50 bg-white/70">
         {parsed.icon}
       </div>
       <div className="flex-1">
