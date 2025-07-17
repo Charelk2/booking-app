@@ -156,4 +156,28 @@ describe('NotificationListItem', () => {
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Quote accepted by Sam Client');
   });
+
+  it('uses initials fallback for deposit due', () => {
+    const n: UnifiedNotification = {
+      type: 'deposit_due',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Deposit R100 due by 2025-06-30',
+      sender_name: 'John Doe',
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.initials).toBe('JD');
+  });
+
+  it('includes initials for unknown notification types', () => {
+    const n: UnifiedNotification = {
+      type: 'weird_event',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Something random',
+      name: 'Jane Smith',
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.initials).toBe('JS');
+  });
 });
