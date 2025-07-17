@@ -77,10 +77,10 @@ export default function NotificationDrawer({
                 leaveTo="translate-x-full"
               >
                 <Dialog.Panel
-                  className="pointer-events-auto w-screen max-w-sm sm:max-w-md rounded-l-2xl bg-white/60 backdrop-blur-md ring-1 ring-black/10 shadow-2xl flex flex-col"
+                  className="pointer-events-auto w-96 rounded-l-2xl bg-white/60 backdrop-blur-lg shadow-lg border border-white/20 flex flex-col"
                 >
-                  <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 backdrop-blur-md bg-white/60 border-b border-black/10">
-                    <Dialog.Title className="text-lg font-semibold text-gray-900">Notifications</Dialog.Title>
+                  <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-white/60 backdrop-blur-lg shadow-lg border-b border-white/20">
+                    <Dialog.Title className="text-lg font-bold text-gray-900">Notifications</Dialog.Title>
                     <button
                       type="button"
                       className="rounded-md text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
@@ -90,7 +90,7 @@ export default function NotificationDrawer({
                       <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                     </button>
                   </div>
-                  <div className="sticky top-[48px] z-10 flex items-center justify-center gap-2 px-4 py-2 backdrop-blur-md bg-white/60 border-b border-black/10">
+                  <div className="sticky top-[56px] z-10 flex items-center justify-between px-4 py-2 bg-white/60 backdrop-blur-lg border-b border-white/20">
                     <button
                       type="button"
                       onClick={() => setShowUnread((prev) => !prev)}
@@ -143,11 +143,11 @@ export default function NotificationDrawer({
                       </List>
                     )}
                   </div>
-                  <div className="sticky bottom-0 z-10 flex items-center justify-between gap-2 px-4 py-3 backdrop-blur-md bg-white/60 border-t border-black/10">
+                  <div className="sticky bottom-0 z-10 flex items-center justify-between px-4 py-3 bg-white/60 backdrop-blur-lg border-t border-white/20">
                     <button
                       type="button"
                       onClick={markAllRead}
-                      className="rounded-full bg-brand-light px-3 py-1 text-sm font-medium text-brand-dark shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      className="rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-800 shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     >
                       Clear All
                     </button>
