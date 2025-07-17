@@ -44,7 +44,7 @@ export default function NotificationItem({ notification, onMarkRead }: Props) {
         if (e.key === 'Enter') handleClick();
       }}
       className={clsx(
-        'group flex items-center gap-3 px-4 py-3 rounded-lg transition-shadow cursor-pointer',
+        'group flex items-center gap-4 px-4 py-3 rounded-lg transition-shadow cursor-pointer',
         localRead
           ? 'bg-white/80 shadow hover:shadow-md'
           : 'bg-indigo-50/70 border-l-4 border-indigo-500 shadow-md hover:shadow-lg',
@@ -53,7 +53,7 @@ export default function NotificationItem({ notification, onMarkRead }: Props) {
       <div className="h-10 w-10 rounded-full flex items-center justify-center bg-indigo-100">
         {parsed.icon}
       </div>
-      <div className="flex-1 space-y-0.5">
+      <div className="flex-1">
         <div className="flex justify-between items-center">
           <h3 className="text-sm font-semibold truncate">{parsed.title}</h3>
           <span className="text-xs text-gray-400">
@@ -62,7 +62,7 @@ export default function NotificationItem({ notification, onMarkRead }: Props) {
         </div>
         <p className="mt-1 text-xs text-gray-700 truncate">{parsed.subtitle}</p>
       </div>
-      <ChevronRightIcon className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
+      <ChevronRightIcon className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
     </div>
   );
 }
