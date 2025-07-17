@@ -20,7 +20,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
-    expect(parsed.subtitle).toBe('sent a new booking request for Perfo...');
+    expect(parsed.subtitle).toBe('Performance');
     expect(parsed.bookingType).toBe('Performance');
   });
 
@@ -37,7 +37,7 @@ describe('parseItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Alice');
-    expect(parsed.subtitle).toBe('sent a new booking request for Perso...');
+    expect(parsed.subtitle).toBe('Personalized Video');
     expect(parsed.bookingType).toBe('Personalized Video');
   });
 
@@ -69,9 +69,7 @@ describe('parseItem', () => {
   const parsed = parseItem(n);
   expect(parsed.title).toBe('Charlie Brown');
   expect(parsed.unreadCount).toBe(3);
-  expect(parsed.subtitle).toBe(
-      'Last message: "Hello there, this is a long me..."',
-  );
+  expect(parsed.subtitle).toBe('Hello there, this is a long me...');
   });
 
   it('omits unread count when zero', () => {
@@ -87,7 +85,7 @@ describe('parseItem', () => {
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Dana');
     expect(parsed.unreadCount).toBe(0);
-    expect(parsed.subtitle).toBe('Last message: "Hi"');
+    expect(parsed.subtitle).toBe('Hi');
   });
 });
 
