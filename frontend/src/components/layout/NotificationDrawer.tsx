@@ -15,8 +15,6 @@ interface NotificationDrawerProps {
   items: UnifiedNotification[];
   onItemClick: (id: number) => Promise<void>;
   markAllRead: () => Promise<void>;
-  loadMore: () => Promise<void>;
-  hasMore: boolean;
   error?: Error | string | null;
 }
 
@@ -28,8 +26,6 @@ export default function NotificationDrawer({
   items,
   onItemClick,
   markAllRead,
-  loadMore,
-  hasMore,
   error,
 }: NotificationDrawerProps) {
   const [showUnread, setShowUnread] = useState(false);
@@ -63,7 +59,7 @@ export default function NotificationDrawer({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-900/50 transition-opacity" />
+          <div className="fixed inset-0 bg-gray-900/40 transition-opacity" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-hidden">
@@ -80,9 +76,9 @@ export default function NotificationDrawer({
               >
                 <Dialog.Panel
                   as={motion.div}
-                  className="pointer-events-auto w-80 rounded-l-2xl bg-white/60 backdrop-blur-md shadow-xl flex flex-col"
+                  className="pointer-events-auto w-80 rounded-l-2xl bg-white shadow-xl flex flex-col"
                 >
-                  <header className="flex items-center justify-between px-4 py-2 bg-white/80 backdrop-blur-md border-b rounded-tl-2xl">
+                  <header className="flex items-center justify-between px-4 py-2 bg-white border-b rounded-tl-2xl">
                     <Dialog.Title className="font-bold">Notifications</Dialog.Title>
                     <div className="flex items-center space-x-3">
                       <ToggleSwitch
@@ -90,13 +86,6 @@ export default function NotificationDrawer({
                         onChange={setShowUnread}
                         label="Unread"
                       />
-                      <button
-                        type="button"
-                        onClick={markAllRead}
-                        className="text-sm underline text-brand-dark"
-                      >
-                        Mark all read
-                      </button>
                       <IconButton onClick={onClose} aria-label="Close notifications" variant="ghost">
                         <XMarkIcon className="h-5 w-5" />
                       </IconButton>
@@ -138,24 +127,14 @@ export default function NotificationDrawer({
                       </List>
                     )}
                   </div>
-                  <footer className="sticky bottom-0 z-10 flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-md border-t">
+                  <footer className="sticky bottom-0 z-10 px-4 py-3 bg-white border-t">
                     <button
                       type="button"
                       onClick={markAllRead}
-                      className="rounded-full bg-red-500 px-3 py-1 text-sm font-medium text-white"
+                      className="w-full rounded-full bg-red-500 py-2 text-sm font-medium text-white"
                     >
                       Clear All
                     </button>
-                    {hasMore && (
-                      <button
-                        type="button"
-                        aria-label="Load more notifications"
-                        onClick={loadMore}
-                        className="text-sm text-brand-dark underline"
-                      >
-                        Load more
-                      </button>
-                    )}
                   </footer>
                 </Dialog.Panel>
               </Transition.Child>

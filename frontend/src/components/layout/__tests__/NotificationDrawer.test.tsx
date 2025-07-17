@@ -115,8 +115,6 @@ describe('NotificationDrawer component', () => {
           items: [],
           onItemClick: jest.fn(),
           markAllRead: jest.fn(),
-          loadMore: jest.fn(),
-          hasMore: false,
           error: new Error('Failed to load'),
         }),
       );
@@ -145,8 +143,6 @@ describe('NotificationDrawer component', () => {
           items: [item],
           onItemClick: jest.fn(),
           markAllRead: jest.fn(),
-          loadMore: jest.fn(),
-          hasMore: false,
         }),
       );
       await Promise.resolve();

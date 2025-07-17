@@ -58,6 +58,7 @@ describe('NotificationListItem', () => {
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Deposit Due');
     expect(parsed.icon).toBe('💰');
+    expect(parsed.status).toBe('due');
   });
 
   it('extracts amount and due date from deposit reminder', () => {
@@ -70,6 +71,7 @@ describe('NotificationListItem', () => {
     const parsed = parseItem(n);
     expect(parsed.subtitle).toBe('R50.00 due by Jan 1, 2025');
     expect(parsed.icon).toBe('💰');
+    expect(parsed.status).toBe('due');
   });
 
 
@@ -130,6 +132,7 @@ describe('NotificationListItem', () => {
     expect(parsed.title).toBe('Jane Doe');
     expect(parsed.subtitle).toBe('Acoustic Duo Performance');
     expect(parsed.initials).toBe('JD');
+    expect(parsed.status).toBe('reminder');
   });
 
   it('parses quote accepted with client name', () => {
@@ -143,6 +146,7 @@ describe('NotificationListItem', () => {
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Quote accepted by Bob Builder');
     expect(parsed.initials).toBe('BB');
+    expect(parsed.status).toBe('confirmed');
   });
 
   it('falls back to type when content lacks quote text', () => {
@@ -155,6 +159,7 @@ describe('NotificationListItem', () => {
     } as UnifiedNotification;
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Quote accepted by Sam Client');
+    expect(parsed.status).toBe('confirmed');
   });
 
   it('uses initials fallback for deposit due', () => {
