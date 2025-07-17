@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { format } from 'date-fns';
+import { ChevronRightIcon } from '@heroicons/react/24/outline';
 import TimeAgo from '../ui/TimeAgo';
 import { getFullImageUrl } from '@/lib/utils';
 import type { UnifiedNotification } from '@/types';
@@ -167,10 +168,10 @@ export default function NotificationListItem({ n, onClick, style, className = ''
       style={style}
       onClick={onClick}
       className={classNames(
-        'group flex w-full items-start gap-3 p-3 sm:p-4 text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-brand transition rounded-lg shadow-sm mx-2 my-2',
+        'group flex w-full items-center gap-4 p-4 text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-brand transition rounded-lg mx-2 my-2',
         n.is_read
-          ? 'bg-white/80 text-gray-700 hover:shadow-md'
-          : 'bg-indigo-50/70 border-l-4 border-indigo-500 shadow-md text-gray-900 font-medium',
+          ? 'bg-white/60 text-gray-700 border-b border-white/20'
+          : 'bg-white shadow-lg text-gray-900',
         className,
       )}
     >
@@ -179,21 +180,21 @@ export default function NotificationListItem({ n, onClick, style, className = ''
           <Image
             src={getFullImageUrl(parsed.avatarUrl) as string}
             alt="avatar"
-            width={40}
-            height={40}
+            width={44}
+            height={44}
             loading="lazy"
-            className="h-10 w-10 flex-shrink-0 rounded-full object-cover"
+            className="h-11 w-11 flex-shrink-0 rounded-full object-cover"
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
             }}
           />
         ) : (
-          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-brand-light flex items-center justify-center text-brand-dark font-medium">
+          <div className="h-11 w-11 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-gray-700 font-medium">
             {parsed.initials}
           </div>
         )
       ) : (
-        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-brand-light flex items-center justify-center text-brand-dark font-medium">
+        <div className="h-11 w-11 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-gray-700 font-medium">
           {parsed.icon}
         </div>
       )}
@@ -222,6 +223,7 @@ export default function NotificationListItem({ n, onClick, style, className = ''
           <p className="text-sm text-gray-500 truncate whitespace-nowrap overflow-hidden">{parsed.metadata}</p>
         )}
       </div>
+      <ChevronRightIcon className="h-5 w-5 text-gray-400 group-hover:text-gray-600 flex-shrink-0" />
     </button>
   );
 }
