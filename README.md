@@ -749,7 +749,9 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Booking details messages appear in chat threads inside a collapsible section with a **Show details** button that toggles to **Hide details** when expanded. Small chevron icons indicate the state.
 * Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews. Titles are limited to 36 characters and subtitles to 30 so long names don't wrap.
 * The drawer now opens as a rounded panel with a dark backdrop. Badges disappear when the unread count is 0. Adjust the badge styles in `frontend/src/components/layout/NotificationListItem.tsx`.
-* Drawer panel uses a frosted-glass style with a subtle blur and drop shadow for better contrast.
+* Drawer panel uses a frosted-glass style with a stronger blur, drop shadow and subtle border for better contrast.
+* Filter and bulk actions now appear in a separate sub-header below the title so the close button aligns cleanly to the right.
+* Notification cards feature extra padding, a chevron arrow to indicate navigation, and a pronounced hover lift while unread items retain the indigo border.
 * Deposit due alerts now display "Booking confirmed – deposit R{amount} due by {date}" so clients immediately see the payment deadline. The drawer parses this format to show `R50.00 due by Jan 1, 2025` as the subtitle and links directly to the booking.
 * Quote acceptance and booking confirmation notifications now render friendly titles like **Quote Accepted** or **Booking Confirmed** instead of a generic "Notification" label.
 * Artists marking a booking **completed** now trigger a **REVIEW_REQUEST** notification. The alert links to `/dashboard/client/bookings/{booking_id}` so clients can quickly rate their experience.
