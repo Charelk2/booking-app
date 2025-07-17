@@ -3,8 +3,10 @@
 import { Fragment, useState, useRef, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { motion } from 'framer-motion';
 import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
 import NotificationListItem from './NotificationListItem';
+import { ToggleSwitch, IconButton } from '../ui';
 import type { UnifiedNotification } from '@/types';
 
 interface NotificationDrawerProps {
@@ -77,36 +79,29 @@ export default function NotificationDrawer({
                 leaveTo="translate-x-full"
               >
                 <Dialog.Panel
-                  className="pointer-events-auto w-96 rounded-l-2xl bg-white/60 backdrop-blur-lg shadow-lg border border-white/20 flex flex-col"
+                  as={motion.div}
+                  className="pointer-events-auto w-80 rounded-l-2xl bg-white/60 backdrop-blur-md shadow-xl flex flex-col"
                 >
-                  <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-white/60 backdrop-blur-lg shadow-lg border-b border-white/20">
-                    <Dialog.Title className="text-lg font-bold text-gray-900">Notifications</Dialog.Title>
-                    <button
-                      type="button"
-                      className="rounded-md text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                      onClick={onClose}
-                    >
-                      <span className="sr-only">Close panel</span>
-                      <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-                    </button>
-                  </div>
-                  <div className="sticky top-[56px] z-10 flex items-center justify-between px-4 py-2 bg-white/60 backdrop-blur-lg border-b border-white/20">
-                    <button
-                      type="button"
-                      onClick={() => setShowUnread((prev) => !prev)}
-                      className="text-sm text-gray-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                      data-testid="toggle-unread"
-                    >
-                      {showUnread ? 'Show All' : 'Unread Only'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={markAllRead}
-                      className="text-sm text-brand-dark hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                    >
-                      Mark All as Read
-                    </button>
-                  </div>
+                  <header className="flex items-center justify-between px-4 py-2 bg-white/80 backdrop-blur-md border-b rounded-tl-2xl">
+                    <Dialog.Title className="font-bold">Notifications</Dialog.Title>
+                    <div className="flex items-center space-x-3">
+                      <ToggleSwitch
+                        checked={showUnread}
+                        onChange={setShowUnread}
+                        label="Unread"
+                      />
+                      <button
+                        type="button"
+                        onClick={markAllRead}
+                        className="text-sm underline text-brand-dark"
+                      >
+                        Mark all read
+                      </button>
+                      <IconButton onClick={onClose} aria-label="Close notifications" variant="ghost">
+                        <XMarkIcon className="h-5 w-5" />
+                      </IconButton>
+                    </div>
+                  </header>
                   {error && (
                     <div className="bg-red-100 text-red-800 text-sm px-4 py-2" data-testid="notification-error">
                       {error?.message}
@@ -143,11 +138,11 @@ export default function NotificationDrawer({
                       </List>
                     )}
                   </div>
-                  <div className="sticky bottom-0 z-10 flex items-center justify-between px-4 py-3 bg-white/60 backdrop-blur-lg border-t border-white/20">
+                  <footer className="sticky bottom-0 z-10 flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-md border-t">
                     <button
                       type="button"
                       onClick={markAllRead}
-                      className="rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-800 shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                      className="rounded-full bg-red-500 px-3 py-1 text-sm font-medium text-white"
                     >
                       Clear All
                     </button>
@@ -156,12 +151,12 @@ export default function NotificationDrawer({
                         type="button"
                         aria-label="Load more notifications"
                         onClick={loadMore}
-                        className="text-sm text-brand-dark hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        className="text-sm text-brand-dark underline"
                       >
                         Load more
                       </button>
                     )}
-                  </div>
+                  </footer>
                 </Dialog.Panel>
               </Transition.Child>
             </div>

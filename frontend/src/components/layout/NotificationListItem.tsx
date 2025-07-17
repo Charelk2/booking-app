@@ -1,15 +1,11 @@
 'use client';
 
-import Image from 'next/image';
 import { format } from 'date-fns';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
+import clsx from 'clsx';
 import TimeAgo from '../ui/TimeAgo';
-import { getFullImageUrl } from '@/lib/utils';
+import { Avatar, IconButton } from '../ui';
 import type { UnifiedNotification } from '@/types';
-
-function classNames(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
-}
 
 export interface ParsedNotification {
   title: string;
@@ -163,68 +159,44 @@ interface NotificationListItemProps {
 export default function NotificationListItem({ n, onClick, style, className = '' }: NotificationListItemProps) {
   const parsed = parseItem(n);
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       style={style}
       onClick={onClick}
-      className={classNames(
-        'group flex w-full items-center gap-4 p-4 text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-brand transition rounded-lg mx-2 my-2',
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onClick();
+      }}
+      className={clsx(
+        'flex items-center p-3 mb-2 rounded-xl transition-shadow cursor-pointer',
         n.is_read
-          ? 'bg-white/60 text-gray-700 border-b border-white/20'
-          : 'bg-white shadow-lg text-gray-900',
+          ? 'bg-white/80 hover:shadow-lg'
+          : 'bg-indigo-50/70 border-l-4 border-indigo-500 shadow-sm',
         className,
       )}
     >
-      {parsed.avatarUrl || parsed.initials ? (
-        parsed.avatarUrl ? (
-          <Image
-            src={getFullImageUrl(parsed.avatarUrl) as string}
-            alt="avatar"
-            width={44}
-            height={44}
-            loading="lazy"
-            className="h-11 w-11 flex-shrink-0 rounded-full object-cover"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
-            }}
-          />
-        ) : (
-          <div className="h-11 w-11 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-gray-700 font-medium">
-            {parsed.initials}
-          </div>
-        )
-      ) : (
-        <div className="h-11 w-11 flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-gray-700 font-medium">
-          {parsed.icon}
-        </div>
-      )}
-      <div className="flex-1 text-left">
+      <Avatar src={parsed.avatarUrl} initials={parsed.initials} icon={parsed.icon} size={44} />
+      <div className="flex-1 mx-3">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2 truncate overflow-hidden">
-            <span
-              className="text-base font-medium text-gray-900 whitespace-nowrap"
-              title={parsed.title}
-            >
-              {parsed.title}
-            </span>
+          <div className="flex items-center gap-2 truncate">
+            <span className="font-semibold text-gray-900 truncate" title={parsed.title}>{parsed.title}</span>
             {parsed.unreadCount > 0 && (
               <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full">
                 {parsed.unreadCount > 99 ? '99+' : parsed.unreadCount}
               </span>
             )}
           </div>
-          <TimeAgo
-            timestamp={n.timestamp}
-            className="text-xs text-gray-400 text-right"
-          />
+          <TimeAgo timestamp={n.timestamp} className="text-xs text-gray-500" />
         </div>
-        <p className="text-sm text-gray-700 truncate whitespace-nowrap overflow-hidden">{parsed.subtitle}</p>
+        <p className="mt-1 text-sm text-gray-700 truncate">{parsed.subtitle}</p>
         {parsed.metadata && (
-          <p className="text-sm text-gray-500 truncate whitespace-nowrap overflow-hidden">{parsed.metadata}</p>
+          <p className="text-sm text-gray-500 truncate">{parsed.metadata}</p>
         )}
       </div>
-      <ChevronRightIcon className="h-5 w-5 text-gray-400 group-hover:text-gray-600 flex-shrink-0" />
-    </button>
+      <IconButton variant="ghost" aria-label="Open notification" className="ml-2">
+        <ChevronRightIcon className="h-5 w-5" />
+      </IconButton>
+    </div>
   );
 }
 
