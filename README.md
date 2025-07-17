@@ -747,13 +747,13 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * System-generated booking details messages do not create extra chat alerts; a single booking request notification is sent after the form is submitted.
 * Booking notes are visible only on the Booking details page, appearing beneath the Venue Type line in the details box, and are hidden from chat threads and booking request screens.
 * Booking details messages appear in chat threads inside a collapsible section with a **Show details** button that toggles to **Hide details** when expanded. Small chevron icons indicate the state.
-* Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews. Titles are limited to 36 characters and subtitles to 30 so long names don't wrap.
+* Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews. Titles and subtitles wrap up to two lines using the `line-clamp-2` utility so full names remain visible.
 * The drawer now opens as a rounded panel with a dark backdrop. Badges disappear when the unread count is 0. Adjust the badge styles in `frontend/src/components/layout/NotificationListItem.tsx`.
 * Drawer panel uses a frosted-glass style with a stronger blur, drop shadow and subtle border for better contrast. The panel width is now **w-80** so content has more breathing room.
 * Filter and bulk actions now appear in a separate sub-header below the title so the close button aligns cleanly to the right.
 * Notification cards feature extra padding, improved spacing and a chevron arrow to indicate navigation. Unread items use a solid white background with a bold shadow, while read items fade into a translucent background with a subtle divider.
 * Deposit due alerts now display "Booking confirmed – deposit R{amount} due by {date}" so clients immediately see the payment deadline. The drawer parses this format to show `R50.00 due by Jan 1, 2025` as the subtitle and links directly to the booking.
-* Quote acceptance and booking confirmation notifications now render friendly titles like **Quote Accepted** or **Booking Confirmed** instead of a generic "Notification" label.
+* Quote acceptance and booking confirmation notifications now render dynamic titles such as **"Quote accepted by Jane Doe"** instead of a generic label.
 * Artists marking a booking **completed** now trigger a **REVIEW_REQUEST** notification. The alert links to `/dashboard/client/bookings/{booking_id}` so clients can quickly rate their experience.
 * Chat message groups display a small unread badge on the right side when new messages arrive, clearing automatically once read.
 * Day divider lines show the full date, while relative times remain visible next to each message group.
