@@ -748,6 +748,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Booking notes are visible only on the Booking details page, appearing beneath the Venue Type line in the details box, and are hidden from chat threads and booking request screens.
 * Booking details messages appear in chat threads inside a collapsible section with a **Show details** button that toggles to **Hide details** when expanded. Small chevron icons indicate the state.
 * Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews. Titles and subtitles wrap up to two lines using the `line-clamp-2` utility so full names remain visible.
+* Avatars fall back to the sender's initials when no profile photo is available, ensuring every notification has a recognizable icon.
 * The drawer now opens as a rounded panel with a dark backdrop. Badges disappear when the unread count is 0. Adjust the badge styles in `frontend/src/components/layout/NotificationListItem.tsx`.
 * Drawer panel uses a frosted-glass style with a stronger blur, drop shadow and subtle border for better contrast. The panel width is now **w-80** so content has more breathing room.
 * Filter and bulk actions now appear in a separate sub-header below the title so the close button aligns cleanly to the right.
