@@ -762,7 +762,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Wrap the root layout in `<NotificationsProvider>` so badges and drawers update automatically across the app.
 * A new `parseNotification` utility maps each notification type to a friendly title, subtitle and icon. `<NotificationListItem>` consumes this data and opens the related link while marking the item read.
 * Unread notifications no longer rely on a colored left border. Instead they stand out with a solid white background and prominent shadow.
-* The drawer footer keeps a **Load more** button visible whenever additional notifications are available.
+* The drawer footer keeps a **Load more** button visible whenever additional notifications are available. A new rounded **Clear All** action sits beside it so users can quickly mark everything read.
 
 ### Artist Profile Enhancements
 
