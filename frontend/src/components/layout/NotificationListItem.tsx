@@ -213,13 +213,13 @@ export default function NotificationListItem({ n, onClick, style, className = ''
         )}
       </div>
       {parsed.status === 'confirmed' && (
-        <CheckCircleIcon className="h-5 w-5 text-brand-dark" />
+        <CheckCircleIcon className="h-5 w-5 text-green-600" />
       )}
       {parsed.status === 'reminder' && (
         <CalendarIcon className="h-5 w-5 text-brand-dark" />
       )}
       {parsed.status === 'due' && (
-        <ExclamationCircleIcon className="h-5 w-5 text-brand-dark" />
+        <ExclamationCircleIcon className="h-5 w-5 text-amber-500" />
       )}
     </div>
   );
