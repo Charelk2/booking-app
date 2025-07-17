@@ -18,6 +18,15 @@ export interface ParsedNotification {
   unreadCount?: number;
 }
 
+function toInitials(name?: string): string | undefined {
+  return name
+    ? name
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+    : undefined;
+}
+
 export function parseItem(n: UnifiedNotification): ParsedNotification {
   const content = typeof n.content === 'string' ? n.content : '';
   if (n.type === 'message') {
@@ -30,12 +39,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       subtitle: snippet,
       icon: '💬',
       avatarUrl: n.avatar_url || undefined,
-      initials: n.name
-        ? n.name
-            .split(' ')
-            .map((w) => w[0])
-            .join('')
-        : undefined,
+      initials: toInitials(n.name || n.sender_name),
       unreadCount,
     };
   }
@@ -80,12 +84,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       subtitle,
       icon,
       avatarUrl: n.avatar_url || undefined,
-      initials: sender
-        ? sender
-            .split(' ')
-            .map((w) => w[0])
-            .join('')
-        : undefined,
+      initials: toInitials(sender),
       bookingType: formattedType,
       metadata,
     };
@@ -116,6 +115,8 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       title: 'Deposit Due',
       subtitle,
       icon: '💰',
+      avatarUrl: n.avatar_url || undefined,
+      initials: toInitials(n.sender_name || n.name),
     };
   }
   if (/new booking/i.test(content)) {
@@ -125,6 +126,8 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       title: 'Booking Confirmed',
       subtitle,
       icon: '📅',
+      avatarUrl: n.avatar_url || undefined,
+      initials: toInitials(n.sender_name || n.name),
     };
   }
   if (n.type === 'quote_accepted' || /quote accepted/i.test(content)) {
@@ -138,12 +141,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
       subtitle,
       icon: '✅',
       avatarUrl: n.avatar_url || undefined,
-      initials: name
-        ? name
-            .split(' ')
-            .map((w) => w[0])
-            .join('')
-        : undefined,
+      initials: toInitials(name),
     };
   }
   const defaultTitle = content.length > 36 ? `${content.slice(0, 36)}...` : content;
@@ -155,6 +153,8 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     title: defaultTitle || typeTitle || 'Notification',
     subtitle: '',
     icon: '🔔',
+    avatarUrl: n.avatar_url || undefined,
+    initials: toInitials(n.sender_name || n.name),
   };
 }
 
@@ -187,7 +187,7 @@ export default function NotificationListItem({ n, onClick, style, className = ''
       <Avatar src={parsed.avatarUrl} initials={parsed.initials} icon={parsed.icon} size={44} />
       <div className="flex-1 mx-3">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             <span className="font-semibold text-gray-900 line-clamp-2" title={parsed.title}>{parsed.title}</span>
             {parsed.unreadCount > 0 && (
               <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full">
