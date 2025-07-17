@@ -167,10 +167,10 @@ export default function NotificationListItem({ n, onClick, style, className = ''
       style={style}
       onClick={onClick}
       className={classNames(
-        'group flex w-full items-start px-3 sm:px-4 py-2.5 text-base gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light hover:bg-gray-50 transition cursor-pointer border-b border-gray-200',
+        'group flex w-full items-start gap-3 p-3 sm:p-4 text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-brand transition rounded-lg shadow-sm mx-2 my-2',
         n.is_read
-          ? 'bg-background border-l border-transparent text-gray-600'
-          : 'bg-brand-light border-l-4 border-brand text-gray-900 font-medium',
+          ? 'bg-white/80 text-gray-700 hover:shadow-md'
+          : 'bg-indigo-50/70 border-l-4 border-indigo-500 shadow-md text-gray-900 font-medium',
         className,
       )}
     >
