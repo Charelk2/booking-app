@@ -751,7 +751,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Avatars fall back to the sender's initials when no profile photo is available, ensuring every notification has a recognizable icon.
 * The drawer slides in from the right on a simple white panel with a soft shadow. Badges disappear when the unread count is 0.
 * Notification cards keep softly rounded corners and a gentle shadow. Unread items show a thin brand-colored strip on the left.
-* Each card displays a circular avatar, bold title, one-line subtitle, relative timestamp and a small status icon on the right.
+* Each card displays a circular avatar, bold title, one-line subtitle, relative timestamp and a small status icon on the right. Icons are color-coded (green for confirmed, indigo for reminders, amber for due alerts).
 * The header now just shows the “Notifications” title, an **Unread** toggle and a close **X** button.
 * A full-width rounded **Clear All** button stays pinned to the bottom of the panel.
 * Deposit due alerts now display "Booking confirmed – deposit R{amount} due by {date}" so clients immediately see the payment deadline. The drawer parses this format to show `R50.00 due by Jan 1, 2025` as the subtitle and links directly to the booking.
