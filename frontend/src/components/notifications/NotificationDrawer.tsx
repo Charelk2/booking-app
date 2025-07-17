@@ -51,26 +51,36 @@ export default function NotificationDrawer({ isOpen, onClose }: Props) {
             animate={{ x: 0 }}
             exit={{ x: 300 }}
             transition={{ type: 'tween' }}
-            className="h-full w-96 bg-white/50 backdrop-blur-lg rounded-l-2xl shadow-lg border border-white/20 flex flex-col"
+            className="h-full w-96 bg-white/60 backdrop-blur-md rounded-l-3xl shadow-2xl border border-white/20 flex flex-col"
           >
-            <header className="flex items-center justify-between px-4 py-3 border-b border-white/20 bg-white/50 backdrop-blur-lg">
-              <h2 className="text-lg font-bold">Notifications</h2>
-              <button onClick={onClose} aria-label="Close notifications" type="button" className="text-gray-500 hover:text-gray-700">
+            <header className="flex items-center px-4 py-3 border-b border-white/20 bg-white/60 backdrop-blur-md">
+              <h2 className="text-lg font-bold flex-1">Notifications</h2>
+              <div className="flex flex-1 justify-center items-center gap-3 text-sm">
+                <label className="flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={unreadOnly}
+                    onChange={toggleUnreadOnly}
+                    className="rounded"
+                  />
+                  <span>Unread</span>
+                </label>
+                {unreadCount > 0 && (
+                  <button onClick={markAllAsRead} className="hover:underline" type="button">
+                    Mark all read
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={onClose}
+                aria-label="Close notifications"
+                type="button"
+                className="text-gray-500 hover:text-gray-700"
+              >
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </header>
-            <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-white/50 backdrop-blur-lg">
-              <label className="flex items-center gap-1 text-sm">
-                <input type="checkbox" checked={unreadOnly} onChange={toggleUnreadOnly} />
-                <span>Unread only</span>
-              </label>
-              {unreadCount > 0 && (
-                <button onClick={markAllAsRead} className="text-sm text-brand-dark hover:underline" type="button">
-                  Mark all read
-                </button>
-              )}
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
               {filtered.map((n) => (
                 <NotificationItem
                   key={n.id}
@@ -81,15 +91,19 @@ export default function NotificationDrawer({ isOpen, onClose }: Props) {
               {loading && <Spinner />}
               {error && <AlertBanner variant="error">{error?.message}</AlertBanner>}
             </div>
-            <footer className="sticky bottom-0 bg-white/50 backdrop-blur-lg px-4 py-4 border-t border-white/20 flex justify-between">
+            <footer className="sticky bottom-0 bg-white/60 backdrop-blur-md px-4 py-4 border-t border-white/20 flex justify-between items-center">
+              <button
+                onClick={clearAll}
+                className="px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm hover:bg-red-200"
+                type="button"
+              >
+                Clear All
+              </button>
               {hasMore && (
                 <button onClick={loadMore} className="text-sm hover:underline" type="button">
                   Load more
                 </button>
               )}
-              <button onClick={clearAll} className="px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm hover:bg-red-200" type="button">
-                Clear All
-              </button>
             </footer>
           </Dialog.Panel>
         </Dialog>
