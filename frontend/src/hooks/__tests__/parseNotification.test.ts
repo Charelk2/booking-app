@@ -8,7 +8,7 @@ describe('parseNotification', () => {
       id: 1,
       user_id: 1,
       type: 'new_message',
-      message: 'New message: Hello there',
+      message: 'New message from Alice: Hello there',
       link: '/messages/1',
       is_read: false,
       timestamp: new Date().toISOString(),
