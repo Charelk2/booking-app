@@ -144,7 +144,12 @@ def create_message(
         # suppress message notifications during flow
     elif other_user:
         notify_user_new_message(
-            db, other_user, request_id, message_in.content, message_in.message_type
+            db,
+            other_user,
+            current_user,
+            request_id,
+            message_in.content,
+            message_in.message_type,
         )
 
     avatar_url = None

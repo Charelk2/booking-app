@@ -27,7 +27,11 @@ def format_notification_message(
 ) -> str:
     """Return a human friendly notification message."""
     if ntype == NotificationType.NEW_MESSAGE:
-        return f"New message: {kwargs.get('content')}"
+        sender = kwargs.get("sender_name")
+        content = kwargs.get("content")
+        if sender:
+            return f"New message from {sender}: {content}"
+        return f"New message: {content}"
     if ntype == NotificationType.NEW_BOOKING_REQUEST:
         sender = kwargs.get("sender_name")
         btype = kwargs.get("booking_type")
@@ -118,6 +122,7 @@ VIDEO_FLOW_QUESTIONS = [
 def notify_user_new_message(
     db: Session,
     user: User,
+    sender: User,
     booking_request_id: int,
     content: str,
     message_type: "models.MessageType",
@@ -132,7 +137,21 @@ def notify_user_new_message(
             logger.info("Skipping system message notification: %s", content)
             return
 
-    message = format_notification_message(NotificationType.NEW_MESSAGE, content=content)
+    sender_name = f"{sender.first_name} {sender.last_name}"
+    if sender.user_type == models.UserType.ARTIST:
+        profile = (
+            db.query(models.ArtistProfile)
+            .filter(models.ArtistProfile.user_id == sender.id)
+            .first()
+        )
+        if profile and profile.business_name:
+            sender_name = profile.business_name
+
+    message = format_notification_message(
+        NotificationType.NEW_MESSAGE,
+        content=content,
+        sender_name=sender_name,
+    )
     _create_and_broadcast(
         db,
         user.id,
