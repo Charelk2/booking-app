@@ -9,7 +9,14 @@ export default function StatusBadge({ status, className, ...props }: StatusBadge
     Pending: 'bg-yellow-100 text-yellow-800',
     Accepted: 'bg-green-100 text-green-800',
     Rejected: 'bg-red-100 text-red-800',
-  }[status] || 'bg-gray-100 text-gray-800';
+  }[status] ||
+    (status.includes('Pending')
+      ? 'bg-yellow-100 text-yellow-800'
+      : status.includes('Confirmed') || status.includes('Accepted') || status === 'Paid'
+      ? 'bg-green-100 text-green-800'
+      : status.includes('Declined') || status.includes('Rejected') || status.includes('Withdrawn') || status === 'Cancelled'
+      ? 'bg-red-100 text-red-800'
+      : 'bg-gray-100 text-gray-800');
   return (
     <span
       {...props}

@@ -7,6 +7,7 @@ import CollapsibleSection from '../ui/CollapsibleSection';
 interface Stat {
   label: string;
   value: string | number;
+  icon?: React.ReactNode;
 }
 
 interface OverviewAccordionProps {
@@ -25,7 +26,10 @@ export default function OverviewAccordion({
       <div className="grid grid-cols-2 gap-2">
         {primaryStats.map((s) => (
           <div key={s.label} className="overview-card">
-            <span className="overview-label">{s.label}</span>
+            <span className="flex items-center space-x-1 overview-label">
+              {s.icon && <span className="h-4 w-4">{s.icon}</span>}
+              <span>{s.label}</span>
+            </span>
             <span className="overview-value">{s.value}</span>
           </div>
         ))}
@@ -40,7 +44,10 @@ export default function OverviewAccordion({
           <div className="mt-2 grid grid-cols-2 gap-2">
             {secondaryStats.map((s) => (
               <div key={s.label} className="overview-card">
-                <span className="overview-label">{s.label}</span>
+                <span className="flex items-center space-x-1 overview-label">
+                  {s.icon && <span className="h-4 w-4">{s.icon}</span>}
+                  <span>{s.label}</span>
+                </span>
                 <span className="overview-value">{s.value}</span>
               </div>
             ))}
