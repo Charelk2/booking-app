@@ -7,11 +7,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import useNotifications from '@/hooks/useNotifications';
 import clsx from 'clsx';
 import { Spinner } from '@/components/ui';
+import BookingRequestCard from '@/components/dashboard/BookingRequestCard';
 import {
   getMyBookingRequests,
   getBookingRequestsForArtist,
 } from '@/lib/api';
-import { formatStatus } from '@/lib/utils';
 import type { BookingRequest, ThreadNotification } from '@/types';
 
 export default function BookingRequestsPage() {
@@ -24,7 +24,6 @@ export default function BookingRequestsPage() {
   const [serviceFilter, setServiceFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [openClients, setOpenClients] = useState<Record<number, boolean>>({});
 
 
 
@@ -86,28 +85,6 @@ export default function BookingRequestsPage() {
       });
   }, [requests, search, statusFilter, serviceFilter]);
 
-  const grouped = useMemo(() => {
-    const result: {
-      clientId: number;
-      clientName: string;
-      requests: BookingRequest[];
-    }[] = [];
-    const map = new Map<number, number>();
-    filtered.forEach((r) => {
-      const id = r.client_id;
-      const name = r.client
-        ? `${r.client.first_name} ${r.client.last_name}`
-        : '—';
-      if (map.has(id)) {
-        const idx = map.get(id)!;
-        result[idx].requests.push(r);
-      } else {
-        map.set(id, result.length);
-        result.push({ clientId: id, clientName: name, requests: [r] });
-      }
-    });
-    return result;
-  }, [filtered]);
 
   const handleRowClick = async (id: number) => {
     const related = items.filter((n) => {
@@ -179,72 +156,36 @@ export default function BookingRequestsPage() {
                   ))}
               </select>
             </div>
-            <div className="hidden sm:grid grid-cols-3 gap-4 bg-gray-50 p-2 text-sm font-semibold border-t">
-              <div>Service Type</div>
-              <div className="text-left">Proposed Date</div>
-              <div>Status</div>
-            </div>
-            <ul className="divide-y divide-gray-200">
-              {grouped.map((g) => (
-                <li key={`client-${g.clientId}`}>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOpenClients((o) => ({ ...o, [g.clientId]: !o[g.clientId] }))
-                    }
-                    aria-expanded={openClients[g.clientId] || false}
-                    aria-controls={`requests-${g.clientId}`}
-                    className="w-full text-left p-4 bg-gray-50 font-medium flex items-center justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
+            <ul className="divide-y divide-gray-200 p-2">
+              {filtered.map((r) => {
+                const count = unreadCounts[r.id] ?? 0;
+                const unread = count > 0;
+                return (
+                  <li
+                    key={r.id}
+                    data-request-id={r.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleRowClick(r.id)}
+                    onKeyPress={() => handleRowClick(r.id)}
+                    className={clsx(
+                      'relative cursor-pointer p-2 rounded-md hover:bg-gray-50 focus:outline-none',
+                      unread ? 'bg-brand-light border-l-4 border-brand' : 'bg-white',
+                    )}
                   >
-                    <span>
-                      {openClients[g.clientId] ? '▼' : '▶'} {g.clientName} ({g.requests.length} requests)
-                    </span>
-                  </button>
-                  {openClients[g.clientId] && (
-                    <ul id={`requests-${g.clientId}`} className="divide-y divide-gray-200">
-                      {g.requests.map((r) => {
-                        const count = unreadCounts[r.id] ?? 0;
-                        const unread = count > 0;
-                        return (
-                          <li
-                            key={r.id}
-                            data-request-id={r.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => handleRowClick(r.id)}
-                            onKeyPress={() => handleRowClick(r.id)}
-                            className={clsx(
-                              'grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 pl-6 cursor-pointer hover:bg-gray-50 focus:outline-none',
-                              unread ? 'bg-brand-light border-l-4 border-brand' : 'bg-white',
-                            )}
-                          >
-                            <div className="text-sm sm:text-center">
-                              {r.service?.service_type || '—'}
-                            </div>
-                            <div className="text-sm sm:text-center">
-                              {r.proposed_datetime_1
-                                ? new Date(r.proposed_datetime_1).toLocaleDateString()
-                                : '—'}
-                            </div>
-                            <div className="text-sm sm:text-center flex items-center justify-between sm:justify-center">
-                              <span>{formatStatus(r.status)}</span>
-                              {count > 0 && (
-                                <span
-                                  className="ml-2 inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full"
-                                  aria-label={`${count} unread updates`}
-                                >
-                                  {count > 99 ? '99+' : count}
-                                </span>
-                              )}
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </li>
-              ))}
-              {grouped.length === 0 && (
+                    {count > 0 && (
+                      <span
+                        className="absolute top-0 right-0 -mt-1 -mr-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full"
+                        aria-label={`${count} unread updates`}
+                      >
+                        {count > 99 ? '99+' : count}
+                      </span>
+                    )}
+                    <BookingRequestCard req={r} user={user} onUpdate={() => {}} />
+                  </li>
+                );
+              })}
+              {filtered.length === 0 && (
                 <li className="p-4 text-sm text-gray-500">No requests.</li>
               )}
             </ul>
