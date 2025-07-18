@@ -185,4 +185,70 @@ describe('NotificationListItem', () => {
     const parsed = parseItem(n);
     expect(parsed.initials).toBe('JS');
   });
+
+  it('renders a green check icon for confirmed status', () => {
+    const n: UnifiedNotification = {
+      type: 'quote_accepted',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Quote accepted by Jill',
+      sender_name: 'Jill',
+    } as UnifiedNotification;
+
+    act(() => {
+      root.render(
+        React.createElement(NotificationListItem, {
+          n,
+          onClick: () => {},
+        }),
+      );
+    });
+
+    const icon = container.querySelector('svg.text-green-600');
+    expect(icon).not.toBeNull();
+  });
+
+  it('renders an indigo calendar icon for reminder status', () => {
+    const n: UnifiedNotification = {
+      type: 'new_booking_request',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Location: Test',
+      sender_name: 'Jane',
+      booking_type: 'Performance',
+    } as UnifiedNotification;
+
+    act(() => {
+      root.render(
+        React.createElement(NotificationListItem, {
+          n,
+          onClick: () => {},
+        }),
+      );
+    });
+
+    const icon = container.querySelector('svg.text-indigo-600');
+    expect(icon).not.toBeNull();
+  });
+
+  it('renders an amber alert icon for due status', () => {
+    const n: UnifiedNotification = {
+      type: 'deposit_due',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Deposit R50 due by 2025-06-30',
+    } as UnifiedNotification;
+
+    act(() => {
+      root.render(
+        React.createElement(NotificationListItem, {
+          n,
+          onClick: () => {},
+        }),
+      );
+    });
+
+    const icon = container.querySelector('svg.text-amber-500');
+    expect(icon).not.toBeNull();
+  });
 });

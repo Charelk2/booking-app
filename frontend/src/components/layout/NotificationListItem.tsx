@@ -216,7 +216,7 @@ export default function NotificationListItem({ n, onClick, style, className = ''
         <CheckCircleIcon className="h-5 w-5 text-green-600" />
       )}
       {parsed.status === 'reminder' && (
-        <CalendarIcon className="h-5 w-5 text-brand-dark" />
+        <CalendarIcon className="h-5 w-5 text-indigo-600" />
       )}
       {parsed.status === 'due' && (
         <ExclamationCircleIcon className="h-5 w-5 text-amber-500" />
