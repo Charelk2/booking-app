@@ -1,14 +1,12 @@
+// FullScreenNotificationModal.tsx
 'use client';
 
 import { Fragment, useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, Transition } from '@headlessui/react';
-// Mobile layout previously used swipe actions. Cards are easier to read on
-// small screens so we now display a scrollable list of cards instead.
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
 import NotificationListItem from './NotificationListItem';
-
 import type { UnifiedNotification } from '@/types';
 
 interface FullScreenNotificationModalProps {
@@ -22,7 +20,6 @@ interface FullScreenNotificationModalProps {
   error?: Error | string | null;
 }
 
-
 export default function FullScreenNotificationModal({
   open,
   onClose,
@@ -34,27 +31,47 @@ export default function FullScreenNotificationModal({
   error,
 }: FullScreenNotificationModalProps) {
   const router = useRouter();
-  const [showUnread, setShowUnread] = useState(false);
-  const [listHeight, setListHeight] = useState(400);
-  const containerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const update = () => setListHeight(containerRef.current?.clientHeight ?? 400);
-    update();
-    const ro = new ResizeObserver(update);
-    if (containerRef.current) ro.observe(containerRef.current);
-    return () => ro.disconnect();
-  }, []);
+  const ROW_HEIGHT = 84;
+  const PAGE_SIZE = 10;
 
+  // toggle unread filter
+  const [showUnread, setShowUnread] = useState(false);
+  // how many loaded into the list
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const listRef = useRef<List>(null);
+  const prevCountRef = useRef(visibleCount);
+
+  // auto-scroll when loading more
+  useEffect(() => {
+    if (visibleCount > prevCountRef.current && listRef.current) {
+      listRef.current.scrollToItem(prevCountRef.current, 'start');
+    }
+    prevCountRef.current = visibleCount;
+  }, [visibleCount]);
+
+  // filter items by unread if toggled
   const filtered = showUnread
     ? items.filter((i) =>
-        i.type === 'message' ? (i.unread_count ?? 0) > 0 : !i.is_read,
+        i.type === 'message' ? (i.unread_count ?? 0) > 0 : !i.is_read
       )
     : items;
 
-  const handleItemClick = async (itemId: number) => {
-    const item = items.find((i) => (i.id || i.booking_request_id) === itemId);
+  // slice out only what’s visible
+  const visible = filtered.slice(0, visibleCount);
+  const canLoadMore = hasMore && visibleCount < filtered.length;
+
+  // build row count (notifications + optional load-more)
+  const extraRow = canLoadMore ? 1 : 0;
+  const totalRows = visible.length + extraRow;
+  const rowsToShow = Math.min(totalRows, PAGE_SIZE + extraRow);
+  const listHeight = rowsToShow * ROW_HEIGHT;
+
+  // handle click + routing
+  const handleItemClick = async (id: number) => {
+    const item = items.find((i) => (i.id || i.booking_request_id) === id);
     if (!item) return;
-    await onItemClick(itemId);
+    await onItemClick(id);
+
     if (item.type === 'message' && item.booking_request_id) {
       router.push(`/messages/thread/${item.booking_request_id}`);
     } else if (item.type === 'review_request' && item.link) {
@@ -78,7 +95,6 @@ export default function FullScreenNotificationModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          {/* Hide overlay on small screens so it doesn't block clicks */}
           <div className="fixed inset-0 bg-gray-600 bg-opacity-75 hidden sm:block" />
         </Transition.Child>
 
@@ -88,47 +104,53 @@ export default function FullScreenNotificationModal({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setShowUnread((prev) => !prev)}
+                onClick={() => setShowUnread((p) => !p)}
                 className="text-sm text-gray-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 data-testid="toggle-unread"
               >
                 {showUnread ? 'Show All' : 'Unread Only'}
               </button>
-              <button type="button" onClick={markAllRead} className="text-sm text-brand-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              <button
+                type="button"
+                onClick={markAllRead}
+                className="text-sm text-brand-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
                 Mark All as Read
               </button>
-              <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
                 <span className="sr-only">Close panel</span>
                 <XMarkIcon className="h-6 w-6" aria-hidden="true" />
               </button>
             </div>
           </div>
+
           {error && (
             <div className="bg-red-100 text-red-800 text-sm px-4 py-2" data-testid="notification-error">
-              {error?.message}
+              {typeof error === 'string' ? error : error.message}
             </div>
           )}
 
-          <div
-            className="flex-1 overflow-y-auto p-4"
-            ref={containerRef}
-            data-testid="notification-modal-list"
-          >
-            {filtered.length === 0 ? (
+          <div className="flex-1 overflow-y-auto p-4" data-testid="notification-modal-list">
+            {visible.length === 0 && !canLoadMore ? (
               <div className="flex h-full items-center justify-center text-gray-500 text-center">
                 🎉 You&apos;re all caught up!
               </div>
             ) : (
               <List
+                ref={listRef}
                 height={listHeight}
-                itemCount={filtered.length + (hasMore ? 1 : 0)}
-                itemSize={84}
+                itemCount={totalRows}
+                itemSize={ROW_HEIGHT}
                 width="100%"
                 overscanCount={3}
               >
                 {({ index, style }: ListChildComponentProps) => {
-                  if (index < filtered.length) {
-                    const n = filtered[index];
+                  if (index < visible.length) {
+                    const n = visible[index];
                     return (
                       <NotificationListItem
                         key={`${n.type}-${n.id || n.booking_request_id}`}
@@ -139,12 +161,16 @@ export default function FullScreenNotificationModal({
                       />
                     );
                   }
+                  // Load more row
                   return (
                     <div style={style} className="text-center pt-2">
                       <button
                         type="button"
                         aria-label="Load more notifications"
-                        onClick={loadMore}
+                        onClick={() => {
+                          setVisibleCount((c) => c + PAGE_SIZE);
+                          loadMore();
+                        }}
                         className="text-sm text-brand-dark hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                       >
                         Load more
