@@ -8,7 +8,7 @@ const baseNotification: UnifiedNotification = {
   type: 'message',
   timestamp: new Date().toISOString(),
   is_read: false,
-  content: 'New message: Hi',
+  content: 'New message from Alice: Hi',
   booking_request_id: 1,
   name: 'Alice',
 } as UnifiedNotification;

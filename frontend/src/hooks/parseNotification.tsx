@@ -22,10 +22,16 @@ function truncate(text: string, len = 50): string {
 export default function parseNotification(n: Notification): ParsedNotification {
   switch (n.type) {
     case 'new_message':
+      const match = n.message.match(/^New message from ([^:]+):\s*/i);
       return {
         icon: <ChatBubbleLeftRightIcon className="w-5 h-5 text-indigo-600" />,
-        title: n.sender_name ?? 'New message',
-        subtitle: truncate(n.message.replace(/^New message:\s*/i, '').trim()),
+        title: n.sender_name ?? match?.[1]?.trim() ?? 'New message',
+        subtitle: truncate(
+          n.message
+            .replace(/^New message from ([^:]+):\s*/i, '')
+            .replace(/^New message:\s*/i, '')
+            .trim(),
+        ),
       };
     case 'message_thread_notification':
       return {

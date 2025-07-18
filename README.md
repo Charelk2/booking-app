@@ -756,6 +756,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * A full-width rounded **Clear All** button stays pinned to the bottom of the panel.
 * Deposit due alerts now display "Booking confirmed – deposit R{amount} due by {date}" so clients immediately see the payment deadline. The drawer parses this format to show `R50.00 due by Jan 1, 2025` as the subtitle and links directly to the booking.
 * Quote acceptance and booking confirmation notifications now render dynamic titles such as **"Quote accepted by Jane Doe"** instead of a generic label.
+* Message notifications now include the sender name in both the stored text and the API response so the drawer can display "New message from Alice" without additional lookups.
 * Artists marking a booking **completed** now trigger a **REVIEW_REQUEST** notification. The alert links to `/dashboard/client/bookings/{booking_id}` so clients can quickly rate their experience.
 * Chat message groups display a small unread badge on the right side when new messages arrive, clearing automatically once read.
 * Day divider lines show the full date, while relative times remain visible next to each message group.
