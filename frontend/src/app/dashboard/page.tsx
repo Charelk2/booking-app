@@ -22,6 +22,7 @@ import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
 import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
 import SectionList from "@/components/dashboard/SectionList";
+import BookingRequestCard from "@/components/dashboard/BookingRequestCard";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
 import { Spinner, Button } from '@/components/ui';
 import clsx from 'clsx';
@@ -421,50 +422,12 @@ export default function DashboardPage() {
                 defaultOpen={false}
                 emptyState={<span>No bookings yet</span>}
                 renderItem={(req) => (
-                  <div key={req.id} className="bg-white p-4 shadow rounded-lg">
-                    <div className="font-medium text-gray-900">
-                      {user?.user_type === 'artist'
-                        ? `${req.client?.first_name} ${req.client?.last_name}`
-                        :
-                            req.artist?.business_name ||
-                            `${req.artist?.first_name} ${req.artist?.last_name}`}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {req.service?.title || '—'}
-                    </div>
-                    <div className="mt-2 flex justify-between text-sm text-gray-500">
-                      <span>{formatStatus(req.status)}</span>
-                      <span>{new Date(req.created_at).toLocaleDateString()}</span>
-                    </div>
-                    <Link
-                      href={`/booking-requests/${req.id}`}
-                      className={clsx(
-                        'mt-2 inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 transition-transform active:scale-95',
-                        buttonVariants.primary,
-                      )}
-                    >
-                      View Chat
-                    </Link>
-                    {user?.user_type === 'artist' && (
-                      <Button
-                        type="button"
-                        onClick={() => setRequestToUpdate(req)}
-                        variant="primary"
-                        size="sm"
-                        className="ml-4 mt-2"
-                      >
-                        Update
-                      </Button>
-                    )}
-                    {req.accepted_quote_id && (
-                      <Link
-                        href={`/quotes/${req.accepted_quote_id}`}
-                        className="ml-4 mt-2 inline-block text-green-600 hover:underline text-sm"
-                      >
-                        Quote accepted
-                      </Link>
-                    )}
-                  </div>
+                  <BookingRequestCard
+                    key={req.id}
+                    req={req}
+                    user={user as any}
+                    onUpdate={() => setRequestToUpdate(req)}
+                  />
                 )}
                 footer={
                   bookingRequests.length > visibleRequests.length ? (
