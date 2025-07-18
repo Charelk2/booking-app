@@ -35,16 +35,24 @@ function toInitials(name?: string): string | undefined {
 export function parseItem(n: UnifiedNotification): ParsedNotification {
   const content = typeof n.content === 'string' ? n.content : '';
   if (n.type === 'message') {
-    const cleaned = content.replace(/^New message:\s*/i, '').trim();
+    let name = n.name || n.sender_name;
+    let cleaned = content;
+    const fromMatch = content.match(/^New message from ([^:]+):\s*/i);
+    if (fromMatch) {
+      if (!name) name = fromMatch[1].trim();
+      cleaned = content.replace(/^New message from ([^:]+):\s*/i, '').trim();
+    } else {
+      cleaned = content.replace(/^New message:\s*/i, '').trim();
+    }
     const snippet = cleaned.length > 30 ? `${cleaned.slice(0, 30)}...` : cleaned;
-    const title = n.name || n.sender_name || 'Message';
+    const title = name || 'Message';
     const unreadCount = Number(n.unread_count) || 0;
     return {
       title,
       subtitle: snippet,
       icon: '💬',
       avatarUrl: n.avatar_url || undefined,
-      initials: toInitials(n.name || n.sender_name),
+      initials: toInitials(name),
       unreadCount,
     };
   }
