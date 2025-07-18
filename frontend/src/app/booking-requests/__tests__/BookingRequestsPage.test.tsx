@@ -45,7 +45,7 @@ function setup(markItem = jest.fn()) {
         artist_id: 2,
         status: 'new',
         proposed_datetime_1: '2025-06-10T12:00:00Z',
-        created_at: '',
+        created_at: '2025-06-01T00:00:00Z',
         updated_at: '',
         client: { first_name: 'Alice', last_name: 'A' },
         service: { service_type: 'Live Performance' },
@@ -56,7 +56,7 @@ function setup(markItem = jest.fn()) {
         artist_id: 2,
         status: 'pending_quote',
         proposed_datetime_1: '2025-06-11T12:00:00Z',
-        created_at: '',
+        created_at: '2025-06-02T00:00:00Z',
         updated_at: '',
         client: { first_name: 'Bob', last_name: 'B' },
         service: { service_type: 'Custom Song' },
@@ -79,17 +79,6 @@ describe('BookingRequestsPage', () => {
     await act(async () => {
       root.render(<BookingRequestsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
-    const aliceHeader = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Alice A'),
-    ) as HTMLButtonElement;
-    if (aliceHeader) {
-      act(() => {
-        aliceHeader.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      });
-    }
     await act(async () => {
       await Promise.resolve();
     });
@@ -121,62 +110,22 @@ describe('BookingRequestsPage', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    const bobHeader = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Bob B'),
+    const bobRow = Array.from(container.querySelectorAll('li[data-request-id]')).find((li) =>
+      li.textContent?.includes('Bob B'),
     );
-    expect(bobHeader).toBeTruthy();
+    expect(bobRow).toBeTruthy();
     act(() => {
       root.unmount();
     });
     container.remove();
   });
 
-  it('sets aria attributes on toggle buttons', async () => {
-    const { container, root } = setup();
-    await act(async () => {
-      root.render(<BookingRequestsPage />);
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-    const aliceHeader = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Alice A'),
-    ) as HTMLButtonElement;
-    expect(aliceHeader?.getAttribute('aria-controls')).toBe('requests-1');
-    expect(aliceHeader?.getAttribute('aria-expanded')).toBe('false');
-    if (aliceHeader) {
-      act(() => {
-        aliceHeader.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      });
-    }
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(aliceHeader?.getAttribute('aria-expanded')).toBe('true');
-    const list = container.querySelector('#requests-1');
-    expect(list).toBeTruthy();
-    act(() => {
-      root.unmount();
-    });
-    container.remove();
-  });
 
   it('marks notifications read when row clicked', async () => {
     const { container, root, push, markItem } = setup(jest.fn());
     await act(async () => {
       root.render(<BookingRequestsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
-    const aliceHeader = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Alice A'),
-    ) as HTMLButtonElement;
-    if (aliceHeader) {
-      act(() => {
-        aliceHeader.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      });
-    }
     await act(async () => {
       await Promise.resolve();
     });
