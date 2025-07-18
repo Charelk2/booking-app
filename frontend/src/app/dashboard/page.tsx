@@ -450,10 +450,11 @@ export default function DashboardPage() {
                 renderItem={(booking) => (
                   <div key={booking.id} className="bg-white p-4 shadow rounded-lg">
                   <div className="font-medium text-gray-900">
-                    {booking.client.first_name} {booking.client.last_name}
+                    {booking.client?.first_name || 'Unknown'}{' '}
+                    {booking.client?.last_name || ''}
                   </div>
                   <div className="text-sm text-gray-500">
-                    {booking.service.title}
+                    {booking.service?.title || '—'}
                   </div>
                   <div className="text-sm text-gray-500">
                     {format(new Date(booking.start_time), 'MMM d, yyyy h:mm a')}
