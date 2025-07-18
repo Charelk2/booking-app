@@ -119,9 +119,9 @@ export default function ArtistBookingsPage() {
             {bookings.map((b) => (
               <li key={b.id} className="bg-white p-4 shadow rounded-lg">
                 <div className="font-medium text-gray-900">
-                  {b.client.first_name} {b.client.last_name}
+                  {b.client?.first_name || 'Unknown'} {b.client?.last_name || ''}
                 </div>
-                <div className="text-sm text-gray-500">{b.service.title}</div>
+                <div className="text-sm text-gray-500">{b.service?.title || '—'}</div>
                 <div className="text-sm text-gray-500">
                   {format(new Date(b.start_time), 'MMM d, yyyy h:mm a')}
                 </div>
