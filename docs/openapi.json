@@ -2986,7 +2986,7 @@
         }
       }
     },
-    "/api/notifications": {
+    "/api/v1/notifications": {
       "get": {
         "tags": [
           "notifications",
@@ -3050,7 +3050,7 @@
         }
       }
     },
-    "/api/notifications/{notification_id}/read": {
+    "/api/v1/notifications/{notification_id}/read": {
       "put": {
         "tags": [
           "notifications",
@@ -3099,7 +3099,7 @@
         }
       }
     },
-    "/api/notifications/message-threads": {
+    "/api/v1/notifications/message-threads": {
       "get": {
         "tags": [
           "notifications",
@@ -3131,7 +3131,7 @@
         ]
       }
     },
-    "/api/notifications/message-threads/{booking_request_id}/read": {
+    "/api/v1/notifications/message-threads/{booking_request_id}/read": {
       "put": {
         "tags": [
           "notifications",
@@ -3178,7 +3178,7 @@
         }
       }
     },
-    "/api/notifications/read-all": {
+    "/api/v1/notifications/read-all": {
       "put": {
         "tags": [
           "notifications",
@@ -3648,6 +3648,158 @@
             "schema": {
               "type": "string",
               "title": "Payment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{invoice_id}": {
+      "get": {
+        "tags": [
+          "invoices",
+          "invoices"
+        ],
+        "summary": "Read Invoice",
+        "operationId": "read_invoice_api_v1_invoices__invoice_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{invoice_id}/mark-paid": {
+      "post": {
+        "tags": [
+          "invoices",
+          "invoices"
+        ],
+        "summary": "Mark Invoice Paid",
+        "operationId": "mark_invoice_paid_api_v1_invoices__invoice_id__mark_paid_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvoiceMarkPaid"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invoices/{invoice_id}/pdf": {
+      "get": {
+        "tags": [
+          "invoices",
+          "invoices"
+        ],
+        "summary": "Get Invoice Pdf",
+        "operationId": "get_invoice_pdf_api_v1_invoices__invoice_id__pdf_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Invoice Id"
             }
           }
         ],
@@ -5049,6 +5201,17 @@
             ],
             "title": "Deposit Paid"
           },
+          "booking_request_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Request Id"
+          },
           "client": {
             "anyOf": [
               {
@@ -5271,6 +5434,149 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "InvoiceMarkPaid": {
+        "properties": {
+          "payment_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Method"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "title": "InvoiceMarkPaid"
+      },
+      "InvoiceRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "quote_id": {
+            "type": "integer",
+            "title": "Quote Id"
+          },
+          "booking_id": {
+            "type": "integer",
+            "title": "Booking Id"
+          },
+          "artist_id": {
+            "type": "integer",
+            "title": "Artist Id"
+          },
+          "client_id": {
+            "type": "integer",
+            "title": "Client Id"
+          },
+          "issue_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Issue Date"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "amount_due": {
+            "type": "string",
+            "title": "Amount Due"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvoiceStatus"
+          },
+          "payment_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Method"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "pdf_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf Url"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "quote_id",
+          "booking_id",
+          "artist_id",
+          "client_id",
+          "issue_date",
+          "amount_due",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "InvoiceRead"
+      },
+      "InvoiceStatus": {
+        "type": "string",
+        "enum": [
+          "unpaid",
+          "partial",
+          "paid",
+          "overdue"
+        ],
+        "title": "InvoiceStatus"
       },
       "MFACode": {
         "properties": {
