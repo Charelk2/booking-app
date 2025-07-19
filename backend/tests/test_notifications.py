@@ -103,7 +103,7 @@ def test_message_creates_notification():
     notifs = crud_notification.get_notifications_for_user(db, artist.id)
     assert len(notifs) == 1
     assert notifs[0].type.value == "new_message"
-    assert notifs[0].link == f"/booking-requests/{br.id}"
+    assert notifs[0].link == f"/messages/thread/{br.id}"
 
 
 def test_system_booking_summary_message_suppressed():
@@ -738,7 +738,7 @@ def test_new_message_notification_fallback_client_name():
         user_id=artist.id,
         type=NotificationType.NEW_MESSAGE,
         message="New message: hi",
-        link=f"/booking-requests/{br.id}",
+        link=f"/messages/thread/{br.id}",
     )
     db.close()
 
@@ -795,7 +795,7 @@ def test_new_message_notification_fallback_business_name():
         user_id=client_user.id,
         type=NotificationType.NEW_MESSAGE,
         message="New message: hi",
-        link=f"/booking-requests/{br.id}",
+        link=f"/messages/thread/{br.id}",
     )
     db.close()
 
