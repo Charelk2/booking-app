@@ -25,7 +25,12 @@ from app.utils.notifications import (
     format_notification_message,
     VIDEO_FLOW_READY_MESSAGE,
 )
-from app.utils.notifications import notify_user_new_message, notify_deposit_due
+from app.utils.notifications import (
+    notify_user_new_message,
+    notify_deposit_due,
+    notify_new_booking,
+    notify_booking_status_update,
+)
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from app.main import app
@@ -740,4 +745,161 @@ def test_deposit_due_prefix_only_once():
     )
     first = crud_notification.get_notifications_for_user(db, client.id)[0]
     assert first.message.startswith("Booking confirmed")
+
+
+def test_deposit_due_notification_includes_artist_business_name():
+    Session = setup_app()
+    db = Session()
+    client = User(
+        email="client3@test.com",
+        password="x",
+        first_name="C3",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="artist3@test.com",
+        password="x",
+        first_name="A3",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+    profile = models.ArtistProfile(user_id=artist.id, business_name="The Band")
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+
+    booking = models.BookingSimple(
+        quote_id=2,
+        artist_id=artist.id,
+        client_id=client.id,
+        payment_status="pending",
+        deposit_amount=50,
+        deposit_due_by=datetime(2026, 1, 1),
+        deposit_paid=False,
+    )
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+
+    notify_deposit_due(
+        db,
+        client,
+        booking.id,
+        float(booking.deposit_amount),
+        booking.deposit_due_by,
+    )
+    db.close()
+
+    token = create_access_token({"sub": client.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["sender_name"] == "The Band"
+    app.dependency_overrides.clear()
+
+
+def test_new_booking_notification_includes_artist_business_name():
+    Session = setup_app()
+    db = Session()
+    client = User(
+        email="client4@test.com",
+        password="x",
+        first_name="C4",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="artist4@test.com",
+        password="x",
+        first_name="A4",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+    profile = models.ArtistProfile(user_id=artist.id, business_name="The Band")
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+
+    booking = models.BookingSimple(
+        quote_id=3,
+        artist_id=artist.id,
+        client_id=client.id,
+        payment_status="pending",
+    )
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+
+    notify_new_booking(db, client, booking.id)
+    db.close()
+
+    token = create_access_token({"sub": client.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["sender_name"] == "The Band"
+    app.dependency_overrides.clear()
+
+
+def test_booking_status_update_notification_includes_client_name():
+    Session = setup_app()
+    db = Session()
+    client = User(
+        email="client5@test.com",
+        password="x",
+        first_name="C5",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="artist5@test.com",
+        password="x",
+        first_name="A5",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    notify_booking_status_update(db, artist, br.id, "withdrawn")
+    db.close()
+
+    token = create_access_token({"sub": artist.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["sender_name"] == "C5 User"
+    app.dependency_overrides.clear()
 
