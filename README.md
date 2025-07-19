@@ -764,7 +764,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Deposit due, new booking and status update alerts also populate `sender_name` with the relevant artist or client so titles are consistent across notification types.
 * New `useNotifications` context fetches `/api/v1/notifications` with auth and listens on `/api/v1/ws/notifications?token=...` for real-time updates. Notifications are reloaded every 30&nbsp;seconds via a shared Axios instance. The drawer components live under `components/layout/`.
 * Wrap the root layout in `<NotificationsProvider>` so badges and drawers update automatically across the app.
-* A new `parseNotification` utility maps each notification type to a friendly title, subtitle and icon. `<NotificationListItem>` consumes this data and opens the related link while marking the item read.
+* A new `parseNotification` utility maps each notification type to a friendly title, subtitle and icon. `<NotificationCard>` consumes this data and opens the related link while marking the item read.
 * Unread notifications show a subtle brand-colored strip on the left while read cards remain plain white.
 * `NotificationCard` in `components/ui/` displays a single alert with the same soft shadowed style used in the drawer.
 * `getNotificationDisplayProps` converts a `Notification` or unified feed item into the props required by `NotificationCard`.
