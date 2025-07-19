@@ -172,7 +172,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     try {
       const res = await api.get<Notification[]>('/notifications', {
         params: {
-          offset: notifications.length,
+          skip: notifications.length,
           limit: 20,
           unreadOnly: false,
         },
