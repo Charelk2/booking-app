@@ -768,6 +768,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Unread notifications show a subtle brand-colored strip on the left while read cards remain plain white.
 * `NotificationCard` in `components/ui/` displays a single alert with the same soft shadowed style used in the drawer.
 * `getNotificationDisplayProps` converts a `Notification` or unified feed item into the props required by `NotificationCard`.
+* API responses include `sender_name` and `link` fields used by the UI for titles and navigation. See [docs/notifications.md](docs/notifications.md).
 * A rounded **Clear All** button is fixed at the bottom so users can dismiss everything at once.
 
 ### Artist Profile Enhancements
