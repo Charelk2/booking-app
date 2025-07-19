@@ -19,3 +19,4 @@ export { default as PillButton } from './PillButton';
 export { default as Avatar } from './Avatar';
 export { default as IconButton } from './IconButton';
 export { default as ToggleSwitch } from './ToggleSwitch';
+export { default as NotificationCard } from './NotificationCard';

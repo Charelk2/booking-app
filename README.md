@@ -766,6 +766,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Wrap the root layout in `<NotificationsProvider>` so badges and drawers update automatically across the app.
 * A new `parseNotification` utility maps each notification type to a friendly title, subtitle and icon. `<NotificationListItem>` consumes this data and opens the related link while marking the item read.
 * Unread notifications show a subtle brand-colored strip on the left while read cards remain plain white.
+* `NotificationCard` in `components/ui/` displays a single alert with the same soft shadowed style used in the drawer.
 * A rounded **Clear All** button is fixed at the bottom so users can dismiss everything at once.
 
 ### Artist Profile Enhancements
