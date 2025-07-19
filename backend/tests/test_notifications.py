@@ -702,6 +702,115 @@ def test_notifications_endpoint_returns_sender_name():
     app.dependency_overrides.clear()
 
 
+def test_new_message_notification_fallback_client_name():
+    Session = setup_app()
+    db = Session()
+    artist = User(
+        email="artistfb@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    client_user = User(
+        email="clientfb@test.com",
+        password="x",
+        first_name="C",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client_user])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client_user)
+
+    br = BookingRequest(
+        client_id=client_user.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    crud_notification.create_notification(
+        db,
+        user_id=artist.id,
+        type=NotificationType.NEW_MESSAGE,
+        message="New message: hi",
+        link=f"/booking-requests/{br.id}",
+    )
+    db.close()
+
+    token = create_access_token({"sub": artist.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["sender_name"] == "C User"
+    app.dependency_overrides.clear()
+
+
+def test_new_message_notification_fallback_business_name():
+    Session = setup_app()
+    db = Session()
+    artist = User(
+        email="artistfb2@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    client_user = User(
+        email="clientfb2@test.com",
+        password="x",
+        first_name="C",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client_user])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client_user)
+
+    profile = models.ArtistProfile(user_id=artist.id, business_name="The Band")
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+
+    br = BookingRequest(
+        client_id=client_user.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    crud_notification.create_notification(
+        db,
+        user_id=client_user.id,
+        type=NotificationType.NEW_MESSAGE,
+        message="New message: hi",
+        link=f"/booking-requests/{br.id}",
+    )
+    db.close()
+
+    token = create_access_token({"sub": client_user.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["sender_name"] == "The Band"
+    app.dependency_overrides.clear()
+
+
 def test_deposit_due_prefix_only_once():
     db = setup_db()
     client = User(
