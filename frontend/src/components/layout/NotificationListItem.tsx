@@ -75,13 +75,30 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
   }
 
   if (/deposit.*due/i.test(content)) {
-    const m = content.match(
+    let rest = content;
+    let celebration: string | undefined;
+    const pref = rest.match(/^booking confirmed\s*[–-]\s*/i);
+    if (pref) {
+      celebration = 'Booking confirmed';
+      rest = rest.slice(pref[0].length).trim();
+    }
+    const m = rest.match(
       /deposit\s+(?:of\s*)?R?([\d.,]+)\s*due(?:\s*by\s*(\d{4}-\d{2}-\d{2}))?/i
     );
     if (m) {
       const [, amt, by] = m;
       const parts = [`R${amt}`];
       if (by) parts.push(`due by ${format(new Date(by), 'MMM d, yyyy')}`);
+      if (celebration) {
+        return {
+          ...base,
+          title: 'Deposit Due',
+          subtitle: celebration,
+          metadata: parts.join(' '),
+          icon: '💰',
+          status: 'due',
+        };
+      }
       return { ...base, title: 'Deposit Due', subtitle: parts.join(' '), icon: '💰', status: 'due' };
     }
   }
