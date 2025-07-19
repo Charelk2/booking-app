@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
-import NotificationListItem from './NotificationListItem';
+import NotificationCard from '../ui/NotificationCard';
+import getNotificationDisplayProps from '@/hooks/getNotificationDisplayProps';
 import type { UnifiedNotification } from '@/types';
 
 interface FullScreenNotificationModalProps {
@@ -151,14 +152,16 @@ export default function FullScreenNotificationModal({
                 {({ index, style }: ListChildComponentProps) => {
                   if (index < visible.length) {
                     const n = visible[index];
+                    const props = getNotificationDisplayProps(n);
                     return (
-                      <NotificationListItem
-                        key={`${n.type}-${n.id || n.booking_request_id}`}
-                        n={n}
-                        onClick={() => handleItemClick(n.id || (n.booking_request_id as number))}
-                        style={style}
-                        className="rounded-lg"
-                      />
+                      <div key={`${n.type}-${n.id || n.booking_request_id}`} style={style} className="rounded-lg">
+                        <NotificationCard
+                          {...props}
+                          onClick={() =>
+                            handleItemClick(n.id || (n.booking_request_id as number))
+                          }
+                        />
+                      </div>
                     );
                   }
                   // Load more row

@@ -9,7 +9,8 @@ import {
   FixedSizeList as List,
   ListChildComponentProps,
 } from 'react-window';
-import NotificationListItem from './NotificationListItem';
+import NotificationCard from '../ui/NotificationCard';
+import getNotificationDisplayProps from '@/hooks/getNotificationDisplayProps';
 import { ToggleSwitch, IconButton } from '../ui';
 import type { UnifiedNotification } from '@/types';
 
@@ -147,13 +148,19 @@ export default function NotificationDrawer({
                     >
                       {({ index, style }: ListChildComponentProps) => {
                         if (index < visible.length) {
-                          const notification = visible[index];
+                          const n = visible[index];
+                          const props = getNotificationDisplayProps(n);
                           return (
-                            <div style={style} className="px-3 hover:bg-gray-50 transition-colors duration-150 rounded">
-                              <NotificationListItem
-                                n={notification}
+                            <div
+                              style={style}
+                              className="px-3 hover:bg-gray-50 transition-colors duration-150 rounded"
+                            >
+                              <NotificationCard
+                                {...props}
                                 onClick={() =>
-                                  onItemClick(notification.id ?? (notification.booking_request_id as number))
+                                  onItemClick(
+                                    n.id ?? (n.booking_request_id as number)
+                                  )
                                 }
                               />
                             </div>
