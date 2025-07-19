@@ -33,14 +33,14 @@ describe('getNotificationDisplayProps', () => {
       timestamp: '2025-01-02T00:00:00Z',
       is_read: false,
       content: 'Deposit R50 due by 2025-01-10',
-      link: '/dashboard/client/bookings/5',
+      link: '/dashboard/client/bookings/5?pay=1',
     } as UnifiedNotification;
     const props = getNotificationDisplayProps(n);
     expect(props.type).toBe('due');
     expect(props.from).toBe('Deposit Due');
     expect(props.subtitle).toContain('R50');
     props.onClick();
-    expect(assignSpy).toHaveBeenCalledWith('/dashboard/client/bookings/5');
+    expect(assignSpy).toHaveBeenCalledWith('/dashboard/client/bookings/5?pay=1');
   });
 
   it('builds booking request display props', () => {
@@ -74,6 +74,6 @@ describe('getNotificationDisplayProps', () => {
     const props = getNotificationDisplayProps(n);
     expect(props.type).toBe('reminder');
     props.onClick();
-    expect(assignSpy).toHaveBeenCalledWith('/dashboard/client/bookings/7');
+    expect(assignSpy).toHaveBeenCalledWith('/dashboard/client/bookings/7?review=1');
   });
 });
