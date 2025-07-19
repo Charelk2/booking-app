@@ -24,7 +24,7 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
                 if match:
                     sender = match.group(1).strip()
                 else:
-                    br_match = re.search(r"/booking-requests/(\d+)", n.link)
+                    br_match = re.search(r"/(?:booking-requests|messages/thread)/(\d+)", n.link)
                     if br_match:
                         br_id = int(br_match.group(1))
                         br = (

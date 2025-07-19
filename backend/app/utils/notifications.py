@@ -157,7 +157,7 @@ def notify_user_new_message(
         user.id,
         NotificationType.NEW_MESSAGE,
         message,
-        f"/booking-requests/{booking_request_id}",
+        f"/messages/thread/{booking_request_id}",
         sender_name=sender_name,
     )
     logger.info("Notify %s: %s", user.email, message)
