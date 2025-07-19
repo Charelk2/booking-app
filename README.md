@@ -761,6 +761,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Chat message groups display a small unread badge on the right side when new messages arrive, clearing automatically once read.
 * Day divider lines show the full date, while relative times remain visible next to each message group.
 * Booking request notifications display the sender name as the title and the service type in the subtitle with contextual icons. Service names are converted from `PascalCase` or `snake_case` and truncated for readability. The `/api/v1/notifications` endpoint now includes `sender_name` and `booking_type` fields so the frontend no longer parses them from the message string.
+* Deposit due, new booking and status update alerts also populate `sender_name` with the relevant artist or client so titles are consistent across notification types.
 * New `useNotifications` context fetches `/api/v1/notifications` with auth and listens on `/api/v1/ws/notifications?token=...` for real-time updates. Notifications are reloaded every 30&nbsp;seconds via a shared Axios instance. The drawer components live under `components/layout/`.
 * Wrap the root layout in `<NotificationsProvider>` so badges and drawers update automatically across the app.
 * A new `parseNotification` utility maps each notification type to a friendly title, subtitle and icon. `<NotificationListItem>` consumes this data and opens the related link while marking the item read.
