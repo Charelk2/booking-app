@@ -174,7 +174,14 @@ export default function NotificationDrawer({
                     </List>
                   </div>
 
-                  <footer className="sticky bottom-0 z-10 px-3 py-2 bg-white bg-opacity-90 backdrop-filter backdrop-blur-xs border-t">
+                  <footer className="sticky bottom-0 z-10 px-3 py-2 bg-white bg-opacity-90 backdrop-filter backdrop-blur-xs border-t flex gap-2">
+                    <button
+                      type="button"
+                      onClick={markAllRead}
+                      className="w-full rounded-full bg-indigo-500 hover:bg-indigo-600 active:scale-95 transition-transform py-1 text-xs font-medium text-white shadow-lg"
+                    >
+                      Mark All Read
+                    </button>
                     <button
                       type="button"
                       onClick={markAllRead}
