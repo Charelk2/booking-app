@@ -179,7 +179,23 @@ def notify_deposit_due(
         )
         return
 
-    message = format_notification_message(
+    booking = db.query(models.BookingSimple).filter(models.BookingSimple.id == booking_id).first()
+    if booking is None:
+        logger.error("Failed to send deposit due notification: booking %s missing", booking_id)
+        return
+
+    prefix = ""
+    if not booking.deposit_paid:
+        existing = crud_notification.get_notifications_for_user(db, user.id)
+        has_prior = any(
+            n.type == NotificationType.DEPOSIT_DUE
+            and f"/dashboard/client/bookings/{booking_id}" in n.link
+            for n in existing
+        )
+        if not has_prior:
+            prefix = "Booking confirmed – "
+
+    message = prefix + format_notification_message(
         NotificationType.DEPOSIT_DUE,
         booking_id=booking_id,
         deposit_amount=deposit_amount,
