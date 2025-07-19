@@ -23,6 +23,34 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
                 match = re.match(r"New message from ([^:]+):", n.message)
                 if match:
                     sender = match.group(1).strip()
+                else:
+                    br_match = re.search(r"/booking-requests/(\d+)", n.link)
+                    if br_match:
+                        br_id = int(br_match.group(1))
+                        br = (
+                            db.query(models.BookingRequest)
+                            .filter(models.BookingRequest.id == br_id)
+                            .first()
+                        )
+                        if br:
+                            other_id = (
+                                br.client_id if br.artist_id == n.user_id else br.artist_id
+                            )
+                            other = (
+                                db.query(models.User)
+                                .filter(models.User.id == other_id)
+                                .first()
+                            )
+                            if other:
+                                sender = f"{other.first_name} {other.last_name}"
+                                if other.user_type == models.UserType.ARTIST:
+                                    profile = (
+                                        db.query(models.ArtistProfile)
+                                        .filter(models.ArtistProfile.user_id == other.id)
+                                        .first()
+                                    )
+                                    if profile and profile.business_name:
+                                        sender = profile.business_name
             except Exception as exc:  # pragma: no cover - defensive parsing
                 logger.warning(
                     "Failed to parse sender from message '%s': %s",
