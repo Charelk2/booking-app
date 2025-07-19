@@ -16,12 +16,7 @@ export default function getNotificationDisplayProps(
 ): NotificationCardProps {
   const unified: UnifiedNotification = 'content' in n ? n : toUnifiedFromNotification(n);
   const parsed = parseItem(unified);
-  const link =
-    unified.type === 'message' && unified.booking_request_id
-      ? `/messages/thread/${unified.booking_request_id}`
-      : unified.type === 'review_request' && unified.link
-        ? `/dashboard/client/bookings/${unified.link.match(/bookings\/(\d+)/)?.[1] ?? ''}`
-        : unified.link;
+  const link = unified.link;
 
   const onClick = () => {
     if (link) {
