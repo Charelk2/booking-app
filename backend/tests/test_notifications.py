@@ -854,6 +854,7 @@ def test_deposit_due_prefix_only_once():
     )
     first = crud_notification.get_notifications_for_user(db, client.id)[0]
     assert first.message.startswith("Booking confirmed")
+    assert first.link == f"/dashboard/client/bookings/{booking.id}?pay=1"
 
 
 def test_deposit_due_notification_includes_artist_business_name():
@@ -913,6 +914,71 @@ def test_deposit_due_notification_includes_artist_business_name():
     assert res.status_code == 200
     data = res.json()
     assert data[0]["sender_name"] == "The Band"
+    app.dependency_overrides.clear()
+
+
+def test_booking_request_api_parses_sender_and_type():
+    Session = setup_app()
+    db = Session()
+    client = User(
+        email="brclient@test.com",
+        password="x",
+        first_name="Client",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="brartist@test.com",
+        password="x",
+        first_name="Artist",
+        last_name="User",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+    service = models.Service(
+        artist_id=artist.id,
+        title="Gig",
+        description="",
+        service_type=ServiceType.LIVE_PERFORMANCE,
+        duration_minutes=60,
+        price=100,
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        service_id=service.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    crud_notification.create_notification(
+        db,
+        user_id=artist.id,
+        type=NotificationType.NEW_BOOKING_REQUEST,
+        message="New booking request",
+        link=f"/booking-requests/{br.id}",
+    )
+    db.close()
+
+    token = create_access_token({"sub": artist.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["sender_name"] == "Client User"
+    assert data[0]["booking_type"] == "Live Performance"
     app.dependency_overrides.clear()
 
 

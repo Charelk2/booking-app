@@ -153,6 +153,39 @@ describe('NotificationDrawer component', () => {
     expect(container.textContent).toContain('Eve');
   });
 
+  it('calls onItemClick when card clicked', async () => {
+    const item: UnifiedNotification = {
+      type: 'message',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Hi',
+      booking_request_id: 8,
+      name: 'Tom',
+      unread_count: 1,
+      link: '/messages/thread/8',
+    } as UnifiedNotification;
+
+    const onItemClick = jest.fn();
+    await act(async () => {
+      root.render(
+        React.createElement(NotificationDrawer, {
+          open: true,
+          onClose: () => {},
+          items: [item],
+          onItemClick,
+          markAllRead: jest.fn(),
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    const card = container.querySelector(
+      '[data-testid="notification-list"] [role="button"]',
+    ) as HTMLElement;
+    card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(onItemClick).toHaveBeenCalledWith(8);
+  });
+
   it('renders mark all button and triggers handler', async () => {
     const markAllRead = jest.fn();
     await act(async () => {
