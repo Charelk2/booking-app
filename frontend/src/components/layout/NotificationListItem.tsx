@@ -43,7 +43,10 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     ).trim();
     const snippet = cleaned.length > 30 ? `${cleaned.slice(0, 30)}...` : cleaned;
     const title = n.name || n.sender_name || 'Message';
-    return { ...base, title, subtitle: snippet, icon: '💬' };
+    const senderName = n.sender_name || n.name || 'Someone';
+    const subtitlePrefix = `New message from ${senderName}`;
+    const subtitle = snippet ? `${subtitlePrefix}: ${snippet}` : subtitlePrefix;
+    return { ...base, title, subtitle, icon: '💬' };
   }
 
   if (n.type === 'new_booking_request') {
