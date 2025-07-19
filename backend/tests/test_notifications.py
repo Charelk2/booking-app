@@ -25,7 +25,7 @@ from app.utils.notifications import (
     format_notification_message,
     VIDEO_FLOW_READY_MESSAGE,
 )
-from app.utils.notifications import notify_user_new_message
+from app.utils.notifications import notify_user_new_message, notify_deposit_due
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from app.main import app
@@ -695,3 +695,49 @@ def test_notifications_endpoint_returns_sender_name():
     assert len(data) == 1
     assert data[0]["sender_name"] == "C User"
     app.dependency_overrides.clear()
+
+
+def test_deposit_due_prefix_only_once():
+    db = setup_db()
+    client = User(
+        email="dep@test.com",
+        password="x",
+        first_name="Dep",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="dep2@test.com",
+        password="x",
+        first_name="Artist",
+        last_name="User",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    booking = models.BookingSimple(
+        quote_id=1,
+        artist_id=artist.id,
+        client_id=client.id,
+        payment_status="pending",
+        deposit_amount=50,
+        deposit_due_by=datetime(2025, 7, 1),
+        deposit_paid=False,
+    )
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+
+    notify_deposit_due(
+        db,
+        client,
+        booking.id,
+        float(booking.deposit_amount),
+        booking.deposit_due_by,
+    )
+    first = crud_notification.get_notifications_for_user(db, client.id)[0]
+    assert first.message.startswith("Booking confirmed")
+
