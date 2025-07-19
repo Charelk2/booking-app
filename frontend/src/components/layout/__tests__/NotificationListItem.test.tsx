@@ -45,7 +45,7 @@ describe('NotificationListItem', () => {
 
   it('parses message preview from content', () => {
     const parsed = parseItem(baseNotification);
-    expect(parsed.subtitle).toBe('Hi');
+    expect(parsed.subtitle).toBe('New message from Alice: Hi');
   });
 
   it('parses deposit due notifications', () => {
