@@ -69,7 +69,9 @@ describe('parseItem', () => {
   const parsed = parseItem(n);
   expect(parsed.title).toBe('Charlie Brown');
   expect(parsed.unreadCount).toBe(3);
-  expect(parsed.subtitle).toBe('Hello there, this is a long me...');
+  expect(parsed.subtitle).toBe(
+    'New message from Charlie Brown: Hello there, this is a long me...'
+  );
   });
 
   it('omits unread count when zero', () => {
@@ -85,7 +87,7 @@ describe('parseItem', () => {
     const parsed = parseItem(n);
     expect(parsed.title).toBe('Dana');
     expect(parsed.unreadCount).toBe(0);
-    expect(parsed.subtitle).toBe('Hi');
+    expect(parsed.subtitle).toBe('New message from Dana: Hi');
   });
 });
 
