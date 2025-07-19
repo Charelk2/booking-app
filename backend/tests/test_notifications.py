@@ -25,6 +25,12 @@ from app.utils.notifications import (
     format_notification_message,
     VIDEO_FLOW_READY_MESSAGE,
 )
+from app.utils.notifications import notify_user_new_message
+from fastapi.testclient import TestClient
+from sqlalchemy.pool import StaticPool
+from app.main import app
+from app.api.dependencies import get_db
+from app.api.auth import create_access_token
 
 
 def setup_db():
@@ -34,6 +40,26 @@ def setup_db():
     BaseModel.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     return Session()
+
+
+def setup_app():
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    BaseModel.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+    def override_db():
+        db = Session()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_db
+    return Session
 
 
 def test_message_creates_notification():
@@ -615,3 +641,57 @@ def test_review_request_notification():
     assert notif.type == NotificationType.REVIEW_REQUEST
     assert notif.message == f"Please review your booking #{booking.id}"
     assert notif.link == f"/dashboard/client/bookings/{booking.id}?review=1"
+
+
+def test_notifications_endpoint_returns_sender_name():
+    Session = setup_app()
+    db = Session()
+    artist = User(
+        email="artist@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    client_user = User(
+        email="client@test.com",
+        password="x",
+        first_name="C",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client_user])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client_user)
+
+    br = BookingRequest(
+        client_id=client_user.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    notify_user_new_message(
+        db,
+        user=artist,
+        sender=client_user,
+        booking_request_id=br.id,
+        content="hello",
+        message_type=MessageType.TEXT,
+    )
+    db.close()
+
+    token = create_access_token({"sub": artist.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data) == 1
+    assert data[0]["sender_name"] == "C User"
+    app.dependency_overrides.clear()

@@ -15,19 +15,20 @@ logger = logging.getLogger(__name__)
 
 def _build_response(db: Session, n: models.Notification) -> schemas.NotificationResponse:
     data = schemas.NotificationResponse.model_validate(n).model_dump()
-    sender = None
-    btype = None
+    sender = data.get("sender_name")
+    btype = data.get("booking_type")
     if n.type == models.NotificationType.NEW_MESSAGE:
-        try:
-            match = re.match(r"New message from ([^:]+):", n.message)
-            if match:
-                sender = match.group(1).strip()
-        except Exception as exc:  # pragma: no cover - defensive parsing
-            logger.warning(
-                "Failed to parse sender from message '%s': %s",
-                n.message,
-                exc,
-            )
+        if not sender:
+            try:
+                match = re.match(r"New message from ([^:]+):", n.message)
+                if match:
+                    sender = match.group(1).strip()
+            except Exception as exc:  # pragma: no cover - defensive parsing
+                logger.warning(
+                    "Failed to parse sender from message '%s': %s",
+                    n.message,
+                    exc,
+                )
     elif n.type == models.NotificationType.NEW_BOOKING_REQUEST:
         try:
             request_id = int(n.link.split("/")[-1])
