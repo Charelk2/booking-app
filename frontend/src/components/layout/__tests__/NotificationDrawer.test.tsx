@@ -151,4 +151,29 @@ describe('NotificationDrawer component', () => {
     const badge = container.querySelector('span.bg-red-600');
     expect(badge).toBeNull();
   });
+
+  it('renders mark all button and triggers handler', async () => {
+    const markAllRead = jest.fn();
+    await act(async () => {
+      root.render(
+        React.createElement(NotificationDrawer, {
+          open: true,
+          onClose: () => {},
+          items: [],
+          onItemClick: jest.fn(),
+          markAllRead,
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('Mark All Read');
+    const btn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Mark All Read',
+    ) as HTMLButtonElement | undefined;
+    btn?.click();
+    if (btn) {
+      expect(markAllRead).toHaveBeenCalled();
+    }
+  });
 });
