@@ -28,6 +28,7 @@ class NotificationResponse(BaseModel):
     timestamp: datetime
     sender_name: str | None = None
     booking_type: str | None = None
+    avatar_url: str | None = None
 
     model_config = {"from_attributes": True}
 
