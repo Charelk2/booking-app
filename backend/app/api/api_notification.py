@@ -129,6 +129,65 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
                 n.link,
                 exc,
             )
+    elif n.type == models.NotificationType.QUOTE_ACCEPTED:
+        try:
+            match = re.search(r"/booking-requests/(\d+)", n.link)
+            if match:
+                request_id = int(match.group(1))
+                br = (
+                    db.query(models.BookingRequest)
+                    .filter(models.BookingRequest.id == request_id)
+                    .first()
+                )
+                if br:
+                    client = (
+                        db.query(models.User)
+                        .filter(models.User.id == br.client_id)
+                        .first()
+                    )
+                    if client:
+                        sender = f"{client.first_name} {client.last_name}"
+                        if client.profile_picture_url:
+                            avatar_url = client.profile_picture_url
+        except (ValueError, IndexError) as exc:
+            logger.warning(
+                "Failed to derive quote accepted details from link %s: %s",
+                n.link,
+                exc,
+            )
+    elif n.type == models.NotificationType.REVIEW_REQUEST:
+        try:
+            match = re.search(r"/bookings/(\d+)", n.link)
+            if match:
+                booking_id = int(match.group(1))
+                booking = (
+                    db.query(models.BookingSimple)
+                    .filter(models.BookingSimple.id == booking_id)
+                    .first()
+                )
+                if booking:
+                    artist = (
+                        db.query(models.User)
+                        .filter(models.User.id == booking.artist_id)
+                        .first()
+                    )
+                    if artist:
+                        sender = f"{artist.first_name} {artist.last_name}"
+                        profile = (
+                            db.query(models.ArtistProfile)
+                            .filter(models.ArtistProfile.user_id == artist.id)
+                            .first()
+                        )
+                        if profile and profile.business_name:
+                            sender = profile.business_name
+                        if profile and profile.profile_picture_url:
+                            avatar_url = profile.profile_picture_url
+        except Exception as exc:  # pragma: no cover - defensive parsing
+            logger.warning(
+                "Failed to derive review request details from link %s: %s",
+                n.link,
+                exc,
+            )
     elif n.type == models.NotificationType.BOOKING_STATUS_UPDATED:
         try:
             request_id = int(n.link.split("/")[-1])
