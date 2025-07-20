@@ -304,7 +304,10 @@ def test_thread_notification_shows_client_avatar():
     db.refresh(br)
 
     api_message.create_message(
-        br.id, MessageCreate(content="hi", message_type=MessageType.TEXT), db, current_user=client
+        br.id,
+        MessageCreate(content="hi", message_type=MessageType.TEXT),
+        db,
+        current_user=client,
     )
 
     threads = crud_notification.get_message_thread_notifications(db, artist.id)
@@ -1082,6 +1085,7 @@ def test_booking_status_update_notification_includes_client_name():
         first_name="C5",
         last_name="User",
         user_type=UserType.CLIENT,
+        profile_picture_url="/static/profile_pics/client5.jpg",
     )
     artist = User(
         email="artist5@test.com",
@@ -1116,6 +1120,7 @@ def test_booking_status_update_notification_includes_client_name():
     assert res.status_code == 200
     data = res.json()
     assert data[0]["sender_name"] == "C5 User"
+    assert data[0]["avatar_url"] == "/static/profile_pics/client5.jpg"
     app.dependency_overrides.clear()
 
 
@@ -1228,4 +1233,3 @@ def test_quote_accepted_notification_includes_client_avatar_url():
     assert data[0]["sender_name"] == "Q Client"
     assert data[0]["avatar_url"] == "/static/profile_pics/client.jpg"
     app.dependency_overrides.clear()
-
