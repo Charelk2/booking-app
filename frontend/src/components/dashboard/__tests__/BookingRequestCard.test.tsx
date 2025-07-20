@@ -103,7 +103,7 @@ describe('BookingRequestCard', () => {
     expect(link?.getAttribute('href')).toBe('/booking-requests/1');
   });
 
-  it('uses default avatar when none provided', () => {
+  it('shows initials when no avatar provided', () => {
     act(() => {
       root.render(
         React.createElement(BookingRequestCard, {
@@ -113,7 +113,7 @@ describe('BookingRequestCard', () => {
         }),
       );
     });
-    const img = container.querySelector('img') as HTMLImageElement | null;
-    expect(img?.src).toContain('/default-avatar.png');
+    const img = container.querySelector('img');
+    expect(img).toBeNull();
   });
 });
