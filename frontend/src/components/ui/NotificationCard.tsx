@@ -62,6 +62,11 @@ export default function NotificationCard({
       <BellAlertIcon className="w-5 h-5 text-gray-400" />
     );
 
+  // Always display an image avatar; fall back to a generic placeholder when
+  // the sender has not uploaded a profile picture. This ensures notifications
+  // consistently show a profile photo rather than initials.
+  const avatarSrc = avatarUrl || '/default-avatar.svg';
+
   return (
     <div
       role="button"
@@ -76,7 +81,7 @@ export default function NotificationCard({
         'hover:bg-gray-50',
       )}
     >
-      <Avatar src={avatarUrl} initials={initials} size={44} />
+      <Avatar src={avatarSrc} initials={initials} size={44} />
       <div className="flex-1 mx-3">
         <div className="flex items-start justify-between">
           <span className="font-semibold text-gray-900 line-clamp-2" title={from}>
