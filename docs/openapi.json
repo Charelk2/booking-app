@@ -3853,6 +3853,54 @@
         ]
       }
     },
+    "/api/v1/users/me/profile-picture": {
+      "post": {
+        "tags": [
+          "users",
+          "users"
+        ],
+        "summary": "Upload or update current user's profile picture",
+        "description": "Uploads a new profile picture for the currently authenticated user, replacing any existing one.",
+        "operationId": "upload_profile_picture_me_api_v1_users_me_profile_picture_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_profile_picture_me_api_v1_users_me_profile_picture_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/users/me": {
       "delete": {
         "tags": [
@@ -4664,6 +4712,20 @@
           "file"
         ],
         "title": "Body_upload_booking_attachment_api_v1_booking_requests_attachments_post"
+      },
+      "Body_upload_profile_picture_me_api_v1_users_me_profile_picture_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_profile_picture_me_api_v1_users_me_profile_picture_post"
       },
       "BookingCreate": {
         "properties": {
@@ -5783,6 +5845,17 @@
               }
             ],
             "title": "Booking Type"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
           }
         },
         "type": "object",
@@ -7207,6 +7280,17 @@
           "mfa_enabled": {
             "type": "boolean",
             "title": "Mfa Enabled"
+          },
+          "profile_picture_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Picture Url"
           }
         },
         "type": "object",
