@@ -21,55 +21,51 @@ def _build_response(
     btype = data.get("booking_type")
     avatar_url = data.get("avatar_url")
     if n.type == models.NotificationType.NEW_MESSAGE:
-        if not sender:
-            try:
-                match = re.match(r"New message from ([^:]+):", n.message)
-                if match:
-                    sender = match.group(1).strip()
-                else:
-                    br_match = re.search(
-                        r"/(?:booking-requests|messages/thread)/(\d+)", n.link
+        try:
+            match = re.match(r"New message from ([^:]+):", n.message)
+            if match and not sender:
+                sender = match.group(1).strip()
+
+            br_match = re.search(
+                r"/(?:booking-requests|messages/thread)/(\d+)", n.link
+            )
+            if br_match:
+                br_id = int(br_match.group(1))
+                br = (
+                    db.query(models.BookingRequest)
+                    .filter(models.BookingRequest.id == br_id)
+                    .first()
+                )
+                if br:
+                    other_id = (
+                        br.client_id if br.artist_id == n.user_id else br.artist_id
                     )
-                    if br_match:
-                        br_id = int(br_match.group(1))
-                        br = (
-                            db.query(models.BookingRequest)
-                            .filter(models.BookingRequest.id == br_id)
-                            .first()
-                        )
-                        if br:
-                            other_id = (
-                                br.client_id
-                                if br.artist_id == n.user_id
-                                else br.artist_id
-                            )
-                            other = (
-                                db.query(models.User)
-                                .filter(models.User.id == other_id)
+                    other = (
+                        db.query(models.User)
+                        .filter(models.User.id == other_id)
+                        .first()
+                    )
+                    if other:
+                        if not sender:
+                            sender = f"{other.first_name} {other.last_name}"
+                        if other.user_type == models.UserType.ARTIST:
+                            profile = (
+                                db.query(models.ArtistProfile)
+                                .filter(models.ArtistProfile.user_id == other.id)
                                 .first()
                             )
-                            if other:
-                                sender = f"{other.first_name} {other.last_name}"
-                                if other.user_type == models.UserType.ARTIST:
-                                    profile = (
-                                        db.query(models.ArtistProfile)
-                                        .filter(
-                                            models.ArtistProfile.user_id == other.id
-                                        )
-                                        .first()
-                                    )
-                                    if profile and profile.business_name:
-                                        sender = profile.business_name
-                                    if profile and profile.profile_picture_url:
-                                        avatar_url = profile.profile_picture_url
-                                elif other.profile_picture_url:
-                                    avatar_url = other.profile_picture_url
-            except Exception as exc:  # pragma: no cover - defensive parsing
-                logger.warning(
-                    "Failed to parse sender from message '%s': %s",
-                    n.message,
-                    exc,
-                )
+                            if profile and profile.business_name and not match:
+                                sender = profile.business_name
+                            if profile and profile.profile_picture_url:
+                                avatar_url = profile.profile_picture_url
+                        elif other.profile_picture_url:
+                            avatar_url = other.profile_picture_url
+        except Exception as exc:  # pragma: no cover - defensive parsing
+            logger.warning(
+                "Failed to parse sender from message '%s': %s",
+                n.message,
+                exc,
+            )
     elif n.type == models.NotificationType.NEW_BOOKING_REQUEST:
         try:
             request_id = int(n.link.split("/")[-1])
