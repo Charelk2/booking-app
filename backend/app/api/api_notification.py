@@ -13,7 +13,9 @@ router = APIRouter(tags=["notifications"])
 logger = logging.getLogger(__name__)
 
 
-def _build_response(db: Session, n: models.Notification) -> schemas.NotificationResponse:
+def _build_response(
+    db: Session, n: models.Notification
+) -> schemas.NotificationResponse:
     data = schemas.NotificationResponse.model_validate(n).model_dump()
     sender = data.get("sender_name")
     btype = data.get("booking_type")
@@ -25,7 +27,9 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
                 if match:
                     sender = match.group(1).strip()
                 else:
-                    br_match = re.search(r"/(?:booking-requests|messages/thread)/(\d+)", n.link)
+                    br_match = re.search(
+                        r"/(?:booking-requests|messages/thread)/(\d+)", n.link
+                    )
                     if br_match:
                         br_id = int(br_match.group(1))
                         br = (
@@ -35,7 +39,9 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
                         )
                         if br:
                             other_id = (
-                                br.client_id if br.artist_id == n.user_id else br.artist_id
+                                br.client_id
+                                if br.artist_id == n.user_id
+                                else br.artist_id
                             )
                             other = (
                                 db.query(models.User)
@@ -47,7 +53,9 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
                                 if other.user_type == models.UserType.ARTIST:
                                     profile = (
                                         db.query(models.ArtistProfile)
-                                        .filter(models.ArtistProfile.user_id == other.id)
+                                        .filter(
+                                            models.ArtistProfile.user_id == other.id
+                                        )
                                         .first()
                                     )
                                     if profile and profile.business_name:
@@ -72,9 +80,7 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
             )
             if br:
                 client = (
-                    db.query(models.User)
-                    .filter(models.User.id == br.client_id)
-                    .first()
+                    db.query(models.User).filter(models.User.id == br.client_id).first()
                 )
                 if client:
                     sender = f"{client.first_name} {client.last_name}"
@@ -96,7 +102,10 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
                 n.link,
                 exc,
             )
-    elif n.type in [models.NotificationType.DEPOSIT_DUE, models.NotificationType.NEW_BOOKING]:
+    elif n.type in [
+        models.NotificationType.DEPOSIT_DUE,
+        models.NotificationType.NEW_BOOKING,
+    ]:
         try:
             match = re.search(r"/bookings/(\d+)", n.link)
             if match:
@@ -198,25 +207,27 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
             )
             if br:
                 client = (
-                    db.query(models.User)
-                    .filter(models.User.id == br.client_id)
-                    .first()
+                    db.query(models.User).filter(models.User.id == br.client_id).first()
+                )
+                artist = (
+                    db.query(models.User).filter(models.User.id == br.artist_id).first()
                 )
                 if client:
                     sender = f"{client.first_name} {client.last_name}"
-                artist = (
-                    db.query(models.User)
-                    .filter(models.User.id == br.artist_id)
+                profile = (
+                    db.query(models.ArtistProfile)
+                    .filter(models.ArtistProfile.user_id == br.artist_id)
                     .first()
                 )
-                if artist:
-                    profile = (
-                        db.query(models.ArtistProfile)
-                        .filter(models.ArtistProfile.user_id == artist.id)
-                        .first()
-                    )
-                    if profile and profile.profile_picture_url:
-                        avatar_url = profile.profile_picture_url
+                # Show the avatar of the opposite party
+                if n.user_id == br.artist_id and client and client.profile_picture_url:
+                    avatar_url = client.profile_picture_url
+                elif (
+                    n.user_id == br.client_id
+                    and profile
+                    and profile.profile_picture_url
+                ):
+                    avatar_url = profile.profile_picture_url
         except (ValueError, IndexError) as exc:
             logger.warning(
                 "Failed to derive booking status update details from link %s: %s",
@@ -241,8 +252,6 @@ def read_my_notifications(
         db, current_user.id, skip=skip, limit=limit
     )
     return [_build_response(db, n) for n in notifs]
-
-
 
 
 @router.put(
