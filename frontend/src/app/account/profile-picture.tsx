@@ -1,15 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import Button from '@/components/ui/Button';
 import { uploadMyProfilePicture } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { getFullImageUrl } from '@/lib/utils';
+import dynamic from 'next/dynamic';
+import { type Crop, type PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
+import { centerAspectCrop, getCroppedImage } from '@/lib/imageCrop';
+
+const ReactCrop = dynamic(() => import('react-image-crop').then((m) => m.ReactCrop), {
+  ssr: false,
+});
 
 export default function ProfilePicturePage() {
   const { user, refreshUser } = useAuth();
-  const [file, setFile] = useState<File | null>(null);
+  const [originalSrc, setOriginalSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+  const [fileName, setFileName] = useState('profile.jpg');
+  const imgRef = useRef<HTMLImageElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -20,26 +32,33 @@ export default function ProfilePicturePage() {
     setSuccess(null);
     const f = e.target.files?.[0] || null;
     if (!f) return;
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
+    setFileName(f.name);
+    const url = URL.createObjectURL(f);
+    setOriginalSrc(url);
+    setPreview(null);
+    setCrop(undefined);
+    setCompletedCrop(undefined);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCropAndUpload = async () => {
     setError(null);
     setSuccess(null);
-    if (!file) {
-      setError('Please choose an image.');
+    if (!originalSrc || !completedCrop) {
+      setError('Please choose and crop an image.');
       return;
     }
     setUploading(true);
     try {
-      await uploadMyProfilePicture(file);
+      const cropped = await getCroppedImage(originalSrc, completedCrop, fileName);
+      if (!cropped) throw new Error('Failed to crop image');
+      await uploadMyProfilePicture(cropped);
       setSuccess('Profile picture uploaded!');
       await refreshUser?.();
-      setFile(null);
+      setOriginalSrc(null);
+      setCrop(undefined);
+      setCompletedCrop(undefined);
     } catch (err: unknown) {
-      console.error('Failed to upload profile picture:', err);
+      console.error('Failed to crop or upload profile picture:', err);
       const msg = err instanceof Error ? err.message : 'Upload failed';
       setError(msg);
     } finally {
@@ -50,6 +69,11 @@ export default function ProfilePicturePage() {
   const currentUrl = user?.profile_picture_url
     ? (getFullImageUrl(user.profile_picture_url) as string)
     : null;
+
+  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth, naturalHeight } = e.currentTarget;
+    setCrop(centerAspectCrop(naturalWidth, naturalHeight, 1));
+  };
 
   return (
     <MainLayout>
@@ -68,19 +92,45 @@ export default function ProfilePicturePage() {
             className="w-32 h-32 object-cover rounded-full"
           />
         ) : null}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-4">
           <input
             type="file"
             accept="image/*"
             onChange={handleChange}
             data-testid="file-input"
           />
+          {originalSrc && (
+            <div>
+              <ReactCrop
+                crop={crop}
+                onChange={(_, c) => setCrop(c)}
+                onComplete={(c) => setCompletedCrop(c)}
+                aspect={1}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  ref={imgRef}
+                  src={originalSrc}
+                  alt="Crop me"
+                  onLoad={onImageLoad}
+                  style={{ maxHeight: 300, objectFit: 'contain' }}
+                />
+              </ReactCrop>
+              <Button
+                type="button"
+                onClick={handleCropAndUpload}
+                disabled={uploading || !completedCrop?.width}
+                isLoading={uploading}
+                data-testid="crop-submit"
+                className="mt-2"
+              >
+                Apply Crop & Upload
+              </Button>
+            </div>
+          )}
           {error && <p className="text-red-600">{error}</p>}
           {success && <p className="text-green-700">{success}</p>}
-          <Button type="submit" disabled={uploading} isLoading={uploading}>
-            Upload
-          </Button>
-        </form>
+        </div>
       </div>
     </MainLayout>
   );

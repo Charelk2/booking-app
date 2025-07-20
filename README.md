@@ -35,7 +35,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - After accepting a quote, clients see quick links in the chat to view that booking, pay the deposit, and add it to a calendar.
 - Artists can upload multiple portfolio images and reorder them via drag-and-drop. Use `POST /api/v1/artist-profiles/me/portfolio-images` to upload and `PUT /api/v1/artist-profiles/me/portfolio-images` to save the order.
 - Quote modal items can now be removed even when only one item is present.
-- Clients can upload a profile picture via `/api/v1/users/me/profile-picture`; chat messages and notifications will show the artist or client avatar when available.
+- Clients can upload and crop a profile picture via `/api/v1/users/me/profile-picture`; chat messages and notifications will show the artist or client avatar when available.
 - The user menu now links to an **Account** page where you can update your profile picture, export data, or delete the account.
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
