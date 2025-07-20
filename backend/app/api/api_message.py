@@ -63,6 +63,8 @@ def read_messages(
             )
             if profile and profile.profile_picture_url:
                 avatar_url = profile.profile_picture_url
+        elif m.sender.profile_picture_url:
+            avatar_url = m.sender.profile_picture_url
         data = schemas.MessageResponse.model_validate(m).model_dump()
         data["avatar_url"] = avatar_url
         result.append(data)
@@ -161,6 +163,8 @@ def create_message(
         )
         if profile and profile.profile_picture_url:
             avatar_url = profile.profile_picture_url
+    elif msg.sender.profile_picture_url:
+        avatar_url = msg.sender.profile_picture_url
 
     data = schemas.MessageResponse.model_validate(msg).model_dump()
     data["avatar_url"] = avatar_url

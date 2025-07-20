@@ -27,6 +27,7 @@ class UserResponse(UserBase):
     is_active: bool
     is_verified: bool
     mfa_enabled: bool
+    profile_picture_url: str | None = None
 
     model_config = {
         "from_attributes": True
