@@ -32,6 +32,7 @@ interface AuthContextType {
   disableMfa: (code: string) => Promise<void>;
   register: (data: Partial<User>) => Promise<void>;
   logout: () => void;
+  refreshUser?: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -148,6 +149,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => (prev ? { ...prev, mfa_enabled: false } : prev));
   };
 
+  const refreshUser = async () => {
+    try {
+      const res = await getCurrentUser();
+      setUser(res.data);
+      localStorage.setItem('user', JSON.stringify(res.data));
+    } catch (err) {
+      console.error('Failed to refresh user:', err);
+    }
+  };
+
   const register = async (data: Partial<User>) => {
     try {
       const response = await apiRegister(data);
@@ -183,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         disableMfa,
         register,
         logout,
+        refreshUser,
       }}
     >
       {children}

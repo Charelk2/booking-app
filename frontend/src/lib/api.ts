@@ -179,6 +179,14 @@ export const uploadMyArtistCoverPhoto = (file: File) => {
   );
 };
 
+export const uploadMyProfilePicture = (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post<User>(`${API_V1}/users/me/profile-picture`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
 export const uploadMyArtistPortfolioImages = (files: File[]) => {
   const formData = new FormData();
   files.forEach((f) => formData.append('files', f));
