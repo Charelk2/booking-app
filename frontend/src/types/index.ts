@@ -10,6 +10,7 @@ export interface User {
   is_active: boolean;
   is_verified: boolean;
   mfa_enabled?: boolean;
+  profile_picture_url?: string | null;
 }
 
 export interface ArtistProfile {
