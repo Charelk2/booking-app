@@ -141,6 +141,7 @@ def notify_user_new_message(
             return
 
     sender_name = f"{sender.first_name} {sender.last_name}"
+    avatar_url = None
     if sender.user_type == models.UserType.ARTIST:
         profile = (
             db.query(models.ArtistProfile)
@@ -149,6 +150,11 @@ def notify_user_new_message(
         )
         if profile and profile.business_name:
             sender_name = profile.business_name
+        if profile and profile.profile_picture_url:
+            avatar_url = profile.profile_picture_url
+    
+    elif sender.profile_picture_url:
+        avatar_url = sender.profile_picture_url
 
     message = format_notification_message(
         NotificationType.NEW_MESSAGE,
@@ -162,6 +168,7 @@ def notify_user_new_message(
         message,
         f"/messages/thread/{booking_request_id}",
         sender_name=sender_name,
+        avatar_url=avatar_url,
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)

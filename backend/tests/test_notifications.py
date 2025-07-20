@@ -707,6 +707,7 @@ def test_notifications_endpoint_returns_sender_name():
         first_name="C",
         last_name="User",
         user_type=UserType.CLIENT,
+        profile_picture_url="/static/profile_pics/client.jpg",
     )
     db.add_all([artist, client_user])
     db.commit()
@@ -742,6 +743,7 @@ def test_notifications_endpoint_returns_sender_name():
     data = res.json()
     assert len(data) == 1
     assert data[0]["sender_name"] == "C User"
+    assert data[0]["avatar_url"] == "/static/profile_pics/client.jpg"
     app.dependency_overrides.clear()
 
 
