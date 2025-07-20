@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import ProfilePicturePage from '../profile-picture';
+import ProfilePicturePage from '../profile-picture/page';
 import { uploadMyProfilePicture } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
