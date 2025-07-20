@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { BookingRequest, User } from '@/types';
 import { formatStatus } from '@/lib/utils';
+import { Avatar } from '../ui';
 
 export interface BookingRequestCardProps {
   req: BookingRequest;
@@ -24,7 +25,7 @@ export default function BookingRequestCard({
   user,
   onUpdate,
 }: BookingRequestCardProps) {
-  const avatarSrc = req.client?.profile_photo_url || '/default-avatar.png';
+  const avatarSrc = req.client?.profile_photo_url || null;
   const clientName = req.client
     ? `${req.client.first_name} ${req.client.last_name}`
     : 'Unknown Client';
@@ -35,14 +36,7 @@ export default function BookingRequestCard({
   return (
     <div className="flex justify-between rounded-lg bg-white shadow p-4">
       <div className="flex gap-4">
-        <img
-          src={avatarSrc}
-          alt={clientName}
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
-          }}
-          className="w-12 h-12 rounded-full object-cover"
-        />
+        <Avatar src={avatarSrc} initials={clientName.charAt(0)} size={48} />
         <div>
           <div className="font-bold text-gray-900">{clientName}</div>
           <div className="flex items-center gap-1 text-sm text-gray-600">

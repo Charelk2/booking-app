@@ -759,6 +759,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Deposit due alerts now display "Booking confirmed – deposit R{amount} due by {date}" only the first time a booking is confirmed. Subsequent reminders omit the greeting. The drawer parses this format to show `R50.00 due by Jan 1, 2025` as the subtitle and links directly to the booking.
 * Quote acceptance and booking confirmation notifications now render dynamic titles such as **"Quote accepted by Jane Doe"** instead of a generic label.
 * Message notifications now include the sender name in both the stored text and the API response so the drawer can display "New message from Alice" without additional lookups.
+* All notifications now include the sender's profile picture when available so avatars render consistently for artists and clients.
 * Artists marking a booking **completed** now trigger a **REVIEW_REQUEST** notification. The alert links to `/dashboard/client/bookings/{booking_id}?review=1` so clients can immediately leave feedback.
 * Chat message groups display a small unread badge on the right side when new messages arrive, clearing automatically once read.
 * Day divider lines show the full date, while relative times remain visible next to each message group.

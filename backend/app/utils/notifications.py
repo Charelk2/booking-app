@@ -4,6 +4,7 @@ from .. import models
 from ..crud import crud_notification
 from ..schemas.notification import NotificationResponse
 from ..api.api_ws import notifications_manager
+from ..api.api_notification import _build_response
 from typing import Optional
 import asyncio
 from datetime import datetime
@@ -100,9 +101,11 @@ def _create_and_broadcast(
         message=message,
         link=link,
     )
-    data = NotificationResponse.model_validate(notif).model_dump()
+    response = _build_response(db, notif)
+    data = response.model_dump()
     for k, v in extra.items():
-        data[k] = v
+        if v is not None and data.get(k) in [None, ""]:
+            data[k] = v
     try:
         asyncio.create_task(notifications_manager.broadcast(user_id, data))
     except RuntimeError:
