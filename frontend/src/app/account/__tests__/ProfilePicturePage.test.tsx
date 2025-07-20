@@ -5,6 +5,19 @@ import ProfilePicturePage from '../profile-picture';
 import { uploadMyProfilePicture } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
+jest.mock('@/lib/imageCrop', () => ({
+  getCroppedImage: jest.fn(() =>
+    Promise.resolve(new File(['c'], 'c.jpg', { type: 'image/jpeg' })),
+  ),
+  centerAspectCrop: jest.fn(() => ({
+    unit: '%',
+    width: 90,
+    x: 0,
+    y: 0,
+    height: 90,
+  })),
+}));
+
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
 jest.mock('@/components/layout/MainLayout', () => {
@@ -38,9 +51,9 @@ describe('ProfilePicturePage', () => {
       Object.defineProperty(input, 'files', { value: [file], configurable: true });
       input.dispatchEvent(new Event('change', { bubbles: true }));
     });
-    const form = div.querySelector('form');
+    const btn = div.querySelector('[data-testid="crop-submit"]') as HTMLButtonElement;
     await act(async () => {
-      form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      btn.dispatchEvent(new Event('click', { bubbles: true }));
     });
     await act(async () => { await Promise.resolve(); });
     expect(uploadMyProfilePicture).toHaveBeenCalled();
