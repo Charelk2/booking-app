@@ -11,7 +11,7 @@ import NotificationBell from './NotificationBell';
 import BookingRequestIcon from './BookingRequestIcon';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import MobileBottomNav from './MobileBottomNav';
-import { HelpPrompt } from '../ui';
+import { HelpPrompt, Avatar } from '../ui';
 
 const baseNavigation = [
   { name: 'Home', href: '/' },
@@ -71,11 +71,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                       <div>
                         <Menu.Button className="flex rounded-full bg-background text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2">
                           <span className="sr-only">Open user menu</span>
-                          <div className="h-8 w-8 rounded-full bg-brand-light flex items-center justify-center">
-                            <span className="text-brand-dark font-medium">
-                              {user.first_name?.[0] || user.email[0]}
-                            </span>
-                          </div>
+                          <Avatar
+                            src={user.profile_picture_url || null}
+                            initials={user.first_name?.[0] || user.email[0]}
+                            size={32}
+                          />
                         </Menu.Button>
                       </div>
                       <Transition
