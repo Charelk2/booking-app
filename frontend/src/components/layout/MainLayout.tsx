@@ -178,6 +178,19 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                           )}
                           <Menu.Item>
                             {({ active }) => (
+                              <Link
+                                href="/account"
+                                className={classNames(
+                                  active ? 'bg-gray-100' : '',
+                                  'block px-4 py-2 text-sm text-gray-700'
+                                )}
+                              >
+                                Account
+                              </Link>
+                            )}
+                          </Menu.Item>
+                          <Menu.Item>
+                            {({ active }) => (
                               <button
                                 onClick={logout}
                                 className={classNames(

@@ -116,5 +116,6 @@ describe('MobileMenuDrawer', () => {
     });
     const body = document.body.textContent || '';
     expect(body).toContain('My Bookings');
+    expect(body).toContain('Account');
   });
 });
