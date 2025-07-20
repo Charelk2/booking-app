@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import MainLayout from '@/components/layout/MainLayout';
 import useNotifications from '@/hooks/useNotifications';
-import { Spinner } from '@/components/ui';
+import { Spinner, Avatar } from '@/components/ui';
 
 
 interface BookingPreview {
@@ -129,9 +129,7 @@ export default function InboxPage() {
             onKeyPress={() => handleClick(t.booking_request_id)}
             className="flex items-center space-x-3 px-4 py-3 border-b cursor-pointer hover:bg-gray-50 active:bg-gray-100"
           >
-            <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
-              {initials}
-            </div>
+            <Avatar src={t.avatar_url || null} initials={initials} size={40} />
             <div className="flex-1 overflow-hidden">
               <div className="flex items-center gap-2">
                 <div className="font-medium text-sm">{t.name}</div>
