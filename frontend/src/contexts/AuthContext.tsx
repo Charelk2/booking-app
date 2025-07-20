@@ -97,15 +97,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.data.mfa_required) {
         return { mfaRequired: true, token: response.data.mfa_token } as const;
       }
-      const { user: userData, access_token } = response.data;
-      setUser(userData);
+      const { user: fallbackUser, access_token } = response.data;
       setToken(access_token);
       const storage = remember ? localStorage : sessionStorage;
       const altStorage = remember ? sessionStorage : localStorage;
-      storage.setItem('user', JSON.stringify(userData));
       storage.setItem('token', access_token);
-      altStorage.removeItem('user');
       altStorage.removeItem('token');
+
+      try {
+        const res = await getCurrentUser();
+        setUser(res.data);
+        storage.setItem('user', JSON.stringify(res.data));
+        altStorage.removeItem('user');
+      } catch (err) {
+        console.error('Failed to fetch current user:', err);
+        setUser(fallbackUser);
+        storage.setItem('user', JSON.stringify(fallbackUser));
+        altStorage.removeItem('user');
+      }
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -119,15 +128,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) => {
     try {
       const response = await apiVerifyMfa(tokenToVerify, code);
-      const { user: userData, access_token } = response.data;
-      setUser(userData);
+      const { user: fallbackUser, access_token } = response.data;
       setToken(access_token);
       const storage = remember ? localStorage : sessionStorage;
       const altStorage = remember ? sessionStorage : localStorage;
-      storage.setItem('user', JSON.stringify(userData));
       storage.setItem('token', access_token);
-      altStorage.removeItem('user');
       altStorage.removeItem('token');
+
+      try {
+        const res = await getCurrentUser();
+        setUser(res.data);
+        storage.setItem('user', JSON.stringify(res.data));
+        altStorage.removeItem('user');
+      } catch (err) {
+        console.error('Failed to fetch current user:', err);
+        setUser(fallbackUser);
+        storage.setItem('user', JSON.stringify(fallbackUser));
+        altStorage.removeItem('user');
+      }
     } catch (error) {
       console.error('MFA verification failed:', error);
       throw error;

@@ -112,7 +112,7 @@ async function getCroppedImg(
 }
 
 export default function EditArtistProfilePage(): JSX.Element {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, refreshUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -360,6 +360,7 @@ export default function EditArtistProfilePage(): JSX.Element {
       setProfilePictureUrlInput(newRelativeUrl);
       setImagePreviewUrl(getFullImageUrl(newRelativeUrl));
       setProfile((prev) => ({ ...prev, profile_picture_url: newRelativeUrl }));
+      await refreshUser?.();
       setSuccessMessage('Profile picture uploaded successfully!');
       setShowCropper(false);
       setOriginalImageSrc(null);
