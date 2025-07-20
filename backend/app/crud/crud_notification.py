@@ -116,6 +116,8 @@ def get_message_thread_notifications(db: Session, user_id: int) -> List[dict]:
                             name = profile.business_name
                         if profile.profile_picture_url:
                             avatar_url = profile.profile_picture_url
+                elif other.profile_picture_url:
+                    avatar_url = other.profile_picture_url
             threads[request_id] = {
                 "booking_request_id": request_id,
                 "name": name,
