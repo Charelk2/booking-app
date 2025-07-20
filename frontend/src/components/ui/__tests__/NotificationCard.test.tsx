@@ -20,7 +20,7 @@ describe('NotificationCard', () => {
     container.remove();
   });
 
-  it('shows initials when avatar missing', () => {
+  it('uses default avatar when none provided', () => {
     act(() => {
       root.render(
         React.createElement(NotificationCard, {
@@ -32,8 +32,8 @@ describe('NotificationCard', () => {
         }),
       );
     });
-    const avatar = container.querySelector('span');
-    expect(avatar?.textContent).toBe('JD');
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src')).toContain('/default-avatar.svg');
   });
 
   it('applies unread styling', () => {
