@@ -60,6 +60,7 @@ export function toUnifiedFromNotification(n: Notification): UnifiedNotification 
     id: n.id,
     sender_name: n.sender_name,
     booking_type: n.booking_type,
+    avatar_url: n.avatar_url,
   };
 }
 

@@ -76,4 +76,20 @@ describe('getNotificationDisplayProps', () => {
     props.onClick();
     expect(assignSpy).toHaveBeenCalledWith('/dashboard/client/bookings/7?review=1');
   });
+
+  it('includes avatarUrl when provided', () => {
+    const n: Notification = {
+      id: 3,
+      user_id: 1,
+      type: 'new_message',
+      message: 'New message from Ava: hi',
+      link: '/messages/thread/3',
+      is_read: false,
+      timestamp: '2025-01-05T00:00:00Z',
+      sender_name: 'Ava',
+      avatar_url: '/static/pic.jpg',
+    };
+    const props = getNotificationDisplayProps(n);
+    expect(props.avatarUrl).toBe('/static/pic.jpg');
+  });
 });
