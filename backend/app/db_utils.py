@@ -204,3 +204,14 @@ def ensure_calendar_account_email_column(engine: Engine) -> None:
         "email VARCHAR",
     )
 
+
+def ensure_user_profile_picture_column(engine: Engine) -> None:
+    """Add the ``profile_picture_url`` column to ``users`` if it's missing."""
+
+    add_column_if_missing(
+        engine,
+        "users",
+        "profile_picture_url",
+        "profile_picture_url VARCHAR",
+    )
+

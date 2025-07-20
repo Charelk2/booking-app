@@ -271,6 +271,45 @@ def test_thread_notification_summary():
     assert threads_after[0]["unread_count"] == 0
 
 
+def test_thread_notification_shows_client_avatar():
+    db = setup_db()
+    client = User(
+        email="clientpic@test.com",
+        password="x",
+        first_name="C",
+        last_name="User",
+        user_type=UserType.CLIENT,
+        profile_picture_url="/static/profile_pics/client.jpg",
+    )
+    artist = User(
+        email="artist3@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    api_message.create_message(
+        br.id, MessageCreate(content="hi", message_type=MessageType.TEXT), db, current_user=client
+    )
+
+    threads = crud_notification.get_message_thread_notifications(db, artist.id)
+    assert threads[0]["avatar_url"] == "/static/profile_pics/client.jpg"
+
+
 def test_thread_notification_uses_business_name_for_artist():
     db = setup_db()
     client = User(

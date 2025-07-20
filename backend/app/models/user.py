@@ -24,6 +24,7 @@ class User(BaseModel):
     mfa_secret   = Column(String, nullable=True)
     mfa_enabled  = Column(Boolean, default=False)
     mfa_recovery_tokens = Column(String, nullable=True)
+    profile_picture_url = Column(String, nullable=True)
 
     # ↔–↔ If this user is an artist, they get exactly one profile here:
     artist_profile = relationship(

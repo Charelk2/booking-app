@@ -87,3 +87,39 @@ def test_message_response_includes_avatar_url_for_artist():
     result = api_message.create_message(br.id, msg_in, db, current_user=artist)
 
     assert result["avatar_url"] == "/static/profile_pics/pic.jpg"
+
+
+def test_message_response_includes_avatar_url_for_client():
+    db = setup_db()
+    client = User(
+        email="clientpic@test.com",
+        password="x",
+        first_name="C",
+        last_name="User",
+        user_type=UserType.CLIENT,
+        profile_picture_url="/static/profile_pics/client.jpg",
+    )
+    artist = User(
+        email="artistpic@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+
+    msg_in = MessageCreate(content="hi", message_type=MessageType.TEXT)
+    result = api_message.create_message(br.id, msg_in, db, current_user=client)
+
+    assert result["avatar_url"] == "/static/profile_pics/client.jpg"
