@@ -1,7 +1,11 @@
 import logging
+import re
+import shutil
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session, selectinload
 from pydantic import BaseModel
 
@@ -23,6 +27,11 @@ from ..utils.email import send_email
 
 router = APIRouter(tags=["users"])
 logger = logging.getLogger(__name__)
+
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+PROFILE_PICS_DIR = STATIC_DIR / "profile_pics"
+PROFILE_PICS_DIR.mkdir(parents=True, exist_ok=True)
+ALLOWED_PROFILE_PIC_TYPES = ["image/jpeg", "image/png", "image/webp"]
 
 
 @router.get("/users/me/export")
@@ -83,6 +92,60 @@ def export_me(
         "payments": payment_data,
         "messages": message_data,
     }
+
+
+@router.post(
+    "/users/me/profile-picture",
+    response_model=UserResponse,
+    summary="Upload or update current user's profile picture",
+    description="Uploads a new profile picture for the currently authenticated user, replacing any existing one.",
+)
+async def upload_profile_picture_me(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    file: UploadFile = File(...),
+) -> Any:
+    """POST /api/v1/users/me/profile-picture"""
+
+    if file.content_type not in ALLOWED_PROFILE_PIC_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid image type. Allowed: {ALLOWED_PROFILE_PIC_TYPES}",
+        )
+
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        original = Path(file.filename or "profile").name
+        sanitized = re.sub(r"[^a-zA-Z0-9_.-]", "_", original)
+        unique_filename = f"{timestamp}_{current_user.id}_{sanitized}"
+
+        file_path = PROFILE_PICS_DIR / unique_filename
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        if current_user.profile_picture_url:
+            old_rel = current_user.profile_picture_url.replace("/static/", "", 1)
+            old_file = STATIC_DIR / old_rel
+            if old_file.exists() and old_file != file_path:
+                try:
+                    old_file.unlink()
+                except OSError as e:
+                    logger.warning("Error deleting old profile picture %s: %s", old_file, e)
+
+        current_user.profile_picture_url = f"/static/profile_pics/{unique_filename}"
+        db.add(current_user)
+        db.commit()
+        db.refresh(current_user)
+        return current_user
+    except Exception as e:
+        if 'file_path' in locals() and file_path.exists():
+            try:
+                file_path.unlink()
+            except OSError as cleanup_err:
+                logger.warning("Error cleaning up profile picture %s: %s", file_path, cleanup_err)
+        raise HTTPException(status_code=500, detail=f"Could not upload profile picture: {e}")
+    finally:
+        await file.close()
 
 
 class DeleteMeRequest(BaseModel):

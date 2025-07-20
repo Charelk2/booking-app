@@ -17,6 +17,7 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
     data = schemas.NotificationResponse.model_validate(n).model_dump()
     sender = data.get("sender_name")
     btype = data.get("booking_type")
+    avatar_url = data.get("avatar_url")
     if n.type == models.NotificationType.NEW_MESSAGE:
         if not sender:
             try:
@@ -51,6 +52,10 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
                                     )
                                     if profile and profile.business_name:
                                         sender = profile.business_name
+                                    if profile and profile.profile_picture_url:
+                                        avatar_url = profile.profile_picture_url
+                                elif other.profile_picture_url:
+                                    avatar_url = other.profile_picture_url
             except Exception as exc:  # pragma: no cover - defensive parsing
                 logger.warning(
                     "Failed to parse sender from message '%s': %s",
@@ -114,6 +119,8 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
                         )
                         if profile and profile.business_name:
                             sender = profile.business_name
+                        if profile and profile.profile_picture_url:
+                            avatar_url = profile.profile_picture_url
         except Exception as exc:  # pragma: no cover - defensive parsing
             logger.warning(
                 "Failed to derive booking details from link %s: %s",
@@ -136,6 +143,19 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
                 )
                 if client:
                     sender = f"{client.first_name} {client.last_name}"
+                artist = (
+                    db.query(models.User)
+                    .filter(models.User.id == br.artist_id)
+                    .first()
+                )
+                if artist:
+                    profile = (
+                        db.query(models.ArtistProfile)
+                        .filter(models.ArtistProfile.user_id == artist.id)
+                        .first()
+                    )
+                    if profile and profile.profile_picture_url:
+                        avatar_url = profile.profile_picture_url
         except (ValueError, IndexError) as exc:
             logger.warning(
                 "Failed to derive booking status update details from link %s: %s",
@@ -144,6 +164,7 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
             )
     data["sender_name"] = sender
     data["booking_type"] = btype
+    data["avatar_url"] = avatar_url
     return schemas.NotificationResponse(**data)
 
 
