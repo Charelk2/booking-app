@@ -30,6 +30,7 @@ from app.utils.notifications import (
     notify_deposit_due,
     notify_new_booking,
     notify_booking_status_update,
+    notify_quote_accepted,
 )
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
@@ -1115,5 +1116,116 @@ def test_booking_status_update_notification_includes_client_name():
     assert res.status_code == 200
     data = res.json()
     assert data[0]["sender_name"] == "C5 User"
+    app.dependency_overrides.clear()
+
+
+def test_deposit_due_notification_includes_artist_avatar_url():
+    Session = setup_app()
+    db = Session()
+    client = User(
+        email="depavatar@test.com",
+        password="x",
+        first_name="Dep",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="depavatarartist@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+    profile = models.ArtistProfile(
+        user_id=artist.id,
+        profile_picture_url="/static/profile_pics/artist.jpg",
+    )
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+
+    booking = models.BookingSimple(
+        quote_id=4,
+        artist_id=artist.id,
+        client_id=client.id,
+        payment_status="pending",
+        deposit_amount=50,
+        deposit_due_by=datetime(2025, 1, 1),
+        deposit_paid=False,
+    )
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+
+    notify_deposit_due(
+        db,
+        client,
+        booking.id,
+        float(booking.deposit_amount),
+        booking.deposit_due_by,
+    )
+    db.close()
+
+    token = create_access_token({"sub": client.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["avatar_url"] == "/static/profile_pics/artist.jpg"
+    app.dependency_overrides.clear()
+
+
+def test_quote_accepted_notification_includes_client_avatar_url():
+    Session = setup_app()
+    db = Session()
+    client = User(
+        email="qclient@test.com",
+        password="x",
+        first_name="Q",
+        last_name="Client",
+        user_type=UserType.CLIENT,
+        profile_picture_url="/static/profile_pics/client.jpg",
+    )
+    artist = User(
+        email="qartist@test.com",
+        password="x",
+        first_name="Q",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    notify_quote_accepted(db, artist, 1, br.id)
+    db.close()
+
+    token = create_access_token({"sub": artist.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["sender_name"] == "Q Client"
+    assert data[0]["avatar_url"] == "/static/profile_pics/client.jpg"
     app.dependency_overrides.clear()
 
