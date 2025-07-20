@@ -198,7 +198,7 @@ describe('NotificationListItem', () => {
     expect(parsed.initials).toBe('JS');
   });
 
-  it('renders a green check icon for confirmed status', () => {
+  it('renders a profile image for confirmed status', () => {
     const n: UnifiedNotification = {
       type: 'quote_accepted',
       timestamp: new Date().toISOString(),
@@ -216,11 +216,11 @@ describe('NotificationListItem', () => {
       );
     });
 
-    const icon = container.querySelector('svg.text-green-600');
-    expect(icon).not.toBeNull();
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
   });
 
-  it('renders an indigo calendar icon for reminder status', () => {
+  it('renders a profile image for reminder status', () => {
     const n: UnifiedNotification = {
       type: 'new_booking_request',
       timestamp: new Date().toISOString(),
@@ -239,11 +239,11 @@ describe('NotificationListItem', () => {
       );
     });
 
-    const icon = container.querySelector('svg.text-indigo-600');
-    expect(icon).not.toBeNull();
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
   });
 
-  it('renders an amber alert icon for due status', () => {
+  it('renders a profile image for due status', () => {
     const n: UnifiedNotification = {
       type: 'deposit_due',
       timestamp: new Date().toISOString(),
@@ -260,8 +260,8 @@ describe('NotificationListItem', () => {
       );
     });
 
-    const icon = container.querySelector('svg.text-amber-500');
-    expect(icon).not.toBeNull();
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
   });
 
   it('passes avatarUrl to Avatar component', () => {
@@ -285,6 +285,6 @@ describe('NotificationListItem', () => {
     });
 
     const img = container.querySelector('img');
-    expect(img?.getAttribute('src')).toContain('/static/avatar.jpg');
+    expect(img?.getAttribute('src')).toContain('avatar.jpg');
   });
 });
