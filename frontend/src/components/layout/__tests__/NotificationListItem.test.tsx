@@ -263,4 +263,28 @@ describe('NotificationListItem', () => {
     const icon = container.querySelector('svg.text-amber-500');
     expect(icon).not.toBeNull();
   });
+
+  it('passes avatarUrl to Avatar component', () => {
+    const n: UnifiedNotification = {
+      type: 'message',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'New message from Ana: hi',
+      booking_request_id: 8,
+      name: 'Ana',
+      avatar_url: '/static/avatar.jpg',
+    } as UnifiedNotification;
+
+    act(() => {
+      root.render(
+        React.createElement(NotificationListItem, {
+          n,
+          onClick: () => {},
+        }),
+      );
+    });
+
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src')).toContain('/static/avatar.jpg');
+  });
 });

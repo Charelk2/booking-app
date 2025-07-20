@@ -54,6 +54,7 @@ describe('MainLayout user menu', () => {
     });
     await act(async () => { await Promise.resolve(); });
     expect(div.textContent).toContain('My Bookings');
+    expect(div.textContent).toContain('Account');
     act(() => { root.unmount(); });
     div.remove();
   });
