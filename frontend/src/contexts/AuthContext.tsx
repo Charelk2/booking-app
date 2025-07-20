@@ -11,6 +11,7 @@ import {
   generateRecoveryCodes as apiGenerateRecoveryCodes,
   disableMfa as apiDisableMfa,
   getCurrentUser,
+  getArtistProfileMe,
 } from '@/lib/api';
 
 interface AuthContextType {
@@ -43,6 +44,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const fetchCurrentUserWithArtist = async () => {
+    const res = await getCurrentUser();
+    let userData = res.data;
+    if (userData.user_type === 'artist') {
+      try {
+        const profile = await getArtistProfileMe();
+        if (profile.data.profile_picture_url) {
+          userData = {
+            ...userData,
+            profile_picture_url: profile.data.profile_picture_url,
+          };
+        }
+      } catch (err) {
+        console.error('Failed to fetch artist profile:', err);
+      }
+    }
+    return userData;
+  };
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlToken = params.get('token');
@@ -56,9 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.history.replaceState({}, '', newUrl);
       (async () => {
         try {
-          const res = await getCurrentUser();
-          setUser(res.data);
-          localStorage.setItem('user', JSON.stringify(res.data));
+          const userData = await fetchCurrentUserWithArtist();
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
         } catch (err) {
           console.error('Failed to fetch current user:', err);
         } finally {
@@ -105,9 +125,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       altStorage.removeItem('token');
 
       try {
-        const res = await getCurrentUser();
-        setUser(res.data);
-        storage.setItem('user', JSON.stringify(res.data));
+        const userData = await fetchCurrentUserWithArtist();
+        setUser(userData);
+        storage.setItem('user', JSON.stringify(userData));
         altStorage.removeItem('user');
       } catch (err) {
         console.error('Failed to fetch current user:', err);
@@ -136,9 +156,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       altStorage.removeItem('token');
 
       try {
-        const res = await getCurrentUser();
-        setUser(res.data);
-        storage.setItem('user', JSON.stringify(res.data));
+        const userData = await fetchCurrentUserWithArtist();
+        setUser(userData);
+        storage.setItem('user', JSON.stringify(userData));
         altStorage.removeItem('user');
       } catch (err) {
         console.error('Failed to fetch current user:', err);
@@ -169,9 +189,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = async () => {
     try {
-      const res = await getCurrentUser();
-      setUser(res.data);
-      localStorage.setItem('user', JSON.stringify(res.data));
+      const userData = await fetchCurrentUserWithArtist();
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
     } catch (err) {
       console.error('Failed to refresh user:', err);
     }
