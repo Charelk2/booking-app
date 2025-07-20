@@ -78,6 +78,8 @@ def _build_response(db: Session, n: models.Notification) -> schemas.Notification
                 )
                 if client:
                     sender = f"{client.first_name} {client.last_name}"
+                    if client.profile_picture_url:
+                        avatar_url = client.profile_picture_url
                 if br.service_id:
                     service = (
                         db.query(models.Service)
