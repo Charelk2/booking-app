@@ -180,4 +180,54 @@ describe('BookingWizard flow', () => {
     expect(disabledButtons.length).toBeGreaterThan(1);
     jest.useRealTimers();
   });
+
+  it('restores progress from localStorage on reload', async () => {
+    (window as any).confirm = jest.fn(() => true);
+    const next = getButton('Next');
+    await act(async () => {
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {});
+    const stored = JSON.parse(localStorage.getItem('bookingState')!);
+    expect(stored.step).toBe(1);
+
+    act(() => {
+      root.unmount();
+    });
+    container.innerHTML = '';
+    root = createRoot(container);
+    await act(async () => {
+      root.render(React.createElement(Wrapper));
+    });
+    await act(async () => {});
+    expect(container.querySelector('[data-testid="step-heading"]')?.textContent).toContain('Location');
+  });
+
+  it('clears saved progress when starting over', async () => {
+    act(() => {
+      root.unmount();
+    });
+    localStorage.setItem(
+      'bookingState',
+      JSON.stringify({
+        step: 2,
+        details: {
+          date: new Date().toISOString(),
+          location: 'LA',
+          guests: '10',
+          venueType: 'indoor',
+          sound: 'yes',
+        },
+      }),
+    );
+    (window as any).confirm = jest.fn(() => false);
+    container.innerHTML = '';
+    root = createRoot(container);
+    await act(async () => {
+      root.render(React.createElement(Wrapper));
+    });
+    await act(async () => {});
+    expect(localStorage.getItem('bookingState')).toBeNull();
+    expect(container.querySelector('[data-testid="step-heading"]')?.textContent).toContain('Date & Time');
+  });
 });
