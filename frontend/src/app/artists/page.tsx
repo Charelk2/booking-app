@@ -131,17 +131,21 @@ export default function ArtistsPage() {
             Compare artists, check ratings, and book instantly.
           </p>
         </div>
-        <FilterBar
-          categories={CATEGORIES}
-          onCategory={onCategory}
-          location={location}
-          onLocation={setLocation}
-          sort={sort}
-          onSort={(e) => setSort(e.target.value || undefined)}
-          onClear={clearFilters}
-          onApply={() => updateQuery(category, location || undefined, sort)}
-          filtersActive={filtersActive}
-        />
+
+        <div className="sticky top-0 z-20 bg-white pt-2 pb-4">
+          <FilterBar
+            categories={CATEGORIES}
+            onCategory={onCategory}
+            location={location}
+            onLocation={(e) => setLocation(e.target.value)}
+            sort={sort}
+            onSort={(e) => setSort(e.target.value || undefined)}
+            onClear={clearFilters}
+            onApply={() => updateQuery(category, location || undefined, sort)}
+            filtersActive={filtersActive}
+          />
+        </div>
+
         <div>
           {loading && <Spinner className="my-4" />}
           {error && <p className="text-red-600">{error}</p>}
