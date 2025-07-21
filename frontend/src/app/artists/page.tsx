@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { getArtists } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
@@ -17,20 +18,44 @@ const CATEGORIES = [
 ];
 
 export default function ArtistsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [category, setCategory] = useState<string | undefined>();
-  const [location, setLocation] = useState('');
-  const [sort, setSort] = useState<string | undefined>();
+  const [category, setCategory] = useState<string | undefined>(
+    searchParams.get('category') || undefined,
+  );
+  const [location, setLocation] = useState(
+    searchParams.get('location') || '',
+  );
+  const [sort, setSort] = useState<string | undefined>(
+    searchParams.get('sort') || undefined,
+  );
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const LIMIT = 20;
+
+  const updateQuery = (
+    cat?: string,
+    loc?: string,
+    sortValue?: string,
+  ) => {
+    const params = new URLSearchParams();
+    if (cat) params.set('category', cat);
+    if (loc) params.set('location', loc);
+    if (sortValue) params.set('sort', sortValue);
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname);
+  };
 
   const clearFilters = () => {
     setCategory(undefined);
     setLocation('');
     setSort(undefined);
+    router.push(pathname);
   };
 
   const filtersActive = Boolean(category) || Boolean(location) || Boolean(sort);
@@ -74,6 +99,7 @@ export default function ArtistsPage() {
       sort,
       page: 1,
     });
+    updateQuery(category, location || undefined, sort);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, location, sort]);
 
@@ -113,6 +139,7 @@ export default function ArtistsPage() {
           sort={sort}
           onSort={(e) => setSort(e.target.value || undefined)}
           onClear={clearFilters}
+          onApply={() => updateQuery(category, location || undefined, sort)}
           filtersActive={filtersActive}
         />
         <div>
