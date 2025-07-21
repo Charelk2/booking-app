@@ -866,7 +866,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 `GET /api/v1/artist-profiles/` supports pagination and optional filters:
 
 ```
-page=<number>&limit=<1-100>&category=<ServiceType>&location=<substring>&sort=<top_rated|most_booked|newest>
+page=<number>&limit=<1-100>&category=<ServiceType>&location=<substring>&sort=<top_rated|most_booked|newest>&minPrice=<number>&maxPrice=<number>
 ```
 
 Profiles include `rating`, `rating_count`, and `is_available` fields. A new
@@ -881,7 +881,8 @@ page now rests on a soft gradient background from the brand color to white. A ne
 inputs. When no results match the current filters the page shows "No artists
 found" beneath the filter bar.
 Filter selections persist in the URL so sharing or reloading the page keeps
-the current view, e.g. `/artists?category=Live+Performance&location=NY`.
+the current view, e.g.
+`/artists?category=Live+Performance&location=NY&minPrice=0&maxPrice=200000`.
 
 ### Mobile Navigation & Inbox
 
