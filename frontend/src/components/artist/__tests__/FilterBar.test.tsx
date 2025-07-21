@@ -22,6 +22,7 @@ describe('FilterBar component', () => {
           onLocation={() => {}}
           sort=""
           onSort={() => {}}
+          onApply={() => {}}
           filtersActive={false}
         />,
       );
