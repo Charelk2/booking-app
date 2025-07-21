@@ -3,11 +3,21 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import ArtistsPage from '../page';
 import * as api from '@/lib/api';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import type { ArtistProfile } from '@/types';
 
 jest.mock('@/lib/api');
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(),
+  useSearchParams: jest.fn(),
+  usePathname: jest.fn(() => '/artists'),
+}));
 
-function setup() {
+function setup(search: Record<string, string> = {}) {
+  (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+  (useSearchParams as jest.Mock).mockReturnValue({
+    get: (key: string) => search[key] || null,
+  });
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -20,9 +30,11 @@ describe('Artists page filters', () => {
     document.body.innerHTML = '';
   });
 
-  it('calls getArtists with updated filters', async () => {
+  it('calls getArtists with updated filters and updates the URL', async () => {
     const spy = jest.spyOn(api, 'getArtists').mockResolvedValue({ data: [] });
     const { container, root } = setup();
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push });
     await act(async () => {
       root.render(React.createElement(ArtistsPage));
       await Promise.resolve();
@@ -40,6 +52,7 @@ describe('Artists page filters', () => {
       page: 1,
       limit: 20,
     });
+    expect(push).toHaveBeenLastCalledWith('/artists?category=Live%20Performance');
     act(() => root.unmount());
     container.remove();
   });
@@ -178,6 +191,29 @@ describe('Artists page filters', () => {
       page: 1,
       limit: 20,
     });
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('restores filters from the URL on load', async () => {
+    jest.spyOn(api, 'getArtists').mockResolvedValue({ data: [] });
+    const { container, root } = setup({
+      category: 'Live Performance',
+      location: 'Paris',
+      sort: 'newest',
+    });
+    await act(async () => {
+      root.render(React.createElement(ArtistsPage));
+      await Promise.resolve();
+    });
+    const locationInput = container.querySelector('input[placeholder="Location"]') as HTMLInputElement;
+    expect(locationInput.value).toBe('Paris');
+    const selected = Array.from(container.querySelectorAll('button[aria-pressed]')).find(
+      (b) => b.getAttribute('aria-pressed') === 'true' && b.textContent === 'Live Performance',
+    );
+    expect(selected).toBeTruthy();
+    const sortSelect = container.querySelector('select') as HTMLSelectElement;
+    expect(sortSelect.value).toBe('newest');
     act(() => root.unmount());
     container.remove();
   });
