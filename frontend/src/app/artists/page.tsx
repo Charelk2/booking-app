@@ -131,6 +131,7 @@ export default function ArtistsPage() {
             Compare artists, check ratings, and book instantly.
           </p>
         </div>
+
         <div className="sticky top-0 z-20 bg-white pt-2 pb-4">
           <FilterBar
             categories={CATEGORIES}
@@ -144,6 +145,7 @@ export default function ArtistsPage() {
             filtersActive={filtersActive}
           />
         </div>
+
         <div>
           {loading && <Spinner className="my-4" />}
           {error && <p className="text-red-600">{error}</p>}
