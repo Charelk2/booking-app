@@ -34,6 +34,11 @@ export default function FilterBar({
   const [sheetOpen, setSheetOpen] = useState(false);
   const isMobile = useIsMobile();
 
+  const handleApply = () => {
+    onApply?.();
+    setSheetOpen(false);
+  };
+
   const handleCategory = (c: string) => {
     setSelectedCategory((prev) => (prev === c ? undefined : c));
     onCategory?.(c);
@@ -67,7 +72,7 @@ export default function FilterBar({
             sort={sort}
             onSort={onSort}
             onClear={clearAll}
-            onApply={onApply ?? (() => {})}
+            onApply={handleApply}
           />
         </>
       ) : (
