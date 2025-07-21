@@ -135,7 +135,7 @@ export default function ArtistsPage() {
           categories={CATEGORIES}
           onCategory={onCategory}
           location={location}
-          onLocation={(e) => setLocation(e.target.value)}
+          onLocation={setLocation}
           sort={sort}
           onSort={(e) => setSort(e.target.value || undefined)}
           onClear={clearFilters}
