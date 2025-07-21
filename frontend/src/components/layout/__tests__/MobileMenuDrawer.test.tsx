@@ -96,6 +96,7 @@ describe('MobileMenuDrawer', () => {
     expect(body).toContain('Sound Providers');
     expect(body).toContain('Quote Calculator');
     expect(body).toContain('Quote Templates');
+    expect(body).not.toContain('Account');
   });
 
   it('shows My Bookings link for clients', async () => {

@@ -140,13 +140,15 @@ export default function MobileMenuDrawer({
                     My Quotes
                   </Link>
                 )}
-                <Link
-                  href="/account"
-                  onClick={onClose}
-                  className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                >
-                  Account
-                </Link>
+                {user.user_type === 'client' && (
+                  <Link
+                    href="/account"
+                    onClick={onClose}
+                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                  >
+                    Account
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={() => {
