@@ -873,6 +873,8 @@ page now rests on a soft gradient background from the brand color to white. A ne
 "Clear filters" button appears when any filter is active and resets all filter
 inputs. When no results match the current filters the page shows "No artists
 found" beneath the filter bar.
+Filter selections persist in the URL so sharing or reloading the page keeps
+the current view, e.g. `/artists?category=Live+Performance&location=NY`.
 
 ### Mobile Navigation & Inbox
 
