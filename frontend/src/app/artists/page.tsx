@@ -7,7 +7,7 @@ import { getArtists } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCard from '@/components/artist/ArtistCard';
-import FilterBar from '@/components/artist/FilterBar';
+import FilterBar, { SLIDER_MIN, SLIDER_MAX } from '@/components/artist/FilterBar';
 import { Spinner } from '@/components/ui';
 
 // Raw category strings
@@ -43,37 +43,71 @@ export default function ArtistsPage() {
   const [sort, setSort] = useState<string | undefined>(
     searchParams.get('sort') || undefined
   );
+  const [minPrice, setMinPrice] = useState<number>(
+    searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : SLIDER_MIN
+  );
+  const [maxPrice, setMaxPrice] = useState<number>(
+    searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : SLIDER_MAX
+  );
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const LIMIT = 20;
 
-  const filtersActive = Boolean(category) || Boolean(location) || Boolean(sort);
+  const filtersActive =
+    Boolean(category) ||
+    Boolean(location) ||
+    Boolean(sort) ||
+    minPrice !== SLIDER_MIN ||
+    maxPrice !== SLIDER_MAX;
 
   const clearFilters = () => {
     setCategory(undefined);
     setLocation('');
     setSort(undefined);
+    setMinPrice(SLIDER_MIN);
+    setMaxPrice(SLIDER_MAX);
+    setPage(1);
     router.push(pathname);
   };
 
-  const updateQuery = () => {
+
+  const applyFilters = ({
+    category: cat,
+    minPrice: min,
+    maxPrice: max,
+  }: {
+    category?: string;
+    minPrice?: number;
+    maxPrice?: number;
+  }) => {
+    setCategory(cat);
+    setMinPrice(min ?? SLIDER_MIN);
+    setMaxPrice(max ?? SLIDER_MAX);
+    setPage(1);
+    fetchArtists({ pageOverride: 1 });
     const params = new URLSearchParams();
-    if (category) params.set('category', category);
+    if (cat) params.set('category', cat);
     if (location) params.set('location', location);
     if (sort) params.set('sort', sort);
+    const minVal = min ?? SLIDER_MIN;
+    const maxVal = max ?? SLIDER_MAX;
+    if (minVal !== SLIDER_MIN) params.set('minPrice', String(minVal));
+    if (maxVal !== SLIDER_MAX) params.set('maxPrice', String(maxVal));
     const qs = params.toString();
     router.push(qs ? `${pathname}?${qs}` : pathname);
   };
 
-  const fetchArtists = async ({ append = false }: { append?: boolean } = {}) => {
+  const fetchArtists = async (
+    { append = false, pageOverride }: { append?: boolean; pageOverride?: number } = {},
+  ) => {
     setLoading(true);
     try {
       const res = await getArtists({
         category,
         location: location || undefined,
         sort,
-        page,
+        page: pageOverride ?? page,
         limit: LIMIT,
       });
       setHasMore(res.data.length === LIMIT);
@@ -88,13 +122,13 @@ export default function ArtistsPage() {
 
   useEffect(() => {
     setPage(1);
-    fetchArtists();
-    updateQuery();
-  }, [category, location, sort]);
+    fetchArtists({ pageOverride: 1 });
+  }, [category, location, sort, minPrice, maxPrice]);
 
   const loadMore = () => {
-    setPage((p) => p + 1);
-    fetchArtists({ append: true });
+    const next = page + 1;
+    setPage(next);
+    fetchArtists({ append: true, pageOverride: next });
   };
 
   return (
@@ -112,13 +146,16 @@ export default function ArtistsPage() {
         {/* FilterBar is now in normal flow, not sticky */}
         <FilterBar
           categories={CATEGORY_OPTIONS}
+          initialCategory={category}
+          initialMinPrice={minPrice}
+          initialMaxPrice={maxPrice}
           onCategory={setCategory}
           location={location}
           onLocation={setLocation}
           sort={sort}
           onSort={(e) => setSort(e.target.value || undefined)}
           onClear={clearFilters}
-          onApply={updateQuery}
+          onApply={applyFilters}
           filtersActive={filtersActive}
         />
 
