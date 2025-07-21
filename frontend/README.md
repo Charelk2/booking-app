@@ -103,7 +103,9 @@ consistent sizing and accessibility. Each artist card displays a skeleton placeh
 loads and reveals a **Book Now** overlay button when hovered.
 The filter bar itself is built from the `FilterBar` component which combines these pills with
 location, sort and verification inputs. Pills scroll horizontally on overflow and the entire bar
-uses a softly rounded container for a polished look.
+uses a softly rounded container for a polished look. On long lists the bar remains visible thanks
+to a wrapping `<div>` with `className="sticky top-0 z-20 bg-white"`, so scrolling doesn't cause
+the content below to jump when filters stay pinned to the top.
 
 ## Testing
 

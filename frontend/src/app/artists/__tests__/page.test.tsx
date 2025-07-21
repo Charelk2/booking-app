@@ -217,4 +217,17 @@ describe('Artists page filters', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('wraps FilterBar in a sticky container', async () => {
+    jest.spyOn(api, 'getArtists').mockResolvedValue({ data: [] });
+    const { container, root } = setup();
+    await act(async () => {
+      root.render(React.createElement(ArtistsPage));
+      await Promise.resolve();
+    });
+    const sticky = container.querySelector('div.sticky.top-0.z-20.bg-white');
+    expect(sticky).not.toBeNull();
+    act(() => root.unmount());
+    container.remove();
+  });
 });
