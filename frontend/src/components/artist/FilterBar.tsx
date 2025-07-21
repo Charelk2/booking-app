@@ -14,6 +14,7 @@ export interface FilterBarProps {
   sort?: string;
   onSort: ChangeEventHandler<HTMLSelectElement>;
   onClear?: () => void;
+  onApply?: () => void;
   filtersActive: boolean;
 }
 
@@ -25,6 +26,7 @@ export default function FilterBar({
   sort,
   onSort,
   onClear,
+  onApply,
   filtersActive,
 }: FilterBarProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
@@ -65,7 +67,7 @@ export default function FilterBar({
             sort={sort}
             onSort={onSort}
             onClear={clearAll}
-            onApply={() => {}}
+            onApply={onApply ?? (() => {})}
           />
         </>
       ) : (
