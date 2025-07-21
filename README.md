@@ -247,6 +247,10 @@ NEXT_PUBLIC_WS_URL=ws://192.168.3.203:8000
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDm-BKmMtzMSMd-XUdfapjEUU6O5mYy2bk
 ```
 
+`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` should be a browser key with the Places API
+enabled. It powers the `LocationInput` autocomplete fields used in the artist
+filters and booking steps.
+
 The host portion of `NEXT_PUBLIC_API_URL` is also used by
 `next.config.js` to allow optimized image requests from the backend.
 Set this URL to match your API server so artist profile pictures and
