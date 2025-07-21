@@ -98,6 +98,7 @@ export default function ProfilePicturePage() {
             accept="image/*"
             onChange={handleChange}
             data-testid="file-input"
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-light file:text-brand-dark hover:file:bg-brand-light"
           />
           {originalSrc && (
             <div>
