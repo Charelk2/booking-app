@@ -15,6 +15,9 @@ interface FilterSheetProps {
   onSort: ChangeEventHandler<HTMLSelectElement>;
   onClear: () => void;
   onApply: () => void;
+  minPrice: number;
+  maxPrice: number;
+  onPriceChange: (min: number, max: number) => void;
 }
 
 export default function FilterSheet({
