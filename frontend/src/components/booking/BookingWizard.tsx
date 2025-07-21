@@ -73,6 +73,7 @@ export default function BookingWizard({
     setServiceId,
     requestId,
     setRequestId,
+    resetBooking,
   } = useBooking();
   const router = useRouter();
   const [unavailable, setUnavailable] = useState<string[]>([]);
@@ -216,6 +217,7 @@ export default function BookingWizard({
         message_type: 'system',
       });
       toast.success('Request submitted');
+      resetBooking();
       router.push(`/booking-requests/${idToUse}`);
     } catch (e) {
       const err = e as Error;
