@@ -1,6 +1,7 @@
 'use client';
-import type { ChangeEventHandler } from 'react';
 import { useState } from 'react';
+import type { ChangeEventHandler } from 'react';
+import LocationInput from '@/components/ui/LocationInput';
 import { PillButton } from '@/components/ui';
 import useIsMobile from '@/hooks/useIsMobile';
 import FilterPopover from './FilterPopover';
@@ -10,7 +11,7 @@ export interface FilterBarProps {
   categories: string[];
   onCategory?: (c: string) => void;
   location: string;
-  onLocation: ChangeEventHandler<HTMLInputElement>;
+  onLocation: (value: string) => void;
   sort?: string;
   onSort: ChangeEventHandler<HTMLSelectElement>;
   onClear?: () => void;
@@ -94,8 +95,7 @@ export default function FilterBar({
           />
         </div>
       )}
-      <input
-        placeholder="Location"
+      <LocationInput
         value={location}
         onChange={onLocation}
         className="h-10 px-3 rounded-lg border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-indigo-300"
