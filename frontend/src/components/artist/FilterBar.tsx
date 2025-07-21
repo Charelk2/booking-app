@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, forwardRef, Fragment, FC } from 'react';
+import React, { useState, useEffect, forwardRef, Fragment, FC } from 'react';
 import type { ChangeEventHandler } from 'react';
 import { Listbox, Transition } from '@headlessui/react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
@@ -18,11 +18,14 @@ export interface FilterBarProps {
   onClear: () => void;
   onApply: (filters: { category?: string; minPrice?: number; maxPrice?: number }) => void;
   filtersActive: boolean;
+  initialCategory?: string;
+  initialMinPrice?: number;
+  initialMaxPrice?: number;
 }
 
-const SLIDER_MIN = 0;
-const SLIDER_MAX = 200_000;
-const SLIDER_STEP = 100;
+export const SLIDER_MIN = 0;
+export const SLIDER_MAX = 200_000;
+export const SLIDER_STEP = 100;
 const formatCurrency = (v: number) => `R${new Intl.NumberFormat().format(v)}`;
 
 const FilterBar: FC<FilterBarProps> = ({
@@ -35,12 +38,27 @@ const FilterBar: FC<FilterBarProps> = ({
   onClear,
   onApply,
   filtersActive,
+  initialCategory,
+  initialMinPrice = SLIDER_MIN,
+  initialMaxPrice = SLIDER_MAX,
 }) => {
-  const [cat, setCat] = useState<string | undefined>();
-  const [minPrice, setMinPrice] = useState<number>(SLIDER_MIN);
-  const [maxPrice, setMaxPrice] = useState<number>(SLIDER_MAX);
+  const [cat, setCat] = useState<string | undefined>(initialCategory);
+  const [minPrice, setMinPrice] = useState<number>(initialMinPrice);
+  const [maxPrice, setMaxPrice] = useState<number>(initialMaxPrice);
   const [sheetOpen, setSheetOpen] = useState(false);
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    setCat(initialCategory);
+  }, [initialCategory]);
+
+  useEffect(() => {
+    setMinPrice(initialMinPrice);
+  }, [initialMinPrice]);
+
+  useEffect(() => {
+    setMaxPrice(initialMaxPrice);
+  }, [initialMaxPrice]);
 
   const handleCategory = (value: string) => {
     const next = cat === value ? undefined : value;
