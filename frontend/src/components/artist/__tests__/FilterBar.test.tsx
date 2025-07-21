@@ -19,7 +19,9 @@ describe('FilterBar component', () => {
           categories={categories}
           onCategory={() => {}}
           location=""
-          onLocation={() => {}}
+          onLocation={() => {
+            /* noop */
+          }}
           sort=""
           onSort={() => {}}
           onApply={() => {}}
@@ -81,6 +83,21 @@ describe('FilterBar component', () => {
     expect(onCategory).toHaveBeenCalledWith(categories[0]);
     expect(onApply).toHaveBeenCalled();
     expect(document.activeElement).toBe(btn);
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('updates location via autocomplete', () => {
+    (useIsMobile as jest.Mock).mockReturnValue(false);
+    const onLocation = jest.fn();
+    const { container, root } = renderBar({ onLocation });
+    const mock = (global as { mockAutocomplete: jest.Mock }).mockAutocomplete;
+    const instance = mock.mock.instances[0];
+    instance.getPlace.mockReturnValue({ formatted_address: 'New York, NY' });
+    act(() => {
+      instance._cb();
+    });
+    expect(onLocation).toHaveBeenCalledWith('New York, NY');
     act(() => root.unmount());
     container.remove();
   });
