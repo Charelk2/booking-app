@@ -34,6 +34,7 @@ describe('MainLayout user menu', () => {
     await act(async () => { await Promise.resolve(); });
     expect(div.textContent).toContain('Quotes');
     expect(div.textContent).toContain('Quote Templates');
+    expect(div.textContent).not.toContain('Account');
     act(() => { root.unmount(); });
     div.remove();
   });
