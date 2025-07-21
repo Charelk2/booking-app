@@ -45,6 +45,13 @@ describe('Artists page filters', () => {
       catBtn.click();
       await Promise.resolve();
     });
+    const applyBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Apply',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      applyBtn.click();
+      await Promise.resolve();
+    });
     expect(spy).toHaveBeenLastCalledWith({
       category: 'Live Performance',
       location: undefined,
@@ -52,7 +59,9 @@ describe('Artists page filters', () => {
       page: 1,
       limit: 20,
     });
-    expect(push).toHaveBeenLastCalledWith('/artists?category=Live%20Performance');
+    expect(push).toHaveBeenLastCalledWith(
+      '/artists?category=Live%20Performance&minPrice=0&maxPrice=200000',
+    );
     act(() => root.unmount());
     container.remove();
   });
@@ -69,6 +78,8 @@ describe('Artists page filters', () => {
       ],
     });
     const { container, root } = setup();
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push });
     await act(async () => {
       root.render(React.createElement(ArtistsPage));
       await Promise.resolve();
@@ -191,6 +202,7 @@ describe('Artists page filters', () => {
       page: 1,
       limit: 20,
     });
+    expect(push).toHaveBeenLastCalledWith('/artists');
     act(() => root.unmount());
     container.remove();
   });
@@ -201,6 +213,8 @@ describe('Artists page filters', () => {
       category: 'Live Performance',
       location: 'Paris',
       sort: 'newest',
+      minPrice: '10',
+      maxPrice: '500',
     });
     await act(async () => {
       root.render(React.createElement(ArtistsPage));
@@ -214,11 +228,15 @@ describe('Artists page filters', () => {
     expect(selected).toBeTruthy();
     const sortSelect = container.querySelector('select') as HTMLSelectElement;
     expect(sortSelect.value).toBe('newest');
+    const applyBtn = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Apply',
+    );
+    expect(applyBtn).not.toBeNull();
     act(() => root.unmount());
     container.remove();
   });
 
-  it('wraps FilterBar in a sticky container', async () => {
+  it('renders FilterBar without sticky container', async () => {
     jest.spyOn(api, 'getArtists').mockResolvedValue({ data: [] });
     const { container, root } = setup();
     await act(async () => {
@@ -226,7 +244,7 @@ describe('Artists page filters', () => {
       await Promise.resolve();
     });
     const sticky = container.querySelector('div.sticky.top-0.z-20.bg-white');
-    expect(sticky).not.toBeNull();
+    expect(sticky).toBeNull();
     act(() => root.unmount());
     container.remove();
   });
