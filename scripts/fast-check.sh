@@ -48,7 +48,8 @@ else
 fi
 
 if [ ${#changed_js_ts[@]} -gt 0 ]; then
-  (cd frontend && npx --no-install jest --findRelatedTests "${changed_js_ts[@]}" --maxWorkers="${JEST_WORKERS:-50%}" --passWithNoTests || true)
+  (cd frontend && npx --no-install jest --findRelatedTests "${changed_js_ts[@]}" \
+    --maxWorkers="${JEST_WORKERS:-50%}" --passWithNoTests)
 else
   echo "No frontend JS/TS changes"
 fi
@@ -57,7 +58,7 @@ if [ "${#py_array[@]}" -gt 0 ]; then
   echo "Running backend tests for changed files…"
   readarray -t py_array < <(printf '%s\n' "${py_array[@]}" | sort -u)
   start_py=$(date +%s)
-  pytest -q -x "${py_array[@]}" -W ignore::DeprecationWarning
+  pytest -q -x -W ignore::DeprecationWarning "${py_array[@]}"
   end_py=$(date +%s)
   echo "Backend tests: $((end_py - start_py))s"
 else
