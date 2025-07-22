@@ -7,6 +7,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { Listbox, Transition } from '@headlessui/react';
 import { ChevronDownIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
+import LocationInput from '@/components/ui/LocationInput';
 
 const CATEGORIES = [
   { value: 'musician', label: 'Musician / Band' },
@@ -99,11 +100,10 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
         )}
       >
         <span className="text-xs text-gray-500">Where</span>
-        <input
-          type="text"
-          placeholder="City or venue"
+        <LocationInput
           value={location}
-          onChange={(e) => setLocation(e.target.value)}
+          onChange={setLocation}
+          placeholder="City or venue"
           className="mt-1 w-full text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
         />
       </div>
