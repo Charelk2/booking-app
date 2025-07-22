@@ -512,6 +512,17 @@ You can override the number of parallel Jest workers by setting the
 JEST_WORKERS=75% ./scripts/test-all.sh
 ```
 
+Common skip flags:
+
+```bash
+SKIP_FRONTEND=1 ./scripts/test-all.sh
+SKIP_BACKEND=1 ./scripts/test-all.sh
+./scripts/test-frontend.sh --unit
+```
+
+The scripts cache `backend/venv` and `frontend/node_modules` using hash files so
+installs are skipped unless `requirements.txt` or `package-lock.json` change.
+
 You can also run the tests inside the Docker image if you prefer not to install
 anything locally:
 

@@ -5,6 +5,10 @@ backend/static/static/
 __pycache__/
 *.py[cod]
 
+# Test caches
+.cache/jest/
+.pytest_cache/
+
 # Ignore Node modules
 node_modules/
 # Additional ignores

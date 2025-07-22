@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "pretest": "test -d node_modules || npm install",
-    "test": "jest"
+    "test": "jest --passWithNoTests",
+    "test:unit": "jest --testPathIgnorePatterns=e2e",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.17",
