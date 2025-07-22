@@ -20,20 +20,18 @@ fi
 # offline, `docker-test.sh` saves `backend/venv.tar.zst` and
 # `frontend/node_modules.tar.zst`. If the unpacked directories are
 # absent but the archives exist, extract them before continuing so
-# `setup.sh` sees the same hash markers
-# `.pkg_hash` markers.
-decompress_cache() {
-  local archive=$1
-  local dest=$2
-  if [ ! -d "$dest" ] && [ -f "$archive" ]; then
-    mkdir -p "$dest"
-    echo "Extracting $(basename "$archive") to $dest"
-    extract "$archive" "$(dirname "$dest")"
-  fi
-}
+# `setup.sh` sees the same hash markers.
+if [ -f "$HOST_REPO/backend/venv.tar.zst" ] && [ ! -d "$HOST_REPO/backend/venv" ]; then
+  mkdir -p "$HOST_REPO/backend"
+  echo "Extracting venv.tar.zst to backend/venv"
+  extract "$HOST_REPO/backend/venv.tar.zst" "$HOST_REPO/backend"
+fi
 
-decompress_cache "$HOST_REPO/backend/venv.tar.zst" "$HOST_REPO/backend/venv"
-decompress_cache "$HOST_REPO/frontend/node_modules.tar.zst" "$HOST_REPO/frontend/node_modules"
+if [ -f "$HOST_REPO/frontend/node_modules.tar.zst" ] && [ ! -d "$HOST_REPO/frontend/node_modules" ]; then
+  mkdir -p "$HOST_REPO/frontend"
+  echo "Extracting node_modules.tar.zst to frontend/node_modules"
+  extract "$HOST_REPO/frontend/node_modules.tar.zst" "$HOST_REPO/frontend"
+fi
 
 # Fallback to local tests when Docker is not installed. This allows CI
 # environments without Docker to still execute the full test suite.
@@ -90,14 +88,12 @@ docker run --rm --network "$NETWORK" -v "$(pwd)":$WORKDIR "$IMAGE" \
 # After the Docker run completes, archive the dependency caches so future
 # offline runs can extract them without Docker. Archives are compressed using
 # `zstd` for speed and smaller size.
-compress_cache() {
-  local src=$1
-  local archive=$2
-  if [ -d "$src" ]; then
-    echo "Archiving $(basename "$src") to $(basename "$archive")"
-    compress "$src" "$archive"
-  fi
-}
+if [ -d "$HOST_REPO/backend/venv" ]; then
+  echo "Archiving venv to venv.tar.zst"
+  compress "$HOST_REPO/backend/venv" "$HOST_REPO/backend/venv.tar.zst"
+fi
 
-compress_cache "$HOST_REPO/backend/venv" "$HOST_REPO/backend/venv.tar.zst"
-compress_cache "$HOST_REPO/frontend/node_modules" "$HOST_REPO/frontend/node_modules.tar.zst"
+if [ -d "$HOST_REPO/frontend/node_modules" ]; then
+  echo "Archiving node_modules to node_modules.tar.zst"
+  compress "$HOST_REPO/frontend/node_modules" "$HOST_REPO/frontend/node_modules.tar.zst"
+fi
