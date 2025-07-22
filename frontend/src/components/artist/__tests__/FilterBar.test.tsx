@@ -1,12 +1,10 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 import React from 'react';
 import FilterBar from '../FilterBar';
 import useIsMobile from '@/hooks/useIsMobile';
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 jest.mock('@/hooks/useIsMobile');
 

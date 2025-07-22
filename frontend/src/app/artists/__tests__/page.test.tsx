@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import React from 'react';
@@ -13,9 +14,6 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn(() => '/artists'),
 }));
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 function setup(search: Record<string, string> = {}) {
   (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });

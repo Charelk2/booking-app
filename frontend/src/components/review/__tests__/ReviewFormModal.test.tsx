@@ -1,12 +1,10 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 import React from 'react';
 import ReviewFormModal from '../ReviewFormModal';
 import { createReviewForBooking } from '@/lib/api';
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 jest.mock('@/lib/api');
 

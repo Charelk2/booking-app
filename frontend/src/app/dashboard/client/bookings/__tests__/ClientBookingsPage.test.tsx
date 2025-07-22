@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
@@ -23,9 +24,6 @@ jest.mock("next/link", () => {
 });
 /* eslint-enable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 describe("ClientBookingsPage", () => {
   afterEach(() => {

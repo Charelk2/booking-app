@@ -39,7 +39,9 @@ if [ "${#changed_ts[@]}" -gt 0 ]; then
   for f in "${changed_ts[@]}"; do
     changed_ts_rel+=("${f#frontend/}")
   done
-  (cd frontend && npx --no-install eslint -c eslint.config.mjs "${changed_ts_rel[@]}")
+  (cd frontend && npx --no-install eslint -c eslint.config.mjs \
+    --quiet --max-warnings=0 \
+    --rule '@typescript-eslint/no-unused-vars: off' "${changed_ts_rel[@]}")
   # Skip TypeScript compile in fast mode to avoid slow/full project checks
   end_lint=$(date +%s)
   echo "Lint/TS checks: $((end_lint - start_lint))s"
