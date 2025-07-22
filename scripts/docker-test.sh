@@ -8,6 +8,7 @@ SCRIPT=${TEST_SCRIPT:-./scripts/test-all.sh}
 NETWORK=${DOCKER_TEST_NETWORK:-none}
 WORKDIR=/workspace
 HOST_REPO=$(pwd)
+source "$HOST_REPO/scripts/archive-utils.sh" || true # SC1091
 
 # Warn when DOCKER_TEST_NETWORK isn't specified so users know npm may fail
 if [ -z "${DOCKER_TEST_NETWORK+x}" ]; then
@@ -27,8 +28,7 @@ decompress_cache() {
   if [ ! -d "$dest" ] && [ -f "$archive" ]; then
     mkdir -p "$dest"
     echo "Extracting $(basename "$archive") to $dest"
-    # `unzstd` is used instead of `zstd` to decompress the archive.
-    tar --use-compress-program=unzstd -xf "$archive" -C "$(dirname "$dest")"
+    extract "$archive" "$(dirname "$dest")"
   fi
 }
 
@@ -95,7 +95,7 @@ compress_cache() {
   local archive=$2
   if [ -d "$src" ]; then
     echo "Archiving $(basename "$src") to $(basename "$archive")"
-    tar -C "$(dirname "$src")" --use-compress-program=zstd -cf "$archive" "$(basename "$src")"
+    compress "$src" "$archive"
   fi
 }
 
