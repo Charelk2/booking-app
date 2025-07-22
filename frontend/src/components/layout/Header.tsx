@@ -52,8 +52,8 @@ export default function Header() {
                 Booka.co.za
               </Link>
               {isHome && (
-                <span className="hidden sm:block -mt-1 text-[12px] leading-4 text-gray-600">
-                  Book legendary artists across South Africa
+                <span className="hidden sm:block -mt-0.5 text-[11px] sm:text-[12px] leading-4 text-gray-600">
+                  Book legendary artists
                 </span>
               )}
             </div>
@@ -180,7 +180,7 @@ export default function Header() {
           <div className="pb-3 pt-2">
             <SearchBar
               size="sm"
-              className="mx-auto w-full md:max-w-2xl shadow-sm ring-1 ring-gray-200"
+              className="mx-auto w-full md:max-w-2xl"
             />
           </div>
         )}
