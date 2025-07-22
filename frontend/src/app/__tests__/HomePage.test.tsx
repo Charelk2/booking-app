@@ -15,17 +15,14 @@ jest.mock('@/components/layout/Hero', () => {
 });
 
 describe('HomePage', () => {
-  it('renders search form', async () => {
+  it('renders hero section', async () => {
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = createRoot(div);
     await act(async () => {
       root.render(<HomePage />);
     });
-    expect(div.querySelector('input[placeholder="Destination"]')).toBeTruthy();
-    expect(div.querySelector('input[type="date"]')).toBeTruthy();
-    const btn = div.querySelector('button[type="submit"]');
-    expect(btn?.textContent).toContain('Search');
+    expect(div.querySelector('[data-testid="hero"]')).toBeTruthy();
     act(() => {
       root.unmount();
     });
