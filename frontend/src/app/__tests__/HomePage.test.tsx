@@ -8,21 +8,21 @@ jest.mock('@/components/layout/MainLayout', () => {
   Mock.displayName = 'MockMainLayout';
   return Mock;
 });
-jest.mock('@/components/layout/Hero', () => {
-  const Mock = () => <div data-testid="hero" />;
-  Mock.displayName = 'MockHero';
+jest.mock('@/components/home/MarketingStrip', () => {
+  const Mock = ({ text }: { text: string }) => <div data-testid="strip">{text}</div>;
+  Mock.displayName = 'MockMarketingStrip';
   return Mock;
 });
 
 describe('HomePage', () => {
-  it('renders hero section', async () => {
+  it('renders marketing strip', async () => {
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = createRoot(div);
     await act(async () => {
       root.render(<HomePage />);
     });
-    expect(div.querySelector('[data-testid="hero"]')).toBeTruthy();
+    expect(div.querySelector('[data-testid="strip"]')).toBeTruthy();
     act(() => {
       root.unmount();
     });
