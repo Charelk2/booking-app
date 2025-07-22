@@ -5,7 +5,7 @@ import ArtistsSection from '@/components/home/ArtistsSection'
 export default function HomePage() {
   return (
     <MainLayout>
-      <Hero />
+      <Hero variant="plain" />
       <ArtistsSection
         title="Popular Musicians"
         query={{ sort: 'popular' }}
