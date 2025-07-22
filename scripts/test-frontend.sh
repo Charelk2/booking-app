@@ -29,9 +29,9 @@ if [ "${FAST:-}" != 1 ]; then
       npm ci --prefer-offline --no-audit --progress=false 2>npm-ci.log || FAILED=1
     fi
     if [ -n "${FAILED:-}" ]; then
-      echo "\n❌ npm ci failed." >&2
+      printf '\n❌ npm ci failed.\n' >&2
       NPM_LOG_DIR="$(npm config get cache)/_logs"
-      NPM_LOG_FILE="$(ls -t "$NPM_LOG_DIR"/*-debug.log 2>/dev/null | head -n 1)"
+      NPM_LOG_FILE="$(find "$NPM_LOG_DIR" -name '*-debug.log' -print0 2>/dev/null | xargs -0 ls -t | head -n 1)"
       if [ -f "$NPM_LOG_FILE" ]; then
         echo "--- npm debug log ($NPM_LOG_FILE) ---" >&2
         cat "$NPM_LOG_FILE" >&2

@@ -19,7 +19,7 @@ fi
 # offline, `docker-test.sh` saves `backend/venv.tar.zst` and
 # `frontend/node_modules.tar.zst`. If the unpacked directories are
 # absent but the archives exist, extract them before continuing so
-# `setup.sh` sees the same `.install_complete`, `.req_hash`, and
+# `setup.sh` sees the same hash markers
 # `.pkg_hash` markers.
 decompress_cache() {
   local archive=$1
@@ -62,8 +62,8 @@ if [ -n "${BOOKING_APP_BUILD:-}" ]; then
 fi
 
 if [ "$NETWORK" = "none" ]; then
-  if [ ! -f "$HOST_REPO/backend/venv/.install_complete" ] || \
-     [ ! -f "$HOST_REPO/frontend/node_modules/.install_complete" ]; then
+  if [ ! -f "$HOST_REPO/backend/.venv_hash" ] || \
+     [ ! -f "$HOST_REPO/frontend/.pkg_hash" ]; then
     echo "❌ Cached dependencies missing. Run again with DOCKER_TEST_NETWORK=bridge to populate caches." >&2
     exit 1
   fi
@@ -71,18 +71,18 @@ fi
 
 echo "Running tests in $IMAGE"
 docker run --rm --network "$NETWORK" -v "$(pwd)":$WORKDIR "$IMAGE" \
-  bash -lc "if [ ! -f $WORKDIR/backend/venv/.install_complete ]; then \
+  bash -lc "if [ ! -d $WORKDIR/backend/venv ]; then \
                cp -a /app/backend/venv $WORKDIR/backend/venv; \
              else \
-               if [ -f /app/backend/venv/.req_hash ] && [ ! -f $WORKDIR/backend/venv/.req_hash ]; then \
-                 cp /app/backend/venv/.req_hash $WORKDIR/backend/venv/.req_hash; \
+               if [ -f /app/backend/.venv_hash ] && [ ! -f $WORKDIR/backend/.venv_hash ]; then \
+                 cp /app/backend/.venv_hash $WORKDIR/backend/.venv_hash; \
                fi; \
              fi && \
-             if [ ! -f $WORKDIR/frontend/node_modules/.install_complete ]; then \
+             if [ ! -d $WORKDIR/frontend/node_modules ]; then \
                cp -a /app/frontend/node_modules $WORKDIR/frontend/node_modules; \
              else \
-               if [ -f /app/frontend/node_modules/.pkg_hash ] && [ ! -f $WORKDIR/frontend/node_modules/.pkg_hash ]; then \
-                 cp /app/frontend/node_modules/.pkg_hash $WORKDIR/frontend/node_modules/.pkg_hash; \
+               if [ -f /app/frontend/.pkg_hash ] && [ ! -f $WORKDIR/frontend/.pkg_hash ]; then \
+                 cp /app/frontend/.pkg_hash $WORKDIR/frontend/.pkg_hash; \
                fi; \
              fi && \
              cd $WORKDIR && ./setup.sh && $SCRIPT"
