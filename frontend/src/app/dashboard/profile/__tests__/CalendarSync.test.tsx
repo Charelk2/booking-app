@@ -19,6 +19,10 @@ jest.mock('@/components/layout/MainLayout', () => {
   return Mock;
 });
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 function setup(calendarParam: string | null = null, status = false) {
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'artist' } });
   (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
@@ -48,21 +52,21 @@ describe('Google Calendar connect/disconnect', () => {
     await act(async () => {
       root.render(<EditArtistProfilePage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     const connectBtn = Array.from(div.querySelectorAll('button')).find((b) => b.textContent === 'Connect') as HTMLButtonElement;
     await act(async () => {
       connectBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(api.connectGoogleCalendar).toHaveBeenCalled();
 
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     act(() => { root.unmount(); });
     const newRoot = createRoot(div);
     (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({
       data: { connected: true, email: 'test@example.com' },
     });
     await act(async () => { newRoot.render(<EditArtistProfilePage />); });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     const disconnectBtn = Array.from(div.querySelectorAll('button')).find((b) => b.textContent === 'Disconnect') as HTMLButtonElement;
     await act(async () => {
       disconnectBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -77,7 +81,7 @@ describe('Google Calendar connect/disconnect', () => {
     await act(async () => {
       root.render(<EditArtistProfilePage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(div.textContent).toContain('Status: Not connected');
     act(() => { root.unmount(); });
     const newRoot = createRoot(div);
@@ -85,7 +89,7 @@ describe('Google Calendar connect/disconnect', () => {
       data: { connected: true, email: 'test@example.com' },
     });
     await act(async () => { newRoot.render(<EditArtistProfilePage />); });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(div.textContent).toContain('Status: Connected - test@example.com');
     act(() => { newRoot.unmount(); });
     div.remove();
@@ -96,7 +100,7 @@ describe('Google Calendar connect/disconnect', () => {
     await act(async () => {
       root.render(<EditArtistProfilePage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(div.textContent).toContain('Google Calendar connected successfully!');
     expect(div.textContent).toContain('Status: Connected - test@example.com');
     act(() => { root.unmount(); });
@@ -108,7 +112,7 @@ describe('Google Calendar connect/disconnect', () => {
     await act(async () => {
       root.render(<EditArtistProfilePage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(div.textContent).toContain('Failed to connect Google Calendar.');
     expect(div.textContent).toContain('Status: Not connected');
     act(() => { root.unmount(); });

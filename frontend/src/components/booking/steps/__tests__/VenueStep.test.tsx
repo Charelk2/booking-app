@@ -4,6 +4,10 @@ import { act } from 'react';
 import { useForm, Control, FieldValues } from 'react-hook-form';
 import VenueStep from '../VenueStep';
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 function MobileWrapper() {
   const { control } = useForm({ defaultValues: { venueType: 'indoor' } });
   return (
@@ -92,9 +96,7 @@ describe('VenueStep bottom sheet mobile', () => {
     act(() => {
       openButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     const sheet = document.querySelector('[data-testid="bottom-sheet"]');
     expect(sheet).not.toBeNull();
     const outdoor = sheet?.querySelector('input[value="outdoor"]') as HTMLInputElement;
@@ -102,9 +104,7 @@ describe('VenueStep bottom sheet mobile', () => {
       outdoor.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(document.querySelector('[data-testid="bottom-sheet"]')).toBeNull();
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     expect(document.activeElement).toBe(openButton);
   });
 });

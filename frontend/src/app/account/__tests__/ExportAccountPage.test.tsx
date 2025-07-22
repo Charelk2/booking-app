@@ -11,6 +11,10 @@ jest.mock('@/components/layout/MainLayout', () => {
   return Mock;
 });
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 describe('ExportAccountPage', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -23,7 +27,7 @@ describe('ExportAccountPage', () => {
     await act(async () => {
       root.render(<ExportAccountPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(exportMyAccount).toHaveBeenCalled();
     expect(div.textContent).toContain('"id": 1');
     act(() => {

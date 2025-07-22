@@ -11,6 +11,10 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn(),
 }));
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 describe('ServiceDetailPage', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -48,7 +52,7 @@ describe('ServiceDetailPage', () => {
     await act(async () => {
       root.render(<ServiceDetailPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
 
     expect(getService).toHaveBeenCalledWith(1);
     expect(getServiceReviews).toHaveBeenCalledWith(1);
