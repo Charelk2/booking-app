@@ -33,6 +33,7 @@ export default function LocationMapModal({
       if (place.formatted_address) onSelect(place.formatted_address);
     });
     autoRef.current = autocomplete;
+    console.log('Autocomplete initialized');
     return () => {
       autoRef.current = null;
     };
@@ -70,7 +71,13 @@ export default function LocationMapModal({
           >
             <div className="relative bg-white rounded-lg shadow-md w-full max-w-sm p-6 space-y-4">
               <Dialog.Title className="text-lg font-medium text-gray-900">Select Location</Dialog.Title>
-              <TextInput ref={inputRef} placeholder="Search" className="w-full" loading={!isLoaded} />
+              <TextInput
+                ref={inputRef}
+                placeholder="Search"
+                className="w-full"
+                loading={!isLoaded}
+                autoFocus
+              />
               <div className="flex justify-end">
                 <button
                   type="button"
