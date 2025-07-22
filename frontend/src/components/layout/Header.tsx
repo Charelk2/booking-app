@@ -46,10 +46,17 @@ export default function Header() {
         {/* Row A */}
         <div className="h-16 flex items-center justify-between">
           {/* Logo + Links */}
-          <div className="flex">
-            <Link href="/" className="flex shrink-0 items-center text-xl font-bold text-brand-dark">
-              Booka.co.za
-            </Link>
+          <div className="flex items-center">
+            <div className="flex flex-col justify-center">
+              <Link href="/" className="flex shrink-0 items-center text-xl font-bold text-brand-dark">
+                Booka.co.za
+              </Link>
+              {isHome && (
+                <span className="hidden sm:block -mt-1 text-[12px] leading-4 text-gray-600">
+                  Book legendary artists across South Africa
+                </span>
+              )}
+            </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {navigation.map((item) => (
                 <NavLink key={item.name} href={item.href} isActive={pathname === item.href}>
@@ -171,7 +178,10 @@ export default function Header() {
         {/* Row B */}
         {isHome && (
           <div className="pb-3 pt-2">
-            <SearchBar className="mx-auto w-full md:max-w-3xl shadow-sm ring-1 ring-gray-200" />
+            <SearchBar
+              size="sm"
+              className="mx-auto w-full md:max-w-2xl shadow-sm ring-1 ring-gray-200"
+            />
           </div>
         )}
       </div>

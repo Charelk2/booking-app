@@ -80,7 +80,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <Header />
 
         {/* CONTENT */}
-        <main className="py-8 pb-24">
+        <main className="py-6 pb-24">
           <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">{children}</div>
           <HelpPrompt className="mx-auto mt-10 max-w-7xl sm:px-6 lg:px-8" />
         </main>
