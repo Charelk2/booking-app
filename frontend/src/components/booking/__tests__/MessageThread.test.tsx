@@ -348,7 +348,7 @@ describe('MessageThread component', () => {
       sendButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
 
     const progress = container.querySelector('[role="progressbar"]');
@@ -578,7 +578,7 @@ describe('MessageThread component', () => {
       root.render(<MessageThread bookingRequestId={1} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     await act(async () => {
       await Promise.resolve();
@@ -639,6 +639,12 @@ it('opens payment modal after accepting quote', async () => {
     ) as HTMLButtonElement;
     await act(async () => {
       acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await flushPromises();
+    });
+    await act(async () => {
+      await flushPromises();
     });
     await act(async () => {
       await flushPromises();
@@ -781,7 +787,7 @@ it.skip('adds ring styles when deposit actions receive keyboard focus', async ()
       root.render(<MessageThread bookingRequestId={1} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const acceptBtn = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Accept',
@@ -854,7 +860,7 @@ it('shows an error when acceptQuoteV2 fails', async () => {
       root.render(<MessageThread bookingRequestId={1} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
 
     const acceptBtn = Array.from(container.querySelectorAll('button')).find(
@@ -863,7 +869,10 @@ it('shows an error when acceptQuoteV2 fails', async () => {
     await act(async () => {
       acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-  const alert = container.querySelector('p[role="alert"]');
+    await act(async () => {
+      await flushPromises();
+    });
+    const alert = container.querySelector('p[role="alert"]');
   expect(alert?.textContent).toContain('fail');
   expect(api.updateQuoteAsClient).not.toHaveBeenCalled();
 });
