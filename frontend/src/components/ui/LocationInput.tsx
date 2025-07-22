@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLoadScript } from '@react-google-maps/api';
-import TextInput from './TextInput';
 import LocationMapModal from './LocationMapModal';
 import clsx from 'clsx';
-
-const MAP_LIBRARIES = ['places'] as const;
 
 interface LocationInputProps {
   value: string;
@@ -19,45 +15,46 @@ export default function LocationInput({
   placeholder = 'Location',
   className,
 }: LocationInputProps) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const autoRef = useRef<google.maps.places.Autocomplete | null>(null);
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-    libraries: MAP_LIBRARIES,
-  });
+  const autoRef = useRef<Element | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
   const handleClose = () => {
     setModalOpen(false);
-    inputRef.current?.blur();
+    (autoRef.current as HTMLElement | null)?.blur();
   };
 
   useEffect(() => {
-    if (!isLoaded || autoRef.current || !inputRef.current) return;
-    const autocomplete = new google.maps.places.Autocomplete(inputRef.current);
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (place.formatted_address) onChange(place.formatted_address);
-    });
-    autoRef.current = autocomplete;
+    const el = autoRef.current as HTMLElement | null;
+    if (!el) return;
+    function handleChange(e: Event) {
+      const place = (e as any).detail?.place;
+      if (place?.formatted_address) onChange(place.formatted_address);
+    }
+    el.addEventListener('placechange', handleChange);
+    el.addEventListener('gmpx-placechange', handleChange);
     return () => {
-      autoRef.current = null;
+      el.removeEventListener('placechange', handleChange);
+      el.removeEventListener('gmpx-placechange', handleChange);
     };
-  }, [isLoaded, onChange]);
+  }, [onChange]);
 
   useEffect(() => {
-    if (inputRef.current) inputRef.current.value = value;
+    if (autoRef.current) {
+      // @ts-ignore - value is writable on the web component
+      (autoRef.current as any).value = value;
+    }
   }, [value]);
 
   return (
     <>
       <div className="relative">
-        <TextInput
-          ref={inputRef}
+        <gmpx-place-autocomplete
+          ref={autoRef}
           placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
-          className={clsx(className, 'pr-8')}
-          loading={!isLoaded}
+          className={clsx(
+            className,
+            'pr-8 block w-full rounded-md border border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm',
+          )}
           data-testid="location-input"
         />
         <button

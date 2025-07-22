@@ -60,45 +60,44 @@ interface AutocompleteProps {
   value: string | undefined;
   onChange: (v: string) => void;
   onSelect: (loc: LatLng) => void;
-  isLoaded: boolean;
 }
 
-function AutocompleteInput({ value, onChange, onSelect, isLoaded }: AutocompleteProps) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const instanceRef = useRef<google.maps.places.Autocomplete | null>(null);
+function AutocompleteInput({ value, onChange, onSelect }: AutocompleteProps) {
+  const autoRef = useRef<Element | null>(null);
 
   useEffect(() => {
-    if (!isLoaded || instanceRef.current || !inputRef.current) return;
-    // eslint-disable-next-line no-undef
-    const autocomplete = new google.maps.places.Autocomplete(inputRef.current!);
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (place.geometry && place.geometry.location) {
+    const el = autoRef.current as HTMLElement | null;
+    if (!el) return;
+    function handleChange(e: Event) {
+      const place = (e as any).detail?.place;
+      if (place?.geometry?.location) {
         onSelect({
           lat: place.geometry.location.lat(),
           lng: place.geometry.location.lng(),
         });
       }
-      if (place.formatted_address) onChange(place.formatted_address);
-    });
-    instanceRef.current = autocomplete;
+      if (place?.formatted_address) onChange(place.formatted_address);
+    }
+    el.addEventListener('placechange', handleChange);
+    el.addEventListener('gmpx-placechange', handleChange);
     return () => {
-      instanceRef.current = null;
+      el.removeEventListener('placechange', handleChange);
+      el.removeEventListener('gmpx-placechange', handleChange);
     };
-  }, [isLoaded, onChange, onSelect]);
+  }, [onChange, onSelect]);
 
   useEffect(() => {
-    if (inputRef.current && value !== undefined) {
-      inputRef.current.value = value;
+    if (autoRef.current) {
+      // @ts-ignore - value is writable on the web component
+      (autoRef.current as any).value = value ?? '';
     }
   }, [value]);
 
   return (
-    <TextInput
-      ref={inputRef}
+    <gmpx-place-autocomplete
+      ref={autoRef}
       placeholder="Search address"
-      onChange={(e) => onChange(e.target.value)}
-      className="min-h-[44px]"
+      className="block w-full rounded-md border border-gray-300 focus:border-brand focus:ring-brand sm:text-sm p-2"
       data-testid="autocomplete-input"
     />
   );
@@ -177,7 +176,6 @@ export default function LocationStep({
                       value={field.value}
                       onChange={field.onChange}
                       onSelect={(loc) => setMarker(loc)}
-                      isLoaded={loaded}
                     />
                   )}
                 />
@@ -200,7 +198,6 @@ export default function LocationStep({
                   value={field.value}
                   onChange={field.onChange}
                   onSelect={(loc) => setMarker(loc)}
-                  isLoaded={false}
                 />
               )}
             />
