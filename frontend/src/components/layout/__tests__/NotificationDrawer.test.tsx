@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react-dom/test-utils';
@@ -5,9 +6,6 @@ import NotificationDrawer from '../NotificationDrawer';
 import { parseItem } from '../NotificationListItem';
 import type { UnifiedNotification } from '@/types';
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 describe('parseItem', () => {
   it('parses booking request using provided fields', () => {
