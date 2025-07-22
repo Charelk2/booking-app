@@ -23,15 +23,10 @@ export default function LocationMapModal({
     const el = autoRef.current as HTMLElement | null;
     if (!open || !el) return;
     function handleChange(e: Event) {
-      try {
-        // @ts-ignore - value is exposed by the web component
-        const place = (e.target as any).value || (e as any).detail?.place;
-        if (place?.formatted_address) {
-          onSelect(place.formatted_address);
-          onClose();
-        }
-      } catch (err) {
-        console.error('Autocomplete failed', err);
+      const place = (e as any).detail?.place;
+      if (place?.formatted_address) {
+        onSelect(place.formatted_address);
+        onClose();
       }
     }
     el.addEventListener('placechange', handleChange);
@@ -43,11 +38,11 @@ export default function LocationMapModal({
   }, [open, onSelect, onClose]);
 
   useEffect(() => {
-    if (autoRef.current && open) {
+    if (open && autoRef.current) {
       // @ts-ignore - value is writable on the web component
-      autoRef.current.value = value;
+      (autoRef.current as any).value = value;
     }
-  }, [value, open]);
+  }, [open, value]);
 
   return (
     <Transition show={open} as={Fragment}>
