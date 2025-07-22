@@ -13,6 +13,10 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn(() => '/artists'),
 }));
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 function setup(search: Record<string, string> = {}) {
   (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
   (useSearchParams as jest.Mock).mockReturnValue({
@@ -37,20 +41,20 @@ describe('Artists page filters', () => {
     (useRouter as jest.Mock).mockReturnValue({ push });
     await act(async () => {
       root.render(React.createElement(ArtistsPage));
-      await Promise.resolve();
+      await flushPromises();
     });
     const buttons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[];
     const catBtn = buttons.find((b) => b.textContent === 'Live Performance') as HTMLButtonElement;
     await act(async () => {
       catBtn.click();
-      await Promise.resolve();
+      await flushPromises();
     });
     const applyBtn = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Apply',
     ) as HTMLButtonElement;
     await act(async () => {
       applyBtn.click();
-      await Promise.resolve();
+      await flushPromises();
     });
     expect(spy).toHaveBeenLastCalledWith({
       category: 'Live Performance',
@@ -82,7 +86,7 @@ describe('Artists page filters', () => {
     (useRouter as jest.Mock).mockReturnValue({ push });
     await act(async () => {
       root.render(React.createElement(ArtistsPage));
-      await Promise.resolve();
+      await flushPromises();
     });
     expect(container.textContent).not.toContain('Unknown Artist');
     expect(container.textContent).toContain('No artists found');
@@ -107,7 +111,7 @@ describe('Artists page filters', () => {
     const { container, root } = setup();
     await act(async () => {
       root.render(React.createElement(ArtistsPage));
-      await Promise.resolve();
+      await flushPromises();
     });
     expect(container.textContent).toContain('4.5');
     expect(container.querySelector('[aria-label="Verified"]')).not.toBeNull();
@@ -120,7 +124,7 @@ describe('Artists page filters', () => {
     const { container, root } = setup();
     await act(async () => {
       root.render(React.createElement(ArtistsPage));
-      await Promise.resolve();
+      await flushPromises();
     });
     expect(container.textContent).toContain('No artists found');
     act(() => root.unmount());
@@ -153,7 +157,7 @@ describe('Artists page filters', () => {
     const { container, root } = setup();
     await act(async () => {
       root.render(React.createElement(ArtistsPage));
-      await Promise.resolve();
+      await flushPromises();
     });
     const loadBtn = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Load More',
@@ -161,7 +165,7 @@ describe('Artists page filters', () => {
     expect(loadBtn).not.toBeNull();
     await act(async () => {
       loadBtn.click();
-      await Promise.resolve();
+      await flushPromises();
     });
     expect(spy).toHaveBeenLastCalledWith({
       category: undefined,
@@ -179,7 +183,7 @@ describe('Artists page filters', () => {
     const { container, root } = setup();
     await act(async () => {
       root.render(React.createElement(ArtistsPage));
-      await Promise.resolve();
+      await flushPromises();
     });
     const locationInput = container.querySelector('input[placeholder="Location"]') as HTMLInputElement;
     const sortSelect = container.querySelector('select') as HTMLSelectElement;
@@ -188,13 +192,13 @@ describe('Artists page filters', () => {
       locationInput.dispatchEvent(new Event('input', { bubbles: true }));
       sortSelect.value = 'newest';
       sortSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      await Promise.resolve();
+      await flushPromises();
     });
     const button = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Clear filters') as HTMLButtonElement;
     expect(button).not.toBeNull();
     await act(async () => {
       button.click();
-      await Promise.resolve();
+      await flushPromises();
     });
     expect(spy).toHaveBeenLastCalledWith({
       category: undefined,
@@ -219,7 +223,7 @@ describe('Artists page filters', () => {
     });
     await act(async () => {
       root.render(React.createElement(ArtistsPage));
-      await Promise.resolve();
+      await flushPromises();
     });
     const locationInput = container.querySelector('input[placeholder="Location"]') as HTMLInputElement;
     expect(locationInput.value).toBe('Paris');
@@ -242,7 +246,7 @@ describe('Artists page filters', () => {
     const { container, root } = setup();
     await act(async () => {
       root.render(React.createElement(ArtistsPage));
-      await Promise.resolve();
+      await flushPromises();
     });
     const sticky = container.querySelector('div.sticky.top-0.z-20.bg-white');
     expect(sticky).toBeNull();
