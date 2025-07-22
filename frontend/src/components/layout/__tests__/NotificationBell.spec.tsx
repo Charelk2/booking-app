@@ -11,6 +11,10 @@ jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }));
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 function setup() {
   (useNotifications as jest.Mock).mockReturnValue({
     items: [],
@@ -76,13 +80,13 @@ describe('NotificationBell accessibility', () => {
     const { container, root } = setup();
     await act(async () => {
       root.render(React.createElement(NotificationBell));
-      await Promise.resolve();
     });
+    await flushPromises();
     const bell = container.querySelector('button') as HTMLButtonElement;
     await act(async () => {
       bell.click();
-      await Promise.resolve();
     });
+    await flushPromises();
     const card = container.querySelector(
       '[data-testid="notification-list"] [role="button"]',
     ) as HTMLElement;

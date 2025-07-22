@@ -4,6 +4,10 @@ import React from 'react';
 import ReviewFormModal from '../ReviewFormModal';
 import { createReviewForBooking } from '@/lib/api';
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 jest.mock('@/lib/api');
 
 describe('ReviewFormModal', () => {
@@ -65,7 +69,7 @@ describe('ReviewFormModal', () => {
     await act(async () => {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
 
     expect(createReviewForBooking).toHaveBeenCalledWith(
       1,

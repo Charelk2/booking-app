@@ -9,6 +9,10 @@ import { useParams } from 'next/navigation';
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 function setup() {
   (useParams as jest.Mock).mockReturnValue({ quoteId: '5' });
   (useAuth as jest.Mock).mockReturnValue({
@@ -48,9 +52,7 @@ describe('QuoteDetailPage', () => {
     await act(async () => {
       root.render(<QuoteDetailPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     expect(div.textContent).toContain('Quote #5');
     expect(div.textContent).toContain('Perf');
     act(() => {
@@ -65,9 +67,7 @@ describe('QuoteDetailPage', () => {
     await act(async () => {
       root.render(<QuoteDetailPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
 
     const acceptBtn = Array.from(div.querySelectorAll('button')).find(
       (b) => b.textContent === 'Accept',

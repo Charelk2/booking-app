@@ -13,6 +13,10 @@ jest.mock('next/navigation', () => ({
 }));
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: jest.fn(() => ({ user: null, logout: jest.fn() })) }));
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 function render() {
   const div = document.createElement('div');
   document.body.appendChild(div);
@@ -31,8 +35,8 @@ describe('Header', () => {
     const { div, root } = render();
     await act(async () => {
       root.render(<Header />);
-      await Promise.resolve();
     });
+    await flushPromises();
     expect(div.firstChild).toMatchSnapshot();
     act(() => root.unmount());
     div.remove();
@@ -43,8 +47,8 @@ describe('Header', () => {
     const { div, root } = render();
     await act(async () => {
       root.render(<Header />);
-      await Promise.resolve();
     });
+    await flushPromises();
     expect(div.firstChild).toMatchSnapshot();
     act(() => root.unmount());
     div.remove();

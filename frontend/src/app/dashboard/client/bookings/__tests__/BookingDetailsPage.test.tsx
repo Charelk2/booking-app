@@ -23,6 +23,10 @@ jest.mock("next/link", () => {
 });
 /* eslint-enable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 describe("BookingDetailsPage", () => {
   beforeEach(() => {
     (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
@@ -58,9 +62,7 @@ describe("BookingDetailsPage", () => {
     await act(async () => {
       root.render(<BookingDetailsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
 
     expect(getBookingDetails).toHaveBeenCalledWith(1);
     expect(div.textContent).toContain("Gig - Artist");
@@ -106,9 +108,7 @@ describe("BookingDetailsPage", () => {
     await act(async () => {
       root.render(<BookingDetailsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
 
     const link = div.querySelector('[data-testid="booking-receipt-link"]');
     expect(link).not.toBeNull();
@@ -147,9 +147,7 @@ describe("BookingDetailsPage", () => {
     await act(async () => {
       root.render(<BookingDetailsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
 
     const help = div.querySelector('[data-testid="help-prompt"]');
     expect(help).not.toBeNull();
@@ -188,12 +186,8 @@ describe("BookingDetailsPage", () => {
     await act(async () => {
       root.render(<BookingDetailsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
+    await flushPromises();
 
     const msg = div.querySelector('[data-testid="message-artist-link"]');
     expect(msg).not.toBeNull();
@@ -237,9 +231,7 @@ describe("BookingDetailsPage", () => {
     await act(async () => {
       root.render(<BookingDetailsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
 
     const modalHeading = div.querySelector("h2");
     expect(modalHeading?.textContent).toContain("Pay Deposit");
