@@ -104,7 +104,7 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
           value={location}
           onChange={setLocation}
           placeholder="City or venue"
-          className="mt-1 w-full text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
+          className="mt-1 w-full text-sm text-gray-700 placeholder-gray-400 focus:outline-none border-none shadow-none rounded-none bg-transparent p-0 focus:ring-0"
         />
       </div>
 
