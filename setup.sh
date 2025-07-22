@@ -21,6 +21,8 @@ backend_archive_gz="$BACKEND_DIR/venv.tar.gz"
 frontend_archive_zst="$FRONTEND_DIR/node_modules.tar.zst"
 frontend_archive_gz="$FRONTEND_DIR/node_modules.tar.gz"
 
+rebuild_archives=0
+
 echo "--- STARTING setup.sh ---"
 
 # Backend setup
@@ -48,9 +50,7 @@ if [ ! -d "$BACKEND_DIR/venv" ] || [ "$current_hash" != "$BACKEND_HASH-$PY_VER" 
   pip install -r "$BACKEND_DIR/requirements.txt" -r "$ROOT_DIR/requirements-dev.txt"
   echo "$PY_VER" > "$backend_meta"
   echo "$BACKEND_HASH-$PY_VER" > "$BACKEND_DIR/.venv_hash"
-  if [ "${WRITE_ARCHIVES:-}" = 1 ]; then
-    compress "$BACKEND_DIR/venv" "$backend_archive_zst"
-  fi
+  rebuild_archives=1
 else
   # shellcheck source=/dev/null
   source "$BACKEND_DIR/venv/bin/activate"
@@ -81,9 +81,11 @@ if [ ! -d "$FRONTEND_DIR/node_modules" ] || [ "$current_pkg" != "$FRONTEND_HASH-
   popd >/dev/null
   echo "$NODE_VER" > "$frontend_meta"
   echo "$FRONTEND_HASH-$NODE_VER" > "$FRONTEND_DIR/.pkg_hash"
-  if [ "${WRITE_ARCHIVES:-}" = 1 ]; then
-    compress "$FRONTEND_DIR/node_modules" "$frontend_archive_zst"
-  fi
+  rebuild_archives=1
 fi
 
 echo "Setup complete."
+
+if [ "${WRITE_ARCHIVES:-}" = 1 ] && [ "${rebuild_archives:-0}" = 1 ]; then
+  ./scripts/build-caches.sh
+fi

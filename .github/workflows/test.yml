@@ -33,6 +33,8 @@ jobs:
         with:
           path: frontend/node_modules.tar.zst
           key: node-${{ env.NODE_VER }}-${{ env.FRONTEND_HASH }}-${{ runner.os }}
+      - name: Setup dependencies
+        run: ./setup.sh
       - name: Run tests
         run: |
           if [[ $GITHUB_REF != 'refs/heads/main' ]]; then
