@@ -20,6 +20,7 @@ module.exports = {
   moduleNameMapper: {
     '^@/tests/(.*)$': '<rootDir>/tests/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^react-datepicker$': '<rootDir>/__mocks__/react-datepicker.tsx',
     '\\.(css|less|scss|sass)$': '<rootDir>/__mocks__/styleMock.js',
     '\\.module\\.(css|less|scss|sass)$': 'identity-obj-proxy',
   },
