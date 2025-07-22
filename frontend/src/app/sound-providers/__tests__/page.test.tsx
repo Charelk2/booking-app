@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import React from 'react';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -10,9 +11,6 @@ jest.mock('@/contexts/AuthContext');
 // eslint-disable-next-line react/display-name
 jest.mock('@/components/layout/MainLayout', () => ({ children }: { children: React.ReactNode }) => <div>{children}</div>);
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 function setup() {
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });

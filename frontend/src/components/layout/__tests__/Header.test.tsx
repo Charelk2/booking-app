@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
@@ -13,9 +14,6 @@ jest.mock('next/navigation', () => ({
 }));
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: jest.fn(() => ({ user: null, logout: jest.fn() })) }));
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 function render() {
   const div = document.createElement('div');

@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
@@ -13,9 +14,6 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn(() => '/dashboard/bookings'),
 }));
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 describe('ArtistBookingsPage', () => {
   afterEach(() => {

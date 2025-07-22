@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
@@ -7,9 +8,6 @@ import * as api from '@/lib/api';
 
 jest.mock('@/lib/api');
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 function Wrapper() {
   return (
