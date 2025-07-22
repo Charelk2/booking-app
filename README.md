@@ -270,9 +270,8 @@ the `@googlemaps/places` package. The script is loaded in `layout.tsx` with:
 
 ```html
 <script
-  src="https://unpkg.com/@googlemaps/places@1.0.0/dist/index.min.js"
-  type="module"
-  crossOrigin="anonymous"
+  src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places&v=weekly"
+  strategy="afterInteractive"
 ></script>
 ```
 
