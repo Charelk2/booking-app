@@ -45,4 +45,21 @@ describe('ArtistsSection', () => {
     });
     container.remove();
   });
+
+  it('hides section when empty and hideIfEmpty is true', async () => {
+    (api.getArtists as jest.Mock).mockResolvedValue({ data: [] });
+
+    const { container, root } = setup();
+    await act(async () => {
+      root.render(<ArtistsSection title="Demo" hideIfEmpty />);
+      await Promise.resolve();
+    });
+
+    expect(container.firstChild).toBeNull();
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
 });
