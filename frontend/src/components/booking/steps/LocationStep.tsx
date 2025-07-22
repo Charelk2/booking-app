@@ -94,12 +94,14 @@ function AutocompleteInput({ value, onChange, onSelect }: AutocompleteProps) {
   }, [value]);
 
   return (
-    <gmpx-place-autocomplete
-      ref={autoRef}
-      placeholder="Search address"
-      className="block w-full rounded-md border border-gray-300 focus:border-brand focus:ring-brand sm:text-sm p-2"
-      data-testid="autocomplete-input"
-    />
+    <gmpx-place-autocomplete ref={autoRef} data-testid="autocomplete-input">
+      <input
+        slot="input"
+        type="text"
+        placeholder="Search address"
+        className="block w-full rounded-md border border-gray-300 focus:border-brand focus:ring-brand sm:text-sm p-2"
+      />
+    </gmpx-place-autocomplete>
   );
 }
 

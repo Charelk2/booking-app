@@ -271,7 +271,7 @@ Set this URL to match your API server so artist profile pictures and
 cover photos load without 400 errors from the `/_next/image` endpoint.
 
 The location input now uses the `<gmpx-place-autocomplete>` web component from
-the `@googlemaps/places` package. The script is loaded in `layout.tsx` with:
+the `@googlemaps/places` package. **Remember to provide an `<input slot="input">` inside the element.** All styling classes belong on this input, not the wrapper. The script is loaded in `layout.tsx` with:
 
 ```html
 <script
