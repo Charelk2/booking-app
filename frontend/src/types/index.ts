@@ -39,6 +39,16 @@ export interface ArtistProfile {
   updated_at: string;
 }
 
+export interface SearchParams {
+  category?: string;
+  location?: string;
+  sort?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  page?: number;
+  limit?: number;
+}
+
 export interface Service {
   id: number;
   artist_id: number;
