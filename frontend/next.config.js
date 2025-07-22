@@ -7,7 +7,7 @@ const remotePatterns = [
     protocol: protocol.replace(':', ''),
     hostname,
     port: port || '',
-    pathname: '/static/**',
+    pathname: '/static/profile_pics/**',
   },
 ];
 
@@ -16,7 +16,7 @@ if (hostname !== 'localhost') {
     protocol: 'http',
     hostname: 'localhost',
     port: '8000',
-    pathname: '/static/**',
+    pathname: '/static/profile_pics/**',
   });
 }
 
