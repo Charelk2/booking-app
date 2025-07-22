@@ -11,6 +11,7 @@ interface ArtistsSectionProps {
   title: string;
   query?: Partial<SearchParams>;
   limit?: number;
+  hideIfEmpty?: boolean;
 }
 
 function CardSkeleton() {
@@ -29,6 +30,7 @@ export default function ArtistsSection({
   title,
   query = {},
   limit = 12,
+  hideIfEmpty = false,
 }: ArtistsSectionProps) {
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +57,10 @@ export default function ArtistsSection({
       isMounted = false;
     };
   }, [JSON.stringify(query), limit]);
+
+  if (!loading && artists.length === 0 && hideIfEmpty) {
+    return null;
+  }
 
   const seeAllHref = `/search?${new URLSearchParams(query as Record<string, string>).toString()}`;
   const showSeeAll = artists.length === limit;
