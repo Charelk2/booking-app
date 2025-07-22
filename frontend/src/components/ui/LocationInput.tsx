@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLoadScript } from '@react-google-maps/api';
 import TextInput from './TextInput';
+import LocationMapModal from './LocationMapModal';
 
 const MAP_LIBRARIES = ['places'] as const;
 
@@ -23,6 +24,7 @@ export default function LocationInput({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: MAP_LIBRARIES,
   });
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoaded || autoRef.current || !inputRef.current) return;
@@ -42,13 +44,25 @@ export default function LocationInput({
   }, [value]);
 
   return (
-    <TextInput
-      ref={inputRef}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      className={className}
-      loading={!isLoaded}
-      data-testid="location-input"
-    />
+    <>
+      <TextInput
+        ref={inputRef}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className={className}
+        loading={!isLoaded}
+        data-testid="location-input"
+        onFocus={() => setModalOpen(true)}
+      />
+      <LocationMapModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        value={value}
+        onSelect={(addr) => {
+          onChange(addr);
+          setModalOpen(false);
+        }}
+      />
+    </>
   );
 }

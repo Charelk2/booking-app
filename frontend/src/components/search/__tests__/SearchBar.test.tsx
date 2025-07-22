@@ -45,7 +45,32 @@ describe('SearchBar location input', () => {
       await flushPromises();
     });
 
-    expect(push).toHaveBeenCalledWith('/artists?location=Cape%20Town');
+    expect(push).toHaveBeenCalledWith(
+      '/artists?category=Live+Performance&location=Cape+Town',
+    );
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('opens map modal on focus', async () => {
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<SearchBar />);
+    });
+
+    const input = container.querySelector('[data-testid="location-input"]') as HTMLInputElement;
+    act(() => {
+      input.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
+      input.focus();
+    });
+    expect(document.querySelector('[data-testid="location-map-modal"]')).not.toBeNull();
 
     act(() => root.unmount());
     container.remove();
