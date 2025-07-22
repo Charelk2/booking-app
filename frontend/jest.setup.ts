@@ -89,6 +89,14 @@ const mockAutocomplete = jest.fn(function Autocomplete(this: any) {
 };
 (globalThis as any).mockAutocomplete = mockAutocomplete;
 
+// Stub gmpx-place-autocomplete web component used in LocationMapModal
+class GmpxPlaceAutocomplete extends HTMLElement {
+  value: any = null;
+}
+if (!customElements.get('gmpx-place-autocomplete')) {
+  customElements.define('gmpx-place-autocomplete', GmpxPlaceAutocomplete);
+}
+
 // Additional browser stubs
 (window as any).confirm = jest.fn(() => true);
 (window as any).URL.createObjectURL = jest.fn(() => 'blob:');
