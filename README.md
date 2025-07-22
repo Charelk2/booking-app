@@ -9,7 +9,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - **React** 18.3 and **Next.js** 14.2
 - **Python** 3.12.11
 - **Node.js** 22 (v22.16.0)
-- Minor fix: the artists listing now gracefully handles incomplete user data from the API.
+- Artists with missing names are now hidden from listings to avoid "Unknown Artist" placeholders.
 - Artists page adds a **Load More** button that fetches additional results using
   the API's pagination parameters.
 - Artists page redesigned with a responsive grid, animated filter bar, skeleton
@@ -19,8 +19,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - A new animated Hero section on the homepage lets users search by category,
   location and date, persisting selections in the URL.
 - The Hero component now renders only on the homepage to avoid duplicate content.
-- The homepage now highlights popular, top rated, and new artists using the same
-  card layout as the Artists page.
+- The homepage now highlights popular, top rated, and new artists using a compact card grid similar to Airbnb.
 - Bookings now track `payment_status`, `deposit_amount`, and `deposit_paid` in
   `bookings_simple`. The deposit amount defaults to half of the accepted quote
   total. Booking API responses now include these fields alongside
