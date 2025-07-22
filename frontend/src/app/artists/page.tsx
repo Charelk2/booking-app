@@ -110,8 +110,9 @@ export default function ArtistsPage() {
         page: pageOverride ?? page,
         limit: LIMIT,
       });
-      setHasMore(res.data.length === LIMIT);
-      setArtists((prev) => (append ? [...prev, ...res.data] : res.data));
+      const filtered = res.data.filter((a) => a.business_name || a.user);
+      setHasMore(filtered.length === LIMIT);
+      setArtists((prev) => (append ? [...prev, ...filtered] : filtered));
     } catch (err) {
       console.error(err);
       setError('Failed to load artists.');
@@ -167,8 +168,7 @@ export default function ArtistsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {artists.map((a) => {
             const user = a.user;
-            const name = a.business_name ||
-              (user ? `${user.first_name} ${user.last_name}` : 'Unknown Artist');
+            const name = a.business_name || `${user.first_name} ${user.last_name}`;
             return (
               <ArtistCard
                 key={a.id}
