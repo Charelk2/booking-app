@@ -19,6 +19,7 @@ type Category = typeof CATEGORIES[number];
 interface SearchBarProps {
   size?: 'sm' | 'md';
   className?: string;
+  wrapperClassName?: string;
 }
 
 interface FormFieldsProps {
@@ -41,7 +42,7 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
       <div
         className={clsx(
           'flex-1 px-4 flex flex-col text-left',
-          size === 'sm' ? 'py-2' : 'py-3'
+          size === 'sm' ? 'py-2' : 'py-2.5'
         )}
       >
         <span className="text-xs text-gray-500">Category</span>
@@ -84,7 +85,7 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
       <div
         className={clsx(
           'flex-1 px-4 flex flex-col text-left',
-          size === 'sm' ? 'py-2' : 'py-3'
+          size === 'sm' ? 'py-2' : 'py-2.5'
         )}
       >
         <span className="text-xs text-gray-500">Where</span>
@@ -103,7 +104,7 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
       <div
         className={clsx(
           'flex-1 px-4 flex flex-col text-left',
-          size === 'sm' ? 'py-2' : 'py-3'
+          size === 'sm' ? 'py-2' : 'py-2.5'
         )}
       >
         <span className="text-xs text-gray-500">When</span>
@@ -121,7 +122,7 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
 );
 SearchFields.displayName = 'SearchFields';
 
-export default function SearchBar({ size = 'md', className }: SearchBarProps) {
+export default function SearchBar({ size = 'md', className, wrapperClassName }: SearchBarProps) {
   const [category, setCategory] = useState<Category>(CATEGORIES[0]);
   const [location, setLocation] = useState('');
   const [when, setWhen] = useState<Date | null>(null);
@@ -155,14 +156,15 @@ export default function SearchBar({ size = 'md', className }: SearchBarProps) {
   };
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className={clsx(
-        'flex items-stretch bg-white rounded-full ring-1 ring-gray-200 shadow-sm overflow-hidden',
-        size === 'sm' && 'text-sm',
-        className
-      )}
-    >
+    <div className={clsx('relative', wrapperClassName)}>
+      <form
+        onSubmit={onSubmit}
+        className={clsx(
+          'flex items-stretch bg-white rounded-full ring-1 ring-gray-200 shadow-md overflow-hidden',
+          size === 'sm' && 'text-sm',
+          className
+        )}
+      >
       <SearchFields
         category={category}
         setCategory={setCategory}
@@ -174,12 +176,14 @@ export default function SearchBar({ size = 'md', className }: SearchBarProps) {
       />
       <button
         type="submit"
-        className="flex items-center justify-center w-12 h-12 md:w-11 md:h-11 bg-pink-600 hover:bg-pink-700 text-white"
+        className="flex items-center justify-center w-12 h-12 md:w-11 md:h-11 bg-pink-600 hover:bg-pink-700 text-white leading-none"
       >
         <MagnifyingGlassIcon className="h-5 w-5" />
         <span className="sr-only">Search</span>
       </button>
     </form>
+    <div className="pointer-events-none absolute inset-x-6 -bottom-2 h-2 rounded-full bg-black/10 blur-md opacity-30" />
+  </div>
   );
 }
 
