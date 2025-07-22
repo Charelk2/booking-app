@@ -47,7 +47,9 @@ export default function LocationMapModal({
   useEffect(() => {
     if (!open) return undefined;
     const timeout = setTimeout(() => {
-      (autoRef.current as any)?.focus?.();
+      const el = autoRef.current as HTMLElement | null;
+      el?.focus?.();
+      (el?.shadowRoot?.querySelector('input') as HTMLInputElement | null)?.focus?.();
     }, 100);
     return () => clearTimeout(timeout);
   }, [open]);
@@ -80,10 +82,21 @@ export default function LocationMapModal({
               <Dialog.Title className="text-lg font-medium text-gray-900">Select Location</Dialog.Title>
               <gmpx-place-autocomplete
                 ref={autoRef}
-                placeholder="Search"
-                className="block w-full rounded-md border border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm p-2"
-                autoFocus
+                placeholder="Search address"
+                className="block w-full rounded-md border border-gray-300 focus:border-brand focus:ring-brand sm:text-sm p-2 bg-white text-black"
+                style={{ minHeight: '44px', display: 'block' }}
+                data-testid="map-autocomplete"
               />
+              <button
+                onClick={() => {
+                  const el = autoRef.current as HTMLElement | null;
+                  el?.focus?.();
+                  (el?.shadowRoot?.querySelector('input') as HTMLInputElement | null)?.focus?.();
+                }}
+                className="hidden"
+              >
+                Force Focus
+              </button>
               <div className="flex justify-end">
                 <button
                   type="button"
