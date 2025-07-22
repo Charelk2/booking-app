@@ -44,30 +44,30 @@ export default function Header() {
     <header className="sticky top-0 z-40 bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Row A */}
-        <div className="h-16 flex items-center justify-between">
-          {/* Logo + Links */}
-          <div className="flex items-center">
-            <div className="flex flex-col justify-center">
-              <Link href="/" className="flex shrink-0 items-center text-xl font-bold text-brand-dark">
-                Booka.co.za
-              </Link>
-              {isHome && (
-                <span className="hidden sm:block -mt-0.5 text-[11px] sm:text-[12px] leading-4 text-gray-600">
-                  Book legendary artists
-                </span>
-              )}
-            </div>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              {navigation.map((item) => (
-                <NavLink key={item.name} href={item.href} isActive={pathname === item.href}>
-                  {item.name}
-                </NavLink>
-              ))}
-            </div>
+        <div className="h-16 grid grid-cols-[auto,1fr,auto] items-center">
+          {/* Left: logo + tagline */}
+          <div className="flex flex-col">
+            <Link href="/" className="flex shrink-0 items-center text-xl font-bold text-brand-dark">
+              Booka.co.za
+            </Link>
+            {isHome && (
+              <span className="hidden sm:block -mt-0.5 text-[11px] leading-4 text-gray-600">
+                Book legendary artists
+              </span>
+            )}
           </div>
 
-          {/* Desktop Right */}
-          <div className="hidden sm:ml-6 sm:flex sm:items-center">
+          {/* Center: nav */}
+          <nav className="hidden md:flex justify-center gap-6">
+            {navigation.map((item) => (
+              <NavLink key={item.name} href={item.href} isActive={pathname === item.href}>
+                {item.name}
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* Right: auth / icons */}
+          <div className="hidden sm:flex items-center justify-end space-x-4">
             {user ? (
               <>
                 <BookingRequestIcon />
@@ -160,19 +160,19 @@ export default function Header() {
               </div>
             )}
           </div>
+        </div>
 
-          {/* Mobile menu button */}
-          <div className="flex items-center sm:hidden">
-            {user && <BookingRequestIcon />}
-            {user && <NotificationBell />}
-            <button
-              onClick={() => setMenuOpen(true)}
-              className="-mr-2 ml-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand"
-            >
-              <span className="sr-only">Open main menu</span>
-              <Bars3Icon className="h-6 w-6" aria-hidden="true" />
-            </button>
-          </div>
+        {/* Mobile menu button */}
+        <div className="flex items-center sm:hidden">
+          {user && <BookingRequestIcon />}
+          {user && <NotificationBell />}
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="-mr-2 ml-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand"
+          >
+            <span className="sr-only">Open main menu</span>
+            <Bars3Icon className="h-6 w-6" aria-hidden="true" />
+          </button>
         </div>
 
         {/* Row B */}
