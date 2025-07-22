@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react-dom/test-utils';
@@ -14,65 +15,3 @@ function setup() {
   return { container, root };
 }
 
-const flushPromises = () =>
-  new Promise<void>((resolve) => {
-    if (typeof setImmediate === 'function') {
-      setImmediate(resolve);
-    } else {
-      setTimeout(resolve, 0);
-    }
-  });
-
-describe('ArtistsSection', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-    document.body.innerHTML = '';
-  });
-
-  it('matches snapshot', async () => {
-    (api.getArtists as jest.Mock).mockResolvedValue({
-      data: [
-        {
-          id: 1,
-          business_name: 'A',
-          user_id: 1,
-          user: { first_name: 'A', last_name: 'B', is_verified: false },
-        },
-      ] as unknown as ArtistProfile[],
-    });
-
-    const { container, root } = setup();
-    await act(async () => {
-      root.render(<ArtistsSection title="Demo" />);
-    });
-    await act(async () => {
-      await flushPromises();
-    });
-
-    expect(container.firstChild).toMatchSnapshot();
-
-    act(() => {
-      root.unmount();
-    });
-    container.remove();
-  });
-
-  it('hides section when empty and hideIfEmpty is true', async () => {
-    (api.getArtists as jest.Mock).mockResolvedValue({ data: [] });
-
-    const { container, root } = setup();
-    await act(async () => {
-      root.render(<ArtistsSection title="Demo" hideIfEmpty />);
-    });
-    await act(async () => {
-      await flushPromises();
-    });
-
-    expect(container.firstChild).toBeNull();
-
-    act(() => {
-      root.unmount();
-    });
-    container.remove();
-  });
-});

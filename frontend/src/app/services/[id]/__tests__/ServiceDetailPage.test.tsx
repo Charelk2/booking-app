@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 import React from 'react';
@@ -11,9 +12,6 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn(),
 }));
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 describe('ServiceDetailPage', () => {
   afterEach(() => {

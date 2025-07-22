@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
@@ -18,9 +19,6 @@ jest.mock('@/components/ui/Button', () => {
   return Btn;
 });
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 describe('DeleteAccountPage', () => {
   afterEach(() => {
