@@ -11,7 +11,6 @@ if [ "${SKIP_FRONTEND:-}" = 1 ]; then
   exit 0
 fi
 
-MARKER="node_modules/.install_complete"
 HASH_FILE="node_modules/.pkg_hash"
 CURRENT_HASH="$(sha256sum package-lock.json | awk '{print $1}')"
 CACHED_HASH=""
@@ -20,7 +19,7 @@ if [ -f "$HASH_FILE" ]; then
 fi
 
 if [ "${FAST:-}" != 1 ]; then
-  if [ ! -f "$MARKER" ] || [ "$CURRENT_HASH" != "$CACHED_HASH" ]; then
+  if [ ! -d node_modules ] || [ "$CURRENT_HASH" != "$CACHED_HASH" ]; then
     echo "Installing frontend dependencies..."
     npm config set install-links true
     if [ "${VERBOSE:-}" = "1" ]; then
@@ -45,7 +44,7 @@ if [ "${FAST:-}" != 1 ]; then
     fi
     rm -f npm-ci.log
     echo "$CURRENT_HASH" > "$HASH_FILE"
-    touch "$MARKER"
+    node --version | sed 's/^v//' > node_modules/.meta
   fi
 else
   if [ ! -d node_modules ]; then

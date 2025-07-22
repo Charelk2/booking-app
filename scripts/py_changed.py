@@ -8,7 +8,8 @@ def main():
         base = subprocess.check_output(['git', 'rev-parse', 'HEAD^']).decode().strip()
     diff = subprocess.check_output(['git', 'diff', '--name-only', f'{base}...HEAD'])
     files = [f for f in diff.decode().splitlines() if f.endswith('.py')]
-    print(' '.join(files))
+    if files:
+        print(' '.join(files))
 
 
 if __name__ == '__main__':
