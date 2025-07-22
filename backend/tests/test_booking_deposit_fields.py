@@ -152,7 +152,7 @@ def test_booking_endpoints_null_fields_when_no_simple():
         db=db, current_client=client, status_filter=None
     )
     first = result[0]
-    assert getattr(first, "deposit_amount", None) is None
+    assert first.deposit_amount == Decimal("0")
     assert getattr(first, "payment_status", None) is None
     assert getattr(first, "deposit_paid", None) is None
     assert getattr(first, "deposit_due_by", None) is None
@@ -161,7 +161,7 @@ def test_booking_endpoints_null_fields_when_no_simple():
     detail = api_booking.read_booking_details(
         db=db, booking_id=booking.id, current_user=client
     )
-    assert getattr(detail, "deposit_amount", None) is None
+    assert detail.deposit_amount == Decimal("0")
     assert getattr(detail, "payment_status", None) is None
     assert getattr(detail, "deposit_paid", None) is None
     assert getattr(detail, "deposit_due_by", None) is None
