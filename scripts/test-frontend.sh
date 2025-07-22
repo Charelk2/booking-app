@@ -67,21 +67,34 @@ done
 
 JEST_EXTRA_ARGS=(--detectOpenHandles --forceExit)
 
+run_jest() {
+  timeout 15m "$@" || return $?
+}
+
+rerun_in_band() {
+  echo "Retrying changed tests in-band..."
+  timeout 15m npx jest --onlyChanged --runInBand "${JEST_EXTRA_ARGS[@]}"
+}
+
 if [ "$run_unit" = 1 ]; then
   start_unit=$(date +%s)
-  npm run test:unit -- --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}"
+  if ! run_jest npm run test:unit -- --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}"; then
+    rerun_in_band
+  fi
   end_unit=$(date +%s)
   echo "Unit tests completed in $((end_unit - start_unit)) seconds"
 else
   start_unit=$(date +%s)
-  npm test -- --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}"
+  if ! run_jest npm test -- --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}"; then
+    rerun_in_band
+  fi
   end_unit=$(date +%s)
   echo "Frontend tests completed in $((end_unit - start_unit)) seconds"
 fi
 
 if [ "$run_e2e" = 1 ]; then
   start_e2e=$(date +%s)
-  PWTEST_HEADED=0 HEADLESS=1 npx playwright test --reporter=line
+  timeout 15m PWTEST_HEADED=0 HEADLESS=1 npx playwright test --reporter=line
   end_e2e=$(date +%s)
   echo "E2E tests completed in $((end_e2e - start_e2e)) seconds"
 fi

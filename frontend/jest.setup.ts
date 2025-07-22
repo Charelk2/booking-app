@@ -3,6 +3,7 @@
 
 import React from "react";
 import "@/tests/mocks/no-network";
+jest.mock('react-datepicker', () => require('./__mocks__/react-datepicker'));
 
 jest.mock('next/navigation', () => {
   return {
