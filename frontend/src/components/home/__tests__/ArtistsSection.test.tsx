@@ -14,6 +14,15 @@ function setup() {
   return { container, root };
 }
 
+const flushPromises = () =>
+  new Promise<void>((resolve) => {
+    if (typeof setImmediate === 'function') {
+      setImmediate(resolve);
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+
 describe('ArtistsSection', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -35,7 +44,9 @@ describe('ArtistsSection', () => {
     const { container, root } = setup();
     await act(async () => {
       root.render(<ArtistsSection title="Demo" />);
-      await Promise.resolve();
+    });
+    await act(async () => {
+      await flushPromises();
     });
 
     expect(container.firstChild).toMatchSnapshot();
@@ -52,7 +63,9 @@ describe('ArtistsSection', () => {
     const { container, root } = setup();
     await act(async () => {
       root.render(<ArtistsSection title="Demo" hideIfEmpty />);
-      await Promise.resolve();
+    });
+    await act(async () => {
+      await flushPromises();
     });
 
     expect(container.firstChild).toBeNull();
