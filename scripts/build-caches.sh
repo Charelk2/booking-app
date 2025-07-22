@@ -13,10 +13,7 @@ NODE_VER=$(node --version | sed 's/^v//')
 BACKEND_HASH=$(sha256sum "$BACKEND_DIR/requirements.txt" "$ROOT_DIR/requirements-dev.txt" | sha256sum | awk '{print $1}')
 FRONTEND_HASH=$(sha256sum "$FRONTEND_DIR/package-lock.json" | awk '{print $1}')
 
-archive_ext=".tar.zst"
-if ! use_zstd; then
-  archive_ext=".tar.gz"
-fi
+archive_ext=$(use_zstd && echo .tar.zst || echo .tar.gz)
 
 if [ -d "$BACKEND_DIR/venv" ]; then
   echo "$PY_VER" > "$BACKEND_DIR/venv/.meta"

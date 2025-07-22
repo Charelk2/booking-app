@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+shopt -s extglob
+
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 cd "$ROOT_DIR"
 
