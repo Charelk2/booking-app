@@ -17,15 +17,13 @@ fi
 
 mapfile -t changed_files < <(git diff --name-only "$base_ref"...HEAD || true)
 changed_ts=()
-ts_files=()
-changed_tests=()
+changed_js_ts=()
 py_array=()
 for f in "${changed_files[@]}"; do
   case "$f" in
     *.ts|*.tsx|*.js)
       changed_ts+=("$f")
-      [[ $f == *.ts || $f == *.tsx ]] && ts_files+=("$f")
-      [[ $f == frontend/*@(spec|test).* ]] && changed_tests+=("$f")
+      changed_js_ts+=("$f")
       ;;
     *.py)
       py_array+=("$f")
@@ -50,20 +48,11 @@ else
 fi
 
 JEST_WORKERS_OPT="${JEST_WORKERS:-50%}"
-JEST_EXTRA_ARGS=(--detectOpenHandles --forceExit --passWithNoTests)
+JEST_EXTRA_ARGS=(--passWithNoTests)
 
-run_jest() {
-  cmd=("$@")
-  if command -v timeout >/dev/null 2>&1; then
-    timeout 15m "${cmd[@]}"
-  else
-    "${cmd[@]}"
-  fi
-}
-
-if [ "${#changed_tests[@]}" -gt 0 ]; then
+if [ ${#changed_js_ts[@]} -gt 0 ]; then
   start_jest=$(date +%s)
-  run_jest npm test -- --runTestsByPath "${changed_tests[@]}" --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}"
+  (cd frontend && npx --no-install jest --findRelatedTests "${changed_js_ts[@]}" --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}")
   end_jest=$(date +%s)
   echo "Jest: $((end_jest - start_jest))s"
 else
