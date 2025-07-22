@@ -36,10 +36,11 @@ else
 fi
 
 py_files=$(python3 scripts/py_changed.py)
-if [ -n "$py_files" ]; then
+read -ra py_array <<< "$py_files"
+if [ "${#py_array[@]}" -gt 0 ]; then
   echo "Running backend tests for changed files…"
   start_py=$(date +%s)
-  pytest -q "$py_files"
+  pytest -q "${py_array[@]}"
   end_py=$(date +%s)
   echo "Backend tests: $((end_py - start_py))s"
 else
