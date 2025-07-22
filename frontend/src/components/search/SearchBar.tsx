@@ -158,7 +158,7 @@ export default function SearchBar({ size = 'md', className }: SearchBarProps) {
     <form
       onSubmit={onSubmit}
       className={clsx(
-        'flex items-stretch bg-white rounded-full shadow-lg overflow-visible',
+        'flex items-stretch bg-white rounded-full ring-1 ring-gray-200 shadow-sm overflow-hidden',
         size === 'sm' && 'text-sm',
         className
       )}
@@ -174,12 +174,7 @@ export default function SearchBar({ size = 'md', className }: SearchBarProps) {
       />
       <button
         type="submit"
-        className={clsx(
-          'bg-pink-600 hover:bg-pink-700 flex items-center justify-center text-white',
-          size === 'sm'
-            ? 'h-10 w-10 rounded-full'
-            : 'px-5 py-3 rounded-r-full'
-        )}
+        className="flex items-center justify-center w-12 h-12 md:w-11 md:h-11 bg-pink-600 hover:bg-pink-700 text-white"
       >
         <MagnifyingGlassIcon className="h-5 w-5" />
         <span className="sr-only">Search</span>
