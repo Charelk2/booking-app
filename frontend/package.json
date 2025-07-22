@@ -9,7 +9,7 @@
     "lint": "next lint",
     "pretest": "test -d node_modules || npm install",
     "test": "jest --passWithNoTests",
-    "test:unit": "jest --testPathIgnorePatterns=e2e",
+    "test:unit": "jest --testPathIgnorePatterns=e2e --detectOpenHandles --forceExit",
     "test:e2e": "playwright test"
   },
   "dependencies": {
