@@ -9,15 +9,29 @@ const remotePatterns = [
     port: port || '',
     pathname: '/static/profile_pics/**',
   },
+  {
+    protocol: protocol.replace(':', ''),
+    hostname,
+    port: port || '',
+    pathname: '/static/cover_photos/**',
+  },
 ];
 
 if (hostname !== 'localhost') {
-  remotePatterns.push({
-    protocol: 'http',
-    hostname: 'localhost',
-    port: '8000',
-    pathname: '/static/profile_pics/**',
-  });
+  remotePatterns.push(
+    {
+      protocol: 'http',
+      hostname: 'localhost',
+      port: '8000',
+      pathname: '/static/profile_pics/**',
+    },
+    {
+      protocol: 'http',
+      hostname: 'localhost',
+      port: '8000',
+      pathname: '/static/cover_photos/**',
+    },
+  );
 }
 
 const nextConfig = {
