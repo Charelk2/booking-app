@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "pretest": "test -d node_modules || npm install",
     "test": "jest --passWithNoTests",
     "test:unit": "jest --testPathIgnorePatterns=e2e --passWithNoTests",
     "test:debug": "jest --runInBand --detectOpenHandles --forceExit",
