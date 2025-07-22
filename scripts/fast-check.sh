@@ -58,7 +58,7 @@ if [ "${#py_array[@]}" -gt 0 ]; then
   echo "Running backend tests for changed files…"
   readarray -t py_array < <(printf '%s\n' "${py_array[@]}" | sort -u)
   start_py=$(date +%s)
-  pytest -q -x -W ignore::DeprecationWarning "${py_array[@]}"
+  pytest -q --maxfail=1 -W ignore::DeprecationWarning "${py_array[@]}"
   end_py=$(date +%s)
   echo "Backend tests: $((end_py - start_py))s"
 else
