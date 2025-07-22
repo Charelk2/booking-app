@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useLoadScript } from '@react-google-maps/api';
 import TextInput from './TextInput';
 import LocationMapModal from './LocationMapModal';
+import { MapPinIcon } from '@heroicons/react/24/outline';
+import clsx from 'clsx';
 
 const MAP_LIBRARIES = ['places'] as const;
 
@@ -50,15 +52,24 @@ export default function LocationInput({
 
   return (
     <>
-      <TextInput
-        ref={inputRef}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-        className={className}
-        loading={!isLoaded}
-        data-testid="location-input"
-        onFocus={() => setModalOpen(true)}
-      />
+      <div className="relative">
+        <TextInput
+          ref={inputRef}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          className={clsx(className, 'pr-8')}
+          loading={!isLoaded}
+          data-testid="location-input"
+        />
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
+          className="absolute inset-y-0 right-1 flex items-center text-gray-500 hover:text-gray-700"
+          data-testid="open-map-modal"
+        >
+          <MapPinIcon className="h-5 w-5" />
+        </button>
+      </div>
       <LocationMapModal
         open={modalOpen}
         onClose={handleClose}

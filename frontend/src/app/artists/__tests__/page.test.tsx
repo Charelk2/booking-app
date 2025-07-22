@@ -185,7 +185,7 @@ describe('Artists page filters', () => {
       root.render(React.createElement(ArtistsPage));
       await flushPromises();
     });
-    const locationInput = container.querySelector('input[placeholder="Location"]') as HTMLInputElement;
+    const locationInput = container.querySelector('input[data-testid="location-input"]') as HTMLInputElement;
     const sortSelect = container.querySelector('select') as HTMLSelectElement;
     await act(async () => {
       locationInput.value = 'NY';
@@ -225,7 +225,7 @@ describe('Artists page filters', () => {
       root.render(React.createElement(ArtistsPage));
       await flushPromises();
     });
-    const locationInput = container.querySelector('input[placeholder="Location"]') as HTMLInputElement;
+    const locationInput = container.querySelector('input[data-testid="location-input"]') as HTMLInputElement;
     expect(locationInput.value).toBe('Paris');
     const selected = Array.from(container.querySelectorAll('button[aria-pressed]')).find(
       (b) => b.getAttribute('aria-pressed') === 'true' && b.textContent === 'Live Performance',
