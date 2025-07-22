@@ -18,6 +18,10 @@ jest.mock('@/components/ui/Button', () => {
   return Btn;
 });
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 describe('DeleteAccountPage', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -42,7 +46,7 @@ describe('DeleteAccountPage', () => {
     await act(async () => {
       form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(deleteMyAccount).toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith('/login');
     act(() => {

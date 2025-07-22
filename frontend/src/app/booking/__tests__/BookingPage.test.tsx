@@ -12,6 +12,10 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn(() => '/booking'),
 }));
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 interface AuthValue {
   user: unknown;
   loading: boolean;
@@ -53,7 +57,7 @@ describe('BookingPage auth flow', () => {
     await act(async () => {
       root.render(<BookingPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(container.textContent).toContain('Date & Time');
     act(() => {
       root.unmount();

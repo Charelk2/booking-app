@@ -18,6 +18,10 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn(() => '/dashboard/quotes'),
 }));
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 describe('ArtistQuotesPage', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -42,7 +46,7 @@ describe('ArtistQuotesPage', () => {
     await act(async () => {
       root.render(<ArtistQuotesPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
 
     const withdrawBtn = Array.from(div.querySelectorAll('button')).find(b => b.textContent === 'Withdraw') as HTMLButtonElement;
     expect(withdrawBtn).toBeTruthy();
@@ -86,7 +90,7 @@ describe('ArtistQuotesPage', () => {
     await act(async () => {
       root.render(<ArtistQuotesPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
 
     const editBtn = Array.from(div.querySelectorAll('button')).find(b => b.textContent === 'Edit') as HTMLButtonElement;
     expect(editBtn).toBeTruthy();

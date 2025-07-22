@@ -5,6 +5,10 @@ import NotificationDrawer from '../NotificationDrawer';
 import FullScreenNotificationModal from '../FullScreenNotificationModal';
 import type { UnifiedNotification } from '@/types';
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 const baseProps = {
   open: true,
   onClose: () => {},
@@ -49,9 +53,7 @@ describe('Notification virtualization', () => {
         }),
       );
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     const list = document.querySelector('[data-testid="notification-list"]') as HTMLElement;
     expect(list.querySelectorAll('div[style]').length).toBeLessThan(items.length);
   });
@@ -68,9 +70,7 @@ describe('Notification virtualization', () => {
         }),
       );
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     const list = document.querySelector('[data-testid="notification-modal-list"]') as HTMLElement;
     expect(list.querySelectorAll('button').length).toBeLessThan(items.length);
     const loadMore = jest.fn();

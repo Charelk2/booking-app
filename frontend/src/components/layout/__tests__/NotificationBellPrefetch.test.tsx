@@ -28,6 +28,10 @@ jest.mock('../FullScreenNotificationModal', () => {
   };
 });
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 function setup() {
   (useNotifications as jest.Mock).mockReturnValue({
     items: [],
@@ -53,17 +57,17 @@ describe('NotificationBell prefetch', () => {
     const { container, root } = setup();
     await act(async () => {
       root.render(React.createElement(NotificationBell));
-      await Promise.resolve();
     });
+    await flushPromises();
     const button = container.querySelector('button') as HTMLButtonElement;
     await act(async () => {
       button.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
-      await Promise.resolve();
     });
+    await flushPromises();
     await act(async () => {
       button.click();
-      await Promise.resolve();
     });
+    await flushPromises();
     expect(container.querySelector('[data-testid="drawer"]')).not.toBeNull();
     act(() => {
       root.unmount();
@@ -75,13 +79,13 @@ describe('NotificationBell prefetch', () => {
     const { container, root } = setup();
     await act(async () => {
       root.render(React.createElement(NotificationBell));
-      await Promise.resolve();
     });
+    await flushPromises();
     const button = container.querySelector('button') as HTMLButtonElement;
     await act(async () => {
       button.click();
-      await Promise.resolve();
     });
+    await flushPromises();
     expect(container.querySelector('[data-testid="drawer"]')).not.toBeNull();
     act(() => {
       root.unmount();

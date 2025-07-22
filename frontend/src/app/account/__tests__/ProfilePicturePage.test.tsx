@@ -31,6 +31,10 @@ jest.mock('@/components/ui/Button', () => {
   return Btn;
 });
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 describe('ProfilePicturePage', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -55,7 +59,7 @@ describe('ProfilePicturePage', () => {
     await act(async () => {
       btn.dispatchEvent(new Event('click', { bubbles: true }));
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(uploadMyProfilePicture).toHaveBeenCalled();
     expect(refreshUser).toHaveBeenCalled();
     act(() => { root.unmount(); });

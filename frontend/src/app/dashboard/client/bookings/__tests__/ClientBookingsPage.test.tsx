@@ -23,6 +23,10 @@ jest.mock("next/link", () => {
 });
 /* eslint-enable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 describe("ClientBookingsPage", () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -87,9 +91,7 @@ describe("ClientBookingsPage", () => {
     await act(async () => {
       root.render(<ClientBookingsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
 
     expect(getMyClientBookings).toHaveBeenCalledWith({ status: "upcoming" });
     expect(getMyClientBookings).toHaveBeenCalledWith({ status: "past" });
@@ -157,9 +159,7 @@ describe("ClientBookingsPage", () => {
     await act(async () => {
       root.render(<ClientBookingsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
 
     expect(div.textContent).toContain("Leave review");
     const help = div.querySelector('[data-testid="help-prompt"]');
@@ -228,9 +228,7 @@ describe("ClientBookingsPage", () => {
     await act(async () => {
       root.render(<ClientBookingsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
 
     const payBtn = div.querySelector(
       '[data-testid="pay-deposit-button"]',
@@ -240,9 +238,7 @@ describe("ClientBookingsPage", () => {
     await act(async () => {
       payBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
 
     expect(getBookingDetails).toHaveBeenCalledWith(5);
     const input = div.querySelector('input[type="text"]') as HTMLInputElement;
@@ -294,9 +290,7 @@ describe("ClientBookingsPage", () => {
     await act(async () => {
       root.render(<ClientBookingsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
 
     const msgLink = div.querySelector('[data-testid="message-artist-link"]');
     expect(msgLink).not.toBeNull();
@@ -349,9 +343,7 @@ describe("ClientBookingsPage", () => {
     await act(async () => {
       root.render(<ClientBookingsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
 
     const alert = div.querySelector('[data-testid="pending-payment-alert"]');
     expect(alert).not.toBeNull();
