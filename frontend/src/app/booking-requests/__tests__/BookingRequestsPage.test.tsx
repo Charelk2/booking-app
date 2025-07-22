@@ -20,6 +20,10 @@ jest.mock('@/components/layout/MainLayout', () => {
   return Mock;
 });
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 function setup(markItem = jest.fn()) {
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client' } });
   const push = jest.fn();
@@ -79,9 +83,7 @@ describe('BookingRequestsPage', () => {
     await act(async () => {
       root.render(<BookingRequestsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     const aliceRow = container.querySelector('li[data-request-id="1"]');
     expect(aliceRow?.className).toContain('bg-brand-light');
     const badge = aliceRow?.querySelector('span.bg-red-600');
@@ -97,9 +99,7 @@ describe('BookingRequestsPage', () => {
     await act(async () => {
       root.render(<BookingRequestsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     const input = container.querySelector(
       'input[aria-label="Search by client name"]',
     ) as HTMLInputElement;
@@ -107,9 +107,7 @@ describe('BookingRequestsPage', () => {
       input.value = 'Bob';
       input.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     const bobRow = Array.from(container.querySelectorAll('li[data-request-id]')).find((li) =>
       li.textContent?.includes('Bob B'),
     );
@@ -126,16 +124,12 @@ describe('BookingRequestsPage', () => {
     await act(async () => {
       root.render(<BookingRequestsPage />);
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     const row = container.querySelector('li[data-request-id="1"]') as HTMLLIElement;
     await act(async () => {
       row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     expect(markItem).toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith('/booking-requests/1');
     act(() => {

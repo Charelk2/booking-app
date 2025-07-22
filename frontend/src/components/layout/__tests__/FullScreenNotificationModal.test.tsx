@@ -3,6 +3,10 @@ import React from 'react';
 import { act } from 'react';
 import FullScreenNotificationModal from '../FullScreenNotificationModal';
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 const baseProps = {
   open: true,
   onClose: () => {},
@@ -52,8 +56,8 @@ describe('FullScreenNotificationModal', () => {
           error: new Error('Failed to load'),
         }),
       );
-      await Promise.resolve();
     });
+    await flushPromises();
     const err = document.querySelector('[data-testid="notification-error"]');
     expect(err?.textContent).toBe('Failed to load');
   });

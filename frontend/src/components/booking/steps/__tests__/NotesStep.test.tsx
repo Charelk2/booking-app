@@ -8,6 +8,10 @@ import * as api from '@/lib/api';
 jest.mock('@/lib/api');
 jest.mock('../../../ui/Toast', () => ({ __esModule: true, default: { success: jest.fn(), error: jest.fn() } }));
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 function Wrapper() {
   const { control, setValue } = useForm();
   return (
@@ -66,9 +70,7 @@ describe('NotesStep attachment upload', () => {
       input.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
 
     const nextButton = Array.from(container.querySelectorAll('button')).find((b) =>
       b.textContent?.includes('Next'),

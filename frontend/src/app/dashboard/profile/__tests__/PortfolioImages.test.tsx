@@ -19,6 +19,10 @@ jest.mock('@/components/layout/MainLayout', () => {
   return Mock;
 });
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 function setup() {
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'artist' } });
   (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
@@ -46,7 +50,7 @@ describe('Portfolio images upload and reorder', () => {
     await act(async () => {
       root.render(<EditArtistProfilePage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     const input = div.querySelector('#portfolioImagesInput') as HTMLInputElement;
     const file = new File(['1'], 'a.jpg', { type: 'image/jpeg' });
     await act(async () => {
@@ -54,7 +58,7 @@ describe('Portfolio images upload and reorder', () => {
       input.dispatchEvent(new Event('change', { bubbles: true }));
     });
     expect(api.uploadMyArtistPortfolioImages).toHaveBeenCalled();
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     const items = div.querySelectorAll('[data-testid="portfolio-item"]');
     expect(items.length).toBe(3);
     await act(async () => {

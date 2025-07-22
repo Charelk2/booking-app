@@ -13,6 +13,10 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn(() => '/dashboard/bookings'),
 }));
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 describe('ArtistBookingsPage', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -45,7 +49,7 @@ describe('ArtistBookingsPage', () => {
     await act(async () => {
       root.render(<ArtistBookingsPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(div.textContent).toContain('View Quote');
     act(() => {
       root.unmount();
@@ -79,7 +83,7 @@ describe('ArtistBookingsPage', () => {
     await act(async () => {
       root.render(<ArtistBookingsPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
 
     const icsBtn = Array.from(div.querySelectorAll('button')).find(
       (b) => b.textContent?.trim() === 'Add to Calendar',
@@ -97,7 +101,7 @@ describe('ArtistBookingsPage', () => {
     await act(async () => {
       completeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(api.updateBookingStatus).toHaveBeenCalledWith(1, 'completed');
     expect(div.textContent).toContain('Completed');
 

@@ -10,6 +10,10 @@ jest.mock('@/contexts/AuthContext');
 // eslint-disable-next-line react/display-name
 jest.mock('@/components/layout/MainLayout', () => ({ children }: { children: React.ReactNode }) => <div>{children}</div>);
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 function setup() {
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });
   (api.getSoundProviders as jest.Mock).mockResolvedValue({ data: [
@@ -31,7 +35,7 @@ describe('SoundProvidersPage', () => {
   it('allows editing providers', async () => {
     const { div, root } = setup();
     await act(async () => { root.render(<SoundProvidersPage />); });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     const editBtn = div.querySelector('button[data-edit]') as HTMLButtonElement;
     expect(editBtn).toBeTruthy();
     await act(async () => {
@@ -47,7 +51,7 @@ describe('SoundProvidersPage', () => {
     await act(async () => {
       saveBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(api.updateSoundProvider).toHaveBeenCalledTimes(1);
     act(() => { root.unmount(); });
     div.remove();
@@ -56,7 +60,7 @@ describe('SoundProvidersPage', () => {
   it('submits artist preferences', async () => {
     const { div, root } = setup();
     await act(async () => { root.render(<SoundProvidersPage />); });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     const select = div.querySelector('select[data-pref-provider]') as HTMLSelectElement;
     act(() => {
       select.value = '1';
@@ -71,7 +75,7 @@ describe('SoundProvidersPage', () => {
     await act(async () => {
       addBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(api.addArtistSoundPreference).toHaveBeenCalledTimes(1);
     act(() => { root.unmount(); });
     div.remove();
