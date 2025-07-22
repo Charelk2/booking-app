@@ -171,14 +171,17 @@ def read_my_bookings(
         deposit_paid,
         booking_request_id,
     ) in rows:
-        if deposit_due is not None:
-            booking.deposit_due_by = deposit_due
-        if deposit_amount is not None:
+        has_simple = deposit_paid is not None
+
+        booking.deposit_due_by = deposit_due if has_simple else None
+        booking.payment_status = payment_status if has_simple else None
+        booking.deposit_paid = deposit_paid if has_simple else None
+
+        if deposit_amount is None:
+            booking.deposit_amount = Decimal("0")
+        else:
             booking.deposit_amount = deposit_amount
-        if payment_status is not None:
-            booking.payment_status = payment_status
-        if deposit_paid is not None:
-            booking.deposit_paid = deposit_paid
+
         if booking_request_id is not None:
             booking.booking_request_id = booking_request_id
         bookings.append(booking)
@@ -319,14 +322,17 @@ def read_booking_details(
             detail="You do not have permission to view this booking.",
         )
 
-    if deposit_due is not None:
-        booking.deposit_due_by = deposit_due
-    if deposit_amount is not None:
+    has_simple = deposit_paid is not None
+
+    booking.deposit_due_by = deposit_due if has_simple else None
+    booking.payment_status = payment_status if has_simple else None
+    booking.deposit_paid = deposit_paid if has_simple else None
+
+    if deposit_amount is None:
+        booking.deposit_amount = Decimal("0")
+    else:
         booking.deposit_amount = deposit_amount
-    if payment_status is not None:
-        booking.payment_status = payment_status
-    if deposit_paid is not None:
-        booking.deposit_paid = deposit_paid
+
     if booking_request_id is not None:
         booking.booking_request_id = booking_request_id
 
