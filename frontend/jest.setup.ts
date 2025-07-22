@@ -13,6 +13,7 @@ jest.mock('next/navigation', () => {
     }),
     usePathname: () => '/',
     useParams: jest.fn(() => ({})),
+    useSearchParams: () => new URLSearchParams(),
   };
 });
 
@@ -86,4 +87,12 @@ const mockAutocomplete = jest.fn(function Autocomplete(this: any) {
   },
 };
 (globalThis as any).mockAutocomplete = mockAutocomplete;
+
+// Additional browser stubs
+(window as any).confirm = jest.fn(() => true);
+(window as any).URL.createObjectURL = jest.fn(() => 'blob:');
+Object.defineProperty(window, 'location', {
+  value: { ...window.location, assign: jest.fn() },
+  writable: true,
+});
 

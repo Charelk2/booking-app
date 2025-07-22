@@ -29,7 +29,7 @@ export default function Header() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const showSearch = pathname === '/';
+  const isHome = pathname === '/';
 
   const navigation = [...baseNavigation];
   if (user?.user_type === 'artist') {
@@ -41,7 +41,7 @@ export default function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-white">
+    <header className="sticky top-0 z-40 bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Row A */}
         <div className="h-16 flex items-center justify-between">
@@ -169,15 +169,13 @@ export default function Header() {
         </div>
 
         {/* Row B */}
-        {showSearch && (
-          <div className="pb-4">
-            <div className="w-full md:max-w-3xl mx-auto">
-              <SearchBar />
-            </div>
+        {isHome && (
+          <div className="pb-3 pt-2">
+            <SearchBar className="mx-auto w-full md:max-w-3xl shadow-sm ring-1 ring-gray-200" />
           </div>
         )}
       </div>
-      <div className="border-t border-gray-200" />
+      {isHome && <div className="border-t border-gray-200" />}
       <MobileMenuDrawer
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
