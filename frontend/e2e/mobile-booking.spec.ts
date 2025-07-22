@@ -28,7 +28,7 @@ test.describe('Booking Wizard mobile flow', () => {
       });
     });
     // Stub Google Maps scripts and geocoding so the tests run without network
-    await page.route('https://unpkg.com/@googlemaps/places@**', async (route) => {
+    await page.route('https://unpkg.com/@googlemaps/extended-component-library@**', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/javascript', body: '' });
     });
     await page.route('https://maps.googleapis.com/maps/api/js*', async (route) => {
