@@ -1,4 +1,4 @@
-import { flushPromises, nextTick } from "@/test/utils/flush";
+import { flushPromises } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
@@ -55,7 +55,7 @@ describe('NotificationBell accessibility', () => {
   it('navigates to notification link on click', async () => {
     const push = jest.fn();
     const markItem = jest.fn();
-    const useRouter = require('next/navigation').useRouter;
+    const { useRouter } = jest.requireMock('next/navigation');
     (useRouter as jest.Mock).mockReturnValue({ push });
     (useNotifications as jest.Mock).mockReturnValue({
       items: [

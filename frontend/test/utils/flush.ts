@@ -4,6 +4,11 @@ export async function flushPromises() {
   await act(async () => {
     await Promise.resolve();
   });
+  if (jest.isMockFunction(setTimeout)) {
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+  }
 }
 
 export async function nextTick() {
