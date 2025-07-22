@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
@@ -22,9 +23,6 @@ jest.mock('../SendQuoteModal', () => {
   return { __esModule: true, default: MockModal };
 });
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 // Minimal WebSocket stub
 class StubSocket {

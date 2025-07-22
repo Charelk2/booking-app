@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
@@ -9,9 +10,6 @@ import { useParams } from 'next/navigation';
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 function setup() {
   (useParams as jest.Mock).mockReturnValue({ quoteId: '5' });
