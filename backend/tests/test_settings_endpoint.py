@@ -17,6 +17,7 @@ def test_env_file_override(tmp_path, monkeypatch):
     monkeypatch.setenv('ENV_FILE', str(custom_env))
     import app.core.config as config
     importlib.reload(config)
+    config.settings = config.load_settings()
     import app.api.api_settings as api_settings
     importlib.reload(api_settings)
     import app.main as main_module
