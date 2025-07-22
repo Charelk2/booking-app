@@ -35,10 +35,12 @@ done
 if [ "${#changed_ts[@]}" -gt 0 ]; then
   echo "Linting and type-checking changed frontend files…"
   start_lint=$(date +%s)
-  npx eslint "${changed_ts[@]}"
-  if [ "${#ts_files[@]}" -gt 0 ]; then
-    npx tsc --noEmit "${ts_files[@]}"
-  fi
+  changed_ts_rel=( )
+  for f in "${changed_ts[@]}"; do
+    changed_ts_rel+=("${f#frontend/}")
+  done
+  (cd frontend && npx --no-install eslint -c eslint.config.mjs "${changed_ts_rel[@]}")
+  # Skip TypeScript compile in fast mode to avoid slow/full project checks
   end_lint=$(date +%s)
   echo "Lint/TS checks: $((end_lint - start_lint))s"
 else
