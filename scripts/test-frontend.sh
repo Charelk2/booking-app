@@ -6,6 +6,11 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 cd "$FRONTEND_DIR"
 
+if [ "${SKIP_FRONTEND:-}" = 1 ]; then
+  echo "Skipping frontend tests"
+  exit 0
+fi
+
 MARKER="node_modules/.install_complete"
 HASH_FILE="node_modules/.pkg_hash"
 CURRENT_HASH="$(sha256sum package-lock.json | awk '{print $1}')"
@@ -82,6 +87,6 @@ if [ "$run_e2e" = 1 ]; then
   echo "E2E tests completed in $((end_e2e - start_e2e)) seconds"
 fi
 
-if [ "${LINT:-}" = 1 ] || [ "${CI:-}" = "true" ]; then
+if { [ "${LINT:-}" = 1 ] || [ "${CI:-}" = "true" ]; } && [ "${SKIP_LINT:-}" != 1 ]; then
   npm run lint --silent
 fi
