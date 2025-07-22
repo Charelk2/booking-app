@@ -9,7 +9,7 @@ def main():
     diff = subprocess.check_output(['git', 'diff', '--name-only', f'{base}...HEAD'])
     files = [f for f in diff.decode().splitlines() if f.endswith('.py')]
     if files:
-        print(' '.join(files))
+        print(' '.join(files), end='')
 
 
 if __name__ == '__main__':

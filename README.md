@@ -519,8 +519,7 @@ automatically in CI).
 Use `WRITE_ARCHIVES=1` to rebuild the compressed dependency caches after
 installing packages. Hashes combine the lock files and the runtime versions so
 caches refresh automatically when either changes.
-Dependency checks rely on `.venv_hash`, `.pkg_hash`, and the `.meta` files; the
-deprecated `.install_complete` marker has been removed.
+Dependency checks rely on `.venv_hash`, `.pkg_hash`, and `.meta` files.
 
 Common skip flags:
 
