@@ -52,6 +52,10 @@ The homepage now showcases musicians in horizontally scrollable carousels. Secti
 
 This discovery feed is experimental and may evolve in future updates.
 
+When there are no profiles to show, the **Popular** and **Top Rated** sections
+are hidden. The **New on Booka** section now displays up to 100 of the newest
+artists so they are easier to discover.
+
 ## Docker Setup
 
 Pull the pre-built image or build it yourself, then run the development
