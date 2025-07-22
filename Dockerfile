@@ -19,7 +19,7 @@ COPY requirements-dev.txt ./
 RUN python -m venv backend/venv \
     && backend/venv/bin/pip install --no-cache-dir -r backend/requirements.txt -r requirements-dev.txt \
     && sha256sum backend/requirements.txt | awk '{print $1}' > backend/venv/.req_hash \
-    && touch backend/venv/.install_complete
+    && python --version | awk '{print $2}' > backend/venv/.meta
 
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 WORKDIR /app/frontend
@@ -27,7 +27,7 @@ RUN npm ci --silent \
     && npx playwright install --with-deps \
     && npm run build --silent \
     && sha256sum package-lock.json | awk '{print $1}' > node_modules/.pkg_hash \
-    && touch node_modules/.install_complete
+    && node --version | sed 's/^v//' > node_modules/.meta
 
 # final stage
 FROM python:3.12.11-slim

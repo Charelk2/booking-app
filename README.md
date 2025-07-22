@@ -123,10 +123,7 @@ are populated.
 
 The container installs all Python and Node dependencies. During the build
 step it creates `backend/venv` and installs the requirements into that
-virtual environment. A marker file `backend/venv/.install_complete` is also
-added after a successful install along with a hash of `requirements.txt`
-stored in `backend/venv/.req_hash`. `setup.sh` checks these files so
-repeated runs skip `pip install` when nothing changed. Node dependencies live in `frontend/node_modules` with a corresponding hash stored in `frontend/node_modules/.pkg_hash`. Use a volume mount to iterate locally:
+virtual environment. The Python version is saved in `backend/venv/.meta` and the hash of `requirements.txt` is written to `backend/venv/.req_hash`. `setup.sh` checks these files so repeated runs skip `pip install` when nothing changed. Node dependencies live in `frontend/node_modules` with the Node version recorded in `frontend/node_modules/.meta` and a hash stored in `frontend/node_modules/.pkg_hash`. Use a volume mount to iterate locally:
 
 ```bash
 docker run --rm -v "$(pwd)":/app -p 3000:3000 -p 8000:8000 booking-app:latest
@@ -464,26 +461,24 @@ faster. The test script now verifies that `node` and `npm` are available,
 logs their versions, prints the full path and version of the Jest binary, and
 exits with a helpful message if the binary is missing (for example, when
 `npm ci` was interrupted).
-The script drops a marker file `frontend/node_modules/.install_complete` after a
-successful `npm ci` so subsequent runs skip reinstalling dependencies unless
-that file is removed. After installing Python requirements, `setup.sh` creates
-`backend/venv/.install_complete` so it can skip `pip install` on future runs.
+After `npm ci` completes, the Node version is recorded in `frontend/node_modules/.meta`.
+Python installs write the version to `backend/venv/.meta`. These meta files
+and the lockfile hashes allow `setup.sh` to determine when reinstalling is
+necessary.
 Each cache also stores a SHA256 hash of its lock file
 (`backend/venv/.req_hash` for `requirements.txt` and
 `frontend/node_modules/.pkg_hash` for `package-lock.json`). `setup.sh` compares
 these hashes to the current files and reinstalls the dependencies only when the
 hashes differ.
 
-`setup.sh` now verifies that both `pip install` and `npm ci` succeed before any
-marker files are created. If either step fails, the script prints an error and
-suggests running `./scripts/docker-test.sh` with network access to fetch the
-required packages. The marker files (`.install_complete`, `.req_hash`, and
-`.pkg_hash`) are written only after successful installs so failed downloads do
-not pollute the cache.
+`setup.sh` verifies that both `pip install` and `npm ci` succeed before
+updating the cache metadata. If either step fails, the script prints an error
+and suggests running `./scripts/docker-test.sh` with network access to fetch the
+required packages. The `.req_hash`, `.pkg_hash`, and `.meta` files are written
+only after successful installs so failed downloads do not pollute the cache.
 
-If the virtual environment cache (`backend/venv/.install_complete`) is missing
-and no internet connection is available, `setup.sh` aborts before running
-`pip install` and prints:
+If the cached virtual environment is missing and no internet connection is
+available, `setup.sh` aborts before running `pip install` and prints:
 
 ```
 ❌ Dependencies missing and network unavailable.
@@ -521,6 +516,9 @@ Set `FAST=1` to run `scripts/fast-check.sh` which only lints and tests files
 changed since `main`. This mode skips dependency installation entirely so caches
 must already exist. Run lint checks by exporting `LINT=1` (they also run
 automatically in CI).
+Use `WRITE_ARCHIVES=1` to rebuild the compressed dependency caches after
+installing packages. Hashes combine the lock files and the runtime versions so
+caches refresh automatically when either changes.
 
 Common skip flags:
 
@@ -589,8 +587,8 @@ DOCKER_TEST_NETWORK=bridge BOOKING_APP_BUILD=1 ./scripts/docker-test.sh
 
 This command builds (or pulls) the image and copies `backend/venv` and
 `frontend/node_modules` from the container. After it finishes you should have
-`backend/venv/.install_complete` and
-`frontend/node_modules/.install_complete` in your working tree. It also
+`backend/venv/.meta` and `frontend/node_modules/.meta` in your working tree.
+It also
 archives these directories using `tar --use-compress-program=zstd` into
 `backend/venv.tar.zst` and `frontend/node_modules.tar.zst` so they can be
 restored later without Docker.
@@ -601,7 +599,7 @@ restored later without Docker.
 BOOKING_APP_SKIP_PULL=1 DOCKER_TEST_NETWORK=none ./scripts/docker-test.sh
 ```
 
-The script detects the marker files and skips all installation steps. Set
+The script detects these caches and skips all installation steps. Set
 `BOOKING_APP_IMAGE` to override the tag or `BOOKING_APP_BUILD=1` to build the
 image when it is not found locally. The script automatically falls back to
 `./scripts/test-all.sh` when Docker is unavailable.
@@ -610,7 +608,7 @@ The `.req_hash` and `.pkg_hash` files are copied along with the caches so the
 setup script can detect when lock files change.
 
 When run with `DOCKER_TEST_NETWORK=none`, the script checks that the dependency
-caches already contain `.install_complete` markers before launching the
+caches already contain `.venv_hash` and `.pkg_hash` before launching the
 container. If either cache is missing, it prints a warning like
 `❌ Cached dependencies missing` and exits, advising you to rerun with
 `DOCKER_TEST_NETWORK=bridge` so the dependencies can be copied over. Once the

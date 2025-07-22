@@ -25,20 +25,18 @@ fi
 # shellcheck source=/dev/null
 source "$VENV_DIR/bin/activate"
 
-INSTALL_MARKER="$VENV_DIR/.install_complete"
 REQ_HASH_FILE="$VENV_DIR/.req_hash"
+META_FILE="$VENV_DIR/.meta"
 CURRENT_HASH="$(sha256sum "$REQ_FILE" "$DEV_REQ_FILE" | sha256sum | awk '{print $1}')"
 CACHED_HASH=""
-if [ -f "$REQ_HASH_FILE" ]; then
-  CACHED_HASH="$(cat "$REQ_HASH_FILE")"
-fi
+[ -f "$REQ_HASH_FILE" ] && CACHED_HASH="$(cat "$REQ_HASH_FILE")"
 
 if [ "${FAST:-}" != 1 ]; then
-  if [ ! -f "$INSTALL_MARKER" ] || [ "$CURRENT_HASH" != "$CACHED_HASH" ]; then
+  if [ "$CURRENT_HASH" != "$CACHED_HASH" ]; then
     echo "Installing backend dependencies..."
     pip install -r "$REQ_FILE" -r "$DEV_REQ_FILE"
     echo "$CURRENT_HASH" > "$REQ_HASH_FILE"
-    touch "$INSTALL_MARKER"
+    python --version | awk '{print $2}' > "$META_FILE"
   fi
 fi
 
