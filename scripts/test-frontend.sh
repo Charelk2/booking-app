@@ -65,28 +65,36 @@ for arg in "$@"; do
   esac
 done
 
-JEST_EXTRA_ARGS=(--detectOpenHandles --forceExit)
+JEST_EXTRA_ARGS=(--detectOpenHandles --forceExit --passWithNoTests)
 
 run_jest() {
-  timeout 15m "$@" || return $?
-}
-
-rerun_in_band() {
-  echo "Retrying changed tests in-band..."
-  timeout 15m npx jest --onlyChanged --runInBand "${JEST_EXTRA_ARGS[@]}"
+  cmd=("$@")
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 15m "${cmd[@]}"
+  else
+    "${cmd[@]}"
+  fi
 }
 
 if [ "$run_unit" = 1 ]; then
   start_unit=$(date +%s)
-  if ! run_jest npm run test:unit -- --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}"; then
-    rerun_in_band
+  if ! run_jest npm run test:unit -- --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}" 2>&1 | tee jest.log; then
+    if ! npx jest --onlyChanged --runInBand "${JEST_EXTRA_ARGS[@]}"; then
+      echo "--- jest.log (last 200 lines) ---" >&2
+      tail -n 200 jest.log >&2 || true
+      exit 1
+    fi
   fi
   end_unit=$(date +%s)
   echo "Unit tests completed in $((end_unit - start_unit)) seconds"
 else
   start_unit=$(date +%s)
-  if ! run_jest npm test -- --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}"; then
-    rerun_in_band
+  if ! run_jest npm test -- --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}" 2>&1 | tee jest.log; then
+    if ! npx jest --onlyChanged --runInBand "${JEST_EXTRA_ARGS[@]}"; then
+      echo "--- jest.log (last 200 lines) ---" >&2
+      tail -n 200 jest.log >&2 || true
+      exit 1
+    fi
   fi
   end_unit=$(date +%s)
   echo "Frontend tests completed in $((end_unit - start_unit)) seconds"
