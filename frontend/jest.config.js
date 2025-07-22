@@ -18,6 +18,7 @@ module.exports = {
     '/node_modules/(?!(react-calendar|@wojtekmaj/date-utils|get-user-locale|warning|memoize|mimic-function)/)',
   ],
   moduleNameMapper: {
+    '^@/tests/(.*)$': '<rootDir>/tests/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
     '\\.(css|less|scss|sass)$': '<rootDir>/__mocks__/styleMock.js',
     '\\.module\\.(css|less|scss|sass)$': 'identity-obj-proxy',

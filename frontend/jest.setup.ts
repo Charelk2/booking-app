@@ -2,6 +2,7 @@
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 import React from "react";
+import "@/tests/mocks/no-network";
 
 jest.mock('next/navigation', () => {
   return {
