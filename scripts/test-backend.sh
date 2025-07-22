@@ -4,6 +4,11 @@ trap "echo '❌ Test run aborted'; exit 130" INT TERM
 
 start_backend=$(date +%s)
 
+if [ "${SKIP_BACKEND:-}" = 1 ]; then
+  echo "Skipping backend tests"
+  exit 0
+fi
+
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VENV_DIR="$ROOT_DIR/backend/venv"
 REQ_FILE="$ROOT_DIR/backend/requirements.txt"
@@ -51,6 +56,12 @@ else
 fi
 
 export PYTHONPATH="$ROOT_DIR/backend${PYTHONPATH:+:$PYTHONPATH}"
+
+if { [ "${LINT:-}" = 1 ] || [ "${CI:-}" = "true" ]; } && [ "${SKIP_LINT:-}" != 1 ]; then
+  if command -v flake8 >/dev/null 2>&1; then
+    flake8 "$ROOT_DIR/backend/app" || true
+  fi
+fi
 
 cd "$ROOT_DIR"
 pytest "${pytest_args[@]}"

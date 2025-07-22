@@ -517,8 +517,10 @@ The test runner also checks which directories changed. If no files under
 `frontend/`. End-to-end tests run only when files in `frontend/e2e/` changed and
 the branch is `main` or `E2E=1` is set.
 
-To skip dependency installation and reuse existing caches, set `FAST=1`.
-Run lint checks by exporting `LINT=1` (they also run automatically in CI).
+Set `FAST=1` to run `scripts/fast-check.sh` which only lints and tests files
+changed since `main`. This mode skips dependency installation entirely so caches
+must already exist. Run lint checks by exporting `LINT=1` (they also run
+automatically in CI).
 
 Common skip flags:
 
@@ -627,6 +629,25 @@ exist. Subsequent offline runs look for `backend/venv.tar.zst` and
 `frontend/node_modules.tar.zst`; if the directories are missing but the archives
 are present, the script unpacks them with `tar --use-compress-program=unzstd -xf`
 before calling `setup.sh`.
+
+### Building and Using Offline Caches
+
+The `scripts/build-caches.sh` helper archives `backend/venv` and
+`frontend/node_modules` so `setup.sh` can restore them without any network.
+Hashes of the lock files combined with the Python and Node versions are stored
+in `.venv_hash` and `.pkg_hash`. When these hashes match, `setup.sh` simply
+extracts the archives; otherwise it reinstalls and refreshes the tarballs when
+`WRITE_ARCHIVES=1` is set.
+
+To update the caches manually run:
+
+```bash
+WRITE_ARCHIVES=1 ./setup.sh
+```
+
+This creates `backend/venv.tar.zst` and `frontend/node_modules.tar.zst` using
+`zstd` if available (falling back to gzip). CI uploads these archives as
+artifacts and restores them on subsequent runs.
 
 If you update `requirements.txt` or `package-lock.json`, run
 `BOOKING_APP_BUILD=1 ./scripts/docker-test.sh` (or rebuild the image manually)

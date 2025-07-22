@@ -5,6 +5,12 @@ trap "echo '❌ Test run aborted'; exit 130" INT TERM
 start_all=$(date +%s)
 echo "--- STARTING test-all.sh ---"
 
+if [ "${FAST:-}" = 1 ]; then
+  echo "Running fast incremental checks…"
+  ./scripts/fast-check.sh
+  exit $?
+fi
+
 # Ensure Node and npm are available
 if ! command -v node >/dev/null; then
   echo "❌ node not found in PATH" >&2
