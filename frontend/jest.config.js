@@ -1,5 +1,4 @@
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'jsdom',
   testMatch: ['<rootDir>/src/**/*.test.ts?(x)'],
   transform: {
@@ -26,5 +25,6 @@ module.exports = {
     '\\.module\\.(css|less|scss|sass)$': 'identity-obj-proxy',
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts', '<rootDir>/test/setup-network.ts'],
+  reporters: ['default', ['jest-slow-test-reporter', { threshold: 5000 }]],
   testTimeout: 30000,
 };

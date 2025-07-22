@@ -55,10 +55,9 @@ fi
 
 if [ -z "${SKIP_FRONTEND:-}" ]; then
   echo "🧪 Running frontend tests…"
+  (cd frontend && npm test -- --maxWorkers=${JEST_WORKERS:-50%} --passWithNoTests)
   if [ "$run_e2e" = 1 ]; then
-    FAST=${FAST:-} LINT=${LINT:-} ./scripts/test-frontend.sh --unit --e2e
-  else
-    FAST=${FAST:-} LINT=${LINT:-} ./scripts/test-frontend.sh --unit
+    (cd frontend && npx playwright test --reporter=line)
   fi
 fi
 
