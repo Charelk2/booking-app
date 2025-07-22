@@ -94,11 +94,7 @@ model_config = SettingsConfigDict(
 
 
 def load_settings() -> "Settings":
-    return Settings(
-        _env_file=os.getenv(
-            "ENV_FILE", str(Path(__file__).resolve().parents[3] / ".env")
-        )
-    )
+    return Settings(_env_file=os.getenv("ENV_FILE", str(Path(__file__).resolve().parents[3] / ".env")))
 
 
 settings = load_settings()
