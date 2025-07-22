@@ -5,6 +5,15 @@ import SendQuoteModal from '../SendQuoteModal';
 import * as api from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
 
+const flushPromises = () =>
+  new Promise<void>((resolve) => {
+    if (typeof setImmediate === 'function') {
+      setImmediate(resolve);
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+
 jest.mock('@/lib/api');
 
 describe('SendQuoteModal', () => {
@@ -216,6 +225,9 @@ describe('SendQuoteModal', () => {
           serviceName="Live Performance"
         />,
       );
+    });
+    await act(async () => {
+      await flushPromises();
     });
     expect(div.firstChild).toMatchSnapshot();
     root.unmount();
