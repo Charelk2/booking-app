@@ -53,14 +53,25 @@ for arg in "$@"; do
   esac
 done
 
+JEST_EXTRA_ARGS=(--detectOpenHandles --forceExit)
+
 if [ "$run_unit" = 1 ]; then
-  npm run test:unit -- --maxWorkers="$JEST_WORKERS_OPT"
+  start_unit=$(date +%s)
+  npm run test:unit -- --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}"
+  end_unit=$(date +%s)
+  echo "Unit tests completed in $((end_unit - start_unit)) seconds"
 else
-  npm test -- --maxWorkers="$JEST_WORKERS_OPT"
+  start_unit=$(date +%s)
+  npm test -- --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}"
+  end_unit=$(date +%s)
+  echo "Frontend tests completed in $((end_unit - start_unit)) seconds"
 fi
 
 if [ "$run_e2e" = 1 ]; then
+  start_e2e=$(date +%s)
   npx playwright test
+  end_e2e=$(date +%s)
+  echo "E2E tests completed in $((end_e2e - start_e2e)) seconds"
 fi
 
 if [ -z "${SKIP_LINT:-}" ]; then
