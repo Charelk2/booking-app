@@ -1,0 +1,115 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ArtistsSection matches snapshot 1`] = `
+<section
+  class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12"
+>
+  <div
+    class="flex items-end justify-between mb-6"
+  >
+    <h2
+      class="text-2xl font-semibold text-gray-900"
+    >
+      Demo
+    </h2>
+  </div>
+  <div
+    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+  >
+    <div
+      class="rounded-2xl bg-white shadow-lg overflow-hidden transition-shadow"
+    >
+      <a
+        href="/artists/1"
+      >
+        <div
+          class="relative h-48 w-full overflow-hidden rounded-t-2xl bg-gray-100"
+        >
+          <div
+            class="absolute inset-0 animate-pulse bg-gray-200"
+          />
+          <img
+            alt="A"
+            class="object-cover w-full h-full"
+            data-nimg="1"
+            decoding="async"
+            height="512"
+            loading="lazy"
+            src="/default-avatar.svg"
+            style="color: transparent;"
+            width="512"
+          />
+          <div
+            class="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition"
+          >
+            <button
+              class="text-sm bg-brand text-white px-4 py-1.5 rounded-md focus:outline-none focus-visible:ring"
+              type="button"
+            >
+              Book Now
+            </button>
+          </div>
+        </div>
+      </a>
+      <div
+        class="flex flex-col flex-1 p-6"
+      >
+        <div
+          class="flex items-center"
+        >
+          <h2
+            class="flex-1 text-lg font-semibold text-gray-900 truncate mt-4 mb-2"
+          >
+            A
+          </h2>
+        </div>
+        <hr
+          class="mt-4 mb-4 border-gray-200"
+        />
+        <div
+          class="flex justify-between items-center text-sm text-gray-700"
+        >
+          <span
+            class="flex items-center"
+          >
+            <svg
+              aria-hidden="true"
+              class="h-4 w-4 mr-1 text-yellow-400"
+              data-slot="icon"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                clip-rule="evenodd"
+                d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z"
+                fill-rule="evenodd"
+              />
+            </svg>
+            <span
+              class="text-gray-400"
+            >
+              No ratings yet
+            </span>
+          </span>
+        </div>
+        <div
+          class="flex justify-between items-center mt-4"
+        >
+          <span />
+          <a
+            href="/artists/1"
+          >
+            <button
+              class="bg-brand text-white text-sm px-4 py-1.5 rounded-md hover:bg-brand-dark"
+              type="button"
+            >
+              View Profile
+            </button>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+`;
