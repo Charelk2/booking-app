@@ -5,6 +5,10 @@ import NotificationDrawer from '../NotificationDrawer';
 import { parseItem } from '../NotificationListItem';
 import type { UnifiedNotification } from '@/types';
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 describe('parseItem', () => {
   it('parses booking request using provided fields', () => {
     const n: UnifiedNotification = {
@@ -120,7 +124,7 @@ describe('NotificationDrawer component', () => {
           error: new Error('Failed to load'),
         }),
       );
-      await Promise.resolve();
+      await flushPromises();
     });
     const errorBar = document.querySelector('[data-testid="notification-error"]');
     expect(errorBar?.textContent).toBe('Failed to load');
@@ -147,7 +151,7 @@ describe('NotificationDrawer component', () => {
           markAllRead: jest.fn(),
         }),
       );
-      await Promise.resolve();
+      await flushPromises();
     });
 
     expect(container.textContent).toContain('Eve');
@@ -176,13 +180,16 @@ describe('NotificationDrawer component', () => {
           markAllRead: jest.fn(),
         }),
       );
-      await Promise.resolve();
+      await flushPromises();
     });
 
     const card = container.querySelector(
       '[data-testid="notification-list"] [role="button"]',
     ) as HTMLElement;
-    card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await act(async () => {
+      card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await flushPromises();
+    });
     expect(onItemClick).toHaveBeenCalledWith(8);
   });
 
@@ -198,15 +205,18 @@ describe('NotificationDrawer component', () => {
           markAllRead,
         }),
       );
-      await Promise.resolve();
+      await flushPromises();
     });
 
     expect(container.textContent).toContain('Mark All Read');
     const btn = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Mark All Read',
     ) as HTMLButtonElement | undefined;
-    btn?.click();
     if (btn) {
+      await act(async () => {
+        btn.click();
+        await flushPromises();
+      });
       expect(markAllRead).toHaveBeenCalled();
     }
   });
