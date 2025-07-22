@@ -260,6 +260,11 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDm-BKmMtzMSMd-XUdfapjEUU6O5mYy2bk
 enabled. It powers the `LocationInput` autocomplete fields used in the artist
 filters, search bar, and booking steps.
 
+If you source the same `.env` file for the backend, the API configuration now
+includes `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` as an optional setting. The backend
+does not use this key, but declaring it prevents a Pydantic validation error
+when extra environment variables are forbidden.
+
 The host portion of `NEXT_PUBLIC_API_URL` is also used by
 `next.config.js` to allow optimized image requests from the backend.
 Set this URL to match your API server so artist profile pictures and

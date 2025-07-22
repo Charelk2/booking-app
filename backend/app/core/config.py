@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
 
+    # API key used on the frontend for Google Maps components. The backend does
+    # not use this value but includes it so loading `.env` files shared with the
+    # frontend does not raise a validation error when extra fields are forbidden
+    # by Pydantic settings.
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: str = ""
+
     # Base frontend URL used for OAuth redirects
     FRONTEND_URL: str = "http://localhost:3000"
 
