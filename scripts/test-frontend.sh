@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+trap "echo '❌ Test run aborted'; exit 130" INT TERM
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FRONTEND_DIR="$ROOT_DIR/frontend"
@@ -13,32 +14,39 @@ if [ -f "$HASH_FILE" ]; then
   CACHED_HASH="$(cat "$HASH_FILE")"
 fi
 
-if [ ! -f "$MARKER" ] || [ "$CURRENT_HASH" != "$CACHED_HASH" ]; then
-  echo "Installing frontend dependencies..."
-  npm config set install-links true
-  if [ "${VERBOSE:-}" = "1" ]; then
-    npm ci --prefer-offline --no-audit || FAILED=1
-  else
-    npm ci --prefer-offline --no-audit --progress=false 2>npm-ci.log || FAILED=1
-  fi
-  if [ -n "${FAILED:-}" ]; then
-    echo "\n❌ npm ci failed." >&2
-    NPM_LOG_DIR="$(npm config get cache)/_logs"
-    NPM_LOG_FILE="$(ls -t "$NPM_LOG_DIR"/*-debug.log 2>/dev/null | head -n 1)"
-    if [ -f "$NPM_LOG_FILE" ]; then
-      echo "--- npm debug log ($NPM_LOG_FILE) ---" >&2
-      cat "$NPM_LOG_FILE" >&2
+if [ "${FAST:-}" != 1 ]; then
+  if [ ! -f "$MARKER" ] || [ "$CURRENT_HASH" != "$CACHED_HASH" ]; then
+    echo "Installing frontend dependencies..."
+    npm config set install-links true
+    if [ "${VERBOSE:-}" = "1" ]; then
+      npm ci --prefer-offline --no-audit || FAILED=1
+    else
+      npm ci --prefer-offline --no-audit --progress=false 2>npm-ci.log || FAILED=1
     fi
-    if [ -f npm-ci.log ]; then
-      echo "--- npm ci output ---" >&2
-      cat npm-ci.log >&2
+    if [ -n "${FAILED:-}" ]; then
+      echo "\n❌ npm ci failed." >&2
+      NPM_LOG_DIR="$(npm config get cache)/_logs"
+      NPM_LOG_FILE="$(ls -t "$NPM_LOG_DIR"/*-debug.log 2>/dev/null | head -n 1)"
+      if [ -f "$NPM_LOG_FILE" ]; then
+        echo "--- npm debug log ($NPM_LOG_FILE) ---" >&2
+        cat "$NPM_LOG_FILE" >&2
+      fi
+      if [ -f npm-ci.log ]; then
+        echo "--- npm ci output ---" >&2
+        cat npm-ci.log >&2
+      fi
+      rm -f npm-ci.log
+      exit 1
     fi
     rm -f npm-ci.log
+    echo "$CURRENT_HASH" > "$HASH_FILE"
+    touch "$MARKER"
+  fi
+else
+  if [ ! -d node_modules ]; then
+    echo "❌ FAST=1 but node_modules missing." >&2
     exit 1
   fi
-  rm -f npm-ci.log
-  echo "$CURRENT_HASH" > "$HASH_FILE"
-  touch "$MARKER"
 fi
 
 JEST_WORKERS_OPT="${JEST_WORKERS:-50%}"
@@ -69,11 +77,11 @@ fi
 
 if [ "$run_e2e" = 1 ]; then
   start_e2e=$(date +%s)
-  npx playwright test
+  PWTEST_HEADED=0 HEADLESS=1 npx playwright test --reporter=line
   end_e2e=$(date +%s)
   echo "E2E tests completed in $((end_e2e - start_e2e)) seconds"
 fi
 
-if [ -z "${SKIP_LINT:-}" ]; then
+if [ "${LINT:-}" = 1 ] || [ "${CI:-}" = "true" ]; then
   npm run lint --silent
 fi
