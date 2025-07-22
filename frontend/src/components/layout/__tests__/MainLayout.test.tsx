@@ -13,6 +13,10 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 describe('MainLayout user menu', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -26,7 +30,7 @@ describe('MainLayout user menu', () => {
     await act(async () => {
       root.render(React.createElement(MainLayout, null, React.createElement('div')));
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(div.textContent).toContain('Sound Providers');
     expect(div.textContent).toContain('Quote Calculator');
     expect(div.textContent).toContain('Quote Templates');
@@ -35,7 +39,7 @@ describe('MainLayout user menu', () => {
     await act(async () => {
       menuBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(div.textContent).toContain('Quotes');
     expect(div.textContent).toContain('Quote Templates');
     expect(div.textContent).not.toContain('Account');
@@ -51,13 +55,13 @@ describe('MainLayout user menu', () => {
     await act(async () => {
       root.render(React.createElement(MainLayout, null, React.createElement('div')));
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     const menuBtn = Array.from(div.querySelectorAll('button')).find(b => b.textContent?.includes('Open user menu')) as HTMLButtonElement;
     expect(menuBtn).toBeTruthy();
     await act(async () => {
       menuBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
     expect(div.textContent).toContain('My Bookings');
     expect(div.textContent).toContain('Account');
     act(() => { root.unmount(); });

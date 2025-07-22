@@ -22,14 +22,9 @@ jest.mock('../SendQuoteModal', () => {
   return { __esModule: true, default: MockModal };
 });
 
-const flushPromises = () =>
-  new Promise<void>((resolve) => {
-    if (typeof setImmediate === 'function') {
-      setImmediate(resolve);
-    } else {
-      setTimeout(resolve, 0);
-    }
-  });
+const flushPromises = async () => {
+  await act(async () => {});
+};
 
 // Minimal WebSocket stub
 class StubSocket {
@@ -87,7 +82,7 @@ describe('MessageThread component', () => {
     });
     await new Promise((r) => setTimeout(r, 0));
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const scrollContainer = document.querySelector('.overflow-y-auto') as HTMLElement;
 
@@ -100,7 +95,7 @@ describe('MessageThread component', () => {
       scrollContainer.dispatchEvent(new Event('scroll'));
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
 
     const button = container.querySelector('button[aria-label="Scroll to latest message"]');
@@ -128,7 +123,7 @@ describe('MessageThread component', () => {
     });
     
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const highlightedRow = container.querySelector('.bg-indigo-50');
     const senderName = container.querySelector('span.font-semibold');
@@ -303,7 +298,7 @@ describe('MessageThread component', () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
 
     const socket = StubSocket.last as StubSocket;
@@ -446,7 +441,7 @@ describe('MessageThread component', () => {
       socket.onmessage?.({ data: JSON.stringify(msg) });
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const live = container.querySelector('div.sr-only[aria-live="polite"]');
     expect(live).not.toBeNull();
@@ -458,7 +453,7 @@ describe('MessageThread component', () => {
       root.render(<MessageThread bookingRequestId={1} clientId={1} artistId={2} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const buttons = container.querySelectorAll('button');
     const found = Array.from(buttons).find((b) => b.textContent === 'Send Quote');
@@ -473,7 +468,7 @@ describe('MessageThread component', () => {
       root.render(<MessageThread bookingRequestId={1} clientId={1} artistId={2} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
 
     (api.getMessagesForBookingRequest as jest.Mock).mockClear();
@@ -484,11 +479,11 @@ describe('MessageThread component', () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
 
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
 
     expect(api.createQuoteV2).toHaveBeenCalled();
@@ -517,10 +512,10 @@ describe('MessageThread component', () => {
       root.render(<MessageThread bookingRequestId={1} artistName="DJ" />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const banner = container.querySelector('[data-testid="booking-confirmed-banner"]');
     expect(banner?.textContent).toContain('Booking confirmed for DJ');
@@ -581,7 +576,7 @@ describe('MessageThread component', () => {
       await flushPromises();
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     expect(api.getBookingDetails).toHaveBeenCalledWith(42);
     const dashboardLink = container.querySelectorAll(
@@ -972,7 +967,7 @@ it('declines quote using legacy endpoint', async () => {
       root.render(<MessageThread bookingRequestId={1} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const declineBtn = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Decline',
@@ -1082,7 +1077,7 @@ it.skip('shows receipt link after paying deposit', async () => {
       root.render(<MessageThread bookingRequestId={1} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const acceptBtn = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Accept',
@@ -1091,7 +1086,7 @@ it.skip('shows receipt link after paying deposit', async () => {
       acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
 
     const payBtn = Array.from(container.querySelectorAll('button')).find(
@@ -1101,13 +1096,13 @@ it.skip('shows receipt link after paying deposit', async () => {
       payBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
 
     const banner = container.querySelector('[data-testid="payment-status-banner"]');
@@ -1163,10 +1158,10 @@ it.skip('shows receipt link after paying deposit', async () => {
       root.render(<MessageThread bookingRequestId={1} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
 
     const reviewBtn = Array.from(container.querySelectorAll('button')).find(
@@ -1186,7 +1181,7 @@ it.skip('shows receipt link after paying deposit', async () => {
       );
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const img = container.querySelector('img');
     expect(img).not.toBeNull();
@@ -1199,14 +1194,14 @@ it.skip('shows receipt link after paying deposit', async () => {
       root.render(<MessageThread bookingRequestId={1} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const socket = StubSocket.last as StubSocket;
     act(() => {
       socket.onerror?.();
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const alert = container.querySelector('p[role="alert"]:last-child');
     expect(alert?.textContent).toContain('refresh the page');

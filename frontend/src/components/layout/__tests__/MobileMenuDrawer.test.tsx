@@ -4,6 +4,10 @@ import { act } from 'react';
 import MobileMenuDrawer from '../MobileMenuDrawer';
 import type { User } from '@/types';
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 const nav = [
   { name: 'Home', href: '/' },
   { name: 'Artists', href: '/artists' },
@@ -42,9 +46,7 @@ describe('MobileMenuDrawer', () => {
         }),
       );
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     const bodyText = document.body.textContent || '';
     expect(bodyText).toContain('Home');
     expect(bodyText).toContain('Artists');
@@ -66,9 +68,7 @@ describe('MobileMenuDrawer', () => {
         }),
       );
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     const span = document.querySelector('span.sr-only');
     const button = span?.parentElement as HTMLButtonElement | null;
     expect(button?.className).toContain('focus-visible:ring-2');
@@ -88,9 +88,7 @@ describe('MobileMenuDrawer', () => {
         }),
       );
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     const body = document.body.textContent || '';
     expect(body).toContain('Quotes');
     expect(body).toContain('Sound Providers');
@@ -112,9 +110,7 @@ describe('MobileMenuDrawer', () => {
         }),
       );
     });
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await flushPromises();
     const body = document.body.textContent || '';
     expect(body).toContain('My Bookings');
     expect(body).toContain('Account');

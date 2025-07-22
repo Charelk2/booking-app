@@ -13,6 +13,10 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn(() => '/dashboard/client/quotes'),
 }));
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 describe('ClientQuotesPage', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -37,7 +41,7 @@ describe('ClientQuotesPage', () => {
     await act(async () => {
       root.render(<ClientQuotesPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
 
     expect(getMyClientQuotes).toHaveBeenCalled();
     expect(div.textContent).toContain('My Quotes');
@@ -77,7 +81,7 @@ describe('ClientQuotesPage', () => {
     await act(async () => {
       root.render(<ClientQuotesPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
 
     const select = div.querySelector('select') as HTMLSelectElement;
     (getMyClientQuotes as jest.Mock).mockResolvedValue({
@@ -99,7 +103,7 @@ describe('ClientQuotesPage', () => {
       select.value = 'accepted';
       select.dispatchEvent(new Event('change', { bubbles: true }));
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
 
     expect(getMyClientQuotes).toHaveBeenLastCalledWith({ status: 'accepted' });
     expect(div.textContent).toContain('Accepted by Client');
@@ -122,7 +126,7 @@ describe('ClientQuotesPage', () => {
     await act(async () => {
       root.render(<ClientQuotesPage />);
     });
-    await act(async () => { await Promise.resolve(); });
+    await flushPromises();
 
     const help = div.querySelector('[data-testid="help-prompt"]');
     expect(help).not.toBeNull();
