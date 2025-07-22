@@ -160,7 +160,7 @@ export default function SearchBar({ size = 'md', className, wrapperClassName }: 
       <form
         onSubmit={onSubmit}
         className={clsx(
-          'flex items-stretch bg-white rounded-full ring-1 ring-gray-200 shadow-md overflow-hidden min-h-[48px]',
+          'flex items-stretch bg-white rounded-full ring-1 ring-gray-200 shadow-md overflow-visible min-h-[48px]',
           size === 'sm' && 'text-sm',
           className
         )}
