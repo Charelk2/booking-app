@@ -31,6 +31,8 @@ export interface ArtistCardProps extends HTMLAttributes<HTMLDivElement> {
   verified?: boolean;
   /** availability flag reserved for future indicator */
   isAvailable?: boolean;
+  /** prioritize image loading when above the fold */
+  priority?: boolean;
   href: string;
 }
 
@@ -51,6 +53,7 @@ export default function ArtistCard({
   verified = false,
   href,
   isAvailable,
+  priority,
   className,
   ...props
 }: ArtistCardProps) {
@@ -86,6 +89,7 @@ export default function ArtistCard({
               height={512}
               loading="lazy"
               className="object-cover w-full h-full"
+              priority={priority}
               onLoad={() => setImgLoaded(true)}
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
@@ -99,6 +103,7 @@ export default function ArtistCard({
               height={512}
               loading="lazy"
               className="object-cover w-full h-full"
+              priority={priority}
               onLoad={() => setImgLoaded(true)}
             />
           )}
