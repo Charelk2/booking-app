@@ -16,6 +16,8 @@ The July 2025 update bumps key dependencies and Docker base images:
   loaders and hover "Book Now" overlay for a modern, accessible look.
 - Homepage includes a central search bar so visitors can quickly look up artists by
   destination and date.
+- A new animated Hero section on the homepage lets users search by category,
+  location and date, persisting selections in the URL.
 - Bookings now track `payment_status`, `deposit_amount`, and `deposit_paid` in
   `bookings_simple`. The deposit amount defaults to half of the accepted quote
   total. Booking API responses now include these fields alongside
