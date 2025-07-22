@@ -47,10 +47,21 @@ else
   echo "No frontend code changes"
 fi
 
+JEST_WORKERS_OPT="${JEST_WORKERS:-50%}"
+JEST_EXTRA_ARGS=(--detectOpenHandles --forceExit --passWithNoTests)
+
+run_jest() {
+  cmd=("$@")
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 15m "${cmd[@]}"
+  else
+    "${cmd[@]}"
+  fi
+}
+
 if [ "${#changed_tests[@]}" -gt 0 ]; then
   start_jest=$(date +%s)
-  JEST_WORKERS_OPT="${JEST_WORKERS:-50%}"
-  npm test -- --runTestsByPath "${changed_tests[@]}" --maxWorkers="$JEST_WORKERS_OPT" --detectOpenHandles --forceExit
+  run_jest npm test -- --runTestsByPath "${changed_tests[@]}" --maxWorkers="$JEST_WORKERS_OPT" "${JEST_EXTRA_ARGS[@]}"
   end_jest=$(date +%s)
   echo "Jest: $((end_jest - start_jest))s"
 else
