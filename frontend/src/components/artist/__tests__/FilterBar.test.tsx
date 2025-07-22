@@ -111,13 +111,12 @@ describe('FilterBar component', () => {
     container.remove();
   });
 
-  it('opens map modal on focus', () => {
+  it('opens map modal on button click', () => {
     (useIsMobile as jest.Mock).mockReturnValue(false);
     const { container, root } = renderBar();
-    const input = container.querySelector('[data-testid="location-input"]') as HTMLInputElement;
+    const btn = container.querySelector('[data-testid="open-map-modal"]') as HTMLButtonElement;
     act(() => {
-      input.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
-      input.focus();
+      btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(document.querySelector('[data-testid="location-map-modal"]')).not.toBeNull();
     act(() => root.unmount());
@@ -127,10 +126,9 @@ describe('FilterBar component', () => {
   it('closes map modal on button click', () => {
     (useIsMobile as jest.Mock).mockReturnValue(false);
     const { container, root } = renderBar();
-    const input = container.querySelector('[data-testid="location-input"]') as HTMLInputElement;
+    const openBtn = container.querySelector('[data-testid="open-map-modal"]') as HTMLButtonElement;
     act(() => {
-      input.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
-      input.focus();
+      openBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     const btn = document.querySelector('[data-testid="location-map-modal"] button[type="button"]') as HTMLButtonElement;
     act(() => {
