@@ -82,11 +82,16 @@ export default function LocationMapModal({
               <Dialog.Title className="text-lg font-medium text-gray-900">Select Location</Dialog.Title>
               <gmpx-place-autocomplete
                 ref={autoRef}
-                placeholder="Search address"
-                className="block w-full rounded-md border border-gray-300 focus:border-brand focus:ring-brand sm:text-sm p-2 bg-white text-black"
                 style={{ minHeight: '44px', display: 'block' }}
                 data-testid="map-autocomplete"
-              />
+              >
+                <input
+                  slot="input"
+                  type="text"
+                  placeholder="Search address"
+                  className="block w-full rounded-md border border-gray-300 focus:border-brand focus:ring-brand sm:text-sm p-2 bg-white text-black"
+                />
+              </gmpx-place-autocomplete>
               <button
                 onClick={() => {
                   const el = autoRef.current as HTMLElement | null;
