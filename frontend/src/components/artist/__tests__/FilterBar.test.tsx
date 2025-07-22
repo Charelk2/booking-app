@@ -123,4 +123,21 @@ describe('FilterBar component', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('closes map modal on button click', () => {
+    (useIsMobile as jest.Mock).mockReturnValue(false);
+    const { container, root } = renderBar();
+    const input = container.querySelector('[data-testid="location-input"]') as HTMLInputElement;
+    act(() => {
+      input.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
+      input.focus();
+    });
+    const btn = document.querySelector('[data-testid="location-map-modal"] button[type="button"]') as HTMLButtonElement;
+    act(() => {
+      btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(document.querySelector('[data-testid="location-map-modal"]')).toBeNull();
+    act(() => root.unmount());
+    container.remove();
+  });
 });

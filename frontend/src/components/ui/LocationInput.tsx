@@ -26,6 +26,11 @@ export default function LocationInput({
   });
   const [modalOpen, setModalOpen] = useState(false);
 
+  const handleClose = () => {
+    setModalOpen(false);
+    inputRef.current?.blur();
+  };
+
   useEffect(() => {
     if (!isLoaded || autoRef.current || !inputRef.current) return;
     const autocomplete = new google.maps.places.Autocomplete(inputRef.current);
@@ -56,11 +61,11 @@ export default function LocationInput({
       />
       <LocationMapModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={handleClose}
         value={value}
         onSelect={(addr) => {
           onChange(addr);
-          setModalOpen(false);
+          handleClose();
         }}
       />
     </>
