@@ -21,17 +21,13 @@ fi
 # `frontend/node_modules.tar.zst`. If the unpacked directories are
 # absent but the archives exist, extract them before continuing so
 # `setup.sh` sees the same hash markers.
-if [ -f "$HOST_REPO/backend/venv.tar.zst" ] && [ ! -d "$HOST_REPO/backend/venv" ]; then
-  mkdir -p "$HOST_REPO/backend"
-  echo "Extracting venv.tar.zst to backend/venv"
+[ ! -d "$HOST_REPO/backend/venv" ] && \
+  [ -f "$HOST_REPO/backend/venv.tar.zst" ] && \
   extract "$HOST_REPO/backend/venv.tar.zst" "$HOST_REPO/backend"
-fi
 
-if [ -f "$HOST_REPO/frontend/node_modules.tar.zst" ] && [ ! -d "$HOST_REPO/frontend/node_modules" ]; then
-  mkdir -p "$HOST_REPO/frontend"
-  echo "Extracting node_modules.tar.zst to frontend/node_modules"
+[ ! -d "$HOST_REPO/frontend/node_modules" ] && \
+  [ -f "$HOST_REPO/frontend/node_modules.tar.zst" ] && \
   extract "$HOST_REPO/frontend/node_modules.tar.zst" "$HOST_REPO/frontend"
-fi
 
 # Fallback to local tests when Docker is not installed. This allows CI
 # environments without Docker to still execute the full test suite.
