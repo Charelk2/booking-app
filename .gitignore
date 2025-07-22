@@ -14,6 +14,10 @@ node_modules/
 # Additional ignores
 backend/venv/
 **/node_modules/
+*.tar.zst
+*.tar.gz
+.venv_hash
+.pkg_hash
 
 # Log files
 *.log
