@@ -2,13 +2,15 @@
 
 import os
 import logging
-from fastapi import FastAPI, Request, status, HTTPException
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import HTTPException as FastAPIHTTPException
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from .middleware.security_headers import SecurityHeadersMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.exceptions import RequestValidationError
 
 from .database import engine, Base
@@ -101,9 +103,21 @@ os.makedirs(COVER_PHOTOS_DIR, exist_ok=True)
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 os.makedirs(INVOICE_PDFS_DIR, exist_ok=True)
 
+class StaticFilesWithDefault(StaticFiles):
+    """Serve static files with a fallback default avatar."""
+
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            if exc.status_code == 404 and path.startswith("profile_pics/"):
+                default_path = os.path.join(APP_STATIC_DIR, "default-avatar.svg")
+                return FileResponse(default_path)
+            raise
+
 
 # ─── Mount “/static” so that requests to /static/... serve from backend/app/static/... ────
-app.mount("/static", StaticFiles(directory=APP_STATIC_DIR), name="static")
+app.mount("/static", StaticFilesWithDefault(directory=APP_STATIC_DIR), name="static")
 
 # ─── Also mount “/profile_pics” and “/cover_photos” at the root ─────────────────────────
 # (so that a request to /profile_pics/whatever.jpg serves from backend/app/static/profile_pics/whatever.jpg)
@@ -135,7 +149,7 @@ async def catch_exceptions(request: Request, call_next):
     """Return JSON responses for HTTP errors and log them."""
     try:
         response = await call_next(request)
-    except HTTPException as exc:  # return the original status and detail
+    except StarletteHTTPException as exc:  # return the original status and detail
         logger.error("HTTP error %s at %s: %s", exc.status_code, request.url.path, exc.detail)
         response = JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     except Exception as exc:  # pragma: no cover - generic handler
