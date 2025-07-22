@@ -3,6 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from datetime import datetime
+from decimal import Decimal
 
 from app.main import app
 from app.models.base import BaseModel
@@ -102,7 +103,7 @@ def test_filter_upcoming_and_past():
     assert len(data_upcoming) == 1
     assert data_upcoming[0]['status'] == 'confirmed'
     assert data_upcoming[0]['deposit_due_by'] is None
-    assert data_upcoming[0]['deposit_amount'] is None
+    assert Decimal(data_upcoming[0]['deposit_amount']) == Decimal('0')
     assert data_upcoming[0]['payment_status'] is None
     assert data_upcoming[0]['deposit_paid'] is None
 
@@ -112,7 +113,7 @@ def test_filter_upcoming_and_past():
     assert len(data_past) == 1
     assert data_past[0]['status'] == 'completed'
     assert data_past[0]['deposit_due_by'] is None
-    assert data_past[0]['deposit_amount'] is None
+    assert Decimal(data_past[0]['deposit_amount']) == Decimal('0')
     assert data_past[0]['payment_status'] is None
     assert data_past[0]['deposit_paid'] is None
 
