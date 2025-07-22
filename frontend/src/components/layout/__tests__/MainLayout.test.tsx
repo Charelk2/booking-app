@@ -7,7 +7,11 @@ import type { User } from '@/types';
 
 jest.mock('@/contexts/AuthContext');
 jest.mock('next/link', () => ({ __esModule: true, default: (props: Record<string, unknown>) => <a {...props} /> }));
-jest.mock('next/navigation', () => ({ usePathname: () => '/', useRouter: () => ({}) }));
+jest.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useRouter: () => ({}),
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 describe('MainLayout user menu', () => {
   afterEach(() => {
