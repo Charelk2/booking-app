@@ -212,7 +212,7 @@ exports[`Header renders search bar on home page 1`] = `
         class="relative"
       >
         <form
-          class="flex items-stretch bg-white rounded-full ring-1 ring-gray-200 shadow-md overflow-hidden min-h-[48px] text-sm mx-auto w-full md:max-w-2xl"
+          class="flex items-stretch bg-white rounded-full ring-1 ring-gray-200 shadow-md overflow-visible min-h-[48px] text-sm mx-auto w-full md:max-w-2xl"
         >
           <div
             class="flex-1 px-4 flex flex-col text-left py-2"
@@ -266,12 +266,51 @@ exports[`Header renders search bar on home page 1`] = `
             >
               Where
             </span>
-            <input
-              class="mt-1 w-full text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
-              placeholder="City or venue"
-              type="text"
-              value=""
-            />
+            <div
+              class="relative"
+            >
+              <div
+                class="w-full"
+              >
+                <div
+                  class="mt-1 relative"
+                >
+                  <input
+                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm mt-1 w-full text-sm text-gray-700 placeholder-gray-400 focus:outline-none border-none shadow-none rounded-none bg-transparent p-0 focus:ring-0 pr-8"
+                    data-testid="location-input"
+                    id=":r1:"
+                    placeholder="City or venue"
+                  />
+                </div>
+              </div>
+              <button
+                class="absolute inset-y-0 right-1 flex items-center text-gray-500 hover:text-gray-700"
+                data-testid="open-map-modal"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="h-5 w-5"
+                  data-slot="icon"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
           <div
             class="border-l border-gray-200"
@@ -284,20 +323,11 @@ exports[`Header renders search bar on home page 1`] = `
             >
               When
             </span>
-            <div
-              class="react-datepicker-wrapper"
-            >
-              <div
-                class="react-datepicker__input-container"
-              >
-                <input
-                  class="mt-1 w-full text-sm text-gray-700 focus:outline-none"
-                  placeholder="Add date & time"
-                  type="text"
-                  value=""
-                />
-              </div>
-            </div>
+            <input
+              class="mt-1 w-full text-sm text-gray-700 focus:outline-none"
+              dateformat="MMM d, yyyy h:mm aa"
+              placeholdertext="Add date & time"
+            />
           </div>
           <button
             class="bg-pink-600 hover:bg-pink-700 text-white flex items-center justify-center h-full aspect-square md:w-12 md:h-auto"
