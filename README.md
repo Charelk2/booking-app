@@ -512,6 +512,14 @@ You can override the number of parallel Jest workers by setting the
 JEST_WORKERS=75% ./scripts/test-all.sh
 ```
 
+The test runner also checks which directories changed. If no files under
+`backend/` changed, it sets `SKIP_BACKEND=1` automatically, and likewise for
+`frontend/`. End-to-end tests run only when files in `frontend/e2e/` changed and
+the branch is `main` or `E2E=1` is set.
+
+To skip dependency installation and reuse existing caches, set `FAST=1`.
+Run lint checks by exporting `LINT=1` (they also run automatically in CI).
+
 Common skip flags:
 
 ```bash

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "pretest": "test -d node_modules || npm install",
-    "test": "jest --passWithNoTests",
+    "test": "jest --passWithNoTests --detectOpenHandles --forceExit",
     "test:unit": "jest --testPathIgnorePatterns=e2e --detectOpenHandles --forceExit",
     "test:e2e": "playwright test"
   },
