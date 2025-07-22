@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
+import { flushPromises } from '@/test/utils/flush';
 import { formatCurrency } from '@/lib/utils';
 import { waitFor } from '@testing-library/react';
 import DashboardPage from '../page';
@@ -16,9 +17,7 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn(() => '/dashboard'),
 }));
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
+
 
 if (typeof global.PointerEvent === 'undefined') {
   // @ts-expect-error - jsdom lacks PointerEvent so we fall back to MouseEvent
