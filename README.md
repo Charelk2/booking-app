@@ -258,7 +258,7 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDm-BKmMtzMSMd-XUdfapjEUU6O5mYy2bk
 
 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` should be a browser key with the Places API
 enabled. It powers the `LocationInput` autocomplete fields used in the artist
-filters and booking steps.
+filters, search bar, and booking steps.
 
 The host portion of `NEXT_PUBLIC_API_URL` is also used by
 `next.config.js` to allow optimized image requests from the backend.
