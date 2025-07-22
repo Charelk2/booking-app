@@ -6,6 +6,9 @@ use_zstd() {
   command -v zstd >/dev/null 2>&1
 }
 
+archive_ext=$(use_zstd && echo .tar.zst || echo .tar.gz)
+export archive_ext
+
 # Compresses SRC directory into ARCHIVE using zstd when available
 # Arguments:
 #   $1 - source directory path

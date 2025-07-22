@@ -9,6 +9,7 @@ NETWORK=${DOCKER_TEST_NETWORK:-none}
 WORKDIR=/workspace
 HOST_REPO=$(pwd)
 source "$HOST_REPO/scripts/archive-utils.sh" || true # SC1091
+archive_ext=$(use_zstd && echo .tar.zst || echo .tar.gz)
 
 # Warn when DOCKER_TEST_NETWORK isn't specified so users know npm may fail
 if [ -z "${DOCKER_TEST_NETWORK+x}" ]; then
@@ -17,17 +18,25 @@ if [ -z "${DOCKER_TEST_NETWORK+x}" ]; then
 fi
 
 # Restore dependency caches from a previous Docker run. When running
-# offline, `docker-test.sh` saves `backend/venv.tar.zst` and
-# `frontend/node_modules.tar.zst`. If the unpacked directories are
+# offline, `docker-test.sh` saves `backend/venv.tar.zst` (or `.tar.gz`) and
+# `frontend/node_modules.tar.zst` (or `.tar.gz`). If the unpacked directories are
 # absent but the archives exist, extract them before continuing so
 # `setup.sh` sees the same hash markers.
-[ ! -d "$HOST_REPO/backend/venv" ] && \
-  [ -f "$HOST_REPO/backend/venv.tar.zst" ] && \
-  extract "$HOST_REPO/backend/venv.tar.zst" "$HOST_REPO/backend"
+if [ ! -d "$HOST_REPO/backend/venv" ]; then
+  if [ -f "$HOST_REPO/backend/venv.tar.zst" ]; then
+    extract "$HOST_REPO/backend/venv.tar.zst" "$HOST_REPO/backend"
+  elif [ -f "$HOST_REPO/backend/venv.tar.gz" ]; then
+    extract "$HOST_REPO/backend/venv.tar.gz" "$HOST_REPO/backend"
+  fi
+fi
 
-[ ! -d "$HOST_REPO/frontend/node_modules" ] && \
-  [ -f "$HOST_REPO/frontend/node_modules.tar.zst" ] && \
-  extract "$HOST_REPO/frontend/node_modules.tar.zst" "$HOST_REPO/frontend"
+if [ ! -d "$HOST_REPO/frontend/node_modules" ]; then
+  if [ -f "$HOST_REPO/frontend/node_modules.tar.zst" ]; then
+    extract "$HOST_REPO/frontend/node_modules.tar.zst" "$HOST_REPO/frontend"
+  elif [ -f "$HOST_REPO/frontend/node_modules.tar.gz" ]; then
+    extract "$HOST_REPO/frontend/node_modules.tar.gz" "$HOST_REPO/frontend"
+  fi
+fi
 
 # Fallback to local tests when Docker is not installed. This allows CI
 # environments without Docker to still execute the full test suite.
@@ -85,11 +94,11 @@ docker run --rm --network "$NETWORK" -v "$(pwd)":$WORKDIR "$IMAGE" \
 # offline runs can extract them without Docker. Archives are compressed using
 # `zstd` for speed and smaller size.
 if [ -d "$HOST_REPO/backend/venv" ]; then
-  echo "Archiving venv to venv.tar.zst"
-  compress "$HOST_REPO/backend/venv" "$HOST_REPO/backend/venv.tar.zst"
+  echo "Archiving venv to venv${archive_ext}"
+  compress "$HOST_REPO/backend/venv" "$HOST_REPO/backend/venv${archive_ext}"
 fi
 
 if [ -d "$HOST_REPO/frontend/node_modules" ]; then
-  echo "Archiving node_modules to node_modules.tar.zst"
-  compress "$HOST_REPO/frontend/node_modules" "$HOST_REPO/frontend/node_modules.tar.zst"
+  echo "Archiving node_modules to node_modules${archive_ext}"
+  compress "$HOST_REPO/frontend/node_modules" "$HOST_REPO/frontend/node_modules${archive_ext}"
 fi
