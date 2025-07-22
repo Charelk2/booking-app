@@ -166,13 +166,14 @@ export default function ArtistsPage() {
         {!loading && artists.length === 0 && <p>No artists found.</p>}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {artists.map((a) => {
+          {artists.map((a, i) => {
             const user = a.user;
             const name = a.business_name || `${user.first_name} ${user.last_name}`;
             return (
               <ArtistCard
                 key={a.id}
                 id={a.id}
+                priority={i === 0}
                 name={name}
                 subtitle={a.custom_subtitle || undefined}
                 imageUrl={

@@ -44,6 +44,14 @@ export default function LocationMapModal({
     }
   }, [open, value]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    const timeout = setTimeout(() => {
+      (autoRef.current as any)?.focus?.();
+    }, 100);
+    return () => clearTimeout(timeout);
+  }, [open]);
+
   return (
     <Transition show={open} as={Fragment}>
       <Dialog as="div" className="fixed inset-0 z-50" onClose={onClose} data-testid="location-map-modal">
