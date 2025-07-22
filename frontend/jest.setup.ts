@@ -3,6 +3,7 @@
 
 import React from "react";
 import "@/tests/mocks/no-network";
+import flushPromises from "@/tests/utils/flushPromises";
 
 jest.mock('next/navigation', () => {
   return {
@@ -96,4 +97,6 @@ Object.defineProperty(window, 'location', {
   value: { ...window.location, assign: jest.fn() },
   writable: true,
 });
+
+(globalThis as any).flushPromises = flushPromises;
 
