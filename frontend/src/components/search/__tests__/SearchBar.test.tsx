@@ -53,7 +53,7 @@ describe('SearchBar location input', () => {
     container.remove();
   });
 
-  it('opens map modal on focus', async () => {
+  it('opens map modal on button click', async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
     (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
 
@@ -65,10 +65,9 @@ describe('SearchBar location input', () => {
       root.render(<SearchBar />);
     });
 
-    const input = container.querySelector('[data-testid="location-input"]') as HTMLInputElement;
+    const openBtn = container.querySelector('[data-testid="open-map-modal"]') as HTMLButtonElement;
     act(() => {
-      input.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
-      input.focus();
+      openBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(document.querySelector('[data-testid="location-map-modal"]')).not.toBeNull();
 
@@ -88,10 +87,9 @@ describe('SearchBar location input', () => {
       root.render(<SearchBar />);
     });
 
-    const input = container.querySelector('[data-testid="location-input"]') as HTMLInputElement;
+    const openBtn = container.querySelector('[data-testid="open-map-modal"]') as HTMLButtonElement;
     act(() => {
-      input.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
-      input.focus();
+      openBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
     const closeBtn = document
