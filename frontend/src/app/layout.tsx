@@ -34,6 +34,7 @@ export default function RootLayout({
           src="https://unpkg.com/@googlemaps/places@1.0.0/dist/index.min.js"
           type="module"
           strategy="afterInteractive"
+          crossOrigin="anonymous"
         />
       </body>
     </html>

@@ -269,7 +269,11 @@ The location input now uses the `<gmpx-place-autocomplete>` web component from
 the `@googlemaps/places` package. The script is loaded in `layout.tsx` with:
 
 ```html
-<script type="module" src="https://unpkg.com/@googlemaps/places@1.0.0/dist/index.min.js"></script>
+<script
+  src="https://unpkg.com/@googlemaps/places@1.0.0/dist/index.min.js"
+  type="module"
+  crossOrigin="anonymous"
+></script>
 ```
 
 The previous built-in autocomplete is deprecated. The location picker still
