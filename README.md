@@ -265,15 +265,17 @@ The host portion of `NEXT_PUBLIC_API_URL` is also used by
 Set this URL to match your API server so artist profile pictures and
 cover photos load without 400 errors from the `/_next/image` endpoint.
 
-The location input relies on the built-in Google Maps Places Autocomplete
-service instead of the experimental `@googlemaps/places` package. The previous
-dependency caused a build failure because it depended on Node-only modules like
-`fs`. No additional npm install step is required after this change.
-The location picker now opens a minimalist modal when the **Map** button is
-clicked. The modal contains only a search field with Google Places Autocomplete
-and no embedded map. It matches the search bar styling and closes via a soft
-"Close" button. Closing the modal blurs the original input so it doesn't
-instantly reopen when refocused.
+The location input now uses the `<gmpx-place-autocomplete>` web component from
+the `@googlemaps/places` package. The script is loaded in `layout.tsx` with:
+
+```html
+<script type="module" src="https://unpkg.com/@googlemaps/places@1.0.0/dist/index.min.js"></script>
+```
+
+The previous built-in autocomplete is deprecated. The location picker still
+opens a minimalist modal when the **Map** button is clicked. The modal contains
+just the search field and closes via a soft "Close" button. Closing the modal
+blurs the original input so it doesn't instantly reopen when refocused.
 
 To expose the app on your local network, replace `192.168.3.203` with your
 machine's LAN IP. Set the same address in `.env` under
