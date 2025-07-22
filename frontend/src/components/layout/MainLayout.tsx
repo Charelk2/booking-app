@@ -81,7 +81,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const showOldContent = false; // Toggle for old page content
 
   const navigation = [...baseNavigation];
   if (user?.user_type === 'artist') {
@@ -317,19 +316,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         {pathname === '/' && <Hero />}
 
         {/* CONTENT */}
-        {pathname === '/' ? (
-          showOldContent ? (
-            <main className="py-10 pb-24">
-              <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">{children}</div>
-              <HelpPrompt className="mx-auto mt-10 max-w-7xl sm:px-6 lg:px-8" />
-            </main>
-          ) : null
-        ) : (
-          <main className="py-10 pb-24">
-            <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">{children}</div>
-            <HelpPrompt className="mx-auto mt-10 max-w-7xl sm:px-6 lg:px-8" />
-          </main>
-        )}
+        <main className="py-10 pb-24">
+          <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">{children}</div>
+          <HelpPrompt className="mx-auto mt-10 max-w-7xl sm:px-6 lg:px-8" />
+        </main>
       </div>
 
       {/* RENDER THE FOOTER HERE */}

@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, forwardRef, Fragment } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import ReactDatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
@@ -125,10 +126,33 @@ export default function Hero() {
   const [when, setWhen] = useState<Date | null>(null);
   const [isMobileOpen, setMobileOpen] = useState(false);
   const word = useCycle(WORDS);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const catParam = searchParams.get('category');
+    if (catParam) {
+      const found = CATEGORIES.find((c) => c.value === catParam);
+      if (found) setCategory(found);
+    }
+    const locParam = searchParams.get('location');
+    if (locParam) setLocation(locParam);
+    const whenParam = searchParams.get('when');
+    if (whenParam) {
+      const d = new Date(whenParam);
+      if (!Number.isNaN(d.getTime())) setWhen(d);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ category: category.value, location, when });
+    const params = new URLSearchParams();
+    if (category) params.set('category', category.value);
+    if (location) params.set('location', location);
+    if (when) params.set('when', when.toISOString());
+    const qs = params.toString();
+    router.push(qs ? `/artists?${qs}` : '/artists');
     setMobileOpen(false);
   };
 
