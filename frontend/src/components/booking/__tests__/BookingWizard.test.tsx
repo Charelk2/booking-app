@@ -7,6 +7,10 @@ import * as api from '@/lib/api';
 
 jest.mock('@/lib/api');
 
+const flushPromises = async () => {
+  await act(async () => {});
+};
+
 function Wrapper() {
   return (
     <BookingProvider>
@@ -74,7 +78,7 @@ describe('BookingWizard flow', () => {
     await act(async () => {
       next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await new Promise((r) => setTimeout(r, 0));
+    await flushPromises();
     expect(heading()).toContain('Location');
   });
 
@@ -87,7 +91,7 @@ describe('BookingWizard flow', () => {
     await act(async () => {
       next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await new Promise((r) => setTimeout(r, 0));
+    await flushPromises();
     const updated = sections();
     expect(updated[0].getAttribute('aria-expanded')).toBe('false');
     expect(updated[1].getAttribute('aria-expanded')).toBe('true');
@@ -98,7 +102,7 @@ describe('BookingWizard flow', () => {
     expect(container.textContent).not.toContain('Summary');
     const setStep = (window as unknown as { __setStep: (s: number) => void }).__setStep;
     await act(async () => { setStep(6); });
-    await new Promise((r) => setTimeout(r, 400));
+    await flushPromises();
     expect(container.querySelector('h2')?.textContent).toContain('Review');
     expect(container.textContent).toContain('Summary');
   });
@@ -108,13 +112,13 @@ describe('BookingWizard flow', () => {
     await act(async () => {
       next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await new Promise((r) => setTimeout(r, 0));
+    await flushPromises();
     const progressButtons = container.querySelectorAll('[aria-label="Progress"] button');
     expect(progressButtons.length).toBeGreaterThan(1);
     await act(async () => {
       progressButtons[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await new Promise((r) => setTimeout(r, 400));
+    await flushPromises();
     expect(
       container.querySelector('[data-testid="step-heading"]')?.textContent,
     ).toContain('Date & Time');
@@ -123,12 +127,12 @@ describe('BookingWizard flow', () => {
   it('keeps future completed steps clickable when rewinding', async () => {
     const setStep = (window as unknown as { __setStep: (s: number) => void }).__setStep;
     await act(async () => { setStep(2); });
-    await new Promise((r) => setTimeout(r, 0));
+    await flushPromises();
     let progressButtons = container.querySelectorAll('[aria-label="Progress"] button');
     await act(async () => {
       progressButtons[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await new Promise((r) => setTimeout(r, 400));
+    await flushPromises();
     // query again after DOM update
     progressButtons = container.querySelectorAll('[aria-label="Progress"] button');
     expect((progressButtons[2] as HTMLButtonElement).disabled).toBe(false);
@@ -152,7 +156,7 @@ describe('BookingWizard flow', () => {
     const skeleton = container.querySelector('[data-testid="calendar-skeleton"]');
     expect(skeleton).not.toBeNull();
     act(() => resolve({ data: { unavailable_dates: [] } }));
-    await act(async () => {});
+    await flushPromises();
     expect(container.querySelector('[data-testid="calendar-skeleton"]')).toBeNull();
   });
 
@@ -175,19 +179,19 @@ describe('BookingWizard flow', () => {
     await act(async () => {
       root.render(React.createElement(Wrapper));
     });
-    await act(async () => {});
+    await flushPromises();
     const disabledButtons = container.querySelectorAll('button[disabled]');
     expect(disabledButtons.length).toBeGreaterThan(1);
     jest.useRealTimers();
   });
 
   it('restores progress from localStorage on reload', async () => {
-    (window as any).confirm = jest.fn(() => true);
+    (window as unknown as { confirm: jest.Mock }).confirm = jest.fn(() => true);
     const next = getButton('Next');
     await act(async () => {
       next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await act(async () => {});
+    await flushPromises();
     const stored = JSON.parse(localStorage.getItem('bookingState')!);
     expect(stored.step).toBe(1);
 
@@ -199,7 +203,7 @@ describe('BookingWizard flow', () => {
     await act(async () => {
       root.render(React.createElement(Wrapper));
     });
-    await act(async () => {});
+    await flushPromises();
     expect(container.querySelector('[data-testid="step-heading"]')?.textContent).toContain('Location');
   });
 
@@ -220,13 +224,13 @@ describe('BookingWizard flow', () => {
         },
       }),
     );
-    (window as any).confirm = jest.fn(() => false);
+    (window as unknown as { confirm: jest.Mock }).confirm = jest.fn(() => false);
     container.innerHTML = '';
     root = createRoot(container);
     await act(async () => {
       root.render(React.createElement(Wrapper));
     });
-    await act(async () => {});
+    await flushPromises();
     expect(localStorage.getItem('bookingState')).toBeNull();
     expect(container.querySelector('[data-testid="step-heading"]')?.textContent).toContain('Date & Time');
   });
