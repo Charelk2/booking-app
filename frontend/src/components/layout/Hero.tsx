@@ -120,7 +120,11 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
 SearchFields.displayName = 'SearchFields';
 
 // ————— Hero component —————
-export default function Hero() {
+interface HeroProps {
+  variant?: 'withForm' | 'plain';
+}
+
+export default function Hero({ variant = 'withForm' }: HeroProps) {
   const [category, setCategory] = useState<Category>(CATEGORIES[0]);
   const [location, setLocation] = useState('');
   const [when, setWhen] = useState<Date | null>(null);
@@ -168,41 +172,45 @@ export default function Hero() {
             Artists & More
           </h2>
 
-          {/* Desktop */}
-          <form
-            onSubmit={onSubmit}
-            className="hidden sm:flex items-stretch bg-white rounded-full shadow-lg overflow-visible"
-          >
-            <SearchFields
-              category={category}
-              setCategory={setCategory}
-              location={location}
-              setLocation={setLocation}
-              when={when}
-              setWhen={setWhen}
-            />
-            <button
-              type="submit"
-              className="bg-pink-600 hover:bg-pink-700 px-5 py-3 flex items-center justify-center text-white"
-            >
-              <MagnifyingGlassIcon className="h-5 w-5" />
-              <span className="sr-only">Search</span>
-            </button>
-          </form>
+          {variant === 'withForm' && (
+            <>
+              {/* Desktop */}
+              <form
+                onSubmit={onSubmit}
+                className="hidden sm:flex items-stretch bg-white rounded-full shadow-lg overflow-visible"
+              >
+                <SearchFields
+                  category={category}
+                  setCategory={setCategory}
+                  location={location}
+                  setLocation={setLocation}
+                  when={when}
+                  setWhen={setWhen}
+                />
+                <button
+                  type="submit"
+                  className="bg-pink-600 hover:bg-pink-700 px-5 py-3 flex items-center justify-center text-white"
+                >
+                  <MagnifyingGlassIcon className="h-5 w-5" />
+                  <span className="sr-only">Search</span>
+                </button>
+              </form>
 
-          {/* Mobile trigger */}
-          <div className="sm:hidden px-4">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="w-full flex items-center p-3 bg-white rounded-full shadow-lg"
-            >
-              <MagnifyingGlassIcon className="h-6 w-6 text-gray-700 mr-3" />
-              <div className="text-left">
-                <p className="font-medium text-gray-800">Start your search</p>
-                <p className="text-xs text-gray-500">Artists, venues, & more</p>
+              {/* Mobile trigger */}
+              <div className="sm:hidden px-4">
+                <button
+                  onClick={() => setMobileOpen(true)}
+                  className="w-full flex items-center p-3 bg-white rounded-full shadow-lg"
+                >
+                  <MagnifyingGlassIcon className="h-6 w-6 text-gray-700 mr-3" />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-800">Start your search</p>
+                    <p className="text-xs text-gray-500">Artists, venues, & more</p>
+                  </div>
+                </button>
               </div>
-            </button>
-          </div>
+            </>
+          )}
         </div>
 
         <style jsx>{`
@@ -217,8 +225,9 @@ export default function Hero() {
       </section>
 
       {/* Mobile modal */}
-      <Transition.Root show={isMobileOpen} as={Fragment}>
-        <Dialog as="div" className="fixed inset-0 z-40 sm:hidden" onClose={setMobileOpen}>
+      {variant === 'withForm' && (
+        <Transition.Root show={isMobileOpen} as={Fragment}>
+          <Dialog as="div" className="fixed inset-0 z-40 sm:hidden" onClose={setMobileOpen}>
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -270,7 +279,8 @@ export default function Hero() {
             </Transition.Child>
           </div>
         </Dialog>
-      </Transition.Root>
+        </Transition.Root>
+      )}
     </>
   );
 }
