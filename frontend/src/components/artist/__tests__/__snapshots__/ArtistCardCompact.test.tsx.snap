@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ArtistCardCompact matches snapshot 1`] = `
+<a
+  href="/artists/1"
+>
+  <div
+    class="relative aspect-[4/3] bg-gray-100 overflow-hidden"
+  >
+    <div
+      class="absolute inset-0 animate-pulse bg-gray-200"
+    />
+    <img
+      alt="Test"
+      class="object-cover w-full h-full"
+      data-nimg="fill"
+      decoding="async"
+      loading="lazy"
+      src="/default-avatar.svg"
+      style="position: absolute; height: 100%; width: 100%; left: 0px; top: 0px; right: 0px; bottom: 0px; color: transparent;"
+    />
+  </div>
+  <div
+    class="p-3 space-y-0.5"
+  >
+    <p
+      class="text-sm font-semibold truncate"
+    >
+      Test
+    </p>
+  </div>
+</a>
+`;
