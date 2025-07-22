@@ -5,6 +5,10 @@ trap "echo '❌ Test run aborted'; exit 130" INT TERM
 start_all=$(date +%s)
 echo "--- STARTING test-all.sh ---"
 
+export PIP_DISABLE_PIP_VERSION_CHECK=1
+export PYTHONWARNINGS=ignore::DeprecationWarning
+export npm_config_fund=false npm_config_audit=false
+
 if [ "${FAST:-}" = 1 ]; then
   echo "Running fast incremental checks…"
   ./scripts/fast-check.sh
@@ -25,7 +29,7 @@ fi
 echo "npm $(npm --version)"
 
 current_branch=$(git rev-parse --abbrev-ref HEAD)
-git fetch origin main >/dev/null 2>&1 || true
+git fetch origin main >/dev/null 2>&1
 if base_ref=$(git merge-base origin/main HEAD 2>/dev/null); then
   :
 else
