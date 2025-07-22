@@ -1,12 +1,10 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import { useForm, Control, FieldValues } from 'react-hook-form';
 import VenueStep from '../VenueStep';
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 function MobileWrapper() {
   const { control } = useForm({ defaultValues: { venueType: 'indoor' } });
