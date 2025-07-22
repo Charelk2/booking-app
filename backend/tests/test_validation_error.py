@@ -24,3 +24,4 @@ def test_booking_request_missing_artist_id():
     assert response.status_code == 422
     data = response.json()
     assert any(err["loc"][-1] == "artist_id" for err in data["detail"])
+    app.dependency_overrides.clear()
