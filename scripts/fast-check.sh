@@ -8,14 +8,14 @@ cd "$ROOT_DIR"
 
 start_all=$(date +%s)
 
-git fetch origin main >/dev/null 2>&1 || true
+git fetch origin main >/dev/null 2>&1
 if base_ref=$(git merge-base origin/main HEAD 2>/dev/null); then
   :
 else
   base_ref=$(git rev-parse HEAD^ 2>/dev/null || echo HEAD)
 fi
 
-mapfile -t changed_files < <(git diff --name-only "$base_ref"...HEAD || true)
+mapfile -t changed_files < <(git diff --name-only "$base_ref"...HEAD)
 changed_ts=()
 changed_js_ts=()
 py_array=()
