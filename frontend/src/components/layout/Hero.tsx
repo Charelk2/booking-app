@@ -26,6 +26,16 @@ const CATEGORIES = [
 ];
 type Category = typeof CATEGORIES[number];
 
+// Map UI categories to backend service types
+const CATEGORY_TO_SERVICE: Record<string, string> = {
+  musician: 'Live Performance',
+};
+
+// Reverse map so ?category=Live%20Performance preselects the dropdown
+const SERVICE_TO_CATEGORY: Record<string, string> = Object.fromEntries(
+  Object.entries(CATEGORY_TO_SERVICE).map(([k, v]) => [v, k]),
+);
+
 
 // ————— cycle hook —————
 function useCycle<T>(items: T[], delay = 3000): T {
@@ -136,7 +146,9 @@ export default function Hero({ variant = 'withForm' }: HeroProps) {
   useEffect(() => {
     const catParam = searchParams.get('category');
     if (catParam) {
-      const found = CATEGORIES.find((c) => c.value === catParam);
+      const found = CATEGORIES.find(
+        (c) => c.value === catParam || CATEGORY_TO_SERVICE[c.value] === catParam,
+      );
       if (found) setCategory(found);
     }
     const locParam = searchParams.get('location');
@@ -152,7 +164,10 @@ export default function Hero({ variant = 'withForm' }: HeroProps) {
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    if (category) params.set('category', category.value);
+    if (category) {
+      const service = CATEGORY_TO_SERVICE[category.value] || category.value;
+      params.set('category', service);
+    }
     if (location) params.set('location', location);
     if (when) params.set('when', when.toISOString());
     const qs = params.toString();
