@@ -212,7 +212,7 @@ exports[`Header renders search bar on home page 1`] = `
         class="relative"
       >
         <form
-          class="flex items-stretch bg-white rounded-full ring-1 ring-gray-200 shadow-md overflow-hidden text-sm mx-auto w-full md:max-w-2xl"
+          class="flex items-stretch bg-white rounded-full ring-1 ring-gray-200 shadow-md overflow-hidden min-h-[48px] text-sm mx-auto w-full md:max-w-2xl"
         >
           <div
             class="flex-1 px-4 flex flex-col text-left py-2"
@@ -300,12 +300,12 @@ exports[`Header renders search bar on home page 1`] = `
             </div>
           </div>
           <button
-            class="flex items-center justify-center w-12 h-12 md:w-11 md:h-11 bg-pink-600 hover:bg-pink-700 text-white leading-none"
+            class="bg-pink-600 hover:bg-pink-700 text-white flex items-center justify-center h-full aspect-square md:w-12 md:h-auto"
             type="submit"
           >
             <svg
               aria-hidden="true"
-              class="h-5 w-5"
+              class="w-5 h-5"
               data-slot="icon"
               fill="none"
               stroke="currentColor"
