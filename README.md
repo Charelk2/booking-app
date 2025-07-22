@@ -269,11 +269,11 @@ The location input relies on the built-in Google Maps Places Autocomplete
 service instead of the experimental `@googlemaps/places` package. The previous
 dependency caused a build failure because it depended on Node-only modules like
 `fs`. No additional npm install step is required after this change.
-The location picker now includes a map modal that you open via the map pin
-button inside each location field. The modal uses Google Maps Autocomplete to
-select an address and matches the styling of the search bar. The embedded map
-still loads lazily to keep pages quick to render. Closing the modal blurs the
-input so it doesn't immediately reopen when the field regains focus.
+The location picker now includes a map modal opened by a **Map** button within
+each location field. The modal uses Google Maps Autocomplete to select an
+address and matches the styling of the search bar. The embedded map still loads
+lazily to keep pages quick to render. Closing the modal blurs the input so it
+doesn't immediately reopen when the field regains focus.
 
 To expose the app on your local network, replace `192.168.3.203` with your
 machine's LAN IP. Set the same address in `.env` under
