@@ -11,7 +11,6 @@ jest.mock('next/navigation', () => ({
 }));
 
 
-const flushPromises = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 describe('SearchBar location input', () => {
   afterEach(() => {
