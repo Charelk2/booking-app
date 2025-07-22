@@ -269,20 +269,11 @@ exports[`Header renders search bar on home page 1`] = `
             <div
               class="relative"
             >
-              <div
-                class="w-full"
-              >
-                <div
-                  class="mt-1 relative"
-                >
-                  <input
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm mt-1 w-full text-sm text-gray-700 placeholder-gray-400 focus:outline-none border-none shadow-none rounded-none bg-transparent p-0 focus:ring-0 pr-8"
-                    data-testid="location-input"
-                    id=":r1:"
-                    placeholder="City or venue"
-                  />
-                </div>
-              </div>
+              <gmpx-place-autocomplete
+                classname="mt-1 w-full text-sm text-gray-700 placeholder-gray-400 focus:outline-none border-none shadow-none rounded-none bg-transparent p-0 focus:ring-0 pr-8 block w-full rounded-md border border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm"
+                data-testid="location-input"
+                placeholder="City or venue"
+              />
               <button
                 class="absolute inset-y-0 right-1 flex items-center text-gray-500 hover:text-gray-700 text-sm"
                 data-testid="open-map-modal"

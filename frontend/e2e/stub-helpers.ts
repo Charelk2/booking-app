@@ -194,6 +194,9 @@ export async function stubArtist(page: Page, artistId = 1) {
 }
 
 export async function stubGoogleMaps(page: Page) {
+  await page.route('https://unpkg.com/@googlemaps/places@**', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/javascript', body: '' });
+  });
   await page.route('https://maps.googleapis.com/**', async (route) => {
     await route.fulfill({
       status: 200,

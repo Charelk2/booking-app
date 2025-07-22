@@ -31,8 +31,10 @@ export default function RootLayout({
           </NotificationsProvider>
         </AuthProvider>
         <Script
-          src={`https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places&v=weekly`}
+          src="https://unpkg.com/@googlemaps/places@1.0.0/dist/index.min.js"
+          type="module"
           strategy="afterInteractive"
+          crossOrigin="anonymous"
         />
       </body>
     </html>
