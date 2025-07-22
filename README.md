@@ -18,6 +18,7 @@ The July 2025 update bumps key dependencies and Docker base images:
   destination and date.
 - A new animated Hero section on the homepage lets users search by category,
   location and date, persisting selections in the URL.
+- The Hero component now renders only on the homepage to avoid duplicate content.
 - Bookings now track `payment_status`, `deposit_amount`, and `deposit_paid` in
   `bookings_simple`. The deposit amount defaults to half of the accepted quote
   total. Booking API responses now include these fields alongside
