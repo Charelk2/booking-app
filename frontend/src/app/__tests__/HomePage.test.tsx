@@ -8,21 +8,18 @@ jest.mock('@/components/layout/MainLayout', () => {
   Mock.displayName = 'MockMainLayout';
   return Mock;
 });
-jest.mock('@/components/home/MarketingStrip', () => {
-  const Mock = ({ text }: { text: string }) => <div data-testid="strip">{text}</div>;
-  Mock.displayName = 'MockMarketingStrip';
-  return Mock;
-});
 
 describe('HomePage', () => {
-  it('renders marketing strip', async () => {
+  it('renders artist sections', async () => {
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = createRoot(div);
     await act(async () => {
       root.render(<HomePage />);
     });
-    expect(div.querySelector('[data-testid="strip"]')).toBeTruthy();
+    expect(div.textContent).toContain('Popular Musicians');
+    expect(div.textContent).toContain('Top Rated');
+    expect(div.textContent).toContain('New on Booka');
     act(() => {
       root.unmount();
     });

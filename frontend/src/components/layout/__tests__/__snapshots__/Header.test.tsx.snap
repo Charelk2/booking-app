@@ -11,14 +11,18 @@ exports[`Header hides search bar on other pages 1`] = `
       class="h-16 flex items-center justify-between"
     >
       <div
-        class="flex"
+        class="flex items-center"
       >
-        <a
-          class="flex shrink-0 items-center text-xl font-bold text-brand-dark"
-          href="/"
+        <div
+          class="flex flex-col justify-center"
         >
-          Booka.co.za
-        </a>
+          <a
+            class="flex shrink-0 items-center text-xl font-bold text-brand-dark"
+            href="/"
+          >
+            Booka.co.za
+          </a>
+        </div>
         <div
           class="hidden sm:ml-6 sm:flex sm:space-x-8"
         >
@@ -113,14 +117,23 @@ exports[`Header renders search bar on home page 1`] = `
       class="h-16 flex items-center justify-between"
     >
       <div
-        class="flex"
+        class="flex items-center"
       >
-        <a
-          class="flex shrink-0 items-center text-xl font-bold text-brand-dark"
-          href="/"
+        <div
+          class="flex flex-col justify-center"
         >
-          Booka.co.za
-        </a>
+          <a
+            class="flex shrink-0 items-center text-xl font-bold text-brand-dark"
+            href="/"
+          >
+            Booka.co.za
+          </a>
+          <span
+            class="hidden sm:block -mt-1 text-[12px] leading-4 text-gray-600"
+          >
+            Book legendary artists across South Africa
+          </span>
+        </div>
         <div
           class="hidden sm:ml-6 sm:flex sm:space-x-8"
         >
@@ -204,10 +217,10 @@ exports[`Header renders search bar on home page 1`] = `
       class="pb-3 pt-2"
     >
       <form
-        class="flex items-stretch bg-white rounded-full shadow-lg overflow-visible"
+        class="flex items-stretch bg-white rounded-full shadow-lg overflow-visible text-sm mx-auto w-full md:max-w-2xl shadow-sm ring-1 ring-gray-200"
       >
         <div
-          class="flex-1 px-4 py-3 flex flex-col text-left"
+          class="flex-1 px-4 flex flex-col text-left py-2"
         >
           <span
             class="text-xs text-gray-500"
@@ -251,7 +264,7 @@ exports[`Header renders search bar on home page 1`] = `
           class="border-l border-gray-200"
         />
         <div
-          class="flex-1 px-4 py-3 flex flex-col text-left"
+          class="flex-1 px-4 flex flex-col text-left py-2"
         >
           <span
             class="text-xs text-gray-500"
@@ -269,7 +282,7 @@ exports[`Header renders search bar on home page 1`] = `
           class="border-l border-gray-200"
         />
         <div
-          class="flex-1 px-4 py-3 flex flex-col text-left"
+          class="flex-1 px-4 flex flex-col text-left py-2"
         >
           <span
             class="text-xs text-gray-500"
@@ -292,7 +305,7 @@ exports[`Header renders search bar on home page 1`] = `
           </div>
         </div>
         <button
-          class="bg-pink-600 hover:bg-pink-700 px-5 py-3 flex items-center justify-center text-white rounded-r-full"
+          class="bg-pink-600 hover:bg-pink-700 flex items-center justify-center text-white h-10 w-10 rounded-full"
           type="submit"
         >
           <svg
