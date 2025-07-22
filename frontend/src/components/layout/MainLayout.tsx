@@ -16,7 +16,6 @@ import { HelpPrompt, Avatar } from '../ui';
 
 // --- CONSTANTS ---
 const baseNavigation = [
-  { name: 'Home', href: '/' },
   { name: 'Artists', href: '/artists' },
   { name: 'Services', href: '/services' },
   { name: 'FAQ', href: '/faq' },
