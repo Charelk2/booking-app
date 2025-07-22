@@ -8,6 +8,11 @@ jest.mock('@/components/layout/MainLayout', () => {
   Mock.displayName = 'MockMainLayout';
   return Mock;
 });
+jest.mock('@/components/layout/Hero', () => {
+  const Mock = () => <div data-testid="hero" />;
+  Mock.displayName = 'MockHero';
+  return Mock;
+});
 
 describe('HomePage', () => {
   it('renders search form', async () => {
