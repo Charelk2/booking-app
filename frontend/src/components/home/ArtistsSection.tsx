@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import ArtistCard from '@/components/artist/ArtistCard';
+import ArtistCardCompact from '@/components/artist/ArtistCardCompact';
 import { getArtists } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile, SearchParams } from '@/types';
@@ -16,11 +16,11 @@ interface ArtistsSectionProps {
 
 function CardSkeleton() {
   return (
-    <div className="rounded-2xl bg-white shadow-lg overflow-hidden animate-pulse">
-      <div className="h-48 bg-gray-200" />
-      <div className="p-6 space-y-2">
-        <div className="h-4 bg-gray-200 rounded w-2/3" />
-        <div className="h-3 bg-gray-200 rounded w-1/3" />
+    <div className="rounded-xl bg-white overflow-hidden animate-pulse">
+      <div className="aspect-[4/3] bg-gray-200" />
+      <div className="p-3 space-y-1">
+        <div className="h-3 bg-gray-200 rounded" />
+        <div className="h-2.5 bg-gray-200 rounded w-1/2" />
       </div>
     </div>
   );
@@ -42,7 +42,7 @@ export default function ArtistsSection({
       try {
         const res = await getArtists({ ...query, limit });
         if (isMounted) {
-          setArtists(res.data);
+          setArtists(res.data.filter((a) => a.business_name || a.user));
         }
       } catch (err) {
         console.error(err);
@@ -66,9 +66,9 @@ export default function ArtistsSection({
   const showSeeAll = artists.length === limit;
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="flex items-end justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-gray-900">{title}</h2>
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="flex items-end justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
         {showSeeAll && (
           <Link href={seeAllHref} className="text-sm text-brand hover:underline">
             See all
@@ -76,18 +76,17 @@ export default function ArtistsSection({
         )}
       </div>
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {Array.from({ length: limit }).map((_, i) => (
             <CardSkeleton key={i} />
           ))}
         </div>
       ) : artists.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {artists.map((a) => {
-            const name = a.business_name ||
-              (a.user ? `${a.user.first_name} ${a.user.last_name}` : 'Unknown Artist');
+            const name = a.business_name || `${a.user.first_name} ${a.user.last_name}`;
             return (
-              <ArtistCard
+              <ArtistCardCompact
                 key={a.id}
                 id={a.id}
                 name={name}
@@ -98,12 +97,9 @@ export default function ArtistsSection({
                 price={
                   a.hourly_rate && a.price_visible ? Number(a.hourly_rate) : undefined
                 }
-                location={a.location}
-                specialties={a.specialties}
                 rating={a.rating ?? undefined}
                 ratingCount={a.rating_count ?? undefined}
-                verified={a.user?.is_verified}
-                isAvailable={a.is_available}
+                location={a.location}
                 href={`/artists/${a.id}`}
               />
             );

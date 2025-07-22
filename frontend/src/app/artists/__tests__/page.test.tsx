@@ -66,7 +66,7 @@ describe('Artists page filters', () => {
     container.remove();
   });
 
-  it('displays fallback when user data is missing', async () => {
+  it('filters out entries with missing user data', async () => {
     jest.spyOn(api, 'getArtists').mockResolvedValue({
       data: [
         {
@@ -84,7 +84,8 @@ describe('Artists page filters', () => {
       root.render(React.createElement(ArtistsPage));
       await Promise.resolve();
     });
-    expect(container.textContent).toContain('Unknown Artist');
+    expect(container.textContent).not.toContain('Unknown Artist');
+    expect(container.textContent).toContain('No artists found');
     act(() => root.unmount());
     container.remove();
   });
