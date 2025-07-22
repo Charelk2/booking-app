@@ -1,4 +1,4 @@
-import { flushPromises, nextTick } from "@/test/utils/flush";
+import { flushPromises } from "@/test/utils/flush";
 import React from 'react';
 import { act } from 'react-dom/test-utils';
 import { createRoot } from 'react-dom/client';
