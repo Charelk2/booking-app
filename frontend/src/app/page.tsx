@@ -1,11 +1,11 @@
 import MainLayout from '@/components/layout/MainLayout'
-import Hero from '@/components/layout/Hero'
+import MarketingStrip from '@/components/home/MarketingStrip'
 import ArtistsSection from '@/components/home/ArtistsSection'
 
 export default function HomePage() {
   return (
     <MainLayout>
-      <Hero variant="plain" />
+      <MarketingStrip text="Book legendary artists across South Africa" />
       <ArtistsSection
         title="Popular Musicians"
         query={{ sort: 'popular' }}

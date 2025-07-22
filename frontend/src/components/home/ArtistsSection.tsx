@@ -76,13 +76,13 @@ export default function ArtistsSection({
         )}
       </div>
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5">
           {Array.from({ length: limit }).map((_, i) => (
             <CardSkeleton key={i} />
           ))}
         </div>
       ) : artists.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5">
           {artists.map((a) => {
             const name = a.business_name || `${a.user.first_name} ${a.user.last_name}`;
             return (
