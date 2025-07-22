@@ -15,13 +15,11 @@ def test_env_file_override(tmp_path, monkeypatch):
     custom_env = tmp_path / 'override.env'
     custom_env.write_text('DEFAULT_CURRENCY=CHF\n')
     monkeypatch.setenv('ENV_FILE', str(custom_env))
-    import app.core.config as config
+    import app.core.config as config, importlib
     importlib.reload(config)
     config.settings = config.load_settings()
-    import app.api.api_settings as api_settings
-    importlib.reload(api_settings)
-    import app.main as main_module
-    importlib.reload(main_module)
+    import app.api.api_settings as api_settings; importlib.reload(api_settings)
+    import app.main as main_module; importlib.reload(main_module)
     override_client = TestClient(main_module.app)
     resp = override_client.get('/api/v1/settings')
     assert resp.status_code == 200
