@@ -15,11 +15,11 @@ def override_client():
         is_active=True,
     )
 
-app.dependency_overrides[get_current_active_client] = override_client
-client = TestClient(app)
 
 
 def test_booking_request_missing_artist_id():
+    app.dependency_overrides[get_current_active_client] = override_client
+    client = TestClient(app)
     response = client.post("/api/v1/booking-requests/", json={"message": "hi"})
     assert response.status_code == 422
     data = response.json()

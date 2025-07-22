@@ -84,13 +84,21 @@ class Settings(BaseSettings):
             values.CORS_ORIGINS = ["*"]
         return values
 
-    model_config = SettingsConfigDict(
-        extra="forbid",
-        env_file=os.getenv(
+model_config = SettingsConfigDict(
+    extra="forbid",
+    env_file=os.getenv(
+        "ENV_FILE", str(Path(__file__).resolve().parents[3] / ".env")
+    ),
+    case_sensitive=True,
+)
+
+
+def load_settings() -> "Settings":
+    return Settings(
+        _env_file=os.getenv(
             "ENV_FILE", str(Path(__file__).resolve().parents[3] / ".env")
-        ),
-        case_sensitive=True,
+        )
     )
 
 
-settings = Settings()
+settings = load_settings()
