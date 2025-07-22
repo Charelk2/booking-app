@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import React from 'react';
 import { act } from 'react-dom/test-utils';
 import { createRoot } from 'react-dom/client';
@@ -19,9 +20,6 @@ jest.mock('@/components/layout/MainLayout', () => {
   return Mock;
 });
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 function setup() {
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'artist' } });

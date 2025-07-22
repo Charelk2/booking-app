@@ -1,3 +1,4 @@
+import { flushPromises, nextTick } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
@@ -8,9 +9,6 @@ import * as api from '@/lib/api';
 jest.mock('@/lib/api');
 jest.mock('../../../ui/Toast', () => ({ __esModule: true, default: { success: jest.fn(), error: jest.fn() } }));
 
-const flushPromises = async () => {
-  await act(async () => {});
-};
 
 function Wrapper() {
   const { control, setValue } = useForm();
