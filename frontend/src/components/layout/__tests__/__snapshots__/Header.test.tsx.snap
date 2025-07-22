@@ -129,9 +129,9 @@ exports[`Header renders search bar on home page 1`] = `
             Booka.co.za
           </a>
           <span
-            class="hidden sm:block -mt-1 text-[12px] leading-4 text-gray-600"
+            class="hidden sm:block -mt-0.5 text-[11px] sm:text-[12px] leading-4 text-gray-600"
           >
-            Book legendary artists across South Africa
+            Book legendary artists
           </span>
         </div>
         <div
@@ -217,7 +217,7 @@ exports[`Header renders search bar on home page 1`] = `
       class="pb-3 pt-2"
     >
       <form
-        class="flex items-stretch bg-white rounded-full shadow-lg overflow-visible text-sm mx-auto w-full md:max-w-2xl shadow-sm ring-1 ring-gray-200"
+        class="flex items-stretch bg-white rounded-full ring-1 ring-gray-200 shadow-sm overflow-hidden text-sm mx-auto w-full md:max-w-2xl"
       >
         <div
           class="flex-1 px-4 flex flex-col text-left py-2"
@@ -305,7 +305,7 @@ exports[`Header renders search bar on home page 1`] = `
           </div>
         </div>
         <button
-          class="bg-pink-600 hover:bg-pink-700 flex items-center justify-center text-white h-10 w-10 rounded-full"
+          class="flex items-center justify-center w-12 h-12 md:w-11 md:h-11 bg-pink-600 hover:bg-pink-700 text-white"
           type="submit"
         >
           <svg
