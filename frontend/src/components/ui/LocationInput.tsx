@@ -48,15 +48,17 @@ export default function LocationInput({
   return (
     <>
       <div className="relative">
-        <gmpx-place-autocomplete
-          ref={autoRef}
-          placeholder={placeholder}
-          className={clsx(
-            className,
-            'pr-8 block w-full rounded-md border border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm',
-          )}
-          data-testid="location-input"
-        />
+        <gmpx-place-autocomplete ref={autoRef} data-testid="location-input">
+          <input
+            slot="input"
+            type="text"
+            placeholder={placeholder}
+            className={clsx(
+              className,
+              'pr-8 block w-full rounded-md border border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm',
+            )}
+          />
+        </gmpx-place-autocomplete>
         <button
           type="button"
           onClick={() => setModalOpen(true)}
