@@ -22,6 +22,15 @@ jest.mock('../SendQuoteModal', () => {
   return { __esModule: true, default: MockModal };
 });
 
+const flushPromises = () =>
+  new Promise<void>((resolve) => {
+    if (typeof setImmediate === 'function') {
+      setImmediate(resolve);
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+
 // Minimal WebSocket stub
 class StubSocket {
   static last: StubSocket | null = null;
@@ -324,7 +333,7 @@ describe('MessageThread component', () => {
       root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
 
     const input = container.querySelector('#file-upload') as HTMLInputElement;
@@ -359,7 +368,7 @@ describe('MessageThread component', () => {
       root.render(<MessageThread bookingRequestId={1} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const uploadButton = container.querySelector('label[for="file-upload"]');
     expect(uploadButton?.getAttribute('aria-label')).toBe('Upload attachment');
@@ -386,7 +395,7 @@ describe('MessageThread component', () => {
       root.render(<MessageThread bookingRequestId={1} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
 
     const details = container.querySelector('[data-testid="booking-details"]');
@@ -414,7 +423,7 @@ describe('MessageThread component', () => {
       root.render(<MessageThread bookingRequestId={1} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const scrollContainer = document.querySelector('.overflow-y-auto') as HTMLElement;
     Object.defineProperty(scrollContainer, 'scrollHeight', { value: 200, configurable: true });
@@ -623,13 +632,19 @@ it('opens payment modal after accepting quote', async () => {
       root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const acceptBtn = Array.from(container.querySelectorAll('button')).find(
       (b) => b.textContent === 'Accept',
     ) as HTMLButtonElement;
     await act(async () => {
       acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await flushPromises();
+    });
+    await act(async () => {
+      await flushPromises();
     });
     expect(acceptBtn.disabled).toBe(true);
     expect(acceptBtn.querySelector('.animate-spin')).not.toBeNull();
@@ -638,7 +653,7 @@ it('opens payment modal after accepting quote', async () => {
       resolveAccept();
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     expect(api.getBookingDetails).toHaveBeenCalledWith(42);
     const modalHeading = container.querySelector('h2');
@@ -704,7 +719,7 @@ it('refreshes messages after accepting a quote', async () => {
     root.render(<MessageThread bookingRequestId={1} serviceId={4} />);
   });
   await act(async () => {
-    await Promise.resolve();
+    await flushPromises();
   });
 
   (api.getMessagesForBookingRequest as jest.Mock).mockClear();
@@ -716,12 +731,15 @@ it('refreshes messages after accepting a quote', async () => {
   await act(async () => {
     acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
+  await act(async () => {
+    await flushPromises();
+  });
 
   await act(async () => {
     resolveAccept();
   });
   await act(async () => {
-    await Promise.resolve();
+    await flushPromises();
   });
 
   expect((api.getMessagesForBookingRequest as jest.Mock).mock.calls.length).toBeGreaterThan(0);
@@ -772,7 +790,7 @@ it.skip('adds ring styles when deposit actions receive keyboard focus', async ()
       acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await act(async () => {
-      await Promise.resolve();
+      await flushPromises();
     });
     const payBtn = container.querySelector(
       '[data-testid="pay-deposit-button"]',
@@ -888,7 +906,7 @@ it('shows an error when quote acceptance fails', async () => {
     root.render(<MessageThread bookingRequestId={1} />);
   });
   await act(async () => {
-    await Promise.resolve();
+    await flushPromises();
   });
 
   const acceptBtn = Array.from(container.querySelectorAll('button')).find(
@@ -896,6 +914,9 @@ it('shows an error when quote acceptance fails', async () => {
   ) as HTMLButtonElement;
   await act(async () => {
     acceptBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+  await act(async () => {
+    await flushPromises();
   });
 
   const alert = container.querySelector('p[role="alert"]');
@@ -950,6 +971,9 @@ it('declines quote using legacy endpoint', async () => {
     await act(async () => {
       declineBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
+    await act(async () => {
+      await flushPromises();
+    });
     expect(api.updateQuoteAsClient).toHaveBeenCalledWith(9, {
       status: 'rejected_by_client',
     });
@@ -992,7 +1016,7 @@ it('shows an error when quote decline fails', async () => {
     root.render(<MessageThread bookingRequestId={1} />);
   });
   await act(async () => {
-    await Promise.resolve();
+    await flushPromises();
   });
 
   const declineBtn = Array.from(container.querySelectorAll('button')).find(
@@ -1000,6 +1024,9 @@ it('shows an error when quote decline fails', async () => {
   ) as HTMLButtonElement;
   await act(async () => {
     declineBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+  await act(async () => {
+    await flushPromises();
   });
 
   const alert = container.querySelector('p[role="alert"]');
