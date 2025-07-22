@@ -1,9 +1,8 @@
 import { Fragment, useEffect, useRef } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { useLoadScript } from '@react-google-maps/api';
-import TextInput from './TextInput';
 
-const MAP_LIBRARIES = ['places'] as const;
+// The <gmpx-place-autocomplete> element is registered globally via
+// a module script in layout.tsx. It loads the Maps JS SDK internally.
 
 export interface LocationMapModalProps {
   open: boolean;
@@ -18,30 +17,35 @@ export default function LocationMapModal({
   value,
   onSelect,
 }: LocationMapModalProps) {
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-    libraries: MAP_LIBRARIES,
-  });
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const autoRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const autoRef = useRef<Element | null>(null);
 
   useEffect(() => {
-    if (!open || !isLoaded || autoRef.current || !inputRef.current) return;
-    const autocomplete = new google.maps.places.Autocomplete(inputRef.current);
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (place.formatted_address) onSelect(place.formatted_address);
-    });
-    autoRef.current = autocomplete;
-    console.log('Autocomplete initialized');
+    const el = autoRef.current as HTMLElement | null;
+    if (!open || !el) return;
+    function handleChange(e: Event) {
+      try {
+        // @ts-ignore - value is exposed by the web component
+        const place = (e.target as any).value || (e as any).detail?.place;
+        if (place?.formatted_address) {
+          onSelect(place.formatted_address);
+          onClose();
+        }
+      } catch (err) {
+        console.error('Autocomplete failed', err);
+      }
+    }
+    el.addEventListener('placechange', handleChange);
+    el.addEventListener('gmpx-placechange', handleChange);
     return () => {
-      autoRef.current = null;
+      el.removeEventListener('placechange', handleChange);
+      el.removeEventListener('gmpx-placechange', handleChange);
     };
-  }, [open, isLoaded, onSelect]);
+  }, [open, onSelect, onClose]);
 
   useEffect(() => {
-    if (inputRef.current && open) {
-      inputRef.current.value = value;
+    if (autoRef.current && open) {
+      // @ts-ignore - value is writable on the web component
+      autoRef.current.value = value;
     }
   }, [value, open]);
 
@@ -71,11 +75,10 @@ export default function LocationMapModal({
           >
             <div className="relative bg-white rounded-lg shadow-md w-full max-w-sm p-6 space-y-4">
               <Dialog.Title className="text-lg font-medium text-gray-900">Select Location</Dialog.Title>
-              <TextInput
-                ref={inputRef}
+              <gmpx-place-autocomplete
+                ref={autoRef}
                 placeholder="Search"
-                className="w-full"
-                loading={!isLoaded}
+                className="block w-full rounded-md border border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm p-2"
                 autoFocus
               />
               <div className="flex justify-end">
