@@ -13,7 +13,6 @@ import BookingRequestIcon from './BookingRequestIcon';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import MobileBottomNav from './MobileBottomNav';
 import { HelpPrompt, Avatar } from '../ui';
-import Hero from './Hero';
 
 // --- CONSTANTS ---
 const baseNavigation = [
@@ -311,9 +310,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
           logout={logout}
           pathname={pathname}
         />
-
-        {/* HERO only on home */}
-        {pathname === '/' && <Hero />}
 
         {/* CONTENT */}
         <main className="py-10 pb-24">
