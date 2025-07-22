@@ -4,14 +4,11 @@ export async function flushPromises() {
   await act(async () => {
     await Promise.resolve();
   });
-  if (jest.isMockFunction(setTimeout)) {
+  // If fake timers are active, run pending timers once
+  if (jest?.isMockFunction?.(setTimeout)) {
     act(() => {
       jest.runOnlyPendingTimers();
     });
   }
-}
-
-export async function nextTick() {
-  await Promise.resolve();
 }
 
