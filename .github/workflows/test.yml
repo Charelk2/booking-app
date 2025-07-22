@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Cache frontend node_modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+      - name: Cache backend venv
+        uses: actions/cache@v4
+        with:
+          path: backend/venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('backend/requirements.txt', 'requirements-dev.txt') }}
+      - name: Backend tests
+        run: ./scripts/test-backend.sh
+      - name: Frontend unit tests
+        run: ./scripts/test-frontend.sh --unit
+      - name: E2E tests
+        if: github.ref == 'refs/heads/main' || env.E2E == '1'
+        run: ./scripts/test-frontend.sh --e2e
