@@ -110,4 +110,17 @@ describe('FilterBar component', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('opens map modal on focus', () => {
+    (useIsMobile as jest.Mock).mockReturnValue(false);
+    const { container, root } = renderBar();
+    const input = container.querySelector('[data-testid="location-input"]') as HTMLInputElement;
+    act(() => {
+      input.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
+      input.focus();
+    });
+    expect(document.querySelector('[data-testid="location-map-modal"]')).not.toBeNull();
+    act(() => root.unmount());
+    container.remove();
+  });
 });
