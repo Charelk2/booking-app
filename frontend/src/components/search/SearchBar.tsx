@@ -16,8 +16,9 @@ const CATEGORIES = [
 ];
 type Category = typeof CATEGORIES[number];
 
-interface SearchBarProps { 
-  compact?: boolean;
+interface SearchBarProps {
+  size?: 'sm' | 'md';
+  className?: string;
 }
 
 interface FormFieldsProps {
@@ -27,13 +28,22 @@ interface FormFieldsProps {
   setLocation: (l: string) => void;
   when: Date | null;
   setWhen: (d: Date | null) => void;
+  size: 'sm' | 'md';
 }
 
 const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
-  ({ category, setCategory, location, setLocation, when, setWhen }, _ref) => (
+  (
+    { category, setCategory, location, setLocation, when, setWhen, size },
+    _ref
+  ) => (
     <>
       {/* Category */}
-      <div className="flex-1 px-4 py-3 flex flex-col text-left">
+      <div
+        className={clsx(
+          'flex-1 px-4 flex flex-col text-left',
+          size === 'sm' ? 'py-2' : 'py-3'
+        )}
+      >
         <span className="text-xs text-gray-500">Category</span>
         <Listbox value={category} onChange={setCategory}>
           <div className="relative w-full">
@@ -71,7 +81,12 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
       <div className="border-l border-gray-200" />
 
       {/* Where */}
-      <div className="flex-1 px-4 py-3 flex flex-col text-left">
+      <div
+        className={clsx(
+          'flex-1 px-4 flex flex-col text-left',
+          size === 'sm' ? 'py-2' : 'py-3'
+        )}
+      >
         <span className="text-xs text-gray-500">Where</span>
         <input
           type="text"
@@ -85,7 +100,12 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
       <div className="border-l border-gray-200" />
 
       {/* When */}
-      <div className="flex-1 px-4 py-3 flex flex-col text-left">
+      <div
+        className={clsx(
+          'flex-1 px-4 flex flex-col text-left',
+          size === 'sm' ? 'py-2' : 'py-3'
+        )}
+      >
         <span className="text-xs text-gray-500">When</span>
         <ReactDatePicker
           selected={when}
@@ -101,7 +121,7 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
 );
 SearchFields.displayName = 'SearchFields';
 
-export default function SearchBar({ compact = false }: SearchBarProps) {
+export default function SearchBar({ size = 'md', className }: SearchBarProps) {
   const [category, setCategory] = useState<Category>(CATEGORIES[0]);
   const [location, setLocation] = useState('');
   const [when, setWhen] = useState<Date | null>(null);
@@ -139,7 +159,8 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
       onSubmit={onSubmit}
       className={clsx(
         'flex items-stretch bg-white rounded-full shadow-lg overflow-visible',
-        compact && 'text-sm'
+        size === 'sm' && 'text-sm',
+        className
       )}
     >
       <SearchFields
@@ -149,10 +170,16 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
         setLocation={setLocation}
         when={when}
         setWhen={setWhen}
+        size={size}
       />
       <button
         type="submit"
-        className="bg-pink-600 hover:bg-pink-700 px-5 py-3 flex items-center justify-center text-white rounded-r-full"
+        className={clsx(
+          'bg-pink-600 hover:bg-pink-700 flex items-center justify-center text-white',
+          size === 'sm'
+            ? 'h-10 w-10 rounded-full'
+            : 'px-5 py-3 rounded-r-full'
+        )}
       >
         <MagnifyingGlassIcon className="h-5 w-5" />
         <span className="sr-only">Search</span>
