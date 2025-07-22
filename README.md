@@ -44,6 +44,11 @@ The July 2025 update bumps key dependencies and Docker base images:
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
+### Home Page Carousels
+
+The homepage now showcases musicians in horizontally scrollable carousels. Sections such as **Popular**, **Top Rated**, **New on Booka**, and **Recently Booked** let visitors swipe or drag to browse profiles. Each musician card links to `/artists/[id]`.
+
+This discovery feed is experimental and may evolve in future updates.
 
 ## Docker Setup
 
