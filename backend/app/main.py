@@ -112,7 +112,13 @@ class StaticFilesWithDefault(StaticFiles):
         except StarletteHTTPException as exc:
             if exc.status_code == 404 and path.startswith("profile_pics/"):
                 default_path = os.path.join(APP_STATIC_DIR, "default-avatar.svg")
-                return FileResponse(default_path)
+                ext = os.path.splitext(path)[1].lower()
+                media_type = "image/svg+xml"
+                if ext in {".jpg", ".jpeg"}:
+                    media_type = "image/jpeg"
+                elif ext == ".png":
+                    media_type = "image/png"
+                return FileResponse(default_path, media_type=media_type)
             raise
 
 
