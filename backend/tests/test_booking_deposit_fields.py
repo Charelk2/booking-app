@@ -30,7 +30,15 @@ def setup_db():
     return Session()
 
 
-def create_records(db):
+def create_records(
+    db,
+    *,
+    with_simple: bool = True,
+    deposit_amount: Decimal | None = Decimal("50"),
+    deposit_due_by: datetime.datetime | None = datetime.datetime(2029, 12, 25),
+    payment_status: str | None = "pending",
+    deposit_paid: bool | None = False,
+):
     client = User(
         email="c@test.com",
         password="x",
@@ -95,19 +103,20 @@ def create_records(db):
     db.commit()
     db.refresh(booking)
 
-    simple = BookingSimple(
-        quote_id=quote.id,
-        artist_id=artist.id,
-        client_id=client.id,
-        confirmed=True,
-        payment_status="pending",
-        deposit_amount=Decimal("50"),
-        deposit_due_by=datetime.datetime(2029, 12, 25),
-        deposit_paid=False,
-    )
-    db.add(simple)
-    db.commit()
-    db.refresh(simple)
+    if with_simple:
+        simple = BookingSimple(
+            quote_id=quote.id,
+            artist_id=artist.id,
+            client_id=client.id,
+            confirmed=True,
+            payment_status=payment_status,
+            deposit_amount=deposit_amount,
+            deposit_due_by=deposit_due_by,
+            deposit_paid=deposit_paid,
+        )
+        db.add(simple)
+        db.commit()
+        db.refresh(simple)
 
     return client, booking, br.id
 
@@ -132,6 +141,60 @@ def test_booking_endpoints_include_deposit_fields():
     assert detail.payment_status == "pending"
     assert detail.deposit_paid is False
     assert detail.deposit_due_by == datetime.datetime(2029, 12, 25)
+    assert detail.booking_request_id == br_id
+
+
+def test_booking_endpoints_null_fields_when_no_simple():
+    db = setup_db()
+    client, booking, _ = create_records(db, with_simple=False)
+
+    result = api_booking.read_my_bookings(
+        db=db, current_client=client, status_filter=None
+    )
+    first = result[0]
+    assert getattr(first, "deposit_amount", None) is None
+    assert getattr(first, "payment_status", None) is None
+    assert getattr(first, "deposit_paid", None) is None
+    assert getattr(first, "deposit_due_by", None) is None
+    assert getattr(first, "booking_request_id", None) is None
+
+    detail = api_booking.read_booking_details(
+        db=db, booking_id=booking.id, current_user=client
+    )
+    assert getattr(detail, "deposit_amount", None) is None
+    assert getattr(detail, "payment_status", None) is None
+    assert getattr(detail, "deposit_paid", None) is None
+    assert getattr(detail, "deposit_due_by", None) is None
+    assert getattr(detail, "booking_request_id", None) is None
+
+
+def test_booking_endpoints_null_fields_from_simple():
+    db = setup_db()
+    client, booking, br_id = create_records(
+        db,
+        deposit_amount=None,
+        deposit_due_by=None,
+        payment_status="pending",
+        deposit_paid=False,
+    )
+
+    result = api_booking.read_my_bookings(
+        db=db, current_client=client, status_filter=None
+    )
+    first = result[0]
+    assert first.deposit_amount == Decimal("0")
+    assert getattr(first, "deposit_due_by", None) is None
+    assert first.payment_status == "pending"
+    assert first.deposit_paid is False
+    assert first.booking_request_id == br_id
+
+    detail = api_booking.read_booking_details(
+        db=db, booking_id=booking.id, current_user=client
+    )
+    assert detail.deposit_amount == Decimal("0")
+    assert getattr(detail, "deposit_due_by", None) is None
+    assert detail.payment_status == "pending"
+    assert detail.deposit_paid is False
     assert detail.booking_request_id == br_id
 
 
