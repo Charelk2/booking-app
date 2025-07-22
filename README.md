@@ -619,14 +619,14 @@ the cached directories are reused.
 If `setup.sh` still tries to run `pip install` or `npm ci`, it means the marker
 files were not copied correctly. Rerun `scripts/docker-test.sh` with
 `DOCKER_TEST_NETWORK=bridge` so the setup step can download the dependencies
-and recreate the caches. When the caches are missing but the `.tar.zst` archives
-exist, `docker-test.sh` extracts them automatically before running tests so the
+ and recreate the caches. When the caches are missing but the `.tar.zst` (or
+ `.tar.gz`) archives exist, `docker-test.sh` extracts them automatically before running tests so the
 marker files are preserved.
 
 Each run of `docker-test.sh` also updates these archives if the directories
-exist. Subsequent offline runs look for `backend/venv.tar.zst` and
-`frontend/node_modules.tar.zst`; if the directories are missing but the archives
-are present, the script unpacks them with `tar --use-compress-program=unzstd -xf`
+ exist. Subsequent offline runs look for `backend/venv.tar.zst` (or `.tar.gz`) and
+ `frontend/node_modules.tar.zst` (or `.tar.gz`); if the directories are missing but the archives
+ are present, the script unpacks them with `tar --use-compress-program=unzstd -xf` or `-zxf` accordingly
 before calling `setup.sh`.
 
 ### Building and Using Offline Caches
@@ -644,8 +644,8 @@ To update the caches manually run:
 WRITE_ARCHIVES=1 ./setup.sh
 ```
 
-This creates `backend/venv.tar.zst` and `frontend/node_modules.tar.zst` using
-`zstd` if available (falling back to gzip). CI uploads these archives as
+This creates `backend/venv.tar.zst` (or `.tar.gz`) and `frontend/node_modules.tar.zst` (or `.tar.gz`) using
+`zstd` when available (falling back to gzip). CI uploads these archives as
 artifacts and restores them on subsequent runs.
 
 If you update `requirements.txt` or `package-lock.json`, run
