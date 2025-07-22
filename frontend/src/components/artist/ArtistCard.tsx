@@ -87,8 +87,11 @@ export default function ArtistCard({
               alt={name}
               width={512}
               height={512}
-              loading="lazy"
               className="object-cover w-full h-full"
+              {
+                /* Avoid Next.js warning: cannot combine `priority` with lazy loading */
+              }
+              {...(priority ? {} : { loading: 'lazy' })}
               priority={priority}
               onLoad={() => setImgLoaded(true)}
               onError={(e) => {
@@ -101,8 +104,11 @@ export default function ArtistCard({
               alt={name}
               width={512}
               height={512}
-              loading="lazy"
               className="object-cover w-full h-full"
+              {
+                /* Spread lazy loading only when the image is not prioritized */
+              }
+              {...(priority ? {} : { loading: 'lazy' })}
               priority={priority}
               onLoad={() => setImgLoaded(true)}
             />
