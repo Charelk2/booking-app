@@ -15,10 +15,6 @@ import {
   SERVICE_TO_UI_CATEGORY,
 } from '@/lib/categoryMap';
 
-// Use shared category mappings
-const CATEGORIES = UI_CATEGORIES;
-const CATEGORY_TO_SERVICE = UI_CATEGORY_TO_SERVICE;
-const SERVICE_TO_CATEGORY = SERVICE_TO_UI_CATEGORY;
 type Category = (typeof UI_CATEGORIES)[number];
 
 interface SearchBarProps { compact?: boolean; }
@@ -45,7 +41,7 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
             </Listbox.Button>
             <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
               <Listbox.Options className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5">
-                {CATEGORIES.map((c) => (
+                {UI_CATEGORIES.map((c) => (
                   <Listbox.Option
                     key={c.value}
                     value={c}
@@ -70,9 +66,7 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
         <LocationInput
           value={location}
           onValueChange={setLocation}
-          onPlaceSelect={(place) => {
-            console.log('Selected Place:', place);
-          }}
+          onPlaceSelect={() => {}}
           placeholder="City or venue"
         />
       </div>
@@ -111,7 +105,7 @@ SearchFields.displayName = 'SearchFields';
 export { SearchFields };
 
 export default function SearchBar({ compact = false }: SearchBarProps) {
-  const [category, setCategory] = useState<Category>(CATEGORIES[0]);
+  const [category, setCategory] = useState<Category>(UI_CATEGORIES[0]);
   const [location, setLocation] = useState('');
   const [when, setWhen] = useState<Date | null>(null);
   const router = useRouter();
@@ -120,8 +114,8 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
   useEffect(() => {
     const catParam = searchParams.get('category');
     if (catParam) {
-      const mapped = SERVICE_TO_CATEGORY[catParam] || catParam;
-      const found = CATEGORIES.find((c) => c.value === mapped);
+      const mapped = SERVICE_TO_UI_CATEGORY[catParam] || catParam;
+      const found = UI_CATEGORIES.find((c) => c.value === mapped);
       if (found) setCategory(found);
     }
     const locParam = searchParams.get('location');
@@ -136,7 +130,7 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
   const handleSearch = () => {
     const params = new URLSearchParams();
     if (category) {
-      const mapped = CATEGORY_TO_SERVICE[category.value] || category.value;
+      const mapped = UI_CATEGORY_TO_SERVICE[category.value] || category.value;
       params.set('category', mapped);
     }
     if (location) params.set('location', location);

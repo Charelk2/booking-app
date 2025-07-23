@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "type-check": "tsc --noEmit",
     "test": "jest --passWithNoTests",
     "test:unit": "jest --testPathIgnorePatterns=e2e --passWithNoTests",
     "test:debug": "jest --runInBand --detectOpenHandles --forceExit",

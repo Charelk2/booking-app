@@ -10,7 +10,11 @@ import ArtistCard from '@/components/artist/ArtistCard';
 import ArtistsPageHeader from '@/components/artist/ArtistsPageHeader';
 import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
 import { updateQueryParams } from '@/lib/urlParams';
-import { UI_CATEGORIES, SERVICE_TO_UI_CATEGORY } from '@/lib/categoryMap';
+import {
+  UI_CATEGORIES,
+  SERVICE_TO_UI_CATEGORY,
+  UI_CATEGORY_TO_SERVICE,
+} from '@/lib/categoryMap';
 import { Spinner } from '@/components/ui';
 
 export default function ArtistsPage() {
@@ -104,18 +108,20 @@ export default function ArtistsPage() {
           categoryLabel={(() => {
             if (!category) return undefined;
             const uiVal = SERVICE_TO_UI_CATEGORY[category];
-            const entry = UI_CATEGORIES.find((c) => c.value === uiVal);
-            return entry?.label;
+            return UI_CATEGORIES.find((c) => c.value === uiVal)?.label;
           })()}
           categoryValue={category ? SERVICE_TO_UI_CATEGORY[category] : undefined}
           location={location}
           when={when}
-          onSearchEdit={({ category: cat, location: loc, when: date }) => {
-            setCategory(cat);
+          onSearchEdit={({ category: uiCat, location: loc, when: date }) => {
+            const serviceCat = uiCat
+              ? UI_CATEGORY_TO_SERVICE[uiCat] || uiCat
+              : undefined;
+            setCategory(serviceCat);
             setLocation(loc || '');
             setWhen(date || null);
             updateQueryParams(router, pathname, {
-              category: cat,
+              category: serviceCat,
               location: loc,
               when: date || undefined,
               sort,
