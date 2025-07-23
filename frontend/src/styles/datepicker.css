@@ -1,0 +1,126 @@
+/* Custom styles for react-datepicker */
+
+/* Ensures the date picker popover is on top of other content */
+.react-datepicker-popper {
+    z-index: 50;
+  }
+  
+  /* Base styles for the date picker container */
+  .react-datepicker {
+    font-family: inherit;
+    border: none;
+    border-radius: 0.75rem; /* Equivalent to Tailwind's rounded-lg */
+    background-color: #fff;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06); /* Custom shadow for depth */
+    padding: 1rem;
+    min-width: 280px;
+    animation: fadeIn 0.2s ease-out; /* Smooth fade-in animation */
+  }
+  
+  /* Keyframe animation for fade-in effect */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  /* Hides the default triangle indicator */
+  .react-datepicker__triangle {
+    display: none;
+  }
+  
+  /* Styles for the header section of the date picker */
+  .react-datepicker__header {
+    background-color: #fff;
+    border: none;
+    padding-bottom: 0.5rem;
+  }
+  
+  /* Hides the default current month display within the header */
+  .react-datepicker__current-month {
+    display: none !important;
+  }
+  
+  /* IMPORTANT: Hides the ARIA live region which often displays month/year for accessibility */
+  /* This was the culprit causing the duplicate month display on chevron click. */
+  .react-datepicker__aria-live {
+    display: none !important;
+  }
+  
+  /* Styles for the navigation buttons (prev/next month) */
+  .react-datepicker__navigation {
+    top: 1.25rem;
+    background: transparent;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+  }
+  
+  /* Hover effect for navigation buttons */
+  .react-datepicker__navigation:hover {
+    background-color: #f3f4f6; /* Equivalent to Tailwind's hover:bg-gray-100 */
+    border-radius: 9999px; /* Equivalent to Tailwind's rounded-full */
+    transition: background-color 0.2s ease;
+  }
+  
+  /* Hides the default span content within navigation buttons (we use Heroicons instead) */
+  /* This was commented out in the previous fix, keeping it out here. */
+  /* .react-datepicker__navigation span {
+    display: none !important;
+  } */
+  
+  /* Grid layout for day names (Su, Mo, Tu, etc.) and calendar weeks */
+  .react-datepicker__day-names,
+  .react-datepicker__week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr); /* 7 columns for days of the week */
+    gap: 0.25rem; /* Small gap between days */
+    padding: 0 0.5rem;
+  }
+  
+  /* Styles for individual day names and day numbers */
+  .react-datepicker__day-name,
+  .react-datepicker__day {
+    width: 2.25rem;
+    height: 2.25rem;
+    line-height: 2.25rem; /* Centers text vertically */
+    font-size: 0.875rem; /* Equivalent to Tailwind's text-sm */
+    text-align: center;
+    color: #374151; /* Equivalent to Tailwind's text-gray-700 */
+    border-radius: 0.5rem; /* Slight rounding for day cells */
+    transition: background-color 0.2s ease;
+    cursor: pointer; /* Ensures pointer cursor on days */
+  }
+  
+  /* Hover effect for individual day numbers */
+  .react-datepicker__day:hover {
+    background-color: #f3f4f6; /* Equivalent to Tailwind's hover:bg-gray-100 */
+  }
+  
+  /* Styles for the selected day or keyboard-selected day */
+  .react-datepicker__day--selected,
+  .react-datepicker__day--keyboard-selected {
+    background-color: #ec4899; /* Equivalent to Tailwind's bg-pink-600 */
+    color: #fff;
+    font-weight: 600; /* Equivalent to Tailwind's font-semibold */
+    transition: background-color 0.2s ease;
+  }
+  
+  /* Styles for disabled days (e.g., days outside the min/max date range) */
+  .react-datepicker__day--disabled {
+      color: #cbd5e1; /* Tailwind's text-gray-400 */
+      cursor: not-allowed;
+  }
+  .react-datepicker__day--disabled:hover {
+      background-color: transparent; /* No hover effect on disabled days */
+  }
+  
+  /* Styles for days of the previous or next month that are visible */
+  .react-datepicker__day--outside-month {
+      color: #9ca3af; /* Tailwind's text-gray-500 */
+  }

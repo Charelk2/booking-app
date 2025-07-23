@@ -1,82 +1,151 @@
-import { useEffect, useRef, useState } from 'react';
-import LocationMapModal from './LocationMapModal';
-import clsx from 'clsx';
+'use client';
 
-interface LocationInputProps {
+import { useState, useEffect, useRef } from 'react';
+import usePlacesService from 'react-google-autocomplete/lib/usePlacesAutocompleteService';
+import { MapPinIcon } from '@heroicons/react/24/outline';
+
+interface CustomLocationInputProps {
   value: string;
-  onChange: (value: string) => void;
+  onValueChange: (value: string) => void;
+  onPlaceSelect: (place: google.maps.places.PlaceResult) => void;
   placeholder?: string;
-  className?: string;
 }
 
-export default function LocationInput({
+export default function CustomLocationInput({
   value,
-  onChange,
-  placeholder = 'Location',
-  className,
-}: LocationInputProps) {
-  const autoRef = useRef<Element | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  onValueChange,
+  onPlaceSelect,
+  placeholder = "Search location",
+}: CustomLocationInputProps) {
+  const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
+  const [isDropdownVisible, setDropdownVisible] = useState(false);
+  const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const skipNextPredictionRef = useRef(false);
 
-  const handleClose = () => {
-    setModalOpen(false);
-    (autoRef.current as HTMLElement | null)?.blur();
+  const {
+    placesService,
+    placePredictions,
+    getPlacePredictions,
+  } = usePlacesService({
+    apiKey: process.env.NEXT_PUBLIC_Maps_API_KEY,
+    debounce: 300,
+  });
+
+  // 🌍 Get user's current location
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.warn('Geolocation error:', error);
+        }
+      );
+    }
+  }, []);
+
+  // 🔄 Update predictions when Google updates
+  useEffect(() => {
+    if (placePredictions.length > 0 && value.length > 0) {
+      setPredictions(placePredictions);
+      setDropdownVisible(true);
+    }
+  }, [placePredictions]);
+
+  // 🎯 Trigger new predictions from user-typed input only
+  useEffect(() => {
+    if (skipNextPredictionRef.current) {
+      skipNextPredictionRef.current = false;
+      return;
+    }
+
+    if (value.trim().length > 0) {
+      getPlacePredictions({
+        input: value,
+        componentRestrictions: { country: 'za' },
+        ...(userLocation && {
+          location: new google.maps.LatLng(userLocation.lat, userLocation.lng),
+          radius: 30000,
+        }),
+      });
+    } else {
+      setPredictions([]);
+      setDropdownVisible(false);
+    }
+  }, [value, userLocation]);
+
+  // 🖱 Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setDropdownVisible(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // 📝 Handle input change from user
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onValueChange(e.target.value);
   };
 
-  useEffect(() => {
-    const el = autoRef.current as HTMLElement | null;
-    if (!el) return;
-    function handleChange(e: Event) {
-      const place = (e as any).detail?.place;
-      if (place?.formatted_address) onChange(place.formatted_address);
-    }
-    el.addEventListener('placechange', handleChange);
-    el.addEventListener('gmpx-placechange', handleChange);
-    return () => {
-      el.removeEventListener('placechange', handleChange);
-      el.removeEventListener('gmpx-placechange', handleChange);
-    };
-  }, [onChange]);
+  // ✅ Handle selecting a place
+  const handleSelect = (prediction: google.maps.places.AutocompletePrediction) => {
+    setPredictions([]);
+    setDropdownVisible(false);
 
-  useEffect(() => {
-    if (autoRef.current) {
-      // @ts-ignore - value is writable on the web component
-      (autoRef.current as any).value = value;
-    }
-  }, [value]);
+    placesService?.getDetails(
+      { placeId: prediction.place_id },
+      (placeDetails: google.maps.places.PlaceResult | null) => {
+        if (placeDetails) {
+          skipNextPredictionRef.current = true;
+          onPlaceSelect(placeDetails);
+          onValueChange(placeDetails.formatted_address || prediction.description);
+        }
+      }
+    );
+  };
 
   return (
-    <>
-      <div className="relative">
-        <gmpx-place-autocomplete ref={autoRef} data-testid="location-input">
-          <input
-            slot="input"
-            type="text"
-            placeholder={placeholder}
-            className={clsx(
-              className,
-              'pr-8 block w-full rounded-md border border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm',
-            )}
-          />
-        </gmpx-place-autocomplete>
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="absolute inset-y-0 right-1 flex items-center text-gray-500 hover:text-gray-700 text-sm"
-          data-testid="open-map-modal"
-        >
-          Map
-        </button>
-      </div>
-      <LocationMapModal
-        open={modalOpen}
-        onClose={handleClose}
+    <div ref={containerRef} className="relative w-full">
+      <input
+        type="text"
         value={value}
-        onSelect={(addr) => {
-          onChange(addr);
-          handleClose();
+        onChange={handleInputChange}
+        onFocus={() => {
+          if (predictions.length > 0) setDropdownVisible(true);
         }}
+        placeholder={placeholder}
+        className="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none"
       />
-    </>
+
+      {isDropdownVisible && predictions.length > 0 && (
+        <div className="absolute z-50 mt-2 w-full max-h-60 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5">
+          {predictions.map((prediction) => (
+            <div
+              key={prediction.place_id}
+              onClick={() => handleSelect(prediction)}
+              className="flex items-center px-4 py-2 text-sm cursor-pointer hover:bg-indigo-50"
+            >
+              <MapPinIcon className="h-5 w-5 text-gray-400 mr-3 shrink-0" />
+              <div>
+                <span className="font-medium text-gray-800">
+                  {prediction.structured_formatting.main_text}
+                </span>
+                <span className="text-gray-500 ml-2">
+                  {prediction.structured_formatting.secondary_text}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
