@@ -183,9 +183,11 @@ export default function ArtistsPage() {
                   undefined
                 }
                 price={
-                  a.hourly_rate && a.price_visible
-                    ? Number(a.hourly_rate)
-                    : undefined
+                  category && a.service_price != null
+                    ? Number(a.service_price)
+                    : a.hourly_rate && a.price_visible
+                      ? Number(a.hourly_rate)
+                      : undefined
                 }
                 location={a.location}
                 specialties={a.specialties}

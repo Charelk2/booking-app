@@ -126,6 +126,10 @@ const normalizeArtistProfile = (
 ): ArtistProfile => ({
   ...profile,
   user_id: (profile.user_id ?? profile.id) as number,
+  service_price:
+    profile.service_price != null
+      ? parseFloat(profile.service_price as unknown as string)
+      : undefined,
 });
 
 // ─── ARTISTS ───────────────────────────────────────────────────────────────────
