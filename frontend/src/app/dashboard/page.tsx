@@ -25,8 +25,6 @@ import SectionList from "@/components/dashboard/SectionList";
 import BookingRequestCard from "@/components/dashboard/BookingRequestCard";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
 import { Spinner, Button } from '@/components/ui';
-import clsx from 'clsx';
-import { buttonVariants } from '@/styles/buttonVariants';
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import Link from "next/link";
 import { Reorder, useDragControls } from "framer-motion";

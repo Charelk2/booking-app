@@ -1,6 +1,5 @@
 import { Inter } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
-import Script from 'next/script';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { NotificationsProvider } from '@/hooks/useNotifications';
 import './globals.css';
