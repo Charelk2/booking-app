@@ -282,7 +282,7 @@ the `@googlemaps/places` package. **Remember to provide an `<input slot="input">
   crossorigin="anonymous"
   strategy="afterInteractive"
 ></script>
-<gmpx-api-loader api-key="YOUR_GOOGLE_MAPS_KEY"></gmpx-api-loader>
+<gmpx-api-loader api-key="YOUR_GOOGLE_MAPS_KEY" libraries="places"></gmpx-api-loader>
 ```
 This `<gmpx-api-loader>` element loads the Maps JavaScript SDK using the same
 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` value defined in your `.env.local` file.
