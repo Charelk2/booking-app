@@ -36,6 +36,7 @@ export default function RootLayout({
           strategy="afterInteractive"
           crossOrigin="anonymous"
         />
+        <gmpx-api-loader api-key={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''} />
       </body>
     </html>
   );
