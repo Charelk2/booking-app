@@ -134,6 +134,8 @@ export const getArtists = async (params?: {
   category?: string;
   location?: string;
   sort?: string;
+  minPrice?: number;
+  maxPrice?: number;
   page?: number;
   limit?: number;
 }) => {

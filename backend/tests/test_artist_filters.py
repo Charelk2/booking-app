@@ -58,6 +58,37 @@ def create_artist(db, name, location, category, rating=5, bookings=0):
     return profile
 
 
+def test_price_range_filter(monkeypatch):
+    db = setup_db()
+    # Prices: 100, 500, 1000
+    create_artist(db, 'Cheap', 'Joburg', ServiceType.LIVE_PERFORMANCE, rating=5)
+    create_artist(db, 'Mid', 'Joburg', ServiceType.LIVE_PERFORMANCE, rating=5)
+    db.query(Service).filter(Service.artist_id == 2).update({"price": 500})
+    create_artist(db, 'Expensive', 'Joburg', ServiceType.LIVE_PERFORMANCE, rating=5)
+    db.query(Service).filter(Service.artist_id == 3).update({"price": 1000})
+    db.commit()
+
+    monkeypatch.setattr(
+        'app.utils.redis_cache.get_cached_artist_list',
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        'app.utils.redis_cache.cache_artist_list',
+        lambda *args, **kwargs: None,
+    )
+
+    results = read_all_artist_profiles(
+        category=ServiceType.LIVE_PERFORMANCE,
+        min_price=300,
+        max_price=800,
+        db=db,
+        page=1,
+        limit=20,
+    )
+    assert len(results) == 1
+    assert results[0].business_name == 'Mid'
+
+
 def test_price_visible_default_true():
     db = setup_db()
     user = User(email='a@test.com', password='x', first_name='A', last_name='B', user_type=UserType.ARTIST)
