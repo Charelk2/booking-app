@@ -107,6 +107,8 @@ export default function ArtistsPage() {
         category,
         location: location || undefined,
         sort,
+        minPrice,
+        maxPrice,
         page: pageOverride ?? page,
         limit: LIMIT,
       });
