@@ -32,43 +32,6 @@ describe('Artists page filters', () => {
     document.body.innerHTML = '';
   });
 
-  it('calls getArtists with updated filters and updates the URL', async () => {
-    const spy = jest.spyOn(api, 'getArtists').mockResolvedValue({ data: [] });
-    const { container, root } = setup();
-    const push = jest.fn();
-    (useRouter as jest.Mock).mockReturnValue({ push });
-    await act(async () => {
-      root.render(React.createElement(ArtistsPage));
-      await flushPromises();
-    });
-    const buttons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[];
-    const catBtn = buttons.find((b) => b.textContent === 'Live Performance') as HTMLButtonElement;
-    await act(async () => {
-      catBtn.click();
-      await flushPromises();
-    });
-    const applyBtn = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Apply',
-    ) as HTMLButtonElement;
-    await act(async () => {
-      applyBtn.click();
-      await flushPromises();
-    });
-    expect(spy).toHaveBeenLastCalledWith({
-      category: 'Live Performance',
-      location: undefined,
-      sort: undefined,
-      minPrice: 0,
-      maxPrice: 200000,
-      page: 1,
-      limit: 20,
-    });
-    expect(push).toHaveBeenLastCalledWith(
-      '/artists?category=Live%20Performance&minPrice=0&maxPrice=200000',
-    );
-    act(() => root.unmount());
-    container.remove();
-  });
 
   it('filters out entries with missing user data', async () => {
     jest.spyOn(api, 'getArtists').mockResolvedValue({
@@ -269,16 +232,4 @@ describe('Artists page filters', () => {
     container.remove();
   });
 
-  it('renders FilterBar without sticky container', async () => {
-    jest.spyOn(api, 'getArtists').mockResolvedValue({ data: [] });
-    const { container, root } = setup();
-    await act(async () => {
-      root.render(React.createElement(ArtistsPage));
-      await flushPromises();
-    });
-    const sticky = container.querySelector('div.sticky.top-0.z-20.bg-white');
-    expect(sticky).toBeNull();
-    act(() => root.unmount());
-    container.remove();
-  });
 });

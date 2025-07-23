@@ -7,23 +7,11 @@ import { getArtists } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCard from '@/components/artist/ArtistCard';
-import FilterBar, { SLIDER_MIN, SLIDER_MAX } from '@/components/artist/FilterBar';
+import ArtistsPageHeader from '@/components/artist/ArtistsPageHeader';
+import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
+import { updateQueryParams } from '@/lib/urlParams';
+import { UI_CATEGORIES, SERVICE_TO_UI_CATEGORY } from '@/lib/categoryMap';
 import { Spinner } from '@/components/ui';
-
-// Raw category strings
-const RAW_CATEGORIES = [
-  'Live Performance',
-  'Virtual Appearance',
-  'Personalized Video',
-  'Custom Song',
-  'Other',
-] as const;
-
-// Convert to {value,label}[]
-const CATEGORY_OPTIONS = RAW_CATEGORIES.map((v) => ({
-  value: v,
-  label: v,
-}));
 
 export default function ArtistsPage() {
   const router = useRouter();
@@ -43,6 +31,13 @@ export default function ArtistsPage() {
   const [sort, setSort] = useState<string | undefined>(
     searchParams.get('sort') || undefined
   );
+  const [when, setWhen] = useState<Date | null>(() => {
+    const w = searchParams.get('when');
+    return w ? new Date(w) : null;
+  });
+  const [verifiedOnly, setVerifiedOnly] = useState(
+    searchParams.get('verifiedOnly') === 'true'
+  );
   const [minPrice, setMinPrice] = useState<number>(
     searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : SLIDER_MIN
   );
@@ -54,49 +49,6 @@ export default function ArtistsPage() {
   const [hasMore, setHasMore] = useState(true);
   const LIMIT = 20;
 
-  const filtersActive =
-    Boolean(category) ||
-    Boolean(location) ||
-    Boolean(sort) ||
-    minPrice !== SLIDER_MIN ||
-    maxPrice !== SLIDER_MAX;
-
-  const clearFilters = () => {
-    setCategory(undefined);
-    setLocation('');
-    setSort(undefined);
-    setMinPrice(SLIDER_MIN);
-    setMaxPrice(SLIDER_MAX);
-    setPage(1);
-    router.push(pathname);
-  };
-
-
-  const applyFilters = ({
-    category: cat,
-    minPrice: min,
-    maxPrice: max,
-  }: {
-    category?: string;
-    minPrice?: number;
-    maxPrice?: number;
-  }) => {
-    setCategory(cat);
-    setMinPrice(min ?? SLIDER_MIN);
-    setMaxPrice(max ?? SLIDER_MAX);
-    setPage(1);
-    fetchArtists({ pageOverride: 1 });
-    const params = new URLSearchParams();
-    if (cat) params.set('category', cat);
-    if (location) params.set('location', location);
-    if (sort) params.set('sort', sort);
-    const minVal = min ?? SLIDER_MIN;
-    const maxVal = max ?? SLIDER_MAX;
-    if (minVal !== SLIDER_MIN) params.set('minPrice', String(minVal));
-    if (maxVal !== SLIDER_MAX) params.set('maxPrice', String(maxVal));
-    const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
-  };
 
   const fetchArtists = async (
     { append = false, pageOverride }: { append?: boolean; pageOverride?: number } = {},
@@ -106,9 +58,11 @@ export default function ArtistsPage() {
       const res = await getArtists({
         category,
         location: location || undefined,
+        when: when || undefined,
         sort,
         minPrice,
         maxPrice,
+        verifiedOnly,
         page: pageOverride ?? page,
         limit: LIMIT,
       });
@@ -126,7 +80,7 @@ export default function ArtistsPage() {
   useEffect(() => {
     setPage(1);
     fetchArtists({ pageOverride: 1 });
-  }, [category, location, sort, minPrice, maxPrice]);
+  }, [category, location, when, sort, minPrice, maxPrice, verifiedOnly]);
 
   const loadMore = () => {
     const next = page + 1;
@@ -146,20 +100,66 @@ export default function ArtistsPage() {
           </p>
         </header>
 
-        {/* FilterBar is now in normal flow, not sticky */}
-        <FilterBar
-          categories={CATEGORY_OPTIONS}
-          initialCategory={category}
+        <ArtistsPageHeader
+          categoryLabel={(() => {
+            if (!category) return undefined;
+            const uiVal = SERVICE_TO_UI_CATEGORY[category];
+            const entry = UI_CATEGORIES.find((c) => c.value === uiVal);
+            return entry?.label;
+          })()}
+          categoryValue={category ? SERVICE_TO_UI_CATEGORY[category] : undefined}
+          location={location}
+          when={when}
+          onSearchEdit={({ category: cat, location: loc, when: date }) => {
+            setCategory(cat);
+            setLocation(loc || '');
+            setWhen(date || null);
+            updateQueryParams(router, pathname, {
+              category: cat,
+              location: loc,
+              when: date || undefined,
+              sort,
+              minPrice,
+              maxPrice,
+              verifiedOnly,
+            });
+            setPage(1);
+            fetchArtists({ pageOverride: 1 });
+          }}
+          initialSort={sort}
           initialMinPrice={minPrice}
           initialMaxPrice={maxPrice}
-          onCategory={setCategory}
-          location={location}
-          onLocation={setLocation}
-          sort={sort}
-          onSort={(value) => setSort(value || undefined)}
-          onClear={clearFilters}
-          onApply={applyFilters}
-          filtersActive={filtersActive}
+          verifiedOnly={verifiedOnly}
+          onFilterApply={({ sort: s, minPrice: min, maxPrice: max, verifiedOnly: vo }) => {
+            setSort(s || undefined);
+            setMinPrice(min);
+            setMaxPrice(max);
+            setVerifiedOnly(vo);
+            updateQueryParams(router, pathname, {
+              category,
+              location,
+              when,
+              sort: s,
+              minPrice: min,
+              maxPrice: max,
+              verifiedOnly: vo,
+            });
+            setPage(1);
+            fetchArtists({ pageOverride: 1 });
+          }}
+          onFilterClear={() => {
+            setSort(undefined);
+            setMinPrice(SLIDER_MIN);
+            setMaxPrice(SLIDER_MAX);
+            setVerifiedOnly(false);
+            updateQueryParams(router, pathname, {
+              category,
+              location,
+              when,
+            });
+            setPage(1);
+            fetchArtists({ pageOverride: 1 });
+          }}
         />
 
         {/* Artists grid */}

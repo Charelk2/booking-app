@@ -9,22 +9,17 @@ import { ChevronDownIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon
 import clsx from 'clsx';
 import LocationInput from '../ui/LocationInput';
 import { ReactDatePickerCustomHeaderProps } from 'react-datepicker';
+import {
+  UI_CATEGORIES,
+  UI_CATEGORY_TO_SERVICE,
+  SERVICE_TO_UI_CATEGORY,
+} from '@/lib/categoryMap';
 
-const CATEGORIES = [
-  { value: 'musician', label: 'Musician / Band' },
-  { value: 'photographer', label: 'Photographer' },
-  { value: 'dj', label: 'DJ' },
-  { value: 'venue', label: 'Venue' },
-];
-// Map UI categories to service types understood by the backend API
-const CATEGORY_TO_SERVICE: Record<string, string> = {
-  musician: 'Live Performance',
-};
-// Reverse map for reading query params like ?category=Live%20Performance
-const SERVICE_TO_CATEGORY: Record<string, string> = Object.fromEntries(
-  Object.entries(CATEGORY_TO_SERVICE).map(([k, v]) => [v, k]),
-);
-type Category = typeof CATEGORIES[number];
+// Use shared category mappings
+const CATEGORIES = UI_CATEGORIES;
+const CATEGORY_TO_SERVICE = UI_CATEGORY_TO_SERVICE;
+const SERVICE_TO_CATEGORY = SERVICE_TO_UI_CATEGORY;
+type Category = (typeof UI_CATEGORIES)[number];
 
 interface SearchBarProps { compact?: boolean; }
 interface FormFieldsProps {
@@ -112,6 +107,8 @@ const SearchFields = forwardRef<HTMLDivElement, FormFieldsProps>(
   )
 );
 SearchFields.displayName = 'SearchFields';
+
+export { SearchFields };
 
 export default function SearchBar({ compact = false }: SearchBarProps) {
   const [category, setCategory] = useState<Category>(CATEGORIES[0]);
