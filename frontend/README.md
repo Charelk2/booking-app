@@ -95,15 +95,15 @@ The Send Quote modal also generates a quote number automatically, shows today's 
 
 ### Artist Listing
 
-The artists page now uses a responsive grid that shows one card per row on
-mobile, two cards on tablets and three or more on larger screens. Each artist
-card displays a skeleton placeholder until the image loads and reveals a
-**Book Now** overlay button when hovered. Artist search relies on a sticky
-header implemented by `ArtistsPageHeader`. The compact bar shows the current
-category, location and date. A **Filters** button opens `FilterSheet` for price,
-sort and verification options. Search criteria and filters persist in the URL so
-pages can be shared directly. Clicking the summary bar opens a `SearchModal`
-with the same fields as the homepage search.
+The artists page uses a responsive grid that shows one card per row on mobile,
+two cards on tablets and three or more on larger screens. Each artist card
+displays a skeleton placeholder until the image loads and reveals a **Book
+Now** overlay button when hovered. A sticky header hosts the search UI. On
+desktop a segmented bar (`SearchBarInline`) expands inline to edit **Category**,
+**Location** and **Date**. On mobile the compact pill opens a `SearchModal`
+bottom sheet while **Filters** opens `FilterSheet`. All search options and
+filters persist in the URL so pages can be shared or refreshed without losing
+state.
 
 ## Testing
 
