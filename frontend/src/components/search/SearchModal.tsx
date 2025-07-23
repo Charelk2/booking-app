@@ -2,10 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { BottomSheet, Button } from '@/components/ui';
 import { SearchFields } from './SearchBar';
-import {
-  UI_CATEGORIES,
-  UI_CATEGORY_TO_SERVICE,
-} from '@/lib/categoryMap';
+import { UI_CATEGORIES } from '@/lib/categoryMap';
 
 interface SearchModalProps {
   open: boolean;
@@ -53,9 +50,8 @@ export default function SearchModal({
   };
 
   const handleSearch = () => {
-    const serviceCat = UI_CATEGORY_TO_SERVICE[category.value] || category.value;
     onSearch({
-      category: serviceCat,
+      category: category.value,
       location: location || undefined,
       when,
     });

@@ -47,6 +47,7 @@ export default function FilterSheet({
             checked={verifiedOnly}
             onChange={(e) => onVerifiedOnly(e.target.checked)}
             className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+            ref={firstRef}
           />
           <span>Verified Only</span>
         </label>
