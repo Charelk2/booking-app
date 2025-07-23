@@ -4,9 +4,9 @@ import React, { useState, useEffect, forwardRef, Fragment, FC } from 'react';
 import type { ChangeEventHandler } from 'react';
 import { Listbox, Transition } from '@headlessui/react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
-import LocationInput from '@/components/ui/LocationInput';
-import FilterSheet from '@/components/artist/FilterSheet';
-import useIsMobile from '@/hooks/useIsMobile';
+import LocationInput from '@/components/ui/LocationInput'; // Assuming this path is correct
+import FilterSheet from '@/components/artist/FilterSheet'; // Assuming this path is correct
+import useIsMobile from '@/hooks/useIsMobile'; // Assuming this path is correct
 
 export interface FilterBarProps {
   categories: { value: string; label: string }[];
@@ -14,7 +14,7 @@ export interface FilterBarProps {
   onCategory?: (c: string | undefined) => void;
   onLocation: (value: string) => void;
   sort?: string;
-  onSort: ChangeEventHandler<HTMLSelectElement>;
+  onSort: (value: string) => void; // Updated type for onSort
   onClear: () => void;
   onApply: (filters: { category?: string; minPrice?: number; maxPrice?: number }) => void;
   filtersActive: boolean;
@@ -27,6 +27,13 @@ export const SLIDER_MIN = 0;
 export const SLIDER_MAX = 200_000;
 export const SLIDER_STEP = 100;
 const formatCurrency = (v: number) => `R${new Intl.NumberFormat().format(v)}`;
+
+const sortOptions = [
+  { value: '', label: 'None' },
+  { value: 'top_rated', label: 'Top Rated' },
+  { value: 'most_booked', label: 'Most Booked' },
+  { value: 'newest', label: 'Newest' },
+];
 
 const FilterBar: FC<FilterBarProps> = ({
   categories,
@@ -64,6 +71,10 @@ const FilterBar: FC<FilterBarProps> = ({
     const next = cat === value ? undefined : value;
     setCat(next);
     onCategory?.(next);
+  };
+
+  const handleSort = (value: string) => {
+    onSort(value); // Directly call onSort with the new value
   };
 
   const handleClearLocal = () => {
@@ -104,7 +115,7 @@ const FilterBar: FC<FilterBarProps> = ({
           selectedCategory={cat}
           onSelectCategory={handleCategory}
           sort={sort}
-          onSort={onSort}
+          onSort={(e) => onSort(e.target.value)} // Keep for FilterSheet if it expects ChangeEventHandler
           minPrice={minPrice}
           maxPrice={maxPrice}
           onPriceChange={(min, max) => {
@@ -163,30 +174,38 @@ const FilterBar: FC<FilterBarProps> = ({
 
       <div className="border-l border-gray-200" />
 
-      {/* Where */}
-      <SharedField label="Where">
-        <LocationInput
-          value={location}
-          onChange={onLocation}
-          placeholder="City or venue"
-          className="mt-1 w-full text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
-        />
-      </SharedField>
-
-      <div className="border-l border-gray-200" />
-
-      {/* Sort */}
+      {/* Sort - Refactored to use Listbox */}
       <SharedField label="Sort">
-        <select
-          value={sort}
-          onChange={onSort}
-          className="mt-1 w-full text-sm text-gray-700 focus:outline-none"
-        >
-          <option value="">None</option>
-          <option value="top_rated">Top Rated</option>
-          <option value="most_booked">Most Booked</option>
-          <option value="newest">Newest</option>
-        </select>
+        <Listbox value={sort} onChange={handleSort}>
+          <div className="relative w-full">
+            <Listbox.Button className="mt-1 w-full flex justify-between items-center text-sm text-gray-700 focus:outline-none">
+              <span>{sortOptions.find((s) => s.value === sort)?.label ?? 'None'}</span>
+              <ChevronDownIcon className="h-4 w-4 text-gray-400" />
+            </Listbox.Button>
+            <Transition
+              as={Fragment}
+              leave="transition ease-in duration-100"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <Listbox.Options className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5">
+                {sortOptions.map((s) => (
+                  <Listbox.Option
+                    key={s.value}
+                    value={s.value}
+                    className={({ active }) =>
+                      `px-4 py-2 text-sm cursor-pointer ${
+                        active ? 'bg-indigo-100 text-indigo-900' : 'text-gray-700'
+                      }`
+                    }
+                  >
+                    {s.label}
+                  </Listbox.Option>
+                ))}
+              </Listbox.Options>
+            </Transition>
+          </div>
+        </Listbox>
       </SharedField>
 
       <div className="border-l border-gray-200" />
