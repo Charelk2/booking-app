@@ -22,13 +22,19 @@ export default function ArtistsPage() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
+  const serviceCategory = searchParams.get('category') || undefined;
+  const uiValue = serviceCategory
+    ? SERVICE_TO_UI_CATEGORY[serviceCategory] || serviceCategory
+    : undefined;
+  const uiLabel = uiValue
+    ? UI_CATEGORIES.find((c) => c.value === uiValue)?.label
+    : undefined;
+
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [category, setCategory] = useState<string | undefined>(
-    searchParams.get('category') || undefined
-  );
+  const [category, setCategory] = useState<string | undefined>(serviceCategory);
   const [location, setLocation] = useState(
     searchParams.get('location') || ''
   );
@@ -105,12 +111,8 @@ export default function ArtistsPage() {
         </header>
 
         <ArtistsPageHeader
-          categoryLabel={(() => {
-            if (!category) return undefined;
-            const uiVal = SERVICE_TO_UI_CATEGORY[category];
-            return UI_CATEGORIES.find((c) => c.value === uiVal)?.label;
-          })()}
-          categoryValue={category ? SERVICE_TO_UI_CATEGORY[category] : undefined}
+          categoryLabel={uiLabel}
+          categoryValue={uiValue}
           location={location}
           when={when}
           onSearchEdit={({ category: uiCat, location: loc, when: date }) => {
@@ -129,8 +131,6 @@ export default function ArtistsPage() {
               maxPrice,
               verifiedOnly,
             });
-            setPage(1);
-            fetchArtists({ pageOverride: 1 });
           }}
           initialSort={sort}
           initialMinPrice={minPrice}
@@ -150,8 +150,6 @@ export default function ArtistsPage() {
               maxPrice: max,
               verifiedOnly: vo,
             });
-            setPage(1);
-            fetchArtists({ pageOverride: 1 });
           }}
           onFilterClear={() => {
             setSort(undefined);
@@ -163,8 +161,6 @@ export default function ArtistsPage() {
               location,
               when,
             });
-            setPage(1);
-            fetchArtists({ pageOverride: 1 });
           }}
         />
 
