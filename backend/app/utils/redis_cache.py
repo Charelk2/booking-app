@@ -25,12 +25,16 @@ def _make_key(
     category: Optional[str],
     location: Optional[str],
     sort: Optional[str],
+    min_price: Optional[float],
+    max_price: Optional[float],
 ) -> str:
     """Return a Redis key for the given parameter combination."""
     cat = category or ""
     loc = location or ""
     srt = sort or ""
-    return f"{ARTIST_LIST_KEY_PREFIX}:{page}:{limit}:{cat}:{loc}:{srt}"
+    minp = "" if min_price is None else str(min_price)
+    maxp = "" if max_price is None else str(max_price)
+    return f"{ARTIST_LIST_KEY_PREFIX}:{page}:{limit}:{cat}:{loc}:{srt}:{minp}:{maxp}"
 
 
 def get_cached_artist_list(
@@ -40,10 +44,12 @@ def get_cached_artist_list(
     category: Optional[str] = None,
     location: Optional[str] = None,
     sort: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
 ) -> List[dict] | None:
     """Retrieve a cached artist list for the given parameters if available."""
     client = get_redis_client()
-    key = _make_key(page, limit, category, location, sort)
+    key = _make_key(page, limit, category, location, sort, min_price, max_price)
     try:
         data = client.get(key)
     except redis.exceptions.ConnectionError as exc:
@@ -62,11 +68,13 @@ def cache_artist_list(
     category: Optional[str] = None,
     location: Optional[str] = None,
     sort: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
     expire: int = 60,
 ) -> None:
     """Cache the artist list for the given parameter combination."""
     client = get_redis_client()
-    key = _make_key(page, limit, category, location, sort)
+    key = _make_key(page, limit, category, location, sort, min_price, max_price)
     try:
         client.setex(key, expire, dumps(data))
     except redis.exceptions.ConnectionError as exc:

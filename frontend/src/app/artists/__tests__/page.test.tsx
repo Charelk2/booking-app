@@ -58,6 +58,8 @@ describe('Artists page filters', () => {
       category: 'Live Performance',
       location: undefined,
       sort: undefined,
+      minPrice: 0,
+      maxPrice: 200000,
       page: 1,
       limit: 20,
     });
@@ -169,6 +171,8 @@ describe('Artists page filters', () => {
       category: undefined,
       location: undefined,
       sort: undefined,
+      minPrice: 0,
+      maxPrice: 200000,
       page: 2,
       limit: 20,
     });
@@ -202,6 +206,8 @@ describe('Artists page filters', () => {
       category: undefined,
       location: undefined,
       sort: undefined,
+      minPrice: 0,
+      maxPrice: 200000,
       page: 1,
       limit: 20,
     });
