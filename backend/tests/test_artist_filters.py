@@ -87,6 +87,7 @@ def test_price_range_filter(monkeypatch):
     )
     assert len(results) == 1
     assert results[0].business_name == 'Mid'
+    assert float(results[0].service_price) == 500
 
 
 def test_price_visible_default_true():
@@ -128,4 +129,21 @@ def test_filters_and_sorting(monkeypatch):
     assert results[0].business_name == 'Beta'
     assert results[0].rating == 5
     assert results[0].rating_count == 1
+
+
+def test_service_price_none_without_category(monkeypatch):
+    db = setup_db()
+    create_artist(db, 'Solo', 'NY', ServiceType.LIVE_PERFORMANCE)
+    monkeypatch.setattr(
+        'app.utils.redis_cache.get_cached_artist_list',
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        'app.utils.redis_cache.cache_artist_list',
+        lambda *args, **kwargs: None,
+    )
+
+    results = read_all_artist_profiles(db=db, page=1, limit=20)
+    assert len(results) == 1
+    assert results[0].service_price is None
 

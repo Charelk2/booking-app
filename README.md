@@ -949,6 +949,8 @@ code changes.
 Profiles include `rating`, `rating_count`, and `is_available` fields. A new
 `price_visible` boolean on each artist controls whether the hourly rate is
 returned. Newly created profiles default to `true`.
+When filtering by a specific `category`, each profile also includes
+`service_price` showing the price of that service for the artist.
 
 The redesigned listing page features a rounded filter bar wrapped in a white
 card with a subtle shadow. Chips use `rounded-full bg-sky-100 text-sky-800
