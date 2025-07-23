@@ -762,24 +762,50 @@
             }
           },
           {
-            "name": "sort",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string",
-                  "pattern": "^(top_rated|most_booked|newest)$"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Sort"
-            }
-          },
-          {
-            "name": "page",
+          "name": "sort",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(top_rated|most_booked|newest)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort"
+          }
+        },
+        {
+          "name": "min_price",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "anyOf": [
+              { "type": "number" },
+              { "type": "null" }
+            ],
+            "minimum": 0,
+            "title": "Min Price"
+          }
+        },
+        {
+          "name": "max_price",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "anyOf": [
+              { "type": "number" },
+              { "type": "null" }
+            ],
+            "minimum": 0,
+            "title": "Max Price"
+          }
+        },
+        {
+          "name": "page",
             "in": "query",
             "required": false,
             "schema": {
