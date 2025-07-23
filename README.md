@@ -282,7 +282,10 @@ the `@googlemaps/places` package. **Remember to provide an `<input slot="input">
   crossorigin="anonymous"
   strategy="afterInteractive"
 ></script>
+<gmpx-api-loader api-key="YOUR_GOOGLE_MAPS_KEY"></gmpx-api-loader>
 ```
+This `<gmpx-api-loader>` element loads the Maps JavaScript SDK using the same
+`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` value defined in your `.env.local` file.
 
 The previous built-in autocomplete is deprecated. The location picker still
 opens a minimalist modal when the **Map** button is clicked. The modal contains
