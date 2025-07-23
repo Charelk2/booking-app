@@ -101,11 +101,11 @@ appear as animated pill buttons that transition smoothly on hover and when
 selected. These filters leverage the reusable `PillButton` component for
 consistent sizing and accessibility. Each artist card displays a skeleton placeholder until the image
 loads and reveals a **Book Now** overlay button when hovered.
-The filter bar itself is built from the `FilterBar` component which combines these pills with
-location, sort and verification inputs. Pills scroll horizontally on overflow and the entire bar
-uses a softly rounded container for a polished look. On long lists the bar remains visible thanks
-to a wrapping `<div>` with `className="sticky top-0 z-20 bg-white"`, so scrolling doesn't cause
-the content below to jump when filters stay pinned to the top.
+Artist search now uses a sticky header implemented by `ArtistsPageHeader`.
+The compact bar shows the current category, location and date. A Filters button
+opens `FilterSheet` for price, sort and verification options. Search criteria and
+filters are kept in the URL so pages can be shared directly. Clicking the
+summary bar opens a `SearchModal` with the same fields as the homepage search.
 
 ## Testing
 
