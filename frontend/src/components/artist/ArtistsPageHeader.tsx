@@ -4,6 +4,7 @@ import { FunnelIcon } from '@heroicons/react/24/outline';
 import SearchModal from '@/components/search/SearchModal';
 import SearchBarInline from '@/components/search/SearchBarInline';
 import useMediaQuery from '@/hooks/useMediaQuery';
+import { format } from 'date-fns';
 import FilterSheet from './FilterSheet';
 
 interface HeaderProps {
@@ -51,7 +52,8 @@ export default function ArtistsPageHeader({
   const [maxPrice, setMaxPrice] = useState(initialMaxPrice);
   const [onlyVerified, setOnlyVerified] = useState(verifiedOnly);
 
-  const filtersActive = Boolean(sort) ||
+  const filtersActive =
+    Boolean(sort) ||
     onlyVerified ||
     minPrice !== initialMinPrice ||
     maxPrice !== initialMaxPrice;
@@ -66,7 +68,7 @@ export default function ArtistsPageHeader({
   }, [filterOpen, initialSort, initialMinPrice, initialMaxPrice, verifiedOnly]);
 
   const compact = `${categoryLabel || 'All'} · ${location || 'Anywhere'}`;
-  const dateStr = when ? when.toLocaleDateString() : 'Add date';
+  const dateStr = when ? format(when, 'd MMM yyyy') : 'Add date';
 
   return (
     <div className="sticky top-0 z-20 bg-white border-b shadow-sm">

@@ -101,9 +101,9 @@ displays a skeleton placeholder until the image loads and reveals a **Book
 Now** overlay button when hovered. A sticky header hosts the search UI. On
 desktop a segmented bar (`SearchBarInline`) expands inline to edit **Category**,
 **Location** and **Date**. On mobile the compact pill opens a `SearchModal`
-bottom sheet while **Filters** opens `FilterSheet`. All search options and
-filters persist in the URL so pages can be shared or refreshed without losing
-state.
+bottom sheet while **Filters** opens `FilterSheet`. Filters show a small dot when
+active. All search options and filters persist in the URL so pages can be shared
+or refreshed without losing state.
 
 ## Testing
 
