@@ -16,6 +16,14 @@ const CATEGORIES = [
   { value: 'dj', label: 'DJ' },
   { value: 'venue', label: 'Venue' },
 ];
+// Map UI categories to service types understood by the backend API
+const CATEGORY_TO_SERVICE: Record<string, string> = {
+  musician: 'Live Performance',
+};
+// Reverse map for reading query params like ?category=Live%20Performance
+const SERVICE_TO_CATEGORY: Record<string, string> = Object.fromEntries(
+  Object.entries(CATEGORY_TO_SERVICE).map(([k, v]) => [v, k]),
+);
 type Category = typeof CATEGORIES[number];
 
 interface SearchBarProps { compact?: boolean; }
@@ -115,7 +123,8 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
   useEffect(() => {
     const catParam = searchParams.get('category');
     if (catParam) {
-      const found = CATEGORIES.find((c) => c.value === catParam);
+      const mapped = SERVICE_TO_CATEGORY[catParam] || catParam;
+      const found = CATEGORIES.find((c) => c.value === mapped);
       if (found) setCategory(found);
     }
     const locParam = searchParams.get('location');
@@ -129,7 +138,10 @@ export default function SearchBar({ compact = false }: SearchBarProps) {
 
   const handleSearch = () => {
     const params = new URLSearchParams();
-    if (category) params.set('category', category.value);
+    if (category) {
+      const mapped = CATEGORY_TO_SERVICE[category.value] || category.value;
+      params.set('category', mapped);
+    }
     if (location) params.set('location', location);
     if (when) params.set('when', when.toISOString());
     const qs = params.toString();
