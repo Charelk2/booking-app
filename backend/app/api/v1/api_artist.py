@@ -337,6 +337,8 @@ def read_all_artist_profiles(
     category: Optional[ServiceType] = Query(None),
     location: Optional[str] = Query(None),
     sort: Optional[str] = Query(None, pattern="^(top_rated|most_booked|newest)$"),
+    min_price: Optional[float] = Query(None, ge=0),
+    max_price: Optional[float] = Query(None, ge=0),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
 ):
@@ -349,6 +351,8 @@ def read_all_artist_profiles(
         category=cache_category,
         location=location,
         sort=sort,
+        min_price=min_price,
+        max_price=max_price,
     )
     if cached is not None:
         return [ArtistProfileResponse.model_validate(item) for item in cached]
@@ -372,13 +376,33 @@ def read_all_artist_profiles(
     )
 
     query = (
-        db.query(Artist, rating_subq.c.rating, rating_subq.c.rating_count, booking_subq.c.book_count)
+        db.query(
+            Artist,
+            rating_subq.c.rating,
+            rating_subq.c.rating_count,
+            booking_subq.c.book_count,
+        )
         .outerjoin(rating_subq, rating_subq.c.artist_id == Artist.user_id)
         .outerjoin(booking_subq, booking_subq.c.artist_id == Artist.user_id)
     )
 
+    join_services = False
+    if category or min_price is not None or max_price is not None:
+        query = query.join(Service)
+        join_services = True
     if category:
-        query = query.join(Service).filter(Service.service_type == category)
+        query = query.filter(Service.service_type == category)
+    if min_price is not None:
+        query = query.filter(Service.price >= min_price)
+    if max_price is not None:
+        query = query.filter(Service.price <= max_price)
+    if join_services:
+        query = query.group_by(
+            Artist.user_id,
+            rating_subq.c.rating,
+            rating_subq.c.rating_count,
+            booking_subq.c.book_count,
+        )
 
     if location:
         query = query.filter(Artist.location.ilike(f"%{location}%"))
@@ -416,6 +440,8 @@ def read_all_artist_profiles(
         category=cache_category,
         location=location,
         sort=sort,
+        min_price=min_price,
+        max_price=max_price,
     )
 
     return profiles
