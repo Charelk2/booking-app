@@ -337,8 +337,8 @@ def read_all_artist_profiles(
     category: Optional[ServiceType] = Query(None),
     location: Optional[str] = Query(None),
     sort: Optional[str] = Query(None, pattern="^(top_rated|most_booked|newest)$"),
-    min_price: Optional[float] = Query(None, ge=0),
-    max_price: Optional[float] = Query(None, ge=0),
+    min_price: Optional[float] = Query(None, alias="minPrice", ge=0),
+    max_price: Optional[float] = Query(None, alias="maxPrice", ge=0),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
 ):
