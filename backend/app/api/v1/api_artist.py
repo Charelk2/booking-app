@@ -344,6 +344,13 @@ def read_all_artist_profiles(
 ):
     """Return a list of all artist profiles with optional filters."""
 
+    # FastAPI's Query objects appear when this function is called directly in tests.
+    # Normalize them to plain values for compatibility.
+    if hasattr(min_price, "default"):
+        min_price = None
+    if hasattr(max_price, "default"):
+        max_price = None
+
     cache_category = category.value if isinstance(category, ServiceType) else category
     cached = get_cached_artist_list(
         page=page,
@@ -387,8 +394,19 @@ def read_all_artist_profiles(
     )
 
     join_services = False
+    service_price_col = None
     if category or min_price is not None or max_price is not None:
-        query = query.join(Service)
+        price_subq = (
+            db.query(
+                Service.artist_id.label("artist_id"),
+                func.min(Service.price).label("service_price"),
+            )
+            .group_by(Service.artist_id)
+            .subquery()
+        )
+        query = query.join(Service).join(price_subq, price_subq.c.artist_id == Artist.user_id)
+        query = query.add_columns(price_subq.c.service_price)
+        service_price_col = price_subq.c.service_price
         join_services = True
     if category:
         query = query.filter(Service.service_type == category)
@@ -418,12 +436,18 @@ def read_all_artist_profiles(
     artists = query.offset(offset).limit(limit).all()
 
     profiles: List[ArtistProfileResponse] = []
-    for artist, rating, rating_count, book_count in artists:
+    for row in artists:
+        if join_services:
+            artist, rating, rating_count, book_count, service_price = row
+        else:
+            artist, rating, rating_count, book_count = row
+            service_price = None
         profile = ArtistProfileResponse.model_validate(
             {
                 **artist.__dict__,
                 "rating": float(rating) if rating is not None else None,
                 "rating_count": int(rating_count or 0),
+                "service_price": float(service_price) if service_price is not None else None,
             }
         )
         availability = read_artist_availability(artist.user_id, db)
