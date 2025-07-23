@@ -96,16 +96,14 @@ The Send Quote modal also generates a quote number automatically, shows today's 
 ### Artist Listing
 
 The artists page now uses a responsive grid that shows one card per row on
-mobile, two cards on tablets and three or more on larger screens. Filter options
-appear as animated pill buttons that transition smoothly on hover and when
-selected. These filters leverage the reusable `PillButton` component for
-consistent sizing and accessibility. Each artist card displays a skeleton placeholder until the image
-loads and reveals a **Book Now** overlay button when hovered.
-Artist search now uses a sticky header implemented by `ArtistsPageHeader`.
-The compact bar shows the current category, location and date. A Filters button
-opens `FilterSheet` for price, sort and verification options. Search criteria and
-filters are kept in the URL so pages can be shared directly. Clicking the
-summary bar opens a `SearchModal` with the same fields as the homepage search.
+mobile, two cards on tablets and three or more on larger screens. Each artist
+card displays a skeleton placeholder until the image loads and reveals a
+**Book Now** overlay button when hovered. Artist search relies on a sticky
+header implemented by `ArtistsPageHeader`. The compact bar shows the current
+category, location and date. A **Filters** button opens `FilterSheet` for price,
+sort and verification options. Search criteria and filters persist in the URL so
+pages can be shared directly. Clicking the summary bar opens a `SearchModal`
+with the same fields as the homepage search.
 
 ## Testing
 
