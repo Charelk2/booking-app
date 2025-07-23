@@ -34,6 +34,8 @@ export interface ArtistProfile {
   is_available?: boolean;
   /** Controls if the hourly_rate should be displayed to users */
   price_visible?: boolean;
+  /** Price of the selected service category when filtering */
+  service_price?: number | string | null;
   user: User;
   created_at: string;
   updated_at: string;

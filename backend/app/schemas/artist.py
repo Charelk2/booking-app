@@ -55,6 +55,7 @@ class ArtistProfileResponse(ArtistProfileBase):
     rating: Optional[float] = None
     rating_count: int = 0
     is_available: Optional[bool] = None
+    service_price: Optional[Decimal] = None
 
     # We want to include a nested "user" object when returning an artist profile
     user: Optional[UserResponse] = None
