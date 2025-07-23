@@ -6,7 +6,7 @@
   --font-sans: var(--font-inter);
   --color-primary: #6366f1;
   --color-secondary: #4f46e5;
-  --color-accent: #ec4899;
+  --color-accent: #ec4899; 
   --color-border: #e5e7eb;
   --color-background: #ffffff;
   --color-foreground: #111827;
@@ -47,7 +47,8 @@
 }
 
 @keyframes flashText {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.5;
     transform: translateY(2px) scale(0.98);
   }
@@ -59,4 +60,18 @@
 
 .animate-flash {
   animation: flashText 1.5s ease-in-out infinite;
+}
+
+/* --- ADD THIS CODE --- */
+.pac-container {
+  /* This makes the Google Maps dropdown appear on top of the modal */
+  z-index: 9999 !important;
+}
+
+html[data-headlessui-focus-visible] {
+  overflow: visible !important;
+  padding-right: 0 !important;
+
+  /* Add to your globals.css file */
+  
 }
