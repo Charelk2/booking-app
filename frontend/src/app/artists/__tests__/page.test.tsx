@@ -119,6 +119,30 @@ describe('Artists page filters', () => {
     container.remove();
   });
 
+  it('shows service price when category filter is used', async () => {
+    jest.spyOn(api, 'getArtists').mockResolvedValue({
+      data: [
+        {
+          id: 4,
+          business_name: 'Pricey',
+          service_price: 250,
+          hourly_rate: 100,
+          price_visible: true,
+          user: { first_name: 'G', last_name: 'H', is_verified: false },
+          user_id: 4,
+        } as unknown as ArtistProfile,
+      ],
+    });
+    const { container, root } = setup({ category: 'Live Performance' });
+    await act(async () => {
+      root.render(React.createElement(ArtistsPage));
+      await flushPromises();
+    });
+    expect(container.textContent).toContain('from R250');
+    act(() => root.unmount());
+    container.remove();
+  });
+
   it('shows message when no artists found', async () => {
     jest.spyOn(api, 'getArtists').mockResolvedValue({ data: [] });
     const { container, root } = setup();
