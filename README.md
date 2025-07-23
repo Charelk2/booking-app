@@ -12,8 +12,9 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Artists with missing names are now hidden from listings to avoid "Unknown Artist" placeholders.
 - Artists page adds a **Load More** button that fetches additional results using
   the API's pagination parameters.
-- Artists page redesigned with a responsive grid, animated filter bar, skeleton
-  loaders and hover "Book Now" overlay for a modern, accessible look.
+- Artists page redesigned with a responsive grid, sticky search header with quick
+  filters, skeleton loaders and a hover "Book Now" overlay for a modern,
+  accessible look.
 - Homepage search now lives in the header on a light gray background.
 - Search categories now map **Musician / Band** to the `Live Performance` service
   type so searching musicians shows available artists.
@@ -952,13 +953,13 @@ returned. Newly created profiles default to `true`.
 When filtering by a specific `category`, each profile also includes
 `service_price` showing the price of that service for the artist.
 
-The redesigned listing page features a rounded filter bar wrapped in a white
-card with a subtle shadow. Chips use `rounded-full bg-sky-100 text-sky-800
-px-3 py-1.5 text-sm` styling and highlight in `bg-sky-200 text-sky-900` when selected. The entire
-page now rests on a soft gradient background from the brand color to white. A new
-"Clear filters" button appears when any filter is active and resets all filter
-inputs. When no results match the current filters the page shows "No artists
-found" beneath the filter bar.
+The redesigned listing page features a sticky search header. A compact summary
+displays the selected category, location and date; clicking it opens a
+`SearchModal` prefilled with those values. A **Filters** button opens
+`FilterSheet` for sort, price range and a Verified Only toggle. The page still
+rests on a soft gradient background from the brand color to white. When no
+results match the current filters the page shows "No artists found" beneath the
+header.
 Filter selections persist in the URL so sharing or reloading the page keeps
 the current view, e.g.
 `/artists?category=Live+Performance&location=NY&minPrice=0&maxPrice=200000`.
