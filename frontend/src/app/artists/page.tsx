@@ -156,7 +156,7 @@ export default function ArtistsPage() {
           location={location}
           onLocation={setLocation}
           sort={sort}
-          onSort={(e) => setSort(e.target.value || undefined)}
+          onSort={(value) => setSort(value || undefined)}
           onClear={clearFilters}
           onApply={applyFilters}
           filtersActive={filtersActive}
