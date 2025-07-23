@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, KeyboardEvent } from 'react';
 import { Popover, Transition, Listbox } from '@headlessui/react';
 import {
   MagnifyingGlassIcon,
@@ -13,9 +13,8 @@ import ReactDatePicker, {
 import LocationInput from '../ui/LocationInput';
 import '@/styles/datepicker.css';
 import clsx from 'clsx';
-import {
-  UI_CATEGORIES,
-} from '@/lib/categoryMap';
+import { UI_CATEGORIES } from '@/lib/categoryMap';
+import { format } from 'date-fns';
 
 type Category = (typeof UI_CATEGORIES)[number];
 
@@ -54,12 +53,35 @@ export default function SearchBarInline({
     setDate(when || null);
   }, [categoryValue, location, when]);
 
+  const applyAndClose = (close: () => void) => {
+    close();
+    onSearchEdit({
+      category: category.value,
+      location: loc || undefined,
+      when: date,
+    });
+  };
+
+  const handleKey = (
+    e: KeyboardEvent,
+    close: () => void,
+  ) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      applyAndClose(close);
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+    }
+  };
+
   return (
-    <div className="flex items-center rounded-full shadow-sm divide-x bg-white">
+    <div className="flex items-stretch rounded-full bg-white shadow-sm border overflow-hidden divide-x">
       <Popover as="div" className="relative flex-1">
         {({ close }) => (
           <>
-            <Popover.Button className="w-full text-left px-4 py-2 flex items-center justify-between">
+            <Popover.Button className="w-full h-full text-left px-4 py-2 flex items-center justify-between focus:outline-none">
               <span className="text-sm">
                 {categoryLabel || 'All'}
               </span>
@@ -74,7 +96,10 @@ export default function SearchBarInline({
               leaveFrom="opacity-100 translate-y-0"
               leaveTo="opacity-0 translate-y-1"
             >
-              <Popover.Panel className="absolute z-20 mt-2 w-48 bg-white rounded-lg shadow-lg p-2">
+              <Popover.Panel
+                className="absolute z-20 mt-2 w-48 bg-white rounded-lg shadow-lg p-2"
+                onKeyDown={(e) => handleKey(e, close)}
+              >
                 <Listbox value={category} onChange={setCategory}>
                   <div className="relative">
                     <Listbox.Button className="sr-only">Category</Listbox.Button>
@@ -99,14 +124,7 @@ export default function SearchBarInline({
                 <div className="flex justify-end pt-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      close();
-                      onSearchEdit({
-                        category: category.value,
-                        location: loc || undefined,
-                        when: date,
-                      });
-                    }}
+                    onClick={() => applyAndClose(close)}
                     className="text-sm text-indigo-600 hover:text-indigo-800"
                   >
                     Apply
@@ -120,7 +138,7 @@ export default function SearchBarInline({
       <Popover as="div" className="relative flex-1">
         {({ close }) => (
           <>
-            <Popover.Button className="w-full text-left px-4 py-2 flex items-center justify-between">
+            <Popover.Button className="w-full h-full text-left px-4 py-2 flex items-center justify-between focus:outline-none">
               <span className="text-sm">
                 {loc || 'Anywhere'}
               </span>
@@ -135,7 +153,10 @@ export default function SearchBarInline({
               leaveFrom="opacity-100 translate-y-0"
               leaveTo="opacity-0 translate-y-1"
             >
-              <Popover.Panel className="absolute z-20 mt-2 w-80 bg-white rounded-lg shadow-lg p-2">
+              <Popover.Panel
+                className="absolute z-20 mt-2 w-80 bg-white rounded-lg shadow-lg p-2"
+                onKeyDown={(e) => handleKey(e, close)}
+              >
                 <LocationInput
                   value={loc}
                   onValueChange={setLoc}
@@ -145,14 +166,7 @@ export default function SearchBarInline({
                 <div className="flex justify-end pt-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      close();
-                      onSearchEdit({
-                        category: category.value,
-                        location: loc || undefined,
-                        when: date,
-                      });
-                    }}
+                    onClick={() => applyAndClose(close)}
                     className="text-sm text-indigo-600 hover:text-indigo-800"
                   >
                     Apply
@@ -166,9 +180,9 @@ export default function SearchBarInline({
       <Popover as="div" className="relative flex-1">
         {({ close }) => (
           <>
-            <Popover.Button className="w-full text-left px-4 py-2 flex items-center justify-between">
+            <Popover.Button className="w-full h-full text-left px-4 py-2 flex items-center justify-between focus:outline-none">
               <span className="text-sm">
-                {date ? date.toLocaleDateString() : 'Add date'}
+                {date ? format(date, 'd MMM yyyy') : 'Add date'}
               </span>
               <ChevronDownIcon className="w-4 h-4 text-gray-500" />
             </Popover.Button>
@@ -181,7 +195,10 @@ export default function SearchBarInline({
               leaveFrom="opacity-100 translate-y-0"
               leaveTo="opacity-0 translate-y-1"
             >
-              <Popover.Panel className="absolute z-20 mt-2 bg-white rounded-lg shadow-lg p-2">
+              <Popover.Panel
+                className="absolute z-20 mt-2 bg-white rounded-lg shadow-lg p-2"
+                onKeyDown={(e) => handleKey(e, close)}
+              >
                 <ReactDatePicker
                   selected={date}
                   onChange={setDate}
@@ -217,14 +234,7 @@ export default function SearchBarInline({
                 <div className="flex justify-end pt-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      close();
-                      onSearchEdit({
-                        category: category.value,
-                        location: loc || undefined,
-                        when: date,
-                      });
-                    }}
+                    onClick={() => applyAndClose(close)}
                     className="text-sm text-indigo-600 hover:text-indigo-800"
                   >
                     Apply
@@ -237,9 +247,7 @@ export default function SearchBarInline({
       </Popover>
       <button
         type="button"
-        onClick={() =>
-          onSearchEdit({ category: category.value, location: loc || undefined, when: date })
-        }
+        onClick={() => onSearchEdit({ category: category.value, location: loc || undefined, when: date })}
         className="p-2 text-white bg-indigo-600 hover:bg-indigo-700 rounded-full ml-2 mr-2"
       >
         <MagnifyingGlassIcon className="h-5 w-5" />
