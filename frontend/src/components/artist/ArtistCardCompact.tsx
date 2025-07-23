@@ -39,6 +39,7 @@ export default function ArtistCardCompact({
       href={href}
       className={clsx(
         'group block rounded-xl overflow-hidden bg-white hover:shadow-md transition',
+        'no-underline hover:no-underline', // Ensure no underline by default and on hover
         className,
       )}
       {...props}
