@@ -6,12 +6,12 @@ export default function HomePage() {
     <MainLayout>
       <ArtistsSection
         title="Popular Musicians"
-        query={{ sort: 'most_booke' }}
+        query={{ sort: 'most_booked' }}
         hideIfEmpty
       />
       <ArtistsSection
         title="Top Rated"
-        query={{ sort: 'top_rate' }}
+        query={{ sort: 'top_rated' }}
         hideIfEmpty
       />
       <ArtistsSection
