@@ -134,6 +134,18 @@ const normalizeArtistProfile = (
 
 // ─── ARTISTS ───────────────────────────────────────────────────────────────────
 
+export interface PriceBucket {
+  min: number;
+  max: number;
+  count: number;
+}
+
+export interface GetArtistsResponse {
+  data: ArtistProfile[];
+  total: number;
+  price_distribution: PriceBucket[];
+}
+
 export const getArtists = async (params?: {
   category?: string;
   location?: string;
@@ -142,11 +154,15 @@ export const getArtists = async (params?: {
   maxPrice?: number;
   page?: number;
   limit?: number;
-}) => {
-  const res = await api.get<ArtistProfile[]>(`${API_V1}/artist-profiles/`, {
+  includePriceDistribution?: boolean;
+}): Promise<GetArtistsResponse> => {
+  const res = await api.get<GetArtistsResponse>(`${API_V1}/artist-profiles/`, {
     params,
   });
-  return { ...res, data: res.data.map(normalizeArtistProfile) };
+  return {
+    ...res.data,
+    data: res.data.data.map(normalizeArtistProfile),
+  };
 };
 
 export const getArtist = async (userId: number) => {
