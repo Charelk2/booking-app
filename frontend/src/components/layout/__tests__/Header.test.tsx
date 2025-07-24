@@ -40,6 +40,18 @@ describe('Header', () => {
     div.remove();
   });
 
+  it('hides search bar on other pages without extraBar', async () => {
+    (usePathname as jest.Mock).mockReturnValue('/artists');
+    const { div, root } = render();
+    await act(async () => {
+      root.render(<Header />);
+    });
+    await flushPromises();
+    expect(div.firstChild).toMatchSnapshot();
+    act(() => root.unmount());
+    div.remove();
+  });
+
   it('renders artists header when extraBar provided', async () => {
     (usePathname as jest.Mock).mockReturnValue('/artists');
     const { div, root } = render();
