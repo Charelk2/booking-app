@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { FunnelIcon } from '@heroicons/react/24/outline';
 import SearchModal from '@/components/search/SearchModal';
-import SearchBarInline from '@/components/search/SearchBarInline';
 import useMediaQuery from '@/hooks/useMediaQuery';
 import { format } from 'date-fns';
 import FilterSheet from './FilterSheet';
@@ -74,7 +73,7 @@ export default function ArtistsPageHeader({
   return (
     <>
       <div className="flex items-center justify-between md:justify-start md:gap-2">
-        {!isDesktop ? (
+        {!isDesktop && (
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
@@ -83,13 +82,6 @@ export default function ArtistsPageHeader({
             <span className="text-sm font-medium">{compact}</span>
             <span className="text-xs text-gray-500">{dateStr}</span>
           </button>
-        ) : (
-          <SearchBarInline
-            initialCategory={categoryValue}
-            initialLocation={location}
-            initialWhen={when}
-            onSearch={onSearchEdit}
-          />
         )}
         <button
           type="button"
