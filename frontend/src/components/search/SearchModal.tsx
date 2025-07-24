@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { BottomSheet, Button } from '@/components/ui';
-import { SearchFields } from './SearchBar';
+import { SearchFields } from './SearchFields';
 import { UI_CATEGORIES } from '@/lib/categoryMap';
 
 interface SearchModalProps {
