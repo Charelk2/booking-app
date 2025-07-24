@@ -13,6 +13,14 @@ import {
 } from "@/lib/filter-constants";
 import type { PriceBucket } from "@/lib/api";
 
+// Available sort values must exactly match the backend pattern.
+const SORT_OPTIONS = [
+  { value: "", label: "Sort" },
+  { value: "top_rated", label: "Top Rated" },
+  { value: "most_booked", label: "Most Booked" },
+  { value: "newest", label: "Newest" },
+];
+
 interface FilterSheetProps {
   open: boolean;
   onClose: () => void;
@@ -48,7 +56,7 @@ export default function FilterSheet({
   }, []);
 
   const maxCount = priceDistribution.reduce(
-    (max, b) => Math.max(max, b.count),
+    (max, bucket) => Math.max(max, bucket.count),
     0,
   );
 
@@ -77,22 +85,25 @@ export default function FilterSheet({
           onChange={onSort}
           className="w-full border border-gray-200 rounded-md px-4 py-2 mt-2"
         >
-          <option value="">Sort</option>
-          <option value="top_rated">Top Rated</option>
-          <option value="most_booked">Most Booked</option>
-          <option value="newest">Newest</option>
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
         </select>
       </div>
       <div>
         <label className="block text-sm font-medium">Price range</label>
-        <p className="text-xs text-gray-500">Trip price, includes all fees.</p>
+        <p className="text-xs text-gray-500">
+          Artist/Service price, includes all fees.
+        </p>
         <div className="mt-4 relative h-20">
           <div className="absolute inset-0 flex items-end justify-between px-0.5 pointer-events-none">
             {priceDistribution.map((bucket, index) => (
               <div
                 key={index}
-                className="bg-gray-300 w-1 rounded-t-sm"
-                style={{ height: `${(bucket.count / (maxCount || 1)) * 60}%` }}
+                className="bg-gray-400 w-2 rounded-t-sm"
+                style={{ height: `${(bucket.count / (maxCount || 1)) * 70}%` }}
               />
             ))}
           </div>
