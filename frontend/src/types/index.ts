@@ -273,7 +273,8 @@ export interface Notification {
     | 'quote_accepted'
     | 'new_booking'
     | 'deposit_due'
-    | 'review_request';
+    | 'review_request'
+    | 'message_thread_notification';
   message: string;
   link: string;
   is_read: boolean;

@@ -8,7 +8,7 @@ import {
   ChatBubbleLeftRightIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
-import type { User } from '@/types';
+import type { User, UnifiedNotification } from '@/types';
 import useNotifications from '@/hooks/useNotifications';
 import useScrollDirection from '@/hooks/useScrollDirection';
 
@@ -44,8 +44,11 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   // Next.js App Router doesn’t expose pathname in its types, so we use a type assertion
   const pathname = (router as unknown as { pathname?: string }).pathname || '';
   const unreadMessages = notificationItems
-    .filter((i) => i.type === 'message')
-    .reduce((sum, t) => sum + (t.unread_count || 0), 0);
+    .filter((i: UnifiedNotification) => i.type === 'message')
+    .reduce(
+      (sum: number, t: UnifiedNotification) => sum + (t.unread_count || 0),
+      0,
+    );
   const badgeCount = unreadMessages > 99 ? '99+' : String(unreadMessages);
 
   return (
