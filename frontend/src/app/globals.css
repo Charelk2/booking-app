@@ -79,22 +79,22 @@ html[data-headlessui-focus-visible] {
     appearance: none;
     width: 16px; /* Size of the thumb */
     height: 16px; /* Size of the thumb */
-    background: #4f46e5; /* Indigo color for the thumb */
-    border: 2px solid #fff; /* White border */
-    border-radius: 50%; /* Make it round */
+    background: #ffffff; /* White thumb */
+    border: 2px solid #d1d5db; /* Gray border */
+    border-radius: 50%;
     cursor: grab;
-    margin-top: -6px; /* Adjust to center vertically on the track */
-    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2); /* Ring on focus/active */
+    margin-top: -7px; /* Center on 2px track */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
   
   .custom-range-thumb::-moz-range-thumb {
     width: 16px;
     height: 16px;
-    background: #4f46e5;
-    border: 2px solid #fff;
+    background: #ffffff;
+    border: 2px solid #d1d5db;
     border-radius: 50%;
     cursor: grab;
-    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
   
   .custom-range-thumb:active::-webkit-slider-thumb {
