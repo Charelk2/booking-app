@@ -953,15 +953,16 @@ returned. Newly created profiles default to `true`.
 When filtering by a specific `category`, each profile also includes
 `service_price` showing the price of that service for the artist.
 
-The redesigned listing page features a sticky search header. A compact summary
-displays the selected category, location and date; clicking it opens a
-`SearchModal` prefilled with those values. A **Filters** button opens
-`FilterSheet` for sort, price range and a Verified Only toggle. The page still
+The redesigned listing page features a sticky search header. On desktop this
+header shows a segmented inline search bar with popovers for **Category**,
+**Location** and **Date**, just like Airbnb. On mobile a compact summary displays
+the selected values; tapping it opens a `SearchModal` prefilled with those
+values. A **Filters** button opens `FilterSheet` for sort, price range and a
+Verified Only toggle and shows a tiny dot when any filter is active. The page
 rests on a soft gradient background from the brand color to white. When no
 results match the current filters the page shows "No artists found" beneath the
-header.
-Filter selections persist in the URL so sharing or reloading the page keeps
-the current view, e.g.
+header. Filter selections persist in the URL so sharing or reloading the page
+keeps the current view, e.g.
 `/artists?category=Live+Performance&location=NY&minPrice=0&maxPrice=200000`.
 
 ### Mobile Navigation & Inbox
