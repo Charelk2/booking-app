@@ -89,3 +89,19 @@ class ArtistProfileNested(ArtistProfileBase):
 
 class ArtistAvailabilityResponse(BaseModel):
     unavailable_dates: List[str]
+
+
+class PriceBucket(BaseModel):
+    """Histogram bucket for price range filtering."""
+
+    min: int
+    max: int
+    count: int
+
+
+class ArtistListResponse(BaseModel):
+    """Paginated artist list response."""
+
+    data: List[ArtistProfileResponse]
+    total: int
+    price_distribution: List[PriceBucket]

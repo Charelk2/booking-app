@@ -26,6 +26,7 @@ from app.schemas.artist import (
     ArtistProfileResponse,
     ArtistProfileUpdate,  # new Pydantic schema for updates
     ArtistAvailabilityResponse,
+    ArtistListResponse,
 )
 from app.api.auth import get_current_user
 
@@ -390,9 +391,9 @@ def update_portfolio_images_order_me(
 
 @router.get(
     "/",
-    response_model=List[ArtistProfileResponse],
+    response_model=ArtistListResponse,
     summary="List all artist profiles",
-    description="Returns an array of every artist’s profile.",
+    description="Return a paginated list of artist profiles.",
 )
 def read_all_artist_profiles(
     db: Session = Depends(get_db),
@@ -413,6 +414,8 @@ def read_all_artist_profiles(
         min_price = None
     if hasattr(max_price, "default"):
         max_price = None
+    if hasattr(include_price_distribution, "default"):
+        include_price_distribution = False
 
     cache_category = category.value if isinstance(category, ServiceType) else category
     cached = None
