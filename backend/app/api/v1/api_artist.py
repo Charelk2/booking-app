@@ -416,6 +416,12 @@ def read_all_artist_profiles(
         max_price = None
     if hasattr(include_price_distribution, "default"):
         include_price_distribution = False
+    if hasattr(category, "default"):
+        category = None
+    if hasattr(location, "default"):
+        location = None
+    if hasattr(sort, "default"):
+        sort = None
 
     cache_category = category.value if isinstance(category, ServiceType) else category
     cached = None
