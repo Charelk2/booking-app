@@ -76,7 +76,7 @@ export default function SearchBarInline({
 
   return (
     <div className="flex items-stretch bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-visible">
-      <Popover as="div" className="relative flex-1">
+      <Popover as="div" className="relative flex-none">
         {({ close }) => (
           <>
             <Popover.Button className="flex-none px-4 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
@@ -94,7 +94,8 @@ export default function SearchBarInline({
               <Popover.Panel
                 className="
                   absolute z-50 left-0 top-full mt-2
-                  w-full bg-white rounded-lg shadow-xl p-4
+                  w-full max-w-md
+                  bg-white rounded-lg shadow-xl p-4
                 "
                 onKeyDown={(e) => handleKey(e, close)}
               >
@@ -133,7 +134,7 @@ export default function SearchBarInline({
           </>
         )}
       </Popover>
-      <Popover as="div" className="relative flex-1">
+      <Popover as="div" className="relative flex-none">
         {({ close }) => (
           <>
             <Popover.Button className="flex-none px-4 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
@@ -151,7 +152,8 @@ export default function SearchBarInline({
               <Popover.Panel
                 className="
                   absolute z-50 left-0 top-full mt-2
-                  w-full bg-white rounded-lg shadow-xl p-4
+                  w-full max-w-md
+                  bg-white rounded-lg shadow-xl p-4
                 "
                 onKeyDown={(e) => handleKey(e, close)}
               >
@@ -176,7 +178,7 @@ export default function SearchBarInline({
           </>
         )}
       </Popover>
-      <Popover as="div" className="relative flex-1">
+      <Popover as="div" className="relative flex-none">
         {({ close }) => (
           <>
             <Popover.Button className="flex-none px-4 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
@@ -192,10 +194,7 @@ export default function SearchBarInline({
               leaveTo="opacity-0 translate-y-1"
             >
               <Popover.Panel
-                className="
-                  absolute z-50 left-0 top-full mt-2
-                  w-full bg-white rounded-lg shadow-xl p-4
-                "
+                className="absolute z-50 mt-2 bg-white rounded-lg shadow-xl p-4 w-auto"
                 onKeyDown={(e) => handleKey(e, close)}
               >
                 <ReactDatePicker
