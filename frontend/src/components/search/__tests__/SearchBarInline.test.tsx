@@ -8,7 +8,7 @@ describe('SearchBarInline', () => {
     document.body.innerHTML = '';
   });
 
-  it('opens popover and triggers onSearch', () => {
+  it('expands and triggers onSearch', () => {
     const onSearch = jest.fn();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -18,12 +18,12 @@ describe('SearchBarInline', () => {
       root.render(<SearchBarInline onSearch={onSearch} />);
     });
 
-    const trigger = container.querySelector('[data-testid="inline-trigger"]') as HTMLButtonElement;
+    const trigger = container.querySelector('button') as HTMLButtonElement;
     act(() => {
       trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    const searchBtn = container.querySelector('[data-testid="inline-search-btn"]') as HTMLButtonElement;
+    const searchBtn = container.querySelector('button[type="submit"]') as HTMLButtonElement;
     expect(searchBtn).not.toBeNull();
 
     act(() => {
