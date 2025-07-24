@@ -955,10 +955,14 @@ When filtering by a specific `category`, each profile also includes
 
 The redesigned listing page features a sticky search header. On desktop this
 header shows a segmented inline search bar with popovers for **Category**,
-**Location** and **Date**, just like Airbnb. On mobile a compact summary displays
-the selected values; tapping it opens a `SearchModal` prefilled with those
-values. A **Filters** button opens `FilterSheet` for sort, price range and a
-Verified Only toggle and shows a tiny dot when any filter is active. The page
+**Location** and **Date**, just like Airbnb. Each segment auto-sizes to its
+content and the search button uses Airbnb’s pink. Popovers float above the
+header so they never get clipped and close on ESC or outside clicks. A
+`useMediaQuery('(min-width:768px)')` hook picks between this inline bar and the
+mobile `SearchModal`. On mobile a compact summary displays the selected values;
+tapping it opens the modal prefilled with those values. A **Filters** button
+opens `FilterSheet` for sort, price range and a Verified Only toggle. The button
+shows a tiny pink dot when any filter is active. The page
 rests on a soft gradient background from the brand color to white. When no
 results match the current filters the page shows "No artists found" beneath the
 header. Filter selections persist in the URL so sharing or reloading the page
