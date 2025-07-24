@@ -30,8 +30,8 @@ export default function RootLayout({
             <Toaster position="top-right" />
           </NotificationsProvider>
         </AuthProvider>
+        <div id="modal-root"></div>
 
-    
       </body>
     </html>
   );
