@@ -1,72 +1,51 @@
 'use client';
-import { useState, useEffect, Fragment, KeyboardEvent } from 'react';
-import { Popover, Transition, Listbox } from '@headlessui/react';
-import {
-  MagnifyingGlassIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from '@heroicons/react/24/outline';
-import ReactDatePicker from 'react-datepicker';
-import type { ReactDatePickerCustomHeaderProps } from 'react-datepicker';
-import LocationInput from '../ui/LocationInput';
-import '@/styles/datepicker.css';
-import clsx from 'clsx';
-import { UI_CATEGORIES } from '@/lib/categoryMap';
+import { useState, useEffect, KeyboardEvent } from 'react';
+import { Popover } from '@headlessui/react';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
-
-type Category = (typeof UI_CATEGORIES)[number];
+import { SearchFields, Category } from './SearchFields';
+import { UI_CATEGORIES } from '@/lib/categoryMap';
 
 interface Props {
-  categoryLabel?: string;
-  categoryValue?: string;
-  location?: string;
-  when?: Date | null;
-  onSearchEdit: (p: {
-    category?: string;
-    location?: string;
-    when?: Date | null;
-  }) => void;
+  initialCategory?: string;
+  initialLocation?: string;
+  initialWhen?: Date | null;
+  onSearch: (p: { category?: string; location?: string; when?: Date | null }) => void;
 }
 
 export default function SearchBarInline({
-  categoryLabel,
-  categoryValue,
-  location,
-  when,
-  onSearchEdit,
+  initialCategory,
+  initialLocation,
+  initialWhen,
+  onSearch,
 }: Props) {
-  const initialCat = categoryValue
-    ? UI_CATEGORIES.find((c) => c.value === categoryValue) || UI_CATEGORIES[0]
+  const initialCat = initialCategory
+    ? UI_CATEGORIES.find((c) => c.value === initialCategory) || UI_CATEGORIES[0]
     : UI_CATEGORIES[0];
   const [category, setCategory] = useState<Category>(initialCat);
-  const [loc, setLoc] = useState(location || '');
-  const [date, setDate] = useState<Date | null>(when || null);
+  const [location, setLocation] = useState(initialLocation || '');
+  const [when, setWhen] = useState<Date | null>(initialWhen || null);
 
   useEffect(() => {
-    if (categoryValue) {
-      const found = UI_CATEGORIES.find((c) => c.value === categoryValue);
+    if (initialCategory) {
+      const found = UI_CATEGORIES.find((c) => c.value === initialCategory);
       if (found) setCategory(found);
+    } else {
+      setCategory(UI_CATEGORIES[0]);
     }
-    setLoc(location || '');
-    setDate(when || null);
-  }, [categoryValue, location, when]);
+    setLocation(initialLocation || '');
+    setWhen(initialWhen || null);
+  }, [initialCategory, initialLocation, initialWhen]);
 
-  const applyAndClose = (close: () => void) => {
-    close();
-    onSearchEdit({
-      category: category.value,
-      location: loc || undefined,
-      when: date,
-    });
+  const applyAndClose = () => {
+    onSearch({ category: category.value, location: location || undefined, when });
   };
 
-  const handleKey = (
-    e: KeyboardEvent,
-    close: () => void,
-  ) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>, close: () => void) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      applyAndClose(close);
+      applyAndClose();
+      close();
     }
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -75,183 +54,54 @@ export default function SearchBarInline({
   };
 
   return (
-    <div className="flex items-stretch bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-visible">
-      <Popover as="div" className="relative flex-none">
-        {({ close }) => (
-          <>
-            <Popover.Button className="flex-none px-4 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
-              <span>{categoryLabel || 'All'}</span>
-            </Popover.Button>
-            <Transition
-              as={Fragment}
-              enter="transition ease-out duration-200"
-              enterFrom="opacity-0 translate-y-1"
-              enterTo="opacity-100 translate-y-0"
-              leave="transition ease-in duration-150"
-              leaveFrom="opacity-100 translate-y-0"
-              leaveTo="opacity-0 translate-y-1"
-            >
-              <Popover.Panel
-                className="
-                  absolute z-50 left-0 top-full mt-2
-                  w-full max-w-md
-                  bg-white rounded-lg shadow-xl p-4
-                "
-                onKeyDown={(e) => handleKey(e, close)}
-              >
-                <Listbox value={category} onChange={setCategory}>
-                  <div className="relative">
-                    <Listbox.Button className="sr-only">Category</Listbox.Button>
-                    <Listbox.Options className="max-h-60 overflow-auto py-1">
-                      {UI_CATEGORIES.map((c) => (
-                        <Listbox.Option
-                          key={c.value}
-                          value={c}
-                          className={({ active }) =>
-                            clsx(
-                              'px-4 py-2 text-sm cursor-pointer',
-                              active ? 'bg-indigo-100 text-indigo-900' : 'text-gray-700',
-                            )
-                          }
-                        >
-                          {c.label}
-                        </Listbox.Option>
-                      ))}
-                    </Listbox.Options>
-                  </div>
-                </Listbox>
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={() => applyAndClose(close)}
-                    className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-full"
-                  >
-                    Apply
-                  </button>
-                </div>
-              </Popover.Panel>
-            </Transition>
-          </>
-        )}
-      </Popover>
-      <Popover as="div" className="relative flex-none">
-        {({ close }) => (
-          <>
-            <Popover.Button className="flex-none px-4 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
-              <span>{loc || 'Anywhere'}</span>
-            </Popover.Button>
-            <Transition
-              as={Fragment}
-              enter="transition ease-out duration-200"
-              enterFrom="opacity-0 translate-y-1"
-              enterTo="opacity-100 translate-y-0"
-              leave="transition ease-in duration-150"
-              leaveFrom="opacity-100 translate-y-0"
-              leaveTo="opacity-0 translate-y-1"
-            >
-              <Popover.Panel
-                className="
-                  absolute z-50 left-0 top-full mt-2
-                  w-full max-w-md
-                  bg-white rounded-lg shadow-xl p-4
-                "
-                onKeyDown={(e) => handleKey(e, close)}
-              >
-                <LocationInput
-                  value={loc}
-                  onValueChange={setLoc}
-                  onPlaceSelect={() => {}}
-                  className="w-full"
-                  inputClassName="w-full"
-                />
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={() => applyAndClose(close)}
-                    className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-full"
-                  >
-                    Apply
-                  </button>
-                </div>
-              </Popover.Panel>
-            </Transition>
-          </>
-        )}
-      </Popover>
-      <Popover as="div" className="relative flex-none">
-        {({ close }) => (
-          <>
-            <Popover.Button className="flex-none px-4 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
-              <span>{date ? format(date, 'd MMM yyyy') : 'Add date'}</span>
-            </Popover.Button>
-            <Transition
-              as={Fragment}
-              enter="transition ease-out duration-200"
-              enterFrom="opacity-0 translate-y-1"
-              enterTo="opacity-100 translate-y-0"
-              leave="transition ease-in duration-150"
-              leaveFrom="opacity-100 translate-y-0"
-              leaveTo="opacity-0 translate-y-1"
-            >
-              <Popover.Panel
-                className="absolute z-50 mt-2 bg-white rounded-lg shadow-xl p-4 w-auto"
-                onKeyDown={(e) => handleKey(e, close)}
-              >
-                <ReactDatePicker
-                  selected={date}
-                  onChange={setDate}
-                  inline
-                  renderCustomHeader={({
-                    date: d,
-                    decreaseMonth,
-                    increaseMonth,
-                    prevMonthButtonDisabled,
-                    nextMonthButtonDisabled,
-                  }: ReactDatePickerCustomHeaderProps) => (
-                    <div className="flex justify-between items-center px-3 pt-2 pb-2">
-                      <button
-                        onClick={decreaseMonth}
-                        disabled={prevMonthButtonDisabled}
-                        className="p-1 rounded-full hover:bg-gray-100"
-                      >
-                        <ChevronLeftIcon className="h-5 w-5 text-gray-500" />
-                      </button>
-                      <span className="text-base font-semibold text-gray-900">
-                        {d.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                      </span>
-                      <button
-                        onClick={increaseMonth}
-                        disabled={nextMonthButtonDisabled}
-                        className="p-1 rounded-full hover:bg-gray-100"
-                      >
-                        <ChevronRightIcon className="h-5 w-5 text-gray-500" />
-                      </button>
-                    </div>
-                  )}
-                />
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="button"
-                    onClick={() => applyAndClose(close)}
-                    className="text-sm text-indigo-600 hover:text-indigo-800"
-                  >
-                    Apply
-                  </button>
-                </div>
-              </Popover.Panel>
-            </Transition>
-          </>
-        )}
-      </Popover>
-      <button
-        type="button"
-        onClick={() =>
-          onSearchEdit({ category: category.value, location: loc || undefined, when: date })
-        }
-        className="bg-pink-600 hover:bg-pink-700 px-4 py-2 flex items-center justify-center text-white rounded-r-full"
-      >
-        <MagnifyingGlassIcon className="h-5 w-5" />
-      </button>
-    </div>
+    <Popover className="relative">
+      {({ close }) => (
+        <>
+          <Popover.Button
+            className="flex items-center bg-white border border-gray-200 rounded-full shadow-lg divide-x divide-gray-200 overflow-hidden"
+          >
+            <div className="flex-1 px-4 py-2 text-sm text-gray-700">
+              {category.label}
+            </div>
+            <div className="flex-1 px-4 py-2 text-sm text-gray-700">
+              {location || 'Anywhere'}
+            </div>
+            <div className="flex-1 px-4 py-2 text-sm text-gray-700">
+              {when ? format(when, 'd MMM yyyy') : 'Add date'}
+            </div>
+            <div className="p-2 bg-pink-600 hover:bg-pink-700 text-white">
+              <MagnifyingGlassIcon className="h-5 w-5" />
+            </div>
+          </Popover.Button>
+          <Popover.Panel
+            className="absolute z-10 top-full left-0 right-0 mt-2 px-4 sm:px-6 lg:px-8"
+            onKeyDown={(e) => handleKeyDown(e, close)}
+          >
+            <div className="bg-white rounded-lg shadow-xl p-4">
+              <SearchFields
+                category={category}
+                setCategory={setCategory}
+                location={location}
+                setLocation={setLocation}
+                when={when}
+                setWhen={setWhen}
+              />
+              <div className="flex justify-end mt-4">
+                <button
+                  type="button"
+                  className="bg-pink-600 hover:bg-pink-700 text-white font-medium px-5 py-2 rounded-full"
+                  onClick={() => {
+                    applyAndClose();
+                    close();
+                  }}
+                >
+                  Search
+                </button>
+              </div>
+            </div>
+          </Popover.Panel>
+        </>
+      )}
+    </Popover>
   );
 }

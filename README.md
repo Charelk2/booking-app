@@ -954,12 +954,12 @@ When filtering by a specific `category`, each profile also includes
 `service_price` showing the price of that service for the artist.
 
 The redesigned listing page features a sticky search header. On desktop this
-header shows a segmented inline search bar with popovers for **Category**,
-**Location** and **Date**, just like Airbnb. Each segment auto-sizes to its
-content and the search button uses Airbnb’s pink. Popovers float above the
-header so they never get clipped and close on ESC or outside clicks. The bar now
-sits directly beneath the global navigation whenever you visit `/artists`,
-providing a consistent header across the site. A
+header collapses to a single segment that expands inline to show **Category**,
+**Location** and **Date** fields, mirroring Airbnb’s style. The search icon sits
+on the right in a pink pill. Clicking any part opens all fields together in one
+popover, which floats above the header and closes on ESC or outside clicks. The
+bar now sits directly beneath the global navigation whenever you visit
+`/artists`, providing a consistent header across the site. A
 `useMediaQuery('(min-width:768px)')` hook picks between this inline bar and the
 mobile `SearchModal`. On mobile a compact summary displays the selected values;
 tapping it opens the modal prefilled with those values. A **Filters** button

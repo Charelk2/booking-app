@@ -85,11 +85,10 @@ export default function ArtistsPageHeader({
           </button>
         ) : (
           <SearchBarInline
-            categoryLabel={categoryLabel}
-            categoryValue={categoryValue}
-            location={location}
-            when={when}
-            onSearchEdit={onSearchEdit}
+            initialCategory={categoryValue}
+            initialLocation={location}
+            initialWhen={when}
+            onSearch={onSearchEdit}
           />
         )}
         <button
