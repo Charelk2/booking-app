@@ -1,9 +1,10 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import type { ChangeEventHandler } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { BottomSheet } from "@/components/ui";
+import { createPortal } from "react-dom";
 import {
   SLIDER_MIN,
   SLIDER_MAX,
@@ -36,7 +37,14 @@ export default function FilterSheet({
 }: FilterSheetProps) {
   const firstRef = useRef<HTMLInputElement>(null);
   const isDesktop = useMediaQuery("(min-width:768px)");
-  if (!open) return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  if (!open || !mounted) return null;
 
   const content = (
     <div className="space-y-6" ref={firstRef}>
@@ -128,12 +136,13 @@ export default function FilterSheet({
   );
 
   if (isDesktop) {
-    return (
+    return createPortal(
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
         <div className="bg-white rounded-2xl p-6 max-w-md mx-auto w-full">
           {content}
         </div>
-      </div>
+      </div>,
+      document.getElementById('modal-root')!
     );
   }
 
