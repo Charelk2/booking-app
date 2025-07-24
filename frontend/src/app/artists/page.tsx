@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import clsx from 'clsx';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { getArtists } from '@/lib/api';
@@ -122,7 +123,14 @@ export default function ArtistsPage() {
   const [searchExpanded, setSearchExpanded] = useState(false);
 
   const header = (
-    <div className="relative flex items-center justify-center">
+    <div
+      className={clsx(
+        'relative mx-auto transition-all duration-300 ease-out',
+        searchExpanded
+          ? 'max-w-full md:max-w-5xl lg:max-w-6xl'
+          : 'max-w-2xl'
+      )}
+    >
       <SearchBarInline
         initialCategory={uiValue}
         initialLocation={location}
