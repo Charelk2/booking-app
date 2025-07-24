@@ -83,7 +83,7 @@ export default function parseNotification(n: Notification): ParsedNotification {
       return {
         icon: <BellAlertIcon className="w-5 h-5 text-indigo-600" />,
         title:
-          n.type
+          (n.type as string)
             .split('_')
             .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
             .join(' ') || 'Notification',

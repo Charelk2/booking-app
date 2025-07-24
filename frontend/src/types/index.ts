@@ -280,6 +280,7 @@ export interface Notification {
   timestamp: string;
   sender_name?: string;
   booking_type?: string;
+  avatar_url?: string | null;
 }
 
 export interface ThreadNotification {
