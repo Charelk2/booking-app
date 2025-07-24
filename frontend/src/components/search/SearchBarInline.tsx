@@ -14,6 +14,11 @@ interface Props {
   initialLocation?: string;
   initialWhen?: Date | null;
   onSearch: (p: { category?: string; location?: string; when?: Date | null }) => void;
+  /**
+   * Fired whenever the bar expands or collapses.
+   * Use to hide surrounding UI like filter buttons.
+   */
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
 export default function SearchBarInline({
@@ -21,6 +26,7 @@ export default function SearchBarInline({
   initialLocation,
   initialWhen,
   onSearch,
+  onExpandedChange,
 }: Props) {
   // pick a default category object
   const initialCat = initialCategory
@@ -33,15 +39,25 @@ export default function SearchBarInline({
   const [expanded, setExpanded] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  const collapse = () => {
+    setExpanded(false);
+    onExpandedChange?.(false);
+  };
+
+  const expand = () => {
+    setExpanded(true);
+    onExpandedChange?.(true);
+  };
+
   // close when clicking outside
-  useClickOutside(wrapperRef, () => setExpanded(false));
+  useClickOutside(wrapperRef, collapse);
 
   // close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        setExpanded(false);
+        collapse();
       }
     };
     document.addEventListener('keydown', handler);
@@ -51,7 +67,7 @@ export default function SearchBarInline({
   // run search and collapse
   const handleSearch = (params: { category?: string; location?: string; when?: Date | null }) => {
     onSearch(params);
-    setExpanded(false);
+    collapse();
   };
 
   return (
@@ -73,12 +89,12 @@ export default function SearchBarInline({
           when={when}
           setWhen={setWhen}
           onSearch={handleSearch}
-          onCancel={() => setExpanded(false)}
+          onCancel={collapse}
         />
       ) : (
         <button
           type="button"
-          onClick={() => setExpanded(true)}
+          onClick={expand}
           className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-hidden w-full hover:ring-2 hover:ring-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500 transition-all duration-300 ease-out"
         >
           <div className="flex-1 px-4 py-2 text-sm text-gray-700">
