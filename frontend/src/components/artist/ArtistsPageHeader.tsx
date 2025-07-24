@@ -6,6 +6,7 @@ import useMediaQuery from '@/hooks/useMediaQuery';
 import { format } from 'date-fns';
 import FilterSheet from './FilterSheet';
 import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
+import type { PriceBucket } from '@/lib/api';
 
 export interface ArtistsPageHeaderProps {
   categoryLabel?: string;
@@ -21,6 +22,7 @@ export interface ArtistsPageHeaderProps {
   initialSort?: string;
   initialMinPrice: number;
   initialMaxPrice: number;
+  priceDistribution: PriceBucket[];
   onFilterApply: (params: {
     sort?: string;
     minPrice: number;
@@ -40,6 +42,7 @@ export default function ArtistsPageHeader({
   initialSort,
   initialMinPrice,
   initialMaxPrice,
+  priceDistribution,
   onFilterApply,
   onFilterClear,
   iconOnly,
@@ -88,6 +91,7 @@ export default function ArtistsPageHeader({
           onSort={(e) => setSort(e.target.value)}
           minPrice={minPrice}
           maxPrice={maxPrice}
+          priceDistribution={priceDistribution}
           onPriceChange={(min, max) => {
             setMinPrice(min);
             setMaxPrice(max);
@@ -152,6 +156,7 @@ export default function ArtistsPageHeader({
         onSort={(e) => setSort(e.target.value)}
         minPrice={minPrice}
         maxPrice={maxPrice}
+        priceDistribution={priceDistribution}
         onPriceChange={(min, max) => {
           setMinPrice(min);
           setMaxPrice(max);

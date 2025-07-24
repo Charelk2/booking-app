@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { getArtists } from '@/lib/api';
+import { getArtists, type PriceBucket } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCard from '@/components/artist/ArtistCard';
 import ArtistsPageHeader from '@/components/artist/ArtistsPageHeader';
 import SearchBarInline from '@/components/search/SearchBarInline';
 import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
+import { useDebounce } from '@/hooks/useDebounce';
 import { updateQueryParams } from '@/lib/urlParams';
 import {
   UI_CATEGORIES,
@@ -53,6 +54,10 @@ export default function ArtistsPage() {
   const [maxPrice, setMaxPrice] = useState<number>(
     searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : SLIDER_MAX
   );
+  const [priceDistribution, setPriceDistribution] = useState<PriceBucket[]>([]);
+
+  const debouncedMinPrice = useDebounce(minPrice, 500);
+  const debouncedMaxPrice = useDebounce(maxPrice, 500);
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -69,14 +74,16 @@ export default function ArtistsPage() {
         location: location || undefined,
         when: when || undefined,
         sort,
-        minPrice,
-        maxPrice,
+        minPrice: debouncedMinPrice,
+        maxPrice: debouncedMaxPrice,
         page: pageOverride ?? page,
         limit: LIMIT,
+        includePriceDistribution: true,
       });
       const filtered = res.data.filter((a) => a.business_name || a.user);
       setHasMore(filtered.length === LIMIT);
       setArtists((prev) => (append ? [...prev, ...filtered] : filtered));
+      setPriceDistribution(res.price_distribution || []);
     } catch (err) {
       console.error(err);
       setError('Failed to load artists.');
@@ -88,7 +95,7 @@ export default function ArtistsPage() {
   useEffect(() => {
     setPage(1);
     fetchArtists({ pageOverride: 1 });
-  }, [category, location, when, sort, minPrice, maxPrice]);
+  }, [category, location, when, sort, debouncedMinPrice, debouncedMaxPrice]);
 
   const loadMore = () => {
     const next = page + 1;
@@ -145,6 +152,7 @@ export default function ArtistsPage() {
             initialSort={sort}
             initialMinPrice={minPrice}
             initialMaxPrice={maxPrice}
+            priceDistribution={priceDistribution}
             onFilterApply={({ sort: s, minPrice: min, maxPrice: max }) => {
               setSort(s || undefined);
               setMinPrice(min);
