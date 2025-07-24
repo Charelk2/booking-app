@@ -16,6 +16,7 @@ The July 2025 update bumps key dependencies and Docker base images:
   filters, skeleton loaders and a hover "Book Now" overlay for a modern,
   accessible look.
 - Homepage search now lives in the header on a light gray background.
+- Collapsed search bar truncates long locations with an ellipsis so the text never wraps.
 - Search categories now map **Musician / Band** to the `Live Performance` service
   type so searching musicians shows available artists.
 - An unobtrusive marketing strip replaces the old Hero section.

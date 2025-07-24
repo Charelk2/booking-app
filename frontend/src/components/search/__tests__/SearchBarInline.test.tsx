@@ -74,4 +74,23 @@ describe('SearchBarInline', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('location label does not wrap and is truncated', () => {
+    const onSearch = jest.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(<SearchBarInline onSearch={onSearch} />);
+    });
+
+    const locationDiv = container.querySelector('button > div:nth-child(2)') as HTMLDivElement;
+    expect(locationDiv.className).toMatch(/whitespace-nowrap/);
+    expect(locationDiv.className).toMatch(/overflow-hidden/);
+    expect(locationDiv.className).toMatch(/text-ellipsis/);
+
+    act(() => root.unmount());
+    container.remove();
+  });
 });
