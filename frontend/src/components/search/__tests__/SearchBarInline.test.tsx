@@ -93,4 +93,29 @@ describe('SearchBarInline', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('uses smaller max width when collapsed and expands to full width', () => {
+    const onSearch = jest.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(<SearchBarInline onSearch={onSearch} />);
+    });
+
+    const wrapper = container.querySelector('div') as HTMLDivElement;
+    expect(wrapper.className).toMatch(/max-w-2xl/);
+    expect(wrapper.className).not.toMatch(/max-w-4xl/);
+
+    const trigger = container.querySelector('button') as HTMLButtonElement;
+    act(() => {
+      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(wrapper.className).toMatch(/max-w-4xl/);
+
+    act(() => root.unmount());
+    container.remove();
+  });
 });
