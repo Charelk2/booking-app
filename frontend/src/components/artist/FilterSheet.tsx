@@ -11,6 +11,7 @@ import {
   SLIDER_STEP,
   formatCurrency,
 } from "@/lib/filter-constants";
+import type { PriceBucket } from "@/lib/api";
 
 interface FilterSheetProps {
   open: boolean;
@@ -22,6 +23,7 @@ interface FilterSheetProps {
   minPrice: number;
   maxPrice: number;
   onPriceChange: (min: number, max: number) => void;
+  priceDistribution: PriceBucket[];
 }
 
 export default function FilterSheet({
@@ -34,6 +36,7 @@ export default function FilterSheet({
   minPrice,
   maxPrice,
   onPriceChange,
+  priceDistribution,
 }: FilterSheetProps) {
   const firstRef = useRef<HTMLInputElement>(null);
   const isDesktop = useMediaQuery("(min-width:768px)");
@@ -43,6 +46,11 @@ export default function FilterSheet({
     setMounted(true);
     return () => setMounted(false);
   }, []);
+
+  const maxCount = priceDistribution.reduce(
+    (max, b) => Math.max(max, b.count),
+    0,
+  );
 
   if (!open || !mounted) return null;
 
@@ -78,10 +86,19 @@ export default function FilterSheet({
       <div>
         <label className="block text-sm font-medium">Price range</label>
         <p className="text-xs text-gray-500">Trip price, includes all fees.</p>
-        <div className="mt-4 relative">
-          <div className="h-2 bg-gray-200 rounded" />
+        <div className="mt-4 relative h-20">
+          <div className="absolute inset-0 flex items-end justify-between px-0.5 pointer-events-none">
+            {priceDistribution.map((bucket, index) => (
+              <div
+                key={index}
+                className="bg-gray-300 w-1 rounded-t-sm"
+                style={{ height: `${(bucket.count / (maxCount || 1)) * 60}%` }}
+              />
+            ))}
+          </div>
+          <div className="absolute inset-x-0 bottom-0 h-2 bg-gray-200 rounded" />
           <div
-            className="absolute h-2 bg-pink-500 rounded"
+            className="absolute bottom-0 h-2 bg-pink-500 rounded"
             style={{
               left: `${((minPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%`,
               right: `${100 - ((maxPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%`,
@@ -112,9 +129,51 @@ export default function FilterSheet({
             className="custom-range-thumb absolute inset-0 w-full h-2 appearance-none bg-transparent pointer-events-auto"
           />
         </div>
-        <div className="flex justify-between mt-2 text-sm text-gray-600">
-          <span>{formatCurrency(minPrice)}</span>
-          <span>{formatCurrency(maxPrice)}</span>
+        <div className="flex justify-between mt-4 gap-3">
+          <div className="flex-1">
+            <label htmlFor="min-price-input" className="block text-xs font-medium text-gray-700 mb-1">
+              Minimum
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R</span>
+              <input
+                id="min-price-input"
+                type="number"
+                value={minPrice}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
+                  if (!isNaN(value)) {
+                    onPriceChange(value, Math.max(value, maxPrice));
+                  }
+                }}
+                min={SLIDER_MIN}
+                max={SLIDER_MAX}
+                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex-1">
+            <label htmlFor="max-price-input" className="block text-xs font-medium text-gray-700 mb-1">
+              Maximum
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R</span>
+              <input
+                id="max-price-input"
+                type="number"
+                value={maxPrice}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
+                  if (!isNaN(value)) {
+                    onPriceChange(Math.min(value, minPrice), value);
+                  }
+                }}
+                min={SLIDER_MIN}
+                max={SLIDER_MAX}
+                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
+              />
+            </div>
+          </div>
         </div>
       </div>
       <div className="flex justify-between mt-6">

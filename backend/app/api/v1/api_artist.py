@@ -1,14 +1,16 @@
 # app/api/v1/api_artist.py
 
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, status, Query
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
+from collections import defaultdict
 from datetime import datetime, timedelta
-import re, shutil
-from pathlib import Path
-from typing import List, Optional
-from pydantic import BaseModel
 import logging
+import re
+import shutil
+from pathlib import Path
+from typing import List, Optional, Tuple, Dict, Any
+from pydantic import BaseModel
 
 from app.utils.redis_cache import get_cached_artist_list, cache_artist_list
 from app.services import calendar_service
@@ -31,17 +33,45 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Price distribution buckets used for the histogram on the frontend.
+# Extend or modify these ranges as needed. Ensure the max aligns with
+# SLIDER_MAX from the frontend filter constants.
+PRICE_BUCKETS: List[Tuple[int, int]] = [
+    (0, 1000),
+    (1001, 2000),
+    (2001, 3000),
+    (3001, 4000),
+    (4001, 5000),
+    (5001, 7500),
+    (7501, 10000),
+    (10001, 15000),
+    (15001, 20000),
+    (20001, 30000),
+    (30001, 40000),
+    (40001, 50000),
+    (50001, 75000),
+    (75001, 100000),
+    (100001, 150000),
+    (150001, 200000),
+    (200001, 300000),
+    (300001, 400000),
+    (400001, 500000),
+    (500001, 1000000),
+    (1000001, 2000000),
+    (2000001, 5000000),
+]
+
 # Paths for storing uploaded images:
-STATIC_DIR         = Path(__file__).resolve().parent.parent.parent / "static"
-PROFILE_PICS_DIR   = STATIC_DIR / "profile_pics"
-COVER_PHOTOS_DIR   = STATIC_DIR / "cover_photos"
+STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "static"
+PROFILE_PICS_DIR = STATIC_DIR / "profile_pics"
+COVER_PHOTOS_DIR = STATIC_DIR / "cover_photos"
 PORTFOLIO_IMAGES_DIR = STATIC_DIR / "portfolio_images"
 # Create directories if they don’t exist
 PROFILE_PICS_DIR.mkdir(parents=True, exist_ok=True)
 COVER_PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
 PORTFOLIO_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
-MAX_PROFILE_PIC_SIZE   = 5 * 1024 * 1024  # 5 MB
+MAX_PROFILE_PIC_SIZE = 5 * 1024 * 1024  # 5 MB
 ALLOWED_PROFILE_PIC_TYPES = ["image/jpeg", "image/png", "image/webp"]
 ALLOWED_PORTFOLIO_IMAGE_TYPES = ALLOWED_PROFILE_PIC_TYPES
 MAX_PORTFOLIO_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -62,7 +92,10 @@ def read_current_artist_profile(
           .first()
     )
     if not artist_profile:
-        raise HTTPException(status_code=404, detail="Artist profile not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="Artist profile not found.",
+        )
     return artist_profile
 
 
@@ -70,7 +103,9 @@ def read_current_artist_profile(
     "/me",
     response_model=ArtistProfileResponse,
     summary="Update current artist's profile",
-    description="Update fields of the currently authenticated artist's profile."
+    description=(
+        "Update fields of the currently authenticated artist's profile."
+    )
 )
 def update_current_artist_profile(
     profile_in: ArtistProfileUpdate,
@@ -87,16 +122,29 @@ def update_current_artist_profile(
           .first()
     )
     if not artist_profile:
-        raise HTTPException(status_code=404, detail="Artist profile not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="Artist profile not found.",
+        )
 
     update_data = profile_in.model_dump(exclude_unset=True)
 
     # Convert Pydantic HttpUrl objects to plain strings for JSON columns
-    if "portfolio_urls" in update_data and update_data["portfolio_urls"] is not None:
-        update_data["portfolio_urls"] = [str(url) for url in update_data["portfolio_urls"]]
+    if (
+        "portfolio_urls" in update_data
+        and update_data["portfolio_urls"] is not None
+    ):
+        update_data["portfolio_urls"] = [
+            str(url) for url in update_data["portfolio_urls"]
+        ]
 
-    if "profile_picture_url" in update_data and update_data["profile_picture_url"] is not None:
-        update_data["profile_picture_url"] = str(update_data["profile_picture_url"])
+    if (
+        "profile_picture_url" in update_data
+        and update_data["profile_picture_url"] is not None
+    ):
+        update_data["profile_picture_url"] = str(
+            update_data["profile_picture_url"]
+        )
 
     for field, value in update_data.items():
         setattr(artist_profile, field, value)
@@ -111,7 +159,10 @@ def update_current_artist_profile(
     "/me/profile-picture",
     response_model=ArtistProfileResponse,
     summary="Upload or update current artist's profile picture",
-    description="Uploads a new profile picture for the currently authenticated artist, replacing any existing one."
+    description=(
+        "Uploads a new profile picture for the currently authenticated artist,"
+        " replacing any existing one."
+    )
 )
 async def upload_artist_profile_picture_me(
     db: Session = Depends(get_db),
@@ -127,12 +178,17 @@ async def upload_artist_profile_picture_me(
           .first()
     )
     if not artist_profile:
-        raise HTTPException(status_code=404, detail="Artist profile not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="Artist profile not found.",
+        )
 
     if file.content_type not in ALLOWED_PROFILE_PIC_TYPES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid image type. Allowed: {ALLOWED_PROFILE_PIC_TYPES}"
+            detail=(
+                f"Invalid image type. Allowed: {ALLOWED_PROFILE_PIC_TYPES}"
+            )
         )
 
     try:
@@ -147,7 +203,11 @@ async def upload_artist_profile_picture_me(
 
         # Delete old profile picture if it exists
         if artist_profile.profile_picture_url:
-            old_rel = artist_profile.profile_picture_url.replace("/static/", "", 1)
+            old_rel = artist_profile.profile_picture_url.replace(
+                "/static/",
+                "",
+                1,
+            )
             old_file = STATIC_DIR / old_rel
             if old_file.exists() and old_file != file_path:
                 try:
@@ -155,7 +215,9 @@ async def upload_artist_profile_picture_me(
                 except OSError as e:
                     logger.warning("Error deleting old profile picture %s: %s", old_file, e)
 
-        artist_profile.profile_picture_url = f"/static/profile_pics/{unique_filename}"
+        artist_profile.profile_picture_url = (
+            f"/static/profile_pics/{unique_filename}"
+        )
         db.add(artist_profile)
         db.commit()
         db.refresh(artist_profile)
@@ -341,6 +403,7 @@ def read_all_artist_profiles(
     max_price: Optional[float] = Query(None, alias="maxPrice", ge=0),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    include_price_distribution: bool = Query(False, alias="include_price_distribution"),
 ):
     """Return a list of all artist profiles with optional filters."""
 
@@ -352,17 +415,23 @@ def read_all_artist_profiles(
         max_price = None
 
     cache_category = category.value if isinstance(category, ServiceType) else category
-    cached = get_cached_artist_list(
-        page=page,
-        limit=limit,
-        category=cache_category,
-        location=location,
-        sort=sort,
-        min_price=min_price,
-        max_price=max_price,
-    )
+    cached = None
+    if not include_price_distribution:
+        cached = get_cached_artist_list(
+            page=page,
+            limit=limit,
+            category=cache_category,
+            location=location,
+            sort=sort,
+            min_price=min_price,
+            max_price=max_price,
+        )
     if cached is not None:
-        return [ArtistProfileResponse.model_validate(item) for item in cached]
+        return {
+            "data": [ArtistProfileResponse.model_validate(item) for item in cached],
+            "total": len(cached),
+            "price_distribution": [],
+        }
 
     rating_subq = (
         db.query(
@@ -432,8 +501,32 @@ def read_all_artist_profiles(
     elif sort == "newest":
         query = query.order_by(desc(Artist.created_at))
 
+    all_rows = query.all()
+    total_count = len(all_rows)
+
+    price_distribution_data: List[Dict[str, Any]] = []
+    if include_price_distribution:
+        bucket_counts: Dict[Tuple[int, int], int] = defaultdict(int)
+        for row in all_rows:
+            if join_services:
+                _, _, _, _, service_price = row
+            else:
+                _, _, _, _ = row
+                service_price = None
+            if service_price is not None:
+                for b_min, b_max in PRICE_BUCKETS:
+                    if b_min <= service_price <= b_max:
+                        bucket_counts[(b_min, b_max)] += 1
+                        break
+        for b_min, b_max in PRICE_BUCKETS:
+            price_distribution_data.append({
+                "min": b_min,
+                "max": b_max,
+                "count": bucket_counts.get((b_min, b_max), 0),
+            })
+
     offset = (page - 1) * limit
-    artists = query.offset(offset).limit(limit).all()
+    artists = all_rows[offset: offset + limit]
 
     profiles: List[ArtistProfileResponse] = []
     for row in artists:
@@ -454,21 +547,26 @@ def read_all_artist_profiles(
         profile.is_available = len(availability["unavailable_dates"]) == 0
         profiles.append(profile)
 
-    cache_artist_list(
-        [
-            {**profile.model_dump(), "user_id": profile.user_id}
-            for profile in profiles
-        ],
-        page=page,
-        limit=limit,
-        category=cache_category,
-        location=location,
-        sort=sort,
-        min_price=min_price,
-        max_price=max_price,
-    )
+    if not include_price_distribution:
+        cache_artist_list(
+            [
+                {**profile.model_dump(), "user_id": profile.user_id}
+                for profile in profiles
+            ],
+            page=page,
+            limit=limit,
+            category=cache_category,
+            location=location,
+            sort=sort,
+            min_price=min_price,
+            max_price=max_price,
+        )
 
-    return profiles
+    return {
+        "data": profiles,
+        "total": total_count,
+        "price_distribution": price_distribution_data,
+    }
 
 @router.get("/{artist_id}", response_model=ArtistProfileResponse)
 def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
