@@ -85,7 +85,13 @@ export default function MainLayout({ children, headerAddon }: Props) {
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 bg-gradient-to-b from-brand-light/50 to-gray-50">
       <div className="flex-grow">
-        <Header extraBar={pathname.startsWith('/artists') ? headerAddon : undefined} />
+        <Header
+          extraBar={
+            pathname.startsWith('/artists') ? (
+              <div className="mx-auto w-full md:max-w-2xl px-4">{headerAddon}</div>
+            ) : undefined
+          }
+        />
 
         {/* CONTENT */}
         <main className="py-6 pb-24">
