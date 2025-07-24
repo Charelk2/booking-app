@@ -10,7 +10,6 @@ interface Params {
   sort?: string;
   minPrice?: number;
   maxPrice?: number;
-  verifiedOnly?: boolean;
 }
 
 export function updateQueryParams(
@@ -25,7 +24,6 @@ export function updateQueryParams(
   if (params.sort) search.set('sort', params.sort);
   if (params.minPrice != null && params.minPrice > SLIDER_MIN) search.set('minPrice', String(params.minPrice));
   if (params.maxPrice != null && params.maxPrice < SLIDER_MAX) search.set('maxPrice', String(params.maxPrice));
-  if (params.verifiedOnly) search.set('verifiedOnly', 'true');
   const qs = search.toString();
   router.push(qs ? `${pathname}?${qs}` : pathname);
 }
