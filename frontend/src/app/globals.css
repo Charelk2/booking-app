@@ -73,6 +73,10 @@ html[data-headlessui-focus-visible] {
   padding-right: 0 !important;
 }
 
+.custom-range-thumb::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  height: 0.5rem;
+}
 .custom-range-thumb::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -83,7 +87,7 @@ html[data-headlessui-focus-visible] {
   border-radius: 50%;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   cursor: grab;
-  margin-top: -7px;
+  margin-top: -4px;
 }
 .custom-range-thumb:active::-webkit-slider-thumb {
   cursor: grabbing;
@@ -96,6 +100,10 @@ html[data-headlessui-focus-visible] {
   border-radius: 50%;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   cursor: grab;
+}
+.custom-range-thumb::-moz-range-track {
+  height: 0.5rem;
+  background: transparent;
 }
 .custom-range-thumb:active::-moz-range-thumb {
   cursor: grabbing;
