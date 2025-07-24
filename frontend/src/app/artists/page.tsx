@@ -47,9 +47,6 @@ export default function ArtistsPage() {
     const w = searchParams.get('when');
     return w ? new Date(w) : null;
   });
-  const [verifiedOnly, setVerifiedOnly] = useState(
-    searchParams.get('verifiedOnly') === 'true'
-  );
   const [minPrice, setMinPrice] = useState<number>(
     searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : SLIDER_MIN
   );
@@ -74,7 +71,6 @@ export default function ArtistsPage() {
         sort,
         minPrice,
         maxPrice,
-        verifiedOnly,
         page: pageOverride ?? page,
         limit: LIMIT,
       });
@@ -92,7 +88,7 @@ export default function ArtistsPage() {
   useEffect(() => {
     setPage(1);
     fetchArtists({ pageOverride: 1 });
-  }, [category, location, when, sort, minPrice, maxPrice, verifiedOnly]);
+  }, [category, location, when, sort, minPrice, maxPrice]);
 
   const loadMore = () => {
     const next = page + 1;
@@ -116,7 +112,6 @@ export default function ArtistsPage() {
       sort,
       minPrice,
       maxPrice,
-      verifiedOnly,
     });
   };
 
@@ -150,12 +145,10 @@ export default function ArtistsPage() {
             initialSort={sort}
             initialMinPrice={minPrice}
             initialMaxPrice={maxPrice}
-            verifiedOnly={verifiedOnly}
-            onFilterApply={({ sort: s, minPrice: min, maxPrice: max, verifiedOnly: vo }) => {
+            onFilterApply={({ sort: s, minPrice: min, maxPrice: max }) => {
               setSort(s || undefined);
               setMinPrice(min);
               setMaxPrice(max);
-              setVerifiedOnly(vo);
               updateQueryParams(router, pathname, {
                 category,
                 location,
@@ -163,14 +156,12 @@ export default function ArtistsPage() {
                 sort: s,
                 minPrice: min,
                 maxPrice: max,
-                verifiedOnly: vo,
               });
             }}
             onFilterClear={() => {
               setSort(undefined);
               setMinPrice(SLIDER_MIN);
               setMaxPrice(SLIDER_MAX);
-              setVerifiedOnly(false);
               updateQueryParams(router, pathname, {
                 category,
                 location,
