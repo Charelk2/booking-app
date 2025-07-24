@@ -5,6 +5,9 @@ import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import SearchBar from '../search/SearchBar'; // ✨ Import your new component
+import { UI_CATEGORIES, UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
+import { type Category } from '../search/SearchFields';
+import { useRouter } from 'next/navigation';
 
 // —————————— Custom Hook ——————————
 const WORDS = ['Upcoming', 'Legendary', 'Local', 'Afrikaans'];
@@ -22,7 +25,24 @@ function useCycle<T>(items: T[], delay = 3000): T {
 // —————————— Main Hero Component ——————————
 export default function Hero() {
   const [isModalOpen, setModalOpen] = useState(false);
+  const [category, setCategory] = useState<Category>(UI_CATEGORIES[0]);
+  const [location, setLocation] = useState('');
+  const [when, setWhen] = useState<Date | null>(null);
+  const router = useRouter();
   const word = useCycle(WORDS);
+
+  const handleSearch = ({ category: cat, location: loc, when: date }: { category: string; location?: string; when?: Date | null }) => {
+    const params = new URLSearchParams();
+    if (cat) {
+      const mapped = UI_CATEGORY_TO_SERVICE[cat] || cat;
+      params.set('category', mapped);
+    }
+    if (loc) params.set('location', loc);
+    if (date) params.set('when', date.toISOString());
+    const qs = params.toString();
+    router.push(qs ? `/artists?${qs}` : '/artists');
+    setModalOpen(false);
+  };
 
   return (
     <>
@@ -77,7 +97,15 @@ export default function Hero() {
               >
                 <Dialog.Panel className="relative w-full max-w-3xl mx-auto">
                   {/* Your new SearchBar component lives here! */}
-                  <SearchBar />
+                  <SearchBar
+                    category={category}
+                    setCategory={setCategory}
+                    location={location}
+                    setLocation={setLocation}
+                    when={when}
+                    setWhen={setWhen}
+                    onSearch={handleSearch}
+                  />
                 </Dialog.Panel>
               </Transition.Child>
             </div>
