@@ -5,13 +5,15 @@ import { Menu, Transition } from '@headlessui/react';
 import { Bars3Icon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import clsx from 'clsx';
 import { useAuth } from '@/contexts/AuthContext';
 import NavLink from './NavLink';
 import NotificationBell from './NotificationBell';
 import BookingRequestIcon from './BookingRequestIcon';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import SearchBar from '../search/SearchBar';
+import { UI_CATEGORIES, UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
+import { type Category } from '../search/SearchFields';
+import { useRouter } from 'next/navigation';
 import { Avatar } from '../ui';
 
 const baseNavigation = [
@@ -28,8 +30,25 @@ function classNames(...classes: string[]) {
 export default function Header({ extraBar }: { extraBar?: ReactNode }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const isHome = pathname === '/';
+
+  const [category, setCategory] = useState<Category>(UI_CATEGORIES[0]);
+  const [location, setLocation] = useState('');
+  const [when, setWhen] = useState<Date | null>(null);
+
+  const handleSearch = ({ category: cat, location: loc, when: date }: { category: string; location?: string; when?: Date | null }) => {
+    const params = new URLSearchParams();
+    if (cat) {
+      const mapped = UI_CATEGORY_TO_SERVICE[cat] || cat;
+      params.set('category', mapped);
+    }
+    if (loc) params.set('location', loc);
+    if (date) params.set('when', date.toISOString());
+    const qs = params.toString();
+    router.push(qs ? `/artists?${qs}` : '/artists');
+  };
 
   const navigation = [...baseNavigation];
   if (user?.user_type === 'artist') {
@@ -178,7 +197,16 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
         {/* Row B */}
         {isHome && (
           <div className="pb-3 pt-2">
-            <SearchBar compact />
+            <SearchBar
+              compact
+              category={category}
+              setCategory={setCategory}
+              location={location}
+              setLocation={setLocation}
+              when={when}
+              setWhen={setWhen}
+              onSearch={handleSearch}
+            />
           </div>
         )}
         {extraBar && (
