@@ -9,7 +9,7 @@ export interface LocationMapModalProps {
   open: boolean;
   onClose: () => void;
   initialValue: string;
-  onSelect: (place: google.maps.places.Place) => void;
+  onSelect: (place: google.maps.places.PlaceResult) => void;
 }
 
 export default function LocationMapModal({
@@ -28,7 +28,7 @@ export default function LocationMapModal({
     }
   }, [open, initialValue]);
 
-  const handlePlaceSelect = (place: google.maps.places.Place) => {
+  const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
     onSelect(place);
     onClose(); // Close the modal after selection
   };

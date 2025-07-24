@@ -178,7 +178,7 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
         {/* Row B */}
         {isHome && (
           <div className="pb-3 pt-2">
-            <SearchBar size="sm" className="mx-auto w-full md:max-w-2xl" />
+            <SearchBar compact />
           </div>
         )}
         {extraBar && (
