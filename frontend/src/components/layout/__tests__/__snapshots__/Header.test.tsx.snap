@@ -1,5 +1,107 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`Header hides search bar on other pages 1`] = `
+<header
+  class="sticky top-0 z-40 bg-gray-50"
+>
+  <div
+    class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
+  >
+    <div
+      class="h-16 grid grid-cols-[auto,1fr,auto] items-center"
+    >
+      <div
+        class="flex flex-col"
+      >
+        <a
+          class="flex shrink-0 items-center text-xl font-bold text-brand-dark"
+          href="/"
+        >
+          Booka.co.za
+        </a>
+      </div>
+      <nav
+        class="hidden md:flex justify-center gap-6"
+      >
+        <a
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-primary text-gray-900"
+          href="/artists"
+        >
+          Artists
+        </a>
+        <a
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+          href="/services"
+        >
+          Services
+        </a>
+        <a
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+          href="/faq"
+        >
+          FAQ
+        </a>
+        <a
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+          href="/contact"
+        >
+          Contact
+        </a>
+      </nav>
+      <div
+        class="hidden sm:flex items-center justify-end space-x-4"
+      >
+        <div
+          class="space-x-4"
+        >
+          <a
+            class="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+            href="/login"
+          >
+            Sign in
+          </a>
+          <a
+            class="bg-brand-dark text-white hover:bg-brand-dark px-3 py-2 rounded-md text-sm font-medium"
+            href="/register"
+          >
+            Sign up
+          </a>
+        </div>
+      </div>
+    </div>
+    <div
+      class="flex items-center sm:hidden"
+    >
+      <button
+        class="-mr-2 ml-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand"
+      >
+        <span
+          class="sr-only"
+        >
+          Open main menu
+        </span>
+        <svg
+          aria-hidden="true"
+          class="h-6 w-6"
+          data-slot="icon"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+`;
+
 exports[`Header renders artists header when extraBar provided 1`] = `
 <header
   class="sticky top-0 z-40 bg-gray-50"
