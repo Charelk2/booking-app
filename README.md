@@ -941,13 +941,14 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 `GET /api/v1/artist-profiles/` supports pagination and optional filters:
 
 ```
-page=<number>&limit=<1-100>&category=<ServiceType>&location=<substring>&sort=<top_rated|most_booked|newest>&minPrice=<number>&maxPrice=<number>
+page=<number>&limit=<1-100>&category=<ServiceType>&location=<substring>&sort=<top_rated|most_booked|newest>&minPrice=<number>&maxPrice=<number>&includePriceDistribution=<true|false>
 ```
 
 `minPrice` and `maxPrice` filter by the prices of services in the selected
 `category`. If no category is provided, the range applies to any service the
 artist offers. Additional service categories are supported automatically without
-code changes.
+code changes. Pass `includePriceDistribution=true` to return histogram data for
+the filter modal.
 
 Profiles include `rating`, `rating_count`, and `is_available` fields. A new
 `price_visible` boolean on each artist controls whether the hourly rate is
