@@ -120,51 +120,54 @@ export default function ArtistsPage() {
   };
 
   const header = (
-    <>
+    <div className="relative flex items-center justify-center">
       <SearchBarInline
         initialCategory={uiValue}
         initialLocation={location}
         initialWhen={when}
         onSearch={handleSearchEdit}
       />
-      <ArtistsPageHeader
-        categoryLabel={uiLabel}
-        categoryValue={uiValue}
-        location={location}
-        when={when}
-        onSearchEdit={handleSearchEdit}
-        initialSort={sort}
-        initialMinPrice={minPrice}
-        initialMaxPrice={maxPrice}
-        verifiedOnly={verifiedOnly}
-        onFilterApply={({ sort: s, minPrice: min, maxPrice: max, verifiedOnly: vo }) => {
-          setSort(s || undefined);
-          setMinPrice(min);
-          setMaxPrice(max);
-          setVerifiedOnly(vo);
-          updateQueryParams(router, pathname, {
-            category,
-            location,
-            when,
-            sort: s,
-            minPrice: min,
-            maxPrice: max,
-            verifiedOnly: vo,
-          });
-        }}
-        onFilterClear={() => {
-          setSort(undefined);
-          setMinPrice(SLIDER_MIN);
-          setMaxPrice(SLIDER_MAX);
-          setVerifiedOnly(false);
-          updateQueryParams(router, pathname, {
-            category,
-            location,
-            when,
-          });
-        }}
-      />
-    </>
+      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+        <ArtistsPageHeader
+          iconOnly
+          categoryLabel={uiLabel}
+          categoryValue={uiValue}
+          location={location}
+          when={when}
+          onSearchEdit={handleSearchEdit}
+          initialSort={sort}
+          initialMinPrice={minPrice}
+          initialMaxPrice={maxPrice}
+          verifiedOnly={verifiedOnly}
+          onFilterApply={({ sort: s, minPrice: min, maxPrice: max, verifiedOnly: vo }) => {
+            setSort(s || undefined);
+            setMinPrice(min);
+            setMaxPrice(max);
+            setVerifiedOnly(vo);
+            updateQueryParams(router, pathname, {
+              category,
+              location,
+              when,
+              sort: s,
+              minPrice: min,
+              maxPrice: max,
+              verifiedOnly: vo,
+            });
+          }}
+          onFilterClear={() => {
+            setSort(undefined);
+            setMinPrice(SLIDER_MIN);
+            setMaxPrice(SLIDER_MAX);
+            setVerifiedOnly(false);
+            updateQueryParams(router, pathname, {
+              category,
+              location,
+              when,
+            });
+          }}
+        />
+      </div>
+    </div>
   );
 
   return (

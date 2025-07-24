@@ -29,6 +29,8 @@ export interface ArtistsPageHeaderProps {
     verifiedOnly: boolean;
   }) => void;
   onFilterClear: () => void;
+  /** Render only the filter icon without search button */
+  iconOnly?: boolean;
 }
 
 export default function ArtistsPageHeader({
@@ -43,6 +45,7 @@ export default function ArtistsPageHeader({
   verifiedOnly,
   onFilterApply,
   onFilterClear,
+  iconOnly,
 }: ArtistsPageHeaderProps) {
   const isDesktop = useMediaQuery('(min-width:768px)');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -69,6 +72,53 @@ export default function ArtistsPageHeader({
 
   const compact = `${categoryLabel || 'All'} · ${location || 'Anywhere'}`;
   const dateStr = when ? format(when, 'd MMM yyyy') : 'Add date';
+
+  if (iconOnly) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setFilterOpen(true)}
+          className="relative p-2"
+          aria-label="Filters"
+        >
+          <FunnelIcon className="h-5 w-5" />
+          {filtersActive && (
+            <span className="absolute top-0 right-0 h-2 w-2 bg-pink-500 rounded-full" />
+          )}
+        </button>
+        <FilterSheet
+          open={filterOpen}
+          onClose={() => setFilterOpen(false)}
+          sort={sort}
+          onSort={(e) => setSort(e.target.value)}
+          minPrice={minPrice}
+          maxPrice={maxPrice}
+          onPriceChange={(min, max) => {
+            setMinPrice(min);
+            setMaxPrice(max);
+          }}
+          verifiedOnly={onlyVerified}
+          onVerifiedOnly={(v) => setOnlyVerified(v)}
+          onApply={() =>
+            onFilterApply({
+              sort,
+              minPrice,
+              maxPrice,
+              verifiedOnly: onlyVerified,
+            })
+          }
+          onClear={() => {
+            setSort('');
+            setMinPrice(initialMinPrice);
+            setMaxPrice(initialMaxPrice);
+            setOnlyVerified(false);
+            onFilterClear();
+          }}
+        />
+      </>
+    );
+  }
 
   return (
     <>
