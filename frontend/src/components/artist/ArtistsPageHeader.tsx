@@ -128,7 +128,8 @@ export default function ArtistsPageHeader({
           onClick={() => setFilterOpen(true)}
           className="relative px-4 py-2 text-sm flex items-center gap-1"
         >
-          <FunnelIcon className="h-5 w-5" /> Filters
+          <FunnelIcon className="h-5 w-5" />
+          <span>Filters</span>
           {filtersActive && (
             <span className="absolute top-0 right-0 h-2 w-2 bg-pink-500 rounded-full" />
           )}
