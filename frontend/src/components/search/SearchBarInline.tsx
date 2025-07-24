@@ -3,7 +3,6 @@ import { useState, useEffect, Fragment, KeyboardEvent } from 'react';
 import { Popover, Transition, Listbox } from '@headlessui/react';
 import {
   MagnifyingGlassIcon,
-  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
 } from '@heroicons/react/24/outline';
@@ -82,7 +81,6 @@ export default function SearchBarInline({
           <>
             <Popover.Button className="flex-none px-4 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
               <span>{categoryLabel || 'All'}</span>
-              <ChevronDownIcon className="w-4 h-4 text-gray-500" />
             </Popover.Button>
             <Transition
               as={Fragment}
@@ -94,7 +92,7 @@ export default function SearchBarInline({
               leaveTo="opacity-0 translate-y-1"
             >
               <Popover.Panel
-                className="absolute z-50 mt-2 bg-white rounded-lg shadow-xl p-4 w-auto"
+                className="absolute z-50 left-0 top-full mt-2 w-full bg-white rounded-lg shadow-xl p-4"
                 onKeyDown={(e) => handleKey(e, close)}
               >
                 <Listbox value={category} onChange={setCategory}>
@@ -122,7 +120,7 @@ export default function SearchBarInline({
                   <button
                     type="button"
                     onClick={() => applyAndClose(close)}
-                    className="text-sm text-indigo-600 hover:text-indigo-800"
+                    className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-full"
                   >
                     Apply
                   </button>
@@ -137,7 +135,6 @@ export default function SearchBarInline({
           <>
             <Popover.Button className="flex-none px-4 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
               <span>{loc || 'Anywhere'}</span>
-              <ChevronDownIcon className="w-4 h-4 text-gray-500" />
             </Popover.Button>
             <Transition
               as={Fragment}
@@ -149,7 +146,7 @@ export default function SearchBarInline({
               leaveTo="opacity-0 translate-y-1"
             >
               <Popover.Panel
-                className="absolute z-50 mt-2 bg-white rounded-lg shadow-xl p-4 w-auto"
+                className="absolute z-50 left-0 top-full mt-2 w-full bg-white rounded-lg shadow-xl p-4"
                 onKeyDown={(e) => handleKey(e, close)}
               >
                 <LocationInput
@@ -161,7 +158,7 @@ export default function SearchBarInline({
                   <button
                     type="button"
                     onClick={() => applyAndClose(close)}
-                    className="text-sm text-indigo-600 hover:text-indigo-800"
+                    className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-full"
                   >
                     Apply
                   </button>
@@ -176,7 +173,6 @@ export default function SearchBarInline({
           <>
             <Popover.Button className="flex-none px-4 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
               <span>{date ? format(date, 'd MMM yyyy') : 'Add date'}</span>
-              <ChevronDownIcon className="w-4 h-4 text-gray-500" />
             </Popover.Button>
             <Transition
               as={Fragment}
