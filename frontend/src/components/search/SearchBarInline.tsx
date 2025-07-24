@@ -7,9 +7,8 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from '@heroicons/react/24/outline';
-import ReactDatePicker, {
-  ReactDatePickerCustomHeaderProps,
-} from 'react-datepicker';
+import ReactDatePicker from 'react-datepicker';
+import type { ReactDatePickerCustomHeaderProps } from 'react-datepicker';
 import LocationInput from '../ui/LocationInput';
 import '@/styles/datepicker.css';
 import clsx from 'clsx';
@@ -77,7 +76,7 @@ export default function SearchBarInline({
   };
 
   return (
-    <div className="flex items-stretch rounded-full bg-white shadow-sm border overflow-hidden divide-x">
+    <div className="flex items-stretch rounded-full bg-white shadow-sm border overflow-visible divide-x">
       <Popover as="div" className="relative flex-1">
         {({ close }) => (
           <>
@@ -97,7 +96,7 @@ export default function SearchBarInline({
               leaveTo="opacity-0 translate-y-1"
             >
               <Popover.Panel
-                className="absolute z-20 mt-2 w-48 bg-white rounded-lg shadow-lg p-2"
+                className="absolute z-40 mt-2 bg-white rounded-lg shadow-lg p-3"
                 onKeyDown={(e) => handleKey(e, close)}
               >
                 <Listbox value={category} onChange={setCategory}>
@@ -154,14 +153,13 @@ export default function SearchBarInline({
               leaveTo="opacity-0 translate-y-1"
             >
               <Popover.Panel
-                className="absolute z-20 mt-2 w-80 bg-white rounded-lg shadow-lg p-2"
+                className="absolute z-40 mt-2 bg-white rounded-lg shadow-lg p-3"
                 onKeyDown={(e) => handleKey(e, close)}
               >
                 <LocationInput
                   value={loc}
                   onValueChange={setLoc}
                   onPlaceSelect={() => {}}
-                  inputClassName="w-full border border-gray-200 rounded-md p-2"
                 />
                 <div className="flex justify-end pt-2">
                   <button
@@ -196,7 +194,7 @@ export default function SearchBarInline({
               leaveTo="opacity-0 translate-y-1"
             >
               <Popover.Panel
-                className="absolute z-20 mt-2 bg-white rounded-lg shadow-lg p-2"
+                className="absolute z-40 mt-2 bg-white rounded-lg shadow-lg p-3"
                 onKeyDown={(e) => handleKey(e, close)}
               >
                 <ReactDatePicker
