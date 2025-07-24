@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import FilterSheet from './FilterSheet';
 import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
 
-interface HeaderProps {
+export interface ArtistsPageHeaderProps {
   categoryLabel?: string;
   categoryValue?: string;
   location?: string;
@@ -44,7 +44,7 @@ export default function ArtistsPageHeader({
   verifiedOnly,
   onFilterApply,
   onFilterClear,
-}: HeaderProps) {
+}: ArtistsPageHeaderProps) {
   const isDesktop = useMediaQuery('(min-width:768px)');
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -72,8 +72,8 @@ export default function ArtistsPageHeader({
   const dateStr = when ? format(when, 'd MMM yyyy') : 'Add date';
 
   return (
-    <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
-      <div className="flex items-center justify-between px-4 py-2">
+    <>
+      <div className="flex items-center justify-between">
         {!isDesktop ? (
           <button
             type="button"
@@ -142,6 +142,6 @@ export default function ArtistsPageHeader({
           onFilterClear();
         }}
       />
-    </div>
+    </>
   );
 }

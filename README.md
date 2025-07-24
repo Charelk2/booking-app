@@ -957,7 +957,9 @@ The redesigned listing page features a sticky search header. On desktop this
 header shows a segmented inline search bar with popovers for **Category**,
 **Location** and **Date**, just like Airbnb. Each segment auto-sizes to its
 content and the search button uses Airbnb’s pink. Popovers float above the
-header so they never get clipped and close on ESC or outside clicks. A
+header so they never get clipped and close on ESC or outside clicks. The bar now
+sits directly beneath the global navigation whenever you visit `/artists`,
+providing a consistent header across the site. A
 `useMediaQuery('(min-width:768px)')` hook picks between this inline bar and the
 mobile `SearchModal`. On mobile a compact summary displays the selected values;
 tapping it opens the modal prefilled with those values. A **Filters** button

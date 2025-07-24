@@ -71,13 +71,21 @@ const Footer = () => (
   </footer>
 );
 
-export default function MainLayout({ children }: { children: React.ReactNode }) {
+import { usePathname } from 'next/navigation';
+
+interface Props {
+  children: React.ReactNode;
+  headerAddon?: React.ReactNode;
+}
+
+export default function MainLayout({ children, headerAddon }: Props) {
   const { user } = useAuth();
+  const pathname = usePathname();
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 bg-gradient-to-b from-brand-light/50 to-gray-50">
       <div className="flex-grow">
-        <Header />
+        <Header extraBar={pathname.startsWith('/artists') ? headerAddon : undefined} />
 
         {/* CONTENT */}
         <main className="py-6 pb-24">
