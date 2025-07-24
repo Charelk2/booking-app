@@ -726,7 +726,7 @@
           "artist-profiles"
         ],
         "summary": "List all artist profiles",
-        "description": "Returns an array of every artist\u2019s profile.",
+        "description": "Return a paginated list of artist profiles.",
         "operationId": "read_all_artist_profiles_api_v1_artist_profiles__get",
         "parameters": [
           {
@@ -834,6 +834,16 @@
               "default": 20,
               "title": "Limit"
             }
+          },
+          {
+            "name": "include_price_distribution",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Price Distribution"
+            }
           }
         ],
         "responses": {
@@ -842,11 +852,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ArtistProfileResponse"
-                  },
-                  "title": "Response Read All Artist Profiles Api V1 Artist Profiles  Get"
+                  "$ref": "#/components/schemas/ArtistListResponse"
                 }
               }
             }
@@ -4032,6 +4038,36 @@
         ],
         "title": "ArtistAvailabilityResponse"
       },
+      "ArtistListResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ArtistProfileResponse"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "price_distribution": {
+            "items": {
+              "$ref": "#/components/schemas/PriceBucket"
+            },
+            "type": "array",
+            "title": "Price Distribution"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "total",
+          "price_distribution"
+        ],
+        "title": "ArtistListResponse",
+        "description": "Paginated artist list response."
+      },
       "ArtistProfileNested": {
         "properties": {
           "business_name": {
@@ -5980,6 +6016,30 @@
           "portfolio_image_urls"
         ],
         "title": "PortfolioImagesUpdate"
+      },
+      "PriceBucket": {
+        "properties": {
+          "min": {
+            "type": "integer",
+            "title": "Min"
+          },
+          "max": {
+            "type": "integer",
+            "title": "Max"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "min",
+          "max",
+          "count"
+        ],
+        "title": "PriceBucket",
+        "description": "Histogram bucket for price range filtering."
       },
       "QuoteCalculationParams": {
         "properties": {
