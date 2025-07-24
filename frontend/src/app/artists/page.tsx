@@ -98,19 +98,8 @@ export default function ArtistsPage() {
     fetchArtists({ append: true, pageOverride: next });
   };
 
-  return (
-    <MainLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-6">
-        <header className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Browse and book talented performers
-          </h1>
-          <p className="text-sm text-gray-500">
-            Compare artists, check ratings, and book instantly.
-          </p>
-        </header>
-
-        <ArtistsPageHeader
+  const header = (
+    <ArtistsPageHeader
           categoryLabel={uiLabel}
           categoryValue={uiValue}
           location={location}
@@ -164,6 +153,11 @@ export default function ArtistsPage() {
           }}
         />
 
+  );
+
+  return (
+    <MainLayout headerAddon={header}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Artists grid */}
         {loading && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}
