@@ -32,7 +32,10 @@ export default function SearchBarInline({
   useClickOutside(wrapperRef, () => setExpanded(false));
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setExpanded(false);
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setExpanded(false);
+      }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
@@ -44,7 +47,10 @@ export default function SearchBarInline({
   };
 
   return (
-    <div ref={wrapperRef} className="relative w-full md:max-w-2xl mx-auto px-4">
+    <div
+      ref={wrapperRef}
+      className="relative w-full md:max-w-2xl mx-auto px-4 transition-all duration-300"
+    >
       {expanded ? (
         <SearchBar
           category={category}
@@ -58,7 +64,8 @@ export default function SearchBarInline({
         />
       ) : (
         <button
-          className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-hidden w-full"
+          type="button"
+          className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-hidden w-full hover:ring-2 hover:ring-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-500 transition-all duration-300"
           onClick={() => setExpanded(true)}
         >
           <div className="flex-1 px-4 py-2 text-sm text-gray-700">{category.label}</div>
