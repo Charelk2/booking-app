@@ -6,7 +6,7 @@
   --font-sans: var(--font-inter);
   --color-primary: #6366f1;
   --color-secondary: #4f46e5;
-  --color-accent: #ec4899; 
+  --color-accent: #ec4899;
   --color-border: #e5e7eb;
   --color-background: #ffffff;
   --color-foreground: #111827;
@@ -71,37 +71,32 @@
 html[data-headlessui-focus-visible] {
   overflow: visible !important;
   padding-right: 0 !important;
+}
 
-  /* Add to your globals.css file */
-
-  .custom-range-thumb::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 16px; /* Size of the thumb */
-    height: 16px; /* Size of the thumb */
-    background: #ffffff; /* White thumb */
-    border: 2px solid #d1d5db; /* Gray border */
-    border-radius: 50%;
-    cursor: grab;
-    margin-top: -7px; /* Center on 2px track */
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  }
-  
-  .custom-range-thumb::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    background: #ffffff;
-    border: 2px solid #d1d5db;
-    border-radius: 50%;
-    cursor: grab;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  }
-  
-  .custom-range-thumb:active::-webkit-slider-thumb {
-    cursor: grabbing;
-  }
-  .custom-range-thumb:active::-moz-range-thumb {
-    cursor: grabbing;
-  }
-  
+.custom-range-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  cursor: grab;
+  margin-top: -7px;
+}
+.custom-range-thumb:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+.custom-range-thumb::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  cursor: grab;
+}
+.custom-range-thumb:active::-moz-range-thumb {
+  cursor: grabbing;
 }
