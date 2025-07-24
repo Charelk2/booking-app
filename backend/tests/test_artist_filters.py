@@ -77,7 +77,7 @@ def test_price_range_filter(monkeypatch):
         lambda *args, **kwargs: None,
     )
 
-    results = read_all_artist_profiles(
+    res = read_all_artist_profiles(
         category=ServiceType.LIVE_PERFORMANCE,
         min_price=300,
         max_price=800,
@@ -85,9 +85,9 @@ def test_price_range_filter(monkeypatch):
         page=1,
         limit=20,
     )
-    assert len(results) == 1
-    assert results[0].business_name == 'Mid'
-    assert float(results[0].service_price) == 500
+    assert len(res["data"]) == 1
+    assert res["data"][0].business_name == 'Mid'
+    assert float(res["data"][0].service_price) == 500
 
 
 def test_price_visible_default_true():
@@ -117,7 +117,7 @@ def test_filters_and_sorting(monkeypatch):
         lambda *args, **kwargs: None,
     )
 
-    results = read_all_artist_profiles(
+    res = read_all_artist_profiles(
         category=ServiceType.OTHER,
         location='San',
         sort='most_booked',
@@ -125,10 +125,10 @@ def test_filters_and_sorting(monkeypatch):
         page=1,
         limit=20,
     )
-    assert len(results) == 1
-    assert results[0].business_name == 'Beta'
-    assert results[0].rating == 5
-    assert results[0].rating_count == 1
+    assert len(res["data"]) == 1
+    assert res["data"][0].business_name == 'Beta'
+    assert res["data"][0].rating == 5
+    assert res["data"][0].rating_count == 1
 
 
 def test_service_price_none_without_category(monkeypatch):
@@ -143,7 +143,7 @@ def test_service_price_none_without_category(monkeypatch):
         lambda *args, **kwargs: None,
     )
 
-    results = read_all_artist_profiles(db=db, page=1, limit=20)
-    assert len(results) == 1
-    assert results[0].service_price is None
+    res = read_all_artist_profiles(db=db, page=1, limit=20)
+    assert len(res["data"]) == 1
+    assert res["data"][0].service_price is None
 
