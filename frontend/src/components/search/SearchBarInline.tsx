@@ -75,7 +75,7 @@ export default function SearchBarInline({
       ref={wrapperRef}
       className={clsx(
         'relative w-full max-w-4xl mx-auto px-4 transition-all duration-300 ease-out',
-        expanded && 'max-w-4xl'
+        expanded && 'max-w-4xl pb-2'
       )}
     >
       {expanded ? (
