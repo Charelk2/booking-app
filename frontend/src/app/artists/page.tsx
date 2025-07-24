@@ -139,7 +139,7 @@ export default function ArtistsPage() {
         onExpandedChange={setSearchExpanded}
       />
       {!searchExpanded && (
-        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+        <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2">
           <ArtistsPageHeader
             iconOnly
             categoryLabel={uiLabel}
