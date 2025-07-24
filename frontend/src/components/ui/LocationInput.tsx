@@ -3,19 +3,24 @@
 import { useState, useEffect, useRef } from 'react';
 import usePlacesService from 'react-google-autocomplete/lib/usePlacesAutocompleteService';
 import { MapPinIcon } from '@heroicons/react/24/outline';
+import clsx from 'clsx';
 
 interface CustomLocationInputProps {
   value: string;
   onValueChange: (value: string) => void;
   onPlaceSelect: (place: google.maps.places.PlaceResult) => void;
   placeholder?: string;
+  className?: string;
+  inputClassName?: string;
 }
 
 export default function CustomLocationInput({
   value,
   onValueChange,
   onPlaceSelect,
-  placeholder = "Search location",
+  placeholder = 'Search location',
+  className,
+  inputClassName,
 }: CustomLocationInputProps) {
   const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [isDropdownVisible, setDropdownVisible] = useState(false);
@@ -113,7 +118,7 @@ export default function CustomLocationInput({
   };
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className={clsx('relative w-full', className)}>
       <input
         type="text"
         value={value}
@@ -122,7 +127,10 @@ export default function CustomLocationInput({
           if (predictions.length > 0) setDropdownVisible(true);
         }}
         placeholder={placeholder}
-        className="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none"
+        className={clsx(
+          'w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none',
+          inputClassName,
+        )}
       />
 
       {isDropdownVisible && predictions.length > 0 && (
