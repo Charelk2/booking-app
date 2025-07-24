@@ -1,15 +1,15 @@
-'use client';
-import { useRef } from 'react';
-import type { ChangeEventHandler } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
-import useMediaQuery from '@/hooks/useMediaQuery';
-import { BottomSheet, Button } from '@/components/ui';
+"use client";
+import { useRef } from "react";
+import type { ChangeEventHandler } from "react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
+import useMediaQuery from "@/hooks/useMediaQuery";
+import { BottomSheet } from "@/components/ui";
 import {
   SLIDER_MIN,
   SLIDER_MAX,
   SLIDER_STEP,
   formatCurrency,
-} from '@/lib/filter-constants';
+} from "@/lib/filter-constants";
 
 interface FilterSheetProps {
   open: boolean;
@@ -35,7 +35,7 @@ export default function FilterSheet({
   onPriceChange,
 }: FilterSheetProps) {
   const firstRef = useRef<HTMLInputElement>(null);
-  const isDesktop = useMediaQuery('(min-width:768px)');
+  const isDesktop = useMediaQuery("(min-width:768px)");
   if (!open) return null;
 
   const content = (
@@ -130,7 +130,9 @@ export default function FilterSheet({
   if (isDesktop) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="bg-white rounded-2xl p-6 max-w-md mx-auto w-full">{content}</div>
+        <div className="bg-white rounded-2xl p-6 max-w-md mx-auto w-full">
+          {content}
+        </div>
       </div>
     );
   }
