@@ -3,6 +3,12 @@ import { act } from 'react-dom/test-utils';
 import { createRoot } from 'react-dom/client';
 import SearchBarInline from '../SearchBarInline';
 
+jest.mock('react-google-autocomplete/lib/usePlacesAutocompleteService', () => () => ({
+  placesService: null,
+  placePredictions: [],
+  getPlacePredictions: jest.fn(),
+}));
+
 describe('SearchBarInline', () => {
   afterEach(() => {
     document.body.innerHTML = '';
@@ -52,7 +58,7 @@ describe('SearchBarInline', () => {
     });
 
     act(() => {
-      trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
 
     const searchBtn = container.querySelector('button[type="submit"]');
