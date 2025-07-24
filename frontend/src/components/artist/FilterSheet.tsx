@@ -125,7 +125,8 @@ export default function FilterSheet({
               const v = Number(e.target.value);
               onPriceChange(v, Math.max(v, maxPrice));
             }}
-            className="custom-range-thumb absolute inset-0 w-full h-2 appearance-none bg-transparent pointer-events-auto"
+            style={{ zIndex: 20 }}
+            className="custom-range-thumb absolute inset-x-0 bottom-0 w-full h-2 appearance-none bg-transparent pointer-events-auto"
           />
           <input
             type="range"
@@ -137,7 +138,8 @@ export default function FilterSheet({
               const v = Number(e.target.value);
               onPriceChange(Math.min(v, minPrice), v);
             }}
-            className="custom-range-thumb absolute inset-0 w-full h-2 appearance-none bg-transparent pointer-events-auto"
+            style={{ zIndex: 10 }}
+            className="custom-range-thumb absolute inset-x-0 bottom-0 w-full h-2 appearance-none bg-transparent pointer-events-auto"
           />
         </div>
         <div className="flex justify-between mt-4 gap-3">
