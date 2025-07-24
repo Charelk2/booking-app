@@ -73,5 +73,35 @@ html[data-headlessui-focus-visible] {
   padding-right: 0 !important;
 
   /* Add to your globals.css file */
+
+  .custom-range-thumb::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px; /* Size of the thumb */
+    height: 16px; /* Size of the thumb */
+    background: #4f46e5; /* Indigo color for the thumb */
+    border: 2px solid #fff; /* White border */
+    border-radius: 50%; /* Make it round */
+    cursor: grab;
+    margin-top: -6px; /* Adjust to center vertically on the track */
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2); /* Ring on focus/active */
+  }
+  
+  .custom-range-thumb::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: #4f46e5;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: grab;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.2);
+  }
+  
+  .custom-range-thumb:active::-webkit-slider-thumb {
+    cursor: grabbing;
+  }
+  .custom-range-thumb:active::-moz-range-thumb {
+    cursor: grabbing;
+  }
   
 }
