@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment, useState, ReactNode } from 'react';
 import { Menu, Transition } from '@headlessui/react';
 import { Bars3Icon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
@@ -25,7 +25,7 @@ function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-export default function Header() {
+export default function Header({ extraBar }: { extraBar?: ReactNode }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -178,14 +178,14 @@ export default function Header() {
         {/* Row B */}
         {isHome && (
           <div className="pb-3 pt-2">
-            <SearchBar
-              size="sm"
-              className="mx-auto w-full md:max-w-2xl"
-            />
+            <SearchBar size="sm" className="mx-auto w-full md:max-w-2xl" />
           </div>
         )}
+        {extraBar && (
+          <div className="pb-3 pt-2">{extraBar}</div>
+        )}
       </div>
-      {isHome && <div className="border-t border-gray-200" />}
+      {(isHome || extraBar) && <div className="border-t border-gray-200" />}
       <MobileMenuDrawer
         open={menuOpen}
         onClose={() => setMenuOpen(false)}

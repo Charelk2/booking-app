@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Header hides search bar on other pages 1`] = `
+exports[`Header renders artists header when extraBar provided 1`] = `
 <header
   class="sticky top-0 z-40 bg-gray-50"
 >
@@ -98,7 +98,13 @@ exports[`Header hides search bar on other pages 1`] = `
         </svg>
       </button>
     </div>
+    <div
+      class="pb-3 pt-2"
+    >
+      bar
+    </div>
   </div>
+  <div class="border-t border-gray-200" />
 </header>
 `;
 
