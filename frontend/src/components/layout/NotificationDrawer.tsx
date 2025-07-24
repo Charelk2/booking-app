@@ -6,8 +6,8 @@ import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 import {
-  FixedSizeList as List,
-  ListChildComponentProps,
+  FixedSizeList,
+  type ListChildComponentProps,
 } from 'react-window';
 import NotificationCard from '../ui/NotificationCard';
 import getNotificationDisplayProps from '@/hooks/getNotificationDisplayProps';
@@ -52,7 +52,7 @@ export default function NotificationDrawer({
 
   const [showUnread, setShowUnread] = useState(false);
   const [visibleCount, setVisibleCount] = useState(pageSize);
-  const listRef = useRef<List>(null);
+  const listRef = useRef<FixedSizeList>(null);
   const prevCountRef = useRef(visibleCount);
 
   // clamp visibleCount when pageSize changes
@@ -138,7 +138,7 @@ export default function NotificationDrawer({
                       </div>
                     )}
 
-                    <List
+                    <FixedSizeList
                       ref={listRef}
                       height={listHeight}
                       itemCount={totalRows}

@@ -5,7 +5,10 @@ import { Fragment, useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { FixedSizeList as List, ListChildComponentProps } from 'react-window';
+import {
+  FixedSizeList,
+  type ListChildComponentProps,
+} from 'react-window';
 import NotificationCard from '../ui/NotificationCard';
 import getNotificationDisplayProps from '@/hooks/getNotificationDisplayProps';
 import type { UnifiedNotification } from '@/types';
@@ -39,7 +42,7 @@ export default function FullScreenNotificationModal({
   const [showUnread, setShowUnread] = useState(false);
   // how many loaded into the list
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const listRef = useRef<List>(null);
+  const listRef = useRef<FixedSizeList>(null);
   const prevCountRef = useRef(visibleCount);
 
   // auto-scroll when loading more
@@ -135,7 +138,7 @@ export default function FullScreenNotificationModal({
                 🎉 You&apos;re all caught up!
               </div>
             ) : (
-              <List
+              <FixedSizeList
                 ref={listRef}
                 height={listHeight}
                 itemCount={totalRows}

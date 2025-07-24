@@ -24,6 +24,8 @@ function prefetchNotifications() {
 }
 import useIsMobile from '@/hooks/useIsMobile';
 import useNotifications from '@/hooks/useNotifications';
+import type { UnifiedNotification, Notification as AppNotification } from '@/types';
+import { toUnifiedFromNotification } from '@/hooks/notificationUtils';
 
 // Displays a dropdown of recent notifications. Unread counts update via the
 // `useNotifications` hook. Notifications are loaded incrementally for better
@@ -42,6 +44,7 @@ export default function NotificationBell(): JSX.Element {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
+  const unifiedItems = items.map((n) => toUnifiedFromNotification(n));
 
   /**
    * Mark a notification as read and navigate to its link.
@@ -50,13 +53,15 @@ export default function NotificationBell(): JSX.Element {
    * lookup the full object here before acting.
    */
   const handleItemClick = async (itemId: number) => {
-    const item = items.find((i) => (i.id || i.booking_request_id) === itemId);
+    const item = unifiedItems.find(
+      (i: UnifiedNotification) => (i.id || i.booking_request_id) === itemId,
+    );
     if (!item) {
       console.error('Notification not found for id', itemId);
       return;
     }
     if (!item.is_read) {
-      await markItem(item);
+      await markItem(item as unknown as AppNotification);
     }
     setOpen(false);
     if (item.link) {
@@ -93,7 +98,7 @@ export default function NotificationBell(): JSX.Element {
         <FullScreenNotificationModal
           open={open}
           onClose={() => setOpen(false)}
-          items={items}
+          items={unifiedItems}
           onItemClick={handleItemClick}
           markAllRead={markAllRead}
           loadMore={loadMore}
@@ -104,7 +109,7 @@ export default function NotificationBell(): JSX.Element {
         <NotificationDrawer
           open={open}
           onClose={() => setOpen(false)}
-          items={items}
+          items={unifiedItems}
           onItemClick={handleItemClick}
           markAllRead={markAllRead}
           error={error}

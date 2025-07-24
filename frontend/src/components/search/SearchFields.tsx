@@ -1,13 +1,18 @@
 'use client';
 
 import { forwardRef, Fragment } from 'react';
-import ReactDatePicker from 'react-datepicker';
+import ReactDatePicker, {
+  type ReactDatePickerCustomHeaderProps as HeaderProps,
+} from 'react-datepicker';
 import '@/styles/datepicker.css';
 import { Listbox, Transition } from '@headlessui/react';
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import LocationInput from '../ui/LocationInput';
-import type { ReactDatePickerCustomHeaderProps } from 'react-datepicker';
 import { UI_CATEGORIES } from '@/lib/categoryMap';
 
 export type Category = (typeof UI_CATEGORIES)[number];
@@ -82,7 +87,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             increaseMonth,
             prevMonthButtonDisabled,
             nextMonthButtonDisabled,
-          }: ReactDatePickerCustomHeaderProps) => (
+          }: HeaderProps) => (
             <div className="flex justify-between items-center px-3 pt-2 pb-2">
               <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled} className="p-1 rounded-full hover:bg-gray-100">
                 <ChevronLeftIcon className="h-5 w-5 text-gray-500" />
