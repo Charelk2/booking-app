@@ -88,7 +88,7 @@ export default function MainLayout({ children, headerAddon }: Props) {
         <Header
           extraBar={
             pathname.startsWith('/artists') ? (
-              <div className="mx-auto w-full md:max-w-2xl px-4">{headerAddon}</div>
+              <div className="mx-auto w-full px-4">{headerAddon}</div>
             ) : undefined
           }
         />
