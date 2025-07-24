@@ -178,7 +178,7 @@ export default function NotificationDrawer({
                           </div>
                         );
                       }}
-                    </List>
+                    </FixedSizeList>
                   </div>
 
                   <footer className="sticky bottom-0 z-10 px-3 py-2 bg-white bg-opacity-90 backdrop-filter backdrop-blur-xs border-t flex gap-2">
