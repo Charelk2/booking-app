@@ -92,7 +92,11 @@ export default function SearchBarInline({
               leaveTo="opacity-0 translate-y-1"
             >
               <Popover.Panel
-                className="absolute z-50 left-0 top-full mt-2 w-full bg-white rounded-lg shadow-xl p-4"
+                className="
+                  absolute z-50 left-0 top-full mt-2
+                  w-full max-w-md
+                  bg-white rounded-lg shadow-xl p-4
+                "
                 onKeyDown={(e) => handleKey(e, close)}
               >
                 <Listbox value={category} onChange={setCategory}>
@@ -146,13 +150,19 @@ export default function SearchBarInline({
               leaveTo="opacity-0 translate-y-1"
             >
               <Popover.Panel
-                className="absolute z-50 left-0 top-full mt-2 w-full bg-white rounded-lg shadow-xl p-4"
+                className="
+                  absolute z-50 left-0 top-full mt-2
+                  w-full max-w-md
+                  bg-white rounded-lg shadow-xl p-4
+                "
                 onKeyDown={(e) => handleKey(e, close)}
               >
                 <LocationInput
                   value={loc}
                   onValueChange={setLoc}
                   onPlaceSelect={() => {}}
+                  className="w-full"
+                  inputClassName="w-full"
                 />
                 <div className="flex justify-end pt-2">
                   <button
