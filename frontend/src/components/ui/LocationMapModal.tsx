@@ -1,6 +1,7 @@
 // src/components/ui/LocationMapModal.tsx
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
+import LocationInput from './LocationInput';
 
 
 

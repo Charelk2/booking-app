@@ -9,7 +9,7 @@ import {
   useRef,
   ReactNode,
 } from 'react';
-import axios from 'axios';
+import axios, { type AxiosRequestHeaders } from 'axios';
 import toast from 'react-hot-toast';
 import useWebSocket from './useWebSocket';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,7 +20,7 @@ import type { Notification } from '@/types';
 // All REST requests use the v1 prefix so calls line up with the backend router
 // mounted at /api/v1.
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL + '/api/v1',
+  baseURL: process.env.NEXT_PUBLIC_API_URL! + '/api/v1',
   withCredentials: true,
 });
 
@@ -29,9 +29,9 @@ let currentToken: string | null = null;
 api.interceptors.request.use((config) => {
   if (currentToken) {
     config.headers = {
-      ...(config.headers || {}),
+      ...(config.headers as AxiosRequestHeaders),
       Authorization: `Bearer ${currentToken}`,
-    };
+    } as AxiosRequestHeaders;
   }
   return config;
 });
@@ -102,7 +102,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   // the FastAPI router mounted at `/api/v1`.
   const wsHost =
     process.env.NEXT_PUBLIC_WS_URL ||
-    process.env.NEXT_PUBLIC_API_URL.replace(/^http/, 'ws');
+    process.env.NEXT_PUBLIC_API_URL!.replace(/^http/, 'ws');
   const wsUrl = token
     ? `${wsHost}/api/v1/ws/notifications?token=${encodeURIComponent(token)}`
     : null;
