@@ -99,7 +99,7 @@ The artists page uses a responsive grid that shows one card per row on mobile,
 two cards on tablets and three or more on larger screens. Each artist card
 displays a skeleton placeholder until the image loads and reveals a **Book
 Now** overlay button when hovered. A sticky header hosts the search UI. On
-desktop a segmented bar (`SearchBarInline`) collapses into three segments showing the chosen **Category**, **Location** and **Date**. Clicking anywhere on this bar expands it inline into the full homepage search form with identical styling. On mobile the compact pill opens a `SearchModal`
+desktop a segmented bar (`SearchBarInline`) collapses into three segments showing the chosen **Category**, **Location** and **Date**. Clicking anywhere on this bar smoothly expands it into the full homepage search form with identical styling. Keyboard users can press **Enter** to search or **Escape** to cancel. On mobile the compact pill opens a `SearchModal`
 bottom sheet while **Filters** opens `FilterSheet`. Filters show a tiny pink dot when
 active. All search options and filters persist in the URL so pages can be shared
 or refreshed without losing state.

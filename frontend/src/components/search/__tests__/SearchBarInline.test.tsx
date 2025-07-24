@@ -35,4 +35,31 @@ describe('SearchBarInline', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('closes on Escape without searching', () => {
+    const onSearch = jest.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(<SearchBarInline onSearch={onSearch} />);
+    });
+
+    const trigger = container.querySelector('button') as HTMLButtonElement;
+    act(() => {
+      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    act(() => {
+      trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    const searchBtn = container.querySelector('button[type="submit"]');
+    expect(searchBtn).toBeNull();
+    expect(onSearch).not.toHaveBeenCalled();
+
+    act(() => root.unmount());
+    container.remove();
+  });
 });
