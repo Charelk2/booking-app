@@ -964,7 +964,7 @@ bar now sits directly beneath the global navigation whenever you visit
 `useMediaQuery('(min-width:768px)')` hook picks between this inline bar and the
 mobile `SearchModal`. On mobile a compact summary displays the selected values;
 tapping it opens the modal prefilled with those values. A **Filters** button
-opens `FilterSheet` for sort, price range and a Verified Only toggle. The button
+opens `FilterSheet` for sort and price range. The button
 shows a tiny pink dot when any filter is active. The page
 rests on a soft gradient background from the brand color to white. When no
 results match the current filters the page shows "No artists found" beneath the
