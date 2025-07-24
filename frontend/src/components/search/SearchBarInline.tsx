@@ -100,7 +100,7 @@ export default function SearchBarInline({
           <div className="flex-1 px-4 py-2 text-sm text-gray-700">
             {category.label}
           </div>
-          <div className="flex-1 px-4 py-2 text-sm text-gray-700">
+          <div className="flex-1 px-4 py-2 text-sm text-gray-700 whitespace-nowrap overflow-hidden text-ellipsis">
             {location || 'Anywhere'}
           </div>
           <div className="flex-1 px-4 py-2 text-sm text-gray-700">
