@@ -60,7 +60,7 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-gray-50">
+    <header className="sticky top-0 z-40 bg-gray-100">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Row A */}
         <div className="h-16 grid grid-cols-[auto,1fr,auto] items-center">
@@ -196,7 +196,7 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
 
         {/* Row B */}
         {isHome && (
-          <div className="w-full max-w-4xl mx-auto px-4 pb-3 pt-2">
+          <div className="w-full max-w-4xl mx-auto px-4 pb-5 pt-2">
             <SearchBar
               compact
               category={category}
