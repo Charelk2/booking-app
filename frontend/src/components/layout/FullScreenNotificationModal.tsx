@@ -178,7 +178,7 @@ export default function FullScreenNotificationModal({
                     </div>
                   );
                 }}
-              </List>
+              </FixedSizeList>
             )}
           </div>
         </Dialog.Panel>
