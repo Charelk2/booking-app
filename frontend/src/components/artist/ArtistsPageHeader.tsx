@@ -21,12 +21,10 @@ export interface ArtistsPageHeaderProps {
   initialSort?: string;
   initialMinPrice: number;
   initialMaxPrice: number;
-  verifiedOnly: boolean;
   onFilterApply: (params: {
     sort?: string;
     minPrice: number;
     maxPrice: number;
-    verifiedOnly: boolean;
   }) => void;
   onFilterClear: () => void;
   /** Render only the filter icon without search button */
@@ -42,7 +40,6 @@ export default function ArtistsPageHeader({
   initialSort,
   initialMinPrice,
   initialMaxPrice,
-  verifiedOnly,
   onFilterApply,
   onFilterClear,
   iconOnly,
@@ -53,11 +50,9 @@ export default function ArtistsPageHeader({
   const [sort, setSort] = useState(initialSort);
   const [minPrice, setMinPrice] = useState(initialMinPrice);
   const [maxPrice, setMaxPrice] = useState(initialMaxPrice);
-  const [onlyVerified, setOnlyVerified] = useState(verifiedOnly);
 
   const filtersActive =
     Boolean(sort) ||
-    onlyVerified ||
     minPrice !== SLIDER_MIN ||
     maxPrice !== SLIDER_MAX;
 
@@ -66,9 +61,8 @@ export default function ArtistsPageHeader({
       setSort(initialSort);
       setMinPrice(initialMinPrice);
       setMaxPrice(initialMaxPrice);
-      setOnlyVerified(verifiedOnly);
     }
-  }, [filterOpen, initialSort, initialMinPrice, initialMaxPrice, verifiedOnly]);
+  }, [filterOpen, initialSort, initialMinPrice, initialMaxPrice]);
 
   const compact = `${categoryLabel || 'All'} · ${location || 'Anywhere'}`;
   const dateStr = when ? format(when, 'd MMM yyyy') : 'Add date';
@@ -98,21 +92,17 @@ export default function ArtistsPageHeader({
             setMinPrice(min);
             setMaxPrice(max);
           }}
-          verifiedOnly={onlyVerified}
-          onVerifiedOnly={(v) => setOnlyVerified(v)}
           onApply={() =>
             onFilterApply({
               sort,
               minPrice,
               maxPrice,
-              verifiedOnly: onlyVerified,
             })
           }
           onClear={() => {
             setSort('');
             setMinPrice(initialMinPrice);
             setMaxPrice(initialMaxPrice);
-            setOnlyVerified(false);
             onFilterClear();
           }}
         />
@@ -165,21 +155,17 @@ export default function ArtistsPageHeader({
           setMinPrice(min);
           setMaxPrice(max);
         }}
-        verifiedOnly={onlyVerified}
-        onVerifiedOnly={(v) => setOnlyVerified(v)}
         onApply={() =>
           onFilterApply({
             sort,
             minPrice,
             maxPrice,
-            verifiedOnly: onlyVerified,
           })
         }
         onClear={() => {
           setSort('');
           setMinPrice(initialMinPrice);
           setMaxPrice(initialMaxPrice);
-          setOnlyVerified(false);
           onFilterClear();
         }}
       />

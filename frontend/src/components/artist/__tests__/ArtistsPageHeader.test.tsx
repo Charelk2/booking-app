@@ -22,7 +22,6 @@ describe('ArtistsPageHeader iconOnly', () => {
           iconOnly
           initialMinPrice={0}
           initialMaxPrice={100}
-          verifiedOnly={false}
           onFilterApply={jest.fn()}
           onFilterClear={jest.fn()}
           onSearchEdit={jest.fn()}
