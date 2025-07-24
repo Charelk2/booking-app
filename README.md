@@ -15,6 +15,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Artists page redesigned with a responsive grid, sticky search header with quick
   filters, skeleton loaders and a hover "Book Now" overlay for a modern,
   accessible look.
+- Price filter now displays a histogram and accepts numeric input for precise ranges.
 - Homepage search now lives in the header on a light gray background.
 - Collapsed search bar truncates long locations with an ellipsis so the text never wraps.
 - Search categories now map **Musician / Band** to the `Live Performance` service

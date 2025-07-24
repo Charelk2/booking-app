@@ -144,8 +144,9 @@ def test_read_all_artist_profiles_uses_cache(monkeypatch):
         sort=None,
         page=1,
         limit=20,
+        include_price_distribution=False,
     )
-    assert len(first) == 1
+    assert len(first["data"]) == 1
 
     # Use failing DB to ensure cache is consulted on second call
     second = api_artist.read_all_artist_profiles(
@@ -155,6 +156,7 @@ def test_read_all_artist_profiles_uses_cache(monkeypatch):
         sort=None,
         page=1,
         limit=20,
+        include_price_distribution=False,
     )
     assert second == first
 
@@ -186,5 +188,6 @@ def test_fallback_when_redis_unavailable(monkeypatch):
         sort=None,
         page=1,
         limit=20,
+        include_price_distribution=False,
     )
-    assert len(result) == 1
+    assert len(result["data"]) == 1
