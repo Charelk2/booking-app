@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import clsx from 'clsx';
 import { format } from 'date-fns';
 import SearchBar from './SearchBar';
 import { type Category } from './SearchFields';
@@ -49,7 +50,10 @@ export default function SearchBarInline({
   return (
     <div
       ref={wrapperRef}
-      className="relative w-full md:max-w-2xl mx-auto px-4 transition-all duration-300"
+      className={clsx(
+        'relative w-full mx-auto px-4 transition-all duration-300 ease-out',
+        expanded ? 'md:max-w-3xl lg:max-w-4xl' : 'md:max-w-2xl',
+      )}
     >
       {expanded ? (
         <SearchBar

@@ -4,7 +4,7 @@ import { forwardRef, Fragment } from 'react';
 import ReactDatePicker, {
   type ReactDatePickerCustomHeaderProps as HeaderProps,
 } from 'react-datepicker';
-import '@/styles/datepicker.css';
+import '../../styles/datepicker.css';
 import { Listbox, Transition } from '@headlessui/react';
 import {
   ChevronDownIcon,
