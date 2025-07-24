@@ -77,12 +77,12 @@ export default function SearchBarInline({
 
   return (
     <div
-      className="flex items-center flex-wrap bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-visible"
+      className="mx-auto w-full md:max-w-2xl flex items-center bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-visible"
     >
       <Popover as="div" className="relative flex-none">
         {({ close }) => (
           <>
-            <Popover.Button className="px-3 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
+            <Popover.Button className="px-4 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
               <span>{categoryLabel || 'All'}</span>
               <ChevronDownIcon className="w-4 h-4 text-gray-500" />
             </Popover.Button>
@@ -137,7 +137,7 @@ export default function SearchBarInline({
       <Popover as="div" className="relative flex-none">
         {({ close }) => (
           <>
-            <Popover.Button className="px-3 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
+            <Popover.Button className="px-4 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
               <span>{loc || 'Anywhere'}</span>
               <ChevronDownIcon className="w-4 h-4 text-gray-500" />
             </Popover.Button>
@@ -176,7 +176,7 @@ export default function SearchBarInline({
       <Popover as="div" className="relative flex-none">
         {({ close }) => (
           <>
-            <Popover.Button className="px-3 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
+            <Popover.Button className="px-4 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
               <span>{date ? format(date, 'd MMM yyyy') : 'Add date'}</span>
               <ChevronDownIcon className="w-4 h-4 text-gray-500" />
             </Popover.Button>
@@ -244,7 +244,7 @@ export default function SearchBarInline({
         onClick={() =>
           onSearchEdit({ category: category.value, location: loc || undefined, when: date })
         }
-        className="ml-3 p-2 flex items-center justify-center bg-pink-500 hover:bg-pink-600 rounded-full"
+        className="ml-4 p-2 flex items-center justify-center bg-pink-500 hover:bg-pink-600 rounded-full"
       >
         <MagnifyingGlassIcon className="h-5 w-5 text-white" />
       </button>
