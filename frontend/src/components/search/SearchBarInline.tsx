@@ -58,18 +58,13 @@ export default function SearchBarInline({
       {({ close }) => (
         <>
           <Popover.Button
-            className="flex items-center bg-white border border-gray-200 rounded-full shadow-lg divide-x divide-gray-200 overflow-hidden"
+            data-testid="inline-trigger"
+            className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-hidden w-full md:max-w-2xl mx-auto px-4"
           >
-            <div className="flex-1 px-4 py-2 text-sm text-gray-700">
-              {category.label}
-            </div>
-            <div className="flex-1 px-4 py-2 text-sm text-gray-700">
-              {location || 'Anywhere'}
-            </div>
-            <div className="flex-1 px-4 py-2 text-sm text-gray-700">
-              {when ? format(when, 'd MMM yyyy') : 'Add date'}
-            </div>
-            <div className="p-2 bg-pink-600 hover:bg-pink-700 text-white">
+            <div className="flex-1 py-2 text-sm text-gray-700">{category.label}</div>
+            <div className="flex-1 py-2 text-sm text-gray-700">{location || 'Anywhere'}</div>
+            <div className="flex-1 py-2 text-sm text-gray-700">{when ? format(when, 'd\u00A0MMM\u00A0yyyy') : 'Add\u00A0date'}</div>
+            <div className="p-2 bg-pink-600 hover:bg-pink-700 text-white rounded-r-full">
               <MagnifyingGlassIcon className="h-5 w-5" />
             </div>
           </Popover.Button>
@@ -77,7 +72,7 @@ export default function SearchBarInline({
             className="absolute z-10 top-full left-0 right-0 mt-2 px-4 sm:px-6 lg:px-8"
             onKeyDown={(e) => handleKeyDown(e, close)}
           >
-            <div className="bg-white rounded-lg shadow-xl p-4">
+            <div className="bg-white rounded-lg shadow-xl p-4 w-full md:max-w-2xl mx-auto">
               <SearchFields
                 category={category}
                 setCategory={setCategory}
@@ -89,6 +84,7 @@ export default function SearchBarInline({
               <div className="flex justify-end mt-4">
                 <button
                   type="button"
+                  data-testid="inline-search-btn"
                   className="bg-pink-600 hover:bg-pink-700 text-white font-medium px-5 py-2 rounded-full"
                   onClick={() => {
                     applyAndClose();
