@@ -8,6 +8,7 @@ import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCard from '@/components/artist/ArtistCard';
 import ArtistsPageHeader from '@/components/artist/ArtistsPageHeader';
+import SearchBarInline from '@/components/search/SearchBarInline';
 import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
 import { updateQueryParams } from '@/lib/urlParams';
 import {
@@ -98,61 +99,72 @@ export default function ArtistsPage() {
     fetchArtists({ append: true, pageOverride: next });
   };
 
-  const header = (
-    <ArtistsPageHeader
-          categoryLabel={uiLabel}
-          categoryValue={uiValue}
-          location={location}
-          when={when}
-          onSearchEdit={({ category: uiCat, location: loc, when: date }) => {
-            const serviceCat = uiCat
-              ? UI_CATEGORY_TO_SERVICE[uiCat] || uiCat
-              : undefined;
-            setCategory(serviceCat);
-            setLocation(loc || '');
-            setWhen(date || null);
-            updateQueryParams(router, pathname, {
-              category: serviceCat,
-              location: loc,
-              when: date || undefined,
-              sort,
-              minPrice,
-              maxPrice,
-              verifiedOnly,
-            });
-          }}
-          initialSort={sort}
-          initialMinPrice={minPrice}
-          initialMaxPrice={maxPrice}
-          verifiedOnly={verifiedOnly}
-          onFilterApply={({ sort: s, minPrice: min, maxPrice: max, verifiedOnly: vo }) => {
-            setSort(s || undefined);
-            setMinPrice(min);
-            setMaxPrice(max);
-            setVerifiedOnly(vo);
-            updateQueryParams(router, pathname, {
-              category,
-              location,
-              when,
-              sort: s,
-              minPrice: min,
-              maxPrice: max,
-              verifiedOnly: vo,
-            });
-          }}
-          onFilterClear={() => {
-            setSort(undefined);
-            setMinPrice(SLIDER_MIN);
-            setMaxPrice(SLIDER_MAX);
-            setVerifiedOnly(false);
-            updateQueryParams(router, pathname, {
-              category,
-              location,
-              when,
-            });
-          }}
-        />
+  const handleSearchEdit = ({ category: uiCat, location: loc, when: date }: {
+    category?: string;
+    location?: string;
+    when?: Date | null;
+  }) => {
+    const serviceCat = uiCat ? UI_CATEGORY_TO_SERVICE[uiCat] || uiCat : undefined;
+    setCategory(serviceCat);
+    setLocation(loc || '');
+    setWhen(date || null);
+    updateQueryParams(router, pathname, {
+      category: serviceCat,
+      location: loc,
+      when: date || undefined,
+      sort,
+      minPrice,
+      maxPrice,
+      verifiedOnly,
+    });
+  };
 
+  const header = (
+    <>
+      <SearchBarInline
+        initialCategory={uiValue}
+        initialLocation={location}
+        initialWhen={when}
+        onSearch={handleSearchEdit}
+      />
+      <ArtistsPageHeader
+        categoryLabel={uiLabel}
+        categoryValue={uiValue}
+        location={location}
+        when={when}
+        onSearchEdit={handleSearchEdit}
+        initialSort={sort}
+        initialMinPrice={minPrice}
+        initialMaxPrice={maxPrice}
+        verifiedOnly={verifiedOnly}
+        onFilterApply={({ sort: s, minPrice: min, maxPrice: max, verifiedOnly: vo }) => {
+          setSort(s || undefined);
+          setMinPrice(min);
+          setMaxPrice(max);
+          setVerifiedOnly(vo);
+          updateQueryParams(router, pathname, {
+            category,
+            location,
+            when,
+            sort: s,
+            minPrice: min,
+            maxPrice: max,
+            verifiedOnly: vo,
+          });
+        }}
+        onFilterClear={() => {
+          setSort(undefined);
+          setMinPrice(SLIDER_MIN);
+          setMaxPrice(SLIDER_MAX);
+          setVerifiedOnly(false);
+          updateQueryParams(router, pathname, {
+            category,
+            location,
+            when,
+          });
+        }}
+      />
+    </>
   );
 
   return (
