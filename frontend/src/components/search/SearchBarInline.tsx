@@ -76,14 +76,14 @@ export default function SearchBarInline({
   };
 
   return (
-    <div className="flex items-stretch rounded-full bg-white shadow-sm border overflow-visible divide-x">
-      <Popover as="div" className="relative flex-1">
+    <div
+      className="flex items-center flex-wrap bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-visible"
+    >
+      <Popover as="div" className="relative flex-none">
         {({ close }) => (
           <>
-            <Popover.Button className="w-full h-full text-left px-4 py-2 flex items-center justify-between focus:outline-none">
-              <span className="text-sm">
-                {categoryLabel || 'All'}
-              </span>
+            <Popover.Button className="px-3 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
+              <span>{categoryLabel || 'All'}</span>
               <ChevronDownIcon className="w-4 h-4 text-gray-500" />
             </Popover.Button>
             <Transition
@@ -96,7 +96,7 @@ export default function SearchBarInline({
               leaveTo="opacity-0 translate-y-1"
             >
               <Popover.Panel
-                className="absolute z-40 mt-2 bg-white rounded-lg shadow-lg p-3"
+                className="absolute z-50 mt-2 bg-white rounded-lg shadow-xl p-4 w-auto"
                 onKeyDown={(e) => handleKey(e, close)}
               >
                 <Listbox value={category} onChange={setCategory}>
@@ -134,13 +134,11 @@ export default function SearchBarInline({
           </>
         )}
       </Popover>
-      <Popover as="div" className="relative flex-1">
+      <Popover as="div" className="relative flex-none">
         {({ close }) => (
           <>
-            <Popover.Button className="w-full h-full text-left px-4 py-2 flex items-center justify-between focus:outline-none">
-              <span className="text-sm">
-                {loc || 'Anywhere'}
-              </span>
+            <Popover.Button className="px-3 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
+              <span>{loc || 'Anywhere'}</span>
               <ChevronDownIcon className="w-4 h-4 text-gray-500" />
             </Popover.Button>
             <Transition
@@ -153,7 +151,7 @@ export default function SearchBarInline({
               leaveTo="opacity-0 translate-y-1"
             >
               <Popover.Panel
-                className="absolute z-40 mt-2 bg-white rounded-lg shadow-lg p-3"
+                className="absolute z-50 mt-2 bg-white rounded-lg shadow-xl p-4 w-auto"
                 onKeyDown={(e) => handleKey(e, close)}
               >
                 <LocationInput
@@ -175,13 +173,11 @@ export default function SearchBarInline({
           </>
         )}
       </Popover>
-      <Popover as="div" className="relative flex-1">
+      <Popover as="div" className="relative flex-none">
         {({ close }) => (
           <>
-            <Popover.Button className="w-full h-full text-left px-4 py-2 flex items-center justify-between focus:outline-none">
-              <span className="text-sm">
-                {date ? format(date, 'd MMM yyyy') : 'Add date'}
-              </span>
+            <Popover.Button className="px-3 py-2 flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 focus:outline-none">
+              <span>{date ? format(date, 'd MMM yyyy') : 'Add date'}</span>
               <ChevronDownIcon className="w-4 h-4 text-gray-500" />
             </Popover.Button>
             <Transition
@@ -194,7 +190,7 @@ export default function SearchBarInline({
               leaveTo="opacity-0 translate-y-1"
             >
               <Popover.Panel
-                className="absolute z-40 mt-2 bg-white rounded-lg shadow-lg p-3"
+                className="absolute z-50 mt-2 bg-white rounded-lg shadow-xl p-4 w-auto"
                 onKeyDown={(e) => handleKey(e, close)}
               >
                 <ReactDatePicker
@@ -245,10 +241,12 @@ export default function SearchBarInline({
       </Popover>
       <button
         type="button"
-        onClick={() => onSearchEdit({ category: category.value, location: loc || undefined, when: date })}
-        className="p-2 text-white bg-indigo-600 hover:bg-indigo-700 rounded-full ml-2 mr-2"
+        onClick={() =>
+          onSearchEdit({ category: category.value, location: loc || undefined, when: date })
+        }
+        className="ml-3 p-2 flex items-center justify-center bg-pink-500 hover:bg-pink-600 rounded-full"
       >
-        <MagnifyingGlassIcon className="h-5 w-5" />
+        <MagnifyingGlassIcon className="h-5 w-5 text-white" />
       </button>
     </div>
   );

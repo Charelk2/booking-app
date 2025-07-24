@@ -6,6 +6,7 @@ import SearchBarInline from '@/components/search/SearchBarInline';
 import useMediaQuery from '@/hooks/useMediaQuery';
 import { format } from 'date-fns';
 import FilterSheet from './FilterSheet';
+import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
 
 interface HeaderProps {
   categoryLabel?: string;
@@ -44,7 +45,7 @@ export default function ArtistsPageHeader({
   onFilterApply,
   onFilterClear,
 }: HeaderProps) {
-  const isMobile = useMediaQuery('(max-width:768px)');
+  const isDesktop = useMediaQuery('(min-width:768px)');
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [sort, setSort] = useState(initialSort);
@@ -55,8 +56,8 @@ export default function ArtistsPageHeader({
   const filtersActive =
     Boolean(sort) ||
     onlyVerified ||
-    minPrice !== initialMinPrice ||
-    maxPrice !== initialMaxPrice;
+    minPrice !== SLIDER_MIN ||
+    maxPrice !== SLIDER_MAX;
 
   useEffect(() => {
     if (filterOpen) {
@@ -73,7 +74,7 @@ export default function ArtistsPageHeader({
   return (
     <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
       <div className="flex items-center justify-between px-4 py-2">
-        {isMobile ? (
+        {!isDesktop ? (
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
@@ -94,15 +95,15 @@ export default function ArtistsPageHeader({
         <button
           type="button"
           onClick={() => setFilterOpen(true)}
-          className="flex items-center gap-1 text-sm relative"
+          className="relative px-4 py-2 text-sm flex items-center gap-1"
         >
           <FunnelIcon className="h-5 w-5" /> Filters
           {filtersActive && (
-            <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-indigo-600" />
+            <span className="absolute top-0 right-0 h-2 w-2 bg-pink-500 rounded-full" />
           )}
         </button>
       </div>
-      {isMobile && (
+      {!isDesktop && (
         <SearchModal
           open={searchOpen}
           onClose={() => setSearchOpen(false)}

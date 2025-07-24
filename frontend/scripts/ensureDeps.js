@@ -3,7 +3,7 @@ const fs = require('fs');
 
 try {
   if (!fs.existsSync('node_modules')) {
-    console.log('node_modules not found, installing dependencies...');
+    console.info('node_modules not found, installing dependencies...');
     execSync('npm install --no-audit --progress=false', { stdio: 'inherit' });
   }
 } catch (err) {
