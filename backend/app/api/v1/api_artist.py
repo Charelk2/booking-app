@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import logging
 import re
 import shutil
@@ -400,6 +400,7 @@ def read_all_artist_profiles(
     category: Optional[ServiceType] = Query(None),
     location: Optional[str] = Query(None),
     sort: Optional[str] = Query(None, pattern="^(top_rated|most_booked|newest)$"),
+    when: Optional[date] = Query(None),
     min_price: Optional[float] = Query(None, alias="minPrice", ge=0),
     max_price: Optional[float] = Query(None, alias="maxPrice", ge=0),
     page: int = Query(1, ge=1),
@@ -422,10 +423,12 @@ def read_all_artist_profiles(
         location = None
     if hasattr(sort, "default"):
         sort = None
+    if hasattr(when, "default"):
+        when = None
 
     cache_category = category.value if isinstance(category, ServiceType) else category
     cached = None
-    if not include_price_distribution:
+    if not include_price_distribution and when is None:
         cached = get_cached_artist_list(
             page=page,
             limit=limit,
@@ -552,11 +555,18 @@ def read_all_artist_profiles(
                 "service_price": float(service_price) if service_price is not None else None,
             }
         )
-        availability = read_artist_availability(artist.user_id, db)
-        profile.is_available = len(availability["unavailable_dates"]) == 0
+        availability = read_artist_availability(artist.user_id, db, when)
+        if when:
+            profile.is_available = when.isoformat() not in availability["unavailable_dates"]
+        else:
+            profile.is_available = len(availability["unavailable_dates"]) == 0
         profiles.append(profile)
 
-    if not include_price_distribution:
+    if when:
+        profiles = [p for p in profiles if p.is_available]
+        total_count = len(profiles)
+
+    if not include_price_distribution and when is None:
         cache_artist_list(
             [
                 {**profile.model_dump(), "user_id": profile.user_id}
@@ -586,24 +596,46 @@ def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{artist_id}/availability", response_model=ArtistAvailabilityResponse)
-def read_artist_availability(artist_id: int, db: Session = Depends(get_db)):
+def read_artist_availability(
+    artist_id: int,
+    when: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+):
     """Return dates the artist is unavailable."""
-    bookings = (
+    bookings_query = (
         db.query(Booking)
         .filter(
             Booking.artist_id == artist_id,
             Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
         )
-        .all()
     )
-    requests = (
+    if when:
+        day_start = datetime.combine(when, datetime.min.time())
+        day_end = day_start + timedelta(days=1)
+        bookings_query = bookings_query.filter(
+            Booking.start_time >= day_start, Booking.start_time < day_end
+        )
+    bookings = bookings_query.all()
+
+    requests_query = (
         db.query(BookingRequest)
         .filter(
             BookingRequest.artist_id == artist_id,
             BookingRequest.status != BookingRequestStatus.REQUEST_DECLINED,
         )
-        .all()
     )
+    if when:
+        requests_query = requests_query.filter(
+            (
+                (BookingRequest.proposed_datetime_1 >= day_start)
+                & (BookingRequest.proposed_datetime_1 < day_end)
+            )
+            | (
+                (BookingRequest.proposed_datetime_2 >= day_start)
+                & (BookingRequest.proposed_datetime_2 < day_end)
+            )
+        )
+    requests = requests_query.all()
 
     dates = set()
     for b in bookings:
@@ -614,8 +646,12 @@ def read_artist_availability(artist_id: int, db: Session = Depends(get_db)):
         if r.proposed_datetime_2:
             dates.add(r.proposed_datetime_2.date().isoformat())
 
-    start = datetime.utcnow()
-    end = start + timedelta(days=365)
+    if when:
+        start = datetime.combine(when, datetime.min.time())
+        end = start + timedelta(days=1)
+    else:
+        start = datetime.utcnow()
+        end = start + timedelta(days=365)
     try:
         for ev in calendar_service.fetch_events(artist_id, start, end, db):
             dates.add(ev.date().isoformat())
