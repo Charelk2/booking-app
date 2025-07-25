@@ -56,3 +56,27 @@ def test_artist_profiles_endpoint_returns_paginated(monkeypatch):
     assert body["data"][0]["business_name"] == "Test Artist"
     assert isinstance(body["price_distribution"], list)
     app.dependency_overrides.pop(get_db, None)
+
+
+def test_artist_profiles_accepts_datetime(monkeypatch):
+    """Endpoint should parse ISO datetimes for the 'when' query parameter."""
+    Session = setup_app(monkeypatch)
+    db = Session()
+    user = User(
+        email="b@test.com",
+        password="x",
+        first_name="B",
+        last_name="C",
+        user_type=UserType.ARTIST,
+    )
+    profile = ArtistProfileV2(user_id=1, business_name="Time Test")
+    db.add(user)
+    db.add(profile)
+    db.commit()
+    client = TestClient(app)
+    res = client.get(
+        "/api/v1/artist-profiles/",
+        params={"when": "2025-08-29T22:00:00.000Z"},
+    )
+    assert res.status_code == 200
+    app.dependency_overrides.pop(get_db, None)
