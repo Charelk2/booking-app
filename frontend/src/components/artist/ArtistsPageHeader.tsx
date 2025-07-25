@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { FunnelIcon } from '@heroicons/react/24/outline';
 import SearchModal from '@/components/search/SearchModal';
 import useMediaQuery from '@/hooks/useMediaQuery';
@@ -50,22 +50,11 @@ export default function ArtistsPageHeader({
   const isDesktop = useMediaQuery('(min-width:768px)');
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [sort, setSort] = useState(initialSort);
-  const [minPrice, setMinPrice] = useState(initialMinPrice);
-  const [maxPrice, setMaxPrice] = useState(initialMaxPrice);
 
   const filtersActive =
-    Boolean(sort) ||
-    minPrice !== SLIDER_MIN ||
-    maxPrice !== SLIDER_MAX;
-
-  useEffect(() => {
-    if (filterOpen) {
-      setSort(initialSort);
-      setMinPrice(initialMinPrice);
-      setMaxPrice(initialMaxPrice);
-    }
-  }, [filterOpen, initialSort, initialMinPrice, initialMaxPrice]);
+    Boolean(initialSort) ||
+    initialMinPrice !== SLIDER_MIN ||
+    initialMaxPrice !== SLIDER_MAX;
 
   const compact = `${categoryLabel || 'All'} · ${location || 'Anywhere'}`;
   const dateStr = when ? format(when, 'd MMM yyyy') : 'Add date';
@@ -87,28 +76,12 @@ export default function ArtistsPageHeader({
         <FilterSheet
           open={filterOpen}
           onClose={() => setFilterOpen(false)}
-          sort={sort}
-          onSort={(e) => setSort(e.target.value)}
-          minPrice={minPrice}
-          maxPrice={maxPrice}
+          initialSort={initialSort}
+          initialMinPrice={initialMinPrice}
+          initialMaxPrice={initialMaxPrice}
           priceDistribution={priceDistribution}
-          onPriceChange={(min, max) => {
-            setMinPrice(min);
-            setMaxPrice(max);
-          }}
-          onApply={() =>
-            onFilterApply({
-              sort,
-              minPrice,
-              maxPrice,
-            })
-          }
-          onClear={() => {
-            setSort('');
-            setMinPrice(initialMinPrice);
-            setMaxPrice(initialMaxPrice);
-            onFilterClear();
-          }}
+          onApply={onFilterApply}
+          onClear={onFilterClear}
         />
       </>
     );
@@ -152,28 +125,12 @@ export default function ArtistsPageHeader({
       <FilterSheet
         open={filterOpen}
         onClose={() => setFilterOpen(false)}
-        sort={sort}
-        onSort={(e) => setSort(e.target.value)}
-        minPrice={minPrice}
-        maxPrice={maxPrice}
+        initialSort={initialSort}
+        initialMinPrice={initialMinPrice}
+        initialMaxPrice={initialMaxPrice}
         priceDistribution={priceDistribution}
-        onPriceChange={(min, max) => {
-          setMinPrice(min);
-          setMaxPrice(max);
-        }}
-        onApply={() =>
-          onFilterApply({
-            sort,
-            minPrice,
-            maxPrice,
-          })
-        }
-        onClear={() => {
-          setSort('');
-          setMinPrice(initialMinPrice);
-          setMaxPrice(initialMaxPrice);
-          onFilterClear();
-        }}
+        onApply={onFilterApply}
+        onClear={onFilterClear}
       />
     </>
   );
