@@ -84,22 +84,26 @@ export default function FilterSheet({
     }
   };
 
+  const clamp = (val: number) =>
+    Math.max(Math.min(val, SLIDER_MAX), SLIDER_MIN);
+
   const handleNumberInputChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     type: 'min' | 'max',
   ) => {
     const value = parseInt(e.target.value, 10);
-    if (!Number.isNaN(value)) {
-      if (type === 'min') {
-        setLocalMinPrice(Math.min(value, SLIDER_MAX));
-        if (value > localMaxPrice) {
-          setLocalMaxPrice(Math.min(value, SLIDER_MAX));
-        }
-      } else {
-        setLocalMaxPrice(Math.max(value, SLIDER_MIN));
-        if (value < localMinPrice) {
-          setLocalMinPrice(Math.max(value, SLIDER_MIN));
-        }
+    if (Number.isNaN(value)) return;
+    if (type === 'min') {
+      const clamped = clamp(value);
+      setLocalMinPrice(clamped);
+      if (clamped > localMaxPrice) {
+        setLocalMaxPrice(clamped);
+      }
+    } else {
+      const clamped = clamp(value);
+      setLocalMaxPrice(clamped);
+      if (clamped < localMinPrice) {
+        setLocalMinPrice(clamped);
       }
     }
   };
