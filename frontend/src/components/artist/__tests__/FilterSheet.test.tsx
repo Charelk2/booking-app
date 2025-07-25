@@ -11,27 +11,25 @@ describe('FilterSheet sliders', () => {
     jest.clearAllMocks();
   });
 
-  it('calls onPriceChange when sliders move', () => {
+  it('applies updated prices', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const modalRoot = document.createElement('div');
     modalRoot.id = 'modal-root';
     document.body.appendChild(modalRoot);
     const root = createRoot(container);
-    const onPriceChange = jest.fn();
+    const onApply = jest.fn();
 
     act(() => {
       root.render(
         <FilterSheet
           open
           onClose={jest.fn()}
-          sort=""
-          onSort={jest.fn()}
+          initialSort=""
+          initialMinPrice={0}
+          initialMaxPrice={100}
+          onApply={onApply}
           onClear={jest.fn()}
-          onApply={jest.fn()}
-          minPrice={0}
-          maxPrice={100}
-          onPriceChange={onPriceChange}
           priceDistribution={[]}
         />,
       );
@@ -45,13 +43,18 @@ describe('FilterSheet sliders', () => {
       minInput.value = '20';
       minInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    expect(onPriceChange).toHaveBeenCalledWith(20, 100);
 
     act(() => {
       maxInput.value = '80';
       maxInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    expect(onPriceChange).toHaveBeenLastCalledWith(20, 80);
+
+    const applyButton = modalRoot.querySelector('button.bg-brand') as HTMLButtonElement;
+    act(() => {
+      applyButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(onApply).toHaveBeenCalledWith({ sort: undefined, minPrice: 20, maxPrice: 80 });
 
     act(() => root.unmount());
     container.remove();
