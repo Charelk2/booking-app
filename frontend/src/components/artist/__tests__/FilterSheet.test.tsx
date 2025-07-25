@@ -99,6 +99,17 @@ describe('FilterSheet sliders', () => {
     expect(minInput.style.zIndex).toBe('30');
     expect(maxInput.style.zIndex).toBe('20');
 
+    // when thumbs overlap the min thumb should be on top
+    act(() => {
+      minInput.value = '50';
+      maxInput.value = '50';
+      minInput.dispatchEvent(new Event('input', { bubbles: true }));
+      minInput.dispatchEvent(new Event('change', { bubbles: true }));
+      maxInput.dispatchEvent(new Event('input', { bubbles: true }));
+      maxInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(minInput.style.zIndex).toBe('30');
+
     act(() => {
       maxInput.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     });
