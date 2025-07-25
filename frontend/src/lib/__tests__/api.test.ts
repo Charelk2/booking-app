@@ -284,4 +284,17 @@ describe('getArtists', () => {
     });
     spy.mockRestore();
   });
+
+  it('forwards the when parameter', async () => {
+    const spy = jest
+      .spyOn(api, 'get')
+      .mockResolvedValue({
+        data: { data: [], total: 0, price_distribution: [] },
+      } as unknown as { data: unknown });
+    await getArtists({ when: '2025-07-25' });
+    expect(spy).toHaveBeenCalledWith('/api/v1/artist-profiles/', {
+      params: { when: '2025-07-25' },
+    });
+    spy.mockRestore();
+  });
 });
