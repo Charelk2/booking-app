@@ -191,7 +191,10 @@ export default function FilterSheet({
             onMouseUp={() => setActiveThumb(null)}
             onTouchEnd={() => setActiveThumb(null)}
             className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-auto"
-            style={{ zIndex: activeThumb === 'min' ? 30 : 10 }}
+            style={{
+              zIndex:
+                activeThumb === 'min' || localMinPrice === localMaxPrice ? 30 : 10,
+            }}
           />
 
           {/* Max thumb */}
