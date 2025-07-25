@@ -9,7 +9,6 @@ import {
   SLIDER_MIN,
   SLIDER_MAX,
   SLIDER_STEP,
-  formatCurrency,
 } from "@/lib/filter-constants";
 import type { PriceBucket } from "@/lib/api";
 
@@ -64,7 +63,7 @@ export default function FilterSheet({
   if (!open || !mounted) return null;
 
   const content = (
-    <div className="space-y-6" ref={firstRef}>
+    <>
       <div className="flex justify-center relative">
         <h2 className="text-lg font-bold">Filters</h2>
         <button
@@ -95,12 +94,13 @@ export default function FilterSheet({
       </div>
       <div>
         <label className="block text-sm font-medium">Price range</label>
-        <div className="mt-4 relative h-20">
+        <p className="text-xs text-gray-500">Trip price, includes all fees.</p>
+        <div className="relative h-24 mt-4">
           <div className="absolute inset-0 flex items-end justify-between px-0.5 pointer-events-none">
             {priceDistribution.map((bucket, index) => (
               <div
                 key={index}
-                className="bg-gray-400 w-2 rounded-t-sm"
+                className="bg-gray-300 w-1 rounded-t-sm"
                 style={{ height: `${(bucket.count / (maxCount || 1)) * 70}%` }}
               />
             ))}
@@ -133,7 +133,7 @@ export default function FilterSheet({
               // slider is active gets a higher z-index to ensure it's draggable.
               zIndex: activeThumb === 'min' ? 30 : 20,
             }}
-            className="custom-range-thumb absolute inset-x-0 bottom-0 w-full h-2 appearance-none bg-transparent pointer-events-auto"
+            className="custom-range-thumb absolute inset-0 w-full h-2 pointer-events-auto appearance-none bg-transparent"
           />
           <input
             type="range"
@@ -154,13 +154,13 @@ export default function FilterSheet({
               // both handles overlap. Elevate when this slider is active.
               zIndex: activeThumb === 'max' ? 30 : 10,
             }}
-            className="custom-range-thumb absolute inset-x-0 bottom-0 w-full h-2 appearance-none bg-transparent pointer-events-auto"
+            className="custom-range-thumb absolute inset-0 w-full h-2 pointer-events-auto appearance-none bg-transparent"
           />
         </div>
-        <div className="flex justify-between mt-4 gap-3">
+        <div className="flex justify-between mt-4 gap-4">
           <div className="flex-1">
             <label htmlFor="min-price-input" className="block text-xs font-medium text-gray-700 mb-1">
-              Minimum
+              Min
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R</span>
@@ -182,7 +182,7 @@ export default function FilterSheet({
           </div>
           <div className="flex-1">
             <label htmlFor="max-price-input" className="block text-xs font-medium text-gray-700 mb-1">
-              Maximum
+              Max
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R</span>
@@ -219,13 +219,12 @@ export default function FilterSheet({
           Apply filters
         </button>
       </div>
-    </div>
   );
 
   if (isDesktop) {
     return createPortal(
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="bg-white rounded-2xl p-6 max-w-md mx-auto w-full">
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-2xl w-full max-w-md p-6 mx-auto space-y-6" ref={firstRef}>
           {content}
         </div>
       </div>,
@@ -235,7 +234,7 @@ export default function FilterSheet({
 
   return (
     <BottomSheet open={open} onClose={onClose} initialFocus={firstRef}>
-      <div className="p-4 pb-32 space-y-4">{content}</div>
+      <div className="p-4 pb-32 space-y-6" ref={firstRef}>{content}</div>
     </BottomSheet>
   );
 }
