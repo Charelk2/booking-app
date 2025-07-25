@@ -153,17 +153,28 @@ export default function FilterSheet({
       <div>
         <label className="block text-sm font-medium">Price range</label>
         <p className="text-xs text-gray-500">Trip price, includes all fees.</p>
-        <div className="histogram-container relative mt-4">
-          <div className="histogram-bars absolute inset-0 flex items-end justify-between px-0.5">
+        <div className="relative h-24 pointer-events-none mt-4">
+          {/* Histogram bars */}
+          <div className="absolute inset-0 flex items-end justify-between px-0.5 pointer-events-none">
             {priceDistribution.map((bucket, index) => (
-              <div key={index} style={{ height: `${(bucket.count / maxCount) * 60}%` }} />
+              <div
+                key={index}
+                className="w-[2px] rounded-t-sm bg-gray-300"
+                style={{ height: `${(bucket.count / (maxCount || 1)) * 60}%` }}
+              />
             ))}
           </div>
-          <div className="price-track" />
+
+          {/* Track background */}
+          <div className="absolute inset-x-0 bottom-0 h-2 bg-gray-200 rounded pointer-events-none" />
+
+          {/* Filled range */}
           <div
-            className="price-fill"
+            className="absolute bottom-0 h-2 bg-pink-500 rounded pointer-events-none"
             style={{ left: `${minPct}%`, right: `${100 - maxPct}%` }}
           />
+
+          {/* Min thumb */}
           <input
             type="range"
             min={SLIDER_MIN}
@@ -175,9 +186,11 @@ export default function FilterSheet({
             onTouchStart={() => setActiveThumb('min')}
             onMouseUp={() => setActiveThumb(null)}
             onTouchEnd={() => setActiveThumb(null)}
-            className={`range-thumb ${activeThumb === 'min' ? 'active' : ''}`}
+            className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-auto"
             style={{ zIndex: activeThumb === 'min' ? 30 : 20 }}
           />
+
+          {/* Max thumb */}
           <input
             type="range"
             min={SLIDER_MIN}
@@ -189,7 +202,7 @@ export default function FilterSheet({
             onTouchStart={() => setActiveThumb('max')}
             onMouseUp={() => setActiveThumb(null)}
             onTouchEnd={() => setActiveThumb(null)}
-            className={`range-thumb ${activeThumb === 'max' ? 'active' : ''}`}
+            className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-auto"
             style={{ zIndex: activeThumb === 'max' ? 30 : 10 }}
           />
         </div>
