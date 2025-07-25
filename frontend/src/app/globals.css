@@ -68,9 +68,56 @@
   z-index: 9999 !important;
 }
 
+
 html[data-headlessui-focus-visible] {
   overflow: visible !important;
   padding-right: 0 !important;
+}
+
+/* --- Custom Range Slider Styles --- */
+
+.histogram-container {
+  position: relative;
+  height: 6rem; /* h-24 */
+}
+
+.histogram-bars,
+.price-track,
+.price-fill {
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.histogram-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  top: 0;
+  padding: 0 2px; /* px-0.5 */
+  z-index: 1;
+}
+
+.histogram-bars > div {
+  background-color: #d9d9d9;
+  width: 2px;
+  border-radius: 0.125rem 0.125rem 0 0;
+}
+
+.price-track {
+  height: 2px;
+  background: #E5E7EB;
+  border-radius: 0.25rem;
+  z-index: 2;
+}
+
+.price-fill {
+  height: 2px;
+  background: #FF5A5F;
+  border-radius: 0.25rem;
+  z-index: 3;
 }
 
 .range-thumb {
@@ -83,17 +130,29 @@ html[data-headlessui-focus-visible] {
   background: transparent;
   pointer-events: auto;
   outline: none;
-  z-index: 20;
-}
-
-.range-thumb.active {
-  z-index: 30;
+  margin: 0;
+  padding: 0;
 }
 
 .range-thumb::-webkit-slider-runnable-track {
   -webkit-appearance: none;
-  height: 2px;
   background: transparent;
+  height: 2px;
+  border-radius: 9999px;
+}
+
+.range-thumb::-moz-range-track {
+  background: transparent;
+  height: 2px;
+  border-radius: 9999px;
+}
+
+.range-thumb::-ms-track {
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+  height: 2px;
+  border-radius: 9999px;
 }
 
 .range-thumb::-webkit-slider-thumb {
@@ -101,93 +160,53 @@ html[data-headlessui-focus-visible] {
   appearance: none;
   width: 20px;
   height: 20px;
-  background: #fff;
+  background: #ffffff;
   border: 2px solid #FF5A5F;
   border-radius: 50%;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   cursor: grab;
-  margin-top: -9px; /* center on 2px track */
+  margin-top: -9px;
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
 }
 
 .range-thumb:active::-webkit-slider-thumb {
   cursor: grabbing;
   transform: scale(1.1);
-}
-
-.range-thumb::-moz-range-track {
-  height: 2px;
-  background: transparent;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .range-thumb::-moz-range-thumb {
   width: 20px;
   height: 20px;
-  background: #fff;
+  background: #ffffff;
   border: 2px solid #FF5A5F;
   border-radius: 50%;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   cursor: grab;
   margin-top: -9px;
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
 }
 
 .range-thumb:active::-moz-range-thumb {
   cursor: grabbing;
   transform: scale(1.1);
-}
-
-.range-thumb::-ms-track {
-  height: 2px;
-  background: transparent;
-  border-color: transparent;
-  color: transparent;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .range-thumb::-ms-thumb {
   width: 20px;
   height: 20px;
-  background: #fff;
+  background: #ffffff;
   border: 2px solid #FF5A5F;
   border-radius: 50%;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   cursor: grab;
   margin-top: -9px;
+  transition: transform 0.1s ease-out, box-shadow 0.1s ease-out;
 }
 
 .range-thumb:active::-ms-thumb {
   cursor: grabbing;
   transform: scale(1.1);
-}
-
-.histogram-container,
-.price-track,
-.price-fill,
-.histogram-bars {
-  pointer-events: none;
-}
-
-.histogram-container {
-  height: 6rem;
-}
-
-.histogram-bars > div {
-  background-color: #d9d9d9;
-  border-radius: 0.125rem 0.125rem 0 0;
-}
-
-.price-track {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 0.5rem;
-  background: #E5E7EB;
-  border-radius: 0.25rem;
-}
-
-.price-fill {
-  position: absolute;
-  bottom: 0;
-  height: 0.5rem;
-  background: #FF5A5F;
-  border-radius: 0.25rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
