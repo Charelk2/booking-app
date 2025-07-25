@@ -73,23 +73,30 @@ html[data-headlessui-focus-visible] {
   padding-right: 0 !important;
 }
 
-.custom-range-thumb {
+.range-thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   -webkit-appearance: none;
   appearance: none;
-  width: 100%;
-  height: 24px; /* generous click/drag area */
   background: transparent;
   pointer-events: auto;
   outline: none;
+  z-index: 5;
 }
 
-.custom-range-thumb::-webkit-slider-runnable-track {
+.range-thumb.active {
+  z-index: 10;
+}
+
+.range-thumb::-webkit-slider-runnable-track {
   -webkit-appearance: none;
   height: 2px;
   background: transparent;
 }
 
-.custom-range-thumb::-webkit-slider-thumb {
+.range-thumb::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 20px;
@@ -102,17 +109,17 @@ html[data-headlessui-focus-visible] {
   margin-top: -9px; /* center on 2px track */
 }
 
-.custom-range-thumb:active::-webkit-slider-thumb {
+.range-thumb:active::-webkit-slider-thumb {
   cursor: grabbing;
   transform: scale(1.1);
 }
 
-.custom-range-thumb::-moz-range-track {
+.range-thumb::-moz-range-track {
   height: 2px;
   background: transparent;
 }
 
-.custom-range-thumb::-moz-range-thumb {
+.range-thumb::-moz-range-thumb {
   width: 20px;
   height: 20px;
   background: #fff;
@@ -123,19 +130,19 @@ html[data-headlessui-focus-visible] {
   margin-top: -9px;
 }
 
-.custom-range-thumb:active::-moz-range-thumb {
+.range-thumb:active::-moz-range-thumb {
   cursor: grabbing;
   transform: scale(1.1);
 }
 
-.custom-range-thumb::-ms-track {
+.range-thumb::-ms-track {
   height: 2px;
   background: transparent;
   border-color: transparent;
   color: transparent;
 }
 
-.custom-range-thumb::-ms-thumb {
+.range-thumb::-ms-thumb {
   width: 20px;
   height: 20px;
   background: #fff;
@@ -146,7 +153,28 @@ html[data-headlessui-focus-visible] {
   margin-top: -9px;
 }
 
-.custom-range-thumb:active::-ms-thumb {
+.range-thumb:active::-ms-thumb {
   cursor: grabbing;
   transform: scale(1.1);
+}
+
+.histogram-container,
+.price-track,
+.price-fill,
+.histogram-bars {
+  pointer-events: none;
+}
+
+.histogram-container {
+  height: 6rem;
+}
+
+.histogram-bars > div {
+  background-color: #d9d9d9;
+  border-radius: 0.125rem 0.125rem 0 0;
+}
+
+.price-fill {
+  background-color: #ff5a5f;
+  border-radius: 0.25rem;
 }
