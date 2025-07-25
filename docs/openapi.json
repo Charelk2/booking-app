@@ -779,6 +779,23 @@
             }
           },
           {
+            "name": "when",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "When"
+            }
+          },
+          {
             "name": "minPrice",
             "in": "query",
             "required": false,
@@ -928,6 +945,23 @@
             "schema": {
               "type": "integer",
               "title": "Artist Id"
+            }
+          },
+          {
+            "name": "when",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "When"
             }
           }
         ],
