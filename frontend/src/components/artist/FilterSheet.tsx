@@ -156,7 +156,7 @@ export default function FilterSheet({
               <div
                 key={index}
                 className="bg-gray-300 w-1 rounded-t-sm"
-                style={{ height: `${(bucket.count / (maxCount || 1)) * 70}%` }}
+                style={{ height: `${(bucket.count / (maxCount || 1)) * 60}%` }}
               />
             ))}
           </div>
