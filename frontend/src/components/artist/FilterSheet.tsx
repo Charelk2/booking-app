@@ -1,6 +1,5 @@
 "use client";
 import { useRef, useEffect, useState } from "react";
-import type { ChangeEventHandler } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { BottomSheet } from "@/components/ui";
@@ -23,32 +22,40 @@ const SORT_OPTIONS = [
 interface FilterSheetProps {
   open: boolean;
   onClose: () => void;
-  sort?: string;
-  onSort: ChangeEventHandler<HTMLSelectElement>;
+  initialSort?: string;
+  initialMinPrice: number;
+  initialMaxPrice: number;
+  onApply: (filters: { sort?: string; minPrice: number; maxPrice: number }) => void;
   onClear: () => void;
-  onApply: () => void;
-  minPrice: number;
-  maxPrice: number;
-  onPriceChange: (min: number, max: number) => void;
   priceDistribution: PriceBucket[];
 }
 
 export default function FilterSheet({
   open,
   onClose,
-  sort,
-  onSort,
-  onClear,
-  onApply,
-  minPrice,
-  maxPrice,
-  onPriceChange,
+  initialSort,
+  initialMinPrice,
+  initialMaxPrice,
+  onApply: parentOnApply,
+  onClear: parentOnClear,
   priceDistribution,
 }: FilterSheetProps) {
   const firstRef = useRef<HTMLInputElement>(null);
   const isDesktop = useMediaQuery("(min-width:768px)");
   const [activeThumb, setActiveThumb] = useState<"min" | "max" | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  const [localMinPrice, setLocalMinPrice] = useState(initialMinPrice);
+  const [localMaxPrice, setLocalMaxPrice] = useState(initialMaxPrice);
+  const [localSort, setLocalSort] = useState(initialSort || "");
+
+  useEffect(() => {
+    if (open) {
+      setLocalMinPrice(initialMinPrice);
+      setLocalMaxPrice(initialMaxPrice);
+      setLocalSort(initialSort || "");
+    }
+  }, [open, initialMinPrice, initialMaxPrice, initialSort]);
 
   useEffect(() => {
     setMounted(true);
@@ -59,6 +66,54 @@ export default function FilterSheet({
     (max, bucket) => Math.max(max, bucket.count),
     0,
   );
+
+  const handleRangeChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: 'min' | 'max',
+  ) => {
+    const v = Number(e.target.value);
+    if (type === 'min') {
+      setLocalMinPrice(v);
+      if (v > localMaxPrice) setLocalMaxPrice(v);
+    } else {
+      setLocalMaxPrice(v);
+      if (v < localMinPrice) setLocalMinPrice(v);
+    }
+  };
+
+  const handleNumberInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: 'min' | 'max',
+  ) => {
+    const value = parseInt(e.target.value, 10);
+    if (!Number.isNaN(value)) {
+      if (type === 'min') {
+        setLocalMinPrice(Math.min(value, SLIDER_MAX));
+        if (value > localMaxPrice) {
+          setLocalMaxPrice(Math.min(value, SLIDER_MAX));
+        }
+      } else {
+        setLocalMaxPrice(Math.max(value, SLIDER_MIN));
+        if (value < localMinPrice) {
+          setLocalMinPrice(Math.max(value, SLIDER_MIN));
+        }
+      }
+    }
+  };
+
+  const handleApplyClick = () => {
+    parentOnApply({
+      sort: localSort || undefined,
+      minPrice: localMinPrice,
+      maxPrice: localMaxPrice,
+    });
+    onClose();
+  };
+
+  const handleClearClick = () => {
+    parentOnClear();
+    onClose();
+  };
 
   if (!open || !mounted) return null;
 
@@ -81,8 +136,8 @@ export default function FilterSheet({
         </label>
         <select
           id="sheet-sort"
-          value={sort}
-          onChange={onSort}
+          value={localSort}
+          onChange={(e) => setLocalSort(e.target.value)}
           className="w-full border border-gray-200 rounded-md px-4 py-2 mt-2"
         >
           {SORT_OPTIONS.map((opt) => (
@@ -109,8 +164,8 @@ export default function FilterSheet({
           <div
             className="absolute bottom-0 h-2 bg-pink-500 rounded"
             style={{
-              left: `${((minPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%`,
-              right: `${100 - ((maxPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%`,
+              left: `${((localMinPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%`,
+              right: `${100 - ((localMaxPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%`,
             }}
           />
           <input
@@ -118,11 +173,8 @@ export default function FilterSheet({
             min={SLIDER_MIN}
             max={SLIDER_MAX}
             step={SLIDER_STEP}
-            value={minPrice}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              onPriceChange(v, Math.max(v, maxPrice));
-            }}
+            value={localMinPrice}
+            onChange={(e) => handleRangeChange(e, 'min')}
             onMouseDown={() => setActiveThumb('min')}
             onTouchStart={() => setActiveThumb('min')}
             onMouseUp={() => setActiveThumb(null)}
@@ -140,11 +192,8 @@ export default function FilterSheet({
             min={SLIDER_MIN}
             max={SLIDER_MAX}
             step={SLIDER_STEP}
-            value={maxPrice}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              onPriceChange(Math.min(v, minPrice), v);
-            }}
+            value={localMaxPrice}
+            onChange={(e) => handleRangeChange(e, 'max')}
             onMouseDown={() => setActiveThumb('max')}
             onTouchStart={() => setActiveThumb('max')}
             onMouseUp={() => setActiveThumb(null)}
@@ -167,13 +216,8 @@ export default function FilterSheet({
               <input
                 id="min-price-input"
                 type="number"
-                value={minPrice}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value, 10);
-                  if (!isNaN(value)) {
-                    onPriceChange(value, Math.max(value, maxPrice));
-                  }
-                }}
+                value={localMinPrice}
+                onChange={(e) => handleNumberInputChange(e, 'min')}
                 min={SLIDER_MIN}
                 max={SLIDER_MAX}
                 className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
@@ -189,13 +233,8 @@ export default function FilterSheet({
               <input
                 id="max-price-input"
                 type="number"
-                value={maxPrice}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value, 10);
-                  if (!isNaN(value)) {
-                    onPriceChange(Math.min(value, minPrice), value);
-                  }
-                }}
+                value={localMaxPrice}
+                onChange={(e) => handleNumberInputChange(e, 'max')}
                 min={SLIDER_MIN}
                 max={SLIDER_MAX}
                 className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
@@ -205,16 +244,13 @@ export default function FilterSheet({
         </div>
       </div>
       <div className="flex justify-between mt-6">
-        <button type="button" className="text-gray-600" onClick={onClear}>
+        <button type="button" className="text-gray-600" onClick={handleClearClick}>
           Clear all
         </button>
         <button
           type="button"
           className="bg-brand text-white px-6 py-2 rounded-md"
-          onClick={() => {
-            onApply();
-            onClose();
-          }}
+          onClick={handleApplyClick}
         >
           Apply filters
         </button>
