@@ -187,7 +187,7 @@ export default function FilterSheet({
             onMouseUp={() => setActiveThumb(null)}
             onTouchEnd={() => setActiveThumb(null)}
             className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-auto"
-            style={{ zIndex: activeThumb === 'min' ? 30 : 20 }}
+            style={{ zIndex: activeThumb === 'min' ? 30 : 10 }}
           />
 
           {/* Max thumb */}
@@ -203,7 +203,7 @@ export default function FilterSheet({
             onMouseUp={() => setActiveThumb(null)}
             onTouchEnd={() => setActiveThumb(null)}
             className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-auto"
-            style={{ zIndex: activeThumb === 'max' ? 30 : 10 }}
+            style={{ zIndex: activeThumb === 'max' ? 30 : 20 }}
           />
         </div>
         <div className="flex justify-between mt-4 gap-4">

@@ -62,4 +62,51 @@ describe('FilterSheet sliders', () => {
     container.remove();
     modalRoot.remove();
   });
+
+  it('sets correct z-index stacking order for thumbs', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const modalRoot = document.createElement('div');
+    modalRoot.id = 'modal-root';
+    document.body.appendChild(modalRoot);
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <FilterSheet
+          open
+          onClose={jest.fn()}
+          initialSort=""
+          initialMinPrice={0}
+          initialMaxPrice={100}
+          onApply={jest.fn()}
+          onClear={jest.fn()}
+          priceDistribution={[]}
+        />,
+      );
+    });
+
+    const ranges = modalRoot.querySelectorAll('input[type="range"]');
+    const minInput = ranges[0] as HTMLInputElement;
+    const maxInput = ranges[1] as HTMLInputElement;
+
+    expect(minInput.style.zIndex).toBe('10');
+    expect(maxInput.style.zIndex).toBe('20');
+
+    act(() => {
+      minInput.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    });
+    expect(minInput.style.zIndex).toBe('30');
+    expect(maxInput.style.zIndex).toBe('20');
+
+    act(() => {
+      maxInput.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    });
+    expect(minInput.style.zIndex).toBe('10');
+    expect(maxInput.style.zIndex).toBe('30');
+
+    act(() => root.unmount());
+    container.remove();
+    modalRoot.remove();
+  });
 });
