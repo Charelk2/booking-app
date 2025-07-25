@@ -17,6 +17,8 @@ The July 2025 update bumps key dependencies and Docker base images:
   accessible look.
  - Price filter now displays a histogram styled like Airbnb and accepts numeric input for precise ranges. Slider thumbs remain clickable even when overlapping.
 - Further refined the price slider so both handles stay clickable even when they overlap.
+- Consolidated slider styling into Tailwind utilities, removing custom CSS from
+  `globals.css` for simpler maintenance.
 - Homepage search now lives in the header on a light gray background.
 - Collapsed search bar truncates long locations with an ellipsis so the text never wraps.
 - Search categories now map **Musician / Band** to the `Live Performance` service
