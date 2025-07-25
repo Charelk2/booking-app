@@ -149,6 +149,7 @@ export interface GetArtistsResponse {
 export const getArtists = async (params?: {
   category?: string;
   location?: string;
+  when?: string;
   sort?: string;
   minPrice?: number;
   maxPrice?: number;
