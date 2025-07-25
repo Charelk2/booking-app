@@ -5,13 +5,26 @@ import FilterSheet from '../FilterSheet';
 
 jest.mock('@/hooks/useMediaQuery', () => jest.fn(() => true));
 
-describe('FilterSheet sliders', () => {
+jest.mock('@/components/ui/PriceFilter', () => function MockPriceFilter({ onApply, onClear }: any) {
+  return (
+    <div>
+      <button data-testid="apply" type="button" onClick={() => onApply({ minPrice: 10, maxPrice: 20 })}>
+        apply
+      </button>
+      <button data-testid="clear" type="button" onClick={onClear}>
+        clear
+      </button>
+    </div>
+  );
+});
+
+describe('FilterSheet PriceFilter integration', () => {
   afterEach(() => {
     document.body.innerHTML = '';
     jest.clearAllMocks();
   });
 
-  it('applies updated prices and allows overlapping thumbs', () => {
+  it('forwards apply and clear actions', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const modalRoot = document.createElement('div');
@@ -19,102 +32,45 @@ describe('FilterSheet sliders', () => {
     document.body.appendChild(modalRoot);
     const root = createRoot(container);
     const onApply = jest.fn();
+    const onClear = jest.fn();
+    const onClose = jest.fn();
 
     act(() => {
       root.render(
         <FilterSheet
           open
-          onClose={jest.fn()}
+          onClose={onClose}
           initialSort=""
           initialMinPrice={0}
           initialMaxPrice={100}
           onApply={onApply}
-          onClear={jest.fn()}
+          onClear={onClear}
           priceDistribution={[]}
         />,
       );
     });
 
-    const ranges = modalRoot.querySelectorAll('input[type="range"]');
-    const minInput = ranges[0] as HTMLInputElement;
-    const maxInput = ranges[1] as HTMLInputElement;
-
+    const select = modalRoot.querySelector('#sheet-sort') as HTMLSelectElement;
     act(() => {
-      minInput.value = '20';
-      minInput.dispatchEvent(new Event('input', { bubbles: true }));
-      minInput.dispatchEvent(new Event('change', { bubbles: true }));
+      select.value = 'most_booked';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
+    const applyBtn = modalRoot.querySelector('[data-testid="apply"]') as HTMLButtonElement;
     act(() => {
-      maxInput.value = '80';
-      maxInput.dispatchEvent(new Event('input', { bubbles: true }));
-      maxInput.dispatchEvent(new Event('change', { bubbles: true }));
+      applyBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    const applyButton = modalRoot.querySelector('button.bg-brand') as HTMLButtonElement;
+    expect(onApply).toHaveBeenCalledWith({ sort: 'most_booked', minPrice: 10, maxPrice: 20 });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    const clearBtn = modalRoot.querySelector('[data-testid="clear"]') as HTMLButtonElement;
     act(() => {
-      applyButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      clearBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    expect(onApply).toHaveBeenCalledWith({ sort: undefined, minPrice: 20, maxPrice: 80 });
-
-    act(() => root.unmount());
-    container.remove();
-    modalRoot.remove();
-  });
-
-  it('sets correct z-index stacking order for thumbs', () => {
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const modalRoot = document.createElement('div');
-    modalRoot.id = 'modal-root';
-    document.body.appendChild(modalRoot);
-    const root = createRoot(container);
-
-    act(() => {
-      root.render(
-        <FilterSheet
-          open
-          onClose={jest.fn()}
-          initialSort=""
-          initialMinPrice={0}
-          initialMaxPrice={100}
-          onApply={jest.fn()}
-          onClear={jest.fn()}
-          priceDistribution={[]}
-        />,
-      );
-    });
-
-    const ranges = modalRoot.querySelectorAll('input[type="range"]');
-    const minInput = ranges[0] as HTMLInputElement;
-    const maxInput = ranges[1] as HTMLInputElement;
-
-    expect(minInput.style.zIndex).toBe('10');
-    expect(maxInput.style.zIndex).toBe('20');
-
-    act(() => {
-      minInput.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    });
-    expect(minInput.style.zIndex).toBe('30');
-    expect(maxInput.style.zIndex).toBe('20');
-
-    // when thumbs overlap the min thumb should be on top
-    act(() => {
-      minInput.value = '50';
-      maxInput.value = '50';
-      minInput.dispatchEvent(new Event('input', { bubbles: true }));
-      minInput.dispatchEvent(new Event('change', { bubbles: true }));
-      maxInput.dispatchEvent(new Event('input', { bubbles: true }));
-      maxInput.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    expect(minInput.style.zIndex).toBe('30');
-
-    act(() => {
-      maxInput.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-    });
-    expect(minInput.style.zIndex).toBe('10');
-    expect(maxInput.style.zIndex).toBe('30');
+    expect(onClear).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(2);
 
     act(() => root.unmount());
     container.remove();
