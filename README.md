@@ -21,6 +21,7 @@ The July 2025 update bumps key dependencies and Docker base images:
   `globals.css` for simpler maintenance.
 - Homepage search now lives in the header on a light gray background.
 - Collapsed search bar truncates long locations with an ellipsis so the text never wraps.
+- Fixed an initial load bug where a selected date sent an invalid `when` value and caused a 422 error.
 - Search categories now map **Musician / Band** to the `Live Performance` service
   type so searching musicians shows available artists.
 - An unobtrusive marketing strip replaces the old Hero section.
