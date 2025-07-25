@@ -36,8 +36,8 @@ describe('FilterSheet sliders', () => {
     });
 
     const ranges = modalRoot.querySelectorAll('input[type="range"]');
-    const maxInput = ranges[0] as HTMLInputElement;
-    const minInput = ranges[1] as HTMLInputElement;
+    const minInput = ranges[0] as HTMLInputElement;
+    const maxInput = ranges[1] as HTMLInputElement;
 
     act(() => {
       minInput.value = '20';
