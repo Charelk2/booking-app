@@ -3,12 +3,8 @@ import { useRef, useEffect, useState } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { BottomSheet } from "@/components/ui";
+import PriceFilter from "@/components/ui/PriceFilter";
 import { createPortal } from "react-dom";
-import {
-  SLIDER_MIN,
-  SLIDER_MAX,
-  SLIDER_STEP,
-} from "@/lib/filter-constants";
 import type { PriceBucket } from "@/lib/api";
 
 // Available sort values must exactly match the backend pattern.
@@ -42,85 +38,20 @@ export default function FilterSheet({
 }: FilterSheetProps) {
   const firstRef = useRef<HTMLInputElement>(null);
   const isDesktop = useMediaQuery("(min-width:768px)");
-  const [activeThumb, setActiveThumb] = useState<"min" | "max" | null>(null);
   const [mounted, setMounted] = useState(false);
-
-  const [localMinPrice, setLocalMinPrice] = useState(initialMinPrice);
-  const [localMaxPrice, setLocalMaxPrice] = useState(initialMaxPrice);
   const [localSort, setLocalSort] = useState(initialSort || "");
 
   useEffect(() => {
     if (open) {
-      setLocalMinPrice(initialMinPrice);
-      setLocalMaxPrice(initialMaxPrice);
       setLocalSort(initialSort || "");
     }
-  }, [open, initialMinPrice, initialMaxPrice, initialSort]);
+  }, [open, initialSort]);
 
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
   }, []);
 
-  const maxCount = priceDistribution.reduce(
-    (max, bucket) => Math.max(max, bucket.count),
-    0,
-  );
-
-  const minPct = ((localMinPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100;
-  const maxPct = ((localMaxPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100;
-
-  const handleRangeChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    type: 'min' | 'max',
-  ) => {
-    const v = Number(e.target.value);
-    if (type === 'min') {
-      setLocalMinPrice(v);
-      if (v > localMaxPrice) setLocalMaxPrice(v);
-    } else {
-      setLocalMaxPrice(v);
-      if (v < localMinPrice) setLocalMinPrice(v);
-    }
-  };
-
-  const clamp = (val: number) =>
-    Math.max(Math.min(val, SLIDER_MAX), SLIDER_MIN);
-
-  const handleNumberInputChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    type: 'min' | 'max',
-  ) => {
-    const value = parseInt(e.target.value, 10);
-    if (Number.isNaN(value)) return;
-    if (type === 'min') {
-      const clamped = clamp(value);
-      setLocalMinPrice(clamped);
-      if (clamped > localMaxPrice) {
-        setLocalMaxPrice(clamped);
-      }
-    } else {
-      const clamped = clamp(value);
-      setLocalMaxPrice(clamped);
-      if (clamped < localMinPrice) {
-        setLocalMinPrice(clamped);
-      }
-    }
-  };
-
-  const handleApplyClick = () => {
-    parentOnApply({
-      sort: localSort || undefined,
-      minPrice: localMinPrice,
-      maxPrice: localMaxPrice,
-    });
-    onClose();
-  };
-
-  const handleClearClick = () => {
-    parentOnClear();
-    onClose();
-  };
 
   if (!open || !mounted) return null;
 
@@ -157,110 +88,20 @@ export default function FilterSheet({
       <div>
         <label className="block text-sm font-medium">Price range</label>
         <p className="text-xs text-gray-500">Trip price, includes all fees.</p>
-        <div className="relative h-24 pointer-events-none mt-4">
-          {/* Histogram bars */}
-          <div className="absolute inset-0 flex items-end justify-between px-0.5 pointer-events-none">
-            {priceDistribution.map((bucket, index) => (
-              <div
-                key={index}
-                className="w-[2px] rounded-t-sm bg-gray-300"
-                style={{ height: `${(bucket.count / (maxCount || 1)) * 60}%` }}
-              />
-            ))}
-          </div>
-
-          {/* Track background */}
-          <div className="absolute inset-x-0 bottom-0 h-2 bg-gray-200 rounded pointer-events-none" />
-
-          {/* Filled range */}
-          <div
-            className="absolute bottom-0 h-2 bg-pink-500 rounded pointer-events-none"
-            style={{ left: `${minPct}%`, right: `${100 - maxPct}%` }}
-          />
-
-          {/* Min thumb */}
-          <input
-            type="range"
-            min={SLIDER_MIN}
-            max={SLIDER_MAX}
-            step={SLIDER_STEP}
-            value={localMinPrice}
-            onChange={(e) => handleRangeChange(e, 'min')}
-            onMouseDown={() => setActiveThumb('min')}
-            onTouchStart={() => setActiveThumb('min')}
-            onMouseUp={() => setActiveThumb(null)}
-            onTouchEnd={() => setActiveThumb(null)}
-            className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-auto"
-            style={{
-              zIndex:
-                activeThumb === 'min' || localMinPrice === localMaxPrice ? 30 : 10,
-            }}
-          />
-
-          {/* Max thumb */}
-          <input
-            type="range"
-            min={SLIDER_MIN}
-            max={SLIDER_MAX}
-            step={SLIDER_STEP}
-            value={localMaxPrice}
-            onChange={(e) => handleRangeChange(e, 'max')}
-            onMouseDown={() => setActiveThumb('max')}
-            onTouchStart={() => setActiveThumb('max')}
-            onMouseUp={() => setActiveThumb(null)}
-            onTouchEnd={() => setActiveThumb(null)}
-            className="absolute inset-0 w-full h-full appearance-none bg-transparent pointer-events-auto"
-            style={{ zIndex: activeThumb === 'max' ? 30 : 20 }}
-          />
-        </div>
-        <div className="flex justify-between mt-4 gap-4">
-          <div className="flex-1">
-            <label htmlFor="min-price-input" className="block text-xs font-medium text-gray-700 mb-1">
-              Min
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R</span>
-              <input
-                id="min-price-input"
-                type="number"
-                value={localMinPrice}
-                onChange={(e) => handleNumberInputChange(e, 'min')}
-                min={SLIDER_MIN}
-                max={SLIDER_MAX}
-                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
-              />
-            </div>
-          </div>
-          <div className="flex-1">
-            <label htmlFor="max-price-input" className="block text-xs font-medium text-gray-700 mb-1">
-              Max
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">R</span>
-              <input
-                id="max-price-input"
-                type="number"
-                value={localMaxPrice}
-                onChange={(e) => handleNumberInputChange(e, 'max')}
-                min={SLIDER_MIN}
-                max={SLIDER_MAX}
-                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="flex justify-between mt-6">
-        <button type="button" className="text-gray-600" onClick={handleClearClick}>
-          Clear all
-        </button>
-        <button
-          type="button"
-          className="bg-brand text-white px-6 py-2 rounded-md"
-          onClick={handleApplyClick}
-        >
-          Apply filters
-        </button>
+        <PriceFilter
+          open={open}
+          initialMinPrice={initialMinPrice}
+          initialMaxPrice={initialMaxPrice}
+          priceDistribution={priceDistribution}
+          onApply={({ minPrice, maxPrice }) => {
+            parentOnApply({ sort: localSort || undefined, minPrice, maxPrice });
+            onClose();
+          }}
+          onClear={() => {
+            parentOnClear();
+            onClose();
+          }}
+        />
       </div>
     </>
   );
