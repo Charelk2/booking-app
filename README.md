@@ -945,11 +945,15 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 
 ```
 page=<number>&limit=<1-100>&category=<ServiceType>&location=<substring>&sort=<top_rated|most_booked|newest>&minPrice=<number>&maxPrice=<number>&include_price_distribution=<true|false>
-&when=<YYYY-MM-DD-or-ISO-datetime>
+&when=<YYYY-MM-DD>
 ```
 
-`when` can be either a plain date (`YYYY-MM-DD`) or a full ISO 8601 datetime.
-Any time component will be ignored by the API when checking availability.
+When building query strings in JavaScript, format dates as pure `YYYY-MM-DD`
+values to avoid validation errors:
+
+```javascript
+params.set('when', date.toISOString().split('T')[0]);
+```
 
 `minPrice` and `maxPrice` filter by the prices of services in the selected
 `category`. If no category is provided, the range applies to any service the
