@@ -219,6 +219,7 @@ export default function FilterSheet({
           Apply filters
         </button>
       </div>
+    </>
   );
 
   if (isDesktop) {
