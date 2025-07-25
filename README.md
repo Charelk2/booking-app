@@ -16,7 +16,7 @@ The July 2025 update bumps key dependencies and Docker base images:
   filters, skeleton loaders and a hover "Book Now" overlay for a modern,
   accessible look.
  - Price filter now displays a histogram styled like Airbnb and accepts numeric input for precise ranges. Slider thumbs remain clickable even when overlapping.
-- Fixed an issue where the left price slider could not be grabbed when both handles overlapped.
+- Further refined the price slider so both handles stay clickable even when they overlap.
 - Homepage search now lives in the header on a light gray background.
 - Collapsed search bar truncates long locations with an ellipsis so the text never wraps.
 - Search categories now map **Musician / Band** to the `Live Performance` service
