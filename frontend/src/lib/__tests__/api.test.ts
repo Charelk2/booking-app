@@ -270,3 +270,18 @@ describe('review helpers', () => {
     spy.mockRestore();
   });
 });
+
+describe('getArtists', () => {
+  it('passes include_price_distribution param when requested', async () => {
+    const spy = jest
+      .spyOn(api, 'get')
+      .mockResolvedValue({
+        data: { data: [], total: 0, price_distribution: [] },
+      } as unknown as { data: unknown });
+    await getArtists({ includePriceDistribution: true, page: 2 });
+    expect(spy).toHaveBeenCalledWith('/api/v1/artist-profiles/', {
+      params: { page: 2, include_price_distribution: true },
+    });
+    spy.mockRestore();
+  });
+});
