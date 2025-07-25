@@ -159,23 +159,10 @@ export default function FilterSheet({
               <div key={index} style={{ height: `${(bucket.count / maxCount) * 60}%` }} />
             ))}
           </div>
-          <div className="price-track absolute bottom-0 inset-x-0 h-2 rounded" />
+          <div className="price-track" />
           <div
-            className="price-fill absolute bottom-0 h-2 rounded"
+            className="price-fill"
             style={{ left: `${minPct}%`, right: `${100 - maxPct}%` }}
-          />
-          <input
-            type="range"
-            min={SLIDER_MIN}
-            max={SLIDER_MAX}
-            step={SLIDER_STEP}
-            value={localMaxPrice}
-            onChange={(e) => handleRangeChange(e, 'max')}
-            onMouseDown={() => setActiveThumb('max')}
-            onTouchStart={() => setActiveThumb('max')}
-            onMouseUp={() => setActiveThumb(null)}
-            onTouchEnd={() => setActiveThumb(null)}
-            className={`range-thumb ${activeThumb === 'max' ? 'active' : ''}`}
           />
           <input
             type="range"
@@ -189,6 +176,19 @@ export default function FilterSheet({
             onMouseUp={() => setActiveThumb(null)}
             onTouchEnd={() => setActiveThumb(null)}
             className={`range-thumb ${activeThumb === 'min' ? 'active' : ''}`}
+          />
+          <input
+            type="range"
+            min={SLIDER_MIN}
+            max={SLIDER_MAX}
+            step={SLIDER_STEP}
+            value={localMaxPrice}
+            onChange={(e) => handleRangeChange(e, 'max')}
+            onMouseDown={() => setActiveThumb('max')}
+            onTouchStart={() => setActiveThumb('max')}
+            onMouseUp={() => setActiveThumb(null)}
+            onTouchEnd={() => setActiveThumb(null)}
+            className={`range-thumb ${activeThumb === 'max' ? 'active' : ''}`}
           />
         </div>
         <div className="flex justify-between mt-4 gap-4">
