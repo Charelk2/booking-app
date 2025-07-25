@@ -127,7 +127,12 @@ export default function FilterSheet({
             onTouchStart={() => setActiveThumb('min')}
             onMouseUp={() => setActiveThumb(null)}
             onTouchEnd={() => setActiveThumb(null)}
-            style={{ zIndex: activeThumb === 'min' ? 20 : 10 }}
+            style={{
+              // Keep the minimum slider on top by default so it can be grabbed
+              // even when its handle overlaps with the maximum slider. Whichever
+              // slider is active gets a higher z-index to ensure it's draggable.
+              zIndex: activeThumb === 'min' ? 30 : 20,
+            }}
             className="custom-range-thumb absolute inset-x-0 bottom-0 w-full h-2 appearance-none bg-transparent pointer-events-auto"
           />
           <input
@@ -144,7 +149,11 @@ export default function FilterSheet({
             onTouchStart={() => setActiveThumb('max')}
             onMouseUp={() => setActiveThumb(null)}
             onTouchEnd={() => setActiveThumb(null)}
-            style={{ zIndex: activeThumb === 'max' ? 20 : 10 }}
+            style={{
+              // Lower base z-index so the minimum slider remains clickable when
+              // both handles overlap. Elevate when this slider is active.
+              zIndex: activeThumb === 'max' ? 30 : 10,
+            }}
             className="custom-range-thumb absolute inset-x-0 bottom-0 w-full h-2 appearance-none bg-transparent pointer-events-auto"
           />
         </div>
