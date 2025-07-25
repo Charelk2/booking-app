@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { format, parseISO, isValid } from 'date-fns';
 import clsx from 'clsx';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
@@ -46,7 +47,15 @@ export default function ArtistsPage() {
   );
   const [when, setWhen] = useState<Date | null>(() => {
     const w = searchParams.get('when');
-    return w ? new Date(w) : null;
+    if (!w) return null;
+    try {
+      const parsed = parseISO(w);
+      const formatted = format(parsed, 'yyyy-MM-dd');
+      const normalized = parseISO(formatted);
+      return isValid(normalized) ? normalized : null;
+    } catch {
+      return null;
+    }
   });
   const [minPrice, setMinPrice] = useState<number>(
     searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : SLIDER_MIN
