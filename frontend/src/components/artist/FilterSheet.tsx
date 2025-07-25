@@ -176,6 +176,7 @@ export default function FilterSheet({
             onMouseUp={() => setActiveThumb(null)}
             onTouchEnd={() => setActiveThumb(null)}
             className={`range-thumb ${activeThumb === 'min' ? 'active' : ''}`}
+            style={{ zIndex: activeThumb === 'min' ? 30 : 20 }}
           />
           <input
             type="range"
@@ -189,6 +190,7 @@ export default function FilterSheet({
             onMouseUp={() => setActiveThumb(null)}
             onTouchEnd={() => setActiveThumb(null)}
             className={`range-thumb ${activeThumb === 'max' ? 'active' : ''}`}
+            style={{ zIndex: activeThumb === 'max' ? 30 : 10 }}
           />
         </div>
         <div className="flex justify-between mt-4 gap-4">
