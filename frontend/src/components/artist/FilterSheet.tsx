@@ -151,7 +151,7 @@ export default function FilterSheet({
         <label className="block text-sm font-medium">Price range</label>
         <p className="text-xs text-gray-500">Trip price, includes all fees.</p>
         <div className="relative h-24 mt-4">
-          <div className="absolute inset-0 flex items-end justify-between px-0.5 pointer-events-none z-10">
+          <div className="absolute inset-0 flex items-end justify-between px-0.5 pointer-events-none">
             {priceDistribution.map((bucket, index) => (
               <div
                 key={index}
@@ -160,9 +160,9 @@ export default function FilterSheet({
               />
             ))}
           </div>
-          <div className="absolute inset-x-0 bottom-0 h-2 bg-gray-200 rounded z-0" />
+          <div className="absolute inset-x-0 bottom-0 h-2 bg-gray-200 rounded" />
           <div
-            className="absolute bottom-0 h-2 bg-pink-500 rounded z-[5]"
+            className="absolute bottom-0 h-2 bg-pink-500 rounded"
             style={{
               left: `${((localMinPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%`,
               right: `${100 - ((localMaxPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%`,
