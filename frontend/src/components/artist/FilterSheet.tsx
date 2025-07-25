@@ -67,6 +67,9 @@ export default function FilterSheet({
     0,
   );
 
+  const minPct = ((localMinPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100;
+  const maxPct = ((localMaxPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100;
+
   const handleRangeChange = (
     e: React.ChangeEvent<HTMLInputElement>,
     type: 'min' | 'max',
@@ -150,42 +153,16 @@ export default function FilterSheet({
       <div>
         <label className="block text-sm font-medium">Price range</label>
         <p className="text-xs text-gray-500">Trip price, includes all fees.</p>
-        <div className="relative h-24 mt-4">
-          <div className="absolute inset-0 flex items-end justify-between px-0.5 pointer-events-none">
+        <div className="histogram-container relative mt-4">
+          <div className="histogram-bars absolute inset-0 flex items-end justify-between px-0.5">
             {priceDistribution.map((bucket, index) => (
-              <div
-                key={index}
-                className="bg-gray-300 w-1 rounded-t-sm"
-                style={{ height: `${(bucket.count / (maxCount || 1)) * 60}%` }}
-              />
+              <div key={index} style={{ height: `${(bucket.count / maxCount) * 60}%` }} />
             ))}
           </div>
-          <div className="absolute inset-x-0 bottom-0 h-2 bg-gray-200 rounded" />
+          <div className="price-track absolute bottom-0 inset-x-0 h-2 rounded" />
           <div
-            className="absolute bottom-0 h-2 bg-pink-500 rounded"
-            style={{
-              left: `${((localMinPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%`,
-              right: `${100 - ((localMaxPrice - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100}%`,
-            }}
-          />
-          <input
-            type="range"
-            min={SLIDER_MIN}
-            max={SLIDER_MAX}
-            step={SLIDER_STEP}
-            value={localMinPrice}
-            onChange={(e) => handleRangeChange(e, 'min')}
-            onMouseDown={() => setActiveThumb('min')}
-            onTouchStart={() => setActiveThumb('min')}
-            onMouseUp={() => setActiveThumb(null)}
-            onTouchEnd={() => setActiveThumb(null)}
-            style={{
-              // Keep the minimum slider on top by default so it can be grabbed
-              // even when its handle overlaps with the maximum slider. Whichever
-              // slider is active gets a higher z-index to ensure it's draggable.
-              zIndex: activeThumb === 'min' ? 30 : 20,
-            }}
-            className="custom-range-thumb absolute inset-0 w-full h-2 pointer-events-auto appearance-none bg-transparent"
+            className="price-fill absolute bottom-0 h-2 rounded"
+            style={{ left: `${minPct}%`, right: `${100 - maxPct}%` }}
           />
           <input
             type="range"
@@ -198,12 +175,20 @@ export default function FilterSheet({
             onTouchStart={() => setActiveThumb('max')}
             onMouseUp={() => setActiveThumb(null)}
             onTouchEnd={() => setActiveThumb(null)}
-            style={{
-              // Lower base z-index so the minimum slider remains clickable when
-              // both handles overlap. Elevate when this slider is active.
-              zIndex: activeThumb === 'max' ? 30 : 10,
-            }}
-            className="custom-range-thumb absolute inset-0 w-full h-2 pointer-events-auto appearance-none bg-transparent"
+            className={`range-thumb ${activeThumb === 'max' ? 'active' : ''}`}
+          />
+          <input
+            type="range"
+            min={SLIDER_MIN}
+            max={SLIDER_MAX}
+            step={SLIDER_STEP}
+            value={localMinPrice}
+            onChange={(e) => handleRangeChange(e, 'min')}
+            onMouseDown={() => setActiveThumb('min')}
+            onTouchStart={() => setActiveThumb('min')}
+            onMouseUp={() => setActiveThumb(null)}
+            onTouchEnd={() => setActiveThumb(null)}
+            className={`range-thumb ${activeThumb === 'min' ? 'active' : ''}`}
           />
         </div>
         <div className="flex justify-between mt-4 gap-4">
