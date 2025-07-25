@@ -400,19 +400,14 @@ def read_all_artist_profiles(
     category: Optional[ServiceType] = Query(None),
     location: Optional[str] = Query(None),
     sort: Optional[str] = Query(None, pattern="^(top_rated|most_booked|newest)$"),
-    when: Optional[datetime] = Query(None),
+    when: Optional[date] = Query(None),
     min_price: Optional[float] = Query(None, alias="minPrice", ge=0),
     max_price: Optional[float] = Query(None, alias="maxPrice", ge=0),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     include_price_distribution: bool = Query(False, alias="include_price_distribution"),
 ):
-    """Return a list of all artist profiles with optional filters.
-
-    The ``when`` query parameter accepts either a plain ``YYYY-MM-DD`` date or
-    a full ISO 8601 datetime. Any supplied time component is ignored when
-    checking availability.
-    """
+    """Return a list of all artist profiles with optional filters."""
 
     # FastAPI's Query objects appear when this function is called directly in tests.
     # Normalize them to plain values for compatibility.
@@ -431,11 +426,9 @@ def read_all_artist_profiles(
     if hasattr(when, "default"):
         when = None
 
-    when_date = when.date() if isinstance(when, datetime) else None
-
     cache_category = category.value if isinstance(category, ServiceType) else category
     cached = None
-    if not include_price_distribution and when_date is None:
+    if not include_price_distribution and when is None:
         cached = get_cached_artist_list(
             page=page,
             limit=limit,
@@ -564,20 +557,20 @@ def read_all_artist_profiles(
         )
         availability = read_artist_availability(
             artist.user_id,
-            when=when_date,
+            when=when,
             db=db,
         )
-        if when_date:
-            profile.is_available = when_date.isoformat() not in availability["unavailable_dates"]
+        if when:
+            profile.is_available = when.isoformat() not in availability["unavailable_dates"]
         else:
             profile.is_available = len(availability["unavailable_dates"]) == 0
         profiles.append(profile)
 
-    if when_date:
+    if when:
         profiles = [p for p in profiles if p.is_available]
         total_count = len(profiles)
 
-    if not include_price_distribution and when_date is None:
+    if not include_price_distribution and when is None:
         cache_artist_list(
             [
                 {**profile.model_dump(), "user_id": profile.user_id}
@@ -609,16 +602,10 @@ def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
 @router.get("/{artist_id}/availability", response_model=ArtistAvailabilityResponse)
 def read_artist_availability(
     artist_id: int,
-    when: Optional[datetime] = Query(None),
+    when: Optional[date] = Query(None),
     db: Session = Depends(get_db),
 ):
-    """Return dates the artist is unavailable.
-
-    ``when`` may be a full ISO 8601 datetime. Any provided time component is
-    ignored when matching bookings and calendar events.
-    """
-    when_date = when.date() if isinstance(when, datetime) else None
-
+    """Return dates the artist is unavailable."""
     bookings_query = (
         db.query(Booking)
         .filter(
@@ -626,8 +613,8 @@ def read_artist_availability(
             Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
         )
     )
-    if when_date:
-        day_start = datetime.combine(when_date, datetime.min.time())
+    if when:
+        day_start = datetime.combine(when, datetime.min.time())
         day_end = day_start + timedelta(days=1)
         bookings_query = bookings_query.filter(
             Booking.start_time >= day_start, Booking.start_time < day_end
@@ -641,7 +628,7 @@ def read_artist_availability(
             BookingRequest.status != BookingRequestStatus.REQUEST_DECLINED,
         )
     )
-    if when_date:
+    if when:
         requests_query = requests_query.filter(
             (
                 (BookingRequest.proposed_datetime_1 >= day_start)
@@ -663,8 +650,8 @@ def read_artist_availability(
         if r.proposed_datetime_2:
             dates.add(r.proposed_datetime_2.date().isoformat())
 
-    if when_date:
-        start = datetime.combine(when_date, datetime.min.time())
+    if when:
+        start = datetime.combine(when, datetime.min.time())
         end = start + timedelta(days=1)
     else:
         start = datetime.utcnow()
