@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import 'rheostat/initialize';
+import 'rheostat/css/rheostat.css';
 import Rheostat from 'rheostat';
 import type { PublicState } from 'rheostat';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
