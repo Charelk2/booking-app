@@ -48,6 +48,7 @@ export default function FilterSheet({
 }: FilterSheetProps) {
   const firstRef = useRef<HTMLInputElement>(null);
   const isDesktop = useMediaQuery("(min-width:768px)");
+  const [activeThumb, setActiveThumb] = useState<"min" | "max" | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -94,9 +95,6 @@ export default function FilterSheet({
       </div>
       <div>
         <label className="block text-sm font-medium">Price range</label>
-        <p className="text-xs text-gray-500">
-          Artist/Service price, includes all fees.
-        </p>
         <div className="mt-4 relative h-20">
           <div className="absolute inset-0 flex items-end justify-between px-0.5 pointer-events-none">
             {priceDistribution.map((bucket, index) => (
@@ -125,7 +123,11 @@ export default function FilterSheet({
               const v = Number(e.target.value);
               onPriceChange(v, Math.max(v, maxPrice));
             }}
-            style={{ zIndex: 20 }}
+            onMouseDown={() => setActiveThumb('min')}
+            onTouchStart={() => setActiveThumb('min')}
+            onMouseUp={() => setActiveThumb(null)}
+            onTouchEnd={() => setActiveThumb(null)}
+            style={{ zIndex: activeThumb === 'min' ? 20 : 10 }}
             className="custom-range-thumb absolute inset-x-0 bottom-0 w-full h-2 appearance-none bg-transparent pointer-events-auto"
           />
           <input
@@ -138,7 +140,11 @@ export default function FilterSheet({
               const v = Number(e.target.value);
               onPriceChange(Math.min(v, minPrice), v);
             }}
-            style={{ zIndex: 10 }}
+            onMouseDown={() => setActiveThumb('max')}
+            onTouchStart={() => setActiveThumb('max')}
+            onMouseUp={() => setActiveThumb(null)}
+            onTouchEnd={() => setActiveThumb(null)}
+            style={{ zIndex: activeThumb === 'max' ? 20 : 10 }}
             className="custom-range-thumb absolute inset-x-0 bottom-0 w-full h-2 appearance-none bg-transparent pointer-events-auto"
           />
         </div>
