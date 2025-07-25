@@ -207,7 +207,7 @@ def test_unavailable_dates_include_calendar(monkeypatch):
         lambda uid, s, e, d: [datetime(2025, 1, 2, 10, 0)],
     )
 
-    resp = api_artist.read_artist_availability(user.id, db)
+    resp = api_artist.read_artist_availability(user.id, db=db)
     assert resp['unavailable_dates'] == ['2025-01-01', '2025-01-02']
 
 

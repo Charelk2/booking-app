@@ -555,7 +555,11 @@ def read_all_artist_profiles(
                 "service_price": float(service_price) if service_price is not None else None,
             }
         )
-        availability = read_artist_availability(artist.user_id, db, when)
+        availability = read_artist_availability(
+            artist.user_id,
+            when=when,
+            db=db,
+        )
         if when:
             profile.is_available = when.isoformat() not in availability["unavailable_dates"]
         else:
