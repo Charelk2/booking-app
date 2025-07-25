@@ -15,7 +15,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Artists page redesigned with a responsive grid, sticky search header with quick
   filters, skeleton loaders and a hover "Book Now" overlay for a modern,
   accessible look.
- - Price filter now displays a histogram styled like Airbnb and accepts numeric input for precise ranges. Slider thumbs remain clickable even when overlapping.
+ - Price filter now displays a histogram styled like Airbnb and uses the open-source `rheostat` dual-handle slider. Numeric input allows precise ranges and slider thumbs remain clickable even when overlapping.
 - Further refined the price slider so both handles stay clickable even when they overlap.
 - Consolidated slider styling into Tailwind utilities, removing custom CSS from
   `globals.css` for simpler maintenance.
