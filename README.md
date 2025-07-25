@@ -945,6 +945,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 
 ```
 page=<number>&limit=<1-100>&category=<ServiceType>&location=<substring>&sort=<top_rated|most_booked|newest>&minPrice=<number>&maxPrice=<number>&include_price_distribution=<true|false>
+&when=<YYYY-MM-DD>
 ```
 
 `minPrice` and `maxPrice` filter by the prices of services in the selected
@@ -957,6 +958,8 @@ wrap them in `@layer components` so Tailwind does not purge the rules.
 Profiles include `rating`, `rating_count`, and `is_available` fields. A new
 `price_visible` boolean on each artist controls whether the hourly rate is
 returned. Newly created profiles default to `true`.
+Passing a `when` date returns only artists available on that day and sets
+`is_available` accordingly.
 When filtering by a specific `category`, each profile also includes
 `service_price` showing the price of that service for the artist.
 
