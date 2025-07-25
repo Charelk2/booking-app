@@ -7,7 +7,6 @@ import PriceFilter from "@/components/ui/PriceFilter";
 import { createPortal } from "react-dom";
 import type { PriceBucket } from "@/lib/api";
 
-// Available sort values must exactly match the backend pattern.
 const SORT_OPTIONS = [
   { value: "", label: "Sort" },
   { value: "top_rated", label: "Top Rated" },
@@ -52,7 +51,6 @@ export default function FilterSheet({
     return () => setMounted(false);
   }, []);
 
-
   if (!open || !mounted) return null;
 
   const content = (
@@ -68,6 +66,10 @@ export default function FilterSheet({
           <XMarkIcon className="h-5 w-5" />
         </button>
       </div>
+
+      {/* !!! START OF LINES TO PHYSICALLY DELETE !!! */}
+      {/* Delete this entire block from your FilterSheet.tsx file. */}
+      {/*
       <div>
         <label htmlFor="sheet-sort" className="block text-sm font-medium">
           Sort
@@ -85,24 +87,27 @@ export default function FilterSheet({
           ))}
         </select>
       </div>
-      <div>
-        <label className="block text-sm font-medium">Price range</label>
-        <p className="text-xs text-gray-500">Trip price, includes all fees.</p>
-        <PriceFilter
-          open={open}
-          initialMinPrice={initialMinPrice}
-          initialMaxPrice={initialMaxPrice}
-          priceDistribution={priceDistribution}
-          onApply={({ minPrice, maxPrice }) => {
-            parentOnApply({ sort: localSort || undefined, minPrice, maxPrice });
-            onClose();
-          }}
-          onClear={() => {
-            parentOnClear();
-            onClose();
-          }}
-        />
-      </div>
+      */}
+      {/* !!! END OF LINES TO PHYSICALLY DELETE !!! */}
+
+
+      <PriceFilter
+        open={open}
+        initialMinPrice={initialMinPrice}
+        initialMaxPrice={initialMaxPrice}
+        priceDistribution={priceDistribution}
+        sortOptions={SORT_OPTIONS}
+        initialSort={localSort}
+        onSortChange={setLocalSort}
+        onApply={({ minPrice, maxPrice }) => {
+          parentOnApply({ sort: localSort || undefined, minPrice, maxPrice });
+        }}
+        onClear={() => {
+          setLocalSort("");
+          parentOnClear();
+        }}
+        onClose={onClose}
+      />
     </>
   );
 
