@@ -1,6 +1,7 @@
 // frontend/src/lib/api.ts
 
 import axios, { AxiosProgressEvent } from 'axios';
+import { format } from 'date-fns';
 import { extractErrorMessage, normalizeQuoteTemplate } from './utils';
 import {
   User,
@@ -149,7 +150,7 @@ export interface GetArtistsResponse {
 export const getArtists = async (params?: {
   category?: string;
   location?: string;
-  when?: string;
+  when?: string | Date;
   sort?: string;
   minPrice?: number;
   maxPrice?: number;
@@ -159,6 +160,9 @@ export const getArtists = async (params?: {
 }): Promise<GetArtistsResponse> => {
   const { includePriceDistribution, ...rest } = params || {};
   const query = { ...rest } as Record<string, unknown>;
+  if (query.when instanceof Date) {
+    query.when = format(query.when, 'yyyy-MM-dd');
+  }
   if (includePriceDistribution) {
     query.include_price_distribution = true;
   }
