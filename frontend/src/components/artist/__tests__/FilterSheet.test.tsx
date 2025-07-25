@@ -11,7 +11,7 @@ describe('FilterSheet sliders', () => {
     jest.clearAllMocks();
   });
 
-  it('applies updated prices', () => {
+  it('applies updated prices and allows overlapping thumbs', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const modalRoot = document.createElement('div');
@@ -36,17 +36,19 @@ describe('FilterSheet sliders', () => {
     });
 
     const ranges = modalRoot.querySelectorAll('input[type="range"]');
-    const minInput = ranges[0] as HTMLInputElement;
-    const maxInput = ranges[1] as HTMLInputElement;
+    const maxInput = ranges[0] as HTMLInputElement;
+    const minInput = ranges[1] as HTMLInputElement;
 
     act(() => {
       minInput.value = '20';
       minInput.dispatchEvent(new Event('input', { bubbles: true }));
+      minInput.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
     act(() => {
       maxInput.value = '80';
       maxInput.dispatchEvent(new Event('input', { bubbles: true }));
+      maxInput.dispatchEvent(new Event('change', { bubbles: true }));
     });
 
     const applyButton = modalRoot.querySelector('button.bg-brand') as HTMLButtonElement;
