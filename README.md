@@ -949,7 +949,8 @@ page=<number>&limit=<1-100>&category=<ServiceType>&location=<substring>&sort=<to
 `category`. If no category is provided, the range applies to any service the
 artist offers. Additional service categories are supported automatically without
 code changes. Pass `include_price_distribution=true` to return histogram data for
-the filter modal.
+the filter modal. Custom range slider styles live in `frontend/src/app/globals.css`;
+wrap them in `@layer components` so Tailwind does not purge the rules.
 
 Profiles include `rating`, `rating_count`, and `is_available` fields. A new
 `price_visible` boolean on each artist controls whether the hourly rate is
