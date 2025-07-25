@@ -948,6 +948,13 @@ page=<number>&limit=<1-100>&category=<ServiceType>&location=<substring>&sort=<to
 &when=<YYYY-MM-DD>
 ```
 
+When building query strings in JavaScript, format dates as pure `YYYY-MM-DD`
+values to avoid validation errors:
+
+```javascript
+params.set('when', date.toISOString().split('T')[0]);
+```
+
 `minPrice` and `maxPrice` filter by the prices of services in the selected
 `category`. If no category is provided, the range applies to any service the
 artist offers. Additional service categories are supported automatically without
