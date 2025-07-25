@@ -56,8 +56,8 @@ export default function ArtistsPage() {
   );
   const [priceDistribution, setPriceDistribution] = useState<PriceBucket[]>([]);
 
-  const debouncedMinPrice = useDebounce(minPrice, 500);
-  const debouncedMaxPrice = useDebounce(maxPrice, 500);
+  const debouncedMinPrice = useDebounce(minPrice, 300);
+  const debouncedMaxPrice = useDebounce(maxPrice, 300);
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);

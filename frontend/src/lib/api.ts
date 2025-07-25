@@ -156,8 +156,14 @@ export const getArtists = async (params?: {
   limit?: number;
   includePriceDistribution?: boolean;
 }): Promise<GetArtistsResponse> => {
+  const { includePriceDistribution, ...rest } = params || {};
+  const query = { ...rest } as Record<string, unknown>;
+  if (includePriceDistribution) {
+    query.include_price_distribution = true;
+  }
+
   const res = await api.get<GetArtistsResponse>(`${API_V1}/artist-profiles/`, {
-    params,
+    params: query,
   });
   return {
     ...res.data,
