@@ -21,8 +21,8 @@ import { formatCurrency, normalizeService, formatStatus } from "@/lib/utils";
 import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
-import ProfileCompleteness from "@/components/dashboard/ProfileCompleteness";
-import OverviewCard from "@/components/dashboard/OverviewCard";
+import ProfileProgress from "@/components/dashboard/ProfileProgress";
+import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
 import SectionList from "@/components/dashboard/SectionList";
 import BookingRequestCard from "@/components/dashboard/BookingRequestCard";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
@@ -38,6 +38,8 @@ import {
   Bars3Icon,
   CalendarDaysIcon,
   EyeIcon,
+  EnvelopeIcon,
+  ChatBubbleLeftRightIcon,
   MusicalNoteIcon,
   BanknotesIcon,
 } from "@heroicons/react/24/outline";
@@ -193,21 +195,31 @@ export default function DashboardPage() {
     })
     .reduce((acc, booking) => acc + booking.total_price, 0);
 
-  const overviewCards = useMemo(() => {
+  const overviewPrimary = useMemo(() => {
     const cards: { label: string; value: string | number; icon: React.ReactNode }[] = [
       { label: 'Total Bookings', value: bookings.length, icon: <CalendarDaysIcon className="w-5 h-5" /> },
     ];
     if (user?.user_type === 'artist') {
       cards.push(
+        {
+          label: 'New Inquiries This Month',
+          value: dashboardStats?.monthly_new_inquiries ?? 0,
+          icon: <EnvelopeIcon className="w-5 h-5" />,
+        },
         { label: 'Total Services', value: servicesCount, icon: <MusicalNoteIcon className="w-5 h-5" /> },
         { label: 'Earnings This Month', value: formatCurrency(earningsThisMonth), icon: <BanknotesIcon className="w-5 h-5" /> },
       );
-      if (dashboardStats) {
-        cards.push({ label: 'Profile Views', value: dashboardStats.profile_views, icon: <EyeIcon className="w-5 h-5" /> });
-      }
     }
     return cards.slice(0, 4);
   }, [bookings.length, user, servicesCount, earningsThisMonth, dashboardStats]);
+
+  const overviewSecondary = useMemo(() => {
+    if (user?.user_type !== 'artist' || !dashboardStats) return [] as { label: string; value: string | number; icon: React.ReactNode }[];
+    return [
+      { label: 'Profile Views', value: dashboardStats.profile_views, icon: <EyeIcon className="w-5 h-5" /> },
+      { label: 'Response Rate', value: `${dashboardStats.response_rate}%`, icon: <ChatBubbleLeftRightIcon className="w-5 h-5" /> },
+    ];
+  }, [user, dashboardStats]);
 
   const visibleRequests = useMemo(() => {
     const filtered = bookingRequests.filter(
@@ -222,18 +234,6 @@ export default function DashboardPage() {
   }, [bookingRequests, requestStatusFilter, requestSort]);
   const visibleBookings = bookings.slice(0, 5);
 
-  const profileFields: (keyof ArtistProfile)[] = [
-    'business_name',
-    'description',
-    'location',
-    'profile_picture_url',
-    'cover_photo_url',
-  ];
-  const profileStepsCompleted = profileFields.reduce(
-    (acc, key) => acc + (artistProfile && (artistProfile as any)[key] ? 1 : 0),
-    0,
-  );
-  const totalProfileSteps = profileFields.length;
 
   useEffect(() => {
     if (authLoading) return;
@@ -382,10 +382,7 @@ export default function DashboardPage() {
         </div>
         {user?.user_type === 'artist' && artistProfile && (
           <div className="mx-auto max-w-7xl mt-4">
-            <ProfileCompleteness
-              stepsCompleted={profileStepsCompleted}
-              totalSteps={totalProfileSteps}
-            />
+            <ProfileProgress profile={artistProfile} />
           </div>
         )}
         <div className="mx-auto max-w-7xl space-y-4">
@@ -431,11 +428,10 @@ export default function DashboardPage() {
 
           {/* Stats */}
           <div className="mt-8 space-y-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {overviewCards.map((card) => (
-                <OverviewCard key={card.label} label={card.label} value={card.value} icon={card.icon} />
-              ))}
-            </div>
+            <OverviewAccordion
+              primaryStats={overviewPrimary}
+              secondaryStats={overviewSecondary}
+            />
             {user?.user_type === 'artist' && (
               <div className="space-x-4">
                 <Link href="/dashboard/quotes" className="text-brand-dark hover:underline text-sm">
