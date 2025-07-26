@@ -904,6 +904,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Dashboard overview now also shows **New Inquiries This Month**, **Profile Views**, and **Response Rate**.
 
 * A profile completion progress bar now appears above the dashboard stats for artists.
+* Stats cards use a new **OverviewAccordion** component for expandable details.
 
 * Currency values now use consistent locale formatting with `formatCurrency()`.
 * Service API responses now include a `currency` field.
