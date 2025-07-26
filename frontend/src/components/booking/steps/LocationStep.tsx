@@ -3,7 +3,7 @@
 // distance warnings so users understand why we show them.
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import dynamic from 'next/dynamic';
-import { useLoadScript } from '@react-google-maps/api';
+import { loadPlaces } from '@/lib/loadPlaces';
 const GoogleMap = dynamic(
   () => import('@react-google-maps/api').then((m) => m.GoogleMap),
   { ssr: false },
@@ -13,12 +13,11 @@ const Marker = dynamic(
   { ssr: false },
 );
 import { useRef, useState, useEffect } from 'react';
-import { Button, TextInput, Tooltip } from '../../ui';
+import { Button, Tooltip } from '../../ui';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
 
-// Keeping the libraries array stable avoids unnecessary re-renders from
-// useLoadScript when this component rerenders.
-const MAP_LIBRARIES = ['places'] as const;
+// Map libraries are loaded lazily using a shared loader so the Google Maps
+// script is only injected once across the app.
 
 interface Props {
   control: Control<FieldValues>;
@@ -49,11 +48,20 @@ function GoogleMapsLoader({
 }: {
   children: (isLoaded: boolean) => JSX.Element;
 }) {
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-    libraries: MAP_LIBRARIES,
-  });
-  return children(isLoaded);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const api = await loadPlaces();
+      if (api && mounted) setLoaded(true);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return children(loaded);
 }
 
 interface AutocompleteProps {
