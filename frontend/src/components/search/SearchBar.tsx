@@ -69,7 +69,7 @@ export default function SearchBar({
       />
       <button
         type="submit"
-        className="bg-pink-600 hover:bg-pink-700 px-5 py-3 flex items-center justify-center text-white rounded-r-full"
+        className="bg-[var(--color-accent)] hover:bg-[var(--color-accent)]/90 px-5 py-3 flex items-center justify-center text-white rounded-r-full"
       >
         <MagnifyingGlassIcon className="h-5 w-5" />
         <span className="sr-only">Search</span>

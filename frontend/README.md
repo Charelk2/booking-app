@@ -64,11 +64,14 @@ colors: {
   --brand-color: #6366f1;
   --brand-color-dark: #4f46e5;
   --brand-color-light: #a5b4fc;
+  --color-accent: #ec4899;
 }
 ```
 
 Updating these values automatically updates button variants and any classes such
-as `bg-brand` or `bg-brand-dark`.
+as `bg-brand` or `bg-brand-dark`. The accent color is exposed as `--color-accent`
+and can be referenced with utilities like `bg-[var(--color-accent)]` or
+`text-[var(--color-accent)]`.
 
 ### Fonts & Global Styles
 
