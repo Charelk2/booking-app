@@ -36,7 +36,11 @@ export default function BookingRequestCard({
   return (
     <div className="flex justify-between rounded-lg bg-white shadow p-4">
       <div className="flex gap-4">
-        <Avatar src={avatarSrc} initials={clientName.charAt(0)} size={48} />
+        <Avatar
+          profileUrl={avatarSrc || undefined}
+          size={48}
+          alt="Client avatar"
+        />
         <div>
           <div className="font-bold text-gray-900">{clientName}</div>
           <div className="flex items-center gap-1 text-sm text-gray-600">

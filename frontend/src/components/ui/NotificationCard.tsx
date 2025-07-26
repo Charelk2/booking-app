@@ -9,14 +9,6 @@ import {
 import Avatar from './Avatar';
 import TimeAgo from './TimeAgo';
 
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map(w => w[0])
-    .join('')
-    .toUpperCase();
-}
-
 interface NotificationCardProps {
   /** Status type controls icon colour */
   type: 'confirmed' | 'reminder' | 'due' | string;
@@ -56,16 +48,11 @@ export default function NotificationCard({
   subtitle,
   metadata,
 }: NotificationCardProps) {
-  const initials = getInitials(from);
   const icon =
     iconMap[type as keyof typeof iconMap] || (
       <BellAlertIcon className="w-5 h-5 text-gray-400" />
     );
 
-  // Always display an image avatar; fall back to a generic placeholder when
-  // the sender has not uploaded a profile picture. This ensures notifications
-  // consistently show a profile photo rather than initials.
-  const avatarSrc = avatarUrl || '/static/default-avatar.svg';
 
   return (
     <div
@@ -81,7 +68,8 @@ export default function NotificationCard({
         'hover:bg-gray-50',
       )}
     >
-      <Avatar src={avatarSrc} initials={initials} size={44} />
+      {/* Use a fallback avatar when the sender has no profile image */}
+      <Avatar profileUrl={avatarUrl || undefined} size={44} alt={`${from} avatar`} />
       <div className="flex-1 mx-3">
         <div className="flex items-start justify-between">
           <span className="font-semibold text-gray-900 line-clamp-2" title={from}>
