@@ -1122,6 +1122,13 @@ include this query string so clients can pay with one click.
 
 All prices and quotes now default to **South African Rand (ZAR)**. Update your environment or tests if you previously assumed USD values.
 
+### Travel Forecast
+
+```
+GET /api/v1/travel-forecast?location={city}
+```
+Returns a 3-day weather outlook for the provided location using data from `wttr.in`. Invalid locations return a structured 422 response with `{"location": "Unknown location"}` in `field_errors`.
+
 ### Invoices
 
 ```
