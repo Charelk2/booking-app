@@ -75,7 +75,8 @@ colors: {
 Updating these values automatically updates button variants and any classes such
 as `bg-brand` or `bg-brand-dark`. The accent color is exposed as `--color-accent`
 and can be referenced with utilities like `bg-[var(--color-accent)]` or
-`text-[var(--color-accent)]`. Default Tailwind shades for `orange` and `yellow`
+`text-[var(--color-accent)]`. You can also apply opacity with
+`bg-[var(--color-accent)]/10` for lighter status badges. Default Tailwind shades for `orange` and `yellow`
 are also included for status badges and warnings.
 
 ### Fonts & Global Styles
