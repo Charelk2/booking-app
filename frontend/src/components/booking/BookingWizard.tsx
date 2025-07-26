@@ -316,13 +316,26 @@ export default function BookingWizard({
 
   return (
     <div className="px-4 py-16">
-      <div className="sticky top-0 z-10 bg-white">
+      <div
+        className="sticky z-20 bg-white"
+        style={{ top: isMobile ? '4rem' : 0 }}
+        data-testid="progress-container"
+      >
         <Stepper
           steps={steps}
           currentStep={step}
           maxStepCompleted={maxStepCompleted}
           onStepClick={handleStepClick}
+          ariaLabel={`Progress: step ${step + 1} of ${steps.length}`}
         />
+        <div
+          aria-live="polite"
+          aria-atomic="true"
+          className="sr-only"
+          data-testid="progress-status"
+        >
+          {`Step ${step + 1} of ${steps.length}`}
+        </div>
       </div>
       {isMobile ? (
         <div className="space-y-4">
