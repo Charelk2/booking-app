@@ -95,11 +95,7 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
                   <div>
                     <Menu.Button className="flex rounded-full bg-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2">
                       <span className="sr-only">Open user menu</span>
-                      <Avatar
-                        profileUrl={user.profile_picture_url || undefined}
-                        size={32}
-                        alt="User avatar"
-                      />
+                      <Avatar src={user.profile_picture_url || null} initials={user.first_name?.[0] || user.email[0]} size={32} />
                     </Menu.Button>
                   </div>
                   <Transition as={Fragment} enter="transition ease-out duration-200" enterFrom="transform opacity-0 scale-95" enterTo="transform opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="transform opacity-100 scale-100" leaveTo="transform opacity-0 scale-95">
