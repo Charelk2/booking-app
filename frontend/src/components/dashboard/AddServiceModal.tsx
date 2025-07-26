@@ -387,7 +387,7 @@ export default function AddServiceModal({
                       </h2>
                       <label
                         htmlFor="media-upload"
-                        className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer"
+                        className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer w-full min-h-52 flex flex-col items-center justify-center"
                         aria-label="Upload service media"
                         onDragOver={(e) => {
                           e.preventDefault();
@@ -414,12 +414,12 @@ export default function AddServiceModal({
                           {mediaError}
                         </p>
                       )}
-                      <div className="flex flex-wrap gap-2 mt-4">
+                      <div className="flex flex-wrap gap-3 mt-4">
                         {mediaFiles.map((file, i) => (
                           <div
                             // eslint-disable-next-line react/no-array-index-key
                             key={i}
-                            className="relative w-24 h-24 border rounded overflow-hidden"
+                            className="relative w-32 h-32 border rounded overflow-hidden"
                           >
                             {file.type.startsWith("image/") ? (
                               <img
@@ -544,7 +544,7 @@ export default function AddServiceModal({
                                     key={i}
                                     src={URL.createObjectURL(file)}
                                     alt={file.name}
-                                    className="w-16 h-16 object-cover rounded"
+                                    className="w-20 h-20 object-cover rounded"
                                   />
                                 ))}
                             </div>
