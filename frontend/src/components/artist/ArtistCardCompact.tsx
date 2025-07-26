@@ -57,12 +57,12 @@ export default function ArtistCardCompact({
             className="object-cover w-full h-full group-hover:scale-105 transition-transform"
             onLoad={() => setLoaded(true)}
             onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = '/static/default-avatar.svg';
+              (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
             }}
           />
         ) : (
           <Image
-            src="/static/default-avatar.svg"
+            src={getFullImageUrl('/static/default-avatar.svg') as string}
             alt={name}
             fill
             sizes="(max-width:768px) 50vw, 33vw"
