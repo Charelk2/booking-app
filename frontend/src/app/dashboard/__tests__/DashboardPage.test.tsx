@@ -179,6 +179,7 @@ describe('DashboardPage artist stats', () => {
     expect(container.textContent).toContain('5');
     expect(container.textContent).toContain('Response Rate');
     expect(container.textContent).toContain('50%');
+  });
 
   it('shows profile progress bar', () => {
     const bar = container.querySelector('[data-testid="profile-progress"] div') as HTMLDivElement;

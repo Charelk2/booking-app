@@ -11,6 +11,7 @@ import {
 import { BookingRequest, User } from '@/types';
 import { formatStatus } from '@/lib/utils';
 import { Avatar } from '../ui';
+import { buttonVariants } from '@/styles/buttonVariants';
 
 const STATUS_COLORS: Record<
   'pending' | 'pendingAction' | 'quoted' | 'booked' | 'declined',
@@ -82,9 +83,9 @@ export default function BookingRequestCard({ req }: BookingRequestCardProps) {
         </span>
         <Link
           href={`/booking-requests/${req.id}`}
-          className="inline-flex items-center gap-1 rounded bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm"
+          className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md ${buttonVariants.primary}`}
         >
-          Manage Request
+          Manage
         </Link>
       </div>
     </div>
