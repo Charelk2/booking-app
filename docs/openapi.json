@@ -1976,51 +1976,6 @@
         }
       }
     },
-    "/api/v1/booking-requests/stats": {
-      "get": {
-        "tags": [
-          "booking-requests",
-          "Booking Requests"
-        ],
-        "summary": "Get Dashboard Stats",
-        "description": "Return monthly inquiries, profile views, and response rate for the artist.",
-        "operationId": "get_dashboard_stats_api_v1_booking_requests_stats_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "monthly_new_inquiries": { "type": "integer" },
-                    "profile_views": { "type": "integer" },
-                    "response_rate": { "type": "number" }
-                  },
-                  "required": ["monthly_new_inquiries", "profile_views", "response_rate"],
-                  "title": "Response Get Dashboard Stats Api V1 Booking Requests Stats Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/booking-requests/{request_id}": {
       "get": {
         "tags": [
@@ -2186,6 +2141,32 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/booking-requests/stats": {
+      "get": {
+        "tags": [
+          "booking-requests",
+          "Booking Requests"
+        ],
+        "summary": "Get dashboard stats",
+        "description": "Return monthly inquiries, profile views, and response rate for the artist.",
+        "operationId": "get_dashboard_stats_api_v1_booking_requests_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/v1/quotes": {
