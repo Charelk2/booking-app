@@ -899,6 +899,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Booking request cards now show a **Quote accepted** label linking directly to the accepted quote.
 * Artists can update or decline booking requests from the dashboard via a new **Update Request** modal.
 * Improved dashboard stats layout. Artists now see a monthly earnings card.
+* Dashboard overview now also shows **New Inquiries This Month**, **Profile Views**, and **Response Rate**.
 * Currency values now use consistent locale formatting with `formatCurrency()`.
 * Service API responses now include a `currency` field.
 * Streamlined mobile dashboard with collapsible overview and sticky tabs.
