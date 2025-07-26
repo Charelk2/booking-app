@@ -50,6 +50,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - The client user menu now links to an **Account** page where you can update your profile picture, export data, or delete the account.
 - Artist profile picture uploads now update the account avatar so the image persists after logout and page refreshes. When logged in as an artist, the profile picture from **Edit Profile** is shown across the site, including the top navigation menu.
 - Booking request cards now show the client's profile picture when available so requests are easier to identify.
+- Status badges on booking request cards now use classes like `status-badge-quote-provided` for consistent colors.
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
