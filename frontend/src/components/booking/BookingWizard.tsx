@@ -1,7 +1,7 @@
 'use client';
-// Main wizard component controlling the multi-step booking flow. Comments
-// marked TODO highlight planned mobile UX enhancements like collapsible
-// sections and sticky progress indicators.
+// Main wizard component controlling the multi-step booking flow.
+// On mobile devices sections collapse into accordions and the
+// progress indicator remains sticky as the user scrolls.
 import { useEffect, useState, useRef } from 'react';
 import type { Control, FieldValues } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
