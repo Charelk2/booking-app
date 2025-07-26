@@ -112,7 +112,15 @@ describe('DashboardPage artist stats', () => {
       ],
     });
     (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [] });
-    (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
+    (api.getArtistProfileMe as jest.Mock).mockResolvedValue({
+      data: {
+        business_name: 'Studio',
+        description: 'desc',
+        location: 'City',
+        profile_picture_url: 'pic',
+        cover_photo_url: 'cover',
+      },
+    });
     (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [] });
 
     container = document.createElement('div');
@@ -158,6 +166,11 @@ describe('DashboardPage artist stats', () => {
   it('renders monthly earnings card', () => {
     expect(container.textContent).toContain('Earnings This Month');
     expect(container.textContent).toContain(formatCurrency(120));
+  });
+
+  it('shows profile progress bar', () => {
+    const bar = container.querySelector('[data-testid="profile-progress"] div') as HTMLDivElement;
+    expect(bar.style.width).toBe('100%');
   });
 });
 
