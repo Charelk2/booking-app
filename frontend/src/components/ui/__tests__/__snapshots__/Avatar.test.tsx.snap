@@ -1,0 +1,31 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Avatar component matches snapshot for default placeholder 1`] = `
+<div
+  class="flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-gray-700 font-medium overflow-hidden"
+  style="width: 40px; height: 40px;"
+>
+  <img
+    alt="avatar"
+    class="object-cover rounded-full"
+    data-nimg="1"
+    decoding="async"
+    height="40"
+    loading="lazy"
+    src="http://localhost:8000/static/default-avatar.svg"
+    style="color: transparent;"
+    width="40"
+  />
+</div>
+`;
+
+exports[`Avatar component matches snapshot with initials 1`] = `
+<div
+  class="flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-gray-700 font-medium overflow-hidden"
+  style="width: 40px; height: 40px;"
+>
+  <span>
+    A
+  </span>
+</div>
+`;

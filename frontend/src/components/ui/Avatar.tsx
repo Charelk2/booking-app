@@ -42,8 +42,16 @@ export default function Avatar({
         />
       ) : initials ? (
         <span>{initials}</span>
-      ) : (
+      ) : icon ? (
         icon
+      ) : (
+        <Image
+          src={getFullImageUrl('/static/default-avatar.svg') as string}
+          alt={alt}
+          width={size}
+          height={size}
+          className="object-cover rounded-full"
+        />
       )}
     </div>
   );
