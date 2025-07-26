@@ -2,7 +2,7 @@
 // Main wizard component controlling the multi-step booking flow. Comments
 // marked TODO highlight planned mobile UX enhancements like collapsible
 // sections and sticky progress indicators.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import type { Control, FieldValues } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
@@ -84,6 +84,7 @@ export default function BookingWizard({
   const [submitting, setSubmitting] = useState(false);
   const [maxStepCompleted, setMaxStepCompleted] = useState(0);
   const isMobile = useIsMobile();
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   // Ensure maxStepCompleted always reflects the furthest step reached.
   useEffect(() => {
@@ -104,6 +105,7 @@ export default function BookingWizard({
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+    headingRef.current?.focus();
   }, [step]);
 
   useEffect(() => {
@@ -348,7 +350,12 @@ export default function BookingWizard({
             >
               {i === step && (
                 <>
-                  <h2 className="sr-only" data-testid="step-heading">
+                  <h2
+                    className="sr-only"
+                    data-testid="step-heading"
+                    tabIndex={-1}
+                    ref={headingRef}
+                  >
                     {label}
                   </h2>
                   <AnimatePresence mode="wait">
@@ -376,7 +383,12 @@ export default function BookingWizard({
         </div>
       ) : (
         <Card variant="wizard" className="space-y-6">
-          <h2 className="text-2xl font-bold" data-testid="step-heading">
+          <h2
+            className="text-2xl font-bold"
+            data-testid="step-heading"
+            tabIndex={-1}
+            ref={headingRef}
+          >
             {steps[step]}
           </h2>
           <AnimatePresence mode="wait">
