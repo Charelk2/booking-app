@@ -327,6 +327,13 @@ export const getMyBookingRequests = () =>
 export const getBookingRequestsForArtist = () =>
   api.get<BookingRequest[]>(`${API_V1}/booking-requests/me/artist`);
 
+export const getDashboardStats = () =>
+  api.get<{
+    monthly_new_inquiries: number;
+    profile_views: number;
+    response_rate: number;
+  }>(`${API_V1}/booking-requests/stats`);
+
 // If you want to fetch a single booking request by ID:
 export const getBookingRequestById = (id: number) =>
   api.get<BookingRequest>(`${API_V1}/booking-requests/${id}`);
