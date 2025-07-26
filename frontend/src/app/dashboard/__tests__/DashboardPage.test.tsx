@@ -182,7 +182,9 @@ describe('DashboardPage artist stats', () => {
   });
 
   it('shows profile progress bar', () => {
-    const bar = container.querySelector('[data-testid="profile-progress"] div') as HTMLDivElement;
+    const bar = container.querySelector(
+      '[data-testid="profile-progress"] .progress-bar-fill'
+    ) as HTMLDivElement;
     expect(bar.style.width).toBe('100%');
 
   });
