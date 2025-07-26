@@ -25,7 +25,9 @@ describe('ProfileProgress component', () => {
       root.render(<ProfileProgress profile={profile} />);
     });
 
-    const inner = container.querySelector('[data-testid="profile-progress"] div') as HTMLDivElement;
+    const inner = container.querySelector(
+      '[data-testid="profile-progress"] .progress-bar-fill'
+    ) as HTMLDivElement;
     expect(inner.style.width).toBe('100%');
 
     act(() => {
