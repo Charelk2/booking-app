@@ -50,6 +50,9 @@ export default function PriceFilter({
   const [localSortValue, setLocalSortValue] = useState(initialSort || "");
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
 
   // Routers
   const router = useRouter();
@@ -63,6 +66,11 @@ export default function PriceFilter({
       setLocalMaxPrice(initialMaxPrice);
       setLocalSortValue(initialSort || "");
       setIsSortDropdownOpen(false);
+      previouslyFocused.current = document.activeElement as HTMLElement;
+      closeButtonRef.current?.focus();
+    }
+    if (!open && previouslyFocused.current) {
+      previouslyFocused.current.focus();
     }
   }, [open, initialMinPrice, initialMaxPrice, initialSort]);
 
@@ -134,6 +142,35 @@ export default function PriceFilter({
     };
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const container = containerRef.current;
+    const handleTrap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const focusable = Array.from(
+        container?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+        ) || [],
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    container?.addEventListener('keydown', handleTrap);
+    return () => {
+      container?.removeEventListener('keydown', handleTrap);
+    };
+  }, [open]);
+
   // Handle keyboard navigation for the custom dropdown
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (!isSortDropdownOpen) return;
@@ -178,7 +215,9 @@ export default function PriceFilter({
   }, [isSortDropdownOpen, handleKeyDown, sortOptions]);
 
   // Rheostat Custom Components
-  const Handle = (props: any) => {
+  const Handle = (
+    props: React.HTMLAttributes<HTMLButtonElement> & { 'data-handle-key': string }
+  ) => {
     const idx = Number(props['data-handle-key']);
     return (
       <button
@@ -229,7 +268,12 @@ export default function PriceFilter({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+    <div
+      className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      ref={containerRef}
+    >
       <div className="bg-white rounded-2xl w-full max-w-md p-6 mx-auto shadow-xl space-y-6 animate-fade-in-up">
         {/* Header */}
         <div className="flex justify-between items-center relative">
@@ -239,6 +283,7 @@ export default function PriceFilter({
             aria-label="Close filters"
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 transition-colors"
+            ref={closeButtonRef}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
