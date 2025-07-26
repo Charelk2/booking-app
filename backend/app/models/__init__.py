@@ -14,6 +14,7 @@ from .notification import Notification, NotificationType
 from .calendar_account import CalendarAccount, CalendarProvider
 from .email_token import EmailToken
 from .invoice import Invoice, InvoiceStatus
+from .profile_view import ArtistProfileView
 
 __all__ = [
     "User",
@@ -43,4 +44,5 @@ __all__ = [
     "EmailToken",
     "Invoice",
     "InvoiceStatus",
+    "ArtistProfileView",
 ]

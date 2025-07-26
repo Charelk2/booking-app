@@ -12,6 +12,7 @@ import {
   getArtistProfileMe,
   getMyBookingRequests,
   getBookingRequestsForArtist,
+  getDashboardStats,
   updateService,
   deleteService,
 } from "@/lib/api";
@@ -165,6 +166,7 @@ export default function DashboardPage() {
   const [servicesOpen, setServicesOpen] = useState(false);
   const [requestToUpdate, setRequestToUpdate] = useState<BookingRequest | null>(null);
   const [activeTab, setActiveTab] = useState<'requests' | 'bookings' | 'services'>('requests');
+  const [dashboardStats, setDashboardStats] = useState<{ monthly_new_inquiries: number; profile_views: number; response_rate: number } | null>(null);
 
   // Aggregated totals for dashboard statistics
   const servicesCount = services.length;
@@ -191,6 +193,11 @@ export default function DashboardPage() {
     overviewPrimaryStats.push({ label: 'Total Earnings', value: formatCurrency(totalEarnings) });
     overviewSecondaryStats.push({ label: 'Total Services', value: servicesCount });
     overviewSecondaryStats.push({ label: 'Earnings This Month', value: formatCurrency(earningsThisMonth) });
+    if (dashboardStats) {
+      overviewSecondaryStats.push({ label: 'New Inquiries This Month', value: dashboardStats.monthly_new_inquiries });
+      overviewSecondaryStats.push({ label: 'Profile Views', value: dashboardStats.profile_views });
+      overviewSecondaryStats.push({ label: 'Response Rate', value: `${dashboardStats.response_rate}%` });
+    }
   }
 
   const visibleRequests = bookingRequests.slice(0, 5);
@@ -211,11 +218,13 @@ export default function DashboardPage() {
             servicesDataResponse,
             artistProfileData,
             requestsData,
+            statsData,
           ] = await Promise.all([
             getMyArtistBookings(),
             getArtistServices(user.id),
             getArtistProfileMe(),
             getBookingRequestsForArtist(),
+            getDashboardStats(),
           ]);
           setBookings(bookingsData.data);
           setBookingRequests(requestsData.data);
@@ -225,6 +234,7 @@ export default function DashboardPage() {
             .sort((a, b) => a.display_order - b.display_order);
           setServices(processedServices);
           setArtistProfile(artistProfileData.data);
+          setDashboardStats(statsData.data);
         } else {
           const [bookingsData, requestsData] = await Promise.all([
             getMyClientBookings(),
