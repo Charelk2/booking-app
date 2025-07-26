@@ -32,6 +32,14 @@ describe('Stepper progress bar', () => {
     expect(items[0].getAttribute('aria-disabled')).toBe('true');
   });
 
+  it('uses custom aria-label when provided', () => {
+    act(() => {
+      root.render(<Stepper steps={["One", "Two"]} currentStep={0} ariaLabel="Booking progress" />);
+    });
+    const wrapper = container.querySelector('div[role="list"]');
+    expect(wrapper?.getAttribute('aria-label')).toBe('Booking progress');
+  });
+
   it('calls onStepClick when clicking completed steps', () => {
     const clickSpy = jest.fn();
     act(() => {
