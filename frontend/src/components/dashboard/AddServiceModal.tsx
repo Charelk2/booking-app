@@ -8,7 +8,16 @@ import {
   SparklesIcon,
   SquaresPlusIcon,
 } from "@heroicons/react/24/outline";
+import type { ElementType } from "react";
 import clsx from "clsx";
+
+const serviceTypeIcons: Record<string, ElementType> = {
+  "Live Performance": MusicalNoteIcon,
+  "Personalized Video": VideoCameraIcon,
+  "Custom Song": SparklesIcon,
+  Other: SquaresPlusIcon,
+};
+
 import { Service } from "@/types";
 import {
   createService as apiCreateService,
@@ -229,18 +238,10 @@ export default function AddServiceModal({
   if (!isOpen) return null;
 
   const types = [
-    {
-      value: "Live Performance",
-      label: "Live Performance",
-      Icon: MusicalNoteIcon,
-    },
-    {
-      value: "Personalized Video",
-      label: "Personalized Video",
-      Icon: VideoCameraIcon,
-    },
-    { value: "Custom Song", label: "Custom Song", Icon: SparklesIcon },
-    { value: "Other", label: "Other", Icon: SquaresPlusIcon },
+    { value: "Live Performance", label: "Live Performance" },
+    { value: "Personalized Video", label: "Personalized Video" },
+    { value: "Custom Song", label: "Custom Song" },
+    { value: "Other", label: "Other" },
   ];
 
   const earnings =
@@ -291,7 +292,9 @@ export default function AddServiceModal({
                         Choose Your Service Category
                       </h2>
                       <div className="grid grid-cols-2 gap-4">
-                        {types.map(({ value, label, Icon }) => (
+                        {types.map(({ value, label }) => {
+                          const Icon = serviceTypeIcons[value];
+                          return (
                           <button
                             type="button"
                             key={value}
@@ -304,10 +307,11 @@ export default function AddServiceModal({
                                 : "border border-gray-200",
                             )}
                           >
-                            <Icon className="h-8 w-8 mb-2" />
+                            {Icon && <Icon className="h-8 w-8 mb-2" />}
                             <span className="text-base font-medium text-gray-800">{label}</span>
                           </button>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
