@@ -1,50 +1,28 @@
-'use client';
-import Image from 'next/image';
-import clsx from 'clsx';
-import { getFullImageUrl } from '@/lib/utils';
+"use client";
+import Image from "next/image";
 
 interface AvatarProps {
-  src?: string | null;
-  initials?: string;
-  icon?: React.ReactNode;
+  profileUrl?: string;
+  size?: number;
   alt?: string;
-  className?: string;
-  size?: number; // width/height in pixels
 }
 
 export default function Avatar({
-  src,
-  initials,
-  icon,
-  alt = 'avatar',
-  className,
-  size = 40,
+  profileUrl,
+  size = 48,
+  alt = "avatar",
 }: AvatarProps) {
-  const dimension = `${size}px`;
+  const src = profileUrl
+    ? `${process.env.NEXT_PUBLIC_API_URL}/static/profile_pics/${profileUrl}`
+    : "/static/default-avatar.svg";
+
   return (
-    <div
-      className={clsx(
-        'flex-shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-gray-700 font-medium overflow-hidden',
-        className,
-      )}
-      style={{ width: dimension, height: dimension }}
-    >
-      {src ? (
-        <Image
-          src={getFullImageUrl(src) as string}
-          alt={alt}
-          width={size}
-          height={size}
-          className="object-cover rounded-full"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
-          }}
-        />
-      ) : initials ? (
-        <span>{initials}</span>
-      ) : (
-        icon
-      )}
-    </div>
+    <Image
+      src={src}
+      width={size}
+      height={size}
+      className="object-cover rounded-full"
+      alt={alt}
+    />
   );
 }
