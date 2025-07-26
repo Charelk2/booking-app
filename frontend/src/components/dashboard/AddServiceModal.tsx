@@ -8,6 +8,7 @@ import {
   useState,
   useRef,
   useEffect,
+  Fragment,
 } from 'react';
 import {
   MusicalNoteIcon,
@@ -22,6 +23,7 @@ import {
   getDashboardStats,
 } from '@/lib/api';
 import { DEFAULT_CURRENCY } from '@/lib/constants';
+import { Dialog, Transition } from '@headlessui/react';
 import Button from '../ui/Button';
 import { Stepper, TextInput, TextArea, ToggleSwitch } from '../ui';
 
@@ -59,7 +61,7 @@ export default function AddServiceModal({
     setValue,
     watch,
     trigger,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<ServiceFormData>({
     defaultValues: {
       service_type: undefined,
@@ -71,6 +73,7 @@ export default function AddServiceModal({
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+  const [mediaError, setMediaError] = useState<string | null>(null);
   const [packages, setPackages] = useState<PackageData[]>([
     { name: '', price: '' },
   ]);
@@ -101,7 +104,9 @@ export default function AddServiceModal({
       return !mediaFiles.some((f) => f.type.startsWith('image/'));
     }
     if (step === 3) {
-      return !packages[0].name || !packages[0].price;
+      return packages.some(
+        (p) => !p.name.trim() || Number(p.price) <= 0,
+      );
     }
     return false;
   };
@@ -119,16 +124,26 @@ export default function AddServiceModal({
     setMaxStep((m) => Math.max(m, step + 1));
   };
 
-  const prev = () => setStep((s) => Math.max(s - 1, 0));
+const prev = () => setStep((s) => Math.max(s - 1, 0));
 
-  const onFileChange = (files: FileList | null) => {
-    if (!files) return;
-    const arr = Array.from(files);
-    setMediaFiles((prev) => [...prev, ...arr]);
+const onFileChange = (files: FileList | null) => {
+  if (!files) return;
+  const arr = Array.from(files);
+  setMediaFiles((prev) => [...prev, ...arr]);
+  if (!arr.some((f) => f.type.startsWith('image/')) && !mediaFiles.some((f) => f.type.startsWith('image/')))
+    setMediaError('At least one image is required.');
+  else setMediaError(null);
+};
+
+  const removeFile = (i: number) => {
+    setMediaFiles((prev) => {
+      const updated = prev.filter((_, idx) => idx !== i);
+      if (!updated.some((f) => f.type.startsWith('image/'))) {
+        setMediaError('At least one image is required.');
+      }
+      return updated;
+    });
   };
-
-  const removeFile = (i: number) =>
-    setMediaFiles((prev) => prev.filter((_, idx) => idx !== i));
 
   const addPackage = () =>
     setPackages((prev) =>
@@ -174,6 +189,14 @@ export default function AddServiceModal({
     }
   };
 
+  const handleCancel = () => {
+    reset();
+    setMediaFiles([]);
+    setPackages([{ name: '', price: '' }]);
+    setStep(0);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   const types = [
@@ -189,13 +212,35 @@ export default function AddServiceModal({
       : null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto z-50 flex items-center justify-center">
-      <div className="relative bg-white rounded-md w-full max-w-4xl p-6">
-        <Stepper
-          steps={steps.slice(0, 4)}
-          currentStep={step}
-          maxStepCompleted={maxStep}
-          onStepClick={(i) => i <= maxStep && setStep(i)}
+    <Transition show={isOpen} as={Fragment}>
+      <Dialog as="div" className="fixed inset-0 z-50" onClose={handleCancel}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <Dialog.Overlay className="fixed inset-0 bg-gray-800 bg-opacity-50" />
+        </Transition.Child>
+        <div className="flex min-h-full items-center justify-center">
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0 scale-95"
+            enterTo="opacity-100 scale-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100 scale-100"
+            leaveTo="opacity-0 scale-95"
+          >
+            <Dialog.Panel className="m-auto bg-white w-[80%] max-w-5xl h-[90vh] rounded-lg overflow-auto p-6">
+          <Stepper
+            steps={steps.slice(0, 4)}
+            currentStep={step}
+            maxStepCompleted={maxStep}
+          onStepClick={(i) => i <= maxStep + 1 && setStep(i)}
         />
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {step === 0 && (
@@ -282,7 +327,8 @@ export default function AddServiceModal({
           {step === 2 && (
             <div>
               <h2 className="text-xl font-semibold mb-4">Upload Media</h2>
-              <div
+              <label
+                htmlFor="media-upload"
                 className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer"
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -291,11 +337,11 @@ export default function AddServiceModal({
                   e.preventDefault();
                   onFileChange(e.dataTransfer.files);
                 }}
-                onClick={() => fileInputRef.current?.click()}
                 data-testid="dropzone"
               >
                 <p>Drag files here or click to upload</p>
                 <input
+                  id="media-upload"
                   ref={fileInputRef}
                   type="file"
                   multiple
@@ -303,7 +349,10 @@ export default function AddServiceModal({
                   className="hidden"
                   onChange={(e) => onFileChange(e.target.files)}
                 />
-              </div>
+              </label>
+              {mediaError && (
+                <p className="text-sm text-red-600 mt-2">{mediaError}</p>
+              )}
               <div className="flex flex-wrap gap-2 mt-4">
                 {mediaFiles.map((file, i) => (
                   <div
@@ -377,38 +426,64 @@ export default function AddServiceModal({
             </div>
           )}
           {step === 4 && (
-            <div className="space-y-2">
+            <div className="space-y-4">
               <h2 className="text-xl font-semibold">Review Your Service</h2>
-              <p>
-                <strong>Type:</strong> {watch('service_type')}
-              </p>
-              <p>
-                <strong>Title:</strong> {watch('title')}
-              </p>
-              <p>
-                <strong>Description:</strong> {watch('description')}
-              </p>
-              <p>
-                <strong>Duration:</strong> {watch('duration_minutes')} minutes
-              </p>
-              <p>
-                <strong>Packages:</strong>{' '}
-                {packages.map((p) => `${p.name}: ${p.price}`).join('; ')}
-              </p>
-              {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium">Type</h3>
+                  <p>{watch('service_type')}</p>
+                </div>
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium">Title</h3>
+                  <p>{watch('title')}</p>
+                </div>
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium">Description</h3>
+                  <p>{watch('description')}</p>
+                </div>
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium">Duration</h3>
+                  <p>{watch('duration_minutes')} minutes</p>
+                </div>
+                <div className="border rounded-md p-4 col-span-full">
+                  <h3 className="font-medium">Packages</h3>
+                  {packages.map((p, idx) => (
+                    <p key={idx}>{p.name}: {p.price}</p>
+                  ))}
+                </div>
+                {mediaFiles.filter((f) => f.type.startsWith('image/')).length > 0 && (
+                  <div className="border rounded-md p-4 col-span-full">
+                    <h3 className="font-medium">Images</h3>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {mediaFiles
+                        .filter((f) => f.type.startsWith('image/'))
+                        .map((file, i) => (
+                          <img
+                            // eslint-disable-next-line react/no-array-index-key
+                            key={i}
+                            src={URL.createObjectURL(file)}
+                            alt={file.name}
+                            className="w-16 h-16 object-cover rounded"
+                          />
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {serverError && (
+                <p className="text-sm text-red-600">{serverError}</p>
+              )}
             </div>
           )}
           <div className="flex justify-between pt-4">
-            {step > 0 && (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={prev}
-                data-testid="back"
-              >
-                Back
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={step === 0 ? handleCancel : prev}
+              data-testid="back"
+            >
+              {step === 0 ? 'Cancel' : 'Back'}
+            </Button>
             {step < steps.length - 1 && (
               <Button
                 type="button"
@@ -420,13 +495,20 @@ export default function AddServiceModal({
               </Button>
             )}
             {step === steps.length - 1 && (
-              <Button type="submit" isLoading={publishing}>
+              <Button
+                type="submit"
+                isLoading={publishing || isSubmitting}
+                disabled={publishing || isSubmitting || nextDisabled()}
+              >
                 Publish
               </Button>
             )}
           </div>
         </form>
-      </div>
-    </div>
+            </Dialog.Panel>
+          </Transition.Child>
+        </div>
+      </Dialog>
+    </Transition>
   );
 }
