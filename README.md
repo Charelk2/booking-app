@@ -781,7 +781,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Collapsible sections ensure only the active step is expanded on phones.
 * Mobile devices use native date and time pickers for faster input.
 * Each step appears in a white card with rounded corners and a subtle shadow.
-* The progress bar sticks below the header so progress is always visible while scrolling.
+* The progress bar now stays pinned just below the header on phones so progress remains visible while scrolling through each step.
 * Venue picker uses a reusable `<BottomSheet>` component on small screens to
   avoid keyboard overlap. The sheet traps focus for accessibility and closes when
   you press `Escape` or tap outside.
