@@ -238,8 +238,10 @@ export const updateMyArtistPortfolioImageOrder = (urls: string[]) =>
 // ─── SERVICES ──────────────────────────────────────────────────────────────────
 
 // “services by artist” is GET /api/v1/services/artist/{artist_user_id}
-export const getArtistServices = (artistUserId: number) =>
-  api.get<Service[]>(`${API_V1}/services/artist/${artistUserId}`);
+export const getArtistServices = (artistUserId: number | string) => {
+  const id = Number(artistUserId);
+  return api.get<Service[]>(`${API_V1}/services/artist/${id}`);
+};
 
 export const getAllServices = () =>
   api.get<Service[]>(`${API_V1}/services/`);
