@@ -6,6 +6,7 @@ import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Service } from '@/types';
+import { flushPromises } from '@/test/utils/flush';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
@@ -73,6 +74,21 @@ describe('Service deletion confirmation', () => {
     });
     expect(window.confirm).toHaveBeenCalled();
     expect(api.deleteService).toHaveBeenCalledWith(service.id);
+    window.confirm = originalConfirm;
+  });
+
+  it('shows error message when deletion fails', async () => {
+    (api.deleteService as jest.Mock).mockRejectedValue(new Error('fail'));
+    const originalConfirm = window.confirm;
+    window.confirm = jest.fn(() => true);
+    const deleteBtn = container.querySelector('button[aria-label="Delete"]') as HTMLButtonElement;
+    await act(async () => {
+      deleteBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await flushPromises();
+    });
+    expect(container.textContent).toContain('Failed to delete service');
     window.confirm = originalConfirm;
   });
 });
