@@ -276,8 +276,9 @@ The host portion of `NEXT_PUBLIC_API_URL` is also used by
 `next.config.js` to allow optimized image requests from the backend.
 Set this URL to match your API server so artist profile pictures and
 cover photos load without 400 errors from the `/_next/image` endpoint.
-The `next.config.js` file now explicitly includes `/static/cover_photos/**`
-alongside `/static/profile_pics/**` in its `remotePatterns` list.
+The `next.config.js` file now explicitly includes `/static/cover_photos/**` and
+`/static/portfolio_images/**` alongside `/static/profile_pics/**` in its
+`remotePatterns` list.
 
 The location input now reuses the `LocationInput` component powered by the
 `react-google-autocomplete` package. It matches the styling and behaviour of the
