@@ -111,4 +111,16 @@ describe('DashboardPage booking request sort and filter', () => {
     expect(items.length).toBe(1);
     expect(items[0].textContent).toContain('C2');
   });
+
+  it('filters booking requests by client name', async () => {
+    const input = container.querySelector('input[aria-label="Search by client name"]') as HTMLInputElement;
+    await act(async () => {
+      input.value = 'C2';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await flushPromises();
+    const items = container.querySelectorAll('li');
+    expect(items.length).toBe(1);
+    expect(items[0].textContent).toContain('C2');
+  });
 });
