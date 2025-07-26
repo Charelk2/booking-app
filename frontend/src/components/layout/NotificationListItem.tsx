@@ -147,7 +147,7 @@ export default function NotificationListItem({
   const p = parseItem(n);
   // Use a fallback avatar image when the notification does not include one so
   // all notifications show a consistent profile picture.
-  const avatarSrc = p.avatarUrl || '/default-avatar.svg';
+  const avatarSrc = p.avatarUrl || '/static/default-avatar.svg';
 
   return (
     <div

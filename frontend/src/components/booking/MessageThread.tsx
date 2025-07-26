@@ -468,7 +468,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 loading="lazy"
                 className="h-8 w-8 rounded-full object-cover"
                 onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
+                  (e.currentTarget as HTMLImageElement).src = '/static/default-avatar.svg';
                 }}
               />
             </Link>
@@ -481,7 +481,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               loading="lazy"
               className="h-8 w-8 rounded-full object-cover"
               onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
+                (e.currentTarget as HTMLImageElement).src = '/static/default-avatar.svg';
               }}
             />
           )}

@@ -16,7 +16,7 @@ exports[`ArtistCardCompact matches snapshot 1`] = `
       data-nimg="fill"
       decoding="async"
       loading="lazy"
-      src="/default-avatar.svg"
+      src="/static/default-avatar.svg"
       style="position: absolute; height: 100%; width: 100%; left: 0px; top: 0px; right: 0px; bottom: 0px; color: transparent;"
     />
   </div>
