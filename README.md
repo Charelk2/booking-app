@@ -905,10 +905,10 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Booking request cards now include a **Manage Request** link that opens the request details page.
 * Improved dashboard stats layout. Artists now see a monthly earnings card.
 
-* Dashboard overview now also shows **New Inquiries This Month**, **Profile Views**, and **Response Rate**.
+* Dashboard overview now highlights **New Inquiries**, **Total Services**, and **Earnings This Month**.
 
-* A profile completion progress bar now appears above the dashboard stats for artists.
-* Stats cards use a new **OverviewAccordion** component for expandable details.
+* A profile completion progress bar still appears above the dashboard stats for artists.
+* Stats cards use a simple grid layout for quick reference.
 
 * Currency values now use consistent locale formatting with `formatCurrency()`.
 * Service API responses now include a `currency` field.
