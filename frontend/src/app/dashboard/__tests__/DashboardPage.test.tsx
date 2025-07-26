@@ -114,6 +114,9 @@ describe('DashboardPage artist stats', () => {
     (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [] });
     (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
     (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getDashboardStats as jest.Mock).mockResolvedValue({
+      data: { monthly_new_inquiries: 3, profile_views: 5, response_rate: 50 },
+    });
 
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -158,6 +161,15 @@ describe('DashboardPage artist stats', () => {
   it('renders monthly earnings card', () => {
     expect(container.textContent).toContain('Earnings This Month');
     expect(container.textContent).toContain(formatCurrency(120));
+  });
+
+  it('renders new dashboard metrics', () => {
+    expect(container.textContent).toContain('New Inquiries This Month');
+    expect(container.textContent).toContain('3');
+    expect(container.textContent).toContain('Profile Views');
+    expect(container.textContent).toContain('5');
+    expect(container.textContent).toContain('Response Rate');
+    expect(container.textContent).toContain('50%');
   });
 });
 
