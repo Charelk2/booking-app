@@ -299,6 +299,9 @@ opens a minimalist modal when the **Map** button is clicked. The modal contains
 just the search field and closes via a soft "Close" button. Closing the modal
 blurs the original input so it doesn't instantly reopen when refocused.
 
+The legacy `react-google-autocomplete` package has been removed in favor of this
+web component, so be sure to install dependencies again after pulling changes.
+
 To expose the app on your local network, replace `192.168.3.203` with your
 machine's LAN IP. Set the same address in `.env` under
 `CORS_ORIGINS=["http://<your-ip>:3000"]`, then start the backend with
