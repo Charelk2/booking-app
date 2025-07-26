@@ -916,6 +916,16 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Booking requests on the dashboard can now be **sorted and filtered** client-side.
 ![Mobile dashboard states](docs/mobile_dashboard_states.svg)
 
+### Redesigned Dashboard
+
+The dashboard brings common actions to the surface with a tidy layout:
+
+* **Profile progress** – a bar at the top shows how complete your artist profile is. Updating services and media increases the percentage so you know when you are ready to promote your page.
+* **Quick actions** – buttons for adding a service, updating your calendar, or sending a quote appear below the progress bar so frequent tasks are one tap away.
+* **Bookings and requests lists** – the next five upcoming bookings and newest requests are summarized in side-by-side cards. Each list links to a dedicated page where you can manage the full history.
+
+![Dashboard components](docs/dashboard_overview.svg)
+
 ### Artist Availability
 
 * `GET /api/v1/artist-profiles/{artist_id}/availability` returns `unavailable_dates`.
