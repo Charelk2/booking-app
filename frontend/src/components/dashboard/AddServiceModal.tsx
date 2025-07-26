@@ -281,6 +281,7 @@ export default function AddServiceModal({
                   ariaLabel="Add service progress"
                 />
                 <form
+                  id="add-service-form"
                   onSubmit={handleSubmit(onSubmit)}
                   className="flex-1 overflow-auto space-y-6 p-6"
                 >
@@ -579,6 +580,7 @@ export default function AddServiceModal({
                   {step === steps.length - 1 && (
                     <Button
                       type="submit"
+                      form="add-service-form"
                       disabled={publishing || isSubmitting || nextDisabled()}
                       isLoading={publishing || isSubmitting}
                       className="px-6 py-3"
