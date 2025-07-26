@@ -77,13 +77,13 @@ describe('BookingRequestCard', () => {
     expect(img).toBeNull();
   });
 
-  it('applies different badge colors based on status', () => {
+  it('applies status badge classes based on status', () => {
     const cases: [string, string][] = [
-      ['pending_quote', 'bg-yellow-100'],
-      ['pending_artist_confirmation', 'bg-orange-100'],
-      ['quote_provided', 'bg-[var(--color-accent)]/10'],
-      ['request_confirmed', 'bg-brand-light'],
-      ['request_declined', 'bg-red-100'],
+      ['pending_quote', 'status-badge-pending-quote'],
+      ['pending_artist_confirmation', 'status-badge-pending-action'],
+      ['quote_provided', 'status-badge-quote-provided'],
+      ['request_confirmed', 'status-badge-confirmed'],
+      ['request_declined', 'status-badge-declined'],
     ];
     cases.forEach(([status, expected]) => {
       act(() => {
@@ -93,8 +93,8 @@ describe('BookingRequestCard', () => {
           }),
         );
       });
-      const badge = container.querySelector('span.inline-flex') as HTMLSpanElement;
-      expect(badge.className).toContain(expected);
+      const badge = container.querySelector('span[class*=\"status-badge\"]') as HTMLSpanElement;
+      expect(badge?.className).toContain(expected);
     });
   });
 });
