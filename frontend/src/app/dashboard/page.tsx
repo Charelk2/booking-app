@@ -320,6 +320,7 @@ export default function DashboardPage() {
       setServices((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
       console.error("Service delete error:", err);
+      setError("Failed to delete service. Please try again.");
     }
   };
 
@@ -335,6 +336,9 @@ export default function DashboardPage() {
       );
     } catch (err) {
       console.error("Service reorder error:", err);
+      setError(
+        "Failed to update service order. Your changes may not be saved."
+      );
     }
   };
 
