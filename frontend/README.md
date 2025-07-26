@@ -44,6 +44,7 @@ Brand colors are declared in `tailwind.config.js` and exposed as CSS variables i
 
 ```javascript
 // tailwind.config.js
+const colors = require('tailwindcss/colors');
 colors: {
   brand: {
     DEFAULT: '#6366f1',
@@ -55,6 +56,9 @@ colors: {
     600: '#4F46E5',
     700: '#4338CA',
   },
+  // default Tailwind palettes used for status badges
+  orange: colors.orange,
+  yellow: colors.yellow,
 }
 ```
 
@@ -71,7 +75,8 @@ colors: {
 Updating these values automatically updates button variants and any classes such
 as `bg-brand` or `bg-brand-dark`. The accent color is exposed as `--color-accent`
 and can be referenced with utilities like `bg-[var(--color-accent)]` or
-`text-[var(--color-accent)]`.
+`text-[var(--color-accent)]`. Default Tailwind shades for `orange` and `yellow`
+are also included for status badges and warnings.
 
 ### Fonts & Global Styles
 

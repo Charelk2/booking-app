@@ -1,3 +1,4 @@
+const colors = require('tailwindcss/colors');
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -36,6 +37,8 @@ module.exports = {
         border: 'var(--color-border)',
         background: 'var(--color-background)',
         foreground: 'var(--color-foreground)',
+        orange: colors.orange,
+        yellow: colors.yellow,
       },
       ringOffsetWidth: {
         default: '1px',
