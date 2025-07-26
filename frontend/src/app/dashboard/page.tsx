@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,8 +21,8 @@ import { formatCurrency, normalizeService, formatStatus } from "@/lib/utils";
 import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
-import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
-import ProfileProgress from "@/components/dashboard/ProfileProgress";
+import ProfileCompleteness from "@/components/dashboard/ProfileCompleteness";
+import OverviewCard from "@/components/dashboard/OverviewCard";
 import SectionList from "@/components/dashboard/SectionList";
 import BookingRequestCard from "@/components/dashboard/BookingRequestCard";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
@@ -34,7 +34,13 @@ import {
   PencilIcon,
   TrashIcon,
 } from "@heroicons/react/24/solid";
-import { Bars3Icon } from "@heroicons/react/24/outline";
+import {
+  Bars3Icon,
+  CalendarDaysIcon,
+  EyeIcon,
+  MusicalNoteIcon,
+  BanknotesIcon,
+} from "@heroicons/react/24/outline";
 
 interface ServiceCardProps {
   service: Service;
@@ -187,20 +193,21 @@ export default function DashboardPage() {
     })
     .reduce((acc, booking) => acc + booking.total_price, 0);
 
-  const overviewPrimaryStats = [
-    { label: 'Total Bookings', value: bookings.length },
-  ];
-  const overviewSecondaryStats: { label: string; value: string | number }[] = [];
-  if (user?.user_type === 'artist') {
-    overviewPrimaryStats.push({ label: 'Total Earnings', value: formatCurrency(totalEarnings) });
-    overviewSecondaryStats.push({ label: 'Total Services', value: servicesCount });
-    overviewSecondaryStats.push({ label: 'Earnings This Month', value: formatCurrency(earningsThisMonth) });
-    if (dashboardStats) {
-      overviewSecondaryStats.push({ label: 'New Inquiries This Month', value: dashboardStats.monthly_new_inquiries });
-      overviewSecondaryStats.push({ label: 'Profile Views', value: dashboardStats.profile_views });
-      overviewSecondaryStats.push({ label: 'Response Rate', value: `${dashboardStats.response_rate}%` });
+  const overviewCards = useMemo(() => {
+    const cards: { label: string; value: string | number; icon: React.ReactNode }[] = [
+      { label: 'Total Bookings', value: bookings.length, icon: <CalendarDaysIcon className="w-5 h-5" /> },
+    ];
+    if (user?.user_type === 'artist') {
+      cards.push(
+        { label: 'Total Services', value: servicesCount, icon: <MusicalNoteIcon className="w-5 h-5" /> },
+        { label: 'Earnings This Month', value: formatCurrency(earningsThisMonth), icon: <BanknotesIcon className="w-5 h-5" /> },
+      );
+      if (dashboardStats) {
+        cards.push({ label: 'Profile Views', value: dashboardStats.profile_views, icon: <EyeIcon className="w-5 h-5" /> });
+      }
     }
-  }
+    return cards.slice(0, 4);
+  }, [bookings.length, user, servicesCount, earningsThisMonth, dashboardStats]);
 
   const visibleRequests = useMemo(() => {
     const filtered = bookingRequests.filter(
@@ -214,6 +221,19 @@ export default function DashboardPage() {
     return sorted.slice(0, 5);
   }, [bookingRequests, requestStatusFilter, requestSort]);
   const visibleBookings = bookings.slice(0, 5);
+
+  const profileFields: (keyof ArtistProfile)[] = [
+    'business_name',
+    'description',
+    'location',
+    'profile_picture_url',
+    'cover_photo_url',
+  ];
+  const profileStepsCompleted = profileFields.reduce(
+    (acc, key) => acc + (artistProfile && (artistProfile as any)[key] ? 1 : 0),
+    0,
+  );
+  const totalProfileSteps = profileFields.length;
 
   useEffect(() => {
     if (authLoading) return;
@@ -362,7 +382,10 @@ export default function DashboardPage() {
         </div>
         {user?.user_type === 'artist' && artistProfile && (
           <div className="mx-auto max-w-7xl mt-4">
-            <ProfileProgress profile={artistProfile} />
+            <ProfileCompleteness
+              stepsCompleted={profileStepsCompleted}
+              totalSteps={totalProfileSteps}
+            />
           </div>
         )}
         <div className="mx-auto max-w-7xl space-y-4">
@@ -407,25 +430,26 @@ export default function DashboardPage() {
           )}
 
           {/* Stats */}
-          <div className="mt-8">
-          <OverviewAccordion
-            primaryStats={overviewPrimaryStats}
-            secondaryStats={overviewSecondaryStats}
-          />
-          {user?.user_type === 'artist' && (
-            <div className="mt-2 space-x-4">
-              <Link href="/dashboard/quotes" className="text-brand-dark hover:underline text-sm">
-                View All Quotes
-              </Link>
-              <Link href="/sound-providers" className="text-brand-dark hover:underline text-sm">
-                Sound Providers
-              </Link>
-              <Link href="/quote-calculator" className="text-brand-dark hover:underline text-sm">
-                Quote Calculator
-              </Link>
+          <div className="mt-8 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {overviewCards.map((card) => (
+                <OverviewCard key={card.label} label={card.label} value={card.value} icon={card.icon} />
+              ))}
             </div>
-          )}
-        </div>
+            {user?.user_type === 'artist' && (
+              <div className="space-x-4">
+                <Link href="/dashboard/quotes" className="text-brand-dark hover:underline text-sm">
+                  View All Quotes
+                </Link>
+                <Link href="/sound-providers" className="text-brand-dark hover:underline text-sm">
+                  Sound Providers
+                </Link>
+                <Link href="/quote-calculator" className="text-brand-dark hover:underline text-sm">
+                  Quote Calculator
+                </Link>
+              </div>
+            )}
+          </div>
 
 
           <div className="mt-4">
