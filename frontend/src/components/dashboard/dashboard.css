@@ -39,7 +39,8 @@
 }
 
 .status-badge-quote-provided {
-  @apply status-badge bg-[var(--color-accent)]/10 text-[var(--color-accent)];
+  @apply status-badge text-[var(--color-accent)];
+  background-color: rgb(236 72 153 / 0.1); /* 10% accent tint */
 }
 
 .status-badge-pending-quote {
