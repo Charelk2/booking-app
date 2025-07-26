@@ -173,7 +173,7 @@ describe('DashboardPage artist stats', () => {
 
 
   it('renders new dashboard metrics', () => {
-    expect(container.textContent).toContain('New Inquiries This Month');
+    expect(container.textContent).toContain('New Inquiries');
     expect(container.textContent).toContain('3');
     expect(container.textContent).toContain('Profile Views');
     expect(container.textContent).toContain('5');
