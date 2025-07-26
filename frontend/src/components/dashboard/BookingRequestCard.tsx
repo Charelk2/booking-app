@@ -14,6 +14,26 @@ import { BookingRequest, User } from '@/types';
 import { formatStatus } from '@/lib/utils';
 import { Avatar } from '../ui';
 
+const STATUS_COLORS: Record<'pending' | 'quoted' | 'booked' | 'declined', string> = {
+  pending: 'bg-yellow-100 text-yellow-800',
+  quoted: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]',
+  booked: 'bg-brand-light text-brand-dark',
+  declined: 'bg-red-100 text-red-800',
+};
+
+const getStatusColor = (status: string): string => {
+  if (status.includes('declined') || status.includes('rejected') || status.includes('withdrawn')) {
+    return STATUS_COLORS.declined;
+  }
+  if (status.includes('confirmed') || status.includes('accepted')) {
+    return STATUS_COLORS.booked;
+  }
+  if (status !== 'pending_quote' && status.includes('quote')) {
+    return STATUS_COLORS.quoted;
+  }
+  return STATUS_COLORS.pending;
+};
+
 export interface BookingRequestCardProps {
   req: BookingRequest;
   user: User;
@@ -50,7 +70,11 @@ export default function BookingRequestCard({
         </div>
       </div>
       <div className="flex flex-col items-end gap-2">
-        <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800">
+        <span
+          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(
+            req.status,
+          )}`}
+        >
           {formatStatus(req.status)}
         </span>
         <div className="flex gap-2">
