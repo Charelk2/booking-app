@@ -160,6 +160,7 @@ export default function BookingRequestsPage() {
               {filtered.map((r) => {
                 const count = unreadCounts[r.id] ?? 0;
                 const unread = count > 0;
+                const isNew = r.status === 'pending_quote';
                 return (
                   <li
                     key={r.id}
@@ -170,7 +171,11 @@ export default function BookingRequestsPage() {
                     onKeyPress={() => handleRowClick(r.id)}
                     className={clsx(
                       'relative cursor-pointer p-2 rounded-md hover:bg-gray-50 focus:outline-none',
-                      unread ? 'bg-brand-light border-l-4 border-brand' : 'bg-white',
+                      unread
+                        ? 'bg-brand-light border-l-4 border-brand'
+                        : isNew
+                          ? 'bg-blue-50'
+                          : 'bg-white',
                     )}
                   >
                     {count > 0 && (
@@ -181,7 +186,7 @@ export default function BookingRequestsPage() {
                         {count > 99 ? '99+' : count}
                       </span>
                     )}
-                    <BookingRequestCard req={r} user={user} onUpdate={() => {}} />
+                    <BookingRequestCard req={r} />
                   </li>
                 );
               })}

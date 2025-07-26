@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import BookingRequestCard from '../BookingRequestCard';
-import type { BookingRequest, User, Service } from '@/types';
+import type { BookingRequest, Service } from '@/types';
 
 const baseReq: BookingRequest = {
   id: 1,
@@ -26,18 +26,6 @@ const baseReq: BookingRequest = {
   service: { id: 9, artist_id: 3, title: 'Live Musiek' } as Service,
 } as BookingRequest;
 
-const artistUser: User = {
-  id: 3,
-  email: 'a@example.com',
-  user_type: 'artist',
-  first_name: 'Art',
-  last_name: 'Ist',
-  phone_number: '',
-  is_active: true,
-  is_verified: true,
-};
-
-const clientUser: User = { ...artistUser, user_type: 'client' };
 
 describe('BookingRequestCard', () => {
   let container: HTMLDivElement;
@@ -56,46 +44,19 @@ describe('BookingRequestCard', () => {
     container.remove();
   });
 
-  it('calls onUpdate when update button clicked', () => {
-    const onUpdate = jest.fn();
+  it('renders manage link with correct href', () => {
     act(() => {
-      root.render(
-        React.createElement(BookingRequestCard, {
-          req: baseReq,
-          user: artistUser,
-          onUpdate,
-        }),
-      );
+      root.render(React.createElement(BookingRequestCard, { req: baseReq }));
     });
-    const btn = container.querySelector('button');
-    expect(btn).not.toBeNull();
-    act(() => {
-      btn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    expect(onUpdate).toHaveBeenCalled();
+    const link = container.querySelector('a') as HTMLAnchorElement | null;
+    expect(link?.getAttribute('href')).toBe('/booking-requests/1');
   });
 
-  it('hides update button for client user', () => {
+  it('shows formatted date and manage link', () => {
     act(() => {
       root.render(
         React.createElement(BookingRequestCard, {
           req: baseReq,
-          user: clientUser,
-          onUpdate: jest.fn(),
-        }),
-      );
-    });
-    const btn = container.querySelector('button');
-    expect(btn).toBeNull();
-  });
-
-  it('shows formatted date and chat link', () => {
-    act(() => {
-      root.render(
-        React.createElement(BookingRequestCard, {
-          req: baseReq,
-          user: artistUser,
-          onUpdate: jest.fn(),
         }),
       );
     });
@@ -109,8 +70,6 @@ describe('BookingRequestCard', () => {
       root.render(
         React.createElement(BookingRequestCard, {
           req: baseReq,
-          user: artistUser,
-          onUpdate: jest.fn(),
         }),
       );
     });
@@ -121,6 +80,7 @@ describe('BookingRequestCard', () => {
   it('applies different badge colors based on status', () => {
     const cases: [string, string][] = [
       ['pending_quote', 'bg-yellow-100'],
+      ['pending_artist_confirmation', 'bg-orange-100'],
       ['quote_provided', 'bg-[var(--color-accent)]/10'],
       ['request_confirmed', 'bg-brand-light'],
       ['request_declined', 'bg-red-100'],
@@ -130,8 +90,6 @@ describe('BookingRequestCard', () => {
         root.render(
           React.createElement(BookingRequestCard, {
             req: { ...baseReq, status } as BookingRequest,
-            user: artistUser,
-            onUpdate: jest.fn(),
           }),
         );
       });
