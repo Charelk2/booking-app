@@ -28,6 +28,7 @@ import BookingRequestCard from "@/components/dashboard/BookingRequestCard";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
 import { Spinner, Button } from '@/components/ui';
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
+import QuickActionButton from "@/components/dashboard/QuickActionButton";
 import Link from "next/link";
 import { Reorder, useDragControls } from "framer-motion";
 import {
@@ -232,7 +233,16 @@ export default function DashboardPage() {
     });
     return sorted.slice(0, 5);
   }, [bookingRequests, requestStatusFilter, requestSort]);
-  const visibleBookings = bookings.slice(0, 5);
+  const upcomingBookings = useMemo(() => {
+    const now = new Date().getTime();
+    return bookings
+      .filter((b) => new Date(b.start_time).getTime() >= now)
+      .sort(
+        (a, b) =>
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+      )
+      .slice(0, 5);
+  }, [bookings]);
 
 
   useEffect(() => {
@@ -462,18 +472,10 @@ export default function DashboardPage() {
             <div className="bg-white rounded-xl shadow-custom p-6">
               <h3 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h3>
               <div className="grid grid-cols-2 gap-3">
-                <button className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-3 rounded-lg flex items-center justify-center text-sm font-medium transition">
-                  📅 Update Availability
-                </button>
-                <button className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-3 rounded-lg flex items-center justify-center text-sm font-medium transition">
-                  ⭐ Request Review
-                </button>
-                <button className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-3 rounded-lg flex items-center justify-center text-sm font-medium transition">
-                  📈 Boost a Service
-                </button>
-                <Link href="/dashboard/quotes" className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-3 rounded-lg flex items-center justify-center text-sm font-medium transition">
-                  📄 View All Quotes
-                </Link>
+                <QuickActionButton label="📅 Update Availability" />
+                <QuickActionButton label="⭐ Request Review" />
+                <QuickActionButton label="📈 Boost a Service" />
+                <QuickActionButton href="/dashboard/quotes" label="📄 View All Quotes" />
               </div>
             </div>
 
@@ -496,6 +498,22 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+          </section>
+
+          <section className="bg-white rounded-xl shadow-custom p-6">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Resources</h3>
+            <ul className="list-disc list-inside space-y-1 text-brand-primary">
+              <li>
+                <Link href="/sound-providers" className="hover:underline">
+                  Sound Providers
+                </Link>
+              </li>
+              <li>
+                <Link href="/quote-calculator" className="hover:underline">
+                  Quote Calculator
+                </Link>
+              </li>
+            </ul>
           </section>
 
           <div className="mt-4">
@@ -560,8 +578,8 @@ export default function DashboardPage() {
           {activeTab === 'bookings' && (
             <>
               <SectionList
-                title="Recent Bookings"
-                data={visibleBookings}
+                title="Upcoming Bookings"
+                data={upcomingBookings}
                 defaultOpen={false}
                 emptyState={<span>No bookings yet</span>}
                 renderItem={(booking) => (
@@ -597,7 +615,7 @@ export default function DashboardPage() {
                 </div>
                 )}
               />
-              {bookings.length > visibleBookings.length && (
+              {bookings.length > upcomingBookings.length && (
                 <div className="mt-2">
                   <Link
                     href="/dashboard/bookings"
