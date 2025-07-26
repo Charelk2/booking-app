@@ -145,8 +145,9 @@ export default function NotificationListItem({
   className = '',
 }: NotificationListItemProps) {
   const p = parseItem(n);
-  // Avatar image is optional; the component handles the default placeholder.
-  const avatarSrc = p.avatarUrl;
+  // Use a fallback avatar image when the notification does not include one so
+  // all notifications show a consistent profile picture.
+  const avatarSrc = p.avatarUrl || '/static/default-avatar.svg';
 
   return (
     <div
@@ -166,11 +167,7 @@ export default function NotificationListItem({
         className
       )}
     >
-      <Avatar
-        profileUrl={avatarSrc || undefined}
-        size={44}
-        alt={`${p.title} avatar`}
-      />
+      <Avatar src={avatarSrc} initials={p.initials} icon={p.icon} size={44} />
       <div className="flex-1 mx-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
