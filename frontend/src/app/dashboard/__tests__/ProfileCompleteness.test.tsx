@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import ProfileCompleteness, { computeProfileCompleteness } from '../ProfileCompleteness';
+import ProfileCompleteness, { computeProfileCompleteness } from '@/components/dashboard/ProfileCompleteness';
 
 describe('ProfileCompleteness component', () => {
   it('computes completion percentage correctly', () => {
