@@ -17,17 +17,43 @@
 .text-brand-accent { color: #FF6347; }
 .shadow-custom { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08); }
 .progress-bar-fill {
-  transition: width 0.5s ease-in-out;
+  @apply h-2.5 rounded-full bg-brand-secondary transition-[width] duration-500 ease-in-out;
 }
+
+.progress-bar {
+  @apply relative w-full bg-gray-200 rounded-full overflow-hidden;
+}
+
+@keyframes progress-indeterminate {
+  0% { left: -40%; width: 40%; }
+  100% { left: 100%; width: 40%; }
+}
+
+.progress-bar-indeterminate::before {
+  content: "";
+  @apply absolute inset-y-0 bg-brand-secondary;
+  animation: progress-indeterminate 1.5s infinite;
+}
+.status-badge {
+  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+}
+
 .status-badge-quote-provided {
-  background-color: rgba(255, 99, 71, 0.1);
-  color: #FF6347;
+  @apply status-badge bg-[var(--color-accent)]/10 text-[var(--color-accent)];
 }
+
 .status-badge-pending-quote {
-  background-color: rgba(255, 215, 0, 0.1);
-  color: #FFD700;
+  @apply status-badge bg-yellow-100 text-yellow-800;
 }
+
 .status-badge-confirmed {
-  background-color: rgba(0, 71, 171, 0.1);
-  color: #0047AB;
+  @apply status-badge bg-brand-light text-brand-dark;
+}
+
+.status-badge-pending-action {
+  @apply status-badge bg-orange-100 text-orange-800;
+}
+
+.status-badge-declined {
+  @apply status-badge bg-red-100 text-red-800;
 }
