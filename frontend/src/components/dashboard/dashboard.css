@@ -39,7 +39,7 @@
 }
 
 .status-badge-quote-provided {
-  @apply status-badge bg-[var(--color-accent)]/10 text-[var(--color-accent)];
+  @apply status-badge bg-accent/10 text-[var(--color-accent)];
 }
 
 .status-badge-pending-quote {
