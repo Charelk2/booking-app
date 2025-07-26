@@ -98,4 +98,57 @@ describe('PriceFilter', () => {
     act(() => root.unmount());
     div.remove();
   });
+
+  it('focuses the close button and restores focus on close', () => {
+    const trigger = document.createElement('button');
+    trigger.textContent = 'Open';
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    act(() => {
+      root.render(
+        <PriceFilter
+          open
+          initialMinPrice={0}
+          initialMaxPrice={100}
+          priceDistribution={[]}
+          onApply={jest.fn()}
+          onClear={jest.fn()}
+          onClose={() => {
+            root.render(
+              <PriceFilter
+                open={false}
+                initialMinPrice={0}
+                initialMaxPrice={100}
+                priceDistribution={[]}
+                onApply={jest.fn()}
+                onClear={jest.fn()}
+                onClose={jest.fn()}
+                sortOptions={[]}
+                onSortChange={jest.fn()}
+              />,
+            );
+          }}
+          sortOptions={[]}
+          onSortChange={jest.fn()}
+        />,
+      );
+    });
+
+    const closeBtn = div.querySelector('button[aria-label="Close filters"]') as HTMLButtonElement;
+    expect(document.activeElement).toBe(closeBtn);
+
+    act(() => {
+      closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(document.activeElement).toBe(trigger);
+
+    act(() => root.unmount());
+    div.remove();
+    trigger.remove();
+  });
 });

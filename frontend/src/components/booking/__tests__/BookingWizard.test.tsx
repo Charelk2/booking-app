@@ -176,6 +176,16 @@ describe('BookingWizard flow', () => {
     expect(progress()).toBe('Step 2 of 7');
   });
 
+  it('moves focus to the step heading when advancing', async () => {
+    const next = getButton('Next');
+    await act(async () => {
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await flushPromises();
+    const heading = container.querySelector('[data-testid="step-heading"]');
+    expect(document.activeElement).toBe(heading);
+  });
+
   it('disables dates returned from Google Calendar', async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2025-01-01T00:00:00Z'));
