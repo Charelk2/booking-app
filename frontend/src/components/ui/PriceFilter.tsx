@@ -237,9 +237,9 @@ export default function PriceFilter({
           props.onBlur?.(e);
         }}
         className={clsx(
-          'absolute -top-2.5 w-5 h-5 rounded-full border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-pink-500 transition-shadow duration-200 ease-in-out',
+          'absolute -top-2.5 w-5 h-5 rounded-full border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] transition-shadow duration-200 ease-in-out',
           props.className,
-          { 'shadow-lg ring-4 ring-pink-200': activeHandle === idx }
+          { 'shadow-lg ring-4 ring-[var(--color-accent)]/50': activeHandle === idx }
         )}
         style={{
           ...props.style,
@@ -257,7 +257,7 @@ export default function PriceFilter({
   };
 
   const Progress = ({ style }: { style: React.CSSProperties }) => (
-    <div className="absolute bottom-0 h-2 bg-pink-500 rounded" style={style} />
+    <div className="absolute bottom-0 h-2 bg-[var(--color-accent)] rounded" style={style} />
   );
 
   const Background = () => (
@@ -311,7 +311,7 @@ export default function PriceFilter({
               aria-haspopup="listbox"
               aria-expanded={isSortDropdownOpen}
               aria-labelledby="sort-label sort-dropdown-button"
-              className="w-full border border-gray-300 rounded-lg pl-4 pr-10 py-2 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all duration-200 cursor-pointer flex justify-between items-center"
+              className="w-full border border-gray-300 rounded-lg pl-4 pr-10 py-2 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)] transition-all duration-200 cursor-pointer flex justify-between items-center"
               onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
             >
               <span>{sortOptions.find(opt => opt.value === localSortValue)?.label || "Sort"}</span>
@@ -354,7 +354,7 @@ export default function PriceFilter({
                         "hover:bg-gray-100 hover:text-gray-900",
                         "focus:outline-none  focus:bg-gray-100",
                         {
-                          "bg-pink-50 text-pink-700 font-semibold": opt.value === localSortValue,
+                          "bg-[var(--color-accent)]/10 text-[var(--color-accent)] font-semibold": opt.value === localSortValue,
                         }
                       )}
                       tabIndex={0}
@@ -412,7 +412,7 @@ export default function PriceFilter({
                   id="min-price"
                   value={localMinPrice.toLocaleString()}
                   onChange={handleMinPriceChange}
-                  className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-gray-900 font-medium focus:ring-pink-500 focus:border-pink-500"
+                  className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-gray-900 font-medium focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"
                 />
               </div>
             </div>
@@ -428,7 +428,7 @@ export default function PriceFilter({
                   id="max-price"
                   value={localMaxPrice.toLocaleString()}
                   onChange={handleMaxPriceChange}
-                  className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-gray-900 font-medium focus:ring-pink-500 focus:border-pink-500"
+                  className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-gray-900 font-medium focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"
                 />
               </div>
             </div>
@@ -446,7 +446,7 @@ export default function PriceFilter({
           </button>
           <button
             type="button"
-            className="px-6 py-2 rounded-lg bg-pink-500 text-white font-semibold hover:bg-pink-600 transition-colors shadow-md"
+            className="px-6 py-2 rounded-lg bg-[var(--color-accent)] text-white font-semibold hover:bg-[var(--color-accent)]/90 transition-colors shadow-md"
             onClick={handleApplyClick}
           >
             Apply
