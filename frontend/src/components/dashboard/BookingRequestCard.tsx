@@ -50,11 +50,16 @@ export default function BookingRequestCard({ req }: BookingRequestCardProps) {
   const formattedDate = format(new Date(req.created_at), 'dd MMM yyyy');
 
   return (
-    <div className="flex justify-between rounded-lg bg-white shadow p-4">
-      <div className="flex gap-4">
-        <Avatar src={avatarSrc} initials={clientName.charAt(0)} size={48} />
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg bg-gray-50 border border-gray-200 shadow-sm">
+      <div className="flex gap-4 items-center">
+        <Avatar
+          src={avatarSrc}
+          initials={clientName.charAt(0)}
+          size={48}
+          className="bg-blue-100 w-12 h-12"
+        />
         <div>
-          <div className="font-bold text-gray-900">{clientName}</div>
+          <div className="font-bold text-gray-800">{clientName}</div>
           <div className="flex items-center gap-1 text-sm text-gray-600">
             <ServiceIcon className="w-4 h-4" />
             <span>{req.service?.title || '—'}</span>
@@ -65,13 +70,11 @@ export default function BookingRequestCard({ req }: BookingRequestCardProps) {
           </div>
         </div>
       </div>
-      <div className="flex flex-col items-end gap-2">
-        <span className={getBadgeClass(req.status)}>
-          {formatStatus(req.status)}
-        </span>
+      <div className="flex flex-col items-end gap-2 mt-3 sm:mt-0">
+        <span className={getBadgeClass(req.status)}>{formatStatus(req.status)}</span>
         <Link
           href={`/booking-requests/${req.id}`}
-          className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md ${buttonVariants.primary}`}
+          className="inline-flex items-center gap-1 px-4 py-2 text-sm rounded-md bg-brand-primary hover:opacity-90 text-white font-semibold transition shadow-md"
         >
           Manage
         </Link>
