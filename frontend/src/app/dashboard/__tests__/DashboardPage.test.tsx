@@ -527,8 +527,8 @@ describe('DashboardPage bookings link', () => {
   });
 });
 
-describe('DashboardPage booking requests link', () => {
-  it('shows link to all requests when more than five exist', async () => {
+describe('DashboardPage booking requests load more', () => {
+  it('loads more requests when button clicked', async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
     const requests = Array.from({ length: 6 }).map((_, i) => ({
@@ -567,8 +567,20 @@ describe('DashboardPage booking requests link', () => {
       await flushPromises();
     });
     }
-    const link = container.querySelector('a[href="/booking-requests"]');
-    expect(link).toBeTruthy();
+    const list = container.querySelectorAll('li');
+    expect(list.length).toBe(5);
+    const btn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Load More'),
+    ) as HTMLButtonElement;
+    expect(btn).toBeTruthy();
+    await act(async () => {
+      btn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await flushPromises();
+    });
+    const updated = container.querySelectorAll('li');
+    expect(updated.length).toBe(6);
     act(() => {
       root.unmount();
     });
