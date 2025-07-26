@@ -907,7 +907,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Currency values now use consistent locale formatting with `formatCurrency()`.
 * Service API responses now include a `currency` field.
 * Streamlined mobile dashboard with collapsible overview and sticky tabs.
-  ![Mobile dashboard states](docs/mobile_dashboard_states.svg)
+* Booking requests on the dashboard can now be **sorted and filtered** client-side.
+![Mobile dashboard states](docs/mobile_dashboard_states.svg)
 
 ### Artist Availability
 
