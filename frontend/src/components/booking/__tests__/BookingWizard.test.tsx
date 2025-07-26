@@ -159,8 +159,21 @@ describe('BookingWizard flow', () => {
   });
 
   it('renders a sticky progress indicator', () => {
-    const wrapper = container.querySelector('[aria-label="Progress"]')?.parentElement;
+    const wrapper = container.querySelector('[data-testid="progress-container"]') as HTMLDivElement | null;
     expect(wrapper?.className).toContain('sticky');
+    expect(wrapper?.style.top).toBe('4rem');
+  });
+
+  it('announces progress updates for screen readers', async () => {
+    const progress = () =>
+      container.querySelector('[data-testid="progress-status"]')?.textContent;
+    expect(progress()).toBe('Step 1 of 7');
+    const next = getButton('Next');
+    await act(async () => {
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await flushPromises();
+    expect(progress()).toBe('Step 2 of 7');
   });
 
   it('disables dates returned from Google Calendar', async () => {
