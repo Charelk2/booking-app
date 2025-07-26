@@ -280,19 +280,10 @@ The `next.config.js` file now explicitly includes `/static/cover_photos/**`
 alongside `/static/profile_pics/**` in its `remotePatterns` list.
 
 The location input now uses the `<gmpx-place-autocomplete>` web component from
-the `@googlemaps/places` package. **Remember to provide an `<input slot="input">` inside the element.** All styling classes belong on this input, not the wrapper. The script is loaded in `layout.tsx` with:
-
-```html
-<script
-  src="https://unpkg.com/@googlemaps/extended-component-library@0.6.14/dist/index.min.js"
-  type="module"
-  crossorigin="anonymous"
-  strategy="afterInteractive"
-></script>
-<gmpx-api-loader api-key="YOUR_GOOGLE_MAPS_KEY" libraries="places"></gmpx-api-loader>
-```
-This `<gmpx-api-loader>` element loads the Maps JavaScript SDK using the same
-`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` value defined in your `.env.local` file.
+the `@googlemaps/places` package. **Remember to provide an `<input slot="input">`
+inside the element.** All styling classes belong on this input, not the wrapper.
+The Google Maps script loads lazily via the `loadPlaces()` helper so it is only
+injected once and avoids the "API included multiple times" warning.
 
 The previous built-in autocomplete is deprecated. The location picker still
 opens a minimalist modal when the **Map** button is clicked. The modal contains
