@@ -25,7 +25,7 @@ export default function BookingRequestCard({
   user,
   onUpdate,
 }: BookingRequestCardProps) {
-  const avatarSrc = req.client?.profile_photo_url || null;
+  const avatarSrc = req.client?.profile_picture_url || null;
   const clientName = req.client
     ? `${req.client.first_name} ${req.client.last_name}`
     : 'Unknown Client';
