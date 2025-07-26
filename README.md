@@ -881,6 +881,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Reordering keeps the first card below the **Your Services** heading by constraining drag movement to the list area.
 * Service deletion now requires confirmation to prevent mistakes.
 * **Add Service** button now opens a full-screen wizard. Steps appear in a coral-accented stepper with keyboard focus trapping. The final review mirrors earlier steps with image thumbnails before publishing.
+* Add Service wizard validates fields on each keystroke with dynamic hints like "Need 3 more characters" and the **Next** button enables automatically once inputs are valid.
 * The wizard uses a plain white overlay (`bg-white`) so the modal stands out and clicking outside closes it.
 * "Total Services" card now links to `/services?artist=<your_id>` so you only see your listings.
 * Mobile-friendly dashboard cards for bookings and requests with larger service action buttons.
