@@ -10,7 +10,7 @@ For setup instructions see [README.md](README.md).
 |-------|---------|-----------|---------|
 | **Booking Request** | Orchestrates the booking wizard and business rules | `backend/app/api/api_booking_request.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | When a client submits or updates a booking |
 | **Provider Matching** | Selects sound and accommodation providers | `backend/app/crud/crud_service.py`<br>`backend/app/api/api_service.py` | During booking and quote steps |
-| **Travel & Accommodation** | Calculates travel distance and lodging costs | `backend/app/services/booking_quote.py`<br>`frontend/src/app/quote-calculator/page.tsx` | When estimating travel or lodging expenses |
+| **Travel & Accommodation** | Calculates travel distance, lodging costs, and now weather forecasts | `backend/app/services/booking_quote.py`<br>`backend/app/api/api_weather.py`<br>`frontend/src/app/quote-calculator/page.tsx` | When estimating travel or lodging expenses |
 | **Quote Generator** | Gathers performance, provider, travel, and accommodation costs | `backend/app/api/api_quote.py`<br>`frontend/src/components/booking/MessageThread.tsx` | After all booking info is entered |
 | **Quote Preview** | Shows an estimated total during the review step | `frontend/src/components/booking/steps/ReviewStep.tsx` | Right before submitting a booking request |
 | **Review** | Manages star ratings and comments for completed bookings | `backend/app/api/api_review.py`<br>`frontend/src/app/artists/[id]/page.tsx` | After a booking is marked completed |
@@ -42,9 +42,9 @@ For setup instructions see [README.md](README.md).
 
 ### 3. Travel & Accommodation Agent
 
-* **Purpose:** Calculates travel distance and optional lodging costs so quotes stay accurate.
+* **Purpose:** Calculates travel distance and optional lodging costs so quotes stay accurate. The agent also retrieves 3-day weather forecasts for trip planning.
 * **Frontend:** `quote-calculator/page.tsx` lets artists preview travel and accommodation fees.
-* **Backend:** `booking_quote.py` exposes helpers used by the quote API.
+* **Backend:** `booking_quote.py` exposes helpers used by the quote API. `/api/v1/travel-forecast` lives in `api_weather.py` and fetches forecast data from `wttr.in`.
 
 ### 4. Quote Generator
 
