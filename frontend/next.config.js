@@ -15,6 +15,12 @@ const remotePatterns = [
     port: port || '',
     pathname: '/static/cover_photos/**',
   },
+  {
+    protocol: protocol.replace(':', ''),
+    hostname,
+    port: port || '',
+    pathname: '/static/portfolio_images/**',
+  },
 ];
 
 if (hostname !== 'localhost') {
@@ -30,6 +36,12 @@ if (hostname !== 'localhost') {
       hostname: 'localhost',
       port: '8000',
       pathname: '/static/cover_photos/**',
+    },
+    {
+      protocol: 'http',
+      hostname: 'localhost',
+      port: '8000',
+      pathname: '/static/portfolio_images/**',
     },
   );
 }
