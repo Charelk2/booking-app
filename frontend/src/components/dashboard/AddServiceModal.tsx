@@ -260,7 +260,7 @@ export default function AddServiceModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <Dialog.Overlay className="fixed inset-0 bg-gray-800 bg-opacity-50" />
+          <Dialog.Overlay className="fixed inset-0 bg-gray-800 bg-opacity-50 pointer-events-none" />
         </Transition.Child>
         <div className="flex min-h-full items-center justify-center">
           <Transition.Child
@@ -272,7 +272,7 @@ export default function AddServiceModal({
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <Dialog.Panel className="m-auto bg-white w-full sm:w-[80%] max-w-5xl h-[90vh] rounded-lg p-6">
+            <Dialog.Panel className="pointer-events-auto m-auto bg-white w-full sm:w-[80%] max-w-5xl h-[90vh] rounded-lg p-6">
               <div className="flex flex-col h-full">
                 <Stepper
                   steps={steps.slice(0, 4)}
