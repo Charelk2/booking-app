@@ -26,5 +26,6 @@ Run all tests with:
 - **PriceFilter** uses a keyboard focus trap and returns focus to the triggering element.
 - **BookingWizard** moves focus to the step heading when advancing steps.
 - **MobileMenuDrawer** relies on `@headlessui/dialog` for accessible focus handling.
+- **AddServiceModal** opens with `@headlessui/dialog`, trapping focus and closing on Escape.
 
 Contributions should follow these guidelines to maintain an inclusive experience.
