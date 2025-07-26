@@ -922,7 +922,7 @@ The dashboard brings common actions to the surface with a tidy layout:
 
 * **Profile progress** – a bar at the top shows how complete your artist profile is. Updating services and media increases the percentage so you know when you are ready to promote your page.
 * **Quick actions** – buttons for adding a service, updating your calendar, or sending a quote appear below the progress bar so frequent tasks are one tap away.
-* **Bookings and requests lists** – the next five upcoming bookings and newest requests are summarized in side-by-side cards. Each list links to a dedicated page where you can manage the full history.
+* **Bookings and requests lists** – the next five upcoming bookings and newest requests are summarized in side-by-side cards. Use the **Load More** button to reveal additional requests in batches of five.
 
 ![Dashboard components](docs/dashboard_overview.svg)
 
