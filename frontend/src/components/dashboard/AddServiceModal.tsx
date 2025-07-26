@@ -11,7 +11,7 @@ import {
 import type { ElementType } from "react";
 import clsx from "clsx";
 
-const serviceTypeIcons: Record<string, ElementType> = {
+const serviceTypeIcons: Record<Service["service_type"], ElementType> = {
   "Live Performance": MusicalNoteIcon,
   "Personalized Video": VideoCameraIcon,
   "Custom Song": SparklesIcon,
@@ -237,7 +237,7 @@ export default function AddServiceModal({
 
   if (!isOpen) return null;
 
-  const types = [
+  const types: { value: Service["service_type"]; label: string }[] = [
     { value: "Live Performance", label: "Live Performance" },
     { value: "Personalized Video", label: "Personalized Video" },
     { value: "Custom Song", label: "Custom Song" },
