@@ -8,40 +8,32 @@ import {
   MicrophoneIcon,
   MusicalNoteIcon,
 } from '@heroicons/react/24/outline';
-import { BookingRequest, User } from '@/types';
+import { BookingRequest } from '@/types';
 import { formatStatus } from '@/lib/utils';
 import { Avatar } from '../ui';
 import { buttonVariants } from '@/styles/buttonVariants';
 
-const STATUS_COLORS: Record<
-  'pending' | 'pendingAction' | 'quoted' | 'booked' | 'declined',
-  string
-> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  pendingAction: 'bg-orange-100 text-orange-800',
-  quoted: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]',
-  booked: 'bg-brand-light text-brand-dark',
-  declined: 'bg-red-100 text-red-800',
-};
-
-const getStatusColor = (status: string): string => {
+const getBadgeClass = (status: string): string => {
   if (
     status.includes('declined') ||
     status.includes('rejected') ||
     status.includes('withdrawn')
   ) {
-    return STATUS_COLORS.declined;
+    return 'status-badge-declined';
   }
   if (status.includes('confirmed') || status.includes('accepted')) {
-    return STATUS_COLORS.booked;
+    return 'status-badge-confirmed';
   }
-  if (status !== 'pending_quote' && status.includes('quote')) {
-    return STATUS_COLORS.quoted;
+  if (status === 'pending_quote') {
+    return 'status-badge-pending-quote';
   }
-  if (status !== 'pending_quote' && status.includes('pending')) {
-    return STATUS_COLORS.pendingAction;
+  if (status.includes('quote')) {
+    return 'status-badge-quote-provided';
   }
-  return STATUS_COLORS.pending;
+  if (status.includes('pending')) {
+    return 'status-badge-pending-action';
+  }
+  return 'status-badge-pending-quote';
 };
 
 export interface BookingRequestCardProps {
@@ -74,11 +66,7 @@ export default function BookingRequestCard({ req }: BookingRequestCardProps) {
         </div>
       </div>
       <div className="flex flex-col items-end gap-2">
-        <span
-          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(
-            req.status,
-          )}`}
-        >
+        <span className={getBadgeClass(req.status)}>
           {formatStatus(req.status)}
         </span>
         <Link
