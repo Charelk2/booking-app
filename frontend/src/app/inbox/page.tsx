@@ -116,6 +116,10 @@ export default function InboxPage() {
   const renderChats = () => (
     <div>
       {chats.map((t) => {
+        const initials = t.name
+          .split(' ')
+          .map((w) => w[0])
+          .join('');
         return (
           <div
             key={t.booking_request_id}
@@ -125,11 +129,7 @@ export default function InboxPage() {
             onKeyPress={() => handleClick(t.booking_request_id)}
             className="flex items-center space-x-3 px-4 py-3 border-b cursor-pointer hover:bg-gray-50 active:bg-gray-100"
           >
-            <Avatar
-              profileUrl={t.avatar_url || undefined}
-              size={40}
-              alt="User avatar"
-            />
+            <Avatar src={t.avatar_url || null} initials={initials} size={40} />
             <div className="flex-1 overflow-hidden">
               <div className="flex items-center gap-2">
                 <div className="font-medium text-sm">{t.name}</div>
