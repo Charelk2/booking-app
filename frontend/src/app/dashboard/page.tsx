@@ -498,12 +498,7 @@ export default function DashboardPage() {
                 defaultOpen={false}
                 emptyState={<span>No bookings yet</span>}
                 renderItem={(req) => (
-                  <BookingRequestCard
-                    key={req.id}
-                    req={req}
-                    user={user as any}
-                    onUpdate={() => setRequestToUpdate(req)}
-                  />
+                  <BookingRequestCard key={req.id} req={req} />
                 )}
                 footer={
                   bookingRequests.length > visibleRequests.length ? (
