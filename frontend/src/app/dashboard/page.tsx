@@ -22,6 +22,7 @@ import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
 import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
+import ProfileProgress from "@/components/dashboard/ProfileProgress";
 import SectionList from "@/components/dashboard/SectionList";
 import BookingRequestCard from "@/components/dashboard/BookingRequestCard";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
@@ -347,6 +348,11 @@ export default function DashboardPage() {
         <div className="mx-auto max-w-7xl">
           <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
         </div>
+        {user?.user_type === 'artist' && artistProfile && (
+          <div className="mx-auto max-w-7xl mt-4">
+            <ProfileProgress profile={artistProfile} />
+          </div>
+        )}
         <div className="mx-auto max-w-7xl space-y-4">
           {/* Location Prompt for Artists */}
           {showLocationPrompt && (
