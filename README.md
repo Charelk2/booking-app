@@ -859,7 +859,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Shared `Card`, `Tag`, `TextInput` components.
 * Open Graph meta tags and fallback avatars.
 * The placeholder avatar is now square (1:1 aspect ratio) to avoid Next.js console warnings.
-* Profile images across the UI now automatically fall back to `default-avatar.svg` if the requested file cannot be loaded.
+* Profile images across the UI now automatically fall back to `/static/default-avatar.svg` if the requested file cannot be loaded.
 * Missing images now respond with the appropriate `Content-Type` header (`image/jpeg` or `image/png`) so Next.js can display the fallback without warnings.
 * Accessibility and animation improvements.
 * Dashboard stats now animate on load using **framer-motion**.
