@@ -279,11 +279,11 @@ cover photos load without 400 errors from the `/_next/image` endpoint.
 The `next.config.js` file now explicitly includes `/static/cover_photos/**`
 alongside `/static/profile_pics/**` in its `remotePatterns` list.
 
-The location input now uses the `<gmpx-place-autocomplete>` web component from
-the `@googlemaps/places` package. **Remember to provide an `<input slot="input">`
-inside the element.** All styling classes belong on this input, not the wrapper.
-The Google Maps script loads lazily via the `loadPlaces()` helper so it is only
-injected once and avoids the "API included multiple times" warning.
+The location input now reuses the `LocationInput` component powered by the
+`react-google-autocomplete` package. It matches the styling and behaviour of the
+homepage and artist page search bars. The Google Maps script still loads lazily
+via the `loadPlaces()` helper so it is only injected once and avoids the "API
+included multiple times" warning.
 
 The previous built-in autocomplete is deprecated. The location picker still
 opens a minimalist modal when the **Map** button is clicked. The modal contains
