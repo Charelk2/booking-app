@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -159,6 +159,8 @@ export default function DashboardPage() {
     null
   );
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
+  const [requestStatusFilter, setRequestStatusFilter] = useState('');
+  const [requestSort, setRequestSort] = useState<'newest' | 'oldest'>('newest');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
@@ -200,7 +202,17 @@ export default function DashboardPage() {
     }
   }
 
-  const visibleRequests = bookingRequests.slice(0, 5);
+  const visibleRequests = useMemo(() => {
+    const filtered = bookingRequests.filter(
+      (r) => !requestStatusFilter || r.status === requestStatusFilter,
+    );
+    const sorted = filtered.sort((a, b) => {
+      const aTime = new Date(a.created_at).getTime();
+      const bTime = new Date(b.created_at).getTime();
+      return requestSort === 'oldest' ? aTime - bTime : bTime - aTime;
+    });
+    return sorted.slice(0, 5);
+  }, [bookingRequests, requestStatusFilter, requestSort]);
   const visibleBookings = bookings.slice(0, 5);
 
   useEffect(() => {
@@ -430,6 +442,32 @@ export default function DashboardPage() {
 
           {activeTab === 'requests' && (
             <>
+              <div className="flex space-x-2 mb-2">
+                <select
+                  data-testid="request-sort"
+                  value={requestSort}
+                  onChange={(e) =>
+                    setRequestSort(e.target.value as 'newest' | 'oldest')
+                  }
+                  aria-label="Sort requests"
+                  className="border rounded-md p-1 text-sm"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                </select>
+                <select
+                  data-testid="request-status"
+                  value={requestStatusFilter}
+                  onChange={(e) => setRequestStatusFilter(e.target.value)}
+                  aria-label="Filter requests"
+                  className="border rounded-md p-1 text-sm"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending_quote">Pending Quote</option>
+                  <option value="quote_provided">Quote Provided</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
               <SectionList
                 title="Booking Requests"
                 data={visibleRequests}
