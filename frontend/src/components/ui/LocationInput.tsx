@@ -140,6 +140,7 @@ export default function CustomLocationInput({
               key={prediction.place_id}
               onClick={() => handleSelect(prediction)}
               className="flex items-center px-4 py-2 text-sm cursor-pointer hover:bg-indigo-50"
+              data-testid="location-option"
             >
               <MapPinIcon className="h-5 w-5 text-gray-400 mr-3 shrink-0" />
               <div>
