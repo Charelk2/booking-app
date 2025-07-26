@@ -4,8 +4,6 @@ import React from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import {
-  ChatBubbleLeftEllipsisIcon,
-  ArrowPathIcon,
   CalendarIcon,
   MicrophoneIcon,
   MusicalNoteIcon,
@@ -14,15 +12,23 @@ import { BookingRequest, User } from '@/types';
 import { formatStatus } from '@/lib/utils';
 import { Avatar } from '../ui';
 
-const STATUS_COLORS: Record<'pending' | 'quoted' | 'booked' | 'declined', string> = {
+const STATUS_COLORS: Record<
+  'pending' | 'pendingAction' | 'quoted' | 'booked' | 'declined',
+  string
+> = {
   pending: 'bg-yellow-100 text-yellow-800',
+  pendingAction: 'bg-orange-100 text-orange-800',
   quoted: 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]',
   booked: 'bg-brand-light text-brand-dark',
   declined: 'bg-red-100 text-red-800',
 };
 
 const getStatusColor = (status: string): string => {
-  if (status.includes('declined') || status.includes('rejected') || status.includes('withdrawn')) {
+  if (
+    status.includes('declined') ||
+    status.includes('rejected') ||
+    status.includes('withdrawn')
+  ) {
     return STATUS_COLORS.declined;
   }
   if (status.includes('confirmed') || status.includes('accepted')) {
@@ -31,20 +37,17 @@ const getStatusColor = (status: string): string => {
   if (status !== 'pending_quote' && status.includes('quote')) {
     return STATUS_COLORS.quoted;
   }
+  if (status !== 'pending_quote' && status.includes('pending')) {
+    return STATUS_COLORS.pendingAction;
+  }
   return STATUS_COLORS.pending;
 };
 
 export interface BookingRequestCardProps {
   req: BookingRequest;
-  user: User;
-  onUpdate: () => void;
 }
 
-export default function BookingRequestCard({
-  req,
-  user,
-  onUpdate,
-}: BookingRequestCardProps) {
+export default function BookingRequestCard({ req }: BookingRequestCardProps) {
   const avatarSrc = req.client?.profile_picture_url || null;
   const clientName = req.client
     ? `${req.client.first_name} ${req.client.last_name}`
@@ -77,25 +80,12 @@ export default function BookingRequestCard({
         >
           {formatStatus(req.status)}
         </span>
-        <div className="flex gap-2">
-          <Link
-            href={`/booking-requests/${req.id}`}
-            className="inline-flex items-center gap-1 rounded bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm"
-          >
-            <ChatBubbleLeftEllipsisIcon className="w-4 h-4" />
-            Chat
-          </Link>
-          {user.user_type === 'artist' && (
-            <button
-              type="button"
-              onClick={onUpdate}
-              className="inline-flex items-center gap-1 rounded bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm"
-            >
-              <ArrowPathIcon className="w-4 h-4" />
-              Update
-            </button>
-          )}
-        </div>
+        <Link
+          href={`/booking-requests/${req.id}`}
+          className="inline-flex items-center gap-1 rounded bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 text-sm"
+        >
+          Manage Request
+        </Link>
       </div>
     </div>
   );
