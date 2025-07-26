@@ -18,13 +18,13 @@ export default function Stepper({
   onStepClick,
   ariaLabel,
 }: StepperProps) {
-  const maxStepAllowed =
+  const maxAllowed =
     typeof maxStepCompleted === 'number' ? maxStepCompleted + 1 : currentStep;
   return (
     <motion.nav
       layout
       role="list"
-      aria-label={ariaLabel || 'Progress'}
+      aria-label={ariaLabel || 'Add service progress'}
       className="relative flex items-center justify-between px-2 mb-8"
     >
       <motion.div
@@ -33,7 +33,8 @@ export default function Stepper({
         aria-hidden="true"
       />
       {steps.map((label, i) => {
-        const isClickable = !!onStepClick && i <= maxStepAllowed && i !== currentStep;
+        const isClickable = !!onStepClick && i <= maxAllowed && i !== currentStep;
+        const canButton = !!onStepClick && i <= maxAllowed;
         const isCompleted = i < currentStep;
         const isActive = i === currentStep;
 
@@ -64,24 +65,20 @@ export default function Stepper({
         );
 
         const content = (
-          <div
-            className="flex flex-col items-center"
-            role="listitem"
-            aria-current={isActive ? 'step' : undefined}
-            aria-disabled={isClickable ? undefined : true}
-          >
+          <div className="flex flex-col items-center">
             {circle}
             {labelEl}
           </div>
         );
-        if (onStepClick) {
+        if (canButton) {
           return (
             <button
               type="button"
               key={label}
-              onClick={() => isClickable && onStepClick(i)}
+              onClick={() => isClickable && onStepClick?.(i)}
               disabled={!isClickable}
-              aria-disabled={isClickable ? undefined : true}
+              aria-current={isActive ? 'step' : undefined}
+              aria-disabled={!isClickable ? 'true' : undefined}
               className={clsx(
                 'flex flex-col items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-color-dark)]',
                 isClickable ? 'cursor-pointer' : 'cursor-default',
@@ -91,7 +88,17 @@ export default function Stepper({
             </button>
           );
         }
-        return content;
+        return (
+          <div
+            key={label}
+            role="listitem"
+            aria-current={isActive ? 'step' : undefined}
+            aria-disabled="true"
+            className="flex flex-col items-center cursor-default"
+          >
+            {content}
+          </div>
+        );
       })}
     </motion.nav>
   );
