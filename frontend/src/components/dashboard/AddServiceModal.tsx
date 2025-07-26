@@ -260,9 +260,9 @@ export default function AddServiceModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <Dialog.Overlay className="fixed inset-0 bg-gray-800 bg-opacity-50 pointer-events-none" />
+          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-10 pointer-events-none" />
         </Transition.Child>
-        <div className="flex min-h-full items-center justify-center p-4">
+        <div className="flex min-h-full items-center justify-center p-0 sm:p-4">
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -272,7 +272,7 @@ export default function AddServiceModal({
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <Dialog.Panel className="pointer-events-auto flex flex-col h-full w-full sm:w-4/5 lg:w-1/2 rounded-2xl shadow-2xl bg-white">
+          <Dialog.Panel className="pointer-events-auto flex flex-col h-[90vh] w-full sm:max-w-4xl rounded-2xl shadow-2xl bg-white">
               <div className="flex flex-col h-full">
                 <Stepper
                   steps={steps.slice(0, 4)}
@@ -559,7 +559,7 @@ export default function AddServiceModal({
                     </div>
                   )}
                 </form>
-                <div className="flex justify-between items-center p-6 border-t border-gray-100 mt-auto">
+                <div className="flex-shrink-0 border-t border-gray-100 p-6 flex justify-between">
                   <Button
                     variant="outline"
                     onClick={step === 0 ? handleCancel : prev}
