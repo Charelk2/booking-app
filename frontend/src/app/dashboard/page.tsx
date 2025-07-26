@@ -376,16 +376,27 @@ export default function DashboardPage() {
 
   return (
     <MainLayout>
-      <div className="px-4 py-4 space-y-4 overflow-y-auto">
-        <div className="mx-auto max-w-7xl">
-          <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-        </div>
-        {user?.user_type === 'artist' && artistProfile && (
-          <div className="mx-auto max-w-7xl mt-4">
-            <ProfileProgress profile={artistProfile} />
-          </div>
-        )}
-        <div className="mx-auto max-w-7xl space-y-4">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 space-y-10 overflow-y-auto">
+        <section className="bg-white rounded-xl shadow-custom p-6">
+          <h1 className="text-3xl font-bold text-gray-800 mb-4">
+            Welcome back, {user.first_name || 'User'}!
+          </h1>
+          {user?.user_type === 'artist' && artistProfile && (
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
+              <div className="w-full md:w-1/2">
+                <ProfileProgress profile={artistProfile} />
+              </div>
+              <Button
+                type="button"
+                onClick={() => setIsAddServiceModalOpen(true)}
+                className="bg-brand-accent text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition shadow-md w-full md:w-auto"
+              >
+                Add New Service
+              </Button>
+            </div>
+          )}
+        </section>
+        <div className="space-y-8">
           {/* Location Prompt for Artists */}
           {showLocationPrompt && (
             <div className="mt-4 rounded-md bg-yellow-50 p-4">
@@ -447,6 +458,45 @@ export default function DashboardPage() {
             )}
           </div>
 
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+            <div className="bg-white rounded-xl shadow-custom p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-3 rounded-lg flex items-center justify-center text-sm font-medium transition">
+                  📅 Update Availability
+                </button>
+                <button className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-3 rounded-lg flex items-center justify-center text-sm font-medium transition">
+                  ⭐ Request Review
+                </button>
+                <button className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-3 rounded-lg flex items-center justify-center text-sm font-medium transition">
+                  📈 Boost a Service
+                </button>
+                <Link href="/dashboard/quotes" className="bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-3 rounded-lg flex items-center justify-center text-sm font-medium transition">
+                  📄 View All Quotes
+                </Link>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-custom p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Response & Activity</h3>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <div className="text-brand-primary text-xl">📊</div>
+                  <div>
+                    <p className="text-sm text-gray-500">Response Rate</p>
+                    <p className="text-lg font-medium text-gray-800">{dashboardStats?.response_rate ?? 0}%</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                  <div className="text-brand-primary text-xl">⏳</div>
+                  <div>
+                    <p className="text-sm text-gray-500">Avg. Response Time</p>
+                    <p className="text-lg font-medium text-gray-800">2 hours</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <div className="mt-4">
             <DashboardTabs
