@@ -37,7 +37,7 @@ export default function Avatar({
           height={size}
           className="object-cover rounded-full"
           onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = '/static/default-avatar.svg';
+            (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
           }}
         />
       ) : initials ? (
