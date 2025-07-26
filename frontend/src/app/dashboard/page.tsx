@@ -457,19 +457,6 @@ export default function DashboardPage() {
               primaryStats={overviewPrimary}
               secondaryStats={overviewSecondary}
             />
-            {user?.user_type === 'artist' && (
-              <div className="space-x-4">
-                <Link href="/dashboard/quotes" className="text-brand-dark hover:underline text-sm">
-                  View All Quotes
-                </Link>
-                <Link href="/sound-providers" className="text-brand-dark hover:underline text-sm">
-                  Sound Providers
-                </Link>
-                <Link href="/quote-calculator" className="text-brand-dark hover:underline text-sm">
-                  Quote Calculator
-                </Link>
-              </div>
-            )}
           </div>
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
@@ -506,18 +493,13 @@ export default function DashboardPage() {
 
           <section className="bg-white rounded-xl shadow-custom p-6">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Resources</h3>
-            <ul className="list-disc list-inside space-y-1 text-brand-primary">
-              <li>
-                <Link href="/sound-providers" className="hover:underline">
-                  Sound Providers
-                </Link>
-              </li>
-              <li>
-                <Link href="/quote-calculator" className="hover:underline">
-                  Quote Calculator
-                </Link>
-              </li>
-            </ul>
+            <div className="flex flex-wrap gap-3">
+              {user?.user_type === 'artist' && (
+                <QuickActionButton href="/dashboard/quotes" label="📄 View All Quotes" />
+              )}
+              <QuickActionButton href="/sound-providers" label="🎚 Sound Providers" />
+              <QuickActionButton href="/quote-calculator" label="🧮 Quote Calculator" />
+            </div>
           </section>
 
           <div className="mt-4">
