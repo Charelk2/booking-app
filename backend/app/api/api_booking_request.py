@@ -173,7 +173,7 @@ def read_my_artist_booking_requests(
             setattr(req, "accepted_quote_id", accepted.id)
     return requests
 
-@router.get("/{request_id}", response_model=schemas.BookingRequestResponse)
+@router.get("/{request_id:int}", response_model=schemas.BookingRequestResponse)
 def read_booking_request(
     request_id: int,
     db: Session = Depends(get_db),
@@ -219,7 +219,7 @@ def read_booking_request(
         setattr(db_request, "accepted_quote_id", accepted.id)
     return db_request
 
-@router.put("/{request_id}/client", response_model=schemas.BookingRequestResponse)
+@router.put("/{request_id:int}/client", response_model=schemas.BookingRequestResponse)
 def update_booking_request_by_client(
     request_id: int,
     request_update: schemas.BookingRequestUpdateByClient,
@@ -326,7 +326,7 @@ def update_booking_request_by_client(
 
     return updated
 
-@router.put("/{request_id}/artist", response_model=schemas.BookingRequestResponse)
+@router.put("/{request_id:int}/artist", response_model=schemas.BookingRequestResponse)
 def update_booking_request_by_artist(
     request_id: int,
     request_update: schemas.BookingRequestUpdateByArtist,
