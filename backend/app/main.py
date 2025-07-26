@@ -58,6 +58,7 @@ from .api import (
     api_calendar,
     api_quote_template,
     api_settings,
+    api_weather,
 )
 
 # The “artist‐profiles” router lives under app/api/v1/
@@ -295,6 +296,13 @@ app.include_router(
     api_settings.router,
     prefix=f"{api_prefix}",
     tags=["settings"],
+)
+
+# ─── TRAVEL FORECAST ROUTES (under /api/v1) ─────────────────────────────
+app.include_router(
+    api_weather.router,
+    prefix=f"{api_prefix}",
+    tags=["travel-forecast"],
 )
 
 
