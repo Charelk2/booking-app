@@ -24,7 +24,6 @@ import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
 import ProfileProgress from "@/components/dashboard/ProfileProgress";
 import SectionList from "@/components/dashboard/SectionList";
 import BookingRequestCard from "@/components/dashboard/BookingRequestCard";
-import CollapsibleSection from "@/components/ui/CollapsibleSection";
 import { Spinner, Button } from '@/components/ui';
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import QuickActionButton from "@/components/dashboard/QuickActionButton";
@@ -92,7 +91,7 @@ function ServiceCard({
       dragControls={dragControls}
       dragConstraints={dragConstraints}
       data-testid="service-item"
-      className={`relative bg-white rounded-xl shadow-custom overflow-hidden focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 ${pressing ? 'select-none ring-2 ring-brand-light bg-brand-light' : ''}`}
+      className={`relative p-4 rounded-lg bg-gray-50 border border-gray-200 shadow-sm focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 ${pressing ? 'select-none ring-2 ring-brand-light bg-brand-light' : ''}`}
     >
       <div
         className="absolute right-2 top-2 cursor-grab active:cursor-grabbing text-gray-400 touch-none z-10"
@@ -104,20 +103,13 @@ function ServiceCard({
       >
         <Bars3Icon className="h-5 w-5" />
       </div>
-      <img
-        src={`https://source.unsplash.com/random/600x400?music&sig=${service.id}`}
-        alt={service.title}
-        className="w-full h-40 object-cover"
-      />
-      <div className="p-4">
-        <h4 className="text-xl font-semibold mb-1 text-brand-primary">
-          {service.title}
-        </h4>
-        <p className="text-sm text-gray-600 line-clamp-2">{service.description}</p>
-        <p className="text-lg font-bold text-gray-800 mt-2">
-          {formatCurrency(Number(service.price))}
-        </p>
-        <div className="flex justify-between items-center mt-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex-1">
+          <h4 className="text-xl font-semibold mb-1 text-brand-primary">{service.title}</h4>
+          <p className="text-sm text-gray-600 line-clamp-2">{service.description}</p>
+          <p className="text-lg font-bold text-gray-800 mt-2">{formatCurrency(Number(service.price))}</p>
+        </div>
+        <div className="flex flex-col items-end gap-2 mt-3 sm:mt-0">
           <button
             type="button"
             onClick={() => onEdit(service)}
@@ -160,7 +152,6 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [servicesOpen, setServicesOpen] = useState(false);
   const [requestToUpdate, setRequestToUpdate] = useState<BookingRequest | null>(null);
   const [activeTab, setActiveTab] = useState<'requests' | 'bookings' | 'services'>('requests');
   const [dashboardStats, setDashboardStats] = useState<{ monthly_new_inquiries: number; profile_views: number; response_rate: number } | null>(null);
@@ -616,46 +607,40 @@ export default function DashboardPage() {
             </>
           )}
           {user?.user_type === "artist" && activeTab === 'services' && (
-            <CollapsibleSection
-              title="Your Services"
-              open={servicesOpen}
-              onToggle={() => setServicesOpen(!servicesOpen)}
-              className="mt-8 border border-gray-200 rounded-md shadow-sm"
-            >
-              <div>
-                {services.length === 0 ? (
-                  <div className="text-sm text-gray-500 py-2">No services yet</div>
-                ) : (
-                  <Reorder.Group
-                    ref={listRef}
-                    axis="y"
-                    values={services}
-                    onReorder={handleReorder}
-                    layoutScroll
-                    className="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                  >
-                    {services.map((service) => (
-                      <ServiceCard
-                        key={service.id}
-                        service={service}
-                        dragConstraints={listRef}
-                        onEdit={(s) => setEditingService(s)}
-                        onDelete={handleDeleteService}
-                        onDragEnd={handleDragEnd}
-                      />
-                    ))}
-                  </Reorder.Group>
-                )}
-                <Button
-                  type="button"
-                  onClick={() => setIsAddServiceModalOpen(true)}
-                  className="mt-4 sm:w-auto"
-                  fullWidth
+            <section className="bg-white rounded-xl shadow-custom p-6 mb-10">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">Your Services</h2>
+              {services.length === 0 ? (
+                <p className="text-sm text-gray-500">No services yet</p>
+              ) : (
+                <Reorder.Group
+                  ref={listRef}
+                  axis="y"
+                  values={services}
+                  onReorder={handleReorder}
+                  layoutScroll
+                  className="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 >
-                  Add Service
-                </Button>
-              </div>
-            </CollapsibleSection>
+                  {services.map((service) => (
+                    <ServiceCard
+                      key={service.id}
+                      service={service}
+                      dragConstraints={listRef}
+                      onEdit={(s) => setEditingService(s)}
+                      onDelete={handleDeleteService}
+                      onDragEnd={handleDragEnd}
+                    />
+                  ))}
+                </Reorder.Group>
+              )}
+              <Button
+                type="button"
+                onClick={() => setIsAddServiceModalOpen(true)}
+                className="mt-4 sm:w-auto"
+                fullWidth
+              >
+                Add Service
+              </Button>
+            </section>
           )}
         </div>
       </div>
