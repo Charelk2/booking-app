@@ -19,9 +19,9 @@ export default function Stepper({
   ariaLabel,
 }: StepperProps) {
   const maxStepAllowed =
-    typeof maxStepCompleted === 'number' ? maxStepCompleted + 1 : currentStep + 1;
+    typeof maxStepCompleted === 'number' ? maxStepCompleted + 1 : currentStep;
   return (
-    <motion.div
+    <motion.nav
       layout
       role="list"
       aria-label={ariaLabel || 'Progress'}
@@ -42,10 +42,10 @@ export default function Stepper({
             className={clsx(
               'relative flex items-center justify-center w-5 h-5 rounded-full border',
               isCompleted
-                ? 'bg-green-600 border-green-600 text-white'
+                ? 'bg-[#FF5A5F] border-[#FF5A5F] text-white'
                 : isActive
-                  ? 'bg-white border-[var(--brand-color)] text-[var(--brand-color-dark)]'
-                  : 'bg-gray-200 border-gray-200 text-gray-400',
+                  ? 'bg-white border-[#FF5A5F] text-[#FF5A5F]'
+                  : 'bg-white border-gray-300 text-gray-400',
             )}
           >
             {isCompleted && <CheckIcon className="w-4 h-4" />}
@@ -55,12 +55,8 @@ export default function Stepper({
         const labelEl = (
           <span
             className={clsx(
-              'mt-1 text-sm font-medium',
-              isCompleted
-                ? 'text-gray-800'
-                : isActive
-                  ? 'text-[var(--brand-color-dark)] underline decoration-[var(--brand-color-dark)] decoration-4 underline-offset-8'
-                  : 'text-gray-400',
+              'mt-1 text-xs font-semibold',
+              isActive ? 'text-[#FF5A5F]' : 'text-gray-500',
             )}
           >
             {label}
@@ -97,6 +93,6 @@ export default function Stepper({
         }
         return content;
       })}
-    </motion.div>
+    </motion.nav>
   );
 }
