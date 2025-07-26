@@ -62,8 +62,11 @@ export default function AddServiceModal({
     setValue,
     watch,
     trigger,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isValid },
   } = useForm<ServiceFormData>({
+    mode: "onChange",
+    reValidateMode: "onChange",
+    criteriaMode: "all",
     defaultValues: {
       service_type: undefined,
       title: "",
@@ -97,15 +100,10 @@ export default function AddServiceModal({
 
   const nextDisabled = () => {
     if (step === 0) return !watch("service_type");
-    if (step === 1) {
-      return !!(errors.title || errors.description || errors.duration_minutes);
-    }
-    if (step === 2) {
-      return !mediaFiles.some((f) => f.type.startsWith("image/"));
-    }
-    if (step === 3) {
-      return packages.some((p) => !p.name.trim() || Number(p.price) <= 0);
-    }
+    if (step === 1) return !isValid;
+    if (step === 2)
+      return !mediaFiles.some((f) => f.type.startsWith("image/")) || !!mediaError;
+    if (step === 3) return packages.some((p) => !p.name.trim() || Number(p.price) <= 0);
     return false;
   };
 
@@ -322,13 +320,11 @@ export default function AddServiceModal({
                         label="Service Title"
                         {...register("title", {
                           required: "Service title is required",
-                          minLength: {
-                            value: 5,
-                            message: "Must be at least 5 characters",
-                          },
-                          maxLength: {
-                            value: 60,
-                            message: "Must be at most 60 characters",
+                          validate: (value) => {
+                            const len = value.trim().length;
+                            if (len < 5) return `Need ${5 - len} more characters`;
+                            if (len > 60) return `Remove ${len - 60} characters`;
+                            return true;
                           },
                         })}
                       />
@@ -340,13 +336,11 @@ export default function AddServiceModal({
                         rows={4}
                         {...register("description", {
                           required: "Description is required",
-                          minLength: {
-                            value: 20,
-                            message: "Must be at least 20 characters",
-                          },
-                          maxLength: {
-                            value: 500,
-                            message: "Must be at most 500 characters",
+                          validate: (value) => {
+                            const len = value.trim().length;
+                            if (len < 20) return `Need ${20 - len} more characters`;
+                            if (len > 500) return `Remove ${len - 500} characters`;
+                            return true;
                           },
                         })}
                       />
