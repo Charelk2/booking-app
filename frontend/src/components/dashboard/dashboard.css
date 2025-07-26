@@ -1,9 +1,9 @@
 .overview-card {
-  @apply flex items-center justify-between p-4 rounded-2xl bg-brand-light border border-brand-light shadow-md;
+  @apply flex items-center justify-between p-4 rounded-xl bg-white border border-gray-200 shadow-sm;
 }
 .overview-label {
-  @apply text-sm text-brand-dark;
+  @apply text-sm text-gray-600;
 }
 .overview-value {
-  @apply text-lg font-medium text-brand-dark;
+  @apply text-xl font-semibold text-gray-900;
 }

@@ -383,9 +383,11 @@ export default function AddServiceModal({
                   )}
                   {step === 2 && (
                     <div>
-                      <h2 className="text-xl font-semibold mb-4">
-                        Upload Media
-                      </h2>
+                      <h2 className="text-xl font-semibold mb-4">Upload Media</h2>
+                      <p className="text-sm text-gray-600 mb-2">
+                        Use high-resolution images or short video clips (at least
+                        1920×1080) to showcase your talent.
+                      </p>
                       <label
                         htmlFor="media-upload"
                         className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer w-full min-h-52 flex flex-col items-center justify-center"
