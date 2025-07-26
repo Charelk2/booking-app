@@ -42,14 +42,14 @@ export default function Stepper({
               className={clsx(
                 'w-4 h-4 rounded-full z-10',
                 isCompleted || isActive
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-[var(--brand-color)] text-white'
                   : 'bg-gray-200',
               )}
             />
             {isActive && (
               <motion.div
                 layout
-                className="absolute inset-0 rounded-full ring-2 ring-indigo-400 animate-ping"
+                className="absolute inset-0 rounded-full ring-2 ring-[var(--brand-color-dark)] animate-ping"
               />
             )}
           </div>
@@ -73,7 +73,7 @@ export default function Stepper({
               disabled={!isClickable}
               aria-disabled={isClickable ? undefined : true}
               className={clsx(
-                'flex flex-col items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400',
+                'flex flex-col items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-color-dark)]',
                 isClickable ? 'cursor-pointer' : 'cursor-default',
               )}
             >
