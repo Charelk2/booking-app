@@ -20,7 +20,7 @@ const baseReq: BookingRequest = {
     phone_number: '',
     is_active: true,
     is_verified: true,
-    profile_photo_url: null,
+    profile_picture_url: null,
   } as any,
   service: { id: 9, artist_id: 3, title: 'Live Musiek' } as Service,
 } as BookingRequest;
