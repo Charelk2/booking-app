@@ -465,10 +465,11 @@ export default function DashboardPage() {
             <div className="bg-white rounded-xl shadow-custom p-6">
               <h3 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h3>
               <div className="grid grid-cols-2 gap-3">
-                <QuickActionButton label="📅 Update Availability" />
                 <QuickActionButton label="⭐ Request Review" />
                 <QuickActionButton label="📈 Boost a Service" />
                 <QuickActionButton href="/dashboard/quotes" label="📄 View All Quotes" />
+                <QuickActionButton href="/sound-providers" label="🎚 Sound Providers" />
+                <QuickActionButton href="/quote-calculator" label="🧮 Quote Calculator" />
               </div>
             </div>
 
@@ -493,16 +494,6 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          <section className="bg-white rounded-xl shadow-custom p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Resources</h3>
-            <div className="flex flex-wrap gap-3">
-              {user?.user_type === 'artist' && (
-                <QuickActionButton href="/dashboard/quotes" label="📄 View All Quotes" />
-              )}
-              <QuickActionButton href="/sound-providers" label="🎚 Sound Providers" />
-              <QuickActionButton href="/quote-calculator" label="🧮 Quote Calculator" />
-            </div>
-          </section>
 
           <div className="mt-4">
             <DashboardTabs
