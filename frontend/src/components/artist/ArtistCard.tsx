@@ -92,12 +92,12 @@ export default function ArtistCard({
               priority={priority}
               onLoad={() => setImgLoaded(true)}
               onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = '/static/default-avatar.svg';
+                (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
               }}
             />
           ) : (
             <Image
-              src="/static/default-avatar.svg"
+              src={getFullImageUrl('/static/default-avatar.svg') as string}
               alt={name}
               width={512}
               height={512}
