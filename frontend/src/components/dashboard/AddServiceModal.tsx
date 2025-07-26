@@ -262,7 +262,7 @@ export default function AddServiceModal({
         >
           <Dialog.Overlay className="fixed inset-0 bg-gray-800 bg-opacity-50 pointer-events-none" />
         </Transition.Child>
-        <div className="flex min-h-full items-center justify-center">
+        <div className="flex min-h-full items-center justify-center p-4">
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -272,18 +272,18 @@ export default function AddServiceModal({
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <Dialog.Panel className="pointer-events-auto m-auto bg-white w-full sm:w-[80%] max-w-5xl h-[90vh] rounded-lg p-6">
+            <Dialog.Panel className="pointer-events-auto flex flex-col h-full w-full sm:w-4/5 lg:w-1/2 rounded-2xl shadow-2xl bg-white">
               <div className="flex flex-col h-full">
                 <Stepper
                   steps={steps.slice(0, 4)}
                   currentStep={step}
                   maxStepCompleted={maxStep}
-                  onStepClick={(i) => i <= maxStep + 1 && setStep(i)}
+                  onStepClick={setStep}
                   ariaLabel="Add service progress"
                 />
                 <form
                   onSubmit={handleSubmit(onSubmit)}
-                  className="flex flex-col flex-1 overflow-auto space-y-6"
+                  className="flex-1 overflow-auto space-y-6 p-6"
                 >
                   {step === 0 && (
                     <div>
@@ -298,14 +298,14 @@ export default function AddServiceModal({
                             data-value={value}
                             onClick={() => setValue("service_type", value)}
                             className={clsx(
-                              "flex flex-col items-center p-4 border rounded-md",
+                              "flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow hover:shadow-md transition",
                               watch("service_type") === value
-                                ? "border-brand bg-brand-light"
-                                : "border-gray-300",
+                                ? "border-2 border-[#FF5A5F]"
+                                : "border border-gray-200",
                             )}
                           >
                             <Icon className="h-8 w-8 mb-2" />
-                            <span>{label}</span>
+                            <span className="text-base font-medium text-gray-800">{label}</span>
                           </button>
                         ))}
                       </div>
@@ -558,36 +558,37 @@ export default function AddServiceModal({
                       )}
                     </div>
                   )}
-                  <div className="flex justify-between pt-4">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={step === 0 ? handleCancel : prev}
-                      data-testid="back"
-                    >
-                      {step === 0 ? "Cancel" : "Back"}
-                    </Button>
-                    {step < steps.length - 1 && (
-                      <Button
-                        type="button"
-                        onClick={next}
-                        disabled={nextDisabled()}
-                        data-testid="next"
-                      >
-                        Next
-                      </Button>
-                    )}
-                    {step === steps.length - 1 && (
-                      <Button
-                        type="submit"
-                        isLoading={publishing || isSubmitting}
-                        disabled={publishing || isSubmitting || nextDisabled()}
-                      >
-                        Publish
-                      </Button>
-                    )}
-                  </div>
                 </form>
+                <div className="flex justify-between items-center p-6 border-t border-gray-100 mt-auto">
+                  <Button
+                    variant="outline"
+                    onClick={step === 0 ? handleCancel : prev}
+                    data-testid="back"
+                    className="px-6 py-3"
+                  >
+                    {step === 0 ? 'Cancel' : 'Back'}
+                  </Button>
+                  {step < steps.length - 1 && (
+                    <Button
+                      onClick={next}
+                      disabled={nextDisabled()}
+                      data-testid="next"
+                      className="px-6 py-3"
+                    >
+                      Next
+                    </Button>
+                  )}
+                  {step === steps.length - 1 && (
+                    <Button
+                      type="submit"
+                      disabled={publishing || isSubmitting || nextDisabled()}
+                      isLoading={publishing || isSubmitting}
+                      className="px-6 py-3"
+                    >
+                      Publish
+                    </Button>
+                  )}
+                </div>
               </div>
             </Dialog.Panel>
           </Transition.Child>
