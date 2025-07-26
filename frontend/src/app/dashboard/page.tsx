@@ -161,6 +161,8 @@ export default function DashboardPage() {
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
   const [requestStatusFilter, setRequestStatusFilter] = useState('');
   const [requestSort, setRequestSort] = useState<'newest' | 'oldest'>('newest');
+  const [requestSearch, setRequestSearch] = useState('');
+  const [requestVisibleCount, setRequestVisibleCount] = useState(5);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
@@ -206,17 +208,28 @@ export default function DashboardPage() {
     return stats.slice(0, 4);
   }, [bookings.length, user, servicesCount, earningsThisMonth, dashboardStats]);
 
+  const filteredRequests = useMemo(() => {
+    const lower = requestSearch.toLowerCase();
+    return bookingRequests.filter((r) => {
+      const name = r.client
+        ? `${r.client.first_name} ${r.client.last_name}`.toLowerCase()
+        : '';
+      const matchesSearch = name.includes(lower);
+      const matchesStatus = !requestStatusFilter || r.status === requestStatusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [bookingRequests, requestStatusFilter, requestSearch]);
+
   const visibleRequests = useMemo(() => {
-    const filtered = bookingRequests.filter(
-      (r) => !requestStatusFilter || r.status === requestStatusFilter,
-    );
-    const sorted = filtered.sort((a, b) => {
+    const sorted = filteredRequests.sort((a, b) => {
       const aTime = new Date(a.created_at).getTime();
       const bTime = new Date(b.created_at).getTime();
       return requestSort === 'oldest' ? aTime - bTime : bTime - aTime;
     });
-    return sorted.slice(0, 5);
-  }, [bookingRequests, requestStatusFilter, requestSort]);
+    return sorted.slice(0, requestVisibleCount);
+  }, [filteredRequests, requestSort, requestVisibleCount]);
+
+  const hasMoreRequests = filteredRequests.length > requestVisibleCount;
   const upcomingBookings = useMemo(() => {
     const now = new Date().getTime();
     return bookings
@@ -509,6 +522,14 @@ export default function DashboardPage() {
                 Recent Booking Requests
               </h2>
               <div className="flex flex-col md:flex-row gap-4 mb-4">
+                <input
+                  type="text"
+                  aria-label="Search by client name"
+                  placeholder="Search by client name"
+                  className="border border-gray-300 rounded-md p-2 text-sm text-gray-700 flex-1"
+                  value={requestSearch}
+                  onChange={(e) => setRequestSearch(e.target.value)}
+                />
                 <select
                   aria-label="Sort requests"
                   data-testid="request-sort"
@@ -544,14 +565,15 @@ export default function DashboardPage() {
                   <li className="text-sm text-gray-500">No bookings yet</li>
                 )}
               </ul>
-              {bookingRequests.length > visibleRequests.length && (
+              {hasMoreRequests && (
                 <div className="mt-6 text-center">
-                  <Link
-                    href="/booking-requests"
+                  <button
+                    type="button"
+                    onClick={() => setRequestVisibleCount((c) => c + 5)}
                     className="text-brand-primary hover:underline text-sm font-medium"
                   >
-                    View All Requests
-                  </Link>
+                    Load More
+                  </button>
                 </div>
               )}
             </section>
