@@ -7,3 +7,27 @@
 .overview-value {
   @apply text-xl font-semibold text-gray-900;
 }
+
+/* --- Dashboard redesign colors --- */
+.bg-brand-primary { background-color: #0047AB; }
+.text-brand-primary { color: #0047AB; }
+.bg-brand-secondary { background-color: #FFD700; }
+.text-brand-secondary { color: #FFD700; }
+.bg-brand-accent { background-color: #FF6347; }
+.text-brand-accent { color: #FF6347; }
+.shadow-custom { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08); }
+.progress-bar-fill {
+  transition: width 0.5s ease-in-out;
+}
+.status-badge-quote-provided {
+  background-color: rgba(255, 99, 71, 0.1);
+  color: #FF6347;
+}
+.status-badge-pending-quote {
+  background-color: rgba(255, 215, 0, 0.1);
+  color: #FFD700;
+}
+.status-badge-confirmed {
+  background-color: rgba(0, 71, 171, 0.1);
+  color: #0047AB;
+}
