@@ -4,6 +4,7 @@
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import dynamic from 'next/dynamic';
 import { loadPlaces } from '@/lib/loadPlaces';
+import LocationInput from '../../ui/LocationInput';
 const GoogleMap = dynamic(
   () => import('@react-google-maps/api').then((m) => m.GoogleMap),
   { ssr: false },
@@ -64,54 +65,6 @@ function GoogleMapsLoader({
   return children(loaded);
 }
 
-interface AutocompleteProps {
-  value: string | undefined;
-  onChange: (v: string) => void;
-  onSelect: (loc: LatLng) => void;
-}
-
-function AutocompleteInput({ value, onChange, onSelect }: AutocompleteProps) {
-  const autoRef = useRef<Element | null>(null);
-
-  useEffect(() => {
-    const el = autoRef.current as HTMLElement | null;
-    if (!el) return;
-    function handleChange(e: Event) {
-      const place = (e as any).detail?.place;
-      if (place?.geometry?.location) {
-        onSelect({
-          lat: place.geometry.location.lat(),
-          lng: place.geometry.location.lng(),
-        });
-      }
-      if (place?.formatted_address) onChange(place.formatted_address);
-    }
-    el.addEventListener('placechange', handleChange);
-    el.addEventListener('gmpx-placechange', handleChange);
-    return () => {
-      el.removeEventListener('placechange', handleChange);
-      el.removeEventListener('gmpx-placechange', handleChange);
-    };
-  }, [onChange, onSelect]);
-
-  useEffect(() => {
-    if (autoRef.current) {
-      // @ts-ignore - value is writable on the web component
-      (autoRef.current as any).value = value ?? '';
-    }
-  }, [value]);
-
-  return (
-    <gmpx-place-autocomplete ref={autoRef} data-testid="autocomplete-input">
-      <input
-        slot="input"
-        type="text"
-        placeholder="Search address"
-        className="block w-full rounded-md border border-gray-300 focus:border-brand focus:ring-brand sm:text-sm p-2"
-      />
-    </gmpx-place-autocomplete>
-  );
-}
 
 export default function LocationStep({
   control,
@@ -182,10 +135,19 @@ export default function LocationStep({
                   name="location"
                   control={control}
                   render={({ field }) => (
-                    <AutocompleteInput
-                      value={field.value}
-                      onChange={field.onChange}
-                      onSelect={(loc) => setMarker(loc)}
+                    <LocationInput
+                      value={field.value ?? ''}
+                      onValueChange={field.onChange}
+                      onPlaceSelect={(place) => {
+                        if (place.geometry?.location) {
+                          setMarker({
+                            lat: place.geometry.location.lat(),
+                            lng: place.geometry.location.lng(),
+                          });
+                        }
+                      }}
+                      placeholder="Search address"
+                      className="block w-full rounded-md border border-gray-300 focus-within:border-brand focus-within:ring-brand sm:text-sm p-2"
                     />
                   )}
                 />
@@ -204,10 +166,19 @@ export default function LocationStep({
               name="location"
               control={control}
               render={({ field }) => (
-                <AutocompleteInput
-                  value={field.value}
-                  onChange={field.onChange}
-                  onSelect={(loc) => setMarker(loc)}
+                <LocationInput
+                  value={field.value ?? ''}
+                  onValueChange={field.onChange}
+                  onPlaceSelect={(place) => {
+                    if (place.geometry?.location) {
+                      setMarker({
+                        lat: place.geometry.location.lat(),
+                        lng: place.geometry.location.lng(),
+                      });
+                    }
+                  }}
+                  placeholder="Search address"
+                  className="block w-full rounded-md border border-gray-300 focus-within:border-brand focus-within:ring-brand sm:text-sm p-2"
                 />
               )}
             />
