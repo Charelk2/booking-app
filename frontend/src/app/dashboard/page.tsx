@@ -24,7 +24,6 @@ import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
 import ProfileProgress from "@/components/dashboard/ProfileProgress";
 import SectionList from "@/components/dashboard/SectionList";
 import BookingRequestCard from "@/components/dashboard/BookingRequestCard";
-import OverviewCard from "@/components/dashboard/OverviewCard";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
 import { Spinner, Button } from '@/components/ui';
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
@@ -35,14 +34,7 @@ import {
   PencilIcon,
   TrashIcon,
 } from "@heroicons/react/24/solid";
-import {
-  Bars3Icon,
-  CalendarDaysIcon,
-  EyeIcon,
-  EnvelopeIcon,
-  MusicalNoteIcon,
-  BanknotesIcon,
-} from "@heroicons/react/24/outline";
+import { Bars3Icon } from "@heroicons/react/24/outline";
 
 interface ServiceCardProps {
   service: Service;
@@ -180,9 +172,6 @@ export default function DashboardPage() {
 
   // Aggregated totals for dashboard statistics
   const servicesCount = services.length;
-  const totalEarnings = bookings
-    .filter((booking) => booking.status === "completed")
-    .reduce((acc, booking) => acc + booking.total_price, 0);
   const earningsThisMonth = bookings
     .filter((booking) => {
       if (booking.status !== "completed") return false;
@@ -195,34 +184,27 @@ export default function DashboardPage() {
     })
     .reduce((acc, booking) => acc + booking.total_price, 0);
 
-  const overviewPrimary = useMemo(() => {
-    const cards: { label: string; value: string | number; icon: React.ReactNode }[] = [
-      { label: 'Total Bookings', value: bookings.length, icon: <CalendarDaysIcon className="w-5 h-5" /> },
+  const statCards = useMemo(() => {
+    const stats: { label: string; value: string | number; color: string }[] = [
+      { label: 'Total Bookings', value: bookings.length, color: 'text-brand-primary' },
     ];
     if (user?.user_type === 'artist') {
-      cards.push(
+      stats.push(
         {
-          label: 'New Inquiries This Month',
+          label: 'New Inquiries',
           value: dashboardStats?.monthly_new_inquiries ?? 0,
-          icon: <EnvelopeIcon className="w-5 h-5" />,
+          color: 'text-brand-accent',
         },
-        { label: 'Total Services', value: servicesCount, icon: <MusicalNoteIcon className="w-5 h-5" /> },
-        { label: 'Earnings This Month', value: formatCurrency(earningsThisMonth), icon: <BanknotesIcon className="w-5 h-5" /> },
+        { label: 'Total Services', value: servicesCount, color: 'text-brand-primary' },
+        {
+          label: 'Earnings This Month',
+          value: formatCurrency(earningsThisMonth),
+          color: 'text-brand-secondary',
+        },
       );
     }
-    return cards.slice(0, 4);
+    return stats.slice(0, 4);
   }, [bookings.length, user, servicesCount, earningsThisMonth, dashboardStats]);
-
-  const overviewSecondary = useMemo(() => {
-    if (user?.user_type !== 'artist' || !dashboardStats) return [] as { label: string; value: string | number; icon: React.ReactNode }[];
-    return [
-      {
-        label: 'Profile Views',
-        value: dashboardStats.profile_views,
-        icon: <EyeIcon className="w-5 h-5" />,
-      },
-    ];
-  }, [user, dashboardStats]);
 
   const visibleRequests = useMemo(() => {
     const filtered = bookingRequests.filter(
@@ -454,24 +436,17 @@ export default function DashboardPage() {
           )}
 
           {/* Stats */}
-          <div className="mt-8 grid grid-cols-2 gap-3">
-            {overviewPrimary.map((s) => (
-              <OverviewCard
-                key={s.label}
-                label={s.label}
-                value={s.value}
-                icon={s.icon ?? null}
-              />
+          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            {statCards.map((stat) => (
+              <div
+                key={stat.label}
+                className="bg-white rounded-xl shadow-custom p-5 text-center"
+              >
+                <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
+                <h2 className={`text-3xl font-bold ${stat.color}`}>{stat.value}</h2>
+              </div>
             ))}
-            {overviewSecondary.map((s) => (
-              <OverviewCard
-                key={s.label}
-                label={s.label}
-                value={s.value}
-                icon={s.icon ?? null}
-              />
-            ))}
-          </div>
+          </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
             <div className="bg-white rounded-xl shadow-custom p-6">
