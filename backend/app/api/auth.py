@@ -123,7 +123,8 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         )
 
 
-# TODO: Add rate limiting and lockout after repeated failures
+# Login rate limiting and lockout are already implemented and tested in
+# `test_login_lockout.py`.
 @router.post("/login")
 def login(
     request: Request,
