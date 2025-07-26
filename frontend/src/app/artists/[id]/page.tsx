@@ -216,7 +216,7 @@ export default function ArtistProfilePage() {
                     alt={artist.business_name || 'Artist'}
                     priority
                     onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = '/default-avatar.svg';
+                      (e.currentTarget as HTMLImageElement).src = '/static/default-avatar.svg';
                     }}
                   />
                 ) : (
