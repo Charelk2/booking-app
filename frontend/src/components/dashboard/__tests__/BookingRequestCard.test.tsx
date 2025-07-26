@@ -21,6 +21,7 @@ const baseReq: BookingRequest = {
     is_active: true,
     is_verified: true,
     profile_picture_url: null,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any,
   service: { id: 9, artist_id: 3, title: 'Live Musiek' } as Service,
 } as BookingRequest;
@@ -115,5 +116,27 @@ describe('BookingRequestCard', () => {
     });
     const img = container.querySelector('img');
     expect(img).toBeNull();
+  });
+
+  it('applies different badge colors based on status', () => {
+    const cases: [string, string][] = [
+      ['pending_quote', 'bg-yellow-100'],
+      ['quote_provided', 'bg-[var(--color-accent)]/10'],
+      ['request_confirmed', 'bg-brand-light'],
+      ['request_declined', 'bg-red-100'],
+    ];
+    cases.forEach(([status, expected]) => {
+      act(() => {
+        root.render(
+          React.createElement(BookingRequestCard, {
+            req: { ...baseReq, status } as BookingRequest,
+            user: artistUser,
+            onUpdate: jest.fn(),
+          }),
+        );
+      });
+      const badge = container.querySelector('span.inline-flex') as HTMLSpanElement;
+      expect(badge.className).toContain(expected);
+    });
   });
 });
