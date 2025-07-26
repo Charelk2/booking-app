@@ -33,7 +33,7 @@ export default function CustomLocationInput({
     placePredictions,
     getPlacePredictions,
   } = usePlacesService({
-    apiKey: process.env.NEXT_PUBLIC_Maps_API_KEY,
+    apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
     debounce: 300,
   });
 
