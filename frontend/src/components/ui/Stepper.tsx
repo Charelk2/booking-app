@@ -25,7 +25,7 @@ export default function Stepper({
       layout
       role="list"
       aria-label={ariaLabel || 'Add service progress'}
-      className="relative flex items-center justify-between px-2 mb-8"
+      className="relative flex items-center justify-between px-6 mb-8"
     >
       <motion.div
         layout
