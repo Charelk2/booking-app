@@ -880,7 +880,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * The handle blocks the context menu so long presses don't select text, applying `user-select: none` only during drag so you can still highlight service details normally.
 * Reordering keeps the first card below the **Your Services** heading by constraining drag movement to the list area.
 * Service deletion now requires confirmation to prevent mistakes.
-* **Add Service** button now opens a modal to create a new service. It appears below your services list on all screen sizes.
+* **Add Service** button now opens a multi-step wizard with Type, Details, Media, and Packages steps. Review and publish once complete. The wizard replaces the old single form.
 * "Total Services" card now links to `/services?artist=<your_id>` so you only see your listings.
 * Mobile-friendly dashboard cards for bookings and requests with larger service action buttons.
 * "Your Services" now appears in a collapsible section just like booking requests, keeping the dashboard tidy.
