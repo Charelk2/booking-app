@@ -888,6 +888,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * "Total Services" card now links to `/services?artist=<your_id>` so you only see your listings.
 * Mobile-friendly dashboard cards for bookings and requests with larger service action buttons.
 * "Your Services" now appears in a collapsible section just like booking requests, keeping the dashboard tidy.
+* Services display in a responsive card grid with placeholder images so each offering stands out.
 * Removed the unused "Recent Activity" block.
 * Booking request and booking lists show the five most recent items with a **View All** link to see the full history.
 * New `/dashboard/bookings` page lists all bookings with links to their quotes.
