@@ -80,7 +80,7 @@ describe('ArtistCard optional fields', () => {
       act(() => {
         img.dispatchEvent(new Event('error'));
       });
-      expect(img.src).toContain('/default-avatar.svg');
+      expect(img.src).toContain('/static/default-avatar.svg');
     }
     act(() => root.unmount());
     container.remove();
@@ -91,7 +91,7 @@ describe('ArtistCard optional fields', () => {
     const img = container.querySelector('img') as HTMLImageElement | null;
     expect(img).not.toBeNull();
     if (img) {
-      expect(img.src).toContain('/default-avatar.svg');
+      expect(img.src).toContain('/static/default-avatar.svg');
     }
     act(() => root.unmount());
     container.remove();
