@@ -30,10 +30,6 @@ import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import QuickActionButton from "@/components/dashboard/QuickActionButton";
 import Link from "next/link";
 import { Reorder, useDragControls } from "framer-motion";
-import {
-  PencilIcon,
-  TrashIcon,
-} from "@heroicons/react/24/solid";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 
 interface ServiceCardProps {
@@ -96,10 +92,10 @@ function ServiceCard({
       dragControls={dragControls}
       dragConstraints={dragConstraints}
       data-testid="service-item"
-      className={`relative flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 rounded-lg border border-gray-300 bg-white p-4 shadow-sm focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 hover:border-gray-400 transition-colors ${pressing ? "select-none ring-2 ring-brand-light bg-brand-light" : ""}`}
+      className={`relative bg-white rounded-xl shadow-custom overflow-hidden focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 ${pressing ? 'select-none ring-2 ring-brand-light bg-brand-light' : ''}`}
     >
       <div
-        className="absolute right-2 top-2 cursor-grab active:cursor-grabbing text-gray-400 touch-none"
+        className="absolute right-2 top-2 cursor-grab active:cursor-grabbing text-gray-400 touch-none z-10"
         aria-hidden="true"
         onPointerDown={startDrag}
         onPointerUp={cancelDrag}
@@ -108,42 +104,39 @@ function ServiceCard({
       >
         <Bars3Icon className="h-5 w-5" />
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="focus:outline-none">
-          <p className="text-sm font-medium text-gray-900">{service.title}</p>
-          <p className="truncate text-sm text-gray-500">{service.description}</p>
-          <p className="text-xs text-gray-500">{service.service_type}</p>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-900">
-              {formatCurrency(Number(service.price))}
-            </span>
-            <span className="text-sm text-gray-500">{service.duration_minutes} min</span>
-          </div>
+      <img
+        src={`https://source.unsplash.com/random/600x400?music&sig=${service.id}`}
+        alt={service.title}
+        className="w-full h-40 object-cover"
+      />
+      <div className="p-4">
+        <h4 className="text-xl font-semibold mb-1 text-brand-primary">
+          {service.title}
+        </h4>
+        <p className="text-sm text-gray-600 line-clamp-2">{service.description}</p>
+        <p className="text-lg font-bold text-gray-800 mt-2">
+          {formatCurrency(Number(service.price))}
+        </p>
+        <div className="flex justify-between items-center mt-4">
+          <button
+            type="button"
+            onClick={() => onEdit(service)}
+            className="text-sm text-brand-primary hover:underline"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('Delete this service? This action cannot be undone.')) {
+                onDelete(service.id);
+              }
+            }}
+            className="text-sm text-gray-500 hover:text-red-500"
+          >
+            Deactivate
+          </button>
         </div>
-      </div>
-      <div className="sm:ml-4 flex items-center space-x-2">
-        <button
-          type="button"
-          className="p-1 text-brand-dark hover:text-brand-dark"
-          onClick={() => onEdit(service)}
-          aria-label="Edit"
-        >
-          <PencilIcon className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          className="p-1 text-red-600 hover:text-red-800"
-          onClick={() => {
-            if (
-              window.confirm('Delete this service? This action cannot be undone.')
-            ) {
-              onDelete(service.id);
-            }
-          }}
-          aria-label="Delete"
-        >
-          <TrashIcon className="h-5 w-5" />
-        </button>
       </div>
     </Reorder.Item>
   );
@@ -639,7 +632,7 @@ export default function DashboardPage() {
                     values={services}
                     onReorder={handleReorder}
                     layoutScroll
-                    className="mt-2 space-y-2"
+                    className="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                   >
                     {services.map((service) => (
                       <ServiceCard
