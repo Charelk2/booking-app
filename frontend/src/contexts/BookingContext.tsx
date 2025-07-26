@@ -94,7 +94,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window === 'undefined') return;
     const data = {
       step,
-      details: { ...details, date: details.date.toISOString() },
+      details: { ...details, date: new Date(details.date).toISOString() },
       serviceId,
       requestId,
     };
