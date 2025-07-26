@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, status, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+from datetime import datetime
 from typing import List
 import logging
 
@@ -408,3 +410,54 @@ def update_booking_request_by_artist(
             )
 
     return updated
+
+
+@router.get("/stats", summary="Get dashboard stats")
+def get_dashboard_stats(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_artist),
+):
+    """Return monthly inquiries, profile views, and response rate for the artist."""
+    now = datetime.utcnow()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    monthly_inquiries = (
+        db.query(models.BookingRequest)
+        .filter(
+            models.BookingRequest.artist_id == current_user.id,
+            models.BookingRequest.created_at >= month_start,
+            models.BookingRequest.status != models.BookingRequestStatus.DRAFT,
+        )
+        .count()
+    )
+
+    profile_views = (
+        db.query(func.count(models.ArtistProfileView.id))
+        .filter(models.ArtistProfileView.artist_id == current_user.id)
+        .scalar()
+        or 0
+    )
+
+    total_requests = (
+        db.query(models.BookingRequest)
+        .filter(models.BookingRequest.artist_id == current_user.id)
+        .count()
+    )
+    responded = (
+        db.query(models.BookingRequest)
+        .filter(
+            models.BookingRequest.artist_id == current_user.id,
+            models.BookingRequest.status
+            != models.BookingRequestStatus.PENDING_QUOTE,
+            models.BookingRequest.status
+            != models.BookingRequestStatus.DRAFT,
+        )
+        .count()
+    )
+    response_rate = (responded / total_requests * 100) if total_requests else 0.0
+
+    return {
+        "monthly_new_inquiries": monthly_inquiries,
+        "profile_views": profile_views,
+        "response_rate": round(response_rate, 2),
+    }
