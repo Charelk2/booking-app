@@ -7,6 +7,7 @@ interface StepperProps {
   currentStep: number;
   maxStepCompleted?: number;
   onStepClick?: (index: number) => void;
+  ariaLabel?: string;
 }
 
 export default function Stepper({
@@ -14,6 +15,7 @@ export default function Stepper({
   currentStep,
   maxStepCompleted,
   onStepClick,
+  ariaLabel,
 }: StepperProps) {
   const maxStep =
     typeof maxStepCompleted === 'number' ? maxStepCompleted : currentStep;
@@ -21,7 +23,7 @@ export default function Stepper({
     <motion.div
       layout
       role="list"
-      aria-label="Progress"
+      aria-label={ariaLabel || 'Progress'}
       className="relative flex items-center justify-between px-2 mb-8"
     >
       <motion.div
