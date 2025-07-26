@@ -22,9 +22,9 @@ import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
 import ProfileProgress from "@/components/dashboard/ProfileProgress";
-import OverviewAccordion from "@/components/dashboard/OverviewAccordion";
 import SectionList from "@/components/dashboard/SectionList";
 import BookingRequestCard from "@/components/dashboard/BookingRequestCard";
+import OverviewCard from "@/components/dashboard/OverviewCard";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
 import { Spinner, Button } from '@/components/ui';
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
@@ -40,7 +40,6 @@ import {
   CalendarDaysIcon,
   EyeIcon,
   EnvelopeIcon,
-  ChatBubbleLeftRightIcon,
   MusicalNoteIcon,
   BanknotesIcon,
 } from "@heroicons/react/24/outline";
@@ -217,8 +216,11 @@ export default function DashboardPage() {
   const overviewSecondary = useMemo(() => {
     if (user?.user_type !== 'artist' || !dashboardStats) return [] as { label: string; value: string | number; icon: React.ReactNode }[];
     return [
-      { label: 'Profile Views', value: dashboardStats.profile_views, icon: <EyeIcon className="w-5 h-5" /> },
-      { label: 'Response Rate', value: `${dashboardStats.response_rate}%`, icon: <ChatBubbleLeftRightIcon className="w-5 h-5" /> },
+      {
+        label: 'Profile Views',
+        value: dashboardStats.profile_views,
+        icon: <EyeIcon className="w-5 h-5" />,
+      },
     ];
   }, [user, dashboardStats]);
 
@@ -452,11 +454,23 @@ export default function DashboardPage() {
           )}
 
           {/* Stats */}
-          <div className="mt-8 space-y-2">
-            <OverviewAccordion
-              primaryStats={overviewPrimary}
-              secondaryStats={overviewSecondary}
-            />
+          <div className="mt-8 grid grid-cols-2 gap-3">
+            {overviewPrimary.map((s) => (
+              <OverviewCard
+                key={s.label}
+                label={s.label}
+                value={s.value}
+                icon={s.icon ?? null}
+              />
+            ))}
+            {overviewSecondary.map((s) => (
+              <OverviewCard
+                key={s.label}
+                label={s.label}
+                value={s.value}
+                icon={s.icon ?? null}
+              />
+            ))}
           </div>
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
@@ -476,8 +490,8 @@ export default function DashboardPage() {
                 <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
                   <div className="text-brand-primary text-xl">📊</div>
                   <div>
-                    <p className="text-sm text-gray-500">Response Rate</p>
-                    <p className="text-lg font-medium text-gray-800">{dashboardStats?.response_rate ?? 0}%</p>
+                    <p className="text-sm text-gray-500">Profile Views</p>
+                    <p className="text-lg font-medium text-gray-800">{dashboardStats?.profile_views ?? 0}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
@@ -515,26 +529,29 @@ export default function DashboardPage() {
           </div>
 
           {activeTab === 'requests' && (
-            <>
-              <div className="flex space-x-2 mb-2">
+            <section className="bg-white rounded-xl shadow-custom p-6 mb-10">
+              <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                Recent Booking Requests
+              </h2>
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
                 <select
+                  aria-label="Sort requests"
                   data-testid="request-sort"
+                  className="border border-gray-300 rounded-md p-2 text-sm text-gray-700 bg-white focus:ring-brand-primary focus:border-brand-primary flex-1"
                   value={requestSort}
                   onChange={(e) =>
                     setRequestSort(e.target.value as 'newest' | 'oldest')
                   }
-                  aria-label="Sort requests"
-                  className="border rounded-md p-1 text-sm"
                 >
-                  <option value="newest">Newest</option>
-                  <option value="oldest">Oldest</option>
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
                 </select>
                 <select
+                  aria-label="Filter requests"
                   data-testid="request-status"
+                  className="border border-gray-300 rounded-md p-2 text-sm text-gray-700 bg-white focus:ring-brand-primary focus:border-brand-primary flex-1"
                   value={requestStatusFilter}
                   onChange={(e) => setRequestStatusFilter(e.target.value)}
-                  aria-label="Filter requests"
-                  className="border rounded-md p-1 text-sm"
                 >
                   <option value="">All Statuses</option>
                   <option value="pending_quote">Pending Quote</option>
@@ -542,23 +559,27 @@ export default function DashboardPage() {
                   <option value="completed">Completed</option>
                 </select>
               </div>
-              <SectionList
-                title="Booking Requests"
-                data={visibleRequests}
-                defaultOpen={false}
-                emptyState={<span>No bookings yet</span>}
-                renderItem={(req) => (
-                  <BookingRequestCard key={req.id} req={req} />
+              <ul className="space-y-4">
+                {visibleRequests.map((req) => (
+                  <li key={req.id}>
+                    <BookingRequestCard req={req} />
+                  </li>
+                ))}
+                {visibleRequests.length === 0 && (
+                  <li className="text-sm text-gray-500">No bookings yet</li>
                 )}
-                footer={
-                  bookingRequests.length > visibleRequests.length ? (
-                    <Link href="/booking-requests" className="text-brand-dark hover:underline text-sm">
-                      View All Requests
-                    </Link>
-                  ) : null
-                }
-              />
-            </>
+              </ul>
+              {bookingRequests.length > visibleRequests.length && (
+                <div className="mt-6 text-center">
+                  <Link
+                    href="/booking-requests"
+                    className="text-brand-primary hover:underline text-sm font-medium"
+                  >
+                    View All Requests
+                  </Link>
+                </div>
+              )}
+            </section>
           )}
 
           {activeTab === 'bookings' && (
