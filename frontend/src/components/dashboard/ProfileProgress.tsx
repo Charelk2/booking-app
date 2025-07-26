@@ -28,9 +28,9 @@ export default function ProfileProgress({ profile }: ProfileProgressProps) {
         <span>Profile Completion</span>
         <span>{percentage}%</span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2" data-testid="profile-progress">
+      <div className="w-full bg-gray-200 rounded-full h-2.5" data-testid="profile-progress">
         <div
-          className="h-2 rounded-full bg-[var(--color-accent)]"
+          className="bg-brand-secondary h-2.5 rounded-full progress-bar-fill"
           style={{ width: `${percentage}%` }}
         />
       </div>
