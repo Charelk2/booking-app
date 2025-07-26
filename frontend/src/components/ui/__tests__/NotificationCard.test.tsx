@@ -33,7 +33,7 @@ describe('NotificationCard', () => {
       );
     });
     const img = container.querySelector('img');
-    expect(img?.getAttribute('src')).toContain('/default-avatar.svg');
+    expect(img?.getAttribute('src')).toContain('/static/default-avatar.svg');
   });
 
   it('applies unread styling', () => {
