@@ -898,7 +898,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
   `POST /api/v1/quotes/{id}/confirm-booking` allow updates and confirmations.
 * The dashboard stats section now includes a **View All Quotes** link so artists can quickly jump to their quotes list.
 * Booking request cards now show a **Quote accepted** label linking directly to the accepted quote.
-* Artists can update or decline booking requests from the dashboard via a new **Update Request** modal.
+* Booking request cards now include a **Manage Request** link that opens the request details page.
 * Improved dashboard stats layout. Artists now see a monthly earnings card.
 
 * Dashboard overview now also shows **New Inquiries This Month**, **Profile Views**, and **Response Rate**.
