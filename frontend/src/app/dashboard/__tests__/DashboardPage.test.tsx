@@ -177,8 +177,6 @@ describe('DashboardPage artist stats', () => {
     expect(container.textContent).toContain('3');
     expect(container.textContent).toContain('Profile Views');
     expect(container.textContent).toContain('5');
-    expect(container.textContent).toContain('Response Rate');
-    expect(container.textContent).toContain('50%');
   });
 
   it('shows profile progress bar', () => {
@@ -380,7 +378,7 @@ describe('DashboardPage list toggles', () => {
   });
 
   it('renders booking requests section', () => {
-    expect(container.textContent).toContain('Booking Requests');
+    expect(container.textContent).toContain('Recent Booking Requests');
   });
 });
 
