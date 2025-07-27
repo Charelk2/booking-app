@@ -43,6 +43,7 @@
 
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%; /* Prevent font size adjustments after orientation changes on iOS */
   }
 
   body {
@@ -50,6 +51,10 @@
     color: var(--color-foreground);
     font-family: var(--font-sans), sans-serif;
     font-size: 16px;
+    line-height: 1.5;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   a {
@@ -102,13 +107,13 @@
 @layer components {
   /* --- ADD THIS CODE --- */
   .pac-container {
-    /* This makes the Google Maps dropdown appear on top of the modal */
-    z-index: 9999 !important;
+    /* Ensures the Google Maps dropdown appears above modal dialogs */
+    z-index: 50;
   }
 
   html[data-headlessui-focus-visible] {
-    overflow: visible !important;
-    padding-right: 0 !important;
+    overflow: visible;
+    padding-right: 0;
   }
 
   /* Booking wizard common styles */
