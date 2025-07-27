@@ -1,5 +1,5 @@
 .overview-card {
-  @apply flex items-center justify-between p-4 rounded-xl bg-white border border-gray-200 shadow-sm;
+  @apply flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm;
 }
 .overview-label {
   @apply text-sm text-gray-600;
@@ -9,29 +9,49 @@
 }
 
 /* --- Dashboard redesign colors --- */
-.bg-brand-primary { background-color: #0047AB; }
-.text-brand-primary { color: #0047AB; }
-.bg-brand-secondary { background-color: #FFD700; }
-.text-brand-secondary { color: #FFD700; }
-.bg-brand-accent { background-color: #FF6347; }
-.text-brand-accent { color: #FF6347; }
-.shadow-custom { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08); }
+.bg-brand-primary {
+  background-color: var(--dashboard-primary);
+}
+.text-brand-primary {
+  color: var(--dashboard-primary);
+}
+.bg-brand-secondary {
+  background-color: var(--dashboard-secondary);
+}
+.text-brand-secondary {
+  color: var(--dashboard-secondary);
+}
+.bg-brand-accent {
+  background-color: var(--dashboard-accent);
+}
+.text-brand-accent {
+  color: var(--dashboard-accent);
+}
+.shadow-custom {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
 .progress-bar-fill {
-  @apply h-2.5 rounded-full bg-brand-secondary transition-[width] duration-500 ease-in-out;
+  @apply bg-brand-secondary h-2.5 rounded-full transition-[width] duration-500 ease-in-out;
 }
 
 .progress-bar {
-  @apply relative w-full bg-gray-200 rounded-full overflow-hidden;
+  @apply relative w-full overflow-hidden rounded-full bg-gray-200;
 }
 
 @keyframes progress-indeterminate {
-  0% { left: -40%; width: 40%; }
-  100% { left: 100%; width: 40%; }
+  0% {
+    left: -40%;
+    width: 40%;
+  }
+  100% {
+    left: 100%;
+    width: 40%;
+  }
 }
 
 .progress-bar-indeterminate::before {
   content: "";
-  @apply absolute inset-y-0 bg-brand-secondary;
+  @apply bg-brand-secondary absolute inset-y-0;
   animation: progress-indeterminate 1.5s infinite;
 }
 .status-badge {
