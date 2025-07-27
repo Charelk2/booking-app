@@ -5,6 +5,7 @@ import useIsMobile from '@/hooks/useIsMobile';
 import { uploadBookingAttachment } from '@/lib/api';
 import toast from '../../ui/Toast';
 import { useState } from 'react';
+import { Button } from '../../ui';
 import WizardNav from '../WizardNav';
 
 interface Props {
@@ -54,18 +55,16 @@ export default function NotesStep({
   }
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-600">Please add any specific notes or attachments for your booking.</p>
-      <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Extra notes</label>
+      <p className="text-sm text-gray-600">Anything else we should know?</p>
+      <label className="block text-sm font-medium">Extra notes</label>
       <Controller
         name="notes"
         control={control}
         render={({ field }) => (
           <textarea
+            rows={3}
+            className="border p-2 rounded w-full min-h-[44px]"
             {...field}
-            id="notes"
-            rows={4}
-            placeholder="E.g., Special requests, parking instructions, specific stage requirements..."
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand min-h-[100px]"
             autoFocus={!isMobile}
           />
         )}
@@ -75,12 +74,11 @@ export default function NotesStep({
         control={control}
         render={({ field }) => <input type="hidden" {...field} />}
       />
-      <label htmlFor="attachment" className="block text-sm font-medium text-gray-700">Attachment (optional)</label>
+      <label className="block text-sm font-medium">Attachment (optional)</label>
       <input
-        id="attachment"
         type="file"
         aria-label="Upload attachment"
-        className="w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand min-h-[44px] text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-light file:text-brand-dark hover:file:bg-brand-light transition-all duration-200 ease-in-out"
+        className="min-h-[44px]"
         onChange={handleFileChange}
       />
       {uploading && (
@@ -97,7 +95,7 @@ export default function NotesStep({
           <div className="w-full bg-gray-200 rounded h-2">
             <div className="bg-brand h-2 rounded" style={{ width: `${progress}%` }} />
           </div>
-          <span className="text-xs text-gray-600">{progress}%</span>
+          <span className="text-xs">{progress}%</span>
         </div>
       )}
       <WizardNav
