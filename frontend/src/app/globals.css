@@ -4,16 +4,16 @@
 
 :root {
   --font-sans: var(--font-inter);
-  --color-primary: #6366f1;
-  --color-secondary: #4f46e5;
-  --color-accent: #ec4899;
-  --color-border: #e5e7eb;
+  --color-primary: #FF5A5F;
+  --color-secondary: #E04852;
+  --color-accent: #FF7A85;
+  --color-border: #FFD0D3;
   --color-background: #ffffff;
   --color-foreground: #111827;
   --brand-color: var(--color-primary);
   --brand-color-dark: var(--color-secondary);
   /* lighter tint used for subtle page gradients */
-  --brand-color-light: #eef2ff;
+  --brand-color-light: #FFEAEA;
   --color-link: var(--brand-color-dark);
   --color-link-hover: var(--brand-color);
 }
