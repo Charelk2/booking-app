@@ -9,6 +9,8 @@ interface StepperProps {
   maxStepCompleted?: number;
   onStepClick?: (index: number) => void;
   ariaLabel?: string;
+  /** Color style variant */
+  variant?: 'brand' | 'neutral';
 }
 
 export default function Stepper({
@@ -17,6 +19,7 @@ export default function Stepper({
   maxStepCompleted,
   onStepClick,
   ariaLabel,
+  variant = 'brand',
 }: StepperProps) {
   const maxAllowed =
     typeof maxStepCompleted === 'number' ? maxStepCompleted + 1 : currentStep;
@@ -42,11 +45,17 @@ export default function Stepper({
           <div
             className={clsx(
               'relative flex items-center justify-center w-5 h-5 rounded-full border',
-              isCompleted
-                ? 'bg-[var(--brand-color)] border-2 border-[var(--brand-color)] text-white'
-                : isActive
-                  ? 'bg-white border-2 border-[var(--brand-color)] text-[var(--brand-color)]'
-                  : 'bg-white border-gray-300 text-gray-400',
+              variant === 'neutral'
+                ? isCompleted
+                  ? 'bg-gray-900 border-2 border-gray-900 text-white'
+                  : isActive
+                    ? 'bg-white border-2 border-gray-900 text-gray-900'
+                    : 'bg-white border-gray-400 text-gray-400'
+                : isCompleted
+                  ? 'bg-[var(--brand-color)] border-2 border-[var(--brand-color)] text-white'
+                  : isActive
+                    ? 'bg-white border-2 border-[var(--brand-color)] text-[var(--brand-color)]'
+                    : 'bg-white border-gray-300 text-gray-400',
             )}
           >
             {isCompleted && <CheckIcon className="w-4 h-4" />}
@@ -57,7 +66,13 @@ export default function Stepper({
           <span
             className={clsx(
               'mt-1 text-xs font-semibold',
-              isActive ? 'text-[var(--brand-color)]' : 'text-gray-500',
+              variant === 'neutral'
+                ? isActive
+                  ? 'text-gray-900'
+                  : 'text-gray-500'
+                : isActive
+                  ? 'text-[var(--brand-color)]'
+                  : 'text-gray-500',
             )}
           >
             {label}
@@ -80,7 +95,10 @@ export default function Stepper({
               aria-current={isActive ? 'step' : undefined}
               aria-disabled={!isClickable ? 'true' : undefined}
               className={clsx(
-                'flex flex-col items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-color-dark)]',
+                'flex flex-col items-center focus:outline-none focus-visible:ring-2',
+                variant === 'neutral'
+                  ? 'focus-visible:ring-gray-700'
+                  : 'focus-visible:ring-[var(--brand-color-dark)]',
                 isClickable ? 'cursor-pointer' : 'cursor-default',
               )}
             >
