@@ -28,6 +28,9 @@ import { Dialog, Transition } from "@headlessui/react";
 import Button from "../ui/Button";
 import { Stepper, TextInput, TextArea, ToggleSwitch } from "../ui";
 
+const stepCardClasses =
+  "space-y-4 bg-white rounded-2xl border border-gray-200 shadow p-6";
+
 interface AddServiceModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -315,7 +318,7 @@ export default function AddServiceModal({
                     </div>
                   )}
                   {step === 1 && (
-                    <div className="space-y-4 bg-white rounded-2xl border border-gray-200 shadow p-6">
+                    <div className={stepCardClasses}>
                       <h2 className="text-xl font-semibold">Service Details</h2>
                       <TextInput
                         label="Service Title"
@@ -382,7 +385,7 @@ export default function AddServiceModal({
                     </div>
                   )}
                   {step === 2 && (
-                    <div className="bg-white rounded-2xl border border-gray-200 shadow p-6">
+                    <div className={stepCardClasses}>
                       <h2 className="text-xl font-semibold mb-4">Upload Media</h2>
                       <p className="text-sm text-gray-600 mb-2">
                         Use high-resolution images or short video clips (at least
@@ -452,7 +455,7 @@ export default function AddServiceModal({
                     </div>
                   )}
                   {step === 3 && (
-                    <div className="space-y-4 bg-white rounded-2xl border border-gray-200 shadow p-6">
+                    <div className={stepCardClasses}>
                       <h2 className="text-xl font-semibold">
                         Packages & Pricing
                       </h2>
@@ -505,7 +508,7 @@ export default function AddServiceModal({
                     </div>
                   )}
                   {step === 4 && (
-                    <div className="space-y-4 bg-white rounded-2xl border border-gray-200 shadow p-6">
+                    <div className={stepCardClasses}>
                       <h2 className="text-xl font-semibold">
                         Review Your Service
                       </h2>
@@ -560,12 +563,12 @@ export default function AddServiceModal({
                     </div>
                   )}
                 </form>
-                <div className="flex-shrink-0 border-t border-gray-100 p-6 flex justify-between">
+                <div className="flex-shrink-0 border-t border-gray-100 p-6 flex flex-col-reverse sm:flex-row sm:justify-between gap-2">
                   <Button
                     variant="outline"
                     onClick={step === 0 ? handleCancel : prev}
                     data-testid="back"
-                    className="px-6 py-3"
+                    className="w-full sm:w-auto min-h-[44px]"
                   >
                     {step === 0 ? 'Cancel' : 'Back'}
                   </Button>
@@ -574,7 +577,7 @@ export default function AddServiceModal({
                       onClick={next}
                       disabled={nextDisabled()}
                       data-testid="next"
-                      className="px-6 py-3"
+                      className="w-full sm:w-auto min-h-[44px]"
                     >
                       Next
                     </Button>
@@ -585,7 +588,7 @@ export default function AddServiceModal({
                       form="add-service-form"
                       disabled={publishing || isSubmitting || nextDisabled()}
                       isLoading={publishing || isSubmitting}
-                      className="px-6 py-3"
+                      className="w-full sm:w-auto min-h-[44px]"
                     >
                       Publish
                     </Button>
