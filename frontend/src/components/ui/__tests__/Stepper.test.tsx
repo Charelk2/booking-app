@@ -138,4 +138,16 @@ describe('Stepper progress bar', () => {
     expect(button.className).toContain('focus-visible:ring-2');
     expect(button.className).toContain('focus-visible:ring-[var(--brand-color-dark)]');
   });
+
+  it('supports the neutral variant', () => {
+    act(() => {
+      root.render(
+        <Stepper steps={["One", "Two"]} currentStep={1} variant="neutral" />,
+      );
+    });
+    const circles = container.querySelectorAll('div.relative');
+    const activeCircle = circles[1] as HTMLDivElement;
+    expect(activeCircle.className).toContain('border-gray-900');
+    expect(activeCircle.className).toContain('border-2');
+  });
 });

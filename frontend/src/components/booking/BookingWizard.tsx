@@ -329,6 +329,7 @@ export default function BookingWizard({
           maxStepCompleted={maxStepCompleted}
           onStepClick={handleStepClick}
           ariaLabel={`Progress: step ${step + 1} of ${steps.length}`}
+          variant="neutral"
         />
         <div
           aria-live="polite"
