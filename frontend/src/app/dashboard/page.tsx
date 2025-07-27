@@ -72,7 +72,7 @@ function ServiceCard({
     <div
       style={style}
       className={clsx(
-        'relative p-4 rounded-lg bg-gray-50 border border-gray-200 shadow-sm focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2',
+        'relative p-4 rounded-xl bg-gray-50 border border-gray-200 shadow-md transition-shadow hover:shadow-lg active:shadow-lg focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2',
         isDragging && 'ring-2 ring-brand-light bg-brand-light',
       )}
     >
