@@ -24,7 +24,6 @@ export default function GuestsStep({
   const isMobile = useIsMobile();
   return (
     <div className="wizard-step-container">
-      <p className="instruction-text">How many people?</p>
       <Controller
         name="guests"
         control={control}
