@@ -63,7 +63,9 @@
 
 /* Hover effect for navigation buttons */
 .react-datepicker__navigation:hover {
-  background-color: #f3f4f6; /* Equivalent to Tailwind's hover:bg-gray-100 */
+  background-color: var(
+    --color-gray-100
+  ); /* Equivalent to Tailwind's hover:bg-gray-100 */
   border-radius: 9999px; /* Equivalent to Tailwind's rounded-full */
   transition: background-color 0.2s ease;
 }
@@ -91,7 +93,7 @@
   line-height: 2.25rem; /* Centers text vertically */
   font-size: 0.875rem; /* Equivalent to Tailwind's text-sm */
   text-align: center;
-  color: #374151; /* Equivalent to Tailwind's text-gray-700 */
+  color: var(--color-gray-700); /* Equivalent to Tailwind's text-gray-700 */
   border-radius: 0.5rem; /* Slight rounding for day cells */
   transition: background-color 0.2s ease;
   cursor: pointer; /* Ensures pointer cursor on days */
@@ -105,7 +107,9 @@
 
 /* Hover effect for individual day numbers */
 .react-datepicker__day:hover {
-  background-color: #f3f4f6; /* Equivalent to Tailwind's hover:bg-gray-100 */
+  background-color: var(
+    --color-gray-100
+  ); /* Equivalent to Tailwind's hover:bg-gray-100 */
 }
 
 /* Styles for the selected day or keyboard-selected day */
@@ -121,7 +125,7 @@
 
 /* Styles for disabled days (e.g., days outside the min/max date range) */
 .react-datepicker__day--disabled {
-  color: #cbd5e1; /* Tailwind's text-gray-400 */
+  color: var(--color-gray-400); /* Tailwind's text-gray-400 */
   cursor: not-allowed;
 }
 .react-datepicker__day--disabled:hover {
@@ -130,5 +134,5 @@
 
 /* Styles for days of the previous or next month that are visible */
 .react-datepicker__day--outside-month {
-  color: #9ca3af; /* Tailwind's text-gray-500 */
+  color: var(--color-gray-500); /* Tailwind's text-gray-500 */
 }
