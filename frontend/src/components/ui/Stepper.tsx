@@ -43,9 +43,9 @@ export default function Stepper({
             className={clsx(
               'relative flex items-center justify-center w-5 h-5 rounded-full border',
               isCompleted
-                ? 'bg-[#FF5A5F] border-[#FF5A5F] text-white'
+                ? 'bg-[var(--brand-color)] border-2 border-[var(--brand-color)] text-white'
                 : isActive
-                  ? 'bg-white border-[#FF5A5F] text-[#FF5A5F]'
+                  ? 'bg-white border-2 border-[var(--brand-color)] text-[var(--brand-color)]'
                   : 'bg-white border-gray-300 text-gray-400',
             )}
           >
@@ -57,7 +57,7 @@ export default function Stepper({
           <span
             className={clsx(
               'mt-1 text-xs font-semibold',
-              isActive ? 'text-[#FF5A5F]' : 'text-gray-500',
+              isActive ? 'text-[var(--brand-color)]' : 'text-gray-500',
             )}
           >
             {label}
