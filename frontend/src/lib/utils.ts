@@ -71,6 +71,13 @@ export const normalizeService = (service: Service): Service => ({
       : service.duration_minutes,
 });
 
+/**
+ * Apply sequential display_order values to the provided services.
+ * The returned array maintains the input order.
+ */
+export const applyDisplayOrder = (services: Service[]): Service[] =>
+  services.map((s, i) => ({ ...s, display_order: i + 1 }));
+
 export const normalizeQuoteTemplate = (
   tmpl: QuoteTemplate,
 ): QuoteTemplate => ({

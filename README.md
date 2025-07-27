@@ -45,6 +45,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - A **Leave Review** button now appears in chat when a completed booking has no review.
 - After accepting a quote, clients see quick links in the chat to view that booking, pay the deposit, and add it to a calendar.
 - Artists can upload multiple portfolio images and reorder them via drag-and-drop. Use `POST /api/v1/artist-profiles/me/portfolio-images` to upload and `PUT /api/v1/artist-profiles/me/portfolio-images` to save the order.
+- Artists can also drag and drop service cards on the dashboard to set their display order.
 - Quote modal items can now be removed even when only one item is present.
 - Clients can upload and crop a profile picture via `/api/v1/users/me/profile-picture`; chat messages and notifications will show the artist or client avatar when available.
 - The client user menu now links to an **Account** page where you can update your profile picture, export data, or delete the account.
