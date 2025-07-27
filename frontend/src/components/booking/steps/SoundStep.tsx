@@ -1,12 +1,7 @@
 'use client';
 import { Control, Controller, FieldValues } from 'react-hook-form';
+import { Button } from '../../ui';
 import WizardNav from '../WizardNav';
-import clsx from 'clsx';
-
-const SOUND_OPTIONS = [
-  { value: 'yes', label: 'Yes' },
-  { value: 'no', label: 'No' },
-];
 
 interface Props {
   control: Control<FieldValues>;
@@ -32,44 +27,28 @@ export default function SoundStep({
         name="sound"
         control={control}
         render={({ field }) => (
-          <fieldset className="space-y-4">
-            <legend className="font-medium sr-only">Is sound needed?</legend>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {SOUND_OPTIONS.map((option) => (
-                <label
-                  key={option.value}
-                  htmlFor={field.name + '-' + option.value}
-                  className={clsx(
-                    'block cursor-pointer border rounded-lg p-4 transition-all duration-200 ease-in-out',
-                    'hover:border-gray-400 hover:shadow-sm',
-                    {
-                      'border-brand bg-brand-light': field.value === option.value,
-                      'border-gray-200 bg-white': field.value !== option.value,
-                    },
-                  )}
-                >
-                  <input
-                    type="radio"
-                    id={field.name + '-' + option.value}
-                    name={field.name}
-                    value={option.value}
-                    checked={field.value === option.value}
-                    onChange={(e) => {
-                      field.onChange(e.target.value);
-                    }}
-                    className="sr-only"
-                  />
-                  <span
-                    className={clsx('font-medium text-lg', {
-                      'text-brand': field.value === option.value,
-                      'text-gray-900': field.value !== option.value,
-                    })}
-                  >
-                    {option.label}
-                  </span>
-                </label>
-              ))}
-            </div>
+          <fieldset className="space-y-2">
+            <legend className="font-medium">Is sound needed?</legend>
+            <label className="flex items-center space-x-2 py-2">
+              <input
+                type="radio"
+                name={field.name}
+                value="yes"
+                checked={field.value === 'yes'}
+                onChange={(e) => field.onChange(e.target.value)}
+              />
+              <span>Yes</span>
+            </label>
+            <label className="flex items-center space-x-2 py-2">
+              <input
+                type="radio"
+                name={field.name}
+                value="no"
+                checked={field.value === 'no'}
+                onChange={(e) => field.onChange(e.target.value)}
+              />
+              <span>No</span>
+            </label>
           </fieldset>
         )}
       />
