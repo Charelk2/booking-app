@@ -5,11 +5,7 @@ import ReactDatePicker from 'react-datepicker';
 
 import '../../styles/datepicker.css';
 import { Listbox, Transition } from '@headlessui/react';
-import {
-  ChevronDownIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from '@heroicons/react/24/outline';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import LocationInput from '../ui/LocationInput';
 import { UI_CATEGORIES } from '@/lib/categoryMap';
@@ -18,8 +14,8 @@ import { UI_CATEGORIES } from '@/lib/categoryMap';
 export type Category = (typeof UI_CATEGORIES)[number];
 
 export interface SearchFieldsProps {
-  category: Category;
-  setCategory: (c: Category) => void;
+  category: Category | null;
+  setCategory: (c: Category | null) => void;
   location: string;
   setLocation: (l: string) => void;
   when: Date | null;
@@ -29,17 +25,24 @@ export interface SearchFieldsProps {
 type CustomHeaderProps = typeof import('react-datepicker')['ReactDatePickerCustomHeaderProps'];
 
 export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
-  ({ category, setCategory, location, setLocation, when, setWhen }, _ref) => { // Added _ref parameter
-    return ( // Added return statement
+  ({ category, setCategory, location, setLocation, when, setWhen }, _ref) => {
+    return (
       <>
         {/* Category */}
         <div className="flex-1 px-4 py-3 flex flex-col text-left">
           <span className="text-xs text-gray-500">Category</span>
           <Listbox value={category} onChange={setCategory}>
             <div className="relative w-full">
-              <Listbox.Button className="mt-1 w-full flex justify-between items-center text-sm text-gray-700 focus:outline-none">
-                <span>{category.label}</span>
-                <ChevronDownIcon className="h-4 w-4 text-gray-400" />
+              <Listbox.Button className="mt-1 w-full text-sm bg-transparent focus:outline-none flex items-center">
+                <span
+                  className={clsx(
+                    'w-full text-left',
+                    { 'text-gray-400': category === null },
+                    { 'text-gray-700': category !== null }
+                  )}
+                >
+                  {category ? category.label : 'Choose category'}
+                </span>
               </Listbox.Button>
               <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
                 <Listbox.Options className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5">
@@ -70,6 +73,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             onValueChange={setLocation}
             onPlaceSelect={() => {}}
             placeholder="City or venue"
+            inputClassName="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none"
           />
         </div>
 
@@ -83,7 +87,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             onChange={(d: Date | null) => setWhen(d)}
             dateFormat="MMM d, yyyy"
             placeholderText="Add date"
-            className="mt-1 w-full text-sm text-gray-700 focus:outline-none"
+            className="mt-1 w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none"
             renderCustomHeader={({
               date,
               decreaseMonth,
@@ -122,7 +126,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           />
         </div>
       </>
-    ); // Added closing parenthesis and semicolon for return statement
+    );
   }
 );
 SearchFields.displayName = 'SearchFields';
