@@ -1,0 +1,59 @@
+# Design Guidelines
+
+This document summarizes the design system used across the Booking App. It covers layout spacing, typography, the color palette, and common UI components.
+
+## Layout Spacing
+
+All spacing is based on a **4&nbsp;px** scale so margins and padding remain consistent. Common increments include `4px`, `8px`, `12px`, `16px`, `24px` and `32px`. Components use Tailwind utility classes such as `p-4`, `py-8` or `gap-6` to keep layouts aligned.
+
+## Typography Hierarchy
+
+Headings follow a clear typographic hierarchy:
+
+| Element | Size | Weight |
+|---------|------|--------|
+| `h1`    | `2rem` (32px) | `700` |
+| `h2`    | `1.5rem` (24px) | `600` |
+| `h3`    | `1.25rem` (20px) | `600` |
+| Body    | `1rem` (16px) | `400` |
+
+The base font family is Inter via the CSS variable `--font-sans` defined in `globals.css`.
+
+## Color Palette
+
+The application uses a small brand palette:
+
+| Token | Hex |
+|-------|-----|
+| `--color-primary` | `#FF5A5F` |
+| `--color-secondary` | `#E04852` |
+| `--color-accent` | `#FF7A85` |
+| `--color-border` | `#FFD0D3` |
+| `--color-background` | `#ffffff` |
+| `--color-foreground` | `#111827` |
+
+These values power Tailwind classes such as `bg-brand`, `text-brand-dark` and `border-brand`. The light tint `--brand-color-light` (`#FFEAEA`) is used for subtle gradients.
+
+## Component Styles
+
+### Buttons
+
+Use the `Button` component with variants defined in `src/styles/buttonVariants.ts`:
+
+- **primary** – pink background, white text
+- **secondary** – white background, pink border
+- **outline** – transparent background, pink border
+- **danger** – red background for destructive actions
+- **link** – text-only button for inline actions
+
+Buttons use a `rounded-lg` radius and display a subtle shadow on hover.
+
+### Inputs
+
+`TextInput` in `src/components/ui` provides consistent padding, focus rings and optional error messages. Always include a label for accessibility.
+
+### Cards
+
+Cards use `rounded-xl` corners with a `shadow-sm` and `border` in the brand border color. They respect the same spacing scale so content aligns with other components.
+
+These guidelines ensure a cohesive look and feel as the app evolves.
