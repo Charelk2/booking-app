@@ -19,6 +19,8 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Further refined the price slider so both handles stay clickable even when they overlap.
 - Consolidated slider styling into Tailwind utilities, removing custom CSS from
   `globals.css` for simpler maintenance.
+- Animations now respect the user's `prefers-reduced-motion` setting via a
+  global rule in `globals.css`.
 - Homepage search now lives in the header on a light gray background.
 - Collapsed search bar truncates long locations with an ellipsis so the text never wraps.
 - Fixed an initial load bug where a selected date sent an invalid `when` value and caused a 422 error.
