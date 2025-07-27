@@ -31,7 +31,6 @@ export default function GuestsStep({
           <TextInput
             type="number"
             min={1}
-            label="Number of guests"
             className="input-base text-lg"
             {...field}
             autoFocus={!isMobile}
