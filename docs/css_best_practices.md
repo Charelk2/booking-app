@@ -31,6 +31,14 @@ typography and component patterns.
 - Use shorthand utilities such as `py-4` or `mx-8` and break long class
   lists across lines when necessary for readability.
 
+### Linting
+
+All CSS files are linted with [Stylelint](https://stylelint.io/).
+Run `npm run lint:css` from the `frontend` directory to check styles
+for common issues like invalid selectors or unknown properties.
+The configuration lives in `.stylelintrc.json` at the repository root
+and extends the `stylelint-config-standard` rules.
+
 ## Headless UI and Heroicons
 
 - Modal dialogs, menus and transitions use Headless UI components with
