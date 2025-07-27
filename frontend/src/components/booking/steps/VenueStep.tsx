@@ -35,7 +35,6 @@ export default function VenueStep({
 
   return (
     <div className="wizard-step-container">
-      <p className="instruction-text">What type of venue is it?</p>
       <Controller
         name="venueType"
         control={control}

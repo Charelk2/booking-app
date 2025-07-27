@@ -41,6 +41,16 @@ const steps = [
   'Review',
 ];
 
+const instructions = [
+  'When should we perform?',
+  'Where is the show?',
+  'How many people?',
+  'What type of venue is it?',
+  'Will sound equipment be needed?',
+  'Anything else we should know?',
+  'Please confirm the information above before sending your request.',
+];
+
 const schema = yup.object({
   date: yup.date().required().min(new Date(), 'Pick a future date'),
   location: yup.string().required('Location is required'),
@@ -359,6 +369,7 @@ export default function BookingWizard({
                   >
                     {label}
                   </h2>
+                  <p className="instruction-text mb-2">{instructions[i]}</p>
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={step}
@@ -392,6 +403,7 @@ export default function BookingWizard({
           >
             {steps[step]}
           </h2>
+          <p className="instruction-text mb-2">{instructions[step]}</p>
           <AnimatePresence mode="wait">
             <motion.div
               key={step}

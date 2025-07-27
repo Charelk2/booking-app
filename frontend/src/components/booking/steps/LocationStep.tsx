@@ -113,7 +113,6 @@ export default function LocationStep({
 
   return (
     <div className="wizard-step-container">
-      <p className="instruction-text">Where is the show?</p>
       <div ref={containerRef}>
         {shouldLoadMap ? (
           <GoogleMapsLoader>
