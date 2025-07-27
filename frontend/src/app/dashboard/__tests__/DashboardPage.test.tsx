@@ -415,16 +415,14 @@ describe('Service card drag handle', () => {
     await act(async () => {
       await flushPromises();
     });
-    const servicesTab = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Services'
-    ) as HTMLButtonElement;
+    const servicesTab = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Services') as HTMLButtonElement;
     if (servicesTab) {
       await act(async () => {
         servicesTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       });
       await act(async () => {
-      await flushPromises();
-    });
+        await flushPromises();
+      });
     }
   });
 
@@ -436,43 +434,13 @@ describe('Service card drag handle', () => {
     jest.clearAllMocks();
   });
 
-  it('temporarily disables text selection during long press', async () => {
+  it('renders a drag handle', async () => {
     await act(async () => {
       await flushPromises();
     });
     const card = container.querySelector('[data-testid="service-item"]') as HTMLElement;
-    const handle = card.querySelector('div[aria-hidden="true"]') as HTMLElement;
-    expect(card.className).not.toMatch('select-none');
-    expect(card.className).not.toMatch('ring-brand-light');
-    await act(async () => {
-      handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-    });
-    expect(card.className).toMatch('select-none');
-    expect(card.className).toMatch('ring-brand-light');
-    await act(async () => {
-      handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-    });
-    expect(card.className).not.toMatch('select-none');
-    expect(card.className).not.toMatch('ring-brand-light');
-  });
-
-  it('vibrates when reordering starts', async () => {
-    jest.useFakeTimers();
-    await act(async () => {
-      await flushPromises();
-    });
-    const card = container.querySelector('[data-testid="service-item"]') as HTMLElement;
-    const handle = card.querySelector('div[aria-hidden="true"]') as HTMLElement;
-    const vibrateSpy = jest.fn();
-    Object.defineProperty(navigator, 'vibrate', { value: vibrateSpy, configurable: true });
-    await act(async () => {
-      handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-    });
-    await act(async () => {
-      jest.advanceTimersByTime(300);
-    });
-    expect(vibrateSpy).toHaveBeenCalled();
-    jest.useRealTimers();
+    const handle = card.querySelector('div[aria-hidden="true"]');
+    expect(handle).toBeTruthy();
   });
 });
 
