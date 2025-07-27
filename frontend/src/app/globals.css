@@ -22,6 +22,11 @@
   --dashboard-accent: #ff6347;
   /* 10% tint of the accent color for subtle backgrounds */
   --color-accent-10: rgb(255 122 133 / 0.1);
+  /* neutral grays used across components */
+  --color-gray-100: #f3f4f6;
+  --color-gray-400: #cbd5e1;
+  --color-gray-500: #9ca3af;
+  --color-gray-700: #374151;
 }
 
 @layer base {
