@@ -27,7 +27,6 @@ export default function SoundStep({
         control={control}
         render={({ field }) => (
           <fieldset className="space-y-2">
-            <legend className="font-medium">Is sound needed?</legend>
             <div>
               <input
                 id="sound-yes"

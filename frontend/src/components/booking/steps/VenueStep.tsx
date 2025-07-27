@@ -60,7 +60,6 @@ export default function VenueStep({
                   testId="bottom-sheet"
                 >
                   <fieldset className="p-4 space-y-2">
-                    <legend className="font-medium">Venue Type</legend>
                     {options.map((opt, idx) => (
                       <div key={opt.value}>
                         <input
@@ -89,7 +88,6 @@ export default function VenueStep({
               </>
             ) : (
               <fieldset className="space-y-2">
-                <legend className="font-medium">Venue Type</legend>
                 {options.map((opt) => (
                   <div key={opt.value}>
                     <input
