@@ -4,7 +4,6 @@ import { useState, useRef } from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
 import { BottomSheet, Button } from '../../ui';
 import WizardNav from '../WizardNav';
-import clsx from 'clsx';
 
 interface Props {
   control: Control<FieldValues>;
@@ -83,42 +82,20 @@ export default function VenueStep({
                 </BottomSheet>
               </>
             ) : (
-              <fieldset className="space-y-4">
-                <legend className="font-medium sr-only">Venue Type</legend>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {options.map((opt) => (
-                    <label
-                      key={opt.value}
-                      htmlFor={field.name + '-' + opt.value}
-                      className={clsx(
-                        'block cursor-pointer border rounded-lg p-4 transition-all duration-200 ease-in-out',
-                        'hover:border-gray-400 hover:shadow-sm',
-                        {
-                          'border-brand bg-brand-light': field.value === opt.value,
-                          'border-gray-200 bg-white': field.value !== opt.value,
-                        },
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        id={field.name + '-' + opt.value}
-                        name={field.name}
-                        value={opt.value}
-                        checked={field.value === opt.value}
-                        onChange={(e) => field.onChange(e.target.value)}
-                        className="sr-only"
-                      />
-                      <span
-                        className={clsx('font-medium text-lg', {
-                          'text-brand': field.value === opt.value,
-                          'text-gray-900': field.value !== opt.value,
-                        })}
-                      >
-                        {opt.label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
+              <fieldset className="space-y-2">
+                <legend className="font-medium">Venue Type</legend>
+                {options.map((opt) => (
+                  <label key={opt.value} className="flex items-center space-x-2 py-2">
+                    <input
+                      type="radio"
+                      name={field.name}
+                      value={opt.value}
+                      checked={field.value === opt.value}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                    <span>{opt.label}</span>
+                  </label>
+                ))}
               </fieldset>
             )}
           </>
