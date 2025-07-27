@@ -89,7 +89,7 @@ html[data-headlessui-focus-visible] {
   }
 
   .selectable-card-input {
-    @apply peer sr-only;
+    @apply sr-only;
   }
 
   .selectable-card {
