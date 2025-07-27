@@ -6,6 +6,7 @@ import { uploadBookingAttachment } from '@/lib/api';
 import toast from '../../ui/Toast';
 import { useState } from 'react';
 import { Button } from '../../ui';
+import WizardNav from '../WizardNav';
 
 interface Props {
   control: Control<FieldValues>;
@@ -97,37 +98,14 @@ export default function NotesStep({
           <span className="text-xs">{progress}%</span>
         </div>
       )}
-      <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
-        {step > 0 && (
-          <Button
-            type="button"
-            onClick={onBack}
-            variant="secondary"
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            Back
-          </Button>
-        )}
-
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
-          <Button
-            type="button"
-            onClick={onSaveDraft}
-            variant="secondary"
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            Save Draft
-          </Button>
-          <Button
-            type="button"
-            onClick={onNext}
-            disabled={uploading}
-            className={`w-full sm:w-auto min-h-[44px] ${uploading ? 'cursor-not-allowed opacity-50' : ''}`}
-          >
-            {step === steps.length - 1 ? 'Submit Request' : 'Next'}
-          </Button>
-        </div>
-      </div>
+      <WizardNav
+        step={step}
+        steps={steps}
+        onBack={onBack}
+        onSaveDraft={onSaveDraft}
+        onNext={onNext}
+        submitting={uploading}
+      />
     </div>
   );
 }
