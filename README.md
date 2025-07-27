@@ -1237,3 +1237,13 @@ get assistance.
 
 Dedicated **FAQ** and **Contact** pages provide self-service help. They are
 accessible from the main navigation on desktop and through the mobile menu.
+
+### Design Guidelines
+
+For an overview of layout spacing, typography and component styles, see
+[docs/design_guidelines.md](docs/design_guidelines.md).
+
+## Contributing
+
+Before opening a pull request, run `./scripts/test-all.sh` to execute the
+backend and frontend test suites.

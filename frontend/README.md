@@ -34,6 +34,8 @@ The `Stepper` progress bar highlights the active step with `bg-brand` and `text-
 
 Primary, secondary and outline buttons now use the brand color for borders and background with a subtle shadow hover transition.
 
+See [../docs/design_guidelines.md](../docs/design_guidelines.md) for a summary of spacing, typography and component styles.
+
 ### Loading Indicators
 
 `Spinner` and `SkeletonList` components in `src/components/ui` provide
