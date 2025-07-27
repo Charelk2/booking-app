@@ -459,7 +459,11 @@ This script installs Python requirements from `backend/requirements.txt` **and**
 ```bash
 cd frontend
 npm run lint
+npm run lint:css
 ```
+Run `lint` to check TypeScript and JavaScript files with ESLint.
+The `lint:css` script uses Stylelint to enforce consistent
+conventions across our CSS files.
 
 ### Testing
 
