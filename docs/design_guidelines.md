@@ -25,12 +25,12 @@ The application uses a small brand palette:
 
 | Token | Hex |
 |-------|-----|
-| `--color-brand-primary` | `#FF5A5F` |
-| `--brand-color-dark` | `#E04A4F` |
-| `--color-accent` | `#FF5A5F` |
-| `--color-border` | `#EBEBEB` |
-| `--color-background` | `#FFFFFF` |
-| `--color-foreground` | `#222222` |
+| `--color-primary` | `#FF5A5F` |
+| `--color-secondary` | `#E04852` |
+| `--color-accent` | `#FF7A85` |
+| `--color-border` | `#FFD0D3` |
+| `--color-background` | `#ffffff` |
+| `--color-foreground` | `#111827` |
 
 These values power Tailwind classes such as `bg-brand`, `text-brand-dark` and `border-brand`. The light tint `--brand-color-light` (`#FFEAEA`) is used for subtle gradients.
 
