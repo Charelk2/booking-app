@@ -9,7 +9,9 @@ typography and component patterns.
 - Theme values such as colors and spacing are defined in
   `frontend/tailwind.config.js` using semantic names
   (`primary`, `secondary`, `accent`). Utility classes refer to these tokens
-  so colors and sizes stay consistent across the app.
+  so colors and sizes stay consistent across the app. Neutral grays like
+  `--color-gray-100` and `--color-gray-700` are also defined to avoid
+  scattering hard-coded gray values throughout stylesheets.
 - Update a token in the config to change its value everywhere.
   Avoid hard–coding hex values or pixel numbers in JSX.
 
@@ -58,4 +60,3 @@ typography and component patterns.
 - Could repeated class strings be moved into a shared component?
 
 Following these practices helps the codebase scale as features grow.
-
