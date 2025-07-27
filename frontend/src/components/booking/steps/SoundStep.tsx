@@ -21,17 +21,18 @@ export default function SoundStep({
   onNext,
 }: Props) {
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-600">Will sound equipment be needed?</p>
+    <div className="wizard-step-container">
+      <p className="instruction-text">Will sound equipment be needed?</p>
       <Controller
         name="sound"
         control={control}
         render={({ field }) => (
           <fieldset className="space-y-2">
             <legend className="font-medium">Is sound needed?</legend>
-            <label className="flex items-center space-x-2 py-2">
+            <label className="selectable-card">
               <input
                 type="radio"
+                className="selectable-card-input"
                 name={field.name}
                 value="yes"
                 checked={field.value === 'yes'}
@@ -39,9 +40,10 @@ export default function SoundStep({
               />
               <span>Yes</span>
             </label>
-            <label className="flex items-center space-x-2 py-2">
+            <label className="selectable-card">
               <input
                 type="radio"
+                className="selectable-card-input"
                 name={field.name}
                 value="no"
                 checked={field.value === 'no'}
