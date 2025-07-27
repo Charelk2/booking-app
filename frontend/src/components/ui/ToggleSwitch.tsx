@@ -1,6 +1,6 @@
-'use client';
-import { Switch } from '@headlessui/react';
-import clsx from 'clsx';
+"use client";
+import { Switch } from "@headlessui/react";
+import clsx from "clsx";
 
 interface ToggleSwitchProps {
   checked: boolean;
@@ -16,13 +16,13 @@ export default function ToggleSwitch({
   className,
 }: ToggleSwitchProps) {
   return (
-    <Switch.Group as="div" className={clsx('flex items-center', className)}>
+    <Switch.Group as="div" className={clsx("flex items-center", className)}>
       <Switch
         checked={checked}
         onChange={onChange}
         className={clsx(
-          checked ? 'bg-[#FF5A5F]' : 'bg-gray-200',
-          'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A5F]',
+          checked ? "bg-brand" : "bg-gray-200",
+          "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand",
         )}
         data-testid="toggle-unread"
       >
@@ -30,13 +30,15 @@ export default function ToggleSwitch({
         <span
           aria-hidden="true"
           className={clsx(
-            checked ? 'translate-x-6' : 'translate-x-1',
-            'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition',
+            checked ? "translate-x-6" : "translate-x-1",
+            "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition",
           )}
         />
       </Switch>
       {label && (
-        <Switch.Label className="ml-2 text-sm text-gray-700">{label}</Switch.Label>
+        <Switch.Label className="ml-2 text-sm text-gray-700">
+          {label}
+        </Switch.Label>
       )}
     </Switch.Group>
   );
