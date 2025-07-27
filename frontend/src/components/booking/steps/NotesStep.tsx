@@ -54,8 +54,8 @@ export default function NotesStep({
     }
   }
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-600">Anything else we should know?</p>
+    <div className="wizard-step-container">
+      <p className="instruction-text">Anything else we should know?</p>
       <label className="block text-sm font-medium">Extra notes</label>
       <Controller
         name="notes"
@@ -63,7 +63,7 @@ export default function NotesStep({
         render={({ field }) => (
           <textarea
             rows={3}
-            className="border p-2 rounded w-full min-h-[44px]"
+            className="input-base"
             {...field}
             autoFocus={!isMobile}
           />
@@ -78,7 +78,7 @@ export default function NotesStep({
       <input
         type="file"
         aria-label="Upload attachment"
-        className="min-h-[44px]"
+        className="input-base"
         onChange={handleFileChange}
       />
       {uploading && (

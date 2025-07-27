@@ -21,11 +21,11 @@ export default function ReviewStep({
   submitting,
 }: Props) {
   return (
-    <div className="space-y-4">
-      <SummarySidebar />
-      <p className="text-gray-600 text-sm">
+    <div className="wizard-step-container">
+      <p className="instruction-text">
         Please confirm the information above before sending your request.
       </p>
+      <SummarySidebar />
       <WizardNav
         step={step}
         steps={steps}
