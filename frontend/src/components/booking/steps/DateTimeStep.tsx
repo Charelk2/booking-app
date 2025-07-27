@@ -6,6 +6,7 @@ import 'react-calendar/dist/Calendar.css';
 import { format, parseISO } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import useIsMobile from '@/hooks/useIsMobile';
+import { DateInput } from '../../ui';
 
 interface Props {
   control: Control<FieldValues>;
@@ -54,15 +55,14 @@ export default function DateTimeStep({
                 ? parseISO(field.value)
                 : field.value;
             return isMobile ? (
-              <input
-                type="date"
-                className="input-base"
+              <DateInput
                 min={format(new Date(), 'yyyy-MM-dd')}
                 name={field.name}
                 ref={field.ref}
                 onBlur={field.onBlur}
                 value={currentValue ? format(currentValue, 'yyyy-MM-dd') : ''}
                 onChange={(e) => field.onChange(e.target.value)}
+                inputClassName="input-base"
               />
             ) : (
               <div className="mx-auto w-fit border border-gray-200 rounded-lg hover:shadow-lg">
