@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, status, UploadFile, File
 from sqlalchemy.orm import Session, selectinload
 from pydantic import BaseModel
 
@@ -24,6 +24,7 @@ from ..schemas.message import MessageResponse
 from .dependencies import get_current_user
 from ..utils.auth import verify_password
 from ..utils.email import send_email
+from ..utils import error_response
 
 router = APIRouter(tags=["users"])
 logger = logging.getLogger(__name__)
@@ -47,16 +48,17 @@ def export_me(
             selectinload(Booking.client),
             selectinload(Booking.source_quote),
         )
-        .filter((Booking.client_id == current_user.id) | (Booking.artist_id == current_user.id))
+        .filter(
+            (Booking.client_id == current_user.id)
+            | (Booking.artist_id == current_user.id)
+        )
         .all()
     )
 
     booking_data = []
     for b in bookings:
         simple = (
-            db.query(BookingSimple)
-            .filter(BookingSimple.quote_id == b.quote_id)
-            .first()
+            db.query(BookingSimple).filter(BookingSimple.quote_id == b.quote_id).first()
         )
         data = BookingResponse.model_validate(b).model_dump()
         if simple:
@@ -108,9 +110,10 @@ async def upload_profile_picture_me(
     """POST /api/v1/users/me/profile-picture"""
 
     if file.content_type not in ALLOWED_PROFILE_PIC_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid image type. Allowed: {ALLOWED_PROFILE_PIC_TYPES}",
+        raise error_response(
+            f"Invalid image type. Allowed: {ALLOWED_PROFILE_PIC_TYPES}",
+            {"file": "invalid_type"},
+            status.HTTP_400_BAD_REQUEST,
         )
 
     try:
@@ -130,7 +133,9 @@ async def upload_profile_picture_me(
                 try:
                     old_file.unlink()
                 except OSError as e:
-                    logger.warning("Error deleting old profile picture %s: %s", old_file, e)
+                    logger.warning(
+                        "Error deleting old profile picture %s: %s", old_file, e
+                    )
 
         current_user.profile_picture_url = f"/static/profile_pics/{unique_filename}"
         db.add(current_user)
@@ -138,12 +143,18 @@ async def upload_profile_picture_me(
         db.refresh(current_user)
         return current_user
     except Exception as e:
-        if 'file_path' in locals() and file_path.exists():
+        if "file_path" in locals() and file_path.exists():
             try:
                 file_path.unlink()
             except OSError as cleanup_err:
-                logger.warning("Error cleaning up profile picture %s: %s", file_path, cleanup_err)
-        raise HTTPException(status_code=500, detail=f"Could not upload profile picture: {e}")
+                logger.warning(
+                    "Error cleaning up profile picture %s: %s", file_path, cleanup_err
+                )
+        raise error_response(
+            f"Could not upload profile picture: {e}",
+            {"file": "upload_failed"},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
     finally:
         await file.close()
 
@@ -160,14 +171,19 @@ def delete_me(
 ) -> None:
     """Delete the current user's account after password confirmation."""
     if not verify_password(payload.password, current_user.password):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Incorrect password")
+        raise error_response(
+            "Incorrect password",
+            {"password": "incorrect"},
+            status.HTTP_403_FORBIDDEN,
+        )
 
     email = current_user.email
     db.delete(current_user)
     db.commit()
     try:
-        send_email(email, "Account deleted", "Your account has been permanently deleted.")
+        send_email(
+            email, "Account deleted", "Your account has been permanently deleted."
+        )
     except Exception as exc:  # pragma: no cover - email failure shouldn't block
         logger.error("Failed to send deletion email: %s", exc)
     return None
-

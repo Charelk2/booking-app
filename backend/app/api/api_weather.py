@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 import logging
 
 from ..utils.errors import error_response
@@ -17,4 +17,8 @@ def travel_forecast(location: str = Query(..., min_length=1)):
         raise error_response("Invalid location", {"location": "Unknown location"})
     except weather_service.WeatherAPIError as exc:  # pragma: no cover - network
         logger.error("Weather API error for %s: %s", location, exc, exc_info=True)
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail="Weather service error")
+        raise error_response(
+            "Weather service error",
+            {},
+            status.HTTP_502_BAD_GATEWAY,
+        )
