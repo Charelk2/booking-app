@@ -788,6 +788,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Venue picker uses a reusable `<BottomSheet>` component on small screens to
   avoid keyboard overlap. The sheet traps focus for accessibility and closes when
   you press `Escape` or tap outside.
+* Sound and venue type buttons now correctly reflect the selected option and are
+  included in the booking summary.
 * Input fields no longer auto-focus on mobile so the on-screen keyboard stays hidden until tapped.
 * Summary sidebar collapses into a `<details>` section on phones so you can hide the order overview.
 * Steps now animate with **framer-motion** and the progress dots stay clickable for all completed steps.
