@@ -881,6 +881,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * A short vibration cues the start of reordering on devices that support it, using a persisted pointer event for reliability.
 * The handle blocks the context menu so long presses don't select text, applying `user-select: none` only during drag so you can still highlight service details normally.
 * Reordering keeps the first card below the **Your Services** heading by constraining drag movement to the list area.
+* The grid now transitions smoothly to a single column during drag and shows a "Drag up or down" hint.
 * Service deletion now requires confirmation to prevent mistakes.
 * **Add Service** button now opens a full-screen wizard. Steps appear in a coral-accented stepper with keyboard focus trapping. The final review mirrors earlier steps with image thumbnails before publishing.
 * Add Service wizard validates fields on each keystroke with dynamic hints like "Need 3 more characters" and the **Next** button enables automatically once inputs are valid.
