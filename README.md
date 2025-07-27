@@ -1222,9 +1222,9 @@ NEXT_PUBLIC_DEFAULT_CURRENCY=EUR
 ### Brand Colors
 
 The frontend uses a small **brand** palette defined in `tailwind.config.js`. The
-primary hue is indigo (`#6366f1`), with `brand-dark` and `brand-light` variants.
-Components reference these via utility classes such as `bg-brand` and
-`bg-brand-dark`.
+primary hue is now pink (`#FF5A5F`) with matching dark and light variants.
+These values are exposed as CSS variables in `globals.css` and referenced via
+utility classes such as `bg-brand` and `bg-brand-dark`.
 
 
 ### Help Prompt

@@ -23,14 +23,14 @@ module.exports = {
           light: 'var(--brand-color-light)',
         },
         wizard: {
-          step: '#6366f1',
+          step: 'var(--color-primary)',
           pending: '#e5e7eb',
         },
         primary: {
           DEFAULT: 'var(--color-primary)',
-          50: '#EEF2FF',
-          600: '#4F46E5',
-          700: '#4338CA',
+          50: '#FFEAEA',
+          600: '#FF5A5F',
+          700: '#E04852',
         },
         secondary: 'var(--color-secondary)',
         accent: 'var(--color-accent)',
