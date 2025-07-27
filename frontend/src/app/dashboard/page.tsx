@@ -34,78 +34,52 @@ import { Spinner, Button } from '@/components/ui';
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import QuickActionButton from "@/components/dashboard/QuickActionButton";
 import Link from "next/link";
-import { Reorder, useDragControls } from "framer-motion";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  rectSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Bars3Icon } from "@heroicons/react/24/outline";
 
 interface ServiceCardProps {
   service: Service;
-  dragConstraints: React.RefObject<HTMLDivElement>;
+  dragHandleProps?: React.HTMLAttributes<HTMLElement>;
+  style?: React.CSSProperties;
+  isDragging?: boolean;
   onEdit: (service: Service) => void;
   onDelete: (id: number) => void;
-  onDragEnd: () => void;
 }
 
 function ServiceCard({
   service,
-  dragConstraints,
+  dragHandleProps,
+  style,
+  isDragging,
   onEdit,
   onDelete,
-  onDragEnd,
 }: ServiceCardProps) {
-  const dragControls = useDragControls();
-  const pressTimer = useRef<NodeJS.Timeout | null>(null);
-  const [pressing, setPressing] = useState(false);
-
-  const startDrag = (event: React.PointerEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    event.persist();
-    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
-    setPressing(true);
-    pressTimer.current = setTimeout(() => {
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(10);
-      }
-      dragControls.start(event);
-    }, 300);
-  };
-
-  const cancelDrag = (event?: React.PointerEvent) => {
-    if (pressTimer.current) {
-      clearTimeout(pressTimer.current);
-      pressTimer.current = null;
-    }
-    if (event) {
-      (event.currentTarget as HTMLElement).releasePointerCapture?.(
-        event.pointerId
-      );
-    }
-    setPressing(false);
-  };
-
-  const handleDragEndItem = () => {
-    cancelDrag();
-    onDragEnd();
-  };
-
   return (
-    <Reorder.Item
-      key={service.id}
-      value={service}
-      onDragEnd={handleDragEndItem}
-      dragListener={false}
-      dragControls={dragControls}
-      dragConstraints={dragConstraints}
-      data-testid="service-item"
-      className={`relative p-4 rounded-lg bg-gray-50 border border-gray-200 shadow-sm focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 ${pressing ? 'select-none ring-2 ring-brand-light bg-brand-light' : ''}`}
+    <div
+      style={style}
+      className={clsx(
+        'relative p-4 rounded-lg bg-gray-50 border border-gray-200 shadow-sm focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2',
+        isDragging && 'ring-2 ring-brand-light bg-brand-light',
+      )}
     >
       <div
         className="absolute right-2 top-2 cursor-grab active:cursor-grabbing text-gray-400 touch-none z-10"
         aria-hidden="true"
-        onPointerDown={startDrag}
-        onPointerUp={cancelDrag}
-        onPointerCancel={cancelDrag}
-        onContextMenu={(e) => e.preventDefault()}
+        {...dragHandleProps}
       >
         <Bars3Icon className="h-5 w-5" />
       </div>
@@ -136,7 +110,38 @@ function ServiceCard({
           </button>
         </div>
       </div>
-    </Reorder.Item>
+    </div>
+  );
+}
+
+function SortableServiceCard({ service, onEdit, onDelete }: { service: Service; onEdit: (s: Service) => void; onDelete: (id: number) => void }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: service.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 100 : 'auto',
+    opacity: isDragging ? 0.8 : 1,
+  } as React.CSSProperties;
+
+  return (
+    <div ref={setNodeRef} data-testid="service-item">
+      <ServiceCard
+        service={service}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        dragHandleProps={{ ...attributes, ...listeners }}
+        style={style}
+        isDragging={isDragging}
+      />
+    </div>
   );
 }
 
@@ -314,7 +319,6 @@ export default function DashboardPage() {
   const [isReordering, setIsReordering] = useState(false);
   const [showReorderHint, setShowReorderHint] = useState(false);
   const hintTimer = useRef<NodeJS.Timeout | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
   // Store the most recent drag order so we persist the correct sequence
   const latestOrderRef = useRef<Service[]>([]);
 
@@ -332,22 +336,30 @@ export default function DashboardPage() {
       );
     }
   };
-  const handleReorder = (newOrder: Service[]) => {
-    const updated = applyDisplayOrder(newOrder);
-    latestOrderRef.current = updated;
-    if (!isReordering) {
-      setShowReorderHint(true);
-      if (hintTimer.current) clearTimeout(hintTimer.current);
-      hintTimer.current = setTimeout(() => setShowReorderHint(false), 1500);
-    }
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
+
+  const handleDragStart = () => {
     setIsReordering(true);
+    setShowReorderHint(true);
+    if (hintTimer.current) clearTimeout(hintTimer.current);
+    hintTimer.current = setTimeout(() => setShowReorderHint(false), 1500);
   };
 
-  const handleDragEnd = () => {
-    if (isReordering) {
-      setTimeout(() => setIsReordering(false), 200);
-      persistServiceOrder(latestOrderRef.current);
+  const handleDragEnd = (event: any) => {
+    setIsReordering(false);
+    const { active, over } = event;
+    if (!over || active.id === over.id) {
+      return;
     }
+    setServices((items) => {
+      const oldIndex = items.findIndex((s) => s.id === active.id);
+      const newIndex = items.findIndex((s) => s.id === over.id);
+      const reordered = arrayMove(items, oldIndex, newIndex);
+      const updated = applyDisplayOrder(reordered);
+      latestOrderRef.current = updated;
+      persistServiceOrder(updated);
+      return updated;
+    });
   };
 
   if (!user) {
@@ -623,29 +635,36 @@ export default function DashboardPage() {
           {user?.user_type === "artist" && activeTab === 'services' && (
             <section className="bg-white rounded-xl shadow-custom p-6 mb-10">
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Your Services</h2>
-              {isReordering && showReorderHint && (<div className="text-sm text-gray-600 mb-2" role="status">Drag up or down to reorder</div>)}
-                {services.length === 0 ? (
+              {isReordering && showReorderHint && (
+                <div className="text-sm text-gray-600 mb-2" role="status">
+                  Drag to reorder
+                </div>
+              )}
+              {services.length === 0 ? (
                 <p className="text-sm text-gray-500">No services yet</p>
               ) : (
-                <Reorder.Group
-                  ref={listRef}
-                  axis="y"
-                  values={services}
-                  onReorder={handleReorder}
-                  layoutScroll
-                    className={clsx("mt-2 grid gap-6 transition-all", isReordering ? "grid-cols-1 cursor-row-resize" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3")}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
                 >
-                  {services.map((service) => (
-                    <ServiceCard
-                      key={service.id}
-                      service={service}
-                      dragConstraints={listRef}
-                      onEdit={(s) => setEditingService(s)}
-                      onDelete={handleDeleteService}
-                      onDragEnd={handleDragEnd}
-                    />
-                  ))}
-                </Reorder.Group>
+                  <SortableContext
+                    items={services.map((s) => s.id)}
+                    strategy={rectSortingStrategy}
+                  >
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {services.map((service) => (
+                        <SortableServiceCard
+                          key={service.id}
+                          service={service}
+                          onEdit={(s) => setEditingService(s)}
+                          onDelete={handleDeleteService}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               )}
               <Button
                 type="button"
