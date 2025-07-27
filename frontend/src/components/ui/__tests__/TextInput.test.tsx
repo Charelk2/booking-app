@@ -53,4 +53,13 @@ describe('TextInput component', () => {
     expect(inputs).toHaveLength(2);
     expect(inputs[0].id).not.toBe(inputs[1].id);
   });
+
+  it('applies brand colored focus styles', () => {
+    act(() => {
+      root.render(<TextInput label="Email" />);
+    });
+    const input = container.querySelector('input') as HTMLInputElement;
+    expect(input.className).toContain('focus:border-[var(--brand-color)]');
+    expect(input.className).toContain('focus:ring-[var(--brand-color)]');
+  });
 });
