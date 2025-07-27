@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List
 import enum
@@ -7,6 +7,7 @@ import re
 
 from .. import models, schemas, crud
 from .dependencies import get_db, get_current_user
+from ..utils import error_response
 
 router = APIRouter(tags=["notifications"])
 
@@ -26,9 +27,7 @@ def _build_response(
             if match and not sender:
                 sender = match.group(1).strip()
 
-            br_match = re.search(
-                r"/(?:booking-requests|messages/thread)/(\d+)", n.link
-            )
+            br_match = re.search(r"/(?:booking-requests|messages/thread)/(\d+)", n.link)
             if br_match:
                 br_id = int(br_match.group(1))
                 br = (
@@ -41,9 +40,7 @@ def _build_response(
                         br.client_id if br.artist_id == n.user_id else br.artist_id
                     )
                     other = (
-                        db.query(models.User)
-                        .filter(models.User.id == other_id)
-                        .first()
+                        db.query(models.User).filter(models.User.id == other_id).first()
                     )
                     if other:
                         if not sender:
@@ -262,8 +259,10 @@ def mark_notification_read(
     """Mark a notification as read."""
     db_notif = crud.crud_notification.get_notification(db, notification_id)
     if not db_notif or db_notif.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found"
+        raise error_response(
+            "Notification not found",
+            {"notification_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
         )
     updated = crud.crud_notification.mark_as_read(db, db_notif)
     return _build_response(db, updated)

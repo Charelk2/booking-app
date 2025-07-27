@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -18,6 +18,7 @@ from app.api.auth import (
     get_user_by_email,
 )
 from app.utils.auth import get_password_hash, normalize_email
+from app.utils import error_response
 
 router = APIRouter()
 
@@ -54,7 +55,11 @@ async def google_login(
 ):
     """Start Google OAuth flow."""
     if not hasattr(oauth, "google"):
-        raise HTTPException(500, "Google OAuth not configured")
+        raise error_response(
+            "Google OAuth not configured",
+            {},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
     redirect_uri = request.url_for("google_callback")
     return await oauth.google.authorize_redirect(request, redirect_uri, state=next)
 
@@ -62,7 +67,11 @@ async def google_login(
 @router.get("/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     if not hasattr(oauth, "google"):
-        raise HTTPException(500, "Google OAuth not configured")
+        raise error_response(
+            "Google OAuth not configured",
+            {},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
     next_url = request.query_params.get("state") or settings.FRONTEND_URL
     if next_url.startswith("/"):
         next_url = settings.FRONTEND_URL.rstrip("/") + next_url
@@ -70,7 +79,11 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         token = await oauth.google.authorize_access_token(request)
     except Exception as exc:  # pragma: no cover - network/token errors
         logger.error("Google token exchange failed: %s", exc)
-        raise HTTPException(status_code=400, detail="Google authentication failed")
+        raise error_response(
+            "Google authentication failed",
+            {},
+            status.HTTP_400_BAD_REQUEST,
+        )
 
     profile = None
     try:
@@ -89,14 +102,24 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             logger.error(
                 "Failed Google userinfo fetch: %s %s", resp.status_code, resp.text
             )
-            raise HTTPException(
-                status_code=400, detail="Failed to fetch Google profile"
+            raise error_response(
+                "Failed to fetch Google profile",
+                {},
+                status.HTTP_400_BAD_REQUEST,
             )
     if not profile:
-        raise HTTPException(status_code=400, detail="Failed to fetch Google profile")
+        raise error_response(
+            "Failed to fetch Google profile",
+            {},
+            status.HTTP_400_BAD_REQUEST,
+        )
     email = profile.get("email")
     if not email:
-        raise HTTPException(400, "Email not available from Google")
+        raise error_response(
+            "Email not available from Google",
+            {},
+            status.HTTP_400_BAD_REQUEST,
+        )
     first_name = profile.get("given_name") or ""
     last_name = profile.get("family_name") or ""
 
@@ -141,7 +164,11 @@ async def github_login(
 ):
     """Start GitHub OAuth flow."""
     if not hasattr(oauth, "github"):
-        raise HTTPException(500, "GitHub OAuth not configured")
+        raise error_response(
+            "GitHub OAuth not configured",
+            {},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
     redirect_uri = request.url_for("github_callback")
     return await oauth.github.authorize_redirect(request, redirect_uri, state=next)
 
@@ -149,7 +176,11 @@ async def github_login(
 @router.get("/github/callback")
 async def github_callback(request: Request, db: Session = Depends(get_db)):
     if not hasattr(oauth, "github"):
-        raise HTTPException(500, "GitHub OAuth not configured")
+        raise error_response(
+            "GitHub OAuth not configured",
+            {},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
     next_url = request.query_params.get("state") or settings.FRONTEND_URL
     if next_url.startswith("/"):
         next_url = settings.FRONTEND_URL.rstrip("/") + next_url
@@ -166,7 +197,11 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
         if not email and r.json():
             email = r.json()[0].get("email")
     if not email:
-        raise HTTPException(400, "Email not available from GitHub")
+        raise error_response(
+            "Email not available from GitHub",
+            {},
+            status.HTTP_400_BAD_REQUEST,
+        )
     name = profile.get("name") or profile.get("login")
     parts = name.split()
     first_name = parts[0]
