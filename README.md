@@ -36,6 +36,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Users can download all account data via `/api/v1/users/me/export` and permanently delete their account with `DELETE /api/v1/users/me`.
 - Booking cards now show deposit and payment status with a simple progress timeline.
 - Booking wizard includes a required **Guests** step.
+- Venue and sound selection now use **SelectableCard** components so options look like modern clickable cards rather than plain radio buttons.
 - Date picker and quote calculator show skeleton loaders while data fetches.
 - Google Maps and large images load lazily once in view to reduce first paint time.
 - Client dashboards now include a bookings list with upcoming and past filters via `/api/v1/bookings/my-bookings?status=`.

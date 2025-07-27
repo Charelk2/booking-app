@@ -56,4 +56,6 @@ Buttons use a `rounded-lg` radius and display a subtle shadow on hover.
 
 Cards use `rounded-xl` corners with a `shadow-sm` and `border` in the brand border color. They respect the same spacing scale so content aligns with other components.
 
+`SelectableCard` replaces plain radio buttons in the booking wizard. It hides the native input and styles the associated label as a clickable card using Tailwind `peer` classes. This provides large touch targets, hover states and a subtle brand-colored highlight when selected.
+
 These guidelines ensure a cohesive look and feel as the app evolves.
