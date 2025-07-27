@@ -5,6 +5,7 @@ import { Controller, Control, FieldValues } from 'react-hook-form';
 import dynamic from 'next/dynamic';
 import { loadPlaces } from '@/lib/loadPlaces';
 import LocationInput from '../../ui/LocationInput';
+import clsx from 'clsx';
 const GoogleMap = dynamic(
   () => import('@react-google-maps/api').then((m) => m.GoogleMap),
   { ssr: false },
@@ -30,19 +31,6 @@ interface Props {
   onSaveDraft: () => void;
   onNext: () => void;
 }
-
-const mapContainerCollapsed = {
-  width: '100%',
-  height: 0,
-  overflow: 'hidden',
-  transition: 'height 0.3s ease',
-};
-
-const mapContainerExpanded = {
-  width: '100%',
-  height: '250px',
-  transition: 'height 0.3s ease',
-};
 
 function GoogleMapsLoader({
   children,
@@ -152,7 +140,10 @@ export default function LocationStep({
                   )}
                 />
                 <div
-                  style={marker ? mapContainerExpanded : mapContainerCollapsed}
+                  className={clsx(
+                    'map-container',
+                    marker ? 'map-container-expanded' : 'map-container-collapsed',
+                  )}
                   data-testid="map-container"
                 >
                   <Map isLoaded={loaded} />
@@ -183,7 +174,10 @@ export default function LocationStep({
               )}
             />
             <div
-              style={marker ? mapContainerExpanded : mapContainerCollapsed}
+              className={clsx(
+                'map-container',
+                marker ? 'map-container-expanded' : 'map-container-collapsed',
+              )}
               data-testid="map-container"
             />
           </>
