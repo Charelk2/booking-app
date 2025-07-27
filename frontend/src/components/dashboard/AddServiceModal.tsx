@@ -302,7 +302,7 @@ export default function AddServiceModal({
                             className={clsx(
                               "flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow hover:shadow-md transition",
                               watch("service_type") === value
-                                ? "border-2 border-[#FF5A5F]"
+                                ? "border-2 border-[var(--brand-color)]"
                                 : "border border-gray-200",
                             )}
                           >

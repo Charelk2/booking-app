@@ -31,7 +31,7 @@ const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function TextInpu
           ref={ref}
           id={inputId}
           className={clsx(
-            'block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 transition-colors focus:outline-none focus:border-[#FF5A5F] focus:ring-[#FF5A5F] sm:text-sm',
+            'block w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 placeholder-gray-400 transition-colors focus:outline-none focus:border-[var(--brand-color)] focus:ring-[var(--brand-color)] sm:text-sm',
             error && 'border-red-500',
             className,
           )}
