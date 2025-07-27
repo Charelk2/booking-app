@@ -2,7 +2,7 @@
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import WizardNav from '../WizardNav';
 import ReactDatePicker from 'react-datepicker';
-import '../../styles/datepicker.css';
+import '../../../styles/datepicker.css';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { format, parseISO } from 'date-fns';
 import useIsMobile from '@/hooks/useIsMobile';
