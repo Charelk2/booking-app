@@ -1,16 +1,29 @@
 'use client';
-
-import { useEffect, useState, useRef } from 'react';
+// The map only appears after a location is selected. A tooltip explains any
+// distance warnings so users understand why we show them.
 import { Controller, Control, FieldValues } from 'react-hook-form';
-import { GoogleMap, Marker } from '@react-google-maps/api'; // Assuming these imports
-import { Button } from '../../ui'; // Assuming Button component and its variants
-import Tooltip from '../../ui/Tooltip'; // Assuming Tooltip component
-import { GoogleMapsLoader, calculateDistanceKm } from '@/lib/maps'; // Assuming these utilities
-import LocationInput from '../../ui/LocationInput'; // Assuming this component
+import dynamic from 'next/dynamic';
+import { loadPlaces } from '@/lib/loadPlaces';
+import LocationInput from '../../ui/LocationInput';
+const GoogleMap = dynamic(
+  () => import('@react-google-maps/api').then((m) => m.GoogleMap),
+  { ssr: false },
+);
+const Marker = dynamic(
+  () => import('@react-google-maps/api').then((m) => m.Marker),
+  { ssr: false },
+);
+import { useRef, useState, useEffect } from 'react';
+import { Button, Tooltip } from '../../ui';
+import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
+
+// Map libraries are loaded lazily using a shared loader so the Google Maps
+// script is only injected once across the app.
 
 interface Props {
   control: Control<FieldValues>;
-  artistLocation: { lat: number; lng: number }; // Example prop
+  artistLocation?: string | null;
+  setWarning: (w: string | null) => void;
   step: number;
   steps: string[];
   onBack: () => void;
@@ -18,63 +31,86 @@ interface Props {
   onNext: () => void;
 }
 
-const mapContainerCollapsed = { width: '100%', height: '0', overflow: 'hidden' };
-const mapContainerExpanded = { width: '100%', height: '300px', overflow: 'hidden', transition: 'height 0.3s ease-in-out' };
+const mapContainerCollapsed = {
+  width: '100%',
+  height: 0,
+  overflow: 'hidden',
+  transition: 'height 0.3s ease',
+};
+
+const mapContainerExpanded = {
+  width: '100%',
+  height: '250px',
+  transition: 'height 0.3s ease',
+};
+
+function GoogleMapsLoader({
+  children,
+}: {
+  children: (isLoaded: boolean) => JSX.Element;
+}) {
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const api = await loadPlaces();
+      if (api && mounted) setLoaded(true);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return children(loaded);
+}
+
 
 export default function LocationStep({
   control,
   artistLocation,
+  setWarning,
   step,
   steps,
   onBack,
   onSaveDraft,
   onNext,
-}: Props) {
-  const [marker, setMarker] = useState<{ lat: number; lng: number } | null>(null);
-  const [warning, setWarning] = useState<string | null>(null);
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+}: Props): JSX.Element {
   const [shouldLoadMap, setShouldLoadMap] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [marker, setMarker] = useState<LatLng | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
 
-  // Lazy load map when component is in viewport
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setShouldLoadMap(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
-
-    return () => {
-      if (containerRef.current) {
-        observer.unobserve(containerRef.current);
+    const target = containerRef.current;
+    if (!target) return;
+    if (shouldLoadMap) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setShouldLoadMap(true);
+        observer.disconnect();
       }
-    };
-  }, []);
+    });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [shouldLoadMap]);
 
   useEffect(() => {
     (async () => {
-      if (marker && artistLocation) {
-        if (typeof calculateDistanceKm === 'function') { // Ensure function exists
-          const artistPos = artistLocation; // Adjust if artistLocation is not directly a LatLng literal
+      if (artistLocation) {
+        const artistPos = await geocodeAddress(artistLocation);
+        if (artistPos && marker) {
           const dist = calculateDistanceKm(artistPos, marker);
           if (dist > 100) setWarning('This location is over 100km from the artist.');
           else setWarning(null);
         }
       }
     })();
-  }, [artistLocation, marker]);
+  }, [artistLocation, marker, setWarning]);
 
   function Map({ isLoaded }: { isLoaded: boolean }) {
     if (!marker) return null;
-    if (!isLoaded) return <div className="w-full h-full bg-gray-200 rounded-lg animate-pulse" />; // Skeleton for map
+    if (!isLoaded) return <div className="h-full w-full" />;
     return (
       <GoogleMap
         center={marker}
@@ -88,11 +124,9 @@ export default function LocationStep({
   }
 
   return (
-    <div className="wizard-step-container"> {/* Main card for this step */}
-      <h2 className="step-title">Event Location</h2>
-      <p className="step-description">Where is the show?</p>
-
-      <div ref={containerRef} className="flex flex-col gap-4"> {/* Container for input and map */}
+    <div className="wizard-step-container">
+      <p className="instruction-text">Where is the show?</p>
+      <div ref={containerRef}>
         {shouldLoadMap ? (
           <GoogleMapsLoader>
             {(loaded) => (
@@ -113,13 +147,12 @@ export default function LocationStep({
                         }
                       }}
                       placeholder="Search address"
-                      inputClassName="input-field" /* Apply input-field styling */
+                      inputClassName="input-base"
                     />
                   )}
                 />
                 <div
                   style={marker ? mapContainerExpanded : mapContainerCollapsed}
-                  className="rounded-lg overflow-hidden border border-gray-300 shadow-sm" /* Map container styling */
                   data-testid="map-container"
                 >
                   <Map isLoaded={loaded} />
@@ -145,47 +178,71 @@ export default function LocationStep({
                     }
                   }}
                   placeholder="Search address"
-                  inputClassName="input-field" /* Apply input-field styling */
+                  inputClassName="input-base"
                 />
               )}
             />
             <div
               style={marker ? mapContainerExpanded : mapContainerCollapsed}
-              className="rounded-lg overflow-hidden border border-gray-300 shadow-sm" /* Map container styling */
               data-testid="map-container"
             />
           </>
         )}
       </div>
+      <Button
+        type="button"
+        variant="link"
+        className="mt-2 text-sm inline-block min-h-[44px]"
+        onClick={() => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+              setMarker(loc);
+              setGeoError(null);
+            },
+            () => {
+              setGeoError('Unable to fetch your location');
+            },
+          );
+        }}
+      >
+        Use my location
+      </Button>
+      <Tooltip
+        text="A warning appears if this address is over 100km from the artist."
+        className="ml-1"
+      />
+      {geoError && <p className="text-red-600 text-sm">{geoError}</p>}
+      <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
+        {step > 0 && (
+          <Button
+            type="button"
+            onClick={onBack}
+            variant="secondary"
+            className="w-full sm:w-auto min-h-[44px]"
+          >
+            Back
+          </Button>
+        )}
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full">
-        <Button
-          type="button"
-          variant="link" /* Using Button component variant for link style */
-          className="text-base font-semibold" /* Additional text styling */
-          onClick={() => {
-            navigator.geolocation.getCurrentPosition(
-              (pos) => {
-                const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                setMarker(loc);
-                setGeoError(null);
-              },
-              () => {
-                setGeoError('Unable to fetch your location');
-              },
-            );
-          }}
-        >
-          Use my location
-        </Button>
-        {/* Assuming Tooltip handles its own base styling */}
-        <Tooltip
-          text="A warning appears if this address is over 100km from the artist."
-          className="ml-1"
-        />
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
+          <Button
+            type="button"
+            onClick={onSaveDraft}
+            variant="secondary"
+            className="w-full sm:w-auto min-h-[44px]"
+          >
+            Save Draft
+          </Button>
+          <Button
+            type="button"
+            onClick={onNext}
+            className="w-full sm:w-auto min-h-[44px]"
+          >
+            {step === steps.length - 1 ? 'Submit Request' : 'Next'}
+          </Button>
+        </div>
       </div>
-      {geoError && <p className="text-sm text-red-600 mt-2">{geoError}</p>}
-      {warning && <p className="text-sm text-orange-600 mt-2">{warning}</p>}
     </div>
   );
 }

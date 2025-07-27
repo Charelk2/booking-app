@@ -2,178 +2,108 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- GLOBAL COLOR PALETTE & TYPOGRAPHY --- */
-/* IMPORTANT: Map your existing project variables to these new, unified variables. */
 :root {
-  /* New Airbnb-inspired palette */
-  --color-brand-primary: #FF5A5F; /* Airbnb Red */
-  --color-brand-light-tint: #FFF8F8; /* Very light pink/red for selected backgrounds */
-  --color-gray-900: #222222;      /* Main text, headings */
-  --color-gray-700: #484848;      /* Secondary text, labels */
-  --color-gray-600: #717171;      /* Instructional text, disabled elements */
-  --color-gray-500: #A0A0A0;      /* Placeholders */
-  --color-gray-300: #EBEBEB;      /* Default borders */
-  --color-gray-200: #F7F7F7;      /* Page background */
-  --color-white: #FFFFFF;
-
-  /* Mappings for existing project variables to the new palette.
-     Adjust these names if your project uses different variable names. */
-  --font-sans: 'Inter', sans-serif; /* Ensure 'Inter' font is imported globally */
-  --color-background: var(--color-white); /* Example mapping */
-  --color-foreground: var(--color-gray-900); /* Example mapping */
-  --brand-color: var(--color-brand-primary); /* Map your existing --brand-color */
-  --brand-color-dark: #E04A4F; /* A slightly darker primary for hover/active */
-  --brand-color-light: #FFEAEA; /* A general lighter brand color */
-  --color-accent: var(--color-brand-primary); /* Map your existing --color-accent */
-  --color-border: var(--color-gray-300); /* Map your existing --color-border */
-  --color-link: var(--color-brand-primary); /* Default link color */
-  --color-link-hover: var(--color-brand-primary); /* Link hover color */
+  --font-sans: var(--font-inter);
+  --color-primary: #FF5A5F;
+  --color-secondary: #E04852;
+  --color-accent: #FF7A85;
+  --color-border: #FFD0D3;
+  --color-background: #ffffff;
+  --color-foreground: #111827;
+  --brand-color: var(--color-primary);
+  --brand-color-dark: var(--color-secondary);
+  /* lighter tint used for subtle page gradients */
+  --brand-color-light: #FFEAEA;
+  --color-link: var(--brand-color-dark);
+  --color-link-hover: var(--brand-color);
 }
 
 @layer base {
   body {
-    background-color: var(--color-gray-200); /* Unified page background */
-    color: var(--color-gray-900);
-    font-family: var(--font-sans); /* Use the defined font variable */
-    font-size: 16px; /* Base font size */
-    min-height: 100vh;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans), sans-serif;
+    font-size: 16px;
   }
 
-  /* Basic overrides for React-Calendar input styles if they conflict */
-  .react-calendar input {
-    all: unset; /* Remove all default input styles that conflict with calendar's own styling */
+  a {
+    color: var(--color-link);
+    text-decoration: none;
   }
 
-  /* Consistent input height for DateInput (if it's a native type="date" input) */
-  input[type="date"] {
-    min-height: 56px;
-    padding: 16px;
-    border-radius: 8px;
-    border: 1px solid var(--color-gray-300);
-    font-size: 1.125rem;
-    color: var(--color-gray-900);
-    background-color: var(--color-white);
-    box-shadow: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  a:hover {
+    color: var(--color-link-hover);
+    text-decoration: underline;
   }
-  input[type="date"]:focus {
-    border-color: var(--color-brand-primary);
-    box-shadow: 0 0 0 1px var(--color-brand-primary);
-    outline: none;
-  }
-  input[type="date"]::placeholder {
-    color: var(--color-gray-500);
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
 @layer components {
-  /* --- WIZARD STEP CONTAINER (THE PRIMARY CARD FOR EACH STEP) --- */
+  .hero-gradient {
+    @apply bg-gradient-to-br from-indigo-50 to-indigo-100;
+  }
+}
+
+@keyframes flashText {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: translateY(2px) scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(0) scale(1.02);
+  }
+}
+
+.animate-flash {
+  animation: flashText 1.5s ease-in-out infinite;
+}
+
+@layer components {
+/* --- ADD THIS CODE --- */
+.pac-container {
+  /* This makes the Google Maps dropdown appear on top of the modal */
+  z-index: 9999 !important;
+}
+
+
+html[data-headlessui-focus-visible] {
+  overflow: visible !important;
+  padding-right: 0 !important;
+}
+
+  /* Booking wizard common styles */
   .wizard-step-container {
-    @apply mx-auto max-w-xl p-8 bg-white rounded-xl shadow-md;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem; /* gap-6 for default spacing between sections */
+    @apply mx-auto max-w-xl space-y-6 rounded-2xl bg-white p-6 shadow-xl md:p-8;
   }
 
-  /* --- STEP HEADER / INSTRUCTION --- */
-  .step-title {
-    @apply text-3xl font-bold text-gray-900 mb-2;
+  .instruction-text {
+    @apply text-sm text-gray-600;
   }
 
-  .step-description {
-    @apply text-lg text-gray-600 mb-6;
+  .input-base {
+    @apply w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand min-h-[44px];
   }
 
-  /* --- INPUT LABELS --- */
-  .input-label {
-    @apply block text-base font-medium text-gray-700 mb-2;
+  .selectable-card-input {
+    @apply sr-only;
   }
 
-  /* --- COMMON INPUT/TEXTAREA STYLES (NO SHADOWS ON UN-FOCUSED) --- */
-  .input-field {
-    @apply w-full p-4 rounded-lg border border-gray-300 text-lg text-gray-900;
-    @apply focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary transition-all duration-200 ease-in-out;
-    min-height: 56px; /* Taller touch target */
-    box-shadow: none; /* CRITICAL: NO SHADOW on un-focused inputs */
-  }
-  .input-field::placeholder { @apply text-gray-500; }
-
-  /* --- SELECTABLE OPTION CARD STYLES (Radio/Checkbox options) --- */
-  .option-card {
-    @apply flex items-center justify-center p-4 rounded-lg border transition-all duration-200 ease-in-out cursor-pointer;
-    @apply bg-white; /* Ensure white background on white primary card */
-    min-height: 60px; /* Good touch target */
-    box-shadow: none; /* CRITICAL: NO SHADOW on un-selected/un-hovered */
-  }
-  .option-card:hover {
-    @apply border-gray-400 bg-gray-200; /* Subtle hover effect */
-    box-shadow: none; /* Ensure no hover shadow */
-  }
-  .option-card--selected {
-    @apply border-brand-primary bg-brand-light-tint;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* ONLY A VERY SUBTLE SHADOW WHEN SELECTED */
-  }
-  .option-card-text {
-    @apply text-lg font-semibold text-gray-900;
-  }
-  .option-card--selected .option-card-text {
-    @apply text-brand-primary;
+  .selectable-card {
+    @apply flex cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white p-4 text-sm transition-all hover:border-gray-400 hover:shadow-sm;
   }
 
-  /* --- UNIVERSAL HIDDEN INPUT (for custom radios/checkboxes) --- */
-  .sr-only { /* Visually hidden elements for accessibility */
-    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
-    clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+  .selectable-card-input:focus-visible + .selectable-card {
+    @apply ring-2 ring-brand;
   }
 
-  /* --- CUSTOM BUTTON STYLES (for your <Button> UI Component) --- */
-  /* This directly styles the appearance of your <Button> component based on its 'variant' */
-  /* Assumes Button component applies 'btn-base' and then 'btn-primary'/'btn-secondary'/'btn-link' */
-  .btn-base {
-      @apply py-3 px-6 rounded-lg font-semibold text-base transition-all duration-200 ease-in-out;
-      min-height: 48px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
+  .selectable-card-input:checked + .selectable-card {
+    @apply border-brand bg-brand-light;
   }
-  .btn-primary { /* Style for variant="primary" */
-      @apply bg-brand-primary text-white border border-brand-primary;
-  }
-  .btn-primary:hover {
-      background-color: var(--brand-color-dark); /* Use darker brand color on hover */
-      border-color: var(--brand-color-dark);
-  }
-  .btn-primary:disabled {
-      @apply bg-gray-300 border-gray-300 text-gray-600 cursor-not-allowed opacity-70;
-  }
-  .btn-secondary { /* Style for variant="secondary" */
-      @apply bg-white text-gray-900 border border-gray-300;
-  }
-  .btn-secondary:hover {
-      @apply bg-gray-200 border-gray-400;
-  }
-  .btn-secondary:disabled {
-      @apply bg-gray-200 border-gray-300 text-gray-600 cursor-not-allowed opacity-70;
-  }
-  .btn-link { /* Style for variant="link" */
-    @apply bg-transparent text-brand-primary border-transparent underline;
-  }
-  .btn-link:hover {
-    color: var(--brand-color-dark); /* Darker brand on hover */
-  }
+}
 
-  /* --- FILE INPUT BUTTON STYLING (for NotesStep's file input) --- */
-  /* Targets the internal button of a file input */
-  .input-field.file-input-button::-webkit-file-upload-button,
-  .input-field.file-input-button::file-selector-button {
-    @apply mr-4 py-2 px-4 rounded-full border-0 text-base font-semibold;
-    @apply bg-brand-light-tint text-brand-primary;
-    @apply hover:bg-gray-200 hover:text-gray-700 transition-all duration-200 ease-in-out;
-    cursor: pointer;
-  }
-} /* End @layer components */
+
+/* ... (rest of your globals.css content) ... */
