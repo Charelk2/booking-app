@@ -97,6 +97,12 @@
   cursor: pointer; /* Ensures pointer cursor on days */
 }
 
+/* Accessible focus style for day cells */
+.react-datepicker__day:focus-visible {
+  outline: 2px solid var(--brand-color-dark);
+  outline-offset: 2px;
+}
+
 /* Hover effect for individual day numbers */
 .react-datepicker__day:hover {
   background-color: #f3f4f6; /* Equivalent to Tailwind's hover:bg-gray-100 */
