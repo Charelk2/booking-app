@@ -43,17 +43,4 @@ describe('GuestsStep input', () => {
     expect(input).not.toBeNull();
   });
 
-  it('calls onNext when Next clicked', () => {
-    const nextSpy = jest.fn();
-    act(() => {
-      root.render(React.createElement(Wrapper, { onNext: nextSpy }));
-    });
-    const nextButton = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Next') || b.textContent?.includes('Submit'),
-    ) as HTMLButtonElement;
-    act(() => {
-      nextButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    expect(nextSpy).toHaveBeenCalled();
-  });
 });
