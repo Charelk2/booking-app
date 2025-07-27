@@ -7,6 +7,7 @@ import {
   formatCurrency,
   formatStatus,
   generateQuoteNumber,
+  applyDisplayOrder,
 } from '../utils';
 import { DEFAULT_CURRENCY } from '../constants';
 import api from '../api';
@@ -52,6 +53,18 @@ describe('normalizeService', () => {
     expect(typeof normalized.duration_minutes).toBe('number');
     expect(normalized.price).toBeCloseTo(12.5);
     expect(normalized.duration_minutes).toBe(30);
+  });
+});
+
+describe('applyDisplayOrder', () => {
+  it('increments display_order sequentially', () => {
+    const services: Service[] = [
+      { id: 1, artist_id: 1, title: 'A', description: '', service_type: 'Other', duration_minutes: 10, display_order: 5, price: 1, artist: {} as ArtistProfile },
+      { id: 2, artist_id: 1, title: 'B', description: '', service_type: 'Other', duration_minutes: 10, display_order: 2, price: 1, artist: {} as ArtistProfile },
+    ];
+    const ordered = applyDisplayOrder(services);
+    expect(ordered[0].display_order).toBe(1);
+    expect(ordered[1].display_order).toBe(2);
   });
 });
 
