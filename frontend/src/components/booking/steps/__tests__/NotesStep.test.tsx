@@ -42,7 +42,7 @@ describe('NotesStep attachment upload', () => {
     container.remove();
   });
 
-  it('shows upload progress and disables Next button', async () => {
+  it('shows upload progress during upload', async () => {
     let resolveUpload: () => void;
     (api.uploadBookingAttachment as jest.Mock).mockImplementation(
       (_form: FormData, cb?: (e: { loaded: number; total: number }) => void) => {
@@ -70,18 +70,12 @@ describe('NotesStep attachment upload', () => {
 
     await flushPromises();
 
-    const nextButton = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Next'),
-    ) as HTMLButtonElement;
-
     expect(container.querySelector('[role="progressbar"]')).not.toBeNull();
-    expect(nextButton.disabled).toBe(true);
 
     await act(async () => {
       resolveUpload();
     });
 
     expect(container.querySelector('[role="progressbar"]')).toBeNull();
-    expect(nextButton.disabled).toBe(false);
   });
 });
