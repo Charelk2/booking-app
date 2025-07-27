@@ -17,6 +17,12 @@
   animation: fadeIn 0.2s ease-out; /* Smooth fade-in animation */
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .react-datepicker {
+    animation: none;
+  }
+}
+
 /* Keyframe animation for fade-in effect */
 @keyframes fadeIn {
   from {
