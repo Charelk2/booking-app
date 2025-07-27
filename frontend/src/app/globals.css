@@ -106,6 +106,18 @@
   .selectable-card-input:checked + .selectable-card {
     @apply border-brand bg-brand-light;
   }
+
+  .map-container {
+    @apply w-full transition-[height] duration-300 ease-in-out;
+  }
+
+  .map-container-collapsed {
+    @apply h-0 overflow-hidden;
+  }
+
+  .map-container-expanded {
+    @apply h-[250px];
+  }
 }
 
 /* ... (rest of your globals.css content) ... */
