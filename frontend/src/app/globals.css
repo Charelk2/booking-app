@@ -43,7 +43,7 @@
 
   html {
     scroll-behavior: smooth;
-    -webkit-text-size-adjust: 100%; /* Prevent font size adjustments after orientation changes on iOS */
+    text-size-adjust: 100%; /* Prevent font size adjustments after orientation changes on iOS */
   }
 
   body {
