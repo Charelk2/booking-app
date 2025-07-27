@@ -2,7 +2,7 @@
 // Larger touch targets and contextual help improve usability on mobile.
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import useIsMobile from '@/hooks/useIsMobile';
-import { Button, TextInput } from '../../ui';
+import { TextInput } from '../../ui';
 
 interface Props {
   control: Control<FieldValues>;
@@ -24,7 +24,8 @@ export default function GuestsStep({
   const isMobile = useIsMobile();
   return (
     <div className="wizard-step-container">
-      <p className="instruction-text">How many people?</p>
+      <h2 className="text-3xl font-bold text-gray-900 mb-2">Guests</h2>
+      <p className="text-lg text-gray-600 mb-6">How many people?</p>
       <Controller
         name="guests"
         control={control}
@@ -33,42 +34,12 @@ export default function GuestsStep({
             type="number"
             min={1}
             label="Number of guests"
-            className="input-base text-lg"
+            className="w-full p-4 rounded-lg border border-gray-300 text-lg text-gray-900 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary transition-all duration-200 ease-in-out"
             {...field}
             autoFocus={!isMobile}
           />
         )}
-      />
-      <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
-        {step > 0 && (
-          <Button
-            type="button"
-            onClick={onBack}
-            variant="secondary"
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            Back
-          </Button>
-        )}
-
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
-          <Button
-            type="button"
-            onClick={onSaveDraft}
-            variant="secondary"
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            Save Draft
-          </Button>
-          <Button
-            type="button"
-            onClick={onNext}
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            {step === steps.length - 1 ? 'Submit Request' : 'Next'}
-          </Button>
-        </div>
-      </div>
+        />
     </div>
   );
 }
