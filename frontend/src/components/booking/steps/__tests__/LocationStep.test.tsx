@@ -34,10 +34,9 @@ function Wrapper() {
   return (
     <LocationStep
       control={control as unknown as Control<FieldValues>}
-      setWarning={() => {}}
       step={1}
       steps={['one', 'two']}
-      artistLocation={null}
+      artistLocation={{ lat: 0, lng: 0 }}
       onBack={() => {}}
       onSaveDraft={() => {}}
       onNext={() => {}}
