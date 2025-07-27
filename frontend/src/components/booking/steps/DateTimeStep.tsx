@@ -1,5 +1,6 @@
 'use client';
 import { Controller, Control, FieldValues } from 'react-hook-form';
+import WizardNav from '../WizardNav';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { format, parseISO } from 'date-fns';
@@ -38,8 +39,7 @@ export default function DateTimeStep({
     format(date, 'MMMM d, yyyy', { locale: enUS });
   return (
     <div className="wizard-step-container">
-      <h2 className="text-3xl font-bold text-gray-900 mb-2">Event Date & Time</h2>
-      <p className="text-lg text-gray-600 mb-6">When should we perform?</p>
+      <p className="instruction-text">When should we perform?</p>
       {loading ? (
         <div
           data-testid="calendar-skeleton"
@@ -62,7 +62,7 @@ export default function DateTimeStep({
                 onBlur={field.onBlur}
                 value={currentValue ? format(currentValue, 'yyyy-MM-dd') : ''}
                 onChange={(e) => field.onChange(e.target.value)}
-                inputClassName="w-full p-4 rounded-lg border border-gray-300 text-lg text-gray-900 focus:border-brand-primary focus:outline-none focus:ring-1 focus:ring-brand-primary transition-all duration-200 ease-in-out"
+                inputClassName="input-base"
               />
             ) : (
               <div className="mx-auto w-fit border border-gray-200 rounded-lg hover:shadow-lg">
@@ -79,6 +79,13 @@ export default function DateTimeStep({
           }}
         />
       )}
+      <WizardNav
+        step={step}
+        steps={steps}
+        onBack={onBack}
+        onSaveDraft={onSaveDraft}
+        onNext={onNext}
+      />
     </div>
   );
 }
