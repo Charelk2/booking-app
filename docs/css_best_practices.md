@@ -66,5 +66,7 @@ and extends the `stylelint-config-standard` rules.
 - Do new styles rely on design tokens rather than hard–coded values?
 - Are utility classes sorted and grouped logically?
 - Could repeated class strings be moved into a shared component?
+- Are you reusing existing UI components (like `Button`) instead of repeating
+  long utility class lists?
 
 Following these practices helps the codebase scale as features grow.
