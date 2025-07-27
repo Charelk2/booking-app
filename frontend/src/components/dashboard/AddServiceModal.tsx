@@ -315,7 +315,7 @@ export default function AddServiceModal({
                     </div>
                   )}
                   {step === 1 && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 bg-white rounded-2xl border border-gray-200 shadow p-6">
                       <h2 className="text-xl font-semibold">Service Details</h2>
                       <TextInput
                         label="Service Title"
@@ -382,7 +382,7 @@ export default function AddServiceModal({
                     </div>
                   )}
                   {step === 2 && (
-                    <div>
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow p-6">
                       <h2 className="text-xl font-semibold mb-4">Upload Media</h2>
                       <p className="text-sm text-gray-600 mb-2">
                         Use high-resolution images or short video clips (at least
@@ -452,7 +452,7 @@ export default function AddServiceModal({
                     </div>
                   )}
                   {step === 3 && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 bg-white rounded-2xl border border-gray-200 shadow p-6">
                       <h2 className="text-xl font-semibold">
                         Packages & Pricing
                       </h2>
@@ -505,7 +505,7 @@ export default function AddServiceModal({
                     </div>
                   )}
                   {step === 4 && (
-                    <div className="space-y-4">
+                    <div className="space-y-4 bg-white rounded-2xl border border-gray-200 shadow p-6">
                       <h2 className="text-xl font-semibold">
                         Review Your Service
                       </h2>
