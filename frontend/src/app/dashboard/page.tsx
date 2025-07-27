@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
+import clsx from 'clsx';
 import { useRouter, usePathname } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -311,6 +312,8 @@ export default function DashboardPage() {
   };
 
   const [isReordering, setIsReordering] = useState(false);
+  const [showReorderHint, setShowReorderHint] = useState(false);
+  const hintTimer = useRef<NodeJS.Timeout | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   // Store the most recent drag order so we persist the correct sequence
   const latestOrderRef = useRef<Service[]>([]);
@@ -329,17 +332,20 @@ export default function DashboardPage() {
       );
     }
   };
-
   const handleReorder = (newOrder: Service[]) => {
     const updated = applyDisplayOrder(newOrder);
     latestOrderRef.current = updated;
-    setServices(updated);
+    if (!isReordering) {
+      setShowReorderHint(true);
+      if (hintTimer.current) clearTimeout(hintTimer.current);
+      hintTimer.current = setTimeout(() => setShowReorderHint(false), 1500);
+    }
     setIsReordering(true);
   };
 
   const handleDragEnd = () => {
     if (isReordering) {
-      setIsReordering(false);
+      setTimeout(() => setIsReordering(false), 200);
       persistServiceOrder(latestOrderRef.current);
     }
   };
@@ -617,7 +623,8 @@ export default function DashboardPage() {
           {user?.user_type === "artist" && activeTab === 'services' && (
             <section className="bg-white rounded-xl shadow-custom p-6 mb-10">
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Your Services</h2>
-              {services.length === 0 ? (
+              {isReordering && showReorderHint && (<div className="text-sm text-gray-600 mb-2" role="status">Drag up or down to reorder</div>)}
+                {services.length === 0 ? (
                 <p className="text-sm text-gray-500">No services yet</p>
               ) : (
                 <Reorder.Group
@@ -626,7 +633,7 @@ export default function DashboardPage() {
                   values={services}
                   onReorder={handleReorder}
                   layoutScroll
-                  className={`mt-2 grid gap-6 ${isReordering ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}
+                    className={clsx("mt-2 grid gap-6 transition-all", isReordering ? "grid-cols-1 cursor-row-resize" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3")}
                 >
                   {services.map((service) => (
                     <ServiceCard
