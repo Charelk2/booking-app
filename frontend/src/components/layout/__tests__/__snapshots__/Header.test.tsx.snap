@@ -30,19 +30,19 @@ exports[`Header hides search bar on other pages without extraBar 1`] = `
           Artists
         </a>
         <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700"
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
           href="/services"
         >
           Services
         </a>
         <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700"
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
           href="/faq"
         >
           FAQ
         </a>
         <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700"
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
           href="/contact"
         >
           Contact
@@ -132,19 +132,19 @@ exports[`Header renders artists header when extraBar provided 1`] = `
           Artists
         </a>
         <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700"
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
           href="/services"
         >
           Services
         </a>
         <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700"
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
           href="/faq"
         >
           FAQ
         </a>
         <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700"
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
           href="/contact"
         >
           Contact
@@ -243,25 +243,25 @@ exports[`Header renders search bar on home page 1`] = `
         class="hidden md:flex justify-center gap-6"
       >
         <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700"
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
           href="/artists"
         >
           Artists
         </a>
         <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700"
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
           href="/services"
         >
           Services
         </a>
         <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700"
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
           href="/faq"
         >
           FAQ
         </a>
         <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700"
+          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
           href="/contact"
         >
           Contact
@@ -337,16 +337,30 @@ exports[`Header renders search bar on home page 1`] = `
             <button
               aria-expanded="false"
               aria-haspopup="listbox"
-              class="mt-1 w-full text-sm bg-transparent focus:outline-none flex items-center"
+              class="mt-1 w-full flex justify-between items-center text-sm text-gray-700 focus:outline-none"
               data-headlessui-state=""
               id="headlessui-listbox-button-:r0:"
               type="button"
             >
-              <span
-                class="w-full text-left text-gray-400"
-              >
-                Choose category
+              <span>
+                Musician / Band
               </span>
+              <svg
+                aria-hidden="true"
+                class="h-4 w-4 text-gray-400"
+                data-slot="icon"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="m19.5 8.25-7.5 7.5-7.5-7.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
             </button>
           </div>
         </div>
@@ -365,7 +379,7 @@ exports[`Header renders search bar on home page 1`] = `
             class="relative w-full"
           >
             <input
-              class="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none"
+              class="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none"
               placeholder="City or venue"
               type="text"
               value=""
@@ -384,7 +398,7 @@ exports[`Header renders search bar on home page 1`] = `
             When
           </span>
           <input
-            class="mt-1 w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none"
+            class="mt-1 w-full text-sm text-gray-700 focus:outline-none"
             dateformat="MMM d, yyyy"
             placeholdertext="Add date"
           />
