@@ -3,6 +3,7 @@ import { Controller, Control, FieldValues } from 'react-hook-form';
 import { useState, useRef } from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
 import { BottomSheet, Button } from '../../ui';
+import WizardNav from '../WizardNav';
 
 interface Props {
   control: Control<FieldValues>;
@@ -34,6 +35,7 @@ export default function VenueStep({
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-gray-600">What type of venue is it?</p>
       <Controller
         name="venueType"
         control={control}
@@ -99,36 +101,13 @@ export default function VenueStep({
           </>
         )}
       />
-      <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
-        {step > 0 && (
-          <Button
-            type="button"
-            onClick={onBack}
-            variant="secondary"
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            Back
-          </Button>
-        )}
-
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
-          <Button
-            type="button"
-            onClick={onSaveDraft}
-            variant="secondary"
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            Save Draft
-          </Button>
-          <Button
-            type="button"
-            onClick={onNext}
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            {step === steps.length - 1 ? 'Submit Request' : 'Next'}
-          </Button>
-        </div>
-      </div>
+      <WizardNav
+        step={step}
+        steps={steps}
+        onBack={onBack}
+        onSaveDraft={onSaveDraft}
+        onNext={onNext}
+      />
     </div>
   );
 }
