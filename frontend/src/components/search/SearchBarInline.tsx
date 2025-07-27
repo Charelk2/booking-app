@@ -28,12 +28,12 @@ export default function SearchBarInline({
   onSearch,
   onExpandedChange,
 }: Props) {
-  // pick a default category object
+  // pick a default category object or null for placeholder
   const initialCat = initialCategory
-    ? UI_CATEGORIES.find((c) => c.value === initialCategory) ?? UI_CATEGORIES[0]
-    : UI_CATEGORIES[0];
+    ? UI_CATEGORIES.find((c) => c.value === initialCategory) ?? null
+    : null;
 
-  const [category, setCategory] = useState<Category>(initialCat);
+  const [category, setCategory] = useState<Category | null>(initialCat);
   const [location, setLocation] = useState(initialLocation ?? '');
   const [when, setWhen] = useState<Date | null>(initialWhen ?? null);
   const [expanded, setExpanded] = useState(false);
@@ -96,7 +96,7 @@ export default function SearchBarInline({
           className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-hidden w-full hover:ring-2 hover:ring-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] transition-all duration-300 ease-out"
         >
           <div className="flex-1 px-4 py-2 text-sm text-gray-700">
-            {category.label}
+            {category ? category.label : 'Choose category'}
           </div>
           <div className="flex-1 px-4 py-2 text-sm text-gray-700 whitespace-nowrap overflow-hidden text-ellipsis">
             {location || 'Anywhere'}
