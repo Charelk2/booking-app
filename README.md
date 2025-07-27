@@ -1218,6 +1218,7 @@ NEXT_PUBLIC_DEFAULT_CURRENCY=EUR
    cd frontend
    npm install
    npx eslint src
+   npm run lint:css
    ```
 
 ### Brand Colors
