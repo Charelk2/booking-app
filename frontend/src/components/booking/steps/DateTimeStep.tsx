@@ -39,7 +39,6 @@ export default function DateTimeStep({
     format(date, 'MMMM d, yyyy', { locale: enUS });
   return (
     <div className="wizard-step-container">
-      <p className="instruction-text">When should we perform?</p>
       {loading ? (
         <div
           data-testid="calendar-skeleton"
