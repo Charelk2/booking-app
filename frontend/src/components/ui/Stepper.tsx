@@ -30,11 +30,10 @@ export default function Stepper({
       aria-label={ariaLabel || 'Add service progress'}
       className="relative flex items-center justify-between px-2 mb-8"
     >
-      <motion.div
-        layout
-        className="absolute left-0 right-0 top-1/2 h-px bg-gray-200"
-        aria-hidden="true"
-      />
+      {/*
+       * The previous design used a horizontal line behind the stepper circles.
+       * It has been removed for a cleaner look across the booking flow.
+       */}
       {steps.map((label, i) => {
         const isClickable = !!onStepClick && i <= maxAllowed && i !== currentStep;
         const canButton = !!onStepClick && i <= maxAllowed;
