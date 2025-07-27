@@ -55,7 +55,6 @@ export default function NotesStep({
   }
   return (
     <div className="wizard-step-container">
-      <p className="instruction-text">Anything else we should know?</p>
       <label className="block text-sm font-medium">Extra notes</label>
       <Controller
         name="notes"

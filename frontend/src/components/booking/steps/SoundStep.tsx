@@ -22,7 +22,6 @@ export default function SoundStep({
 }: Props) {
   return (
     <div className="wizard-step-container">
-      <p className="instruction-text">Will sound equipment be needed?</p>
       <Controller
         name="sound"
         control={control}
