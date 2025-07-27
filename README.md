@@ -757,6 +757,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * The client quote detail page now uses this endpoint when clients click **Accept**.
 * Quote V2 error handling logs the acting user and quote details and returns structured responses for easier debugging.
 * Backend helper `error_response` now logs its message and field errors before raising an exception.
+* Many endpoints previously raising `HTTPException` directly now return this structured error format for consistency.
 * Accepting a quote may respond with **500 Internal Server Error** if booking creation fails.
 * Legacy quotes can still be accepted or rejected via `PUT /api/v1/quotes/{id}/client` when the newer `/accept` route is unavailable.
 * Artists can save **Quote Templates** via `/api/v1/quote-templates` and apply them when composing a quote.
