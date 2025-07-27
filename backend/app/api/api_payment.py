@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -12,6 +12,7 @@ import uuid
 from ..models import User, BookingSimple, QuoteV2
 from .dependencies import get_db, get_current_active_client
 from ..core.config import settings
+from ..utils import error_response
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,11 @@ def create_payment(
         logger.warning(
             "Booking not found for request %s", payment_in.booking_request_id
         )
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Booking not found")
+        raise error_response(
+            "Booking not found",
+            {"booking_request_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
 
     if booking.client_id != current_user.id:
         logger.warning(
@@ -57,14 +62,18 @@ def create_payment(
             current_user.id,
             booking.id,
         )
-        raise HTTPException(status.HTTP_403_FORBIDDEN)
+        raise error_response(
+            "Forbidden",
+            {},
+            status.HTTP_403_FORBIDDEN,
+        )
 
     if booking.deposit_paid:
-        logger.warning(
-            "Duplicate payment attempt for booking %s", booking.id
-        )
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "Deposit already paid"
+        logger.warning("Duplicate payment attempt for booking %s", booking.id)
+        raise error_response(
+            "Deposit already paid",
+            {"payment": "duplicate"},
+            status.HTTP_400_BAD_REQUEST,
         )
 
     amount = (
@@ -91,8 +100,10 @@ def create_payment(
             charge = response.json()
         except Exception as exc:  # pragma: no cover - network failure path
             logger.error("Payment gateway error: %s", exc, exc_info=True)
-            raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY, detail="Payment gateway error"
+            raise error_response(
+                "Payment gateway error",
+                {},
+                status.HTTP_502_BAD_GATEWAY,
             )
 
     if not payment_in.full:
@@ -115,7 +126,11 @@ def get_payment_receipt(payment_id: str):
     path = os.path.abspath(os.path.join(RECEIPT_DIR, f"{payment_id}.pdf"))
     if not os.path.exists(path):
         logger.warning("Receipt %s not found", payment_id)
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Receipt not found")
+        raise error_response(
+            "Receipt not found",
+            {"payment_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
     return FileResponse(
         path,
         media_type="application/pdf",
