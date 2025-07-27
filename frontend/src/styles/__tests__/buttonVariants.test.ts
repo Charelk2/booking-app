@@ -6,7 +6,7 @@ describe('buttonVariants', () => {
   });
 
   it('provides classes for secondary buttons', () => {
-    expect(buttonVariants.secondary).toMatch('border-gray-300');
+    expect(buttonVariants.secondary).toMatch('border-brand');
   });
 
   it('provides classes for danger buttons', () => {

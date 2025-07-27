@@ -23,13 +23,16 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 ## UI Theme
 
 Reusable style constants are defined in `src/styles`. Button variants come from
-`buttonVariants.ts` so colors stay consistent across the app. A new `link`
+`buttonVariants.ts` so colors stay consistent across the app. The base `Button`
+component now uses a `rounded-lg` radius for a softer look. A new `link`
 variant provides a text-only style for inline actions. The Tailwind
 configuration includes this directory in its `content` array so these constant
 class names are preserved during production builds.
 All text inputs should use the `TextInput` component in `src/components/ui` so
 form fields share consistent spacing and focus styles.
 The `Stepper` progress bar highlights the active step with `bg-brand` and `text-brand-dark` to reinforce the brand palette.
+
+Primary, secondary and outline buttons now use the brand color for borders and background with a subtle shadow hover transition.
 
 ### Loading Indicators
 

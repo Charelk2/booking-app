@@ -31,7 +31,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ? 'px-3 py-1.5 text-sm'
         : 'px-4 py-2 text-sm';
     const base =
-      'inline-flex items-center justify-center rounded-md font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform transition-colors active:scale-95 min-h-12 min-w-12';
+      'inline-flex items-center justify-center rounded-lg font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform transition-colors active:scale-95 min-h-12 min-w-12';
     const variantClass = buttonVariants[variant];
     return (
       <button

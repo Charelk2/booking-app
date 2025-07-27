@@ -29,9 +29,9 @@ describe('ReviewFormModal', () => {
     const textarea = div.querySelector('textarea');
 
     expect(ratingLabel?.textContent).toBe('Rating');
-    expect(ratingInput.className).toContain('rounded-md');
+    expect(ratingInput.className).toContain('rounded-lg');
     expect(commentLabel?.textContent).toBe('Comment');
-    expect(textarea?.className).toContain('rounded-md');
+    expect(textarea?.className).toContain('rounded-lg');
 
     act(() => {
       root.unmount();
