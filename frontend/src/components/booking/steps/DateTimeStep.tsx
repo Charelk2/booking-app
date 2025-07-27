@@ -37,8 +37,8 @@ export default function DateTimeStep({
   const formatLongDate = (_locale: string | undefined, date: Date) =>
     format(date, 'MMMM d, yyyy', { locale: enUS });
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-600">When should we perform?</p>
+    <div className="wizard-step-container">
+      <p className="instruction-text">When should we perform?</p>
       {loading ? (
         <div
           data-testid="calendar-skeleton"
@@ -56,7 +56,7 @@ export default function DateTimeStep({
             return isMobile ? (
               <input
                 type="date"
-                className="w-full border border-gray-200 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                className="input-base"
                 min={format(new Date(), 'yyyy-MM-dd')}
                 name={field.name}
                 ref={field.ref}

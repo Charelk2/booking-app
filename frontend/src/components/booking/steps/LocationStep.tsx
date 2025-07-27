@@ -124,8 +124,8 @@ export default function LocationStep({
   }
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-600">Where is the show?</p>
+    <div className="wizard-step-container">
+      <p className="instruction-text">Where is the show?</p>
       <div ref={containerRef}>
         {shouldLoadMap ? (
           <GoogleMapsLoader>
@@ -147,7 +147,7 @@ export default function LocationStep({
                         }
                       }}
                       placeholder="Search address"
-                      className="block w-full rounded-md border border-gray-300 focus-within:border-brand focus-within:ring-brand sm:text-sm p-2"
+                      inputClassName="input-base"
                     />
                   )}
                 />
@@ -178,7 +178,7 @@ export default function LocationStep({
                     }
                   }}
                   placeholder="Search address"
-                  className="block w-full rounded-md border border-gray-300 focus-within:border-brand focus-within:ring-brand sm:text-sm p-2"
+                  inputClassName="input-base"
                 />
               )}
             />
