@@ -11,7 +11,7 @@
   border: none;
   border-radius: 0.75rem; /* Equivalent to Tailwind's rounded-lg */
   background-color: var(--color-background);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06); /* Custom shadow for depth */
+  box-shadow: 0 10px 25px rgb(0 0 0 / 6%); /* Custom shadow for depth */
   padding: 1rem;
   min-width: 280px;
   animation: fadeIn 0.2s ease-out; /* Smooth fade-in animation */
@@ -23,6 +23,7 @@
     opacity: 0;
     transform: scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -47,6 +48,7 @@
 }
 
 /* IMPORTANT: Hides the ARIA live region which often displays month/year for accessibility */
+
 /* This was the culprit causing the duplicate month display on chevron click. */
 .react-datepicker__aria-live {
   display: none !important;
@@ -66,12 +68,15 @@
   background-color: var(
     --color-gray-100
   ); /* Equivalent to Tailwind's hover:bg-gray-100 */
+
   border-radius: 9999px; /* Equivalent to Tailwind's rounded-full */
   transition: background-color 0.2s ease;
 }
 
 /* Hides the default span content within navigation buttons (we use Heroicons instead) */
+
 /* This was commented out in the previous fix, keeping it out here. */
+
 /* .react-datepicker__navigation span {
     display: none !important;
   } */
@@ -118,6 +123,7 @@
   background-color: var(
     --color-accent
   ); /* Equivalent to Tailwind's bg-pink-600 */
+
   color: var(--color-background);
   font-weight: 600; /* Equivalent to Tailwind's font-semibold */
   transition: background-color 0.2s ease;
@@ -128,6 +134,7 @@
   color: var(--color-gray-400); /* Tailwind's text-gray-400 */
   cursor: not-allowed;
 }
+
 .react-datepicker__day--disabled:hover {
   background-color: transparent; /* No hover effect on disabled days */
 }

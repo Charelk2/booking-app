@@ -11,7 +11,8 @@
     "test": "jest --passWithNoTests",
     "test:unit": "jest --testPathIgnorePatterns=e2e --passWithNoTests",
     "test:debug": "jest --runInBand --detectOpenHandles --forceExit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "lint:css": "stylelint 'src/**/*.css'"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -59,8 +60,6 @@
     "@typescript-eslint/parser": "^6.21.0",
     "autoprefixer": "^10.4.16",
     "babel-jest": "^29.7.0",
-    "prettier": "^3.6.2",
-    "prettier-plugin-tailwindcss": "^0.6.14",
     "eslint": "^8.54.0",
     "eslint-config-next": "14.0.3",
     "identity-obj-proxy": "^3.0.0",
@@ -69,6 +68,11 @@
     "jest-environment-jsdom": "^29.7.0",
     "jsdom": "20.0.3",
     "postcss": "^8.4.31",
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.6.14",
+    "stylelint": "^14.16.1",
+    "stylelint-config-prettier": "^9.0.5",
+    "stylelint-config-standard": "^29.0.0",
     "tailwindcss": "^3.3.5",
     "ts-jest": "^29.1.1",
     "typescript": "^5.3.2"
