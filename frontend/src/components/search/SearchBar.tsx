@@ -7,13 +7,13 @@ import { SearchFields, type Category } from './SearchFields';
 import useClickOutside from '@/hooks/useClickOutside';
 
 export interface SearchBarProps {
-  category: Category;
-  setCategory: (c: Category) => void;
+  category: Category | null;
+  setCategory: (c: Category | null) => void;
   location: string;
   setLocation: (l: string) => void;
   when: Date | null;
   setWhen: (d: Date | null) => void;
-  onSearch: (params: { category: string; location?: string; when?: Date | null }) => void;
+  onSearch: (params: { category?: string; location?: string; when?: Date | null }) => void;
   onCancel?: () => void;
   compact?: boolean;
 }
@@ -42,8 +42,9 @@ export default function SearchBar({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const categoryValue = category?.value;
     onSearch({
-      category: category.value,
+      category: categoryValue,
       location: location || undefined,
       when,
     });
