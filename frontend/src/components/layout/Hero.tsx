@@ -25,13 +25,13 @@ function useCycle<T>(items: T[], delay = 3000): T {
 // —————————— Main Hero Component ——————————
 export default function Hero() {
   const [isModalOpen, setModalOpen] = useState(false);
-  const [category, setCategory] = useState<Category>(UI_CATEGORIES[0]);
+  const [category, setCategory] = useState<Category | null>(null);
   const [location, setLocation] = useState('');
   const [when, setWhen] = useState<Date | null>(null);
   const router = useRouter();
   const word = useCycle(WORDS);
 
-  const handleSearch = ({ category: cat, location: loc, when: date }: { category: string; location?: string; when?: Date | null }) => {
+  const handleSearch = ({ category: cat, location: loc, when: date }: { category?: string; location?: string; when?: Date | null }) => {
     const params = new URLSearchParams();
     if (cat) {
       const mapped = UI_CATEGORY_TO_SERVICE[cat] || cat;

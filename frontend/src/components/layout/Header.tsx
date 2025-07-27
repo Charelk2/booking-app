@@ -34,11 +34,11 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const isHome = pathname === '/';
 
-  const [category, setCategory] = useState<Category>(UI_CATEGORIES[0]);
+  const [category, setCategory] = useState<Category | null>(null);
   const [location, setLocation] = useState('');
   const [when, setWhen] = useState<Date | null>(null);
 
-  const handleSearch = ({ category: cat, location: loc, when: date }: { category: string; location?: string; when?: Date | null }) => {
+  const handleSearch = ({ category: cat, location: loc, when: date }: { category?: string; location?: string; when?: Date | null }) => {
     const params = new URLSearchParams();
     if (cat) {
       const mapped = UI_CATEGORY_TO_SERVICE[cat] || cat;
