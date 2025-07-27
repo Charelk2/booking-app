@@ -114,6 +114,16 @@ describe('Stepper progress bar', () => {
     expect(buttons[1].className).not.toContain('cursor-not-allowed');
   });
 
+  it('uses brand colored border for the active step', () => {
+    act(() => {
+      root.render(<Stepper steps={["One", "Two", "Three"]} currentStep={1} />);
+    });
+    const circles = container.querySelectorAll('button div.relative');
+    const activeCircle = circles[1] as HTMLDivElement;
+    expect(activeCircle.className).toContain('border-[var(--brand-color)]');
+    expect(activeCircle.className).toContain('border-2');
+  });
+
   it('applies focus ring when navigating with the keyboard', () => {
     act(() => {
       root.render(
