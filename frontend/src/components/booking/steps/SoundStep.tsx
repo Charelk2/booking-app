@@ -28,8 +28,9 @@ export default function SoundStep({
         render={({ field }) => (
           <fieldset className="space-y-2">
             <legend className="font-medium">Is sound needed?</legend>
-            <label className="selectable-card">
+            <div>
               <input
+                id="sound-yes"
                 type="radio"
                 className="selectable-card-input"
                 name={field.name}
@@ -37,10 +38,13 @@ export default function SoundStep({
                 checked={field.value === 'yes'}
                 onChange={(e) => field.onChange(e.target.value)}
               />
-              <span>Yes</span>
-            </label>
-            <label className="selectable-card">
+              <label htmlFor="sound-yes" className="selectable-card">
+                Yes
+              </label>
+            </div>
+            <div>
               <input
+                id="sound-no"
                 type="radio"
                 className="selectable-card-input"
                 name={field.name}
@@ -48,8 +52,10 @@ export default function SoundStep({
                 checked={field.value === 'no'}
                 onChange={(e) => field.onChange(e.target.value)}
               />
-              <span>No</span>
-            </label>
+              <label htmlFor="sound-no" className="selectable-card">
+                No
+              </label>
+            </div>
           </fieldset>
         )}
       />

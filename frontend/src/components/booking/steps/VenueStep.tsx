@@ -62,9 +62,10 @@ export default function VenueStep({
                   <fieldset className="p-4 space-y-2">
                     <legend className="font-medium">Venue Type</legend>
                     {options.map((opt, idx) => (
-                      <label key={opt.value} className="selectable-card">
+                      <div key={opt.value}>
                         <input
                           ref={idx === 0 ? firstRadioRef : undefined}
+                          id={`venue-${opt.value}-mobile`}
                           type="radio"
                           className="selectable-card-input"
                           name={field.name}
@@ -75,8 +76,13 @@ export default function VenueStep({
                             setSheetOpen(false);
                           }}
                         />
-                        <span>{opt.label}</span>
-                      </label>
+                        <label
+                          htmlFor={`venue-${opt.value}-mobile`}
+                          className="selectable-card"
+                        >
+                          {opt.label}
+                        </label>
+                      </div>
                     ))}
                   </fieldset>
                 </BottomSheet>
@@ -85,8 +91,9 @@ export default function VenueStep({
               <fieldset className="space-y-2">
                 <legend className="font-medium">Venue Type</legend>
                 {options.map((opt) => (
-                  <label key={opt.value} className="selectable-card">
+                  <div key={opt.value}>
                     <input
+                      id={`venue-${opt.value}`}
                       type="radio"
                       className="selectable-card-input"
                       name={field.name}
@@ -94,8 +101,10 @@ export default function VenueStep({
                       checked={field.value === opt.value}
                       onChange={(e) => field.onChange(e.target.value)}
                     />
-                    <span>{opt.label}</span>
-                  </label>
+                    <label htmlFor={`venue-${opt.value}`} className="selectable-card">
+                      {opt.label}
+                    </label>
+                  </div>
                 ))}
               </fieldset>
             )}
