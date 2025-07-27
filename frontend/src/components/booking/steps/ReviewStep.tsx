@@ -22,10 +22,10 @@ export default function ReviewStep({
 }: Props) {
   return (
     <div className="space-y-4">
-      <SummarySidebar />
-      <p className="text-gray-600 text-sm">
-        Please confirm the information above before sending your request.
-      </p>
+      <p className="text-sm text-gray-600">Please review your booking details before submitting your request.</p>
+      <div className="space-y-6 p-4 border rounded-lg bg-white shadow-sm">
+        <SummarySidebar />
+      </div>
       <WizardNav
         step={step}
         steps={steps}
