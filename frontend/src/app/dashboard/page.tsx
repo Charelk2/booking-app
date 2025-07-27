@@ -626,7 +626,7 @@ export default function DashboardPage() {
                   values={services}
                   onReorder={handleReorder}
                   layoutScroll
-                  className="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  className={`mt-2 grid gap-6 ${isReordering ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}
                 >
                   {services.map((service) => (
                     <ServiceCard
