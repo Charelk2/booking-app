@@ -22,4 +22,3 @@ export { default as ToggleSwitch } from './ToggleSwitch';
 export { default as NotificationCard } from './NotificationCard';
 export { default as LocationMapModal } from './LocationMapModal';
 export { default as ProgressBar } from './ProgressBar';
-export { default as SelectableCard } from './SelectableCard';
