@@ -17,7 +17,12 @@ import {
   deleteService,
 } from "@/lib/api";
 import { format } from "date-fns";
-import { formatCurrency, normalizeService, formatStatus } from "@/lib/utils";
+import {
+  formatCurrency,
+  normalizeService,
+  formatStatus,
+  applyDisplayOrder,
+} from "@/lib/utils";
 import AddServiceModal from "@/components/dashboard/AddServiceModal";
 import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
@@ -307,6 +312,8 @@ export default function DashboardPage() {
 
   const [isReordering, setIsReordering] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  // Store the most recent drag order so we persist the correct sequence
+  const latestOrderRef = useRef<Service[]>([]);
 
   const persistServiceOrder = async (ordered: Service[]) => {
     try {
@@ -324,7 +331,8 @@ export default function DashboardPage() {
   };
 
   const handleReorder = (newOrder: Service[]) => {
-    const updated = newOrder.map((s, i) => ({ ...s, display_order: i + 1 }));
+    const updated = applyDisplayOrder(newOrder);
+    latestOrderRef.current = updated;
     setServices(updated);
     setIsReordering(true);
   };
@@ -332,7 +340,7 @@ export default function DashboardPage() {
   const handleDragEnd = () => {
     if (isReordering) {
       setIsReordering(false);
-      persistServiceOrder(services);
+      persistServiceOrder(latestOrderRef.current);
     }
   };
 
