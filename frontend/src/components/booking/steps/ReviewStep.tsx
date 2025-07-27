@@ -22,9 +22,6 @@ export default function ReviewStep({
 }: Props) {
   return (
     <div className="wizard-step-container">
-      <p className="instruction-text">
-        Please confirm the information above before sending your request.
-      </p>
       <SummarySidebar />
       <WizardNav
         step={step}
