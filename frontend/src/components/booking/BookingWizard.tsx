@@ -329,7 +329,7 @@ export default function BookingWizard({
   return (
     <div className="px-4 py-16">
       <div
-        className="sticky z-20 bg-white"
+        className="sticky z-20"
         style={{ top: isMobile ? '4rem' : 0 }}
         data-testid="progress-container"
       >
