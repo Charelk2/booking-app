@@ -34,8 +34,8 @@ export default function VenueStep({
   ];
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-600">What type of venue is it?</p>
+    <div className="wizard-step-container">
+      <p className="instruction-text">What type of venue is it?</p>
       <Controller
         name="venueType"
         control={control}
@@ -63,10 +63,11 @@ export default function VenueStep({
                   <fieldset className="p-4 space-y-2">
                     <legend className="font-medium">Venue Type</legend>
                     {options.map((opt, idx) => (
-                      <label key={opt.value} className="flex items-center space-x-2 py-2">
+                      <label key={opt.value} className="selectable-card">
                         <input
                           ref={idx === 0 ? firstRadioRef : undefined}
                           type="radio"
+                          className="selectable-card-input"
                           name={field.name}
                           value={opt.value}
                           checked={field.value === opt.value}
@@ -85,9 +86,10 @@ export default function VenueStep({
               <fieldset className="space-y-2">
                 <legend className="font-medium">Venue Type</legend>
                 {options.map((opt) => (
-                  <label key={opt.value} className="flex items-center space-x-2 py-2">
+                  <label key={opt.value} className="selectable-card">
                     <input
                       type="radio"
+                      className="selectable-card-input"
                       name={field.name}
                       value={opt.value}
                       checked={field.value === opt.value}

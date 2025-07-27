@@ -23,8 +23,8 @@ export default function GuestsStep({
 }: Props) {
   const isMobile = useIsMobile();
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-gray-600">How many people?</p>
+    <div className="wizard-step-container">
+      <p className="instruction-text">How many people?</p>
       <Controller
         name="guests"
         control={control}
@@ -33,7 +33,7 @@ export default function GuestsStep({
             type="number"
             min={1}
             label="Number of guests"
-            className="text-lg"
+            className="input-base text-lg"
             {...field}
             autoFocus={!isMobile}
           />
