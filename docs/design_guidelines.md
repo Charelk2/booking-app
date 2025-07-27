@@ -34,6 +34,19 @@ The application uses a small brand palette:
 
 These values power Tailwind classes such as `bg-brand`, `text-brand-dark` and `border-brand`. The light tint `--brand-color-light` (`#FFEAEA`) is used for subtle gradients.
 
+### Neutral Grays
+
+The design system includes a small set of gray tokens for backgrounds and text:
+
+| Token              | Hex       |
+| ------------------ | --------- |
+| `--color-gray-100` | `#F3F4F6` |
+| `--color-gray-400` | `#CBD5E1` |
+| `--color-gray-500` | `#9CA3AF` |
+| `--color-gray-700` | `#374151` |
+
+Use these tokens in custom CSS rather than hard-coding gray values. They map to Tailwind's neutral palette and keep the UI consistent.
+
 ### Dashboard Palette
 
 The analytics dashboard uses a complementary set of tokens for charts and status badges:
