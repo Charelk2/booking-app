@@ -2,7 +2,7 @@
 import { Controller, Control, FieldValues } from 'react-hook-form';
 import { useState, useRef } from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
-import { BottomSheet, Button } from '../../ui';
+import { BottomSheet, Button, SelectableCard } from '../../ui';
 import WizardNav from '../WizardNav';
 
 interface Props {
@@ -60,41 +60,37 @@ export default function VenueStep({
                   initialFocus={firstRadioRef}
                   testId="bottom-sheet"
                 >
-                  <fieldset className="p-4 space-y-2">
-                    <legend className="font-medium">Venue Type</legend>
+                  <fieldset className="p-4 grid gap-3">
+                    <legend className="font-medium mb-2">Venue Type</legend>
                     {options.map((opt, idx) => (
-                      <label key={opt.value} className="flex items-center space-x-2 py-2">
-                        <input
-                          ref={idx === 0 ? firstRadioRef : undefined}
-                          type="radio"
-                          name={field.name}
-                          value={opt.value}
-                          checked={field.value === opt.value}
-                          onChange={(e) => {
-                            field.onChange(e.target.value);
-                            setSheetOpen(false);
-                          }}
-                        />
-                        <span>{opt.label}</span>
-                      </label>
+                      <SelectableCard
+                        key={opt.value}
+                        ref={idx === 0 ? firstRadioRef : undefined}
+                        name={field.name}
+                        value={opt.value}
+                        label={opt.label}
+                        checked={field.value === opt.value}
+                        onChange={(e) => {
+                          field.onChange(e.target.value);
+                          setSheetOpen(false);
+                        }}
+                      />
                     ))}
                   </fieldset>
                 </BottomSheet>
               </>
             ) : (
-              <fieldset className="space-y-2">
-                <legend className="font-medium">Venue Type</legend>
+              <fieldset className="grid grid-cols-3 gap-3">
+                <legend className="font-medium col-span-3 mb-2">Venue Type</legend>
                 {options.map((opt) => (
-                  <label key={opt.value} className="flex items-center space-x-2 py-2">
-                    <input
-                      type="radio"
-                      name={field.name}
-                      value={opt.value}
-                      checked={field.value === opt.value}
-                      onChange={(e) => field.onChange(e.target.value)}
-                    />
-                    <span>{opt.label}</span>
-                  </label>
+                  <SelectableCard
+                    key={opt.value}
+                    name={field.name}
+                    value={opt.value}
+                    label={opt.label}
+                    checked={field.value === opt.value}
+                    onChange={(e) => field.onChange(e.target.value)}
+                  />
                 ))}
               </fieldset>
             )}
