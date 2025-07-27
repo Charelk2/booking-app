@@ -67,6 +67,7 @@ describe('DateTimeStep mobile input', () => {
     const input = container.querySelector('input[type="date"]') as HTMLInputElement;
     expect(input).not.toBeNull();
     expect(input.value).toBe('2025-06-20');
+    expect(input.className).toContain('input-base');
     expect(errorSpy).not.toHaveBeenCalled();
   });
 
