@@ -1,6 +1,6 @@
 # backend/app/api/v1/api_artist.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, status, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Any
 import shutil
@@ -9,6 +9,7 @@ import os
 
 from ..database import get_db
 from ..models.user import User, UserType
+
 # Import the V2 class directly so we don't accidentally pick up a stale __init__.py
 from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
 from ..schemas.artist import (
@@ -17,6 +18,7 @@ from ..schemas.artist import (
     ArtistProfileResponse,
 )
 from .dependencies import get_current_user, get_current_active_artist
+from ..utils import error_response
 
 router = APIRouter()  # No prefix here. Main mounts it under "/api/v1/artist-profiles".
 
@@ -59,9 +61,10 @@ def create_artist_profile_for_current_user(
         .first()
     )
     if existing_profile:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Artist profile already exists for this user.",
+        raise error_response(
+            "Artist profile already exists for this user.",
+            {},
+            status.HTTP_400_BAD_REQUEST,
         )
 
     profile_data = profile_in.model_dump()
@@ -92,9 +95,10 @@ def read_artist_profile_me(
         .first()
     )
     if not profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Artist profile not found for current user. Please create one.",
+        raise error_response(
+            "Artist profile not found for current user. Please create one.",
+            {},
+            status.HTTP_404_NOT_FOUND,
         )
     return profile
 
@@ -119,9 +123,10 @@ def update_artist_profile_me(
         .first()
     )
     if not profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Artist profile not found. Cannot update.",
+        raise error_response(
+            "Artist profile not found. Cannot update.",
+            {},
+            status.HTTP_404_NOT_FOUND,
         )
 
     update_data = profile_in.model_dump(exclude_unset=True)
@@ -133,7 +138,10 @@ def update_artist_profile_me(
         ]
 
     # If profile_picture_url is provided as URL type, convert to string
-    if "profile_picture_url" in update_data and update_data["profile_picture_url"] is not None:
+    if (
+        "profile_picture_url" in update_data
+        and update_data["profile_picture_url"] is not None
+    ):
         update_data["profile_picture_url"] = str(update_data["profile_picture_url"])
 
     for field, value in update_data.items():
@@ -169,9 +177,7 @@ def list_all_artist_profiles(db: Session = Depends(get_db)) -> Any:
     response_model=ArtistProfileResponse,
     summary="Read Artist Profile by User ID",
 )
-def read_artist_profile_by_user_id(
-    user_id: int, db: Session = Depends(get_db)
-) -> Any:
+def read_artist_profile_by_user_id(user_id: int, db: Session = Depends(get_db)) -> Any:
     """
     Get an artist profile by their user ID (publicly accessible).
     """

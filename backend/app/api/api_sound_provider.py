@@ -1,6 +1,6 @@
 """API endpoints for managing sound providers and artist preferences."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session, joinedload
 from typing import List
 
@@ -14,6 +14,7 @@ from ..schemas import (
     ArtistSoundPreferenceResponse,
 )
 from .dependencies import get_current_active_artist
+from ..utils import error_response
 
 router = APIRouter(tags=["sound-providers"])
 
@@ -23,7 +24,9 @@ def list_providers(db: Session = Depends(get_db)):
     return db.query(SoundProvider).all()
 
 
-@router.post("/", response_model=SoundProviderResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=SoundProviderResponse, status_code=status.HTTP_201_CREATED
+)
 def create_provider(*, db: Session = Depends(get_db), provider_in: SoundProviderCreate):
     provider = SoundProvider(**provider_in.model_dump())
     db.add(provider)
@@ -33,10 +36,16 @@ def create_provider(*, db: Session = Depends(get_db), provider_in: SoundProvider
 
 
 @router.put("/{provider_id}", response_model=SoundProviderResponse)
-def update_provider(*, db: Session = Depends(get_db), provider_id: int, provider_in: SoundProviderUpdate):
+def update_provider(
+    *, db: Session = Depends(get_db), provider_id: int, provider_in: SoundProviderUpdate
+):
     provider = db.query(SoundProvider).filter(SoundProvider.id == provider_id).first()
     if not provider:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found")
+        raise error_response(
+            "Provider not found",
+            {"provider_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
     for field, value in provider_in.model_dump(exclude_unset=True).items():
         setattr(provider, field, value)
     db.add(provider)
@@ -49,7 +58,11 @@ def update_provider(*, db: Session = Depends(get_db), provider_id: int, provider
 def delete_provider(*, db: Session = Depends(get_db), provider_id: int):
     provider = db.query(SoundProvider).filter(SoundProvider.id == provider_id).first()
     if not provider:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found")
+        raise error_response(
+            "Provider not found",
+            {"provider_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
     db.delete(provider)
     db.commit()
     return None
@@ -67,16 +80,24 @@ def get_artist_preferences(artist_id: int, db: Session = Depends(get_db)):
     return prefs
 
 
-@router.post("/artist/{artist_id}", response_model=ArtistSoundPreferenceResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/artist/{artist_id}",
+    response_model=ArtistSoundPreferenceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def add_artist_preference(
     *,
     db: Session = Depends(get_db),
     artist_id: int,
     pref_in: ArtistSoundPreferenceBase,
-    current_artist = Depends(get_current_active_artist),
+    current_artist=Depends(get_current_active_artist),
 ):
     if artist_id != current_artist.user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your profile")
+        raise error_response(
+            "Not your profile",
+            {},
+            status.HTTP_403_FORBIDDEN,
+        )
     preference = ArtistSoundPreference(artist_id=artist_id, **pref_in.model_dump())
     db.add(preference)
     db.commit()
