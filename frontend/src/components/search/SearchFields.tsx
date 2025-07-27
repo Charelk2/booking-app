@@ -3,7 +3,7 @@
 import { forwardRef, Fragment } from 'react';
 import ReactDatePicker from 'react-datepicker';
 
-import '../styles/datepicker.css';
+import '../../styles/datepicker.css';
 import { Listbox, Transition } from '@headlessui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
