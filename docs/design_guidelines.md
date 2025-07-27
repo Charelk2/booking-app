@@ -10,12 +10,12 @@ All spacing is based on a **4&nbsp;px** scale so margins and padding remain cons
 
 Headings follow a clear typographic hierarchy:
 
-| Element | Size | Weight |
-|---------|------|--------|
-| `h1`    | `2rem` (32px) | `700` |
-| `h2`    | `1.5rem` (24px) | `600` |
-| `h3`    | `1.25rem` (20px) | `600` |
-| Body    | `1rem` (16px) | `400` |
+| Element | Size             | Weight |
+| ------- | ---------------- | ------ |
+| `h1`    | `2rem` (32px)    | `700`  |
+| `h2`    | `1.5rem` (24px)  | `600`  |
+| `h3`    | `1.25rem` (20px) | `600`  |
+| Body    | `1rem` (16px)    | `400`  |
 
 The base font family is Inter via the CSS variable `--font-sans` defined in `globals.css`.
 
@@ -23,16 +23,28 @@ The base font family is Inter via the CSS variable `--font-sans` defined in `glo
 
 The application uses a small brand palette:
 
-| Token | Hex |
-|-------|-----|
-| `--color-primary` | `#FF5A5F` |
-| `--color-secondary` | `#E04852` |
-| `--color-accent` | `#FF7A85` |
-| `--color-border` | `#FFD0D3` |
+| Token                | Hex       |
+| -------------------- | --------- |
+| `--color-primary`    | `#FF5A5F` |
+| `--color-secondary`  | `#E04852` |
+| `--color-accent`     | `#FF7A85` |
+| `--color-border`     | `#FFD0D3` |
 | `--color-background` | `#ffffff` |
 | `--color-foreground` | `#111827` |
 
 These values power Tailwind classes such as `bg-brand`, `text-brand-dark` and `border-brand`. The light tint `--brand-color-light` (`#FFEAEA`) is used for subtle gradients.
+
+### Dashboard Palette
+
+The analytics dashboard uses a complementary set of tokens for charts and status badges:
+
+| Token                   | Hex       |
+| ----------------------- | --------- |
+| `--dashboard-primary`   | `#0047AB` |
+| `--dashboard-secondary` | `#FFD700` |
+| `--dashboard-accent`    | `#FF6347` |
+
+Utility classes like `bg-brand-primary` and `text-brand-secondary` map to these variables so you can update the dashboard theme in one place.
 
 ## Component Styles
 

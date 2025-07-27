@@ -4,18 +4,22 @@
 
 :root {
   --font-sans: var(--font-inter);
-  --color-primary: #FF5A5F;
-  --color-secondary: #E04852;
-  --color-accent: #FF7A85;
-  --color-border: #FFD0D3;
+  --color-primary: #ff5a5f;
+  --color-secondary: #e04852;
+  --color-accent: #ff7a85;
+  --color-border: #ffd0d3;
   --color-background: #ffffff;
   --color-foreground: #111827;
   --brand-color: var(--color-primary);
   --brand-color-dark: var(--color-secondary);
   /* lighter tint used for subtle page gradients */
-  --brand-color-light: #FFEAEA;
+  --brand-color-light: #ffeaea;
   --color-link: var(--brand-color-dark);
   --color-link-hover: var(--brand-color);
+  /* dashboard palette for charts and stats */
+  --dashboard-primary: #0047ab;
+  --dashboard-secondary: #ffd700;
+  --dashboard-accent: #ff6347;
 }
 
 @layer base {
@@ -63,17 +67,16 @@
 }
 
 @layer components {
-/* --- ADD THIS CODE --- */
-.pac-container {
-  /* This makes the Google Maps dropdown appear on top of the modal */
-  z-index: 9999 !important;
-}
+  /* --- ADD THIS CODE --- */
+  .pac-container {
+    /* This makes the Google Maps dropdown appear on top of the modal */
+    z-index: 9999 !important;
+  }
 
-
-html[data-headlessui-focus-visible] {
-  overflow: visible !important;
-  padding-right: 0 !important;
-}
+  html[data-headlessui-focus-visible] {
+    overflow: visible !important;
+    padding-right: 0 !important;
+  }
 
   /* Booking wizard common styles */
   .wizard-step-container {
@@ -85,7 +88,7 @@ html[data-headlessui-focus-visible] {
   }
 
   .input-base {
-    @apply w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand min-h-[44px];
+    @apply min-h-[44px] w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand;
   }
 
   .selectable-card-input {
@@ -104,6 +107,5 @@ html[data-headlessui-focus-visible] {
     @apply border-brand bg-brand-light;
   }
 }
-
 
 /* ... (rest of your globals.css content) ... */
