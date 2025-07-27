@@ -1,6 +1,6 @@
 # app/api/api_service.py
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List
@@ -13,6 +13,7 @@ from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
 from ..models.service import Service
 from ..schemas.service import ServiceCreate, ServiceUpdate, ServiceResponse
 from .dependencies import get_current_active_artist
+from ..utils import error_response
 
 router = APIRouter(
     # Note: NO prefix here, because main.py already does `prefix="/api/v1/services"`
@@ -77,9 +78,10 @@ def update_service(
         .first()
     )
     if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Service not found or you don't have permission to update it.",
+        raise error_response(
+            "Service not found or you don't have permission to update it.",
+            {"service_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
         )
 
     update_data = service_in.model_dump(exclude_unset=True)
@@ -105,8 +107,10 @@ def read_service(service_id: int, db: Session = Depends(get_db)):
         .first()
     )
     if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Service not found"
+        raise error_response(
+            "Service not found",
+            {"service_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
         )
     return service
 
@@ -122,9 +126,10 @@ def read_services_by_artist(artist_user_id: int, db: Session = Depends(get_db)):
         db.query(ArtistProfile).filter(ArtistProfile.user_id == artist_user_id).first()
     )
     if not artist_profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Artist profile not found for this user ID.",
+        raise error_response(
+            "Artist profile not found for this user ID.",
+            {"artist_user_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
         )
 
     services = (
@@ -154,9 +159,10 @@ def delete_service(
         .first()
     )
     if not service:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Service not found or you don't have permission to delete it.",
+        raise error_response(
+            "Service not found or you don't have permission to delete it.",
+            {"service_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
         )
 
     db.delete(service)

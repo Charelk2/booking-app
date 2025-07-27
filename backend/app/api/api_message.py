@@ -1,7 +1,6 @@
 from fastapi import (
     APIRouter,
     Depends,
-    HTTPException,
     status,
     UploadFile,
     File,
@@ -17,6 +16,7 @@ from ..utils.notifications import (
     notify_user_new_booking_request,
     VIDEO_FLOW_READY_MESSAGE,
 )
+from ..utils import error_response
 from .api_ws import manager
 import os
 import uuid
@@ -43,13 +43,16 @@ def read_messages(
         db, request_id=request_id
     )
     if not booking_request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Booking request not found"
+        raise error_response(
+            "Booking request not found",
+            {"request_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
         )
     if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access messages",
+        raise error_response(
+            "Not authorized to access messages",
+            {},
+            status.HTTP_403_FORBIDDEN,
         )
     db_messages = crud.crud_message.get_messages_for_request(db, request_id)
     result = []
@@ -85,13 +88,16 @@ def create_message(
         db, request_id=request_id
     )
     if not booking_request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Booking request not found"
+        raise error_response(
+            "Booking request not found",
+            {"request_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
         )
     if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to send message",
+        raise error_response(
+            "Not authorized to send message",
+            {},
+            status.HTTP_403_FORBIDDEN,
         )
     sender_type = (
         models.SenderType.CLIENT
@@ -137,12 +143,24 @@ def create_message(
             and message_in.content == VIDEO_FLOW_READY_MESSAGE
             and other_user
         ):
-            client = db.query(models.User).filter(models.User.id == booking_request.client_id).first()
+            client = (
+                db.query(models.User)
+                .filter(models.User.id == booking_request.client_id)
+                .first()
+            )
             booking_type = service.service_type
-            sender_name = f"{client.first_name} {client.last_name}" if client else "Client"
-            artist = db.query(models.User).filter(models.User.id == booking_request.artist_id).first()
+            sender_name = (
+                f"{client.first_name} {client.last_name}" if client else "Client"
+            )
+            artist = (
+                db.query(models.User)
+                .filter(models.User.id == booking_request.artist_id)
+                .first()
+            )
             if artist:
-                notify_user_new_booking_request(db, artist, request_id, sender_name, booking_type)
+                notify_user_new_booking_request(
+                    db, artist, request_id, sender_name, booking_type
+                )
         # suppress message notifications during flow
     elif other_user:
         notify_user_new_message(
@@ -189,13 +207,16 @@ async def upload_attachment(
         db, request_id=request_id
     )
     if not booking_request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Booking request not found"
+        raise error_response(
+            "Booking request not found",
+            {"request_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
         )
     if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to upload attachment",
+        raise error_response(
+            "Not authorized to upload attachment",
+            {},
+            status.HTTP_403_FORBIDDEN,
         )
 
     _, ext = os.path.splitext(file.filename)
