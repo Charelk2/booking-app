@@ -20,9 +20,21 @@
   --dashboard-primary: #0047ab;
   --dashboard-secondary: #ffd700;
   --dashboard-accent: #ff6347;
+  /* 10% tint of the accent color for subtle backgrounds */
+  --color-accent-10: rgb(255 122 133 / 0.1);
 }
 
 @layer base {
+  /* Apply universal box-sizing for easier layout calculations */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -38,6 +50,15 @@
   a:hover {
     color: var(--color-link-hover);
     text-decoration: underline;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--brand-color-dark);
+    outline-offset: 2px;
   }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
