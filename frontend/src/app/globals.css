@@ -63,12 +63,10 @@
 }
 
 @layer components {
-/* --- ADD THIS CODE --- */
 .pac-container {
   /* This makes the Google Maps dropdown appear on top of the modal */
   z-index: 9999 !important;
 }
-
 
 html[data-headlessui-focus-visible] {
   overflow: visible !important;
@@ -104,6 +102,3 @@ html[data-headlessui-focus-visible] {
     @apply border-brand bg-brand-light;
   }
 }
-
-
-/* ... (rest of your globals.css content) ... */
