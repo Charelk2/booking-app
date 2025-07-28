@@ -128,6 +128,8 @@ describe("AddServiceModal wizard", () => {
         service_type: "Live Performance",
         duration_minutes: 30,
         price: 100,
+        travel_rate: 2.5,
+        travel_members: 1,
       }),
     );
   });
