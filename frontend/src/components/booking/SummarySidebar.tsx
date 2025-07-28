@@ -14,7 +14,7 @@ export default function SummarySidebar() {
       animate={{ x: 0, opacity: 1 }}
       className="space-y-4"
     >
-      <h2 className="text-lg font-medium">Summary</h2>
+      <h3 className="text-lg font-semibold mt-4 mb-2">Booking Summary</h3>
       <dl className="bg-gray-50 p-4 rounded-lg text-sm space-y-1">
         {details.date && isValid(dateValue) && (
           <div className="flex justify-between">
