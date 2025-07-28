@@ -1,68 +1,68 @@
-"use client";
+'use client';
 // Main wizard component controlling the multi-step booking flow.
 // On mobile devices sections collapse into accordions and the
 // progress indicator remains sticky as the user scrolls.
-import { useEffect, useState, useRef } from "react";
-import type { Control, FieldValues } from "react-hook-form";
-import { useRouter } from "next/navigation";
-import * as yup from "yup";
-import { format } from "date-fns";
-import Stepper from "../ui/Stepper"; // progress indicator
-import CollapsibleSection from "../ui/CollapsibleSection";
-import Card from "../ui/Card";
-import { AnimatePresence, motion } from "framer-motion";
-import toast from "../ui/Toast";
+import { useEffect, useState, useRef } from 'react';
+import type { Control, FieldValues } from 'react-hook-form';
+import { useRouter } from 'next/navigation';
+import * as yup from 'yup';
+import { format } from 'date-fns';
+import Stepper from '../ui/Stepper'; // progress indicator
+import CollapsibleSection from '../ui/CollapsibleSection';
+import Card from '../ui/Card';
+import { AnimatePresence, motion } from 'framer-motion';
+import toast from '../ui/Toast';
 import {
   getArtistAvailability,
   createBookingRequest,
   updateBookingRequest,
   postMessageToBookingRequest,
   getArtist,
-} from "@/lib/api";
-import { BookingRequestCreate } from "@/types";
-import { useBooking, EventDetails } from "@/contexts/BookingContext";
-import useBookingForm from "@/hooks/useBookingForm";
-import DateTimeStep from "./steps/DateTimeStep";
-import LocationStep from "./steps/LocationStep";
-import GuestsStep from "./steps/GuestsStep";
-import SoundStep from "./steps/SoundStep";
-import VenueStep from "./steps/VenueStep";
-import NotesStep from "./steps/NotesStep";
-import ReviewStep from "./steps/ReviewStep";
-import useIsMobile from "@/hooks/useIsMobile";
+} from '@/lib/api';
+import { BookingRequestCreate } from '@/types';
+import { useBooking, EventDetails } from '@/contexts/BookingContext';
+import useBookingForm from '@/hooks/useBookingForm';
+import DateTimeStep from './steps/DateTimeStep';
+import LocationStep from './steps/LocationStep';
+import GuestsStep from './steps/GuestsStep';
+import SoundStep from './steps/SoundStep';
+import VenueStep from './steps/VenueStep';
+import NotesStep from './steps/NotesStep';
+import ReviewStep from './steps/ReviewStep';
+import useIsMobile from '@/hooks/useIsMobile';
 
 const steps = [
-  "Date & Time",
-  "Location",
-  "Guests",
-  "Venue Type",
-  "Sound",
-  "Notes",
-  "Review",
+  'Date & Time',
+  'Location',
+  'Guests',
+  'Venue Type',
+  'Sound',
+  'Notes',
+  'Review',
 ];
 
 const instructions = [
-  "When should we perform?",
-  "Where is the show?",
-  "How many people?",
-  "What type of venue is it?",
-  "Will sound equipment be needed?",
-  "Anything else we should know?",
-  "Please confirm the information above before sending your request.",
+  'When should we perform?',
+  'Where is the show?',
+  'How many people?',
+  'What type of venue is it?',
+  'Will sound equipment be needed?',
+  'Anything else we should know?',
+  'Please confirm the information above before sending your request.',
 ];
 
 const schema = yup.object({
-  date: yup.date().required().min(new Date(), "Pick a future date"),
-  location: yup.string().required("Location is required"),
+  date: yup.date().required().min(new Date(), 'Pick a future date'),
+  location: yup.string().required('Location is required'),
   guests: yup
     .string()
-    .required("Number of guests is required")
-    .matches(/^\d+$/, "Guests must be a number"),
+    .required('Number of guests is required')
+    .matches(/^\d+$/, 'Guests must be a number'),
   venueType: yup
-    .mixed<"indoor" | "outdoor" | "hybrid">()
-    .oneOf(["indoor", "outdoor", "hybrid"])
+    .mixed<'indoor' | 'outdoor' | 'hybrid'>()
+    .oneOf(['indoor', 'outdoor', 'hybrid'])
     .required(),
-  sound: yup.string().oneOf(["yes", "no"]).required(),
+  sound: yup.string().oneOf(['yes', 'no']).required(),
   notes: yup.string().optional(),
   attachment_url: yup.string().optional(),
 });
@@ -101,17 +101,19 @@ export default function BookingWizard({
     setMaxStepCompleted((prev) => Math.max(prev, step));
   }, [step]);
 
-  const { control, handleSubmit, trigger, setValue, errors } = useBookingForm(
-    schema,
-    details,
-    setDetails,
-  );
+  const {
+    control,
+    handleSubmit,
+    trigger,
+    setValue,
+    errors,
+  } = useBookingForm(schema, details, setDetails);
 
   // Keep the start of each step visible on small screens
   // so navigation feels smooth on mobile devices.
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     headingRef.current?.focus();
   }, [step]);
@@ -139,19 +141,19 @@ export default function BookingWizard({
     let fields: (keyof EventDetails)[] = [];
     switch (step) {
       case 0:
-        fields = ["date"];
+        fields = ['date'];
         break;
       case 1:
-        fields = ["location"];
+        fields = ['location'];
         break;
       case 2:
-        fields = ["guests"];
+        fields = ['guests'];
         break;
       case 3:
-        fields = ["venueType"];
+        fields = ['venueType'];
         break;
       case 4:
-        fields = ["sound"];
+        fields = ['sound'];
         break;
       default:
         fields = [];
@@ -172,12 +174,10 @@ export default function BookingWizard({
     const payload: BookingRequestCreate = {
       artist_id: artistId,
       service_id: contextServiceId,
-      proposed_datetime_1: vals.date
-        ? new Date(vals.date).toISOString()
-        : undefined,
+      proposed_datetime_1: vals.date ? new Date(vals.date).toISOString() : undefined,
       message: vals.notes,
       attachment_url: vals.attachment_url,
-      status: "draft",
+      status: 'draft',
     };
     try {
       if (requestId) {
@@ -187,7 +187,7 @@ export default function BookingWizard({
         setRequestId(res.data.id);
       }
       setError(null);
-      toast.success("Draft saved");
+      toast.success('Draft saved');
     } catch (e) {
       const err = e as Error;
       setError(err.message);
@@ -199,12 +199,10 @@ export default function BookingWizard({
     const payload: BookingRequestCreate = {
       artist_id: artistId,
       service_id: contextServiceId,
-      proposed_datetime_1: vals.date
-        ? new Date(vals.date).toISOString()
-        : undefined,
+      proposed_datetime_1: vals.date ? new Date(vals.date).toISOString() : undefined,
       message: vals.notes,
       attachment_url: vals.attachment_url,
-      status: "pending_quote",
+      status: 'pending_quote',
     };
     try {
       let res;
@@ -216,7 +214,7 @@ export default function BookingWizard({
       }
       const idToUse = requestId || res.data.id;
       const lines = [
-        `Date: ${format(vals.date, "yyyy-MM-dd")}`,
+        `Date: ${format(vals.date, 'yyyy-MM-dd')}`,
         `Location: ${vals.location}`,
         `Guests: ${vals.guests}`,
         `Sound: ${vals.sound}`,
@@ -225,12 +223,12 @@ export default function BookingWizard({
       if (vals.notes) {
         lines.push(`Notes: ${vals.notes}`);
       }
-      const detailLines = lines.join("\n");
+      const detailLines = lines.join('\n');
       await postMessageToBookingRequest(idToUse, {
         content: `Booking details:\n${detailLines}`,
-        message_type: "system",
+        message_type: 'system',
       });
-      toast.success("Request submitted");
+      toast.success('Request submitted');
       resetBooking();
       router.push(`/booking-requests/${idToUse}`);
     } catch (e) {
@@ -306,9 +304,7 @@ export default function BookingWizard({
         return (
           <NotesStep
             control={control as unknown as Control<FieldValues>}
-            setValue={
-              setValue as unknown as (name: string, value: unknown) => void
-            }
+            setValue={setValue as unknown as (name: string, value: unknown) => void}
             step={index}
             steps={steps}
             onBack={prev}
@@ -331,9 +327,13 @@ export default function BookingWizard({
   };
 
   return (
-    <main className="mx-auto max-w-7xl px-4 lg:px-8">
-      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[200px_1fr] lg:gap-8">
-        <aside aria-label="Booking steps">
+    <div className="px-4 py-16 lg:grid lg:grid-cols-[200px_1fr] lg:gap-8">
+      <aside className="lg:w-[200px] lg:pr-4">
+        <div
+          className="sticky z-20"
+          style={{ top: isMobile ? '4rem' : '5rem' }}
+          data-testid="progress-container"
+        >
           <Stepper
             steps={steps}
             currentStep={step}
@@ -341,9 +341,8 @@ export default function BookingWizard({
             onStepClick={handleStepClick}
             ariaLabel={`Progress: step ${step + 1} of ${steps.length}`}
             variant="neutral"
-            orientation={isMobile ? "horizontal" : "vertical"}
-            data-testid="progress-container"
-            className="w-full justify-center space-x-6 py-4 lg:sticky lg:top-16 lg:flex-col lg:items-start lg:space-x-0 lg:space-y-6 lg:border-r lg:border-gray-200 lg:pr-6 lg:pt-0"
+            orientation={isMobile ? 'horizontal' : 'vertical'}
+            className="lg:space-y-6"
           />
           <div
             aria-live="polite"
@@ -353,84 +352,80 @@ export default function BookingWizard({
           >
             {`Step ${step + 1} of ${steps.length}`}
           </div>
-        </aside>
-        {isMobile ? (
-          <div className="space-y-4">
-            {steps.map((label, i) => (
-              <CollapsibleSection
-                key={label}
-                title={label}
-                open={i === step}
-                onToggle={() => handleStepClick(i)}
-              >
-                {i === step && (
-                  <>
-                    <h2
-                      className="sr-only"
-                      data-testid="step-heading"
-                      tabIndex={-1}
-                      ref={headingRef}
-                    >
-                      {label}
-                    </h2>
-                    <p className="instruction-text mb-2">{instructions[i]}</p>
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={step}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <Card variant="wizard">{renderStep(i)}</Card>
-                      </motion.div>
-                    </AnimatePresence>
-                    {warning && (
-                      <p className="text-sm text-orange-600">{warning}</p>
-                    )}
-                    {Object.values(errors).length > 0 && (
-                      <p className="text-sm text-red-600">
-                        Please fix the errors above.
-                      </p>
-                    )}
-                    {error && <p className="text-sm text-red-600">{error}</p>}
-                  </>
-                )}
-              </CollapsibleSection>
-            ))}
-          </div>
-        ) : (
-          <Card variant="wizard" className="space-y-6">
-            <h2
-              className="text-2xl font-bold"
-              data-testid="step-heading"
-              tabIndex={-1}
-              ref={headingRef}
+        </div>
+      </aside>
+      {isMobile ? (
+        <div className="space-y-4">
+          {steps.map((label, i) => (
+            <CollapsibleSection
+              key={label}
+              title={label}
+              open={i === step}
+              onToggle={() => handleStepClick(i)}
             >
-              {steps[step]}
-            </h2>
-            <p className="instruction-text mb-2">{instructions[step]}</p>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {renderStep(step)}
-              </motion.div>
-            </AnimatePresence>
-            {warning && <p className="text-sm text-orange-600">{warning}</p>}
-            {Object.values(errors).length > 0 && (
-              <p className="text-sm text-red-600">
-                Please fix the errors above.
-              </p>
-            )}
-            {error && <p className="text-sm text-red-600">{error}</p>}
-          </Card>
-        )}
-      </div>
-    </main>
+              {i === step && (
+                <>
+                  <h2
+                    className="sr-only"
+                    data-testid="step-heading"
+                    tabIndex={-1}
+                    ref={headingRef}
+                  >
+                    {label}
+                  </h2>
+                  <p className="instruction-text mb-2">{instructions[i]}</p>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={step}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Card variant="wizard">{renderStep(i)}</Card>
+                    </motion.div>
+                  </AnimatePresence>
+                  {warning && (
+                    <p className="text-orange-600 text-sm">{warning}</p>
+                  )}
+                  {Object.values(errors).length > 0 && (
+                    <p className="text-red-600 text-sm">Please fix the errors above.</p>
+                  )}
+                  {error && <p className="text-red-600 text-sm">{error}</p>}
+                </>
+              )}
+            </CollapsibleSection>
+          ))}
+        </div>
+      ) : (
+        <Card variant="wizard" className="space-y-6">
+          <h2
+            className="text-2xl font-bold"
+            data-testid="step-heading"
+            tabIndex={-1}
+            ref={headingRef}
+          >
+            {steps[step]}
+          </h2>
+          <p className="instruction-text mb-2">{instructions[step]}</p>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {renderStep(step)}
+            </motion.div>
+          </AnimatePresence>
+          {warning && <p className="text-orange-600 text-sm">{warning}</p>}
+          {Object.values(errors).length > 0 && (
+            <p className="text-red-600 text-sm">Please fix the errors above.</p>
+          )}
+          {error && <p className="text-red-600 text-sm">{error}</p>}
+        </Card>
+      )}
+    </div>
   );
 }

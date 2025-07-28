@@ -1,12 +1,13 @@
 import { flushPromises } from "@/test/utils/flush";
-import { createRoot } from "react-dom/client";
-import React from "react";
-import { act } from "react";
-import BookingWizard from "../BookingWizard";
-import { BookingProvider, useBooking } from "@/contexts/BookingContext";
-import * as api from "@/lib/api";
+import { createRoot } from 'react-dom/client';
+import React from 'react';
+import { act } from 'react';
+import BookingWizard from '../BookingWizard';
+import { BookingProvider, useBooking } from '@/contexts/BookingContext';
+import * as api from '@/lib/api';
 
-jest.mock("@/lib/api");
+jest.mock('@/lib/api');
+
 
 function Wrapper() {
   return (
@@ -17,28 +18,23 @@ function Wrapper() {
   );
 }
 
-function ExposeSetter() {
-  const { setStep } = useBooking();
-  // Cast to unknown first to avoid eslint no-explicit-any complaint
-  (window as unknown as { __setStep: (step: number) => void }).__setStep =
-    setStep;
-  return null;
-}
+  function ExposeSetter() {
+    const { setStep } = useBooking();
+    // Cast to unknown first to avoid eslint no-explicit-any complaint
+    (window as unknown as { __setStep: (step: number) => void }).__setStep = setStep;
+    return null;
+  }
 
-describe("BookingWizard flow", () => {
+describe('BookingWizard flow', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
   beforeEach(async () => {
-    Object.defineProperty(window, "innerWidth", { value: 500, writable: true });
-    (api.getArtistAvailability as jest.Mock).mockResolvedValue({
-      data: { unavailable_dates: [] },
-    });
-    (api.getArtist as jest.Mock).mockResolvedValue({
-      data: { location: "NYC" },
-    });
+    Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
+    (api.getArtistAvailability as jest.Mock).mockResolvedValue({ data: { unavailable_dates: [] } });
+    (api.getArtist as jest.Mock).mockResolvedValue({ data: { location: 'NYC' } });
 
-    container = document.createElement("div");
+    container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
     // jsdom does not implement scrollTo, so provide a stub
@@ -59,106 +55,88 @@ describe("BookingWizard flow", () => {
   });
 
   function getButton(label: string): HTMLButtonElement {
-    return Array.from(container.querySelectorAll("button")).find((b) =>
-      b.textContent?.includes(label),
+    return Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes(label),
     ) as HTMLButtonElement;
   }
 
-  it("scrolls to top when advancing steps", async () => {
-    const nextButton = getButton("Next");
+  it('scrolls to top when advancing steps', async () => {
+    const nextButton = getButton('Next');
     await act(async () => {
-      nextButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      nextButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(window.scrollTo).toHaveBeenCalled();
   });
 
-  it("shows step heading and updates on next", async () => {
+  it('shows step heading and updates on next', async () => {
     const heading = () =>
       container.querySelector('[data-testid="step-heading"]')?.textContent;
-    expect(heading()).toContain("Date & Time");
-    const next = getButton("Next");
+    expect(heading()).toContain('Date & Time');
+    const next = getButton('Next');
     await act(async () => {
-      next.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await flushPromises();
-    expect(heading()).toContain("Location");
+    expect(heading()).toContain('Location');
   });
 
-  it("collapses inactive steps on mobile", async () => {
+  it('collapses inactive steps on mobile', async () => {
     const sections = () =>
-      Array.from(
-        container.querySelectorAll("section button[aria-controls]"),
-      ) as HTMLButtonElement[];
-    expect(sections()[0].getAttribute("aria-expanded")).toBe("true");
-    expect(sections()[1].getAttribute("aria-expanded")).toBe("false");
-    const next = getButton("Next");
+      Array.from(container.querySelectorAll('section button[aria-controls]')) as HTMLButtonElement[];
+    expect(sections()[0].getAttribute('aria-expanded')).toBe('true');
+    expect(sections()[1].getAttribute('aria-expanded')).toBe('false');
+    const next = getButton('Next');
     await act(async () => {
-      next.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await flushPromises();
     const updated = sections();
-    expect(updated[0].getAttribute("aria-expanded")).toBe("false");
-    expect(updated[1].getAttribute("aria-expanded")).toBe("true");
+    expect(updated[0].getAttribute('aria-expanded')).toBe('false');
+    expect(updated[1].getAttribute('aria-expanded')).toBe('true');
   });
 
-  it("shows summary only on the review step", async () => {
-    expect(container.querySelector("h2")?.textContent).toContain("Date & Time");
-    expect(container.textContent).not.toContain("Summary");
-    const setStep = (window as unknown as { __setStep: (s: number) => void })
-      .__setStep;
-    await act(async () => {
-      setStep(6);
-    });
+  it('shows summary only on the review step', async () => {
+    expect(container.querySelector('h2')?.textContent).toContain('Date & Time');
+    expect(container.textContent).not.toContain('Summary');
+    const setStep = (window as unknown as { __setStep: (s: number) => void }).__setStep;
+    await act(async () => { setStep(6); });
     await flushPromises();
-    expect(container.querySelector("h2")?.textContent).toContain("Review");
-    expect(container.textContent).toContain("Summary");
+    expect(container.querySelector('h2')?.textContent).toContain('Review');
+    expect(container.textContent).toContain('Summary');
   });
 
-  it("allows navigating back via the progress bar", async () => {
-    const next = getButton("Next");
+  it('allows navigating back via the progress bar', async () => {
+    const next = getButton('Next');
     await act(async () => {
-      next.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await flushPromises();
-    const progressButtons = container.querySelectorAll(
-      '[aria-label="Progress"] button',
-    );
+    const progressButtons = container.querySelectorAll('[aria-label="Progress"] button');
     expect(progressButtons.length).toBeGreaterThan(1);
     await act(async () => {
-      progressButtons[0].dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      progressButtons[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await flushPromises();
     expect(
       container.querySelector('[data-testid="step-heading"]')?.textContent,
-    ).toContain("Date & Time");
+    ).toContain('Date & Time');
   });
 
-  it("keeps future completed steps clickable when rewinding", async () => {
-    const setStep = (window as unknown as { __setStep: (s: number) => void })
-      .__setStep;
-    await act(async () => {
-      setStep(2);
-    });
+  it('keeps future completed steps clickable when rewinding', async () => {
+    const setStep = (window as unknown as { __setStep: (s: number) => void }).__setStep;
+    await act(async () => { setStep(2); });
     await flushPromises();
-    let progressButtons = container.querySelectorAll(
-      '[aria-label="Progress"] button',
-    );
+    let progressButtons = container.querySelectorAll('[aria-label="Progress"] button');
     await act(async () => {
-      progressButtons[1].dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      progressButtons[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await flushPromises();
     // query again after DOM update
-    progressButtons = container.querySelectorAll(
-      '[aria-label="Progress"] button',
-    );
+    progressButtons = container.querySelectorAll('[aria-label="Progress"] button');
     expect((progressButtons[2] as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("shows a loader while fetching availability", async () => {
+  it('shows a loader while fetching availability', async () => {
     let resolve: (value: { data: { unavailable_dates: string[] } }) => void;
     (api.getArtistAvailability as jest.Mock).mockReturnValue(
       new Promise((res) => {
@@ -168,124 +146,113 @@ describe("BookingWizard flow", () => {
     act(() => {
       root.unmount();
     });
-    container.innerHTML = "";
+    container.innerHTML = '';
     root = createRoot(container);
     await act(async () => {
       root.render(React.createElement(Wrapper));
     });
-    const skeleton = container.querySelector(
-      '[data-testid="calendar-skeleton"]',
-    );
+    const skeleton = container.querySelector('[data-testid="calendar-skeleton"]');
     expect(skeleton).not.toBeNull();
     act(() => resolve({ data: { unavailable_dates: [] } }));
     await flushPromises();
-    expect(
-      container.querySelector('[data-testid="calendar-skeleton"]'),
-    ).toBeNull();
+    expect(container.querySelector('[data-testid="calendar-skeleton"]')).toBeNull();
   });
 
-  it("does not make the progress indicator sticky on mobile", () => {
-    const wrapper = container.querySelector(
-      '[data-testid="progress-container"]',
-    ) as HTMLDivElement | null;
-    expect(wrapper?.className).not.toContain("sticky");
+  it('renders a sticky progress indicator', () => {
+    const wrapper = container.querySelector('[data-testid="progress-container"]') as HTMLDivElement | null;
+    expect(wrapper?.className).toContain('sticky');
+    expect(wrapper?.style.top).toBe('4rem');
   });
 
-  it("announces progress updates for screen readers", async () => {
+  it('announces progress updates for screen readers', async () => {
     const progress = () =>
       container.querySelector('[data-testid="progress-status"]')?.textContent;
-    expect(progress()).toBe("Step 1 of 7");
-    const next = getButton("Next");
+    expect(progress()).toBe('Step 1 of 7');
+    const next = getButton('Next');
     await act(async () => {
-      next.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await flushPromises();
-    expect(progress()).toBe("Step 2 of 7");
+    expect(progress()).toBe('Step 2 of 7');
   });
 
-  it("moves focus to the step heading when advancing", async () => {
-    const next = getButton("Next");
+  it('moves focus to the step heading when advancing', async () => {
+    const next = getButton('Next');
     await act(async () => {
-      next.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await flushPromises();
     const heading = container.querySelector('[data-testid="step-heading"]');
     expect(document.activeElement).toBe(heading);
   });
 
-  it("disables dates returned from Google Calendar", async () => {
+  it('disables dates returned from Google Calendar', async () => {
     jest.useFakeTimers();
-    jest.setSystemTime(new Date("2025-01-01T00:00:00Z"));
+    jest.setSystemTime(new Date('2025-01-01T00:00:00Z'));
     (api.getArtistAvailability as jest.Mock).mockResolvedValue({
-      data: { unavailable_dates: ["2025-01-02"] },
+      data: { unavailable_dates: ['2025-01-02'] },
     });
     act(() => {
       root.unmount();
     });
-    container.innerHTML = "";
+    container.innerHTML = '';
     root = createRoot(container);
     await act(async () => {
       root.render(React.createElement(Wrapper));
     });
     await flushPromises();
-    const disabledButtons = container.querySelectorAll("button[disabled]");
+    const disabledButtons = container.querySelectorAll('button[disabled]');
     expect(disabledButtons.length).toBeGreaterThan(1);
     jest.useRealTimers();
   });
 
-  it("restores progress from localStorage on reload", async () => {
+  it('restores progress from localStorage on reload', async () => {
     (window as unknown as { confirm: jest.Mock }).confirm = jest.fn(() => true);
-    const next = getButton("Next");
+    const next = getButton('Next');
     await act(async () => {
-      next.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await flushPromises();
-    const stored = JSON.parse(localStorage.getItem("bookingState")!);
+    const stored = JSON.parse(localStorage.getItem('bookingState')!);
     expect(stored.step).toBe(1);
 
     act(() => {
       root.unmount();
     });
-    container.innerHTML = "";
+    container.innerHTML = '';
     root = createRoot(container);
     await act(async () => {
       root.render(React.createElement(Wrapper));
     });
     await flushPromises();
-    expect(
-      container.querySelector('[data-testid="step-heading"]')?.textContent,
-    ).toContain("Location");
+    expect(container.querySelector('[data-testid="step-heading"]')?.textContent).toContain('Location');
   });
 
-  it("clears saved progress when starting over", async () => {
+  it('clears saved progress when starting over', async () => {
     act(() => {
       root.unmount();
     });
     localStorage.setItem(
-      "bookingState",
+      'bookingState',
       JSON.stringify({
         step: 2,
         details: {
           date: new Date().toISOString(),
-          location: "LA",
-          guests: "10",
-          venueType: "indoor",
-          sound: "yes",
+          location: 'LA',
+          guests: '10',
+          venueType: 'indoor',
+          sound: 'yes',
         },
       }),
     );
-    (window as unknown as { confirm: jest.Mock }).confirm = jest.fn(
-      () => false,
-    );
-    container.innerHTML = "";
+    (window as unknown as { confirm: jest.Mock }).confirm = jest.fn(() => false);
+    container.innerHTML = '';
     root = createRoot(container);
     await act(async () => {
       root.render(React.createElement(Wrapper));
     });
     await flushPromises();
-    expect(localStorage.getItem("bookingState")).toBeNull();
-    expect(
-      container.querySelector('[data-testid="step-heading"]')?.textContent,
-    ).toContain("Date & Time");
+    expect(localStorage.getItem('bookingState')).toBeNull();
+    expect(container.querySelector('[data-testid="step-heading"]')?.textContent).toContain('Date & Time');
   });
 });
