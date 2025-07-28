@@ -60,9 +60,9 @@ const schema = yup.object<EventDetails>().shape({
 });
 
 const steps = [
+  'Date & Time',
   'Event Type',
   'Event Details',
-  'Date & Time',
   'Location',
   'Guests',
   'Venue Type',
@@ -72,9 +72,9 @@ const steps = [
 ];
 
 const instructions = [
+  'When should we perform?',
   'What type of event are you planning?',
   'Tell us a little bit more about your event.',
-  'When should we perform?',
   'Where is the show?',
   'How many people?',
   'What type of venue is it?',
@@ -153,9 +153,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   const next = async () => {
     const stepFields: (keyof EventDetails)[][] = [
+      ['date'],
       ['eventType'],
       ['eventDescription'],
-      ['date'],
       ['location'],
       ['guests'],
       ['venueType'],
@@ -239,11 +239,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     const common = { step, steps, onBack: prev, onSaveDraft: saveDraft, onNext: next };
     switch (step) {
       case 0:
-        return <EventTypeStep control={control} />;
-      case 1:
-        return <EventDescriptionStep control={control} />;
-      case 2:
         return <DateTimeStep control={control} unavailable={unavailable} />;
+      case 1:
+        return <EventTypeStep control={control} />;
+      case 2:
+        return <EventDescriptionStep control={control} />;
       case 3:
         return (
           <LocationStep
@@ -329,7 +329,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   {step === 0 ? 'Cancel' : 'Back'}
                 </Button>
                 {step < steps.length - 1 ? (
-                  <Button onClick={next} data-testid={step === 2 ? 'date-next-button' : undefined}>
+                  <Button onClick={next} data-testid={step === 0 ? 'date-next-button' : undefined}>
                     Next
                   </Button>
                 ) : (

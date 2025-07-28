@@ -794,7 +794,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Summary sidebar collapses into a `<details>` section on phones so you can hide the order overview.
 * Steps now animate with **framer-motion** and the progress dots stay clickable for all completed steps.
 * Redesigned wizard uses animated stepper circles and spacious rounded cards for each step. Buttons have improved focus styles and align responsively.
-* The flow now begins with **Event Type** and **Event Details** steps so clients can describe their occasion before selecting the date.
+* The flow now begins with **Date & Time** followed by **Event Type** and **Event Details** so clients choose when first.
 * Progress and form values persist to `localStorage`. Opening the booking wizard
   again prompts you to resume or start over. Saved data clears automatically
   after submission or when you reset the wizard.
