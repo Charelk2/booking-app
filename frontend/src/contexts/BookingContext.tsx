@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 
 export interface EventDetails {
+  eventType: string;
+  eventDescription: string;
   date: Date;
   location: string;
   guests: string;
@@ -27,6 +29,8 @@ const BookingContext = createContext<BookingContextValue | undefined>(undefined)
 const STORAGE_KEY = 'bookingState';
 
 const initialDetails: EventDetails = {
+  eventType: '',
+  eventDescription: '',
   date: new Date(),
   location: '',
   guests: '',
