@@ -327,13 +327,14 @@ export default function BookingWizard({
   };
 
   return (
-    <div className="px-4 py-16 lg:grid lg:grid-cols-[200px_1fr] lg:gap-8">
-      <aside className="lg:w-[200px] lg:pr-4">
-        <div
-          className="sticky z-20"
-          style={{ top: isMobile ? '4rem' : '5rem' }}
-          data-testid="progress-container"
-        >
+    <main className="mx-auto max-w-7xl px-4 lg:px-8 py-16">
+      <div className="lg:grid lg:grid-cols-[200px_1fr] lg:gap-8">
+        <aside className="flex justify-center lg:block">
+          <div
+            className="sticky z-20"
+            style={{ top: isMobile ? '4rem' : '5rem' }}
+            data-testid="progress-container"
+          >
           <Stepper
             steps={steps}
             currentStep={step}
@@ -342,6 +343,7 @@ export default function BookingWizard({
             ariaLabel={`Progress: step ${step + 1} of ${steps.length}`}
             variant="neutral"
             orientation={isMobile ? 'horizontal' : 'vertical'}
+            textOnly={!isMobile}
             className="lg:space-y-6"
           />
           <div
@@ -353,9 +355,9 @@ export default function BookingWizard({
             {`Step ${step + 1} of ${steps.length}`}
           </div>
         </div>
-      </aside>
-      {isMobile ? (
-        <div className="space-y-4">
+        </aside>
+        {isMobile ? (
+          <div className="space-y-4">
           {steps.map((label, i) => (
             <CollapsibleSection
               key={label}
@@ -425,7 +427,8 @@ export default function BookingWizard({
           )}
           {error && <p className="text-red-600 text-sm">{error}</p>}
         </Card>
-      )}
-    </div>
+        )}
+      </div>
+    </main>
   );
 }
