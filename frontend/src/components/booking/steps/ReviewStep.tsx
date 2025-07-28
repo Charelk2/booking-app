@@ -1,8 +1,10 @@
 'use client';
 // Final review step showing a summary of all selections.
+import SummarySidebar from '../SummarySidebar';
 import WizardNav from '../WizardNav'; // WizardNav is back!
 import { useBooking } from '@/contexts/BookingContext';
 import { format } from 'date-fns';
+import Button from '../../ui/Button'; // Assuming Button component exists
 
 // Props interface: Now includes all CommonStepProps for WizardNav
 interface Props {
@@ -35,6 +37,7 @@ export default function ReviewStep({
 
   return (
     <div className="wizard-step-container">
+      <SummarySidebar />
       <p><strong>Date:</strong> {details.date ? format(details.date, 'PPP') : 'N/A'}</p>
       <p><strong>Location:</strong> {details.location || 'N/A'}</p>
       <p><strong>Guests:</strong> {details.guests || 'N/A'}</p>
