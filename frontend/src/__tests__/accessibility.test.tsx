@@ -37,7 +37,7 @@ describe('accessibility audits', () => {
     await act(async () => {
       root.render(
         <BookingProvider>
-          <BookingWizard artistId={1} />
+          <BookingWizard artistId={1} isOpen onClose={() => {}} />
         </BookingProvider>
       );
     });

@@ -221,11 +221,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       case 4: return <SoundStep control={control} {...common} />;
       case 5: return <NotesStep control={control} setValue={setValue} />;
       case 6: return <ReviewStep {...common} onNext={submitRequest} submitting={submitting} submitLabel="Submit Request" />;
-      console.log('[BookingWizard]: isOpen =', isOpen);
       default: return null;
     }
   };
-  console.log('[BookingWizard]: isOpen =', isOpen);
   if (!isOpen) return null;
 
   return (
