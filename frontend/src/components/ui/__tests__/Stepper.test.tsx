@@ -150,4 +150,14 @@ describe('Stepper progress bar', () => {
     expect(activeCircle.className).toContain('border-gray-900');
     expect(activeCircle.className).toContain('border-2');
   });
+
+  it('renders vertically when orientation is set to vertical', () => {
+    act(() => {
+      root.render(
+        <Stepper steps={["One", "Two"]} currentStep={0} orientation="vertical" />,
+      );
+    });
+    const wrapper = container.querySelector('div[role="list"]');
+    expect(wrapper?.className).toContain('flex-col');
+  });
 });
