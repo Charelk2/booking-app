@@ -30,6 +30,9 @@ test.describe('Signup to deposit flow', () => {
     await expect(page).toHaveURL('/dashboard');
 
     await page.goto('/booking?artist_id=1&service_id=1');
+    await expect(page.getByTestId('step-heading')).toHaveText(/Event Type/);
+    await page.getByRole('button', { name: 'Next' }).click();
+    await page.getByRole('button', { name: 'Next' }).click();
     await expect(page.getByTestId('step-heading')).toHaveText(/Date & Time/);
     await page.getByTestId('date-next-button').click();
     await expect(page.getByTestId('step-heading')).toHaveText(/Location/);

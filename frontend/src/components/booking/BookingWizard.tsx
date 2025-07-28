@@ -22,6 +22,8 @@ import Stepper from '../ui/Stepper';
 import Button from '../ui/Button';
 import toast from '../ui/Toast';
 
+import EventTypeStep from './steps/EventTypeStep';
+import EventDescriptionStep from './steps/EventDescriptionStep';
 import DateTimeStep from './steps/DateTimeStep';
 import LocationStep from './steps/LocationStep';
 import GuestsStep from './steps/GuestsStep';
@@ -31,6 +33,8 @@ import NotesStep from './steps/NotesStep';
 import ReviewStep from './steps/ReviewStep';
 
 type EventDetails = {
+  eventType?: string;
+  eventDescription?: string;
   date?: Date;
   location?: string;
   guests?: string;
@@ -41,16 +45,23 @@ type EventDetails = {
 };
 
 const schema = yup.object<EventDetails>().shape({
+  eventType: yup.string().required(),
+  eventDescription: yup.string().required().min(10),
   date: yup.date().required().min(new Date()),
   location: yup.string().required(),
   guests: yup.string().required().matches(/^\d+$/, 'Must be a number'),
-  venueType: yup.mixed<'indoor' | 'outdoor' | 'hybrid'>().oneOf(['indoor', 'outdoor', 'hybrid']).required(),
+  venueType: yup
+    .mixed<'indoor' | 'outdoor' | 'hybrid'>()
+    .oneOf(['indoor', 'outdoor', 'hybrid'])
+    .required(),
   sound: yup.string().oneOf(['yes', 'no']).required(),
   notes: yup.string().optional(),
   attachment_url: yup.string().optional(),
 });
 
 const steps = [
+  'Event Type',
+  'Event Details',
   'Date & Time',
   'Location',
   'Guests',
@@ -61,6 +72,8 @@ const steps = [
 ];
 
 const instructions = [
+  'What type of event are you planning?',
+  'Tell us a little bit more about your event.',
   'When should we perform?',
   'Where is the show?',
   'How many people?',
@@ -131,6 +144,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   const next = async () => {
     const stepFields: (keyof EventDetails)[][] = [
+      ['eventType'],
+      ['eventDescription'],
       ['date'],
       ['location'],
       ['guests'],
@@ -193,7 +208,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       if (!id) throw new Error('Missing booking request ID');
   
       await postMessageToBookingRequest(id, {
-        content: `Booking details:\nDate: ${vals.date}\nLocation: ${vals.location}\nGuests: ${vals.guests}\nVenue: ${vals.venueType}\nSound: ${vals.sound}\nNotes: ${vals.notes}`,
+        content: `Booking details:\nEvent Type: ${vals.eventType}\nDescription: ${vals.eventDescription}\nDate: ${vals.date}\nLocation: ${vals.location}\nGuests: ${vals.guests}\nVenue: ${vals.venueType}\nSound: ${vals.sound}\nNotes: ${vals.notes}`,
         message_type: 'system',
       });
   
@@ -214,13 +229,38 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const renderStep = () => {
     const common = { step, steps, onBack: prev, onSaveDraft: saveDraft, onNext: next };
     switch (step) {
-      case 0: return <DateTimeStep control={control} unavailable={unavailable} />;
-      case 1: return <LocationStep control={control} artistLocation={artistLocation} setWarning={setWarning} {...common} />;
-      case 2: return <GuestsStep control={control} {...common} />;
-      case 3: return <VenueStep control={control} {...common} />;
-      case 4: return <SoundStep control={control} {...common} />;
-      case 5: return <NotesStep control={control} setValue={setValue} />;
-      case 6: return <ReviewStep {...common} onNext={submitRequest} submitting={submitting} submitLabel="Submit Request" />;
+      case 0:
+        return <EventTypeStep control={control} />;
+      case 1:
+        return <EventDescriptionStep control={control} />;
+      case 2:
+        return <DateTimeStep control={control} unavailable={unavailable} />;
+      case 3:
+        return (
+          <LocationStep
+            control={control}
+            artistLocation={artistLocation}
+            setWarning={setWarning}
+            {...common}
+          />
+        );
+      case 4:
+        return <GuestsStep control={control} {...common} />;
+      case 5:
+        return <VenueStep control={control} {...common} />;
+      case 6:
+        return <SoundStep control={control} {...common} />;
+      case 7:
+        return <NotesStep control={control} setValue={setValue} />;
+      case 8:
+        return (
+          <ReviewStep
+            {...common}
+            onNext={submitRequest}
+            submitting={submitting}
+            submitLabel="Submit Request"
+          />
+        );
       default: return null;
     }
   };
@@ -280,7 +320,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   {step === 0 ? 'Cancel' : 'Back'}
                 </Button>
                 {step < steps.length - 1 ? (
-                  <Button onClick={next}>Next</Button>
+                  <Button onClick={next} data-testid={step === 2 ? 'date-next-button' : undefined}>
+                    Next
+                  </Button>
                 ) : (
                   <Button onClick={submitRequest} isLoading={submitting}>
                     Submit Request
