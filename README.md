@@ -797,6 +797,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Progress and form values persist to `localStorage`. Reloading the page prompts
   you to resume or start over. Saved data clears automatically after submission
   or when you reset the wizard.
+* The wizard opens in a modal when clicking **Request Booking** on an artist page, avoiding a page navigation.
 
 ### Open Tasks
 

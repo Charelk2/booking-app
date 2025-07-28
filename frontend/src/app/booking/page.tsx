@@ -1,5 +1,5 @@
 'use client';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import BookingWizard from '@/components/booking/BookingWizard';
@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui';
 export default function BookingPage() {
   const { user, loading } = useAuth();
   const params = useSearchParams();
+  const router = useRouter();
   const artistId = Number(params.get('artist_id') || 0);
   const serviceIdParam = params.get('service_id');
   const serviceId = serviceIdParam ? Number(serviceIdParam) : undefined;
@@ -39,7 +40,12 @@ export default function BookingPage() {
     <MainLayout>
       <div className="max-w-3xl mx-auto p-4">
         <BookingProvider>
-          <BookingWizard artistId={artistId} serviceId={serviceId} />
+          <BookingWizard
+            artistId={artistId}
+            serviceId={serviceId}
+            isOpen
+            onClose={() => router.back()}
+          />
         </BookingProvider>
       </div>
     </MainLayout>

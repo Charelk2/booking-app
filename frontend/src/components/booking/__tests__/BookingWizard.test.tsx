@@ -12,7 +12,7 @@ function Wrapper() {
   return (
     <BookingProvider>
       <ExposeSetter />
-      <BookingWizard artistId={1} />
+      <BookingWizard artistId={1} isOpen onClose={() => {}} />
     </BookingProvider>
   );
 }
