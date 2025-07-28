@@ -78,6 +78,8 @@ interface ServiceFormData {
   description: string;
   duration_minutes: number | "";
   is_remote: boolean;
+  travel_rate?: number | "";
+  travel_members?: number | "";
 }
 
 export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: AddServiceModalProps) {
@@ -108,6 +110,8 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
       description: "",
       duration_minutes: 60,
       is_remote: false,
+      travel_rate: 2.5,
+      travel_members: 1,
     },
   });
 
@@ -122,6 +126,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
 
   const watchTitle = watch("title");
   const watchDescription = watch("description");
+  const watchServiceType = watch("service_type");
   const isMobile = useIsMobile();
 
   // Optimized image thumbnails from uploaded files
@@ -242,6 +247,10 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
         ...data,
         price,
         duration_minutes: Number(data.duration_minutes || 0),
+        travel_rate: data.travel_rate ? Number(data.travel_rate) : undefined,
+        travel_members: data.travel_members
+          ? Number(data.travel_members)
+          : undefined,
       };
       const res = await apiCreateService(serviceData);
       onServiceAdded(res.data);
@@ -428,6 +437,27 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                           })}
                           error={errors.duration_minutes?.message}
                         />
+                        {watchServiceType === "Live Performance" && (
+                          <>
+                            <TextInput
+                              label="Travelling (Rand per km)"
+                              type="number"
+                              step="0.1"
+                              placeholder="2.5"
+                              {...register("travel_rate", {
+                                valueAsNumber: true,
+                              })}
+                            />
+                            <TextInput
+                              label="Members travelling"
+                              type="number"
+                              step="1"
+                              {...register("travel_members", {
+                                valueAsNumber: true,
+                              })}
+                            />
+                          </>
+                        )}
                         <div className="flex items-center gap-2">
                           <ToggleSwitch
                             checked={watch("is_remote")}

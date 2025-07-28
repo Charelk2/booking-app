@@ -901,6 +901,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Service deletion now requires confirmation to prevent mistakes.
 * **Add Service** button now opens a full-screen wizard. Steps appear in a coral-accented stepper with keyboard focus trapping. The final review mirrors earlier steps with image thumbnails before publishing.
 * Add Service wizard validates fields on each keystroke with dynamic hints like "Need 3 more characters" and the **Next** button enables automatically once inputs are valid.
+* Selecting **Live Performance** now reveals travel-related fields beneath the duration input. Artists can specify a travel rate in Rand per km (default R2.5) and the number of members travelling.
 * A new tip in the **Upload Media** step reminds artists to use high-resolution images or short video clips (1920x1080) for a polished listing.
 * The wizard uses a plain white overlay (`bg-white`) so the modal stands out and clicking outside closes it.
 * "Total Services" card now links to `/services?artist=<your_id>` so you only see your listings.
