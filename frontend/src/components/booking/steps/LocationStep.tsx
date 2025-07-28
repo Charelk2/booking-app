@@ -208,13 +208,7 @@ export default function LocationStep({
         className="ml-1"
       />
       {geoError && <p className="text-red-600 text-sm">{geoError}</p>}
-      <WizardNav
-        step={step}
-        steps={steps}
-        onBack={onBack}
-        onSaveDraft={onSaveDraft}
-        onNext={onNext}
-      />
+      
     </div>
   );
 }
