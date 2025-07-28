@@ -15,6 +15,8 @@ interface StepperProps {
   orientation?: 'horizontal' | 'vertical';
   /** Additional classes */
   className?: string;
+  /** Display labels without progress circles */
+  textOnly?: boolean;
 }
 
 export default function Stepper({
@@ -26,6 +28,7 @@ export default function Stepper({
   variant = 'brand',
   orientation = 'horizontal',
   className,
+  textOnly = false,
 }: StepperProps) {
   const maxAllowed =
     typeof maxStepCompleted === 'number' ? maxStepCompleted + 1 : currentStep;
@@ -36,9 +39,11 @@ export default function Stepper({
       aria-label={ariaLabel || 'Add service progress'}
       className={clsx(
         'relative flex px-2 mb-8',
-        orientation === 'vertical'
-          ? 'flex-col items-start space-y-6'
-          : 'items-center justify-between',
+        textOnly
+          ? 'flex-col items-start space-y-4'
+          : orientation === 'vertical'
+            ? 'flex-col items-start space-y-6'
+            : 'items-center justify-between',
         className,
       )}
     >
@@ -76,7 +81,7 @@ export default function Stepper({
         const labelEl = (
           <span
             className={clsx(
-              'mt-1 text-xs font-semibold',
+              textOnly ? 'text-sm' : 'mt-1 text-xs font-semibold',
               variant === 'neutral'
                 ? isActive
                   ? 'text-gray-900'
@@ -90,19 +95,21 @@ export default function Stepper({
           </span>
         );
 
-        const content = orientation === 'vertical'
-          ? (
-              <div className="flex items-center space-x-3">
-                {circle}
-                {labelEl}
-              </div>
-            )
-          : (
-              <div className="flex flex-col items-center">
-                {circle}
-                {labelEl}
-              </div>
-            );
+        const content = textOnly
+          ? labelEl
+          : orientation === 'vertical'
+            ? (
+                <div className="flex items-center space-x-3">
+                  {circle}
+                  {labelEl}
+                </div>
+              )
+            : (
+                <div className="flex flex-col items-center">
+                  {circle}
+                  {labelEl}
+                </div>
+              );
         if (canButton) {
           return (
             <button
@@ -114,9 +121,11 @@ export default function Stepper({
               aria-disabled={!isClickable ? 'true' : undefined}
               className={clsx(
                 'focus:outline-none focus-visible:ring-2',
-                orientation === 'vertical'
-                  ? 'flex items-center'
-                  : 'flex flex-col items-center',
+                textOnly
+                  ? 'flex items-start'
+                  : orientation === 'vertical'
+                    ? 'flex items-center'
+                    : 'flex flex-col items-center',
                 variant === 'neutral'
                   ? 'focus-visible:ring-gray-700'
                   : 'focus-visible:ring-[var(--brand-color-dark)]',
@@ -135,9 +144,11 @@ export default function Stepper({
             aria-disabled="true"
             className={clsx(
               'cursor-default',
-              orientation === 'vertical'
-                ? 'flex items-center'
-                : 'flex flex-col items-center',
+              textOnly
+                ? 'flex items-start'
+                : orientation === 'vertical'
+                  ? 'flex items-center'
+                  : 'flex flex-col items-center',
             )}
           >
             {content}
