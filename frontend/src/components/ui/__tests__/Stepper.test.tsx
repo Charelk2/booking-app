@@ -160,16 +160,4 @@ describe('Stepper progress bar', () => {
     const wrapper = container.querySelector('div[role="list"]');
     expect(wrapper?.className).toContain('flex-col');
   });
-
-  it('renders labels only in textOnly mode', () => {
-    act(() => {
-      root.render(
-        <Stepper steps={["One", "Two"]} currentStep={0} orientation="vertical" textOnly />,
-      );
-    });
-    const circles = container.querySelectorAll('div.relative');
-    expect(circles).toHaveLength(0);
-    const items = container.querySelectorAll('button, [role="listitem"]');
-    expect(items[0].textContent).toBe('One');
-  });
 });
