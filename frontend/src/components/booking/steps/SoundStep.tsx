@@ -61,13 +61,7 @@ export default function SoundStep({
           </fieldset>
         )}
       />
-      <WizardNav
-        step={step}
-        steps={steps}
-        onBack={onBack}
-        onSaveDraft={onSaveDraft}
-        onNext={onNext}
-      />
+
     </div>
   );
 }
