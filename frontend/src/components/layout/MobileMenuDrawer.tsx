@@ -78,7 +78,7 @@ export default function MobileMenuDrawer({
                       pathname === item.href
                         ? 'bg-brand-light border-brand text-brand-dark'
                         : 'border-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900',
-                      'block border-l-4 px-3 py-2 text-base font-medium'
+                      'block border-l-4 px-3 py-2 text-base font-medium no-underline hover:no-underline'
                     )}
                   >
                     {item.name}
@@ -91,7 +91,7 @@ export default function MobileMenuDrawer({
                     <Link
                       href="/dashboard"
                       onClick={onClose}
-                      className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     >
                       Dashboard
                     </Link>
@@ -99,7 +99,7 @@ export default function MobileMenuDrawer({
                       <Link
                     href="/dashboard/profile/edit"
                     onClick={onClose}
-                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   >
                     Edit Profile
                   </Link>
@@ -108,7 +108,7 @@ export default function MobileMenuDrawer({
                   <Link
                     href="/dashboard/quotes"
                     onClick={onClose}
-                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   >
                     Quotes
                   </Link>
@@ -117,7 +117,7 @@ export default function MobileMenuDrawer({
                   <Link
                     href="/dashboard/profile/quote-templates"
                     onClick={onClose}
-                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   >
                     Quote Templates
                   </Link>
@@ -126,7 +126,7 @@ export default function MobileMenuDrawer({
                   <Link
                     href="/dashboard/client/bookings"
                     onClick={onClose}
-                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   >
                     My Bookings
                   </Link>
@@ -135,7 +135,7 @@ export default function MobileMenuDrawer({
                   <Link
                     href="/dashboard/client/quotes"
                     onClick={onClose}
-                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   >
                     My Quotes
                   </Link>
@@ -144,7 +144,7 @@ export default function MobileMenuDrawer({
                   <Link
                     href="/account"
                     onClick={onClose}
-                    className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                   >
                     Account
                   </Link>
@@ -165,14 +165,14 @@ export default function MobileMenuDrawer({
                     <Link
                       href="/login"
                       onClick={onClose}
-                      className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     >
                       Sign in
                     </Link>
                     <Link
                       href="/register"
                       onClick={onClose}
-                      className="block px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     >
                       Sign up
                     </Link>
