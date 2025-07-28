@@ -1149,6 +1149,23 @@ GET /api/v1/travel-forecast?location={city}
 ```
 Returns a 3-day weather outlook for the provided location using data from `wttr.in`. Invalid locations return a structured 422 response with `{"location": "Unknown location"}` in `field_errors`.
 
+### Travel Mode Decision
+
+`calculateTravelMode()` in `frontend/src/lib/travel.ts` automatically decides whether an artist should fly or drive to an event. It looks up the nearest airports, checks for direct routes and compares the total flying cost against a provided driving estimate.
+
+```ts
+import { calculateTravelMode } from '@/lib/travel';
+
+const mode = await calculateTravelMode({
+  artistLocation: 'Cape Town, South Africa',
+  eventLocation: 'Johannesburg, South Africa',
+  numTravellers: 1,
+  drivingEstimate: 5000,
+});
+console.log(mode.mode); // "fly" or "drive"
+```
+
+
 ### Invoices
 
 ```
