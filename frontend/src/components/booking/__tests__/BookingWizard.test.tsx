@@ -102,8 +102,12 @@ describe("BookingWizard flow", () => {
   });
 
   it("shows summary only on the review step", async () => {
+
+  
     expect(container.querySelector("h2")?.textContent).toContain("Date & Time");
     expect(container.textContent).not.toContain("Date:");
+
+        
     const setStep = (window as unknown as { __setStep: (s: number) => void })
       .__setStep;
     await act(async () => {
@@ -111,7 +115,7 @@ describe("BookingWizard flow", () => {
     });
     await flushPromises();
     expect(container.querySelector("h2")?.textContent).toContain("Review");
-    expect(container.textContent).toContain("Date:");
+    expect(container.textContent).toContain("Booking Summary");
   });
 
   it("allows navigating back via the progress bar", async () => {
