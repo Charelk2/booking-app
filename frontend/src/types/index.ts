@@ -63,6 +63,8 @@ export interface Service {
     | "Custom Song"
     | "Other";
   duration_minutes: number;
+  travel_rate?: number;
+  travel_members?: number;
   display_order: number;
   price: number;
   artist: ArtistProfile;
