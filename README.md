@@ -775,6 +775,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Reusable, centered progress bar and `useBookingForm` hook.
 * “Request Booking” buttons on service cards.
 * New **Review** step showing cost breakdown and selections.
+* The review page now displays a single optimized summary with event type and
+  details and calculates a price estimate based on distance.
 * Success toasts when saving a draft or submitting a request.
 * Simplified buttons sit below each step in a responsive button group. On phones
   the order is **Next**, **Save Draft**, **Back** but remains **Back**, **Save Draft**,
