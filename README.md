@@ -1165,6 +1165,9 @@ const mode = await calculateTravelMode({
 console.log(mode.mode); // "fly" or "drive"
 ```
 
+The Booking Wizard automatically runs this check on the Review step and shows a
+summary card with the selected travel mode and estimated cost.
+
 
 ### Invoices
 
