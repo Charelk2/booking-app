@@ -327,29 +327,33 @@ export default function BookingWizard({
   };
 
   return (
-    <div className="px-4 py-16">
-      <div
-        className="sticky z-20"
-        style={{ top: isMobile ? '4rem' : 0 }}
-        data-testid="progress-container"
-      >
-        <Stepper
-          steps={steps}
-          currentStep={step}
-          maxStepCompleted={maxStepCompleted}
-          onStepClick={handleStepClick}
-          ariaLabel={`Progress: step ${step + 1} of ${steps.length}`}
-          variant="neutral"
-        />
+    <div className="px-4 py-16 lg:grid lg:grid-cols-[200px_1fr] lg:gap-8">
+      <aside className="lg:w-[200px] lg:pr-4">
         <div
-          aria-live="polite"
-          aria-atomic="true"
-          className="sr-only"
-          data-testid="progress-status"
+          className="sticky z-20"
+          style={{ top: isMobile ? '4rem' : '5rem' }}
+          data-testid="progress-container"
         >
-          {`Step ${step + 1} of ${steps.length}`}
+          <Stepper
+            steps={steps}
+            currentStep={step}
+            maxStepCompleted={maxStepCompleted}
+            onStepClick={handleStepClick}
+            ariaLabel={`Progress: step ${step + 1} of ${steps.length}`}
+            variant="neutral"
+            orientation={isMobile ? 'horizontal' : 'vertical'}
+            className="lg:space-y-6"
+          />
+          <div
+            aria-live="polite"
+            aria-atomic="true"
+            className="sr-only"
+            data-testid="progress-status"
+          >
+            {`Step ${step + 1} of ${steps.length}`}
+          </div>
         </div>
-      </div>
+      </aside>
       {isMobile ? (
         <div className="space-y-4">
           {steps.map((label, i) => (
