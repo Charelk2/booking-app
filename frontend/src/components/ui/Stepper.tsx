@@ -40,7 +40,7 @@ export default function Stepper({
       aria-label={ariaLabel || 'Booking progress'}
       className={clsx(
         // Base flex properties for the nav container
-        'relative flex px-2 mb-8',
+        'relative flex px-2',
         orientation === 'vertical'
           ? 'flex-col items-start space-y-4 lg:space-y-6' // Adjust space-y for vertical text steps
           : 'items-center justify-between',

@@ -24,7 +24,7 @@ describe('Stepper progress bar', () => {
     act(() => {
       root.render(<Stepper steps={["One", "Two", "Three"]} currentStep={1} />);
     });
-    const wrapper = container.querySelector('div[role="list"]');
+    const wrapper = container.querySelector('nav[role="list"]');
     expect(wrapper).not.toBeNull();
     const items = container.querySelectorAll('[role="listitem"]');
     expect(items).toHaveLength(3);
@@ -36,7 +36,7 @@ describe('Stepper progress bar', () => {
     act(() => {
       root.render(<Stepper steps={["One", "Two"]} currentStep={0} ariaLabel="Booking progress" />);
     });
-    const wrapper = container.querySelector('div[role="list"]');
+    const wrapper = container.querySelector('nav[role="list"]');
     expect(wrapper?.getAttribute('aria-label')).toBe('Booking progress');
   });
 
@@ -157,7 +157,7 @@ describe('Stepper progress bar', () => {
         <Stepper steps={["One", "Two"]} currentStep={0} orientation="vertical" />,
       );
     });
-    const wrapper = container.querySelector('div[role="list"]');
+    const wrapper = container.querySelector('nav[role="list"]');
     expect(wrapper?.className).toContain('flex-col');
   });
 });
