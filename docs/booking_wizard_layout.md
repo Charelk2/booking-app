@@ -11,7 +11,13 @@ This snippet demonstrates the HTML structure and Tailwind CSS classes for the bo
         class="sticky top-16 flex flex-col items-start space-y-6"
         aria-label="Progress"
       >
-        <button type="button" class="font-semibold text-red-600" aria-current="step">Date &amp; Time</button>
+        <button
+          type="button"
+          class="font-semibold text-red-600"
+          aria-current="step"
+        >
+          Date &amp; Time
+        </button>
         <button type="button" class="text-gray-500">Location</button>
         <button type="button" class="text-gray-500">Guests</button>
         <button type="button" class="text-gray-500">Venue Type</button>
@@ -21,15 +27,36 @@ This snippet demonstrates the HTML structure and Tailwind CSS classes for the bo
       </nav>
     </aside>
     <!-- Main Content Card -->
-    <section class="bg-white rounded-2xl shadow-xl p-8 space-y-6 max-w-md mx-auto lg:max-w-none lg:mx-0">
+    <section
+      class="bg-white rounded-2xl shadow-xl p-8 space-y-6 max-w-md mx-auto lg:max-w-none lg:mx-0"
+    >
       <h2 class="text-2xl font-bold">Location</h2>
       <p>Where is the show?</p>
-      <input type="search" class="w-full rounded-md border border-gray-300 p-2" placeholder="Search address" />
+      <input
+        type="search"
+        class="w-full rounded-md border border-gray-300 p-2"
+        placeholder="Search address"
+      />
       <button class="text-sm text-[var(--brand-color)]">Use my location</button>
       <div class="flex flex-col-reverse gap-2 pt-4 sm:flex-row sm:justify-end">
-        <button type="button" class="rounded-md border border-[var(--brand-color)] px-4 py-2 text-[var(--brand-color)]">Back</button>
-        <button type="button" class="rounded-md border border-[var(--brand-color)] px-4 py-2 text-[var(--brand-color)]">Save Draft</button>
-        <button type="button" class="rounded-md bg-[var(--brand-color)] px-4 py-2 text-white">Next</button>
+        <button
+          type="button"
+          class="rounded-md border border-[var(--brand-color)] px-4 py-2 text-[var(--brand-color)]"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          class="rounded-md border border-[var(--brand-color)] px-4 py-2 text-[var(--brand-color)]"
+        >
+          Save Draft
+        </button>
+        <button
+          type="button"
+          class="rounded-md bg-[var(--brand-color)] px-4 py-2 text-white"
+        >
+          Next
+        </button>
       </div>
       <p class="text-red-600">Please fix the errors above.</p>
     </section>
@@ -38,3 +65,4 @@ This snippet demonstrates the HTML structure and Tailwind CSS classes for the bo
 ```
 
 The stepper text is bright red for the active step and muted gray for the rest. On small screens, the stepper stacks above the card and remains centered. The card expands to fill available space on larger screens.
+The `Stepper` component now supports a `textOnly` prop used here to hide the progress circles and display simple text buttons.
