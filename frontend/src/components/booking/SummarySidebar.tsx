@@ -25,6 +25,18 @@ export default function SummarySidebar() {
             </dd>
           </div>
         )}
+        {details.eventType && (
+          <div className="flex justify-between">
+            <dt className="font-semibold text-gray-800">Type</dt>
+            <dd className="text-gray-600">{details.eventType}</dd>
+          </div>
+        )}
+        {details.eventDescription && (
+          <div className="flex justify-between">
+            <dt className="font-semibold text-gray-800">Details</dt>
+            <dd className="text-gray-600">{details.eventDescription}</dd>
+          </div>
+        )}
         {details.location && (
           <div className="flex justify-between">
             <dt className="font-semibold text-gray-800">Location</dt>

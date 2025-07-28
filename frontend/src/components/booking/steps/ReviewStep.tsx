@@ -1,10 +1,12 @@
 'use client';
 // Final review step showing a summary of all selections.
 import SummarySidebar from '../SummarySidebar';
-import WizardNav from '../WizardNav'; // WizardNav is back!
+import WizardNav from '../WizardNav';
 import { useBooking } from '@/contexts/BookingContext';
-import { format } from 'date-fns';
-import Button from '../../ui/Button'; // Assuming Button component exists
+import { useState, useEffect } from 'react';
+import { calculateQuote, getService } from '@/lib/api';
+import { geocodeAddress, calculateDistanceKm } from '@/lib/geo';
+import { formatCurrency } from '@/lib/utils';
 
 // Props interface: Now includes all CommonStepProps for WizardNav
 interface Props {
@@ -15,6 +17,8 @@ interface Props {
   onNext: (e?: React.BaseSyntheticEvent) => Promise<void>; // Renamed from onSubmit, corrected signature
   submitting: boolean;
   submitLabel?: string; // Add if WizardNav uses this
+  serviceId?: number;
+  artistLocation?: string | null;
 }
 
 export default function ReviewStep({
@@ -22,11 +26,37 @@ export default function ReviewStep({
   steps,
   onBack,
   onSaveDraft,
-  onNext, // Changed from onSubmit
+  onNext,
   submitting,
-  submitLabel, // Added
+  submitLabel,
+  serviceId,
+  artistLocation,
 }: Props) {
   const { details } = useBooking();
+  const [price, setPrice] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function fetchEstimate() {
+      if (!serviceId || !artistLocation || !details.location) return;
+      try {
+        const [svcRes, artistPos, eventPos] = await Promise.all([
+          getService(serviceId),
+          geocodeAddress(artistLocation),
+          geocodeAddress(details.location),
+        ]);
+        if (!artistPos || !eventPos) return;
+        const distance = calculateDistanceKm(artistPos, eventPos);
+        const quote = await calculateQuote({
+          base_fee: Number(svcRes.data.price),
+          distance_km: distance,
+        });
+        setPrice(Number(quote.data.total));
+      } catch (err) {
+        console.error('Failed to calculate quote', err);
+      }
+    }
+    fetchEstimate();
+  }, [serviceId, artistLocation, details.location]);
 
   // WizardNav is assumed to be a separate component that handles these buttons.
   // The structure below is a placeholder if WizardNav is a simple div or needs adjustment.
@@ -36,18 +66,22 @@ export default function ReviewStep({
   // I'm assuming it's imported correctly.
 
   return (
-    <div className="wizard-step-container">
+    <div className="wizard-step-container space-y-4">
       <SummarySidebar />
-      <p><strong>Date:</strong> {details.date ? format(details.date, 'PPP') : 'N/A'}</p>
-      <p><strong>Location:</strong> {details.location || 'N/A'}</p>
-      <p><strong>Guests:</strong> {details.guests || 'N/A'}</p>
-      <p><strong>Venue Type:</strong> {details.venueType ? String(details.venueType).charAt(0).toUpperCase() + String(details.venueType).slice(1) : 'N/A'}</p>
-      <p><strong>Sound Equipment:</strong> {details.sound ? String(details.sound).charAt(0).toUpperCase() + String(details.sound).slice(1) : 'N/A'}</p>
-      <p><strong>Notes:</strong> {details.notes || 'None'}</p>
-      {details.attachment_url && <p><strong>Attachment:</strong> <a href={details.attachment_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View Attachment</a></p>}
-
-      {/* WizardNav is now correctly rendered here with all its props */}
-
+      {price !== null && (
+        <p className="font-medium">
+          Estimated Price: {formatCurrency(price)}
+        </p>
+      )}
+      <WizardNav
+        step={step}
+        steps={steps}
+        onBack={onBack}
+        onSaveDraft={onSaveDraft}
+        onNext={onNext}
+        submitting={submitting}
+        submitLabel={submitLabel}
+      />
     </div>
   );
 }

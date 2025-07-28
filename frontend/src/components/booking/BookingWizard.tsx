@@ -265,6 +265,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         return (
           <ReviewStep
             {...common}
+            serviceId={serviceId}
+            artistLocation={artistLocation}
             onNext={submitRequest}
             submitting={submitting}
             submitLabel="Submit Request"
