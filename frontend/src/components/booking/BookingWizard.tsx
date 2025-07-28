@@ -314,8 +314,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                     variants={stepVariants}
                     transition={stepVariants.transition}
                   >
-                    <h2 className="text-2xl font-bold mb-1" ref={headingRef}>{steps[step]}</h2>
-                    <p className="text-gray-600 mb-4">{instructions[step]}</p>
+                    <h2 className="text-2xl font-bold" ref={headingRef} data-testid="step-heading">{steps[step]}</h2>
+                    <p className="text-gray-600">{instructions[step]}</p>
                     {renderStep()}
                     {warning && <p className="text-orange-600 text-sm mt-4">{warning}</p>}
                     {Object.values(errors).length > 0 && <p className="text-red-600 text-sm mt-4">Please fix the errors above.</p>}
