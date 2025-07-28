@@ -11,6 +11,10 @@ interface StepperProps {
   ariaLabel?: string;
   /** Color style variant */
   variant?: 'brand' | 'neutral';
+  /** Orientation of the stepper */
+  orientation?: 'horizontal' | 'vertical';
+  /** Additional classes */
+  className?: string;
 }
 
 export default function Stepper({
@@ -20,6 +24,8 @@ export default function Stepper({
   onStepClick,
   ariaLabel,
   variant = 'brand',
+  orientation = 'horizontal',
+  className,
 }: StepperProps) {
   const maxAllowed =
     typeof maxStepCompleted === 'number' ? maxStepCompleted + 1 : currentStep;
@@ -28,7 +34,13 @@ export default function Stepper({
       layout
       role="list"
       aria-label={ariaLabel || 'Add service progress'}
-      className="relative flex items-center justify-between px-2 mb-8"
+      className={clsx(
+        'relative flex px-2 mb-8',
+        orientation === 'vertical'
+          ? 'flex-col items-start space-y-6'
+          : 'items-center justify-between',
+        className,
+      )}
     >
       {/*
        * The previous design used a horizontal line behind the stepper circles.
@@ -78,12 +90,19 @@ export default function Stepper({
           </span>
         );
 
-        const content = (
-          <div className="flex flex-col items-center">
-            {circle}
-            {labelEl}
-          </div>
-        );
+        const content = orientation === 'vertical'
+          ? (
+              <div className="flex items-center space-x-3">
+                {circle}
+                {labelEl}
+              </div>
+            )
+          : (
+              <div className="flex flex-col items-center">
+                {circle}
+                {labelEl}
+              </div>
+            );
         if (canButton) {
           return (
             <button
@@ -94,7 +113,10 @@ export default function Stepper({
               aria-current={isActive ? 'step' : undefined}
               aria-disabled={!isClickable ? 'true' : undefined}
               className={clsx(
-                'flex flex-col items-center focus:outline-none focus-visible:ring-2',
+                'focus:outline-none focus-visible:ring-2',
+                orientation === 'vertical'
+                  ? 'flex items-center'
+                  : 'flex flex-col items-center',
                 variant === 'neutral'
                   ? 'focus-visible:ring-gray-700'
                   : 'focus-visible:ring-[var(--brand-color-dark)]',
@@ -111,7 +133,12 @@ export default function Stepper({
             role="listitem"
             aria-current={isActive ? 'step' : undefined}
             aria-disabled="true"
-            className="flex flex-col items-center cursor-default"
+            className={clsx(
+              'cursor-default',
+              orientation === 'vertical'
+                ? 'flex items-center'
+                : 'flex flex-col items-center',
+            )}
           >
             {content}
           </div>
