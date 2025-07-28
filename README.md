@@ -292,6 +292,9 @@ homepage and artist page search bars. The Google Maps script still loads lazily
 via the `loadPlaces()` helper so it is only injected once and avoids the "API
 included multiple times" warning.
 
+The **Edit Profile** page now uses this same component and requires a location
+to be entered so travel fees can be estimated correctly.
+
 The previous built-in autocomplete is deprecated. The location picker still
 opens a minimalist modal when the **Map** button is clicked. The modal contains
 just the search field and closes via a soft "Close" button. Closing the modal
