@@ -1254,7 +1254,6 @@ For an overview of layout spacing, typography and component styles, see
 [docs/design_guidelines.md](docs/design_guidelines.md).
 Additional CSS conventions are documented in
 [docs/css_best_practices.md](docs/css_best_practices.md).
-For the booking wizard HTML structure reference, see [docs/booking_wizard_layout.md](docs/booking_wizard_layout.md).
 
 ## Contributing
 
