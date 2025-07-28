@@ -6,6 +6,8 @@ import { useBooking } from '@/contexts/BookingContext';
 import { useState, useEffect } from 'react';
 import { calculateQuote, getService } from '@/lib/api';
 import { geocodeAddress, calculateDistanceKm } from '@/lib/geo';
+import { calculateTravelMode, TravelResult } from '@/lib/travel';
+import TravelSummaryCard from '../TravelSummaryCard';
 import { formatCurrency } from '@/lib/utils';
 
 // Props interface: Now includes all CommonStepProps for WizardNav
@@ -32,8 +34,9 @@ export default function ReviewStep({
   serviceId,
   artistLocation,
 }: Props) {
-  const { details } = useBooking();
+  const { details, travelResult, setTravelResult } = useBooking();
   const [price, setPrice] = useState<number | null>(null);
+  const [localTravel, setLocalTravel] = useState<TravelResult | null>(travelResult);
 
   useEffect(() => {
     async function fetchEstimate() {
@@ -51,6 +54,18 @@ export default function ReviewStep({
           distance_km: distance,
         });
         setPrice(Number(quote.data.total));
+
+        const driveEstimate =
+          distance * (svcRes.data.travel_rate || 2.5) *
+          (svcRes.data.travel_members || 1);
+        const travel = await calculateTravelMode({
+          artistLocation: artistLocation,
+          eventLocation: details.location,
+          numTravellers: svcRes.data.travel_members || 1,
+          drivingEstimate: driveEstimate,
+        });
+        setLocalTravel(travel);
+        setTravelResult(travel);
       } catch (err) {
         console.error('Failed to calculate quote', err);
       }
@@ -68,6 +83,7 @@ export default function ReviewStep({
   return (
     <div className="wizard-step-container space-y-4">
       <SummarySidebar />
+      {localTravel && <TravelSummaryCard result={localTravel} />}
       {price !== null && (
         <p className="font-medium">
           Estimated Price: {formatCurrency(price)}

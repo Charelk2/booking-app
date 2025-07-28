@@ -36,6 +36,8 @@ describe('SummarySidebar', () => {
         venueType: 'indoor',
         sound: 'yes',
       },
+      travelResult: null,
+      setTravelResult: jest.fn(),
     });
     act(() => {
       root.render(<SummarySidebar />);
@@ -57,6 +59,8 @@ describe('SummarySidebar', () => {
         venueType: 'indoor',
         sound: 'yes',
       },
+      travelResult: null,
+      setTravelResult: jest.fn(),
     });
     act(() => {
       root.render(<SummarySidebar />);
