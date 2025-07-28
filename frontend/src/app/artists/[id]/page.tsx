@@ -35,6 +35,8 @@ import {
 } from '@/lib/utils';
 import ArtistServiceCard from '@/components/artist/ArtistServiceCard';
 import { Button, Tag, Toast, Spinner, SkeletonList } from '@/components/ui';
+import BookingWizard from '@/components/booking/BookingWizard';
+import { BookingProvider } from '@/contexts/BookingContext';
 
 // This profile page now lazy loads each section (services, reviews, other
 // artists) separately so the main artist info appears faster. Images use the
@@ -56,6 +58,8 @@ export default function ArtistProfilePage() {
   const [othersLoading, setOthersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [otherView, setOtherView] = useState<'grid' | 'list'>('grid');
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
 
 
   useEffect(() => {
@@ -133,7 +137,8 @@ export default function ArtistProfilePage() {
       service.service_type === 'Live Performance' ||
       service.service_type === 'Virtual Appearance'
     ) {
-      router.push(`/booking?artist_id=${artistId}&service_id=${service.id}`);
+      setSelectedService(service);
+      setIsBookingOpen(true);
       return;
     }
     try {
@@ -146,6 +151,11 @@ export default function ArtistProfilePage() {
       console.error('Failed to create request', err);
       Toast.error('Failed to create request');
     }
+  };
+
+  const closeBooking = () => {
+    setIsBookingOpen(false);
+    setSelectedService(null);
   };
 
 
@@ -493,6 +503,14 @@ export default function ArtistProfilePage() {
         </div>
       </div>
     </MainLayout>
+    <BookingProvider>
+      <BookingWizard
+        artistId={artistId}
+        serviceId={selectedService?.id}
+        isOpen={isBookingOpen}
+        onClose={closeBooking}
+      />
+    </BookingProvider>
     </>
   );
 }
