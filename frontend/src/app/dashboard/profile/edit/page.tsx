@@ -21,6 +21,7 @@ import {
 import { getFullImageUrl } from '@/lib/utils';
 import { DEFAULT_CURRENCY } from '@/lib/constants';
 import { Spinner } from '@/components/ui';
+import LocationInput from '@/components/ui/LocationInput';
 
 import dynamic from 'next/dynamic';
 import {
@@ -237,6 +238,11 @@ export default function EditArtistProfilePage(): JSX.Element {
 
     if (!businessNameInput.trim()) {
       setError('Business name is required.');
+      return;
+    }
+
+    if (!locationInput.trim()) {
+      setError('Location is required.');
       return;
     }
 
@@ -736,13 +742,13 @@ export default function EditArtistProfilePage(): JSX.Element {
                   <label htmlFor="location" className={labelClasses}>
                     Location
                   </label>
-                  <input
-                    type="text"
-                    id="location"
+                  <LocationInput
                     value={locationInput}
-                    onChange={(e) => setLocationInput(e.target.value)}
-                    className={inputClasses}
+                    onValueChange={setLocationInput}
+                    onPlaceSelect={() => {}}
                     placeholder="e.g., City, State or Studio Address"
+                    inputClassName={inputClasses}
+                    required
                   />
                 </div>
               </div>
