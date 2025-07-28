@@ -24,7 +24,7 @@ function classNames(...classes: string[]) {
 
 // --- FOOTER COMPONENT (Defined within MainLayout) ---
 const SocialIcon = ({ href, children }: { href: string; children: React.ReactNode }) => (
-  <a href={href} className="text-gray-400 hover:text-gray-500">
+  <a href={href} className="text-gray-400 hover:text-gray-500 no-underline hover:no-underline">
     <span className="sr-only">{children}</span>
     {children}
   </a>
@@ -49,7 +49,7 @@ const Footer = () => (
           <Link
             key={item.name}
             href={item.href}
-            className="text-sm font-medium text-gray-600 hover:text-brand-dark transition"
+            className="text-sm font-medium no-underline hover:no-underline text-gray-600 hover:text-brand-dark transition"
           >
             {item.name}
           </Link>
