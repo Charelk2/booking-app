@@ -108,6 +108,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     setRequestId,
     setServiceId,
     resetBooking,
+    loadSavedProgress,
   } = useBooking();
 
   const [unavailable, setUnavailable] = useState<string[]>([]);
@@ -118,6 +119,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [error, setError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const isMobile = useIsMobile();
+  const hasLoaded = useRef(false);
 
   const {
     control,
@@ -137,6 +139,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     getArtistAvailability(artistId).then((res) => setUnavailable(res.data.unavailable_dates));
     getArtist(artistId).then((res) => setArtistLocation(res.data.location || null));
   }, [artistId]);
+
+  // Prompt to restore saved progress only when the wizard first opens
+  useEffect(() => {
+    if (!isOpen || hasLoaded.current) return;
+    loadSavedProgress();
+    hasLoaded.current = true;
+  }, [isOpen, loadSavedProgress]);
 
   useEffect(() => {
     if (serviceId) setServiceId(serviceId);
