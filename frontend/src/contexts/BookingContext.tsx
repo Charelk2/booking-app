@@ -22,6 +22,7 @@ interface BookingContextValue {
   requestId?: number;
   setRequestId: (id: number | undefined) => void;
   resetBooking: () => void;
+  loadSavedProgress: () => boolean;
 }
 
 const BookingContext = createContext<BookingContextValue | undefined>(undefined);
@@ -55,11 +56,14 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Load saved progress on mount
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  /**
+   * Restore an in-progress booking from localStorage if the user confirms.
+   * Returns true when progress was restored.
+   */
+  const loadSavedProgress = () => {
+    if (typeof window === 'undefined') return false;
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return;
+    if (!stored) return false;
     try {
       const parsed = JSON.parse(stored) as {
         step?: number;
@@ -67,31 +71,34 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
         serviceId?: number;
         requestId?: number;
       };
+
       const resume = window.confirm(
         'Resume your previous booking request? Choose Cancel to start over.',
       );
-      if (resume) {
-        if (parsed.step !== undefined) setStep(parsed.step);
-        if (parsed.details) {
-          const parsedDetails: EventDetails = {
-            ...initialDetails,
-            ...parsed.details,
-            date: parsed.details.date
-              ? new Date(parsed.details.date)
-              : new Date(),
-          };
-          setDetails(parsedDetails);
-        }
-        if (parsed.serviceId !== undefined) setServiceId(parsed.serviceId);
-        if (parsed.requestId !== undefined) setRequestId(parsed.requestId);
-      } else {
+      if (!resume) {
         localStorage.removeItem(STORAGE_KEY);
+        return false;
       }
+
+      if (parsed.step !== undefined) setStep(parsed.step);
+      if (parsed.details) {
+        const parsedDetails: EventDetails = {
+          ...initialDetails,
+          ...parsed.details,
+          date: parsed.details.date ? new Date(parsed.details.date) : new Date(),
+        };
+        setDetails(parsedDetails);
+      }
+      if (parsed.serviceId !== undefined) setServiceId(parsed.serviceId);
+      if (parsed.requestId !== undefined) setRequestId(parsed.requestId);
+
+      return true;
     } catch (e) {
       console.error('Failed to parse saved booking progress:', e);
       localStorage.removeItem(STORAGE_KEY);
+      return false;
     }
-  }, []);
+  };
 
   // Persist progress
   useEffect(() => {
@@ -120,6 +127,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
         requestId,
         setRequestId,
         resetBooking,
+        loadSavedProgress,
       }}
     >
       {children}
