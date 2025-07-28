@@ -1,436 +1,298 @@
-"use client";
-// Main wizard component controlling the multi-step booking flow.
-// On mobile devices sections collapse into accordions and the
-// progress indicator remains sticky as the user scrolls.
-import { useEffect, useState, useRef } from "react";
-import type { Control, FieldValues } from "react-hook-form";
-import { useRouter } from "next/navigation";
-import * as yup from "yup";
-import { format } from "date-fns";
-import Stepper from "../ui/Stepper"; // progress indicator
-import CollapsibleSection from "../ui/CollapsibleSection";
-import Card from "../ui/Card";
-import { AnimatePresence, motion } from "framer-motion";
-import toast from "../ui/Toast";
+'use client';
+
+import React, { useEffect, useState, useRef, Fragment } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
+import * as yup from 'yup';
+
+import { useBooking } from '@/contexts/BookingContext';
+import useIsMobile from '@/hooks/useIsMobile';
+import useBookingForm from '@/hooks/useBookingForm';
 import {
   getArtistAvailability,
   createBookingRequest,
   updateBookingRequest,
   postMessageToBookingRequest,
   getArtist,
-} from "@/lib/api";
-import { BookingRequestCreate } from "@/types";
-import { useBooking, EventDetails } from "@/contexts/BookingContext";
-import useBookingForm from "@/hooks/useBookingForm";
-import DateTimeStep from "./steps/DateTimeStep";
-import LocationStep from "./steps/LocationStep";
-import GuestsStep from "./steps/GuestsStep";
-import SoundStep from "./steps/SoundStep";
-import VenueStep from "./steps/VenueStep";
-import NotesStep from "./steps/NotesStep";
-import ReviewStep from "./steps/ReviewStep";
-import useIsMobile from "@/hooks/useIsMobile";
+} from '@/lib/api';
 
-const steps = [
-  "Date & Time",
-  "Location",
-  "Guests",
-  "Venue Type",
-  "Sound",
-  "Notes",
-  "Review",
-];
+import { BookingRequestCreate } from '@/types';
+import Stepper from '../ui/Stepper';
+import Button from '../ui/Button';
+import toast from '../ui/Toast';
 
-const instructions = [
-  "When should we perform?",
-  "Where is the show?",
-  "How many people?",
-  "What type of venue is it?",
-  "Will sound equipment be needed?",
-  "Anything else we should know?",
-  "Please confirm the information above before sending your request.",
-];
+import DateTimeStep from './steps/DateTimeStep';
+import LocationStep from './steps/LocationStep';
+import GuestsStep from './steps/GuestsStep';
+import VenueStep from './steps/VenueStep';
+import SoundStep from './steps/SoundStep';
+import NotesStep from './steps/NotesStep';
+import ReviewStep from './steps/ReviewStep';
 
-const schema = yup.object({
-  date: yup.date().required().min(new Date(), "Pick a future date"),
-  location: yup.string().required("Location is required"),
-  guests: yup
-    .string()
-    .required("Number of guests is required")
-    .matches(/^\d+$/, "Guests must be a number"),
-  venueType: yup
-    .mixed<"indoor" | "outdoor" | "hybrid">()
-    .oneOf(["indoor", "outdoor", "hybrid"])
-    .required(),
-  sound: yup.string().oneOf(["yes", "no"]).required(),
+type EventDetails = {
+  date?: Date;
+  location?: string;
+  guests?: string;
+  venueType?: 'indoor' | 'outdoor' | 'hybrid';
+  sound?: 'yes' | 'no';
+  notes?: string;
+  attachment_url?: string;
+};
+
+const schema = yup.object<EventDetails>().shape({
+  date: yup.date().required().min(new Date()),
+  location: yup.string().required(),
+  guests: yup.string().required().matches(/^\d+$/, 'Must be a number'),
+  venueType: yup.mixed<'indoor' | 'outdoor' | 'hybrid'>().oneOf(['indoor', 'outdoor', 'hybrid']).required(),
+  sound: yup.string().oneOf(['yes', 'no']).required(),
   notes: yup.string().optional(),
   attachment_url: yup.string().optional(),
 });
 
-export default function BookingWizard({
-  artistId,
-  serviceId,
-}: {
+const steps = [
+  'Date & Time',
+  'Location',
+  'Guests',
+  'Venue Type',
+  'Sound',
+  'Notes',
+  'Review',
+];
+
+const instructions = [
+  'When should we perform?',
+  'Where is the show?',
+  'How many people?',
+  'What type of venue is it?',
+  'Will sound equipment be needed?',
+  'Anything else we should know?',
+  'Please confirm the information above before sending your request.',
+];
+
+const stepVariants = {
+  initial: { opacity: 0, x: 50 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: -50 },
+  transition: { duration: 0.3, ease: [0.42, 0, 0.58, 1] as const },
+};
+
+interface BookingWizardProps {
   artistId: number;
   serviceId?: number;
-}) {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: BookingWizardProps) {
+  const router = useRouter();
   const {
     step,
     setStep,
     details,
     setDetails,
-    serviceId: contextServiceId,
-    setServiceId,
     requestId,
     setRequestId,
+    setServiceId,
     resetBooking,
   } = useBooking();
-  const router = useRouter();
+
   const [unavailable, setUnavailable] = useState<string[]>([]);
-  const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [artistLocation, setArtistLocation] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [maxStepCompleted, setMaxStepCompleted] = useState(0);
-  const isMobile = useIsMobile();
+  const [error, setError] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const isMobile = useIsMobile();
 
-  // Ensure maxStepCompleted always reflects the furthest step reached.
+  const {
+    control,
+    trigger,
+    handleSubmit,
+    setValue,
+    errors,
+  } = useBookingForm(schema, details, setDetails);
+
   useEffect(() => {
     setMaxStepCompleted((prev) => Math.max(prev, step));
-  }, [step]);
-
-  const { control, handleSubmit, trigger, setValue, errors } = useBookingForm(
-    schema,
-    details,
-    setDetails,
-  );
-
-  // Keep the start of each step visible on small screens
-  // so navigation feels smooth on mobile devices.
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
     headingRef.current?.focus();
   }, [step]);
 
   useEffect(() => {
     if (!artistId) return;
-    setLoadingAvailability(true);
-    getArtistAvailability(artistId)
-      .then((res) => setUnavailable(res.data.unavailable_dates))
-      .catch(() => setUnavailable([]))
-      .finally(() => setLoadingAvailability(false));
-    getArtist(artistId)
-      .then((res) => setArtistLocation(res.data.location || null))
-      .catch(() => setArtistLocation(null));
+    getArtistAvailability(artistId).then((res) => setUnavailable(res.data.unavailable_dates));
+    getArtist(artistId).then((res) => setArtistLocation(res.data.location || null));
   }, [artistId]);
 
   useEffect(() => {
     if (serviceId) setServiceId(serviceId);
   }, [serviceId, setServiceId]);
 
-  // Validate only the fields relevant to the current step. This prevents
-  // "Please fix the errors above" from appearing when later steps haven't
-  // been filled out yet.
   const next = async () => {
-    let fields: (keyof EventDetails)[] = [];
-    switch (step) {
-      case 0:
-        fields = ["date"];
-        break;
-      case 1:
-        fields = ["location"];
-        break;
-      case 2:
-        fields = ["guests"];
-        break;
-      case 3:
-        fields = ["venueType"];
-        break;
-      case 4:
-        fields = ["sound"];
-        break;
-      default:
-        fields = [];
-    }
-    const valid = await trigger(fields);
+    const stepFields: (keyof EventDetails)[][] = [
+      ['date'],
+      ['location'],
+      ['guests'],
+      ['venueType'],
+      ['sound'],
+      [],
+      [],
+    ];
+    const fields = stepFields[step] as (keyof EventDetails)[];
+    const valid = fields.length > 0 ? await trigger(fields) : true;
     if (valid) {
       const newStep = step + 1;
       setStep(newStep);
       setMaxStepCompleted(Math.max(maxStepCompleted, newStep));
+    } else {
+      setError('Please fix the errors above to continue.');
     }
   };
-  const prev = () => setStep(step - 1);
-  const handleStepClick = (i: number) => {
-    if (i <= maxStepCompleted && i !== step) setStep(i);
-  };
 
-  const saveDraft = handleSubmit(async (vals) => {
+  const prev = () => setStep(step - 1);
+
+  const saveDraft = handleSubmit(async (vals: EventDetails) => {
     const payload: BookingRequestCreate = {
       artist_id: artistId,
-      service_id: contextServiceId,
-      proposed_datetime_1: vals.date
-        ? new Date(vals.date).toISOString()
-        : undefined,
+      service_id: serviceId,
+      proposed_datetime_1: vals.date?.toISOString(),
       message: vals.notes,
       attachment_url: vals.attachment_url,
-      status: "draft",
+      status: 'draft',
     };
     try {
-      if (requestId) {
-        await updateBookingRequest(requestId, payload);
-      } else {
+      if (requestId) await updateBookingRequest(requestId, payload);
+      else {
         const res = await createBookingRequest(payload);
         setRequestId(res.data.id);
       }
-      setError(null);
-      toast.success("Draft saved");
+      toast.success('Draft saved');
     } catch (e) {
-      const err = e as Error;
-      setError(err.message);
+      setError((e as Error).message);
     }
   });
 
-  const submitRequest = handleSubmit(async (vals) => {
+  const submitRequest = handleSubmit(async (vals: EventDetails) => {
     setSubmitting(true);
     const payload: BookingRequestCreate = {
       artist_id: artistId,
-      service_id: contextServiceId,
-      proposed_datetime_1: vals.date
-        ? new Date(vals.date).toISOString()
-        : undefined,
+      service_id: serviceId,
+      proposed_datetime_1: vals.date?.toISOString(),
       message: vals.notes,
       attachment_url: vals.attachment_url,
-      status: "pending_quote",
+      status: 'pending_quote',
     };
+  
     try {
-      let res;
-      if (requestId) {
-        res = await updateBookingRequest(requestId, payload);
-      } else {
-        res = await createBookingRequest(payload);
-        setRequestId(res.data.id);
-      }
-      const idToUse = requestId || res.data.id;
-      const lines = [
-        `Date: ${format(vals.date, "yyyy-MM-dd")}`,
-        `Location: ${vals.location}`,
-        `Guests: ${vals.guests}`,
-        `Sound: ${vals.sound}`,
-        `Venue Type: ${vals.venueType}`,
-      ];
-      if (vals.notes) {
-        lines.push(`Notes: ${vals.notes}`);
-      }
-      const detailLines = lines.join("\n");
-      await postMessageToBookingRequest(idToUse, {
-        content: `Booking details:\n${detailLines}`,
-        message_type: "system",
+      const res = requestId
+        ? await updateBookingRequest(requestId, payload)
+        : await createBookingRequest(payload);
+  
+      const id = requestId || res?.data?.id;
+      if (!id) throw new Error('Missing booking request ID');
+  
+      await postMessageToBookingRequest(id, {
+        content: `Booking details:\nDate: ${vals.date}\nLocation: ${vals.location}\nGuests: ${vals.guests}\nVenue: ${vals.venueType}\nSound: ${vals.sound}\nNotes: ${vals.notes}`,
+        message_type: 'system',
       });
-      toast.success("Request submitted");
-      resetBooking();
-      router.push(`/booking-requests/${idToUse}`);
+  
+      toast.success('Request submitted');
+  
+      // 🚨 DO NOT resetBooking here
+      // router.push immediately, reset later
+      router.push(`/booking-requests/${id}`);
     } catch (e) {
-      const err = e as Error;
-      setError(err.message);
+      console.error('Submit Error:', e);
+      setError((e as Error).message);
     } finally {
       setSubmitting(false);
     }
   });
+  
 
-  const renderStep = (index: number) => {
-    switch (index) {
-      case 0:
-        return (
-          <DateTimeStep
-            control={control as unknown as Control<FieldValues>}
-            unavailable={unavailable}
-            loading={loadingAvailability}
-            step={index}
-            steps={steps}
-            onBack={prev}
-            onSaveDraft={saveDraft}
-            onNext={next}
-          />
-        );
-      case 1:
-        return (
-          <LocationStep
-            control={control as unknown as Control<FieldValues>}
-            artistLocation={artistLocation || undefined}
-            setWarning={setWarning}
-            step={index}
-            steps={steps}
-            onBack={prev}
-            onSaveDraft={saveDraft}
-            onNext={next}
-          />
-        );
-      case 2:
-        return (
-          <GuestsStep
-            control={control as unknown as Control<FieldValues>}
-            step={index}
-            steps={steps}
-            onBack={prev}
-            onSaveDraft={saveDraft}
-            onNext={next}
-          />
-        );
-      case 3:
-        return (
-          <VenueStep
-            control={control as unknown as Control<FieldValues>}
-            step={index}
-            steps={steps}
-            onBack={prev}
-            onSaveDraft={saveDraft}
-            onNext={next}
-          />
-        );
-      case 4:
-        return (
-          <SoundStep
-            control={control as unknown as Control<FieldValues>}
-            step={index}
-            steps={steps}
-            onBack={prev}
-            onSaveDraft={saveDraft}
-            onNext={next}
-          />
-        );
-      case 5:
-        return (
-          <NotesStep
-            control={control as unknown as Control<FieldValues>}
-            setValue={
-              setValue as unknown as (name: string, value: unknown) => void
-            }
-            step={index}
-            steps={steps}
-            onBack={prev}
-            onSaveDraft={saveDraft}
-            onNext={next}
-          />
-        );
-      default:
-        return (
-          <ReviewStep
-            step={index}
-            steps={steps}
-            onBack={prev}
-            onSaveDraft={saveDraft}
-            onSubmit={submitRequest}
-            submitting={submitting}
-          />
-        );
+  const renderStep = () => {
+    const common = { step, steps, onBack: prev, onSaveDraft: saveDraft, onNext: next };
+    switch (step) {
+      case 0: return <DateTimeStep control={control} unavailable={unavailable} />;
+      case 1: return <LocationStep control={control} artistLocation={artistLocation} setWarning={setWarning} {...common} />;
+      case 2: return <GuestsStep control={control} {...common} />;
+      case 3: return <VenueStep control={control} {...common} />;
+      case 4: return <SoundStep control={control} {...common} />;
+      case 5: return <NotesStep control={control} setValue={setValue} />;
+      case 6: return <ReviewStep {...common} onNext={submitRequest} submitting={submitting} submitLabel="Submit Request" />;
+      console.log('[BookingWizard]: isOpen =', isOpen);
+      default: return null;
     }
   };
+  console.log('[BookingWizard]: isOpen =', isOpen);
+  if (!isOpen) return null;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 lg:px-8">
-      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[200px_1fr] lg:gap-8">
-        <aside aria-label="Booking steps">
-          <Stepper
-            steps={steps}
-            currentStep={step}
-            maxStepCompleted={maxStepCompleted}
-            onStepClick={handleStepClick}
-            ariaLabel={`Progress: step ${step + 1} of ${steps.length}`}
-            variant="neutral"
-            orientation={isMobile ? "horizontal" : "vertical"}
-            data-testid="progress-container"
-            className="w-full justify-center space-x-6 py-4 lg:sticky lg:top-16 lg:flex-col lg:items-start lg:space-x-0 lg:space-y-6 lg:border-r lg:border-gray-200 lg:pr-6 lg:pt-0"
-          />
-          <div
-            aria-live="polite"
-            aria-atomic="true"
-            className="sr-only"
-            data-testid="progress-status"
+    <Transition show={isOpen} as={Fragment}>
+      <Dialog as="div" className="fixed inset-0 z-50" onClose={onClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100"
+          leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0"
+        >
+          <Dialog.Overlay className="fixed inset-0 bg-gray-500/75 z-40" />
+        </Transition.Child>
+
+        <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100"
+            leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95"
           >
-            {`Step ${step + 1} of ${steps.length}`}
-          </div>
-        </aside>
-        {isMobile ? (
-          <div className="space-y-4">
-            {steps.map((label, i) => (
-              <CollapsibleSection
-                key={label}
-                title={label}
-                open={i === step}
-                onToggle={() => handleStepClick(i)}
-              >
-                {i === step && (
-                  <>
-                    <h2
-                      className="sr-only"
-                      data-testid="step-heading"
-                      tabIndex={-1}
-                      ref={headingRef}
-                    >
-                      {label}
-                    </h2>
-                    <p className="instruction-text mb-2">{instructions[i]}</p>
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={step}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <Card variant="wizard">{renderStep(i)}</Card>
-                      </motion.div>
-                    </AnimatePresence>
-                    {warning && (
-                      <p className="text-sm text-orange-600">{warning}</p>
-                    )}
-                    {Object.values(errors).length > 0 && (
-                      <p className="text-sm text-red-600">
-                        Please fix the errors above.
-                      </p>
-                    )}
-                    {error && <p className="text-sm text-red-600">{error}</p>}
-                  </>
+            <Dialog.Panel className="pointer-events-auto w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl bg-white flex flex-col overflow-hidden">
+              <Stepper
+                steps={steps}
+                currentStep={step}
+                maxStepCompleted={maxStepCompleted}
+                onStepClick={setStep}
+                ariaLabel="Booking progress"
+                orientation="horizontal"
+                className="px-6 py-4 border-b border-gray-100"
+                noCircles
+              />
+
+              <form className="flex-1 overflow-y-scroll p-6 space-y-6">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={step}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    variants={stepVariants}
+                    transition={stepVariants.transition}
+                  >
+                    <h2 className="text-2xl font-bold mb-2" ref={headingRef}>{steps[step]}</h2>
+                    <p className="text-gray-600 mb-4">{instructions[step]}</p>
+                    {renderStep()}
+                    {warning && <p className="text-orange-600 text-sm mt-4">{warning}</p>}
+                    {Object.values(errors).length > 0 && <p className="text-red-600 text-sm mt-4">Please fix the errors above.</p>}
+                    {error && <p className="text-red-600 text-sm mt-4">{error}</p>}
+                  </motion.div>
+                </AnimatePresence>
+              </form>
+
+              <div className="flex-shrink-0 border-t border-gray-100 p-6 flex flex-col-reverse sm:flex-row sm:justify-between gap-2">
+                <Button variant="outline" onClick={step === 0 ? onClose : prev}>
+                  {step === 0 ? 'Cancel' : 'Back'}
+                </Button>
+                {step < steps.length - 1 ? (
+                  <Button onClick={next}>Next</Button>
+                ) : (
+                  <Button onClick={submitRequest} isLoading={submitting}>
+                    Submit Request
+                  </Button>
                 )}
-              </CollapsibleSection>
-            ))}
-          </div>
-        ) : (
-          <Card variant="wizard" className="space-y-6">
-            <h2
-              className="text-2xl font-bold"
-              data-testid="step-heading"
-              tabIndex={-1}
-              ref={headingRef}
-            >
-              {steps[step]}
-            </h2>
-            <p className="instruction-text mb-2">{instructions[step]}</p>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {renderStep(step)}
-              </motion.div>
-            </AnimatePresence>
-            {warning && <p className="text-sm text-orange-600">{warning}</p>}
-            {Object.values(errors).length > 0 && (
-              <p className="text-sm text-red-600">
-                Please fix the errors above.
-              </p>
-            )}
-            {error && <p className="text-sm text-red-600">{error}</p>}
-          </Card>
-        )}
-      </div>
-    </main>
+              </div>
+            </Dialog.Panel>
+          </Transition.Child>
+        </div>
+      </Dialog>
+    </Transition>
   );
 }

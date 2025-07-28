@@ -1,17 +1,19 @@
 'use client';
-import { Controller, Control, FieldValues } from 'react-hook-form';
+import { Controller, Control } from 'react-hook-form'; // Removed FieldValues
 import { useState, useRef } from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
 import { BottomSheet, Button } from '../../ui';
-import WizardNav from '../WizardNav';
+import WizardNav from '../WizardNav'; // WizardNav is back!
+
+import { EventDetails } from '@/contexts/BookingContext'; // For correct Control typing
 
 interface Props {
-  control: Control<FieldValues>;
+  control: Control<EventDetails>;
   step: number;
   steps: string[];
   onBack: () => void;
-  onSaveDraft: () => void;
-  onNext: () => void;
+  onSaveDraft: (e?: React.BaseSyntheticEvent) => Promise<void>;
+  onNext: (e?: React.BaseSyntheticEvent) => Promise<void>;
 }
 
 export default function VenueStep({
@@ -35,7 +37,7 @@ export default function VenueStep({
 
   return (
     <div className="wizard-step-container">
-      <Controller
+      <Controller<EventDetails, 'venueType'>
         name="venueType"
         control={control}
         render={({ field }) => (
@@ -50,7 +52,7 @@ export default function VenueStep({
                   ref={buttonRef}
                 >
                   {field.value
-                    ? `Venue: ${field.value.charAt(0).toUpperCase()}${field.value.slice(1)}`
+                    ? `Venue: ${String(field.value).charAt(0).toUpperCase()}${String(field.value).slice(1)}`
                     : 'Select venue type'}
                 </Button>
                 <BottomSheet

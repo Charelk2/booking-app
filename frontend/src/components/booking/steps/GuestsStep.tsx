@@ -1,16 +1,21 @@
 'use client';
 // Larger touch targets and contextual help improve usability on mobile.
-import { Controller, Control, FieldValues } from 'react-hook-form';
+import { Controller, Control, FieldValues } from 'react-hook-form'; // Keep FieldValues if WizardNav uses it
 import useIsMobile from '@/hooks/useIsMobile';
-import { Button, TextInput } from '../../ui';
+import { Button, TextInput } from '../../ui'; // Assuming Button and TextInput are imported
+import WizardNav from '../WizardNav'; // Assuming WizardNav component exists
+
+// Import EventDetails if your actual WizardNav uses it for deeper checks
+import { EventDetails } from '@/contexts/BookingContext'; // Added EventDetails
+
 
 interface Props {
-  control: Control<FieldValues>;
+  control: Control<EventDetails>; // CORRECTED: Use Control<EventDetails>
   step: number;
   steps: string[];
   onBack: () => void;
-  onSaveDraft: () => void;
-  onNext: () => void;
+  onSaveDraft: (e?: React.BaseSyntheticEvent) => Promise<void>; // Corrected signature
+  onNext: (e?: React.BaseSyntheticEvent) => Promise<void>; // Corrected signature
 }
 
 export default function GuestsStep({
@@ -24,7 +29,7 @@ export default function GuestsStep({
   const isMobile = useIsMobile();
   return (
     <div className="wizard-step-container">
-      <Controller
+      <Controller<EventDetails, 'guests'> // Explicitly type Controller
         name="guests"
         control={control}
         render={({ field }) => (
@@ -33,40 +38,18 @@ export default function GuestsStep({
             min={1}
             className="input-base text-lg"
             {...field}
+            value={field.value ? String(field.value) : ''} // Ensure value is string
             autoFocus={!isMobile}
           />
         )}
       />
-      <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
-        {step > 0 && (
-          <Button
-            type="button"
-            onClick={onBack}
-            variant="secondary"
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            Back
-          </Button>
-        )}
-
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
-          <Button
-            type="button"
-            onClick={onSaveDraft}
-            variant="secondary"
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            Save Draft
-          </Button>
-          <Button
-            type="button"
-            onClick={onNext}
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            {step === steps.length - 1 ? 'Submit Request' : 'Next'}
-          </Button>
-        </div>
-      </div>
+      <WizardNav
+        step={step}
+        steps={steps}
+        onBack={onBack}
+        onSaveDraft={onSaveDraft}
+        onNext={onNext}
+      />
     </div>
   );
 }
