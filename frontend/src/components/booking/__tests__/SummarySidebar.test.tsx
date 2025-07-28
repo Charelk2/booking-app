@@ -29,6 +29,8 @@ describe('SummarySidebar', () => {
       details: {
         date: new Date('2024-01-02T00:00:00Z'),
         time: '10am',
+        eventType: 'Wedding',
+        eventDescription: 'A small ceremony',
         location: '',
         guests: '20',
         venueType: 'indoor',
@@ -39,6 +41,8 @@ describe('SummarySidebar', () => {
       root.render(<SummarySidebar />);
     });
     expect(container.textContent).toContain('Jan 2, 2024');
+    expect(container.textContent).toContain('Wedding');
+    expect(container.textContent).toContain('A small ceremony');
   });
 
   it('parses ISO strings', () => {
@@ -46,6 +50,8 @@ describe('SummarySidebar', () => {
       details: {
         date: '2024-05-03',
         time: '9pm',
+        eventType: 'Corporate',
+        eventDescription: 'Year end function',
         location: '',
         guests: '50',
         venueType: 'indoor',
@@ -57,5 +63,7 @@ describe('SummarySidebar', () => {
     });
     expect(container.textContent).toContain('May 3, 2024');
     expect(container.textContent).toContain('50');
+    expect(container.textContent).toContain('Corporate');
+    expect(container.textContent).toContain('Year end function');
   });
 });
