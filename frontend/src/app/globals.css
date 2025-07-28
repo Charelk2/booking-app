@@ -120,6 +120,8 @@
   .wizard-step-container {
     /* Ensure a consistent width across all booking steps */
     @apply w-full mx-auto max-w-xl space-y-6 rounded-2xl bg-white p-6 md:p-8;
+    /* Keep height stable so the card doesn't jump between steps */
+    @apply lg:min-h-[400px];
   }
 
   .instruction-text {
