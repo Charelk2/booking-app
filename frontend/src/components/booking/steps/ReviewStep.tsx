@@ -48,15 +48,7 @@ export default function ReviewStep({
       {details.attachment_url && <p><strong>Attachment:</strong> <a href={details.attachment_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View Attachment</a></p>}
 
       {/* WizardNav is now correctly rendered here with all its props */}
-      <WizardNav
-        step={step}
-        steps={steps}
-        onBack={onBack}
-        onSaveDraft={onSaveDraft}
-        onNext={onNext} // Now `onNext` is the handleSubmit(submitRequest) from parent
-        submitting={submitting}
-        submitLabel={submitLabel || "Submit Request"} // Pass submitLabel
-      />
+
     </div>
   );
 }

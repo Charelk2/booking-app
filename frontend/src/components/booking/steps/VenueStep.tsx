@@ -111,13 +111,7 @@ export default function VenueStep({
           </>
         )}
       />
-      <WizardNav
-        step={step}
-        steps={steps}
-        onBack={onBack}
-        onSaveDraft={onSaveDraft}
-        onNext={onNext}
-      />
+
     </div>
   );
 }
