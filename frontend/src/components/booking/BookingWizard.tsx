@@ -46,7 +46,7 @@ type EventDetails = {
 
 const schema = yup.object<EventDetails>().shape({
   eventType: yup.string().required(),
-  eventDescription: yup.string().required().min(10),
+  eventDescription: yup.string().required().min(5),
   date: yup.date().required().min(new Date()),
   location: yup.string().required(),
   guests: yup.string().required().matches(/^\d+$/, 'Must be a number'),
