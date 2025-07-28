@@ -38,7 +38,6 @@ export default function ReviewStep({
   return (
     <div className="wizard-step-container">
       <SummarySidebar />
-      <h3 className="text-lg font-semibold mt-4 mb-2">Booking Summary</h3>
       <p><strong>Date:</strong> {details.date ? format(details.date, 'PPP') : 'N/A'}</p>
       <p><strong>Location:</strong> {details.location || 'N/A'}</p>
       <p><strong>Guests:</strong> {details.guests || 'N/A'}</p>
