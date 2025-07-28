@@ -1,10 +1,10 @@
 'use client';
 // The map only appears after a location is selected. A tooltip explains any
 // distance warnings so users understand why we show them.
-import { Controller, Control, FieldValues } from 'react-hook-form';
+import { Controller, Control, FieldValues } from 'react-hook-form'; // Keep FieldValues if your WizardNav uses it
 import dynamic from 'next/dynamic';
 import { loadPlaces } from '@/lib/loadPlaces';
-import LocationInput from '../../ui/LocationInput';
+import LocationInput from '../../ui/LocationInput'; // Assuming correct path
 import clsx from 'clsx';
 const GoogleMap = dynamic(
   () => import('@react-google-maps/api').then((m) => m.GoogleMap),
@@ -15,21 +15,23 @@ const Marker = dynamic(
   { ssr: false },
 );
 import { useRef, useState, useEffect } from 'react';
-import { Button, Tooltip } from '../../ui';
+import { Button, Tooltip } from '../../ui'; // Assuming Button and Tooltip are imported
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
+import WizardNav from '../WizardNav'; // Assuming WizardNav component exists
 
-// Map libraries are loaded lazily using a shared loader so the Google Maps
-// script is only injected once across the app.
+// Import EventDetails if your actual WizardNav uses it for deeper checks
+import { EventDetails } from '@/contexts/BookingContext'; // Added EventDetails
+
 
 interface Props {
-  control: Control<FieldValues>;
+  control: Control<EventDetails>; // CORRECTED: Use Control<EventDetails>
   artistLocation?: string | null;
   setWarning: (w: string | null) => void;
   step: number;
   steps: string[];
   onBack: () => void;
-  onSaveDraft: () => void;
-  onNext: () => void;
+  onSaveDraft: (e?: React.BaseSyntheticEvent) => Promise<void>; // Corrected signature
+  onNext: (e?: React.BaseSyntheticEvent) => Promise<void>; // Corrected signature
 }
 
 function GoogleMapsLoader({
@@ -118,14 +120,14 @@ export default function LocationStep({
           <GoogleMapsLoader>
             {(loaded) => (
               <>
-                <Controller
+                <Controller<EventDetails, 'location'> // Explicitly type Controller
                   name="location"
                   control={control}
                   render={({ field }) => (
                     <LocationInput
                       value={field.value ?? ''}
                       onValueChange={field.onChange}
-                      onPlaceSelect={(place) => {
+                      onPlaceSelect={(place: google.maps.places.PlaceResult) => {
                         if (place.geometry?.location) {
                           setMarker({
                             lat: place.geometry.location.lat(),
@@ -152,14 +154,14 @@ export default function LocationStep({
           </GoogleMapsLoader>
         ) : (
           <>
-            <Controller
+            <Controller<EventDetails, 'location'> // Explicitly type Controller
               name="location"
               control={control}
               render={({ field }) => (
                 <LocationInput
                   value={field.value ?? ''}
                   onValueChange={field.onChange}
-                  onPlaceSelect={(place) => {
+                  onPlaceSelect={(place: google.maps.places.PlaceResult) => {
                     if (place.geometry?.location) {
                       setMarker({
                         lat: place.geometry.location.lat(),
@@ -206,36 +208,13 @@ export default function LocationStep({
         className="ml-1"
       />
       {geoError && <p className="text-red-600 text-sm">{geoError}</p>}
-      <div className="flex flex-col gap-2 mt-6 sm:flex-row sm:justify-between sm:items-center">
-        {step > 0 && (
-          <Button
-            type="button"
-            onClick={onBack}
-            variant="secondary"
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            Back
-          </Button>
-        )}
-
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:ml-auto">
-          <Button
-            type="button"
-            onClick={onSaveDraft}
-            variant="secondary"
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            Save Draft
-          </Button>
-          <Button
-            type="button"
-            onClick={onNext}
-            className="w-full sm:w-auto min-h-[44px]"
-          >
-            {step === steps.length - 1 ? 'Submit Request' : 'Next'}
-          </Button>
-        </div>
-      </div>
+      <WizardNav
+        step={step}
+        steps={steps}
+        onBack={onBack}
+        onSaveDraft={onSaveDraft}
+        onNext={onNext}
+      />
     </div>
   );
 }

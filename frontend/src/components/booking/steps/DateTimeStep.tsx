@@ -1,34 +1,28 @@
 'use client';
-import { Controller, Control, FieldValues } from 'react-hook-form';
-import WizardNav from '../WizardNav';
+import { Controller, Control } from 'react-hook-form'; // REMOVED FieldValues
+// WizardNav is REMOVED from here, as navigation is global now.
 import ReactDatePicker from 'react-datepicker';
 import '../../../styles/datepicker.css';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { format, parseISO } from 'date-fns';
 import useIsMobile from '@/hooks/useIsMobile';
-import { DateInput } from '../../ui';
+import { DateInput } from '../../ui'; // Assuming DateInput is imported
 
+// Import EventDetails for correct Control typing
+import { EventDetails } from '@/contexts/BookingContext';
+
+// Props interface SIMPLIFIED: No navigation props here.
 interface Props {
-  control: Control<FieldValues>;
+  control: Control<EventDetails>; // Type control with EventDetails
   unavailable: string[];
-  /** Show a skeleton calendar while availability loads */
   loading?: boolean;
-  step: number;
-  steps: string[];
-  onBack: () => void;
-  onSaveDraft: () => void;
-  onNext: () => void;
+  // No step, steps, onBack, onSaveDraft, onNext props here.
 }
 
 export default function DateTimeStep({
   control,
   unavailable,
   loading = false,
-  step,
-  steps,
-  onBack,
-  onSaveDraft,
-  onNext,
 }: Props) {
   const isMobile = useIsMobile();
   const filterDate = (date: Date) => {
@@ -43,14 +37,14 @@ export default function DateTimeStep({
           className="h-72 bg-gray-200 rounded animate-pulse"
         />
       ) : (
-        <Controller
+        <Controller<EventDetails, 'date'>
           name="date"
           control={control}
           render={({ field }) => {
             const currentValue =
               field.value && typeof field.value === 'string'
                 ? parseISO(field.value)
-                : field.value;
+                : (field.value as Date | null | undefined);
             return isMobile ? (
               <DateInput
                 min={format(new Date(), 'yyyy-MM-dd')}
@@ -69,7 +63,7 @@ export default function DateTimeStep({
                   inline
                   locale="en-US"
                   filterDate={filterDate}
-                  onChange={(date) => field.onChange(date as Date)}
+                  onChange={(date: Date | null) => field.onChange(date)}
                   renderCustomHeader={({
                     date,
                     decreaseMonth,
@@ -111,13 +105,7 @@ export default function DateTimeStep({
           }}
         />
       )}
-      <WizardNav
-        step={step}
-        steps={steps}
-        onBack={onBack}
-        onSaveDraft={onSaveDraft}
-        onNext={onNext}
-      />
+      {/* No WizardNav here. Its buttons are now in the parent BookingWizard. */}
     </div>
   );
 }
