@@ -75,13 +75,13 @@ describe("BookingWizard flow", () => {
   it("shows step heading and updates on next", async () => {
     const heading = () =>
       container.querySelector('[data-testid="step-heading"]')?.textContent;
-    expect(heading()).toContain("Event Type");
+    expect(heading()).toContain("Date & Time");
     const next = getButton("Next");
     await act(async () => {
       next.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await flushPromises();
-    expect(heading()).toContain("Event Details");
+    expect(heading()).toContain("Event Type");
   });
 
   it("collapses inactive steps on mobile", async () => {
@@ -102,7 +102,7 @@ describe("BookingWizard flow", () => {
   });
 
   it("shows summary only on the review step", async () => {
-    expect(container.querySelector("h2")?.textContent).toContain("Event Type");
+    expect(container.querySelector("h2")?.textContent).toContain("Date & Time");
     expect(container.textContent).not.toContain("Date:");
     const setStep = (window as unknown as { __setStep: (s: number) => void })
       .__setStep;
@@ -132,7 +132,7 @@ describe("BookingWizard flow", () => {
     await flushPromises();
     expect(
       container.querySelector('[data-testid="step-heading"]')?.textContent,
-    ).toContain("Event Type");
+    ).toContain("Date & Time");
   });
 
   it("keeps future completed steps clickable when rewinding", async () => {
@@ -288,6 +288,6 @@ describe("BookingWizard flow", () => {
     expect(localStorage.getItem("bookingState")).toBeNull();
     expect(
       container.querySelector('[data-testid="step-heading"]')?.textContent,
-    ).toContain("Event Type");
+    ).toContain("Date & Time");
   });
 });
