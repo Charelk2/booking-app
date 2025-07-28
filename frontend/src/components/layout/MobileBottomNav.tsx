@@ -70,7 +70,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
                 className={classNames(
-                  'flex flex-col items-center justify-center gap-1 py-0.5 transition-colors',
+                  'flex flex-col items-center justify-center gap-1 py-0.5 transition-colors no-underline hover:no-underline',
                   active
                     ? 'text-brand-dark border-b-2 border-brand-dark'
                     : 'text-gray-500 hover:text-gray-700'

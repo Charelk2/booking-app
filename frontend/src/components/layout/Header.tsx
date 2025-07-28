@@ -66,7 +66,7 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
         <div className="h-16 grid grid-cols-[auto,1fr,auto] items-center">
           {/* Left: logo + tagline */}
           <div className="flex flex-col">
-            <Link href="/" className="flex shrink-0 items-center text-xl font-bold text-brand-dark">
+            <Link href="/" className="flex shrink-0 items-center text-xl font-bold text-brand-dark no-underline hover:no-underline">
               Booka.co.za
             </Link>
             {isHome && (
@@ -102,7 +102,7 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
                     <Menu.Items className="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-background py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                       <Menu.Item>
                         {({ active }) => (
-                          <Link href="/dashboard" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700')}>
+                          <Link href="/dashboard" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700 no-underline hover:no-underline')}>
                             Dashboard
                           </Link>
                         )}
@@ -111,21 +111,21 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
                         <>
                           <Menu.Item>
                             {({ active }) => (
-                              <Link href="/dashboard/profile/edit" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700')}>
+                              <Link href="/dashboard/profile/edit" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700 no-underline hover:no-underline')}>
                                 Edit Profile
                               </Link>
                             )}
                           </Menu.Item>
                           <Menu.Item>
                             {({ active }) => (
-                              <Link href="/dashboard/quotes" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700')}>
+                              <Link href="/dashboard/quotes" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700 no-underline hover:no-underline')}>
                                 Quotes
                               </Link>
                             )}
                           </Menu.Item>
                           <Menu.Item>
                             {({ active }) => (
-                              <Link href="/dashboard/profile/quote-templates" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700')}>
+                              <Link href="/dashboard/profile/quote-templates" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700 no-underline hover:no-underline')}>
                                 Quote Templates
                               </Link>
                             )}
@@ -136,21 +136,21 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
                         <>
                           <Menu.Item>
                             {({ active }) => (
-                              <Link href="/dashboard/client/bookings" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700')}>
+                              <Link href="/dashboard/client/bookings" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700 no-underline hover:no-underline')}>
                                 My Bookings
                               </Link>
                             )}
                           </Menu.Item>
                           <Menu.Item>
                             {({ active }) => (
-                              <Link href="/dashboard/client/quotes" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700')}>
+                              <Link href="/dashboard/client/quotes" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700 no-underline hover:no-underline')}>
                                 My Quotes
                               </Link>
                             )}
                           </Menu.Item>
                           <Menu.Item>
                             {({ active }) => (
-                              <Link href="/account" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700')}>
+                              <Link href="/account" className={classNames(active ? 'bg-gray-100' : '', 'block px-4 py-2 text-sm text-gray-700 no-underline hover:no-underline')}>
                                 Account
                               </Link>
                             )}
@@ -170,10 +170,10 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
               </>
             ) : (
               <div className="space-x-4">
-                <Link href="/login" className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium">
+                <Link href="/login" className="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium no-underline hover:no-underline">
                   Sign in
                 </Link>
-                <Link href="/register" className="bg-brand-dark text-white hover:bg-brand-dark px-3 py-2 rounded-md text-sm font-medium">
+                <Link href="/register" className="bg-brand-dark text-white hover:bg-brand-dark px-3 py-2 rounded-md text-sm font-medium no-underline hover:no-underline">
                   Sign up
                 </Link>
               </div>
