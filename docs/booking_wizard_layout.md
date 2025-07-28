@@ -37,4 +37,4 @@ This snippet demonstrates the HTML structure and Tailwind CSS classes for the bo
 </main>
 ```
 
-The stepper text is bright red for the active step and muted gray for the rest. On small screens, the stepper stacks above the card and remains centered. The card expands to fill available space on larger screens.
+The stepper text is bright red for the active step and muted gray for the rest. On small screens, the stepper stacks above the card and remains centered. On larger screens, the card keeps a consistent width and minimum height across all steps so the layout doesn't shift as you progress.
