@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { TravelResult } from '@/lib/travel';
 
 export interface EventDetails {
   eventType: string;
@@ -21,6 +22,8 @@ interface BookingContextValue {
   setServiceId: (id: number | undefined) => void;
   requestId?: number;
   setRequestId: (id: number | undefined) => void;
+  travelResult: TravelResult | null;
+  setTravelResult: (r: TravelResult | null) => void;
   resetBooking: () => void;
   loadSavedProgress: () => boolean;
 }
@@ -45,12 +48,14 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
   const [details, setDetails] = useState<EventDetails>(initialDetails);
   const [serviceId, setServiceId] = useState<number | undefined>(undefined);
   const [requestId, setRequestId] = useState<number | undefined>(undefined);
+  const [travelResult, setTravelResult] = useState<TravelResult | null>(null);
 
   const resetBooking = () => {
     setStep(0);
     setDetails(initialDetails);
     setServiceId(undefined);
     setRequestId(undefined);
+    setTravelResult(null);
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -70,6 +75,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
         details?: Partial<EventDetails> & { date?: string };
         serviceId?: number;
         requestId?: number;
+        travelResult?: TravelResult | null;
       };
 
       const resume = window.confirm(
@@ -91,6 +97,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
       }
       if (parsed.serviceId !== undefined) setServiceId(parsed.serviceId);
       if (parsed.requestId !== undefined) setRequestId(parsed.requestId);
+      if (parsed.travelResult) setTravelResult(parsed.travelResult);
 
       return true;
     } catch (e) {
@@ -108,6 +115,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
       details: { ...details, date: new Date(details.date).toISOString() },
       serviceId,
       requestId,
+      travelResult,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -124,11 +132,13 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
         setDetails,
         serviceId,
         setServiceId,
-        requestId,
-        setRequestId,
-        resetBooking,
-        loadSavedProgress,
-      }}
+      requestId,
+      setRequestId,
+      travelResult,
+      setTravelResult,
+      resetBooking,
+      loadSavedProgress,
+    }}
     >
       {children}
     </BookingContext.Provider>
