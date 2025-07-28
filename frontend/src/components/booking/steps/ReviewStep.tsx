@@ -1,15 +1,20 @@
 'use client';
 // Final review step showing a summary of all selections.
 import SummarySidebar from '../SummarySidebar';
-import WizardNav from '../WizardNav';
+import WizardNav from '../WizardNav'; // WizardNav is back!
+import { useBooking } from '@/contexts/BookingContext';
+import { format } from 'date-fns';
+import Button from '../../ui/Button'; // Assuming Button component exists
 
+// Props interface: Now includes all CommonStepProps for WizardNav
 interface Props {
   step: number;
   steps: string[];
   onBack: () => void;
-  onSaveDraft: () => void;
-  onSubmit: () => void;
+  onSaveDraft: (e?: React.BaseSyntheticEvent) => Promise<void>; // Corrected signature
+  onNext: (e?: React.BaseSyntheticEvent) => Promise<void>; // Renamed from onSubmit, corrected signature
   submitting: boolean;
+  submitLabel?: string; // Add if WizardNav uses this
 }
 
 export default function ReviewStep({
@@ -17,20 +22,40 @@ export default function ReviewStep({
   steps,
   onBack,
   onSaveDraft,
-  onSubmit,
+  onNext, // Changed from onSubmit
   submitting,
+  submitLabel, // Added
 }: Props) {
+  const { details } = useBooking();
+
+  // WizardNav is assumed to be a separate component that handles these buttons.
+  // The structure below is a placeholder if WizardNav is a simple div or needs adjustment.
+  // It should match the actual WizardNav's rendering.
+  // NOTE: If your WizardNav component is the one provided in a previous turn,
+  // it doesn't need to be defined here, just imported and used.
+  // I'm assuming it's imported correctly.
+
   return (
     <div className="wizard-step-container">
       <SummarySidebar />
+      <h3 className="text-lg font-semibold mt-4 mb-2">Booking Summary</h3>
+      <p><strong>Date:</strong> {details.date ? format(details.date, 'PPP') : 'N/A'}</p>
+      <p><strong>Location:</strong> {details.location || 'N/A'}</p>
+      <p><strong>Guests:</strong> {details.guests || 'N/A'}</p>
+      <p><strong>Venue Type:</strong> {details.venueType ? String(details.venueType).charAt(0).toUpperCase() + String(details.venueType).slice(1) : 'N/A'}</p>
+      <p><strong>Sound Equipment:</strong> {details.sound ? String(details.sound).charAt(0).toUpperCase() + String(details.sound).slice(1) : 'N/A'}</p>
+      <p><strong>Notes:</strong> {details.notes || 'None'}</p>
+      {details.attachment_url && <p><strong>Attachment:</strong> <a href={details.attachment_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View Attachment</a></p>}
+
+      {/* WizardNav is now correctly rendered here with all its props */}
       <WizardNav
         step={step}
         steps={steps}
         onBack={onBack}
         onSaveDraft={onSaveDraft}
-        onNext={onSubmit}
+        onNext={onNext} // Now `onNext` is the handleSubmit(submitRequest) from parent
         submitting={submitting}
-        submitLabel="Submit Request"
+        submitLabel={submitLabel || "Submit Request"} // Pass submitLabel
       />
     </div>
   );

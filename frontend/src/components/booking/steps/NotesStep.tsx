@@ -1,31 +1,24 @@
 'use client';
 // Notes and optional attachment upload.
-import { Controller, Control, FieldValues } from 'react-hook-form';
+import { Controller, Control, UseFormSetValue } from 'react-hook-form';
 import useIsMobile from '@/hooks/useIsMobile';
 import { uploadBookingAttachment } from '@/lib/api';
 import toast from '../../ui/Toast';
 import { useState } from 'react';
-import { Button } from '../../ui';
-import WizardNav from '../WizardNav';
+import { Button } from '../../ui'; // Assuming Button is imported
+// WizardNav is REMOVED from here.
 
+import { EventDetails } from '@/contexts/BookingContext'; // For correct Control and setValue typing
+
+// Props interface SIMPLIFIED: No navigation props here.
 interface Props {
-  control: Control<FieldValues>;
-  setValue: (name: string, value: unknown) => void;
-  step: number;
-  steps: string[];
-  onBack: () => void;
-  onSaveDraft: () => void;
-  onNext: () => void;
+  control: Control<EventDetails>;
+  setValue: UseFormSetValue<EventDetails>;
 }
 
 export default function NotesStep({
   control,
   setValue,
-  step,
-  steps,
-  onBack,
-  onSaveDraft,
-  onNext,
 }: Props) {
   const isMobile = useIsMobile();
   const [uploading, setUploading] = useState(false);
@@ -55,7 +48,7 @@ export default function NotesStep({
   }
   return (
     <div className="wizard-step-container">
-      <Controller
+      <Controller<EventDetails, 'notes'>
         name="notes"
         control={control}
         render={({ field }) => (
@@ -63,14 +56,21 @@ export default function NotesStep({
             rows={3}
             className="input-base"
             {...field}
+            value={field.value ? String(field.value) : ''}
             autoFocus={!isMobile}
           />
         )}
       />
-      <Controller
+      <Controller<EventDetails, 'attachment_url'>
         name="attachment_url"
         control={control}
-        render={({ field }) => <input type="hidden" {...field} />}
+        render={({ field }) => (
+          <input
+            type="hidden"
+            {...field}
+            value={field.value ? String(field.value) : ''}
+          />
+        )}
       />
       <label className="block text-sm font-medium">Attachment (optional)</label>
       <input
@@ -96,14 +96,7 @@ export default function NotesStep({
           <span className="text-xs">{progress}%</span>
         </div>
       )}
-      <WizardNav
-        step={step}
-        steps={steps}
-        onBack={onBack}
-        onSaveDraft={onSaveDraft}
-        onNext={onNext}
-        submitting={uploading}
-      />
+      {/* WizardNav is REMOVED from here. Buttons are now in the parent BookingWizard's fixed footer. */}
     </div>
   );
 }

@@ -1,15 +1,18 @@
 'use client';
-import { Control, Controller, FieldValues } from 'react-hook-form';
-import { Button } from '../../ui';
-import WizardNav from '../WizardNav';
+import { Control, Controller, FieldValues } from 'react-hook-form'; // Keep FieldValues if your WizardNav uses it
+import { Button } from '../../ui'; // Assuming Button is imported for WizardNav
+import WizardNav from '../WizardNav'; // Assuming WizardNav component exists
+
+// Import EventDetails if your actual WizardNav uses it for deeper checks
+import { EventDetails } from '@/contexts/BookingContext'; // Added EventDetails
 
 interface Props {
-  control: Control<FieldValues>;
+  control: Control<EventDetails>; // CORRECTED: Use Control<EventDetails>
   step: number;
   steps: string[];
   onBack: () => void;
-  onSaveDraft: () => void;
-  onNext: () => void;
+  onSaveDraft: (e?: React.BaseSyntheticEvent) => Promise<void>; // Corrected signature
+  onNext: (e?: React.BaseSyntheticEvent) => Promise<void>; // Corrected signature
 }
 
 export default function SoundStep({
@@ -22,7 +25,7 @@ export default function SoundStep({
 }: Props) {
   return (
     <div className="wizard-step-container">
-      <Controller
+      <Controller<EventDetails, 'sound'> // Explicitly type Controller
         name="sound"
         control={control}
         render={({ field }) => (
