@@ -12,9 +12,9 @@ test.describe('CollapsibleSection mobile behavior', () => {
 
   test('opens section when tapping header', async ({ page }) => {
     await page.goto('/booking?artist_id=1&service_id=1');
-    await expect(page.getByTestId('step-heading')).toHaveText(/Date & Time/);
-    await page.getByRole('button', { name: 'Location' }).click();
-    await expect(page.getByTestId('step-heading')).toHaveText(/Location/);
+    await expect(page.getByTestId('step-heading')).toHaveText(/Event Type/);
+    await page.getByRole('button', { name: 'Event Details' }).click();
+    await expect(page.getByTestId('step-heading')).toHaveText(/Event Details/);
   });
 });
 
@@ -29,12 +29,12 @@ test.describe('CollapsibleSection cross-browser', () => {
 
   test('toggles section on click', async ({ page }) => {
     await page.goto('/booking?artist_id=1&service_id=1');
-    const dateButton = page.getByRole('button', { name: 'Date & Time' });
-    const locationButton = page.getByRole('button', { name: 'Location' });
-    await expect(dateButton).toHaveAttribute('aria-expanded', 'true');
-    await expect(locationButton).toHaveAttribute('aria-expanded', 'false');
-    await locationButton.click();
-    await expect(locationButton).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByTestId('step-heading')).toHaveText(/Location/);
+    const firstButton = page.getByRole('button', { name: 'Event Type' });
+    const detailsButton = page.getByRole('button', { name: 'Event Details' });
+    await expect(firstButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(detailsButton).toHaveAttribute('aria-expanded', 'false');
+    await detailsButton.click();
+    await expect(detailsButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('step-heading')).toHaveText(/Event Details/);
   });
 });
