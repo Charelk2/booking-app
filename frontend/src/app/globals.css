@@ -118,7 +118,7 @@
 
   /* Booking wizard common styles */
   .wizard-step-container {
-    @apply mx-auto max-w-xl space-y-6 rounded-2xl bg-white p-6 md:p-8;
+    @apply mx-auto max-w-md lg:max-w-none lg:mx-0 space-y-6 rounded-2xl bg-white p-6 md:p-8 shadow-xl;
   }
 
   .instruction-text {
