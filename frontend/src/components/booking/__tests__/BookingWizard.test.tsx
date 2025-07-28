@@ -75,13 +75,13 @@ describe("BookingWizard flow", () => {
   it("shows step heading and updates on next", async () => {
     const heading = () =>
       container.querySelector('[data-testid="step-heading"]')?.textContent;
-    expect(heading()).toContain("Date & Time");
+    expect(heading()).toContain("Event Type");
     const next = getButton("Next");
     await act(async () => {
       next.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await flushPromises();
-    expect(heading()).toContain("Location");
+    expect(heading()).toContain("Event Details");
   });
 
   it("collapses inactive steps on mobile", async () => {
@@ -102,12 +102,12 @@ describe("BookingWizard flow", () => {
   });
 
   it("shows summary only on the review step", async () => {
-    expect(container.querySelector("h2")?.textContent).toContain("Date & Time");
+    expect(container.querySelector("h2")?.textContent).toContain("Event Type");
     expect(container.textContent).not.toContain("Summary");
     const setStep = (window as unknown as { __setStep: (s: number) => void })
       .__setStep;
     await act(async () => {
-      setStep(6);
+      setStep(8);
     });
     await flushPromises();
     expect(container.querySelector("h2")?.textContent).toContain("Review");
@@ -132,21 +132,21 @@ describe("BookingWizard flow", () => {
     await flushPromises();
     expect(
       container.querySelector('[data-testid="step-heading"]')?.textContent,
-    ).toContain("Date & Time");
+    ).toContain("Event Type");
   });
 
   it("keeps future completed steps clickable when rewinding", async () => {
     const setStep = (window as unknown as { __setStep: (s: number) => void })
       .__setStep;
     await act(async () => {
-      setStep(2);
+      setStep(4);
     });
     await flushPromises();
     let progressButtons = container.querySelectorAll(
       '[aria-label="Progress"] button',
     );
     await act(async () => {
-      progressButtons[1].dispatchEvent(
+      progressButtons[3].dispatchEvent(
         new MouseEvent("click", { bubbles: true }),
       );
     });
@@ -155,7 +155,7 @@ describe("BookingWizard flow", () => {
     progressButtons = container.querySelectorAll(
       '[aria-label="Progress"] button',
     );
-    expect((progressButtons[2] as HTMLButtonElement).disabled).toBe(false);
+    expect((progressButtons[4] as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("shows a loader while fetching availability", async () => {
@@ -194,13 +194,13 @@ describe("BookingWizard flow", () => {
   it("announces progress updates for screen readers", async () => {
     const progress = () =>
       container.querySelector('[data-testid="progress-status"]')?.textContent;
-    expect(progress()).toBe("Step 1 of 7");
+    expect(progress()).toBe("Step 1 of 9");
     const next = getButton("Next");
     await act(async () => {
       next.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await flushPromises();
-    expect(progress()).toBe("Step 2 of 7");
+    expect(progress()).toBe("Step 2 of 9");
   });
 
   it("moves focus to the step heading when advancing", async () => {
@@ -238,10 +238,12 @@ describe("BookingWizard flow", () => {
     const next = getButton("Next");
     await act(async () => {
       next.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      next.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      next.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await flushPromises();
     const stored = JSON.parse(localStorage.getItem("bookingState")!);
-    expect(stored.step).toBe(1);
+    expect(stored.step).toBe(3);
 
     act(() => {
       root.unmount();
@@ -264,7 +266,7 @@ describe("BookingWizard flow", () => {
     localStorage.setItem(
       "bookingState",
       JSON.stringify({
-        step: 2,
+        step: 4,
         details: {
           date: new Date().toISOString(),
           location: "LA",
@@ -286,6 +288,6 @@ describe("BookingWizard flow", () => {
     expect(localStorage.getItem("bookingState")).toBeNull();
     expect(
       container.querySelector('[data-testid="step-heading"]')?.textContent,
-    ).toContain("Date & Time");
+    ).toContain("Event Type");
   });
 });
