@@ -12,6 +12,7 @@ interface CustomLocationInputProps {
   placeholder?: string;
   className?: string;
   inputClassName?: string;
+  required?: boolean;
 }
 
 export default function CustomLocationInput({
@@ -21,6 +22,7 @@ export default function CustomLocationInput({
   placeholder = 'Search location',
   className,
   inputClassName,
+  required = false,
 }: CustomLocationInputProps) {
   const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [isDropdownVisible, setDropdownVisible] = useState(false);
@@ -127,6 +129,7 @@ export default function CustomLocationInput({
           if (predictions.length > 0) setDropdownVisible(true);
         }}
         placeholder={placeholder}
+        required={required}
         className={clsx(
           'w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none',
           inputClassName,
