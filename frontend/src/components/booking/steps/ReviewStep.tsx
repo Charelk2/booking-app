@@ -55,9 +55,11 @@ export default function ReviewStep({
         });
         setPrice(Number(quote.data.total));
 
+        // Include return trip in driving estimate
         const driveEstimate =
           distance * (svcRes.data.travel_rate || 2.5) *
-          (svcRes.data.travel_members || 1);
+          (svcRes.data.travel_members || 1) *
+          2;
         const travel = await calculateTravelMode({
           artistLocation: artistLocation,
           eventLocation: details.location,

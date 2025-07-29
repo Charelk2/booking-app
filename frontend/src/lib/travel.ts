@@ -260,7 +260,10 @@ export async function calculateTravelMode(
     input.eventLocation,
   );
   const flightSubtotal = input.numTravellers * FLIGHT_COST_PER_PERSON;
-  const transferCost = (departureTransferKm + localTransferKm) * RATE_PER_KM;
+  // Transfers require a return trip in each direction
+  // so we double the distance-based cost.
+  const transferCost =
+    (departureTransferKm + localTransferKm) * RATE_PER_KM * 2;
   const flyTotal = flightSubtotal + CAR_RENTAL_COST + transferCost;
 
   if (flyTotal < input.drivingEstimate) {
