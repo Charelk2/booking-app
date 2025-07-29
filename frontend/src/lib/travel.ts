@@ -50,11 +50,44 @@ const FLIGHT_ROUTES: Record<string, string[]> = {
 };
 
 /**
- * Placeholder distance service. Replace with a real call to a mapping API.
+ * Fetch driving distance in kilometers using Google's Distance Matrix API.
+ *
+ * Returns `0` if the request fails, the API key is missing, or the response
+ * is invalid. Errors are logged to aid debugging but will not throw.
  */
 export async function getDrivingDistance(from: string, to: string): Promise<number> {
-  // TODO: integrate with real distance API
-  return 50;
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+  if (!key) {
+    console.warn('NEXT_PUBLIC_GOOGLE_MAPS_KEY not set');
+    return 0;
+  }
+
+  const url =
+    `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${encodeURIComponent(
+      from,
+    )}&destinations=${encodeURIComponent(to)}&key=${key}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('Distance Matrix API HTTP error', res.status);
+      return 0;
+    }
+    const data = await res.json();
+    if (data.status !== 'OK') {
+      console.error('Distance Matrix API response status:', data.status);
+      return 0;
+    }
+    const element = data.rows?.[0]?.elements?.[0];
+    if (!element || element.status !== 'OK' || !element.distance?.value) {
+      console.error('Distance Matrix element status:', element?.status);
+      return 0;
+    }
+    return element.distance.value / 1000;
+  } catch (err) {
+    console.error('Distance Matrix API fetch failed:', err);
+    return 0;
+  }
 }
 
 /**
