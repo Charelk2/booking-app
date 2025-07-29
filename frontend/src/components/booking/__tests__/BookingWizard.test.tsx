@@ -96,7 +96,7 @@ describe("BookingWizard flow", () => {
     expect(window.scrollTo).toHaveBeenCalled();
   });
 
-  it("calculates travel only on the review step", async () => {
+  it("calculates travel starting at the guests step", async () => {
     act(() => {
       root.unmount();
     });
@@ -112,7 +112,7 @@ describe("BookingWizard flow", () => {
     expect(calculateTravelMode).not.toHaveBeenCalled();
 
     await act(async () => {
-      (window as any).__setStep(8);
+      (window as any).__setStep(4);
     });
     await flushPromises();
     expect(calculateTravelMode).toHaveBeenCalledWith(
