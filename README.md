@@ -1166,12 +1166,14 @@ Returns a 3-day weather outlook for the provided location using data from `wttr.
 ### Driving Distance
 
 ```
-GET /api/v1/distance?from_location={origin}&to_location={destination}
+GET /api/v1/distance?from_location={origin}&to_location={destination}&includeDuration=true|false
 ```
 This endpoint proxies the Google Distance Matrix API so the browser avoids CORS
-errors. It returns Google's JSON payload or a descriptive error message. When
-debug logging is enabled on the backend, the request parameters and raw Google
-response are logged to help diagnose issues like unexpected `ZERO_RESULTS`.
+errors. Set the optional `includeDuration` flag to `true` to include travel
+duration fields from Google. When omitted or set to `false`, the proxy strips
+`duration` information from each element. Debug logging records the request
+parameters and raw Google response to help diagnose issues like unexpected
+`ZERO_RESULTS`.
 
 ### Travel Mode Decision
 
