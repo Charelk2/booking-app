@@ -6,6 +6,7 @@ from app.db_utils import (
     ensure_notification_link_column,
     ensure_price_visible_column,
     ensure_currency_column,
+    ensure_service_travel_columns,
     ensure_booking_simple_columns,
     ensure_mfa_columns,
     ensure_calendar_account_email_column,
@@ -159,6 +160,15 @@ def test_add_currency_column():
     inspector = inspect(engine)
     column_names = [col["name"] for col in inspector.get_columns("services")]
     assert "currency" in column_names
+
+
+def test_service_travel_columns():
+    engine = setup_service_engine()
+    ensure_service_travel_columns(engine)
+    inspector = inspect(engine)
+    cols = [c["name"] for c in inspector.get_columns("services")]
+    assert "travel_rate" in cols
+    assert "travel_members" in cols
 
 
 def test_booking_simple_columns():

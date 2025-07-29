@@ -125,6 +125,23 @@ def ensure_currency_column(engine: Engine) -> None:
     )
 
 
+def ensure_service_travel_columns(engine: Engine) -> None:
+    """Add travel-related columns to ``services`` if missing."""
+
+    add_column_if_missing(
+        engine,
+        "services",
+        "travel_rate",
+        "travel_rate NUMERIC(10, 2)",
+    )
+    add_column_if_missing(
+        engine,
+        "services",
+        "travel_members",
+        "travel_members INTEGER",
+    )
+
+
 def ensure_booking_simple_columns(engine: Engine) -> None:
     """Add missing columns on ``bookings_simple``."""
 
