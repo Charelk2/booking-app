@@ -68,6 +68,7 @@ export default function ReviewStep({
           eventLocation: details.location,
           numTravellers: svcRes.data.travel_members || 1,
           drivingEstimate: driveEstimate,
+          travelRate: svcRes.data.travel_rate || 2.5,
         });
         setLocalTravel(travel);
         setTravelResult(travel);
