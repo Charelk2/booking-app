@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import toast from '@/components/ui/Toast';
@@ -95,16 +94,7 @@ export default function ArtistQuotesPage() {
   if (!user) {
     return (
       <MainLayout>
-        <div className="p-8">
-          Please{' '}
-          <Link
-            href="/login"
-            className="text-brand-dark no-underline hover:no-underline"
-          >
-            log in
-          </Link>{' '}
-          to view your quotes.
-        </div>
+        <div className="p-8">Please log in to view your quotes.</div>
       </MainLayout>
     );
   }
