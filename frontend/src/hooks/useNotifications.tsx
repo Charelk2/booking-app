@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import useWebSocket from './useWebSocket';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Notification } from '@/types';
+import { authAwareMessage } from '@/lib/utils';
 
 // Use the root API URL and include the /api prefix on each request so
 // paths match the FastAPI router mounted with prefix="/api".
@@ -81,11 +82,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setError(null);
     } catch (err) {
       console.error('Failed to load notifications:', err);
-      if (axios.isAxiosError(err)) {
-        setError(new Error(err.message));
-      } else {
-        setError(err as Error);
-      }
+      const msg = authAwareMessage(
+        err,
+        'Failed to load notifications. Please try again later.',
+        'Failed to load notifications. Please log in to view your notifications.',
+      );
+      setError(new Error(msg));
     } finally {
       setLoading(false);
     }
@@ -130,13 +132,19 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setUnreadCount((c) => Math.max(0, c - 1));
     try {
       await api.put(`/notifications/${id}/read`);
-    } catch {
+    } catch (err) {
       // rollback
       setNotifications((ns) =>
         ns.map((n) => (n.id === id ? { ...n, is_read: false } : n)),
       );
       setUnreadCount((c) => c + 1);
-      toast.error('Failed to mark notification read');
+      toast.error(
+        authAwareMessage(
+          err,
+          'Failed to mark notification read',
+          'Failed to mark notification read. Please log in to continue.',
+        ),
+      );
     }
   }, [api]);
 
@@ -148,10 +156,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setUnreadCount(0);
       try {
         await api.put('/notifications/read-all');
-      } catch {
+      } catch (err) {
         setNotifications(prev);
         setUnreadCount(prevCount);
-        toast.error('Failed to mark notifications read');
+        toast.error(
+          authAwareMessage(
+            err,
+            'Failed to mark notifications read',
+            'Failed to mark notifications read. Please log in to continue.',
+          ),
+        );
       }
     },
     [api, notifications, unreadCount],
@@ -164,7 +178,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setUnreadCount((c) => Math.max(0, c - 1));
     } catch (err) {
       console.error('Failed to delete notification:', err);
-      setError(err as Error);
+      const msg = authAwareMessage(
+        err,
+        'Failed to delete notification.',
+        'Failed to delete notification. Please log in to continue.',
+      );
+      setError(new Error(msg));
     }
   }, []);
 
@@ -182,7 +201,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       setError(null);
     } catch (err) {
       console.error('Failed to load more notifications:', err);
-      setError(err as Error);
+      const msg = authAwareMessage(
+        err,
+        'Failed to load more notifications. Please try again later.',
+        'Failed to load notifications. Please log in to view your notifications.',
+      );
+      setError(new Error(msg));
     }
   }, [notifications.length]);
 
