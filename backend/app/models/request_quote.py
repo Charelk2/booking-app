@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum as SQLAlchemyEnum, Numeric
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum as SQLAlchemyEnum, Numeric, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -36,6 +36,10 @@ class BookingRequest(Base):
     attachment_url = Column(String, nullable=True)
     proposed_datetime_1 = Column(DateTime, nullable=True)
     proposed_datetime_2 = Column(DateTime, nullable=True)
+
+    travel_mode = Column(String, nullable=True)
+    travel_cost = Column(Numeric(10, 2), nullable=True)
+    travel_breakdown = Column(JSON, nullable=True)
     
     status = Column(SQLAlchemyEnum(BookingRequestStatus), nullable=False, default=BookingRequestStatus.PENDING_QUOTE)
 
