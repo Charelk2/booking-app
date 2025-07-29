@@ -302,6 +302,9 @@ The location input now reuses the `LocationInput` component powered by the
 homepage and artist page search bars. The Google Maps script still loads lazily
 via the `loadPlaces()` helper so it is only injected once and avoids the "API
 included multiple times" warning.
+`LocationInput` waits for this helper to resolve before creating the
+autocomplete service. When the API key is missing the field degrades to a plain
+text input instead of throwing a runtime error.
 
 The **Edit Profile** page now uses this same component and requires a location
 to be entered so travel fees can be estimated correctly.
