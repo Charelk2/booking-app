@@ -5,8 +5,8 @@ import WizardNav from '../WizardNav';
 import { useBooking } from '@/contexts/BookingContext';
 import { useState, useEffect } from 'react';
 import { calculateQuote, getService } from '@/lib/api';
-import { geocodeAddress, calculateDistanceKm } from '@/lib/geo';
-import { calculateTravelMode, TravelResult } from '@/lib/travel';
+import { geocodeAddress } from '@/lib/geo';
+import { calculateTravelMode, TravelResult, getDrivingMetrics } from '@/lib/travel';
 import TravelSummaryCard from '../TravelSummaryCard';
 import { formatCurrency } from '@/lib/utils';
 
@@ -48,7 +48,12 @@ export default function ReviewStep({
           geocodeAddress(details.location),
         ]);
         if (!artistPos || !eventPos) return;
-        const distance = calculateDistanceKm(artistPos, eventPos);
+        const metrics = await getDrivingMetrics(artistLocation, details.location);
+        if (!metrics.distanceKm) {
+          console.error('Unable to fetch driving metrics for review step');
+          return;
+        }
+        const distance = metrics.distanceKm;
         const quote = await calculateQuote({
           base_fee: Number(svcRes.data.price),
           distance_km: distance,

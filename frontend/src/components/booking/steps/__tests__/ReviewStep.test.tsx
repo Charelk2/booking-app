@@ -4,8 +4,8 @@ import { act } from 'react';
 import ReviewStep from '../ReviewStep';
 import { useBooking } from '@/contexts/BookingContext';
 import { calculateQuote, getService } from '@/lib/api';
-import { geocodeAddress, calculateDistanceKm } from '@/lib/geo';
-import { calculateTravelMode } from '@/lib/travel';
+import { geocodeAddress } from '@/lib/geo';
+import { calculateTravelMode, getDrivingMetrics } from '@/lib/travel';
 
 jest.mock('@/contexts/BookingContext');
 jest.mock('@/lib/api');
@@ -23,7 +23,7 @@ describe('ReviewStep summary', () => {
     (getService as jest.Mock).mockResolvedValue({ data: { price: 100 } });
     (calculateQuote as jest.Mock).mockResolvedValue({ data: { total: 150 } });
     (geocodeAddress as jest.Mock).mockResolvedValue({ lat: 0, lng: 0 });
-    (calculateDistanceKm as jest.Mock).mockReturnValue(10);
+    (getDrivingMetrics as jest.Mock).mockResolvedValue({ distanceKm: 10, durationHrs: 1 });
     (calculateTravelMode as jest.Mock).mockResolvedValue({
       mode: 'drive',
       totalCost: 100,
@@ -74,5 +74,8 @@ describe('ReviewStep summary', () => {
     expect(container.querySelectorAll('h3').length).toBeGreaterThan(1);
     expect(container.textContent).toContain('Estimated Price');
     expect(container.textContent).toContain('Travel Mode');
+    expect(calculateTravelMode).toHaveBeenCalledWith(
+      expect.objectContaining({ drivingEstimate: 50 })
+    );
   });
 });
