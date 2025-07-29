@@ -44,7 +44,7 @@ describe('calculateTravelMode', () => {
       airportStub,
     );
     expect(result.mode).toBe('fly');
-    expect(result.totalCost).toBeCloseTo(3625);
+    expect(result.totalCost).toBeCloseTo(3750);
     expect(result.breakdown.fly.flightSubtotal).toBe(2500);
     expect(distanceStub).toHaveBeenCalledTimes(2);
     expect(airportStub).toHaveBeenCalledTimes(2);

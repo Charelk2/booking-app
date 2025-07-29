@@ -171,9 +171,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         if (!artistPos || !eventPos) return;
 
         const distance = calculateDistanceKm(artistPos, eventPos);
+        // Driving requires a round trip so we double the one-way estimate
         const driveEstimate =
           distance * (svcRes.data.travel_rate || 2.5) *
-          (svcRes.data.travel_members || 1);
+          (svcRes.data.travel_members || 1) *
+          2;
 
         const travel: TravelResult = await calculateTravelMode({
           artistLocation,
