@@ -146,6 +146,12 @@ export async function getDrivingDistance(from: string, to: string): Promise<numb
       from,
     )}&to_location=${encodeURIComponent(to)}`;
 
+  // Log the fully constructed URL so we can inspect the exact request
+  // sent to the backend proxy. This helps diagnose encoding or
+  // formatting issues that may lead to ZERO_RESULTS from Google.
+  // eslint-disable-next-line no-console
+  console.log('Fetching distance from:', url);
+
   try {
     const res = await fetch(url);
     if (!res.ok) {
@@ -155,6 +161,10 @@ export async function getDrivingDistance(from: string, to: string): Promise<numb
     const data = await res.json();
     if (data.error) {
       console.error('Distance endpoint error:', data.error);
+      return 0;
+    }
+    if (data.status && data.status !== 'OK') {
+      console.error('Distance API status:', data.status);
       return 0;
     }
     const element = data.rows?.[0]?.elements?.[0];
