@@ -157,9 +157,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     if (serviceId) setServiceId(serviceId);
   }, [serviceId, setServiceId]);
 
-  // Calculate travel mode as soon as both locations and service info are available
+  // Calculate travel mode only on the review step to avoid unnecessary API calls
   useEffect(() => {
     async function calcTravel() {
+      if (step !== steps.length - 1) return;
       if (!artistLocation || !details.location || !serviceId) return;
       try {
         const [svcRes, artistPos, eventPos] = await Promise.all([
@@ -186,7 +187,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       }
     }
     void calcTravel();
-  }, [artistLocation, details.location, serviceId, setTravelResult]);
+  }, [step, artistLocation, details.location, serviceId, setTravelResult]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
     if (e.key !== 'Enter' || e.shiftKey || isMobile) return;
