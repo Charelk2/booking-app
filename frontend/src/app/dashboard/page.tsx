@@ -35,7 +35,6 @@ import BookingRequestCard from "@/components/dashboard/BookingRequestCard";
 import { Spinner, Button } from '@/components/ui';
 import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import QuickActionButton from "@/components/dashboard/QuickActionButton";
-import Link from "next/link";
 import {
   DndContext,
   closestCenter,
@@ -43,6 +42,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -360,7 +360,7 @@ export default function DashboardPage() {
     hintTimer.current = setTimeout(() => setShowReorderHint(false), 1500);
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     setIsReordering(false);
     const { active, over } = event;
     if (!over || active.id === over.id) {
