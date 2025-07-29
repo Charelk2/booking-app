@@ -240,6 +240,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         eventLocation: details.location,
         numTravellers: numTravelMembers,
         drivingEstimate: drivingEstimateCost,
+        travelRate,
       });
       setTravelResult(travelModeResult);
 
