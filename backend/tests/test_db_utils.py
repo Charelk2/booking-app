@@ -9,6 +9,7 @@ from app.db_utils import (
     ensure_booking_simple_columns,
     ensure_mfa_columns,
     ensure_calendar_account_email_column,
+    ensure_booking_request_travel_columns,
 )
 
 
@@ -126,6 +127,24 @@ def setup_calendar_account_engine() -> Engine:
     return engine
 
 
+def setup_booking_request_engine() -> Engine:
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE booking_requests (
+                    id INTEGER PRIMARY KEY,
+                    client_id INTEGER,
+                    artist_id INTEGER,
+                    status VARCHAR
+                )
+                """
+            )
+        )
+    return engine
+
+
 def test_add_price_visible_column():
     engine = setup_artist_engine()
     ensure_price_visible_column(engine)
@@ -171,4 +190,14 @@ def test_calendar_account_email_column():
     inspector = inspect(engine)
     cols = [c["name"] for c in inspector.get_columns("calendar_accounts")]
     assert "email" in cols
+
+
+def test_booking_request_travel_columns():
+    engine = setup_booking_request_engine()
+    ensure_booking_request_travel_columns(engine)
+    inspector = inspect(engine)
+    cols = [c["name"] for c in inspector.get_columns("booking_requests")]
+    assert "travel_mode" in cols
+    assert "travel_cost" in cols
+    assert "travel_breakdown" in cols
 

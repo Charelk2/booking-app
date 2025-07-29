@@ -215,3 +215,26 @@ def ensure_user_profile_picture_column(engine: Engine) -> None:
         "profile_picture_url VARCHAR",
     )
 
+
+def ensure_booking_request_travel_columns(engine: Engine) -> None:
+    """Add travel-related columns to ``booking_requests`` if missing."""
+
+    add_column_if_missing(
+        engine,
+        "booking_requests",
+        "travel_mode",
+        "travel_mode VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "booking_requests",
+        "travel_cost",
+        "travel_cost NUMERIC(10, 2)",
+    )
+    add_column_if_missing(
+        engine,
+        "booking_requests",
+        "travel_breakdown",
+        "travel_breakdown JSON",
+    )
+
