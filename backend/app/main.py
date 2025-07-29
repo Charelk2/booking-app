@@ -24,6 +24,7 @@ from .db_utils import (
     ensure_price_visible_column,
     ensure_portfolio_image_urls_column,
     ensure_currency_column,
+    ensure_service_travel_columns,
     ensure_mfa_columns,
     ensure_request_attachment_column,
     ensure_booking_simple_columns,
@@ -82,6 +83,7 @@ ensure_custom_subtitle_column(engine)
 ensure_price_visible_column(engine)
 ensure_portfolio_image_urls_column(engine)
 ensure_currency_column(engine)
+ensure_service_travel_columns(engine)
 ensure_mfa_columns(engine)
 ensure_booking_simple_columns(engine)
 ensure_calendar_account_email_column(engine)
