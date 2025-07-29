@@ -15,7 +15,10 @@ import {
   updateBookingRequest,
   postMessageToBookingRequest,
   getArtist,
+  getService,
 } from '@/lib/api';
+import { geocodeAddress, calculateDistanceKm } from '@/lib/geo';
+import { calculateTravelMode, TravelResult } from '@/lib/travel';
 
 import { BookingRequestCreate } from '@/types';
 import Stepper from '../ui/Stepper';
@@ -107,6 +110,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     requestId,
     setRequestId,
     setServiceId,
+    setTravelResult,
     resetBooking,
     loadSavedProgress,
   } = useBooking();
@@ -150,6 +154,37 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   useEffect(() => {
     if (serviceId) setServiceId(serviceId);
   }, [serviceId, setServiceId]);
+
+  // Calculate travel mode as soon as both locations and service info are available
+  useEffect(() => {
+    async function calcTravel() {
+      if (!artistLocation || !details.location || !serviceId) return;
+      try {
+        const [svcRes, artistPos, eventPos] = await Promise.all([
+          getService(serviceId),
+          geocodeAddress(artistLocation),
+          geocodeAddress(details.location),
+        ]);
+        if (!artistPos || !eventPos) return;
+
+        const distance = calculateDistanceKm(artistPos, eventPos);
+        const driveEstimate =
+          distance * (svcRes.data.travel_rate || 2.5) *
+          (svcRes.data.travel_members || 1);
+
+        const travel: TravelResult = await calculateTravelMode({
+          artistLocation,
+          eventLocation: details.location,
+          numTravellers: svcRes.data.travel_members || 1,
+          drivingEstimate: driveEstimate,
+        });
+        setTravelResult(travel);
+      } catch (err) {
+        console.error('Failed to calculate travel mode', err);
+      }
+    }
+    void calcTravel();
+  }, [artistLocation, details.location, serviceId, setTravelResult]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
     if (e.key !== 'Enter' || e.shiftKey || isMobile) return;
