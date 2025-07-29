@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     # frontend does not raise a validation error when extra fields are forbidden
     # by Pydantic settings.
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: str = ""
+    GOOGLE_MAPS_API_KEY: str = ""
 
     # Base frontend URL used for OAuth redirects
     FRONTEND_URL: str = "http://localhost:3000"

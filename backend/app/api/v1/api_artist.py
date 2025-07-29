@@ -1,6 +1,7 @@
 # app/api/v1/api_artist.py
 
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query
+from fastapi.params import Query as QueryParam
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from collections import defaultdict
@@ -613,6 +614,8 @@ def read_artist_availability(
             Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
         )
     )
+    if isinstance(when, QueryParam):
+        when = when.default
     if when:
         day_start = datetime.combine(when, datetime.min.time())
         day_end = day_start + timedelta(days=1)
