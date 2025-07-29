@@ -30,7 +30,7 @@ describe('ReviewStep summary', () => {
       breakdown: {
         drive: { estimate: 100 },
         fly: {
-          perPerson: 2500,
+          perPerson: 2780,
           travellers: 1,
           flightSubtotal: 0,
           carRental: 1000,
