@@ -268,11 +268,15 @@ By default it calls `http://localhost:8000`. To point elsewhere, create `fronten
 NEXT_PUBLIC_API_URL=http://192.168.3.203:8000
 NEXT_PUBLIC_WS_URL=ws://192.168.3.203:8000
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDm-BKmMtzMSMd-XUdfapjEUU6O5mYy2bk
+NEXT_PUBLIC_GOOGLE_MAPS_KEY=<your-distance-matrix-key>
 ```
 
 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` should be a browser key with the Places API
 enabled. It powers the `LocationInput` autocomplete fields used in the artist
 filters, search bar, and booking steps.
+
+`NEXT_PUBLIC_GOOGLE_MAPS_KEY` is used server-side and client-side to query the
+Distance Matrix API when estimating travel costs.
 
 If you source the same `.env` file for the backend, the API configuration now
 includes `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` as an optional setting. The backend
