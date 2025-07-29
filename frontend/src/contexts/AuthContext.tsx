@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const urlToken = params.get('token');
 
     if (urlToken) {
-      localStorage.setItem('token', urlToken);
+      sessionStorage.setItem('token', urlToken);
       setToken(urlToken);
       params.delete('token');
       const newUrl = `${window.location.pathname}${
@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const userData = await fetchCurrentUserWithArtist();
           setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
+          sessionStorage.setItem('user', JSON.stringify(userData));
         } catch (err) {
           console.error('Failed to fetch current user:', err);
         } finally {
