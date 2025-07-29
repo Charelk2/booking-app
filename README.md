@@ -248,7 +248,7 @@ If a stored refresh token becomes invalid (e.g. revoked), the calendar sync
 logic now removes the credentials and returns an empty availability list rather
 than failing with a 500 error. Artists will need to reconnect their Google
 Calendar account.
-If the API starts without `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` set, calendar syncing is disabled and a warning is logged.
+If the API starts without `GOOGLE_CLIENT_ID` or `GOOGLE_CLIENT_SECRET` set, calendar syncing is disabled and a warning is logged. Calls to the OAuth endpoints now return HTTP 500 instead of redirecting to a Google error page when these credentials are missing.
 
 After installing new dependencies, run `./scripts/test-all.sh` once to refresh the caches.
 
