@@ -1,9 +1,5 @@
 from fastapi.openapi.utils import get_openapi
-from dotenv import load_dotenv
 from app.main import app
-
-# Load environment variables for development and tests
-load_dotenv()  # This reads .env into os.environ
 
 
 def custom_openapi() -> dict:
