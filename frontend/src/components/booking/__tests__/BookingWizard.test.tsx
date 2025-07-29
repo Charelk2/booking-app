@@ -76,7 +76,9 @@ describe("BookingWizard flow", () => {
     Object.defineProperty(window, "innerWidth", { value: 1024, writable: true });
     const form = container.querySelector("form") as HTMLFormElement;
     await act(async () => {
-      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      form.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
+      );
     });
     await flushPromises();
     const heading = container.querySelector('[data-testid="step-heading"]');
