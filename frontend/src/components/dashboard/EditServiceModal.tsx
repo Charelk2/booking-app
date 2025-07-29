@@ -16,7 +16,13 @@ interface EditServiceModalProps {
 
 type ServiceFormData = Pick<
   Service,
-  "title" | "description" | "price" | "duration_minutes" | "service_type"
+  | "title"
+  | "description"
+  | "price"
+  | "duration_minutes"
+  | "service_type"
+  | "travel_rate"
+  | "travel_members"
 >;
 
 export default function EditServiceModal({
@@ -29,6 +35,7 @@ export default function EditServiceModal({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<ServiceFormData>({
     defaultValues: {
@@ -37,8 +44,11 @@ export default function EditServiceModal({
       price: service.price,
       duration_minutes: service.duration_minutes,
       service_type: service.service_type,
+      travel_rate: service.travel_rate ?? 2.5,
+      travel_members: service.travel_members ?? 1,
     },
   });
+  const watchServiceType = watch('service_type');
   const [serverError, setServerError] = useState<string | null>(null);
 
   const onSubmit: SubmitHandler<ServiceFormData> = async (data) => {
@@ -48,6 +58,14 @@ export default function EditServiceModal({
         ...data,
         price: parseFloat(String(data.price)),
         duration_minutes: parseInt(String(data.duration_minutes), 10),
+        travel_rate:
+          data.travel_rate !== undefined
+            ? parseFloat(String(data.travel_rate))
+            : undefined,
+        travel_members:
+          data.travel_members !== undefined
+            ? parseInt(String(data.travel_members), 10)
+            : undefined,
       };
       const response = await apiUpdateService(service.id, serviceData);
       onServiceUpdated(response.data);
@@ -200,6 +218,42 @@ export default function EditServiceModal({
                 </p>
               )}
             </div>
+
+            {watchServiceType === 'Live Performance' && (
+              <>
+                <div>
+                  <label
+                    htmlFor="travel_rate"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Travelling (Rand per km)
+                  </label>
+                  <input
+                    type="number"
+                    id="travel_rate"
+                    step="0.1"
+                    placeholder="2.5"
+                    {...register('travel_rate', { valueAsNumber: true })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="travel_members"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Members travelling
+                  </label>
+                  <input
+                    type="number"
+                    id="travel_members"
+                    step="1"
+                    {...register('travel_members', { valueAsNumber: true })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand sm:text-sm"
+                  />
+                </div>
+              </>
+            )}
 
             {serverError && (
               <p className="text-sm text-red-600">{serverError}</p>
