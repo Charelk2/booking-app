@@ -31,13 +31,13 @@ const FLIGHT_COST_PER_PERSON = 2500;
 const CAR_RENTAL_COST = 1000;
 const RATE_PER_KM = 2.5;
 
-const CITY_TO_AIRPORT: Record<string, string> = {
-  'Cape Town': 'CPT',
-  George: 'GRJ',
-  Johannesburg: 'JNB',
-  Durban: 'DUR',
-  Bloemfontein: 'BFN',
-  'Port Elizabeth': 'PLZ',
+export const AIRPORT_LOCATIONS: Record<string, { lat: number; lng: number }> = {
+  CPT: { lat: -33.9715, lng: 18.6021 },
+  GRJ: { lat: -34.0056, lng: 22.3789 },
+  JNB: { lat: -26.1392, lng: 28.246 },
+  DUR: { lat: -29.6144, lng: 31.1197 },
+  BFN: { lat: -29.0927, lng: 26.3024 },
+  PLZ: { lat: -33.9849, lng: 25.6173 },
 };
 
 const FLIGHT_ROUTES: Record<string, string[]> = {
@@ -48,6 +48,90 @@ const FLIGHT_ROUTES: Record<string, string[]> = {
   BFN: ['CPT', 'JNB'],
   PLZ: ['CPT', 'JNB'],
 };
+
+/**
+ * Fetch geographic coordinates for a given city using the Google Geocoding API.
+ * Returns `null` if the request fails or results are empty.
+ */
+export async function getCoordinates(
+  city: string,
+): Promise<{ lat: number; lng: number } | null> {
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+  if (!key) {
+    console.warn('NEXT_PUBLIC_GOOGLE_MAPS_KEY not set');
+    return null;
+  }
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+    city,
+  )}&key=${key}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.error('Geocoding API HTTP error', res.status);
+      return null;
+    }
+    const data = await res.json();
+    if (data.status !== 'OK') {
+      console.error('Geocoding API response status:', data.status);
+      return null;
+    }
+    const loc = data.results?.[0]?.geometry?.location;
+    if (!loc) {
+      console.error('Geocoding API missing location data');
+      return null;
+    }
+    return { lat: loc.lat, lng: loc.lng };
+  } catch (err) {
+    console.error('Geocoding API fetch failed:', err);
+    return null;
+  }
+}
+
+export function haversineDistance(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6371; // earth radius in km
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  return R * c;
+}
+
+export async function findNearestAirport(
+  city: string,
+  coordFn: typeof getCoordinates = getCoordinates,
+): Promise<string | null> {
+  const coords = await coordFn(city);
+  if (!coords) return null;
+  let nearest: string | null = null;
+  let minDist = Infinity;
+  Object.entries(AIRPORT_LOCATIONS).forEach(([code, loc]) => {
+    const dist = haversineDistance(coords, loc);
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = code;
+    }
+  });
+  return nearest;
+}
+
+// Simple fallback coordinates for local development when network is blocked.
+const MOCK_COORDS: Record<string, { lat: number; lng: number }> = {
+  'Mossel Bay, South Africa': { lat: -34.1831, lng: 22.158 },
+  'Paarl, South Africa': { lat: -33.7342, lng: 18.9621 },
+};
+
+export function getMockCoordinates(
+  city: string,
+): { lat: number; lng: number } | null {
+  return MOCK_COORDS[city] || null;
+}
 
 /**
  * Fetch driving distance in kilometers using Google's Distance Matrix API.
@@ -96,14 +180,16 @@ export async function getDrivingDistance(from: string, to: string): Promise<numb
 export async function calculateTravelMode(
   input: TravelInput,
   distanceFn: typeof getDrivingDistance = getDrivingDistance,
+  airportFn: typeof findNearestAirport = findNearestAirport,
 ): Promise<TravelResult> {
-  const artistCity = input.artistLocation.split(',')[0].trim();
-  const eventCity = input.eventLocation.split(',')[0].trim();
-
-  const departure = CITY_TO_AIRPORT[artistCity];
-  const arrival = CITY_TO_AIRPORT[eventCity];
+  const departure = await airportFn(input.artistLocation);
+  const arrival = await airportFn(input.eventLocation);
 
   if (!departure || !arrival) {
+    console.warn('Unable to resolve nearest airports', {
+      artistLocation: input.artistLocation,
+      eventLocation: input.eventLocation,
+    });
     return {
       mode: 'drive',
       totalCost: input.drivingEstimate,
@@ -143,8 +229,16 @@ export async function calculateTravelMode(
     };
   }
 
-  const departureTransferKm = await distanceFn(input.artistLocation, departure);
-  const localTransferKm = await distanceFn(arrival, input.eventLocation);
+  const departureLoc = AIRPORT_LOCATIONS[departure];
+  const arrivalLoc = AIRPORT_LOCATIONS[arrival];
+  const departureTransferKm = await distanceFn(
+    input.artistLocation,
+    `${departureLoc.lat},${departureLoc.lng}`,
+  );
+  const localTransferKm = await distanceFn(
+    `${arrivalLoc.lat},${arrivalLoc.lng}`,
+    input.eventLocation,
+  );
   const flightSubtotal = input.numTravellers * FLIGHT_COST_PER_PERSON;
   const transferCost = (departureTransferKm + localTransferKm) * RATE_PER_KM;
   const flyTotal = flightSubtotal + CAR_RENTAL_COST + transferCost;
