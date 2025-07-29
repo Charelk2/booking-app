@@ -28,16 +28,10 @@ export default function BookingPage() {
     return (
       <MainLayout>
         <div className="flex justify-center items-center min-h-screen text-center space-y-4 flex-col">
-          <p>
-            You must{' '}
-            <Link
-              href="/login"
-              className="text-brand-dark no-underline hover:no-underline"
-            >
-              log in
-            </Link>{' '}
-            to create a booking.
-          </p>
+          <p>You must log in to create a booking.</p>
+          <Link href="/login" className="text-brand-dark underline">
+            Login
+          </Link>
         </div>
       </MainLayout>
     );
