@@ -61,6 +61,7 @@ from .api import (
     api_settings,
     api_weather,
 )
+from routes import distance
 
 # The “artist‐profiles” router lives under app/api/v1/
 from .api.v1 import api_artist
@@ -305,6 +306,13 @@ app.include_router(
     api_weather.router,
     prefix=f"{api_prefix}",
     tags=["travel-forecast"],
+)
+
+# ─── DISTANCE ROUTES (under /api/v1) ─────────────────────────────────────────
+app.include_router(
+    distance.router,
+    prefix=f"{api_prefix}",
+    tags=["distance"],
 )
 
 
