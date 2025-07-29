@@ -140,36 +140,31 @@ export function getMockCoordinates(
  * is invalid. Errors are logged to aid debugging but will not throw.
  */
 export async function getDrivingDistance(from: string, to: string): Promise<number> {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
-  if (!key) {
-    console.warn('NEXT_PUBLIC_GOOGLE_MAPS_KEY not set');
-    return 0;
-  }
-
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const url =
-    `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${encodeURIComponent(
+    `${base}/api/v1/distance?from_location=${encodeURIComponent(
       from,
-    )}&destinations=${encodeURIComponent(to)}&key=${key}`;
+    )}&to_location=${encodeURIComponent(to)}`;
 
   try {
     const res = await fetch(url);
     if (!res.ok) {
-      console.error('Distance Matrix API HTTP error', res.status);
+      console.error('Distance endpoint HTTP error', res.status);
       return 0;
     }
     const data = await res.json();
-    if (data.status !== 'OK') {
-      console.error('Distance Matrix API response status:', data.status);
+    if (data.error) {
+      console.error('Distance endpoint error:', data.error);
       return 0;
     }
     const element = data.rows?.[0]?.elements?.[0];
     if (!element || element.status !== 'OK' || !element.distance?.value) {
-      console.error('Distance Matrix element status:', element?.status);
+      console.error('Distance element status:', element?.status);
       return 0;
     }
     return element.distance.value / 1000;
   } catch (err) {
-    console.error('Distance Matrix API fetch failed:', err);
+    console.error('Distance endpoint fetch failed:', err);
     return 0;
   }
 }
