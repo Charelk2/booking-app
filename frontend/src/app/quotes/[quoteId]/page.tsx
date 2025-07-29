@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import QuoteCard from '@/components/booking/QuoteCard';
@@ -35,16 +34,7 @@ export default function QuoteDetailPage() {
   if (!user) {
     return (
       <MainLayout>
-        <div className="p-8">
-          Please{' '}
-          <Link
-            href="/login"
-            className="text-brand-dark no-underline hover:no-underline"
-          >
-            log in
-          </Link>{' '}
-          to view this quote.
-        </div>
+        <div className="p-8">Please log in to view this quote.</div>
       </MainLayout>
     );
   }
