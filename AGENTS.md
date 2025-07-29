@@ -42,7 +42,7 @@ For setup instructions see [README.md](README.md).
 
 ### 3. Travel & Accommodation Agent
 
-* **Purpose:** Calculates travel distance and optional lodging costs so quotes stay accurate. The agent also retrieves 3-day weather forecasts for trip planning.
+* **Purpose:** Calculates travel distance and optional lodging costs so quotes stay accurate. The agent also retrieves 3-day weather forecasts for trip planning. `calculateTravelMode()` geocodes any South African town to find the closest airport and compares flight costs with driving.
 * **Frontend:** `quote-calculator/page.tsx` lets artists preview travel and accommodation fees.
 * **Backend:** `booking_quote.py` exposes helpers used by the quote API. `/api/v1/travel-forecast` lives in `api_weather.py` and fetches forecast data from `wttr.in`.
 
