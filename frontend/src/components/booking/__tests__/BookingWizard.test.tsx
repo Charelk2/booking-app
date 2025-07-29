@@ -72,6 +72,17 @@ describe("BookingWizard flow", () => {
     expect(window.scrollTo).toHaveBeenCalled();
   });
 
+  it("advances to the next step when pressing Enter on desktop", async () => {
+    Object.defineProperty(window, "innerWidth", { value: 1024, writable: true });
+    const form = container.querySelector("form") as HTMLFormElement;
+    await act(async () => {
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    });
+    await flushPromises();
+    const heading = container.querySelector('[data-testid="step-heading"]');
+    expect(heading?.textContent).toContain("Event Type");
+  });
+
   it("shows step heading and updates on next", async () => {
     const heading = () =>
       container.querySelector('[data-testid="step-heading"]')?.textContent;
