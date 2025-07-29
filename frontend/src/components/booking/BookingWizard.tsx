@@ -306,7 +306,15 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 noCircles
               />
 
-              <form className="flex-1 overflow-y-scroll p-6 space-y-6">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (isMobile) return;
+                  if (step < steps.length - 1) next();
+                  else submitRequest();
+                }}
+                className="flex-1 overflow-y-scroll p-6 space-y-6"
+              >
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={step}
@@ -331,7 +339,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   {step === 0 ? 'Cancel' : 'Back'}
                 </Button>
                 {step < steps.length - 1 ? (
-                  <Button onClick={next} data-testid={step === 0 ? 'date-next-button' : undefined}>
+                  <Button
+                    onClick={next}
+                    data-testid={step === 0 ? 'date-next-button' : undefined}
+                    className="w-32"
+                  >
                     Next
                   </Button>
                 ) : (
