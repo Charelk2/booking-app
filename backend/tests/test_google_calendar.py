@@ -93,6 +93,30 @@ def test_exchange_code_missing_refresh_token(monkeypatch):
     assert exc.value.status_code == 400
 
 
+def test_get_auth_url_missing_credentials(monkeypatch):
+    monkeypatch.setattr(calendar_service.settings, 'GOOGLE_CLIENT_ID', '', raising=False)
+    monkeypatch.setattr(calendar_service.settings, 'GOOGLE_CLIENT_SECRET', '', raising=False)
+
+    with pytest.raises(HTTPException) as exc:
+        calendar_service.get_auth_url(1, 'http://localhost')
+    assert exc.value.status_code == 500
+
+
+def test_exchange_code_missing_credentials(monkeypatch):
+    db = setup_db()
+    user = User(email='mc@test.com', password='x', first_name='Miss', last_name='Cred', user_type=UserType.ARTIST)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    monkeypatch.setattr(calendar_service.settings, 'GOOGLE_CLIENT_ID', '', raising=False)
+    monkeypatch.setattr(calendar_service.settings, 'GOOGLE_CLIENT_SECRET', '', raising=False)
+
+    with pytest.raises(HTTPException) as exc:
+        calendar_service.exchange_code(user.id, 'code', 'uri', db)
+    assert exc.value.status_code == 500
+
+
 def test_fetch_events_http_error(monkeypatch):
     db = setup_db()
     user = User(email='c@test.com', password='x', first_name='C', last_name='U', user_type=UserType.ARTIST)
