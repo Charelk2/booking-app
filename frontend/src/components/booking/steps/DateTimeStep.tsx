@@ -5,6 +5,7 @@ import ReactDatePicker from 'react-datepicker';
 import '../../../styles/datepicker.css';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { format, parseISO } from 'date-fns';
+import { enUS } from 'date-fns/locale';
 import useIsMobile from '@/hooks/useIsMobile';
 import { DateInput } from '../../ui'; // Assuming DateInput is imported
 
@@ -61,7 +62,7 @@ export default function DateTimeStep({
                   {...field}
                   selected={currentValue}
                   inline
-                  locale="en-US"
+                  locale={enUS}
                   filterDate={filterDate}
                   onChange={(date: Date | null) => field.onChange(date)}
                   renderCustomHeader={({
