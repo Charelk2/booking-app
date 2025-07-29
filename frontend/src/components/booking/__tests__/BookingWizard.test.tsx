@@ -96,7 +96,7 @@ describe("BookingWizard flow", () => {
     expect(window.scrollTo).toHaveBeenCalled();
   });
 
-  it("calculates travel once locations are available", async () => {
+  it("calculates travel only on the review step", async () => {
     act(() => {
       root.unmount();
     });
@@ -107,6 +107,12 @@ describe("BookingWizard flow", () => {
     });
     await act(async () => {
       (window as any).__setDetails({ location: "Event City" });
+    });
+    await flushPromises();
+    expect(calculateTravelMode).not.toHaveBeenCalled();
+
+    await act(async () => {
+      (window as any).__setStep(8);
     });
     await flushPromises();
     expect(calculateTravelMode).toHaveBeenCalled();
