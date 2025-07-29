@@ -116,7 +116,7 @@ describe("BookingWizard flow", () => {
     });
     await flushPromises();
     expect(calculateTravelMode).toHaveBeenCalledWith(
-      expect.objectContaining({ drivingEstimate: 50 })
+      expect.objectContaining({ drivingEstimate: 50, travelRate: 2.5 })
     );
   });
 
