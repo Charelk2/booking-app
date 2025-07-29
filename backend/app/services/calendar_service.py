@@ -25,6 +25,13 @@ SCOPES = [
 ]
 
 
+def _require_credentials() -> None:
+    """Ensure Google OAuth credentials are configured."""
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        logger.warning("Google Calendar credentials not configured")
+        raise HTTPException(500, "Google Calendar credentials not configured")
+
+
 def _flow(redirect_uri: str) -> Flow:
     return Flow.from_client_config(
         {
@@ -43,6 +50,7 @@ def _flow(redirect_uri: str) -> Flow:
 
 def get_auth_url(user_id: int, redirect_uri: str) -> str:
     """Return the Google OAuth authorization URL for the user."""
+    _require_credentials()
     flow = _flow(redirect_uri)
     auth_url, _ = flow.authorization_url(
         access_type="offline",
@@ -55,6 +63,7 @@ def get_auth_url(user_id: int, redirect_uri: str) -> str:
 
 def exchange_code(user_id: int, code: str, redirect_uri: str, db: Session) -> None:
     """Exchange OAuth code for tokens and store them."""
+    _require_credentials()
     flow = _flow(redirect_uri)
     flow.fetch_token(code=code)
     creds = flow.credentials
