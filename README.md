@@ -166,6 +166,8 @@ The SQLite database path is automatically resolved to the project root, so you c
 
 `uvicorn` loads environment variables from `backend/.env` because the `Settings` class uses that file by default. Copy `.env.example` to both `.env` and `backend/.env` so the API and tests share the same configuration, or set `ENV_FILE` to point to another path if needed. Missing SMTP fields cause the application to exit on startup so the email confirmation feature cannot be misconfigured.
 
+`backend/main.py` also calls `load_dotenv()` so these variables are available when running the script directly. This ensures features such as the travel distance API work with your configured credentials.
+
 ### Database migrations
 
 Run `alembic upgrade head` whenever you pull changes that modify the database schema. The API will attempt to add missing columns such as `artist_profiles.price_visible`, `services.currency`, `bookings_simple.date`/`location`, `bookings_simple.payment_status`, `users.mfa_secret`/`mfa_enabled`, `calendar_accounts.email`, and `booking_requests.travel_mode`/`travel_cost`/`travel_breakdown` automatically for SQLite setups. Non-SQLite deployments should run the new Alembic migration after pulling this update. Simply starting the API will also add the new `calendar_accounts.email` column if it is missing.
