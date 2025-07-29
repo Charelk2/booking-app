@@ -1170,8 +1170,9 @@ const mode = await calculateTravelMode({
 console.log(mode.mode); // "fly" or "drive"
 ```
 
-The Booking Wizard automatically runs this check on the Review step and shows a
-summary card with the selected travel mode and estimated cost.
+The Booking Wizard automatically runs this check as soon as both the artist and
+event locations are provided, storing the result for the Review step where a
+summary card displays the selected travel mode and estimated cost.
 
 
 ### Invoices
