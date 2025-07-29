@@ -91,7 +91,7 @@ describe('getDrivingDistance', () => {
 
   beforeEach(() => {
     jest.resetModules();
-    process.env = { ...originalEnv, NEXT_PUBLIC_GOOGLE_MAPS_KEY: 'abc123' };
+    process.env = { ...originalEnv, NEXT_PUBLIC_API_URL: 'http://api' };
   });
 
   afterEach(() => {
@@ -100,20 +100,18 @@ describe('getDrivingDistance', () => {
     globals.fetch?.mockRestore?.();
   });
 
-  it('calls Google API and returns kilometers', async () => {
+  it('calls distance endpoint and returns kilometers', async () => {
     const globals = global as typeof global & { fetch: jest.Mock };
     globals.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        status: 'OK',
         rows: [{ elements: [{ status: 'OK', distance: { value: 1234 } }] }],
       }),
     });
     const km = await getDrivingDistance('A', 'B');
     expect(globals.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('distancematrix'),
+      'http://api/api/v1/distance?from_location=A&to_location=B',
     );
-    expect(globals.fetch.mock.calls[0][0]).toContain('key=abc123');
     expect(km).toBeCloseTo(1.234);
   });
 

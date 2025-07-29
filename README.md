@@ -275,12 +275,12 @@ NEXT_PUBLIC_GOOGLE_MAPS_KEY=<your-distance-matrix-key>
 enabled. It powers the `LocationInput` autocomplete fields used in the artist
 filters, search bar, and booking steps.
 
-`NEXT_PUBLIC_GOOGLE_MAPS_KEY` is used server-side and client-side to query the
-Distance Matrix API when estimating travel costs.
+`NEXT_PUBLIC_GOOGLE_MAPS_KEY` is still required for geocoding but the frontend
+no longer contacts Google directly for distance calculations. Instead it calls
+`/api/v1/distance`, and the backend forwards the request using your server key.
 
-Set `GOOGLE_MAPS_API_KEY` in your `.env` to allow the backend to proxy Distance
-Matrix requests. This should be a server key since it is never exposed to the
-browser.
+Set `GOOGLE_MAPS_API_KEY` in your `.env` so this proxy works. The key is never
+exposed to the browser.
 
 If you source the same `.env` file for the backend, the API configuration now
 includes `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` as an optional setting. The backend
