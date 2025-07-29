@@ -107,6 +107,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     requestId,
     setRequestId,
     setServiceId,
+    travelResult,
     resetBooking,
     loadSavedProgress,
   } = useBooking();
@@ -194,6 +195,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       message: vals.notes,
       attachment_url: vals.attachment_url,
       status: 'draft',
+      travel_mode: travelResult?.mode,
+      travel_cost: travelResult?.totalCost,
+      travel_breakdown: travelResult?.breakdown,
     };
     try {
       if (requestId) await updateBookingRequest(requestId, payload);
@@ -216,6 +220,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       message: vals.notes,
       attachment_url: vals.attachment_url,
       status: 'pending_quote',
+      travel_mode: travelResult?.mode,
+      travel_cost: travelResult?.totalCost,
+      travel_breakdown: travelResult?.breakdown,
     };
   
     try {
