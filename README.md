@@ -1166,10 +1166,7 @@ Returns a 3-day weather outlook for the provided location using data from `wttr.
 GET /api/v1/distance?from_location={origin}&to_location={destination}
 ```
 This endpoint proxies the Google Distance Matrix API so the browser avoids CORS
-errors. It returns Google's JSON payload or a descriptive error message. When
-Google cannot find a route (status `ZERO_RESULTS`), the frontend falls back to
-geocoding both locations and calculates the approximate distance using the
-haversine formula.
+errors. It returns Google's JSON payload or a descriptive error message.
 
 ### Travel Mode Decision
 
