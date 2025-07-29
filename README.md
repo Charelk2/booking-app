@@ -1173,6 +1173,14 @@ console.log(mode.mode); // "fly" or "drive"
 The Booking Wizard automatically runs this check on the Review step and shows a
 summary card with the selected travel mode and estimated cost.
 
+When submitting the booking request, the frontend now sends three extra fields:
+
+* `travel_mode` – either `fly` or `drive`
+* `travel_cost` – numeric estimate of the chosen mode
+* `travel_breakdown` – JSON object with flight or driving details
+
+These values are stored with the request and returned in the API response.
+
 
 ### Invoices
 
