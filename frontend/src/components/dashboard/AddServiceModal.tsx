@@ -574,6 +574,18 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                             <h3 className="font-medium">Duration</h3>
                             <p>{watch("duration_minutes") || 0} minutes</p>
                           </div>
+                          {watchServiceType === "Live Performance" && (
+                            <>
+                              <div className="border rounded-md p-4">
+                                <h3 className="font-medium">Travelling (Rand per km)</h3>
+                                <p>{watch("travel_rate") || 0}</p>
+                              </div>
+                              <div className="border rounded-md p-4">
+                                <h3 className="font-medium">Members travelling</h3>
+                                <p>{watch("travel_members") || 1}</p>
+                              </div>
+                            </>
+                          )}
                           <div className="border rounded-md p-4 col-span-full">
                             <h3 className="font-medium">Packages</h3>
                             {packages.map((p, idx) => (
