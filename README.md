@@ -1175,7 +1175,9 @@ duration fields from Google. When omitted or set to `false`, the proxy strips
 parameters and raw Google response to help diagnose issues like unexpected
 `ZERO_RESULTS`.
 When `includeDuration=true`, helpers like `getDrivingMetrics()` parse both the
-distance and estimated driving time.
+distance and estimated driving time. All travel cost estimates in the booking
+wizard now rely on this API via `getDrivingMetrics` instead of great-circle
+distance calculations.
 
 ### Travel Mode Decision
 

@@ -19,8 +19,8 @@ import {
   getService,
   calculateQuote,
 } from '@/lib/api';
-import { geocodeAddress, calculateDistanceKm } from '@/lib/geo';
-import { calculateTravelMode, TravelResult } from '@/lib/travel';
+import { geocodeAddress } from '@/lib/geo';
+import { calculateTravelMode, TravelResult, getDrivingMetrics } from '@/lib/travel';
 
 import { BookingRequestCreate } from '@/types';
 import Stepper from '../ui/Stepper';
@@ -221,7 +221,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const travelRate = svcRes.data.travel_rate || 2.5;
       const numTravelMembers = svcRes.data.travel_members || 1;
 
-      const directDistanceKm = calculateDistanceKm(artistPos, eventPos);
+      const metrics = await getDrivingMetrics(artistLocation, details.location);
+      if (!metrics.distanceKm) {
+        console.error('Unable to fetch driving metrics during review calculation');
+        throw new Error('Could not fetch driving metrics');
+      }
+      const directDistanceKm = metrics.distanceKm;
       const drivingEstimateCost = directDistanceKm * travelRate * 2;
 
       const quoteResponse = await calculateQuote({
