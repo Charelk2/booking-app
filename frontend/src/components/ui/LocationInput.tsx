@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import usePlacesService from 'react-google-autocomplete/lib/usePlacesAutocompleteService';
+import { loadPlaces } from '@/lib/loadPlaces';
 import { MapPinIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 
@@ -15,7 +16,7 @@ interface CustomLocationInputProps {
   required?: boolean;
 }
 
-export default function CustomLocationInput({
+function LocationInputInner({
   value,
   onValueChange,
   onPlaceSelect,
@@ -160,4 +161,40 @@ export default function CustomLocationInput({
       )}
     </div>
   );
+}
+
+export default function CustomLocationInput(props: CustomLocationInputProps) {
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const api = await loadPlaces();
+      if (mounted && api) setLoaded(true);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (!loaded) {
+    const { value, onValueChange, placeholder = 'Search location', className, inputClassName, required = false } = props;
+    return (
+      <div className={clsx('relative w-full', className)}>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onValueChange(e.target.value)}
+          placeholder={placeholder}
+          required={required}
+          className={clsx(
+            'w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none',
+            inputClassName,
+          )}
+        />
+      </div>
+    );
+  }
+
+  return <LocationInputInner {...props} />;
 }
