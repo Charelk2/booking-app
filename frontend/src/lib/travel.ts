@@ -139,11 +139,7 @@ export function getMockCoordinates(
  * Returns `0` if the request fails, the API key is missing, or the response
  * is invalid. Errors are logged to aid debugging but will not throw.
  */
-export async function getDrivingDistance(
-  from: string,
-  to: string,
-  coordFn: typeof getCoordinates = getCoordinates,
-): Promise<number> {
+export async function getDrivingDistance(from: string, to: string): Promise<number> {
   const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const url =
     `${base}/api/v1/distance?from_location=${encodeURIComponent(
@@ -152,34 +148,25 @@ export async function getDrivingDistance(
 
   try {
     const res = await fetch(url);
-    if (res.ok) {
-      const data = await res.json();
-      if (!data.error) {
-        const element = data.rows?.[0]?.elements?.[0];
-        if (element && element.status === 'OK' && element.distance?.value) {
-          return element.distance.value / 1000;
-        }
-        console.error('Distance element status:', element?.status);
-      } else {
-        console.error('Distance endpoint error:', data.error);
-      }
-    } else {
+    if (!res.ok) {
       console.error('Distance endpoint HTTP error', res.status);
+      return 0;
     }
+    const data = await res.json();
+    if (data.error) {
+      console.error('Distance endpoint error:', data.error);
+      return 0;
+    }
+    const element = data.rows?.[0]?.elements?.[0];
+    if (!element || element.status !== 'OK' || !element.distance?.value) {
+      console.error('Distance element status:', element?.status);
+      return 0;
+    }
+    return element.distance.value / 1000;
   } catch (err) {
     console.error('Distance endpoint fetch failed:', err);
+    return 0;
   }
-
-  // Fallback: approximate distance using geocoded coordinates
-  const fromCoords = await coordFn(from);
-  const toCoords = await coordFn(to);
-  if (fromCoords && toCoords) {
-    const km = haversineDistance(fromCoords, toCoords);
-    console.warn('Using haversine fallback distance:', km);
-    return km;
-  }
-
-  return 0;
 }
 
 /**
