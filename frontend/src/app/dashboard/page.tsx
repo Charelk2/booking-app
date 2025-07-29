@@ -1,10 +1,8 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useMemo, ReactNode } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import clsx from 'clsx';
 import { useRouter, usePathname } from "next/navigation";
-import Link from 'next/link';
-import axios from 'axios';
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Booking, Service, ArtistProfile, BookingRequest } from "@/types";
@@ -162,7 +160,7 @@ export default function DashboardPage() {
   const [requestSearch, setRequestSearch] = useState('');
   const [requestVisibleCount, setRequestVisibleCount] = useState(5);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<ReactNode | null>(null);
+  const [error, setError] = useState("");
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [requestToUpdate, setRequestToUpdate] = useState<BookingRequest | null>(null);
@@ -281,20 +279,7 @@ export default function DashboardPage() {
         }
       } catch (err) {
         console.error("Dashboard fetch error:", err);
-        if (axios.isAxiosError(err) && err.response?.status === 401) {
-          setError(
-            <>Please{' '}
-            <Link
-              href="/login"
-              className="text-brand-dark no-underline hover:no-underline"
-            >
-              log in
-            </Link>{' '}
-            to view your dashboard.</>
-          );
-        } else {
-          setError('Failed to load dashboard data. Please try again.');
-        }
+        setError("Failed to load dashboard data. Please try again.");
       } finally {
         setLoading(false);
       }
