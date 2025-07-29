@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import type { QuoteTemplate, ServiceItem } from '@/types';
@@ -153,7 +154,16 @@ export default function QuoteTemplatesPage() {
   if (!user) {
     return (
       <MainLayout>
-        <div className="p-8">Please log in to manage templates.</div>
+        <div className="p-8">
+          Please{' '}
+          <Link
+            href="/login"
+            className="text-brand-dark no-underline hover:no-underline"
+          >
+            log in
+          </Link>{' '}
+          to manage templates.
+        </div>
       </MainLayout>
     );
   }
