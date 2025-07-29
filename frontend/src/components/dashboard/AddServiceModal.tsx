@@ -104,6 +104,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
     mode: "onChange",
     reValidateMode: "onChange",
     criteriaMode: "all",
+    shouldUnregister: false,
     defaultValues: {
       service_type: undefined,
       title: "",
