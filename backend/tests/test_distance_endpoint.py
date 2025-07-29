@@ -14,6 +14,10 @@ def test_get_distance_success(monkeypatch):
             def json(self):
                 return {"rows": []}
 
+            @property
+            def text(self):
+                return "{\"rows\": []}"
+
         return Resp()
 
     monkeypatch.setenv("GOOGLE_MAPS_API_KEY", "test-key")
