@@ -5,6 +5,8 @@ export interface TravelInput {
   eventLocation: string;
   numTravellers: number;
   drivingEstimate: number;
+  /** Per-kilometer travel fee used for driving and transfers */
+  travelRate?: number;
 }
 
 export interface FlyBreakdown {
@@ -357,8 +359,8 @@ function computeFlyBreakdown(
   arrXfer: DriveMetrics,
 ): FlyBreakdown {
   const flightSubtotal = input.numTravellers * FLIGHT_COST_PER_PERSON;
-  const transferCost =
-    (depXfer.distanceKm + arrXfer.distanceKm) * RATE_PER_KM * 2;
+  const rate = input.travelRate ?? RATE_PER_KM;
+  const transferCost = (depXfer.distanceKm + arrXfer.distanceKm) * rate * 2;
 
   return {
     perPerson: FLIGHT_COST_PER_PERSON,
