@@ -278,6 +278,10 @@ filters, search bar, and booking steps.
 `NEXT_PUBLIC_GOOGLE_MAPS_KEY` is used server-side and client-side to query the
 Distance Matrix API when estimating travel costs.
 
+Set `GOOGLE_MAPS_API_KEY` in your `.env` to allow the backend to proxy Distance
+Matrix requests. This should be a server key since it is never exposed to the
+browser.
+
 If you source the same `.env` file for the backend, the API configuration now
 includes `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` as an optional setting. The backend
 does not use this key, but declaring it prevents a Pydantic validation error
@@ -1153,6 +1157,14 @@ All prices and quotes now default to **South African Rand (ZAR)**. Update your e
 GET /api/v1/travel-forecast?location={city}
 ```
 Returns a 3-day weather outlook for the provided location using data from `wttr.in`. Invalid locations return a structured 422 response with `{"location": "Unknown location"}` in `field_errors`.
+
+### Driving Distance
+
+```
+GET /api/v1/distance?from_location={origin}&to_location={destination}
+```
+This endpoint proxies the Google Distance Matrix API so the browser avoids CORS
+errors. It returns Google's JSON payload or a descriptive error message.
 
 ### Travel Mode Decision
 
