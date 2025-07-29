@@ -1196,9 +1196,9 @@ const mode = await calculateTravelMode({
 console.log(mode.mode, mode.totalCost);
 ```
 
-The Booking Wizard now waits until you reach the Review step to run this check.
-Once both the artist and event locations are confirmed, the travel mode and
-cost are calculated and shown in a summary card.
+The Booking Wizard now waits until you reach the **Guests** step to run this
+check. Once both the artist and event locations are confirmed, the travel mode
+and cost are calculated and shown in a summary card.
 
 When submitting the booking request, the frontend now sends three extra fields:
 
