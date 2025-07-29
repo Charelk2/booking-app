@@ -38,6 +38,7 @@ export default function EditServiceModal({
     watch,
     formState: { errors, isSubmitting },
   } = useForm<ServiceFormData>({
+    shouldUnregister: false,
     defaultValues: {
       title: service.title,
       description: service.description,
