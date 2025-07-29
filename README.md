@@ -1166,7 +1166,9 @@ Returns a 3-day weather outlook for the provided location using data from `wttr.
 GET /api/v1/distance?from_location={origin}&to_location={destination}
 ```
 This endpoint proxies the Google Distance Matrix API so the browser avoids CORS
-errors. It returns Google's JSON payload or a descriptive error message.
+errors. It returns Google's JSON payload or a descriptive error message. When
+debug logging is enabled on the backend, the request parameters and raw Google
+response are logged to help diagnose issues like unexpected `ZERO_RESULTS`.
 
 ### Travel Mode Decision
 
