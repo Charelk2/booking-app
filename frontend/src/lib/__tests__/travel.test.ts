@@ -1,4 +1,4 @@
-import { calculateTravelMode, getDrivingDistance } from '../travel';
+import { calculateTravelMode, getDrivingDistance, haversineDistance } from '../travel';
 
 describe('calculateTravelMode', () => {
   it('returns drive when no direct flight route exists', async () => {
@@ -115,10 +115,27 @@ describe('getDrivingDistance', () => {
     expect(km).toBeCloseTo(1.234);
   });
 
+  it('falls back to haversine when endpoint returns ZERO_RESULTS', async () => {
+    const globals = global as typeof global & { fetch: jest.Mock };
+    globals.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        rows: [{ elements: [{ status: 'ZERO_RESULTS' }] }],
+      }),
+    });
+    const coordStub = jest.fn(async (city: string) => {
+      if (city === 'A') return { lat: 0, lng: 0 };
+      return { lat: 0, lng: 1 };
+    });
+    const km = await getDrivingDistance('A', 'B', coordStub);
+    expect(km).toBeCloseTo(haversineDistance({ lat: 0, lng: 0 }, { lat: 0, lng: 1 }));
+    expect(coordStub).toHaveBeenCalledTimes(2);
+  });
+
   it('returns 0 on fetch error', async () => {
     const globals = global as typeof global & { fetch: jest.Mock };
     globals.fetch = jest.fn().mockRejectedValue(new Error('fail'));
-    const km = await getDrivingDistance('A', 'B');
+    const km = await getDrivingDistance('A', 'B', async () => null);
     expect(km).toBe(0);
   });
 });
