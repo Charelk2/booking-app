@@ -5,16 +5,30 @@ import { act } from "react";
 import BookingWizard from "../BookingWizard";
 import { BookingProvider, useBooking } from "@/contexts/BookingContext";
 import * as api from "@/lib/api";
+import { geocodeAddress, calculateDistanceKm } from "@/lib/geo";
+import { calculateTravelMode } from "@/lib/travel";
 
 jest.mock("@/lib/api");
+jest.mock("@/lib/geo");
+jest.mock("@/lib/travel");
 
-function Wrapper() {
+function Wrapper({ serviceId }: { serviceId?: number } = {}) {
   return (
     <BookingProvider>
       <ExposeSetter />
-      <BookingWizard artistId={1} isOpen onClose={() => {}} />
+      <ExposeTravel />
+      <BookingWizard artistId={1} serviceId={serviceId} isOpen onClose={() => {}} />
     </BookingProvider>
   );
+}
+
+function ExposeTravel() {
+  const { setDetails, setTravelResult } = useBooking();
+  (window as unknown as { __setDetails: (d: any) => void }).__setDetails =
+    setDetails;
+  (window as unknown as { __setTravelResult: (r: any) => void }).__setTravelResult =
+    setTravelResult;
+  return null;
 }
 
 function ExposeSetter() {
@@ -36,6 +50,16 @@ describe("BookingWizard flow", () => {
     });
     (api.getArtist as jest.Mock).mockResolvedValue({
       data: { location: "NYC" },
+    });
+    (api.getService as jest.Mock).mockResolvedValue({
+      data: { travel_rate: 2.5, travel_members: 1 },
+    });
+    (geocodeAddress as jest.Mock).mockResolvedValue({ lat: 0, lng: 0 });
+    (calculateDistanceKm as jest.Mock).mockReturnValue(10);
+    (calculateTravelMode as jest.Mock).mockResolvedValue({
+      mode: "drive",
+      totalCost: 100,
+      breakdown: { drive: { estimate: 100 }, fly: {} as any },
     });
 
     container = document.createElement("div");
@@ -70,6 +94,22 @@ describe("BookingWizard flow", () => {
       nextButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     expect(window.scrollTo).toHaveBeenCalled();
+  });
+
+  it("calculates travel once locations are available", async () => {
+    act(() => {
+      root.unmount();
+    });
+    container.innerHTML = "";
+    root = createRoot(container);
+    await act(async () => {
+      root.render(React.createElement(Wrapper, { serviceId: 1 }));
+    });
+    await act(async () => {
+      (window as any).__setDetails({ location: "Event City" });
+    });
+    await flushPromises();
+    expect(calculateTravelMode).toHaveBeenCalled();
   });
 
   it("advances to the next step when pressing Enter on desktop", async () => {
