@@ -289,6 +289,10 @@ includes `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` as an optional setting. The backend
 does not use this key, but declaring it prevents a Pydantic validation error
 when extra environment variables are forbidden.
 
+`FLIGHT_API_KEY` configures the flight lookup service used by
+`/api/v1/flights/cheapest`. Sign up for a free token from TravelPayouts or a
+similar provider and add it to your `.env` file.
+
 The host portion of `NEXT_PUBLIC_API_URL` is also used by
 `next.config.js` to allow optimized image requests from the backend.
 Set this URL to match your API server so artist profile pictures and
@@ -623,6 +627,8 @@ deposit payment process on an iPhone 14 Pro viewport. A new
 paying the deposit using mocked APIs across all default Playwright projects.
 An additional `auth-flow.spec.ts` covers registration, social sign-in buttons
 and email confirmation states.
+The flight search integration also has unit tests that mock the external API so
+no network calls are made during `./scripts/test-all.sh`.
 
 ### Offline Testing with Docker
 
@@ -1182,6 +1188,17 @@ When `includeDuration=true`, helpers like `getDrivingMetrics()` parse both the
 distance and estimated driving time. All travel cost estimates in the booking
 wizard now rely on this API via `getDrivingMetrics` instead of great-circle
 distance calculations.
+
+### Cheapest Morning Flight
+
+```
+GET /api/v1/flights/cheapest?departure={code}&arrival={code}&date=YYYY-MM-DD
+```
+Returns the lowest price for flights departing before noon between the given
+IATA codes on the specified date. The backend queries a free flight search API
+and returns `{ "price": 1234.56 }` when successful. Configure `FLIGHT_API_KEY`
+in `.env` to enable lookups. Network errors yield a 502 response and the
+frontend falls back to a static estimate during travel calculations.
 
 ### Travel Mode Decision
 

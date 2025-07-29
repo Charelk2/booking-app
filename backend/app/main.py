@@ -61,6 +61,7 @@ from .api import (
     api_quote_template,
     api_settings,
     api_weather,
+    api_flight,
 )
 from routes import distance
 
@@ -308,6 +309,13 @@ app.include_router(
     api_weather.router,
     prefix=f"{api_prefix}",
     tags=["travel-forecast"],
+)
+
+# ─── FLIGHT ROUTES (under /api/v1) ───────────────────────────────────────────
+app.include_router(
+    api_flight.router,
+    prefix=f"{api_prefix}",
+    tags=["flights"],
 )
 
 # ─── DISTANCE ROUTES (under /api/v1) ─────────────────────────────────────────
