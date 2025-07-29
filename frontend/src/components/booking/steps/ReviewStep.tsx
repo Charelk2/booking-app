@@ -69,6 +69,7 @@ export default function ReviewStep({
           numTravellers: svcRes.data.travel_members || 1,
           drivingEstimate: driveEstimate,
           travelRate: svcRes.data.travel_rate || 2.5,
+          travelDate: details.date,
         });
         setLocalTravel(travel);
         setTravelResult(travel);
