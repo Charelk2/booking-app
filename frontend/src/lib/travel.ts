@@ -31,7 +31,7 @@ export interface TravelResult {
   };
 }
 
-const DEFAULT_FLIGHT_COST_PER_PERSON = 2500;
+const DEFAULT_FLIGHT_COST_PER_PERSON = 2780;
 const CAR_RENTAL_COST = 1000;
 const RATE_PER_KM = 2.5;
 
