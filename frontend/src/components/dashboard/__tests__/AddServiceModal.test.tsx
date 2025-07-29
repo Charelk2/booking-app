@@ -113,6 +113,10 @@ describe("AddServiceModal wizard", () => {
       next4.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
+    // Review step should show travel details before publishing
+    expect(container.textContent).toContain("Travelling (Rand per km)");
+    expect(container.textContent).toContain("Members travelling");
+
     const publish = container.querySelector(
       'button[type="submit"]',
     ) as HTMLButtonElement;
