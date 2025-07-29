@@ -253,10 +253,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     }
   }, [serviceId, artistLocation, details.location, setTravelResult]);
 
-  // Trigger the calculation function whenever its dependencies change
+  // Trigger the calculation when at or beyond the Guests step
   useEffect(() => {
-    void calculateReviewData();
-  }, [calculateReviewData]);
+    if (step >= 4) {
+      void calculateReviewData();
+    }
+  }, [step, calculateReviewData]);
 
   // --- Navigation & Submission Handlers ---
 
