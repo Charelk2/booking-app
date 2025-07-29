@@ -40,6 +40,19 @@ export const AIRPORT_LOCATIONS: Record<string, { lat: number; lng: number }> = {
   PLZ: { lat: -33.9849, lng: 25.6173 },
 };
 
+// Readable airport addresses improve Distance Matrix lookups. Using
+// coordinates sometimes yields ZERO_RESULTS because the lat/lng may not
+// represent a road-accessible point. Names resolve to the correct drop-off
+// location so transfer distances are accurate.
+export const AIRPORT_ADDRESSES: Record<string, string> = {
+  CPT: 'Cape Town International Airport, Cape Town, South Africa',
+  GRJ: 'George Airport, George, South Africa',
+  JNB: 'O. R. Tambo International Airport, Kempton Park, South Africa',
+  DUR: 'King Shaka International Airport, Durban, South Africa',
+  BFN: 'Bram Fischer International Airport, Bloemfontein, South Africa',
+  PLZ: 'Chief Dawid Stuurman International Airport, Gqeberha, South Africa',
+};
+
 const FLIGHT_ROUTES: Record<string, string[]> = {
   CPT: ['JNB', 'BFN', 'DUR', 'PLZ', 'GRJ'],
   GRJ: ['JNB', 'CPT'],
@@ -236,12 +249,14 @@ export async function calculateTravelMode(
 
   const departureLoc = AIRPORT_LOCATIONS[departure];
   const arrivalLoc = AIRPORT_LOCATIONS[arrival];
+  const departureAddress = AIRPORT_ADDRESSES[departure];
+  const arrivalAddress = AIRPORT_ADDRESSES[arrival];
   const departureTransferKm = await distanceFn(
     input.artistLocation,
-    `${departureLoc.lat},${departureLoc.lng}`,
+    departureAddress || `${departureLoc.lat},${departureLoc.lng}`,
   );
   const localTransferKm = await distanceFn(
-    `${arrivalLoc.lat},${arrivalLoc.lng}`,
+    arrivalAddress || `${arrivalLoc.lat},${arrivalLoc.lng}`,
     input.eventLocation,
   );
   const flightSubtotal = input.numTravellers * FLIGHT_COST_PER_PERSON;

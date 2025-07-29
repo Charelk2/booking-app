@@ -28,8 +28,8 @@ describe('calculateTravelMode', () => {
       if (city.startsWith('Johannesburg')) return 'JNB';
       return null;
     });
-    const distanceStub = jest.fn(async (from: string, to: string) => {
-      if (from.includes('Cape Town')) return 20;
+    const distanceStub = jest.fn(async (_from: string, to: string) => {
+      if (to.includes('International Airport')) return 20;
       if (to.includes('Johannesburg')) return 30;
       return 0;
     });
