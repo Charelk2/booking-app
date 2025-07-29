@@ -1174,10 +1174,13 @@ duration fields from Google. When omitted or set to `false`, the proxy strips
 `duration` information from each element. Debug logging records the request
 parameters and raw Google response to help diagnose issues like unexpected
 `ZERO_RESULTS`.
+When `includeDuration=true`, helpers like `getDrivingMetrics()` parse both the
+distance and estimated driving time.
 
 ### Travel Mode Decision
 
-`calculateTravelMode()` in `frontend/src/lib/travel.ts` automatically decides whether an artist should fly or drive to an event. The helper geocodes the artist and event towns, finds the closest airport using great-circle distance, checks for supported routes and then compares the full flying cost (flights, transfers and car rental) with the driving estimate. Transfer distances use full airport names rather than raw coordinates so Google can find a drivable route from the traveller's location to the departure airport and from the arrival airport to the final destination. The function works with any South African location and returns a detailed cost breakdown. Driving and transfer costs are doubled to account for the return trip.
+`calculateTravelMode()` in `frontend/src/lib/travel.ts` automatically decides whether an artist should fly or drive to an event. The helper geocodes the artist and event towns, finds the closest airport using great-circle distance, checks for supported routes and then compares the full flying cost (flights, transfers and car rental) with the driving estimate. Transfer distances use full airport names rather than raw coordinates so Google can find a drivable route from the traveller's location to the departure airport and from the arrival airport to the final destination. The function works with any South African location and returns a detailed cost breakdown. Driving and transfer costs are doubled to account for the return trip.  
+The logic now factors in maximum transfer times, brutally long drives, total travel time and a small time-cost penalty so the cheapest option doesn't always win.
 
 ```ts
 import { calculateTravelMode } from '@/lib/travel';
