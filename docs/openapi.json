@@ -1567,7 +1567,7 @@
           "Reviews"
         ],
         "summary": "Create Review For Booking",
-        "description": "Create a review for a specific booking. \nOnly the client who made the booking can review it, and only if it's completed.",
+        "description": "Create a review for a specific booking.\nOnly the client who made the booking can review it, and only if it's completed.",
         "operationId": "create_review_for_booking_api_v1_reviews_bookings__booking_id__reviews_post",
         "security": [
           {
@@ -4063,6 +4063,49 @@
         }
       }
     },
+    "/api/v1/travel-forecast": {
+      "get": {
+        "tags": [
+          "travel-forecast",
+          "travel-forecast"
+        ],
+        "summary": "Travel Forecast",
+        "description": "Return a 3-day weather forecast for the destination.",
+        "operationId": "travel_forecast_api_v1_travel_forecast_get",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Location"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "Root",
@@ -5026,6 +5069,43 @@
             ],
             "title": "Proposed Datetime 2"
           },
+          "travel_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Mode"
+          },
+          "travel_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Cost"
+          },
+          "travel_breakdown": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Breakdown"
+          },
           "artist_id": {
             "type": "integer",
             "title": "Artist Id"
@@ -5106,6 +5186,40 @@
               }
             ],
             "title": "Proposed Datetime 2"
+          },
+          "travel_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Mode"
+          },
+          "travel_cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Cost"
+          },
+          "travel_breakdown": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Breakdown"
           },
           "id": {
             "type": "integer",
@@ -5288,6 +5402,43 @@
               }
             ],
             "title": "Proposed Datetime 2"
+          },
+          "travel_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Mode"
+          },
+          "travel_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Cost"
+          },
+          "travel_breakdown": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Breakdown"
           },
           "status": {
             "anyOf": [

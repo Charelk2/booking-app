@@ -1174,6 +1174,14 @@ The Booking Wizard automatically runs this check as soon as both the artist and
 event locations are provided, storing the result for the Review step where a
 summary card displays the selected travel mode and estimated cost.
 
+When submitting the booking request, the frontend now sends three extra fields:
+
+* `travel_mode` – either `fly` or `drive`
+* `travel_cost` – numeric estimate of the chosen mode
+* `travel_breakdown` – JSON object with flight or driving details
+
+These values are stored with the request and returned in the API response.
+
 
 ### Invoices
 
