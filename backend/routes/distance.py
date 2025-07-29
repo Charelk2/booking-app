@@ -26,10 +26,18 @@ def get_distance(from_location: str, to_location: str):
         "destinations": to_location,
         "key": api_key,
     }
+    logger.debug(
+        "Distance Matrix request: origins=%s destinations=%s",
+        from_location,
+        to_location,
+    )
+    logger.debug("Distance Matrix request params: %s", params)
     try:
         resp = httpx.get(url, params=params, timeout=10)
+        logger.debug("Distance Matrix raw response: %s", resp.text)
         resp.raise_for_status()
-        return resp.json()
+        data = resp.json()
+        return data
     except Exception as exc:  # pragma: no cover - network failure
         logger.error("Distance Matrix request failed: %s", exc, exc_info=True)
         return JSONResponse(
