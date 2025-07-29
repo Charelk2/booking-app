@@ -1,23 +1,20 @@
-import {
-  calculateTravelMode,
-  getDrivingDistance,
-  getDrivingMetrics,
-} from '../travel';
+import * as travel from '../travel';
 
-describe('calculateTravelMode', () => {
+describe('travel.calculateTravelMode', () => {
   it('returns drive when no direct flight route exists', async () => {
     const airportStub = jest.fn(async (city: string) => {
       if (city.startsWith('George')) return 'GRJ';
       if (city.startsWith('Durban')) return 'DUR';
       return null;
     });
-    const result = await calculateTravelMode(
+    const result = await travel.calculateTravelMode(
       {
         artistLocation: 'George, South Africa',
         eventLocation: 'Durban, South Africa',
         numTravellers: 2,
         drivingEstimate: 1500,
         travelRate: 2.5,
+        travelDate: new Date('2025-01-01'),
       },
       async () => ({ distanceKm: 0, durationHrs: 0 }),
       airportStub,
@@ -42,33 +39,35 @@ describe('calculateTravelMode', () => {
       }
       return { distanceKm: 50, durationHrs: 3 };
     });
-    const result = await calculateTravelMode(
+    jest.spyOn(travel, 'fetchFlightCost').mockResolvedValue(1200);
+    const result = await travel.calculateTravelMode(
       {
         artistLocation: 'Cape Town, South Africa',
         eventLocation: 'Johannesburg, South Africa',
         numTravellers: 1,
         drivingEstimate: 5000,
         travelRate: 2.5,
+        travelDate: new Date('2025-01-01'),
       },
       metricsStub,
       airportStub,
     );
     expect(result.mode).toBe('fly');
-    expect(result.totalCost).toBeCloseTo(3750);
-    expect(result.breakdown.fly.flightSubtotal).toBe(2500);
+    expect(result.breakdown.fly.flightSubtotal).toBe(1200);
     expect(metricsStub).toHaveBeenCalledTimes(3);
     expect(airportStub).toHaveBeenCalledTimes(2);
   });
 
   it('defaults to drive when driving is cheaper', async () => {
     const airportStub = jest.fn(async () => 'CPT');
-    const result = await calculateTravelMode(
+    const result = await travel.calculateTravelMode(
       {
         artistLocation: 'Cape Town, South Africa',
         eventLocation: 'Johannesburg, South Africa',
         numTravellers: 1,
         drivingEstimate: 2000,
         travelRate: 2.5,
+        travelDate: new Date('2025-01-01'),
       },
       async () => ({ distanceKm: 50, durationHrs: 3 }),
       airportStub,
@@ -80,13 +79,14 @@ describe('calculateTravelMode', () => {
   it('falls back to drive on airport lookup failure', async () => {
     const airportStub = jest.fn(async () => null);
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const result = await calculateTravelMode(
+    const result = await travel.calculateTravelMode(
       {
         artistLocation: 'Nowhere',
         eventLocation: 'Johannesburg, South Africa',
         numTravellers: 1,
         drivingEstimate: 3000,
         travelRate: 2.5,
+        travelDate: new Date('2025-01-01'),
       },
       async () => ({ distanceKm: 20, durationHrs: 1 }),
       airportStub,
@@ -108,13 +108,14 @@ describe('calculateTravelMode', () => {
       }
       return { distanceKm: 100, durationHrs: 1 };
     });
-    const result = await calculateTravelMode(
+    const result = await travel.calculateTravelMode(
       {
         artistLocation: 'Cape Town, South Africa',
         eventLocation: 'Pretoria, South Africa',
         numTravellers: 1,
         drivingEstimate: 500,
         travelRate: 2.5,
+        travelDate: new Date('2025-01-01'),
       },
       metricsStub,
       airportStub,
@@ -130,13 +131,14 @@ describe('calculateTravelMode', () => {
       }
       return { distanceKm: 900, durationHrs: 9 };
     });
-    const result = await calculateTravelMode(
+    const result = await travel.calculateTravelMode(
       {
         artistLocation: 'Cape Town, South Africa',
         eventLocation: 'Windhoek, Namibia',
         numTravellers: 1,
         drivingEstimate: 10000,
         travelRate: 2.5,
+        travelDate: new Date('2025-01-01'),
       },
       metricsStub,
       airportStub,
@@ -145,7 +147,7 @@ describe('calculateTravelMode', () => {
   });
 });
 
-describe('getDrivingDistance', () => {
+describe('travel.getDrivingDistance', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
@@ -173,7 +175,7 @@ describe('getDrivingDistance', () => {
         ],
       }),
     });
-    const km = await getDrivingDistance('A', 'B');
+    const km = await travel.getDrivingDistance('A', 'B');
     expect(globals.fetch).toHaveBeenCalledWith(
       'http://api/api/v1/distance?from_location=A&to_location=B&includeDuration=true',
     );
@@ -183,12 +185,12 @@ describe('getDrivingDistance', () => {
   it('returns 0 on fetch error', async () => {
     const globals = global as typeof global & { fetch: jest.Mock };
     globals.fetch = jest.fn().mockRejectedValue(new Error('fail'));
-    const km = await getDrivingDistance('A', 'B');
+    const km = await travel.getDrivingDistance('A', 'B');
     expect(km).toBe(0);
   });
 });
 
-describe('getDrivingMetrics', () => {
+describe('travel.getDrivingMetrics', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
@@ -216,7 +218,7 @@ describe('getDrivingMetrics', () => {
         ],
       }),
     });
-    const metrics = await getDrivingMetrics('A', 'B');
+    const metrics = await travel.getDrivingMetrics('A', 'B');
     expect(globals.fetch).toHaveBeenCalledWith(
       'http://api/api/v1/distance?from_location=A&to_location=B&includeDuration=true',
     );

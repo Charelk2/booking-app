@@ -4106,6 +4106,132 @@
         }
       }
     },
+    "/api/v1/flights/cheapest": {
+      "get": {
+        "tags": [
+          "flights",
+          "flights"
+        ],
+        "summary": "Cheapest Morning Flight",
+        "description": "Return the cheapest morning flight price.",
+        "operationId": "cheapest_morning_flight_api_v1_flights_cheapest_get",
+        "parameters": [
+          {
+            "name": "departure",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 3,
+              "title": "Departure"
+            }
+          },
+          {
+            "name": "arrival",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 3,
+              "title": "Arrival"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "title": "Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/distance": {
+      "get": {
+        "tags": [
+          "distance",
+          "distance"
+        ],
+        "summary": "Get Distance",
+        "description": "Proxy Google Distance Matrix API and return its JSON response.",
+        "operationId": "get_distance_api_v1_distance_get",
+        "parameters": [
+          {
+            "name": "from_location",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "From Location"
+            }
+          },
+          {
+            "name": "to_location",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "To Location"
+            }
+          },
+          {
+            "name": "includeDuration",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Includeduration"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/": {
       "get": {
         "summary": "Root",
@@ -7045,6 +7171,31 @@
           },
           "service_type": {
             "$ref": "#/components/schemas/ServiceType"
+          },
+          "travel_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Rate"
+          },
+          "travel_members": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Members"
           }
         },
         "type": "object",
@@ -7170,6 +7321,28 @@
                 "type": "null"
               }
             ]
+          },
+          "travel_rate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Rate"
+          },
+          "travel_members": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Members"
           },
           "id": {
             "type": "integer",
@@ -7303,6 +7476,31 @@
                 "type": "null"
               }
             ]
+          },
+          "travel_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Rate"
+          },
+          "travel_members": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Members"
           }
         },
         "type": "object",
