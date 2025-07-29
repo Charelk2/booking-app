@@ -1057,7 +1057,8 @@ keeps the current view, e.g.
 
 * Password strength meter and success toast.
 * Shared form components with optional Google/GitHub sign-in.
-* "Remember me" option persists sessions using `localStorage` or `sessionStorage`.
+* Standard logins and OAuth tokens persist in `sessionStorage` so refreshing the page keeps you logged in, but closing the tab signs you out.
+* Checking **Remember me** uses `localStorage` to keep you logged in across browser restarts.
 
 ---
 
