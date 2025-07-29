@@ -4,6 +4,10 @@ import { act } from 'react';
 import { useForm, Control, FieldValues } from 'react-hook-form';
 import LocationStep from '../LocationStep';
 
+jest.mock('@/lib/loadPlaces', () => ({
+  loadPlaces: () => Promise.resolve({}),
+}));
+
 jest.mock('react-google-autocomplete/lib/usePlacesAutocompleteService', () => {
   const React = require('react');
   return () => {
@@ -65,6 +69,7 @@ describe('LocationStep selection', () => {
   it('shows map after selecting a place', async () => {
     await act(async () => {
       root.render(React.createElement(Wrapper));
+      await Promise.resolve();
     });
     const input = container.querySelector('input') as HTMLInputElement;
     await act(async () => {
@@ -81,6 +86,7 @@ describe('LocationStep selection', () => {
   it('reveals tooltip on focus', async () => {
     await act(async () => {
       root.render(React.createElement(Wrapper));
+      await Promise.resolve();
     });
     const tooltipButton = container.querySelector('button[aria-describedby]') as HTMLButtonElement;
     act(() => {
