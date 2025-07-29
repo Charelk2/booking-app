@@ -85,16 +85,7 @@ export default function ArtistBookingsPage() {
   if (!user) {
     return (
       <MainLayout>
-        <div className="p-8">
-          Please{' '}
-          <Link
-            href="/login"
-            className="text-brand-dark no-underline hover:no-underline"
-          >
-            log in
-          </Link>{' '}
-          to view your bookings.
-        </div>
+        <div className="p-8">Please log in to view your bookings.</div>
       </MainLayout>
     );
   }
