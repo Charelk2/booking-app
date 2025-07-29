@@ -1,4 +1,8 @@
-import { calculateTravelMode, getDrivingDistance } from '../travel';
+import {
+  calculateTravelMode,
+  getDrivingDistance,
+  getDrivingMetrics,
+} from '../travel';
 
 describe('calculateTravelMode', () => {
   it('returns drive when no direct flight route exists', async () => {
@@ -14,7 +18,7 @@ describe('calculateTravelMode', () => {
         numTravellers: 2,
         drivingEstimate: 1500,
       },
-      async () => 10,
+      async () => ({ distanceKm: 0, durationHrs: 0 }),
       airportStub,
     );
     expect(result.mode).toBe('drive');
@@ -28,10 +32,14 @@ describe('calculateTravelMode', () => {
       if (city.startsWith('Johannesburg')) return 'JNB';
       return null;
     });
-    const distanceStub = jest.fn(async (_from: string, to: string) => {
-      if (to.includes('International Airport')) return 20;
-      if (to.includes('Johannesburg')) return 30;
-      return 0;
+    const metricsStub = jest.fn(async (from: string, to: string) => {
+      if (to.includes('Cape Town International Airport')) {
+        return { distanceKm: 20, durationHrs: 0.5 };
+      }
+      if (from.includes('O. R. Tambo International Airport')) {
+        return { distanceKm: 30, durationHrs: 0.5 };
+      }
+      return { distanceKm: 50, durationHrs: 3 };
     });
     const result = await calculateTravelMode(
       {
@@ -40,13 +48,13 @@ describe('calculateTravelMode', () => {
         numTravellers: 1,
         drivingEstimate: 5000,
       },
-      distanceStub,
+      metricsStub,
       airportStub,
     );
     expect(result.mode).toBe('fly');
     expect(result.totalCost).toBeCloseTo(3750);
     expect(result.breakdown.fly.flightSubtotal).toBe(2500);
-    expect(distanceStub).toHaveBeenCalledTimes(2);
+    expect(metricsStub).toHaveBeenCalledTimes(3);
     expect(airportStub).toHaveBeenCalledTimes(2);
   });
 
@@ -59,7 +67,7 @@ describe('calculateTravelMode', () => {
         numTravellers: 1,
         drivingEstimate: 2000,
       },
-      async () => 50,
+      async () => ({ distanceKm: 50, durationHrs: 3 }),
       airportStub,
     );
     expect(result.mode).toBe('drive');
@@ -76,13 +84,58 @@ describe('calculateTravelMode', () => {
         numTravellers: 1,
         drivingEstimate: 3000,
       },
-      async () => 20,
+      async () => ({ distanceKm: 20, durationHrs: 1 }),
       airportStub,
     );
     expect(result.mode).toBe('drive');
     expect(result.totalCost).toBe(3000);
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+
+  it('returns drive when transfer time exceeds limit', async () => {
+    const airportStub = jest.fn(async () => 'CPT');
+    const metricsStub = jest.fn(async (from: string, to: string) => {
+      if (to.includes('Cape Town International Airport')) {
+        return { distanceKm: 10, durationHrs: 4 };
+      }
+      if (from.includes('Cape Town International Airport')) {
+        return { distanceKm: 10, durationHrs: 2 };
+      }
+      return { distanceKm: 100, durationHrs: 1 };
+    });
+    const result = await calculateTravelMode(
+      {
+        artistLocation: 'Cape Town, South Africa',
+        eventLocation: 'Pretoria, South Africa',
+        numTravellers: 1,
+        drivingEstimate: 500,
+      },
+      metricsStub,
+      airportStub,
+    );
+    expect(result.mode).toBe('drive');
+  });
+
+  it('forces fly when direct drive is very long', async () => {
+    const airportStub = jest.fn(async () => 'CPT');
+    const metricsStub = jest.fn(async (from: string, to: string) => {
+      if (from.includes('Cape Town International Airport') || to.includes('Cape Town International Airport')) {
+        return { distanceKm: 10, durationHrs: 1 };
+      }
+      return { distanceKm: 900, durationHrs: 9 };
+    });
+    const result = await calculateTravelMode(
+      {
+        artistLocation: 'Cape Town, South Africa',
+        eventLocation: 'Windhoek, Namibia',
+        numTravellers: 1,
+        drivingEstimate: 10000,
+      },
+      metricsStub,
+      airportStub,
+    );
+    expect(result.mode).toBe('fly');
   });
 });
 
@@ -105,12 +158,18 @@ describe('getDrivingDistance', () => {
     globals.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        rows: [{ elements: [{ status: 'OK', distance: { value: 1234 } }] }],
+        rows: [
+          {
+            elements: [
+              { status: 'OK', distance: { value: 1234 }, duration: { value: 3600 } },
+            ],
+          },
+        ],
       }),
     });
     const km = await getDrivingDistance('A', 'B');
     expect(globals.fetch).toHaveBeenCalledWith(
-      'http://api/api/v1/distance?from_location=A&to_location=B',
+      'http://api/api/v1/distance?from_location=A&to_location=B&includeDuration=true',
     );
     expect(km).toBeCloseTo(1.234);
   });
@@ -120,5 +179,42 @@ describe('getDrivingDistance', () => {
     globals.fetch = jest.fn().mockRejectedValue(new Error('fail'));
     const km = await getDrivingDistance('A', 'B');
     expect(km).toBe(0);
+  });
+});
+
+describe('getDrivingMetrics', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...originalEnv, NEXT_PUBLIC_API_URL: 'http://api' };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    const globals = global as typeof global & { fetch?: jest.Mock };
+    globals.fetch?.mockRestore?.();
+  });
+
+  it('parses distance and duration', async () => {
+    const globals = global as typeof global & { fetch: jest.Mock };
+    globals.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        rows: [
+          {
+            elements: [
+              { status: 'OK', distance: { value: 2000 }, duration: { value: 1800 } },
+            ],
+          },
+        ],
+      }),
+    });
+    const metrics = await getDrivingMetrics('A', 'B');
+    expect(globals.fetch).toHaveBeenCalledWith(
+      'http://api/api/v1/distance?from_location=A&to_location=B&includeDuration=true',
+    );
+    expect(metrics.distanceKm).toBeCloseTo(2);
+    expect(metrics.durationHrs).toBeCloseTo(0.5);
   });
 });
