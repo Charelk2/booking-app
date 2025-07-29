@@ -15,6 +15,8 @@ class ServiceBase(BaseModel):
     currency: Optional[str] = "ZAR"
     display_order: Optional[int] = None
     service_type: Optional[ServiceType] = None
+    travel_rate: Optional[Decimal] = None
+    travel_members: Optional[int] = None
 
 
 # Properties to receive on item creation
