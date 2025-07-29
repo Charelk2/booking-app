@@ -57,9 +57,7 @@ export default function ReviewStep({
 
         // Include return trip in driving estimate
         const driveEstimate =
-          distance * (svcRes.data.travel_rate || 2.5) *
-          (svcRes.data.travel_members || 1) *
-          2;
+          distance * (svcRes.data.travel_rate || 2.5) * 2;
         const travel = await calculateTravelMode({
           artistLocation: artistLocation,
           eventLocation: details.location,
@@ -91,15 +89,7 @@ export default function ReviewStep({
           Estimated Price: {formatCurrency(price)}
         </p>
       )}
-      <WizardNav
-        step={step}
-        steps={steps}
-        onBack={onBack}
-        onSaveDraft={onSaveDraft}
-        onNext={onNext}
-        submitting={submitting}
-        submitLabel={submitLabel}
-      />
+
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef, Fragment } from 'react';
+import React, { useEffect, useState, useRef, Fragment, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -8,6 +8,7 @@ import * as yup from 'yup';
 
 import { useBooking } from '@/contexts/BookingContext';
 import useIsMobile from '@/hooks/useIsMobile';
+// Assuming useBookingForm directly returns errors, not formState.errors
 import useBookingForm from '@/hooks/useBookingForm';
 import {
   getArtistAvailability,
@@ -16,6 +17,7 @@ import {
   postMessageToBookingRequest,
   getArtist,
   getService,
+  calculateQuote,
 } from '@/lib/api';
 import { geocodeAddress, calculateDistanceKm } from '@/lib/geo';
 import { calculateTravelMode, TravelResult } from '@/lib/travel';
@@ -25,6 +27,11 @@ import Stepper from '../ui/Stepper';
 import Button from '../ui/Button';
 import toast from '../ui/Toast';
 
+// Removed imports for LoadingSpinner and ErrorMessage
+// import LoadingSpinner from '../LoadingSpinner';
+// import ErrorMessage from '../ErrorMessage';
+
+// --- Step Components ---
 import EventTypeStep from './steps/EventTypeStep';
 import EventDescriptionStep from './steps/EventDescriptionStep';
 import DateTimeStep from './steps/DateTimeStep';
@@ -33,8 +40,9 @@ import GuestsStep from './steps/GuestsStep';
 import VenueStep from './steps/VenueStep';
 import SoundStep from './steps/SoundStep';
 import NotesStep from './steps/NotesStep';
-import ReviewStep from './steps/ReviewStep';
+import ReviewStep from './steps/ReviewStep'; // Ensure this is the modified one
 
+// --- EventDetails Type & Schema ---
 type EventDetails = {
   eventType?: string;
   eventDescription?: string;
@@ -48,20 +56,21 @@ type EventDetails = {
 };
 
 const schema = yup.object<EventDetails>().shape({
-  eventType: yup.string().required(),
-  eventDescription: yup.string().required().min(5),
-  date: yup.date().required().min(new Date()),
-  location: yup.string().required(),
-  guests: yup.string().required().matches(/^\d+$/, 'Must be a number'),
+  eventType: yup.string().required('Event type is required.'),
+  eventDescription: yup.string().required('Event description is required.').min(5, 'Description must be at least 5 characters.'),
+  date: yup.date().required('Date is required.').min(new Date(), 'Date cannot be in the past.'),
+  location: yup.string().required('Location is required.'),
+  guests: yup.string().required('Number of guests is required.').matches(/^\d+$/, 'Guests must be a number.'),
   venueType: yup
     .mixed<'indoor' | 'outdoor' | 'hybrid'>()
-    .oneOf(['indoor', 'outdoor', 'hybrid'])
+    .oneOf(['indoor', 'outdoor', 'hybrid'], 'Venue type is required.')
     .required(),
-  sound: yup.string().oneOf(['yes', 'no']).required(),
+  sound: yup.string().oneOf(['yes', 'no'], 'Sound equipment preference is required.').required(),
   notes: yup.string().optional(),
   attachment_url: yup.string().optional(),
 });
 
+// --- Wizard Steps & Instructions ---
 const steps = [
   'Date & Time',
   'Event Type',
@@ -86,6 +95,7 @@ const instructions = [
   'Please confirm the information above before sending your request.',
 ];
 
+// --- Animation Variants ---
 const stepVariants = {
   initial: { opacity: 0, x: 50 },
   animate: { opacity: 1, x: 0 },
@@ -93,13 +103,15 @@ const stepVariants = {
   transition: { duration: 0.3, ease: [0.42, 0, 0.58, 1] as const },
 };
 
+// --- BookingWizard Props ---
 interface BookingWizardProps {
   artistId: number;
-  serviceId?: number;
+  serviceId?: number; // Optional serviceId passed as a prop
   isOpen: boolean;
   onClose: () => void;
 }
 
+// --- Main BookingWizard Component ---
 export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: BookingWizardProps) {
   const router = useRouter();
   const {
@@ -109,88 +121,141 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     setDetails,
     requestId,
     setRequestId,
-    setServiceId,
-
+    setServiceId: setServiceIdInContext,
+    travelResult,
     setTravelResult,
-
-    resetBooking,
     loadSavedProgress,
   } = useBooking();
 
+  // --- Component States ---
   const [unavailable, setUnavailable] = useState<string[]>([]);
   const [artistLocation, setArtistLocation] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [maxStepCompleted, setMaxStepCompleted] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [reviewDataError, setReviewDataError] = useState<string | null>(null);
+  const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
+  const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
+
   const headingRef = useRef<HTMLHeadingElement>(null);
   const isMobile = useIsMobile();
   const hasLoaded = useRef(false);
 
+  // --- Form Hook (React Hook Form + Yup) ---
   const {
     control,
     trigger,
     handleSubmit,
     setValue,
-    errors,
+    errors, // Directly destructure errors, assuming useBookingForm returns it at top level
   } = useBookingForm(schema, details, setDetails);
 
+  // --- Effects ---
+
+  // Effect to manage step completion and focus heading on step change
   useEffect(() => {
     setMaxStepCompleted((prev) => Math.max(prev, step));
     headingRef.current?.focus();
+    setValidationError(null);
   }, [step]);
 
+  // Effect to fetch artist availability and base location from API
   useEffect(() => {
     if (!artistId) return;
-    getArtistAvailability(artistId).then((res) => setUnavailable(res.data.unavailable_dates));
-    getArtist(artistId).then((res) => setArtistLocation(res.data.location || null));
+    const fetchArtistData = async () => {
+      try {
+        const [availabilityRes, artistRes] = await Promise.all([
+          getArtistAvailability(artistId),
+          getArtist(artistId),
+        ]);
+        setUnavailable(availabilityRes.data.unavailable_dates);
+        setArtistLocation(artistRes.data.location || null);
+      } catch (err) {
+        console.error('Failed to fetch artist data:', err);
+      }
+    };
+    void fetchArtistData();
   }, [artistId]);
 
-  // Prompt to restore saved progress only when the wizard first opens
+  // Effect to prompt to restore saved progress only when the wizard first opens
   useEffect(() => {
     if (!isOpen || hasLoaded.current) return;
     loadSavedProgress();
     hasLoaded.current = true;
   }, [isOpen, loadSavedProgress]);
 
+  // Effect to set serviceId in the booking context if provided as a prop
   useEffect(() => {
-    if (serviceId) setServiceId(serviceId);
-  }, [serviceId, setServiceId]);
+    if (serviceId) setServiceIdInContext(serviceId);
+  }, [serviceId, setServiceIdInContext]);
 
-  // Calculate travel mode only on the review step to avoid unnecessary API calls
-  useEffect(() => {
-    async function calcTravel() {
-      if (step !== steps.length - 1) return;
-      if (!artistLocation || !details.location || !serviceId) return;
-      try {
-        const [svcRes, artistPos, eventPos] = await Promise.all([
-          getService(serviceId),
-          geocodeAddress(artistLocation),
-          geocodeAddress(details.location),
-        ]);
-        if (!artistPos || !eventPos) return;
-
-        const distance = calculateDistanceKm(artistPos, eventPos);
-        // Driving requires a round trip so we double the one-way estimate
-        const driveEstimate =
-          distance * (svcRes.data.travel_rate || 2.5) *
-          (svcRes.data.travel_members || 1) *
-          2;
-
-        const travel: TravelResult = await calculateTravelMode({
-          artistLocation,
-          eventLocation: details.location,
-          numTravellers: svcRes.data.travel_members || 1,
-          drivingEstimate: driveEstimate,
-        });
-        setTravelResult(travel);
-      } catch (err) {
-        console.error('Failed to calculate travel mode', err);
-      }
+  // Effect to calculate review data (price and travel mode) dynamically
+  const calculateReviewData = useCallback(async () => {
+    if (!serviceId || !artistLocation || !details.location) {
+      setIsLoadingReviewData(false);
+      setReviewDataError("Missing booking details (Service ID, Artist Location, or Event Location) to calculate estimates.");
+      setCalculatedPrice(null);
+      setTravelResult(null);
+      return;
     }
-    void calcTravel();
-  }, [step, artistLocation, details.location, serviceId, setTravelResult]);
 
+    setIsLoadingReviewData(true);
+    setReviewDataError(null);
+
+    try {
+      const [svcRes, artistPos, eventPos] = await Promise.all([
+        getService(serviceId),
+        geocodeAddress(artistLocation),
+        geocodeAddress(details.location),
+      ]);
+
+      if (!artistPos) {
+        throw new Error(`Could not find geographic coordinates for artist's base location: "${artistLocation}".`);
+      }
+      if (!eventPos) {
+        throw new Error(`Could not find geographic coordinates for event location: "${details.location}".`);
+      }
+
+      const baseServicePrice = Number(svcRes.data.price);
+      const travelRate = svcRes.data.travel_rate || 2.5;
+      const numTravelMembers = svcRes.data.travel_members || 1;
+
+      const directDistanceKm = calculateDistanceKm(artistPos, eventPos);
+      const drivingEstimateCost = directDistanceKm * travelRate * 2;
+
+      const quoteResponse = await calculateQuote({
+        base_fee: baseServicePrice,
+        distance_km: directDistanceKm,
+      });
+      setCalculatedPrice(Number(quoteResponse.data.total));
+
+      const travelModeResult = await calculateTravelMode({
+        artistLocation: artistLocation,
+        eventLocation: details.location,
+        numTravellers: numTravelMembers,
+        drivingEstimate: drivingEstimateCost,
+      });
+      setTravelResult(travelModeResult);
+
+    } catch (err) {
+      console.error('Failed to calculate booking estimates:', err);
+      setReviewDataError('Failed to calculate booking estimates. Please ensure location details are accurate and try again.');
+      setCalculatedPrice(null);
+      setTravelResult(null);
+    } finally {
+      setIsLoadingReviewData(false);
+    }
+  }, [serviceId, artistLocation, details.location, setTravelResult]);
+
+  // Trigger the calculation function whenever its dependencies change
+  useEffect(() => {
+    void calculateReviewData();
+  }, [calculateReviewData]);
+
+  // --- Navigation & Submission Handlers ---
+
+  // Handles 'Enter' key press for navigation/submission
   const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
     if (e.key !== 'Enter' || e.shiftKey || isMobile) return;
     e.preventDefault();
@@ -201,6 +266,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     }
   };
 
+  // Navigates to the next step after validation
   const next = async () => {
     const stepFields: (keyof EventDetails)[][] = [
       ['date'],
@@ -213,19 +279,27 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       [],
       [],
     ];
-    const fields = stepFields[step] as (keyof EventDetails)[];
-    const valid = fields.length > 0 ? await trigger(fields) : true;
+    const fieldsToValidate = stepFields[step] as (keyof EventDetails)[];
+
+    const valid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
+
     if (valid) {
       const newStep = step + 1;
       setStep(newStep);
       setMaxStepCompleted(Math.max(maxStepCompleted, newStep));
+      setValidationError(null);
     } else {
-      setError('Please fix the errors above to continue.');
+      setValidationError('Please fix the errors above to continue.');
     }
   };
 
-  const prev = () => setStep(step - 1);
+  // Navigates to the previous step
+  const prev = () => {
+    setStep(step - 1);
+    setValidationError(null);
+  };
 
+  // Handles saving the booking request as a draft
   const saveDraft = handleSubmit(async (vals: EventDetails) => {
     const payload: BookingRequestCreate = {
       artist_id: artistId,
@@ -239,18 +313,26 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_breakdown: travelResult?.breakdown,
     };
     try {
-      if (requestId) await updateBookingRequest(requestId, payload);
-      else {
+      if (requestId) {
+        await updateBookingRequest(requestId, payload);
+      } else {
         const res = await createBookingRequest(payload);
         setRequestId(res.data.id);
       }
-      toast.success('Draft saved');
+      toast.success('Draft saved successfully!');
     } catch (e) {
-      setError((e as Error).message);
+      console.error('Save Draft Error:', e);
+      setValidationError('Failed to save draft. Please try again.');
     }
   });
 
+  // Handles final submission of the booking request
   const submitRequest = handleSubmit(async (vals: EventDetails) => {
+    if (isLoadingReviewData || reviewDataError || calculatedPrice === null || travelResult === null) {
+      setValidationError('Review data is not ready. Please wait or check for errors before submitting.');
+      return;
+    }
+
     setSubmitting(true);
     const payload: BookingRequestCreate = {
       artist_id: artistId,
@@ -259,78 +341,70 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       message: vals.notes,
       attachment_url: vals.attachment_url,
       status: 'pending_quote',
-      travel_mode: travelResult?.mode,
-      travel_cost: travelResult?.totalCost,
-      travel_breakdown: travelResult?.breakdown,
+      travel_mode: travelResult.mode,
+      travel_cost: travelResult.totalCost,
+      travel_breakdown: travelResult.breakdown,
     };
-  
+
     try {
       const res = requestId
         ? await updateBookingRequest(requestId, payload)
         : await createBookingRequest(payload);
-  
+
       const id = requestId || res?.data?.id;
-      if (!id) throw new Error('Missing booking request ID');
-  
+      if (!id) throw new Error('Missing booking request ID after creation/update.');
+
       await postMessageToBookingRequest(id, {
-        content: `Booking details:\nEvent Type: ${vals.eventType}\nDescription: ${vals.eventDescription}\nDate: ${vals.date}\nLocation: ${vals.location}\nGuests: ${vals.guests}\nVenue: ${vals.venueType}\nSound: ${vals.sound}\nNotes: ${vals.notes}`,
+        content: `Booking details:\nEvent Type: ${vals.eventType || 'N/A'}\nDescription: ${vals.eventDescription || 'N/A'}\nDate: ${vals.date?.toLocaleDateString() || 'N/A'}\nLocation: ${vals.location || 'N/A'}\nGuests: ${vals.guests || 'N/A'}\nVenue: ${vals.venueType || 'N/A'}\nSound: ${vals.sound || 'N/A'}\nNotes: ${vals.notes || 'N/A'}`,
         message_type: 'system',
       });
-  
-      toast.success('Request submitted');
-  
-      // 🚨 DO NOT resetBooking here
-      // router.push immediately, reset later
+
+      toast.success('Your booking request has been submitted successfully!');
       router.push(`/booking-requests/${id}`);
+      // No resetBooking() or onClose() here, as router.push handles navigation
     } catch (e) {
-      console.error('Submit Error:', e);
-      setError((e as Error).message);
+      console.error('Submit Request Error:', e);
+      setValidationError('Failed to submit booking request. Please try again.');
     } finally {
       setSubmitting(false);
     }
   });
-  
 
+  // --- Render Step Logic ---
   const renderStep = () => {
-    const common = { step, steps, onBack: prev, onSaveDraft: saveDraft, onNext: next };
+    const commonProps = { step, steps, onBack: prev, onSaveDraft: saveDraft, onNext: next };
+
     switch (step) {
-      case 0:
-        return <DateTimeStep control={control} unavailable={unavailable} />;
-      case 1:
-        return <EventTypeStep control={control} />;
-      case 2:
-        return <EventDescriptionStep control={control} />;
-      case 3:
-        return (
-          <LocationStep
-            control={control}
-            artistLocation={artistLocation}
-            setWarning={setWarning}
-            {...common}
-          />
-        );
-      case 4:
-        return <GuestsStep control={control} {...common} />;
-      case 5:
-        return <VenueStep control={control} {...common} />;
-      case 6:
-        return <SoundStep control={control} {...common} />;
-      case 7:
-        return <NotesStep control={control} setValue={setValue} />;
-      case 8:
-        return (
-          <ReviewStep
-            {...common}
-            serviceId={serviceId}
-            artistLocation={artistLocation}
-            onNext={submitRequest}
-            submitting={submitting}
-            submitLabel="Submit Request"
-          />
-        );
+      case 0: return <DateTimeStep control={control} unavailable={unavailable} />;
+      case 1: return <EventTypeStep control={control} />;
+      case 2: return <EventDescriptionStep control={control} />;
+      case 3: return (
+        <LocationStep
+          control={control}
+          artistLocation={artistLocation}
+          setWarning={setWarning}
+          {...commonProps}
+        />
+      );
+      case 4: return <GuestsStep control={control} {...commonProps} />;
+      case 5: return <VenueStep control={control} {...commonProps} />;
+      case 6: return <SoundStep control={control} {...commonProps} />;
+      case 7: return <NotesStep control={control} setValue={setValue} />;
+      case 8: return (
+        <ReviewStep
+          {...commonProps}
+          isLoadingReviewData={isLoadingReviewData}
+          reviewDataError={reviewDataError}
+          calculatedPrice={calculatedPrice}
+          onNext={submitRequest}
+          submitting={submitting}
+          submitLabel="Submit Request"
+        />
+      );
       default: return null;
     }
   };
+
   if (!isOpen) return null;
 
   return (
@@ -366,8 +440,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (isMobile) return;
-                  if (step < steps.length - 1) next();
-                  else submitRequest();
+                  if (step < steps.length - 1) void next();
+                  else void submitRequest();
                 }}
                 onKeyDown={handleKeyDown}
                 className="flex-1 overflow-y-scroll p-6 space-y-6"
@@ -390,9 +464,14 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                     </h2>
                     <p className="text-gray-600 mb-4">{instructions[step]}</p>
                     {renderStep()}
+
                     {warning && <p className="text-orange-600 text-sm mt-4">{warning}</p>}
-                    {Object.values(errors).length > 0 && <p className="text-red-600 text-sm mt-4">Please fix the errors above.</p>}
-                    {error && <p className="text-red-600 text-sm mt-4">{error}</p>}
+                    {Object.keys(errors).length > 0 && (
+                      <p className="text-red-600 text-sm mt-4">
+                        Please fix the highlighted errors above to continue.
+                      </p>
+                    )}
+                    {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}
                   </motion.div>
                 </AnimatePresence>
               </form>
@@ -410,7 +489,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                     Next
                   </Button>
                 ) : (
-                  <Button onClick={submitRequest} isLoading={submitting}>
+                  <Button
+                    onClick={submitRequest}
+                    isLoading={submitting || isLoadingReviewData}
+                    disabled={submitting || isLoadingReviewData || reviewDataError !== null || calculatedPrice === null || travelResult === null}
+                    className="w-32"
+                  >
                     Submit Request
                   </Button>
                 )}
