@@ -75,7 +75,7 @@ describe('ReviewStep summary', () => {
     expect(container.textContent).toContain('Estimated Price');
     expect(container.textContent).toContain('Travel Mode');
     expect(calculateTravelMode).toHaveBeenCalledWith(
-      expect.objectContaining({ drivingEstimate: 50 })
+      expect.objectContaining({ drivingEstimate: 50, travelRate: 2.5 })
     );
   });
 });
