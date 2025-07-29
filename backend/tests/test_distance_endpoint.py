@@ -12,11 +12,24 @@ def test_get_distance_success(monkeypatch):
                 pass
 
             def json(self):
-                return {"rows": []}
-
+                return {
+                    "rows": [
+                        {
+                            "elements": [
+                                {
+                                    "status": "OK",
+                                    "distance": {"value": 100},
+                                    "duration": {"value": 200},
+                                    "duration_in_traffic": {"value": 250},
+                                }
+                            ]
+                        }
+                    ]
+                }
+            
             @property
             def text(self):
-                return "{\"rows\": []}"
+                return "{}"
 
         return Resp()
 
@@ -28,7 +41,73 @@ def test_get_distance_success(monkeypatch):
         params={"from_location": "Cape Town", "to_location": "Durban"},
     )
     assert res.status_code == 200
-    assert res.json() == {"rows": []}
+    assert res.json() == {
+        "rows": [
+            {
+                "elements": [
+                    {"status": "OK", "distance": {"value": 100}}
+                ]
+            }
+        ]
+    }
+
+
+def test_get_distance_include_duration(monkeypatch):
+    def fake_get(url, params=None, timeout=10):
+        class Resp:
+            status_code = 200
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {
+                    "rows": [
+                        {
+                            "elements": [
+                                {
+                                    "status": "OK",
+                                    "distance": {"value": 100},
+                                    "duration": {"value": 200},
+                                    "duration_in_traffic": {"value": 250},
+                                }
+                            ]
+                        }
+                    ]
+                }
+
+            @property
+            def text(self):
+                return "{}"
+
+        return Resp()
+
+    monkeypatch.setenv("GOOGLE_MAPS_API_KEY", "test-key")
+    monkeypatch.setattr(distance_route.httpx, "get", fake_get)
+    client = TestClient(app)
+    res = client.get(
+        "/api/v1/distance",
+        params={
+            "from_location": "Cape Town",
+            "to_location": "Durban",
+            "includeDuration": "true",
+        },
+    )
+    assert res.status_code == 200
+    assert res.json() == {
+        "rows": [
+            {
+                "elements": [
+                    {
+                        "status": "OK",
+                        "distance": {"value": 100},
+                        "duration": {"value": 200},
+                        "duration_in_traffic": {"value": 250},
+                    }
+                ]
+            }
+        ]
+    }
 
 
 def test_get_distance_missing_key(monkeypatch):
