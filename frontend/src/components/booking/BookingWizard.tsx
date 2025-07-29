@@ -151,6 +151,16 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     if (serviceId) setServiceId(serviceId);
   }, [serviceId, setServiceId]);
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey || isMobile) return;
+    e.preventDefault();
+    if (step < steps.length - 1) {
+      void next();
+    } else {
+      void submitRequest();
+    }
+  };
+
   const next = async () => {
     const stepFields: (keyof EventDetails)[][] = [
       ['date'],
@@ -313,6 +323,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   if (step < steps.length - 1) next();
                   else submitRequest();
                 }}
+                onKeyDown={handleKeyDown}
                 className="flex-1 overflow-y-scroll p-6 space-y-6"
               >
                 <AnimatePresence mode="wait">
@@ -324,7 +335,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                     variants={stepVariants}
                     transition={stepVariants.transition}
                   >
-                    <h2 className="text-2xl font-bold mb-1" ref={headingRef}>{steps[step]}</h2>
+                    <h2
+                      className="text-2xl font-bold mb-1"
+                      ref={headingRef}
+                      data-testid="step-heading"
+                    >
+                      {steps[step]}
+                    </h2>
                     <p className="text-gray-600 mb-4">{instructions[step]}</p>
                     {renderStep()}
                     {warning && <p className="text-orange-600 text-sm mt-4">{warning}</p>}
