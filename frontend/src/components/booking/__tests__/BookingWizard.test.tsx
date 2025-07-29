@@ -5,8 +5,8 @@ import { act } from "react";
 import BookingWizard from "../BookingWizard";
 import { BookingProvider, useBooking } from "@/contexts/BookingContext";
 import * as api from "@/lib/api";
-import { geocodeAddress, calculateDistanceKm } from "@/lib/geo";
-import { calculateTravelMode } from "@/lib/travel";
+import { geocodeAddress } from "@/lib/geo";
+import { calculateTravelMode, getDrivingMetrics } from "@/lib/travel";
 
 jest.mock("@/lib/api");
 jest.mock("@/lib/geo");
@@ -55,7 +55,7 @@ describe("BookingWizard flow", () => {
       data: { travel_rate: 2.5, travel_members: 1 },
     });
     (geocodeAddress as jest.Mock).mockResolvedValue({ lat: 0, lng: 0 });
-    (calculateDistanceKm as jest.Mock).mockReturnValue(10);
+    (getDrivingMetrics as jest.Mock).mockResolvedValue({ distanceKm: 10, durationHrs: 1 });
     (calculateTravelMode as jest.Mock).mockResolvedValue({
       mode: "drive",
       totalCost: 100,
@@ -115,7 +115,9 @@ describe("BookingWizard flow", () => {
       (window as any).__setStep(8);
     });
     await flushPromises();
-    expect(calculateTravelMode).toHaveBeenCalled();
+    expect(calculateTravelMode).toHaveBeenCalledWith(
+      expect.objectContaining({ drivingEstimate: 50 })
+    );
   });
 
   it("advances to the next step when pressing Enter on desktop", async () => {
