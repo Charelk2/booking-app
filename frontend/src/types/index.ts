@@ -115,7 +115,11 @@ export interface BookingRequestCreate {
   message?: string;
   attachment_url?: string;
   proposed_datetime_1?: string; // ISO‐formatted date‐time string
+  proposed_datetime_2?: string;
   status?: string;
+  travel_mode?: 'fly' | 'drive';
+  travel_cost?: number;
+  travel_breakdown?: Record<string, unknown>;
 }
 
 // This is what the backend returns when you GET a booking request:
@@ -128,6 +132,9 @@ export interface BookingRequest {
   attachment_url?: string | null;
   proposed_datetime_1?: string | null;
   proposed_datetime_2?: string | null;
+  travel_mode?: 'fly' | 'drive' | null;
+  travel_cost?: number | null;
+  travel_breakdown?: Record<string, unknown> | null;
   status: string; // e.g. "pending_quote", "quote_provided", etc.
   created_at: string;
   updated_at: string;
