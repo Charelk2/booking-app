@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -107,7 +108,16 @@ export default function BookingRequestsPage() {
   if (!user) {
     return (
       <MainLayout>
-        <div className="p-8">Please log in to view booking requests.</div>
+        <div className="p-8">
+          Please{' '}
+          <Link
+            href="/login"
+            className="text-brand-dark no-underline hover:no-underline"
+          >
+            log in
+          </Link>{' '}
+          to view booking requests.
+        </div>
       </MainLayout>
     );
   }
