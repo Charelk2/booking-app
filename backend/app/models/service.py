@@ -48,6 +48,10 @@ class Service(BaseModel):
         default=ServiceType.LIVE_PERFORMANCE,
     )
 
+    # New travel fields so quotes can accurately reflect costs
+    travel_rate = Column(Numeric(10, 2), nullable=True, default=2.5)
+    travel_members = Column(Integer, nullable=True, default=1)
+
     # Link back to the ArtistProfileV2
     artist = relationship("ArtistProfileV2", back_populates="services")
 
