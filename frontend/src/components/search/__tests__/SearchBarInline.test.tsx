@@ -3,6 +3,10 @@ import { act } from 'react-dom/test-utils';
 import { createRoot } from 'react-dom/client';
 import SearchBarInline from '../SearchBarInline';
 
+jest.mock('@/lib/loadPlaces', () => ({
+  loadPlaces: () => Promise.resolve({}),
+}));
+
 jest.mock('react-google-autocomplete/lib/usePlacesAutocompleteService', () => () => ({
   placesService: null,
   placePredictions: [],
@@ -14,15 +18,16 @@ describe('SearchBarInline', () => {
     document.body.innerHTML = '';
   });
 
-  it('expands and triggers onSearch', () => {
+  it('expands and triggers onSearch', async () => {
     const onSearch = jest.fn();
     const onChange = jest.fn();
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
 
-    act(() => {
+    await act(async () => {
       root.render(<SearchBarInline onSearch={onSearch} onExpandedChange={onChange} />);
+      await Promise.resolve();
     });
 
     const trigger = container.querySelector('button') as HTMLButtonElement;
@@ -45,15 +50,16 @@ describe('SearchBarInline', () => {
     container.remove();
   });
 
-  it('closes on Escape without searching', () => {
+  it('closes on Escape without searching', async () => {
     const onSearch = jest.fn();
     const onChange = jest.fn();
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
 
-    act(() => {
+    await act(async () => {
       root.render(<SearchBarInline onSearch={onSearch} onExpandedChange={onChange} />);
+      await Promise.resolve();
     });
 
     const trigger = container.querySelector('button') as HTMLButtonElement;
@@ -75,14 +81,15 @@ describe('SearchBarInline', () => {
     container.remove();
   });
 
-  it('location label does not wrap and is truncated', () => {
+  it('location label does not wrap and is truncated', async () => {
     const onSearch = jest.fn();
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
 
-    act(() => {
+    await act(async () => {
       root.render(<SearchBarInline onSearch={onSearch} />);
+      await Promise.resolve();
     });
 
     const locationDiv = container.querySelector('button > div:nth-child(2)') as HTMLDivElement;
@@ -94,14 +101,15 @@ describe('SearchBarInline', () => {
     container.remove();
   });
 
-  it('uses smaller max width when collapsed and expands to full width', () => {
+  it('uses smaller max width when collapsed and expands to full width', async () => {
     const onSearch = jest.fn();
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
 
-    act(() => {
+    await act(async () => {
       root.render(<SearchBarInline onSearch={onSearch} />);
+      await Promise.resolve();
     });
 
     const wrapper = container.querySelector('div') as HTMLDivElement;
