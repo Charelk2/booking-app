@@ -1156,7 +1156,7 @@ Returns a 3-day weather outlook for the provided location using data from `wttr.
 
 ### Travel Mode Decision
 
-`calculateTravelMode()` in `frontend/src/lib/travel.ts` automatically decides whether an artist should fly or drive to an event. It looks up the nearest airports, checks for direct routes and compares the total flying cost against a provided driving estimate.
+`calculateTravelMode()` in `frontend/src/lib/travel.ts` automatically decides whether an artist should fly or drive to an event. The helper geocodes the artist and event towns, finds the closest airport using great-circle distance, checks for supported routes and then compares the full flying cost (flights, transfers and car rental) with the driving estimate. The function works with any South African location and returns a detailed cost breakdown.
 
 ```ts
 import { calculateTravelMode } from '@/lib/travel';
@@ -1167,7 +1167,7 @@ const mode = await calculateTravelMode({
   numTravellers: 1,
   drivingEstimate: 5000,
 });
-console.log(mode.mode); // "fly" or "drive"
+console.log(mode.mode, mode.totalCost);
 ```
 
 The Booking Wizard automatically runs this check as soon as both the artist and
