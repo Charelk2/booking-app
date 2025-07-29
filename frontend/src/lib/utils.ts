@@ -2,6 +2,7 @@ import api from './api';
 import { DEFAULT_CURRENCY } from './constants';
 import { Service, QuoteTemplate } from '@/types';
 import { addDays, format } from 'date-fns';
+import axios from 'axios';
 
 export const getFullImageUrl = (
   relativePath: string | undefined | null,
@@ -77,6 +78,21 @@ export const normalizeService = (service: Service): Service => ({
  */
 export const applyDisplayOrder = (services: Service[]): Service[] =>
   services.map((s, i) => ({ ...s, display_order: i + 1 }));
+
+/**
+ * Return a user-friendly message based on whether the error was
+ * caused by an unauthenticated request.
+ */
+export const authAwareMessage = (
+  err: unknown,
+  fallback: string,
+  authMessage: string,
+): string => {
+  if (axios.isAxiosError(err) && err.response?.status === 401) {
+    return authMessage;
+  }
+  return fallback;
+};
 
 export const normalizeQuoteTemplate = (
   tmpl: QuoteTemplate,
