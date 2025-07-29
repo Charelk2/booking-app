@@ -7,6 +7,8 @@ export interface TravelInput {
   drivingEstimate: number;
   /** Per-kilometer travel fee used for driving and transfers */
   travelRate?: number;
+  /** Date of travel used for flight price lookups */
+  travelDate: Date;
 }
 
 export interface FlyBreakdown {
@@ -29,7 +31,7 @@ export interface TravelResult {
   };
 }
 
-const FLIGHT_COST_PER_PERSON = 2500;
+const DEFAULT_FLIGHT_COST_PER_PERSON = 2500;
 const CAR_RENTAL_COST = 1000;
 const RATE_PER_KM = 2.5;
 
@@ -78,6 +80,31 @@ const FLIGHT_ROUTES: Record<string, string[]> = {
   BFN: ['CPT', 'JNB'],
   PLZ: ['CPT', 'JNB'],
 };
+
+export async function fetchFlightCost(
+  depCode: string,
+  arrCode: string,
+  date: string | Date,
+): Promise<number> {
+  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const d = typeof date === 'string' ? date : date.toISOString().slice(0, 10);
+  const url = `${base}/api/v1/flights/cheapest?departure=${depCode}&arrival=${arrCode}&date=${d}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    const price = data.price;
+    if (typeof price !== 'number') {
+      throw new Error('Invalid price');
+    }
+    return price;
+  } catch (err) {
+    console.error('Flight cost fetch failed:', err);
+    throw err;
+  }
+}
 
 /**
  * Fetch geographic coordinates for a given city using the Google Geocoding API.
@@ -237,18 +264,21 @@ export async function calculateTravelMode(
       totalCost: input.drivingEstimate,
       breakdown: {
         drive: { estimate: input.drivingEstimate },
-        fly: {
-          perPerson: FLIGHT_COST_PER_PERSON,
-          travellers: input.numTravellers,
-          flightSubtotal: 0,
-          carRental: CAR_RENTAL_COST,
-          localTransferKm: 0,
-          departureTransferKm: 0,
-          transferCost: 0,
-          total: 0,
-        },
+        fly: makeEmptyFlyBreakdown(input, DEFAULT_FLIGHT_COST_PER_PERSON),
       },
     };
+  }
+
+  let flightPrice = DEFAULT_FLIGHT_COST_PER_PERSON;
+  try {
+    flightPrice = await fetchFlightCost(
+      depCode,
+      arrCode,
+      input.travelDate,
+    );
+  } catch (err) {
+    // eslint-disable-next-line no-console -- log and fall back to default price
+    console.error('Flight price lookup failed:', err);
   }
   if (!FLIGHT_ROUTES[depCode]?.includes(arrCode)) {
     return {
@@ -256,16 +286,7 @@ export async function calculateTravelMode(
       totalCost: input.drivingEstimate,
       breakdown: {
         drive: { estimate: input.drivingEstimate },
-        fly: {
-          perPerson: FLIGHT_COST_PER_PERSON,
-          travellers: input.numTravellers,
-          flightSubtotal: 0,
-          carRental: CAR_RENTAL_COST,
-          localTransferKm: 0,
-          departureTransferKm: 0,
-          transferCost: 0,
-          total: 0,
-        },
+        fly: makeEmptyFlyBreakdown(input, flightPrice),
       },
     };
   }
@@ -290,13 +311,13 @@ export async function calculateTravelMode(
       totalCost: input.drivingEstimate,
       breakdown: {
         drive: { estimate: input.drivingEstimate },
-        fly: makeEmptyFlyBreakdown(input),
+        fly: makeEmptyFlyBreakdown(input, flightPrice),
       },
     };
   }
 
   if (direct.durationHrs > DIRECT_DRIVE_THRESHOLD_HOURS) {
-    return computeFlyResult(input, depXfer, arrXfer);
+    return computeFlyResult(input, depXfer, arrXfer, flightPrice);
   }
 
   const totalFlyTime =
@@ -307,7 +328,7 @@ export async function calculateTravelMode(
       totalCost: input.drivingEstimate,
       breakdown: {
         drive: { estimate: input.drivingEstimate },
-        fly: computeFlyBreakdown(input, depXfer, arrXfer),
+        fly: computeFlyBreakdown(input, depXfer, arrXfer, flightPrice),
       },
     };
   }
@@ -316,7 +337,7 @@ export async function calculateTravelMode(
   const flyPenalty = totalFlyTime * TIME_COST_RATE;
 
   const adjustedDriveCost = input.drivingEstimate + drivePenalty;
-  const flyBreakdown = computeFlyBreakdown(input, depXfer, arrXfer);
+  const flyBreakdown = computeFlyBreakdown(input, depXfer, arrXfer, flightPrice);
   const adjustedFlyCost = flyBreakdown.total + flyPenalty;
 
   if (adjustedFlyCost < adjustedDriveCost) {
@@ -340,9 +361,12 @@ export async function calculateTravelMode(
   };
 }
 
-function makeEmptyFlyBreakdown(input: TravelInput): FlyBreakdown {
+function makeEmptyFlyBreakdown(
+  input: TravelInput,
+  pricePerPerson: number,
+): FlyBreakdown {
   return {
-    perPerson: FLIGHT_COST_PER_PERSON,
+    perPerson: pricePerPerson,
     travellers: input.numTravellers,
     flightSubtotal: 0,
     carRental: CAR_RENTAL_COST,
@@ -357,13 +381,14 @@ function computeFlyBreakdown(
   input: TravelInput,
   depXfer: DriveMetrics,
   arrXfer: DriveMetrics,
+  pricePerPerson: number,
 ): FlyBreakdown {
-  const flightSubtotal = input.numTravellers * FLIGHT_COST_PER_PERSON;
+  const flightSubtotal = input.numTravellers * pricePerPerson;
   const rate = input.travelRate ?? RATE_PER_KM;
   const transferCost = (depXfer.distanceKm + arrXfer.distanceKm) * rate * 2;
 
   return {
-    perPerson: FLIGHT_COST_PER_PERSON,
+    perPerson: pricePerPerson,
     travellers: input.numTravellers,
     flightSubtotal,
     carRental: CAR_RENTAL_COST,
@@ -378,8 +403,14 @@ function computeFlyResult(
   input: TravelInput,
   depXfer: DriveMetrics,
   arrXfer: DriveMetrics,
+  pricePerPerson: number,
 ): TravelResult {
-  const flyBreakdown = computeFlyBreakdown(input, depXfer, arrXfer);
+  const flyBreakdown = computeFlyBreakdown(
+    input,
+    depXfer,
+    arrXfer,
+    pricePerPerson,
+  );
   return {
     mode: 'fly',
     totalCost: flyBreakdown.total,

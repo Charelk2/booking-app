@@ -241,6 +241,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         numTravellers: numTravelMembers,
         drivingEstimate: drivingEstimateCost,
         travelRate,
+        travelDate: details.date,
       });
       setTravelResult(travelModeResult);
 
