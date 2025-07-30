@@ -50,6 +50,8 @@ def format_notification_message(
         return f"Quote #{kwargs.get('quote_id')} accepted"
     if ntype == NotificationType.QUOTE_EXPIRED:
         return f"Quote #{kwargs.get('quote_id')} expired"
+    if ntype == NotificationType.QUOTE_EXPIRING:
+        return f"Quote #{kwargs.get('quote_id')} expiring soon"
     if ntype == NotificationType.NEW_BOOKING:
         return f"New booking #{kwargs.get('booking_id')}"
     if ntype == NotificationType.DEPOSIT_DUE:
@@ -291,6 +293,46 @@ def notify_quote_accepted(
         message,
         f"/booking-requests/{booking_request_id}",
         quote_id=quote_id,
+    )
+    logger.info("Notify %s: %s", user.email, message)
+    _send_sms(user.phone_number, message)
+
+
+def notify_quote_expiring(
+    db: Session,
+    user: Optional[User],
+    quote_id: int,
+    expires_at: "datetime",
+    booking_request_id: int,
+) -> None:
+    """Notify a user that a quote will expire soon."""
+    if user is None:
+        logger.error(
+            "Failed to send quote expiring notification: user missing for quote %s",
+            quote_id,
+        )
+        return
+
+    existing = crud_notification.get_notifications_for_user(db, user.id)
+    already_sent = any(
+        n.type == NotificationType.QUOTE_EXPIRING and f"/quotes/{quote_id}" in n.link
+        for n in existing
+    )
+    if already_sent:
+        return
+
+    message = format_notification_message(
+        NotificationType.QUOTE_EXPIRING,
+        quote_id=quote_id,
+    )
+    _create_and_broadcast(
+        db,
+        user.id,
+        NotificationType.QUOTE_EXPIRING,
+        message,
+        f"/quotes/{quote_id}",
+        quote_id=quote_id,
+        expires_at=expires_at,
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
