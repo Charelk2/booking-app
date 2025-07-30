@@ -9,11 +9,14 @@ jest.mock('@/lib/loadPlaces', () => ({
 }));
 
 jest.mock('react-google-autocomplete/lib/usePlacesAutocompleteService', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const React = require('react');
   return () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [preds, setPreds] = React.useState<any[]>([]);
     return {
       placesService: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         getDetails: (_opts: any, cb: (p: any) => void) =>
           cb({
             geometry: { location: { lat: () => 1, lng: () => 2 } },
