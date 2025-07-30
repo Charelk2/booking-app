@@ -2660,6 +2660,52 @@
         }
       }
     },
+    "/api/v1/quotes/{quote_id}/pdf": {
+      "get": {
+        "tags": [
+          "quotes",
+          "Quotes"
+        ],
+        "summary": "Get Quote Pdf",
+        "operationId": "get_quote_pdf_api_v1_quotes__quote_id__pdf_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quote_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Quote Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/quotes/calculate": {
       "post": {
         "tags": [

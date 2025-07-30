@@ -3,6 +3,7 @@ import api, {
   createPayment,
   updateBookingStatus,
   downloadBookingIcs,
+  downloadQuotePdf,
   getMyArtistQuotes,
   getMyClientQuotes,
   updateQuoteAsArtist,
@@ -91,6 +92,19 @@ describe('downloadBookingIcs', () => {
       .mockResolvedValue({ data: new Blob() } as unknown as { data: Blob });
     await downloadBookingIcs(2);
     expect(spy).toHaveBeenCalledWith('/api/v1/bookings/2/calendar.ics', {
+      responseType: 'blob',
+    });
+    spy.mockRestore();
+  });
+});
+
+describe('downloadQuotePdf', () => {
+  it('requests the quote PDF as a blob', async () => {
+    const spy = jest
+      .spyOn(api, 'get')
+      .mockResolvedValue({ data: new Blob() } as unknown as { data: Blob });
+    await downloadQuotePdf(5);
+    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/5/pdf', {
       responseType: 'blob',
     });
     spy.mockRestore();
