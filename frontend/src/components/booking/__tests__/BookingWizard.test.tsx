@@ -24,10 +24,12 @@ function Wrapper({ serviceId }: { serviceId?: number } = {}) {
 
 function ExposeTravel() {
   const { setDetails, setTravelResult } = useBooking();
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   (window as unknown as { __setDetails: (d: any) => void }).__setDetails =
     setDetails;
   (window as unknown as { __setTravelResult: (r: any) => void }).__setTravelResult =
     setTravelResult;
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   return null;
 }
 
@@ -56,11 +58,13 @@ describe("BookingWizard flow", () => {
     });
     (geocodeAddress as jest.Mock).mockResolvedValue({ lat: 0, lng: 0 });
     (getDrivingMetrics as jest.Mock).mockResolvedValue({ distanceKm: 10, durationHrs: 1 });
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     (calculateTravelMode as jest.Mock).mockResolvedValue({
       mode: "drive",
       totalCost: 100,
       breakdown: { drive: { estimate: 100 }, fly: {} as any },
     });
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -106,12 +110,14 @@ describe("BookingWizard flow", () => {
       root.render(React.createElement(Wrapper, { serviceId: 1 }));
     });
     await act(async () => {
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       (window as any).__setDetails({ location: "Event City" });
     });
     await flushPromises();
     expect(calculateTravelMode).not.toHaveBeenCalled();
 
     await act(async () => {
+      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
       (window as any).__setStep(4);
     });
     await flushPromises();
