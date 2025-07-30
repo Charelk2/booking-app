@@ -51,48 +51,44 @@ const SendQuoteModal: React.FC<Props> = ({
 
   const currentDate = format(new Date(), 'PPP');
 
-  // Ref to track if initial pre-fill has happened
+  // Ref to track if we already applied the initial values so we don't
+  // clobber user edits when props update
   const hasPrefilled = useRef(false);
 
   useEffect(() => {
-    if (open) {
-      // Fetch templates and generate quote number every time modal opens
-      getQuoteTemplates(artistId)
-        .then((res) => setTemplates(res.data))
-        .catch(() => setTemplates([]));
-      setQuoteNumber(generateQuoteNumber());
-
-      // Reset fields on open, unless a template is already selected
-      if (selectedTemplate === '') {
-        setServices([]);
-        setAccommodation('');
-        setDiscount(0);
-        setExpiresHours(null);
-        setDescription('');
-
-        // Apply initial props only if they are numbers and we haven't pre-filled yet
-        // This ensures initial values are set once on modal open if no template is active
-        if (!hasPrefilled.current) {
-          if (typeof initialBaseFee === 'number') {
-            setServiceFee(initialBaseFee);
-          } else {
-            setServiceFee(0); // Default if not provided
-          }
-          if (typeof initialTravelCost === 'number') {
-            setTravelFee(initialTravelCost);
-          } else {
-            setTravelFee(0); // Default if not provided
-          }
-          setSoundFee(initialSoundNeeded ? 250 : 0); // Assuming 250 is the default estimated sound cost
-          hasPrefilled.current = true; // Mark as pre-filled
-        }
-      }
-    } else {
-      // Reset hasPrefilled when modal closes
+    if (!open) {
+      // reset when modal closes so next open can prefill again
       hasPrefilled.current = false;
-      setSelectedTemplate(''); // Reset selected template when modal closes
+      setSelectedTemplate('');
+      return;
     }
-  }, [open, artistId, initialBaseFee, initialTravelCost, initialSoundNeeded]); // Added initialSoundNeeded to dependencies
+
+    // fetch templates and generate quote number each time the modal opens
+    getQuoteTemplates(artistId)
+      .then((res) => setTemplates(res.data))
+      .catch(() => setTemplates([]));
+    setQuoteNumber(generateQuoteNumber());
+
+    if (selectedTemplate === '') {
+      // always clear optional fields when no template is selected
+      setServices([]);
+      setAccommodation('');
+      setDiscount(0);
+      setExpiresHours(null);
+      setDescription('');
+
+      // apply initial props once when they become available
+      if (!hasPrefilled.current &&
+          (typeof initialBaseFee === 'number' ||
+            typeof initialTravelCost === 'number' ||
+            typeof initialSoundNeeded === 'boolean')) {
+        setServiceFee(typeof initialBaseFee === 'number' ? initialBaseFee : 0);
+        setTravelFee(typeof initialTravelCost === 'number' ? initialTravelCost : 0);
+        setSoundFee(initialSoundNeeded ? 250 : 0);
+        hasPrefilled.current = true;
+      }
+    }
+  }, [open, selectedTemplate, artistId, initialBaseFee, initialTravelCost, initialSoundNeeded]);
 
   useEffect(() => {
     const tmpl = templates.find((t) => t.id === selectedTemplate);
