@@ -257,3 +257,24 @@ def accept_quote(
         )
 
     return booking
+
+
+def expire_pending_quotes(db: Session) -> list[models.QuoteV2]:
+    """Mark all pending quotes past their expiry as expired."""
+    now = datetime.utcnow()
+    expired = (
+        db.query(models.QuoteV2)
+        .filter(
+            models.QuoteV2.status == models.QuoteStatusV2.PENDING,
+            models.QuoteV2.expires_at != None,
+            models.QuoteV2.expires_at < now,
+        )
+        .all()
+    )
+    for q in expired:
+        q.status = models.QuoteStatusV2.EXPIRED
+    if expired:
+        db.commit()
+        for q in expired:
+            db.refresh(q)
+    return expired

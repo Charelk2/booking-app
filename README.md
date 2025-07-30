@@ -220,6 +220,14 @@ This command writes `docs/openapi.json`. If the server is running you can also d
 curl http://localhost:8000/openapi.json -o docs/openapi.json
 ```
 
+### Quote expiry scheduler
+
+`backend/main.py` launches a background task that runs every five minutes and
+marks pending quotes as expired once their `expires_at` time passes. The helper
+`notify_quote_expired` alerts both the artist and client when this occurs.
+If you deploy multiple workers, ensure only one instance runs the scheduler or
+replace it with a system cron job that calls `expire_pending_quotes()`.
+
 ### Google Calendar OAuth
 
 Set these variables in your `.env` file (in the repo root) to enable syncing with Google Calendar:
