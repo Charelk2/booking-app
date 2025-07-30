@@ -74,6 +74,32 @@ def read_messages(
     return result
 
 
+@router.put("/booking-requests/{request_id}/messages/read")
+def mark_messages_read(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Mark messages in the thread as read by the current user."""
+    booking_request = crud.crud_booking_request.get_booking_request(
+        db, request_id=request_id
+    )
+    if not booking_request:
+        raise error_response(
+            "Booking request not found",
+            {"request_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
+        raise error_response(
+            "Not authorized to modify messages",
+            {},
+            status.HTTP_403_FORBIDDEN,
+        )
+    updated = crud.crud_message.mark_messages_read(db, request_id, current_user.id)
+    return {"updated": updated}
+
+
 @router.post(
     "/booking-requests/{request_id}/messages", response_model=schemas.MessageResponse
 )

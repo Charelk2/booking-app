@@ -415,6 +415,11 @@ export const postMessageToBookingRequest = (
     data
   );
 
+export const markMessagesRead = (bookingRequestId: number) =>
+  api.put<{ updated: number }>(
+    `${API_V1}/booking-requests/${bookingRequestId}/messages/read`
+  );
+
 export const uploadMessageAttachment = (
   bookingRequestId: number,
   file: File,
