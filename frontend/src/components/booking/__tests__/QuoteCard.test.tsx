@@ -55,6 +55,8 @@ describe('QuoteCard', () => {
     expect(container.textContent).toContain('Perf');
     expect(container.textContent).toContain(formatCurrency(100));
     expect(container.textContent).toContain(formatCurrency(130));
+    const btn = container.querySelector('[data-testid="download-quote-pdf"]');
+    expect(btn).not.toBeNull();
   });
 
   it('shows countdown for pending quote', () => {

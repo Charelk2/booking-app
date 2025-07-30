@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import Button from '../ui/Button';
 import { QuoteV2 } from '@/types';
 import { formatCurrency } from '@/lib/utils';
+import { downloadQuotePdf } from '@/lib/api';
 
 interface Props {
   quote: QuoteV2;
@@ -21,6 +22,23 @@ const QuoteCard: React.FC<Props> = ({ quote, isClient, onAccept, onDecline, book
   };
   const [remaining, setRemaining] = useState('');
   const [warning, setWarning] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    try {
+      const res = await downloadQuotePdf(quote.id);
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `quote-${quote.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Quote PDF download error', err);
+    }
+  };
 
   useEffect(() => {
     if (!quote.expires_at || quote.status !== 'pending') {
@@ -93,6 +111,16 @@ const QuoteCard: React.FC<Props> = ({ quote, isClient, onAccept, onDecline, book
           </>
         )}
         {bookingConfirmed && <span className="ml-2 text-green-600">🎉 Booking Confirmed</span>}
+        <Button
+          type="button"
+          onClick={handleDownloadPdf}
+          variant="secondary"
+          size="sm"
+          data-testid="download-quote-pdf"
+          className="ml-2"
+        >
+          Download PDF
+        </Button>
       </div>
     </div>
   );
