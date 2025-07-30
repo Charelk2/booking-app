@@ -20,6 +20,10 @@ import {
 } from '@/lib/utils';
 import AlertBanner from '../ui/AlertBanner';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
+import {
+  ParsedBookingDetails,
+  parseBookingDetailsFromMessage,
+} from '@/lib/bookingDetails';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Booking, Review, Message, MessageCreate, QuoteV2, QuoteV2Create } from '@/types';
 import {
@@ -151,29 +155,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     (msg) => setPaymentError(msg),
   );
 
-  // Helper to parse booking details from system message content
-  const parseBookingDetailsFromMessage = useCallback((content: string): ParsedBookingDetails => {
-    const details: ParsedBookingDetails = {};
-    const lines = content.replace(BOOKING_DETAILS_PREFIX, '').trim().split('\n');
-    lines.forEach(line => {
-      const parts = line.split(':');
-      if (parts.length >= 2) {
-        const key = parts[0].trim();
-        const value = parts.slice(1).join(':').trim();
-        switch (key) {
-          case 'Event Type': details.eventType = value; break;
-          case 'Description': details.description = value; break;
-          case 'Date': details.date = value; break;
-          case 'Location': details.location = value; break;
-          case 'Guests': details.guests = value; break;
-          case 'Venue': details.venueType = value; break;
-          case 'Sound': details.soundNeeded = value; break;
-          case 'Notes': details.notes = value; break;
-        }
-      }
-    });
-    return details;
-  }, []);
+
 
   // Moved ensureQuoteLoaded declaration here to fix hoisting issue
   const ensureQuoteLoaded = useCallback(
