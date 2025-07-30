@@ -11,6 +11,7 @@ class NotificationType(str, enum.Enum):
     BOOKING_STATUS_UPDATED = "booking_status_updated"
     QUOTE_ACCEPTED = "quote_accepted"
     QUOTE_EXPIRED = "quote_expired"
+    QUOTE_EXPIRING = "quote_expiring"
     NEW_BOOKING = "new_booking"
     DEPOSIT_DUE = "deposit_due"
     REVIEW_REQUEST = "review_request"
