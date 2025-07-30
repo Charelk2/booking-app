@@ -37,6 +37,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Payment receipts are stored with a `payment_id` so clients can view them from the dashboard.
 - Users can download all account data via `/api/v1/users/me/export` and permanently delete their account with `DELETE /api/v1/users/me`.
 - Booking cards now show deposit and payment status with a simple progress timeline.
+- Booking request detail pages now display a step-by-step timeline from submission to quote acceptance.
 - Booking wizard includes a required **Guests** step.
 - Date picker and quote calculator show skeleton loaders while data fetches.
 - Google Maps and large images load lazily once in view to reduce first paint time.
