@@ -18,6 +18,7 @@ from app.models import (
 from app.models.base import BaseModel
 from fastapi import HTTPException
 from app.api import api_quote_v2
+from app import models
 from app.schemas.quote_v2 import ServiceItem, QuoteCreate
 
 
@@ -769,3 +770,69 @@ def test_accept_quote_without_date_for_video_service():
     assert db_booking is not None
     assert booking.id == db_booking.id
     assert db_booking.start_time is not None
+
+
+def test_expire_pending_quotes():
+    db = setup_db()
+    artist = User(
+        email="expire@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="expirec@test.com",
+        password="x",
+        first_name="C",
+        last_name="Client",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    service = Service(
+        artist_id=artist.id,
+        title="Gig",
+        description="",
+        price=Decimal("100"),
+        currency="ZAR",
+        duration_minutes=60,
+        service_type="Live Performance",
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    from datetime import datetime, timedelta
+
+    expired_at = datetime.utcnow() - timedelta(minutes=1)
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        service_id=service.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    quote_in = QuoteCreate(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=client.id,
+        services=[ServiceItem(description="Performance", price=Decimal("100"))],
+        sound_fee=Decimal("0"),
+        travel_fee=Decimal("0"),
+        expires_at=expired_at,
+    )
+    quote = api_quote_v2.create_quote(quote_in, db)
+
+    from app.crud import crud_quote_v2
+
+    expired = crud_quote_v2.expire_pending_quotes(db)
+    assert len(expired) == 1
+    db.refresh(quote)
+    assert quote.status == models.QuoteStatusV2.EXPIRED
