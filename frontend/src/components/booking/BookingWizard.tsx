@@ -19,7 +19,7 @@ import {
   calculateQuote,
 } from '@/lib/api';
 import { geocodeAddress } from '@/lib/geo';
-import { calculateTravelMode, TravelResult, getDrivingMetrics } from '@/lib/travel';
+import { calculateTravelMode, getDrivingMetrics } from '@/lib/travel';
 
 import { BookingRequestCreate } from '@/types';
 import Stepper from '../ui/Stepper';
@@ -250,7 +250,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     } finally {
       setIsLoadingReviewData(false);
     }
-  }, [serviceId, artistLocation, details.location, setTravelResult]);
+  }, [serviceId, artistLocation, details.location, details.date, setTravelResult]);
 
   // Trigger the calculation when at or beyond the Guests step
   useEffect(() => {
