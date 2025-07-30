@@ -235,8 +235,8 @@ export interface Message {
   quote_id?: number | null;
   attachment_url?: string | null;
   avatar_url?: string | null;
-  /** Whether the message has been read by the current user */
-  unread?: boolean;
+  /** True if the recipient has viewed the message */
+  is_read: boolean;
   timestamp: string;
 }
 

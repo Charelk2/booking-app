@@ -111,7 +111,7 @@ describe('MessageThread component', () => {
           content: 'Hello there',
           message_type: 'text',
           timestamp: new Date().toISOString(),
-          unread: true,
+          is_read: false,
         },
       ],
     });

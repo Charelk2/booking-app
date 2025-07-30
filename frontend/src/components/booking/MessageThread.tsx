@@ -25,6 +25,7 @@ import {
   parseBookingDetailsFromMessage,
 } from '@/lib/bookingDetails';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
+import { DocumentIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { Booking, Review, Message, MessageCreate, QuoteV2, QuoteV2Create } from '@/types';
 import {
   getMessagesForBookingRequest,
@@ -36,6 +37,7 @@ import {
   updateQuoteAsClient,
   getBookingDetails,
   downloadBookingIcs,
+  markMessagesRead,
 } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext'; // Corrected import path for AuthContext
 import Button from '../ui/Button';
@@ -144,6 +146,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const prevLengthRef = useRef(0);
   const [acceptingQuoteId, setAcceptingQuoteId] = useState<number | null>(null);
   const computedServiceName = serviceName ?? bookingDetails?.service?.title;
+  const firstUnreadRef = useRef<HTMLDivElement | null>(null);
 
   const { openPaymentModal, paymentModal } = usePaymentModal(
     ({ status, amount, receiptUrl: url }) => {
@@ -155,6 +158,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     (msg) => setPaymentError(msg),
   );
 
+  const firstUnreadIndex = useMemo(
+    () =>
+      messages.findIndex(
+        (m) => m.sender_id !== user?.id && !m.is_read
+      ),
+    [messages, user?.id],
+  );
 
 
   // Moved ensureQuoteLoaded declaration here to fix hoisting issue
@@ -203,6 +213,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       });
 
       setMessages(filtered);
+      const hasUnread = filtered.some(
+        (m_item) => m_item.sender_id !== user?.id && !m_item.is_read
+      );
+      if (hasUnread) {
+        try {
+          await markMessagesRead(bookingRequestId);
+        } catch (err) {
+          console.error('Failed to mark messages read', err);
+        }
+      }
       filtered.forEach((m_item) => {
         if (m_item.message_type === 'quote' && typeof m_item.quote_id === 'number') {
           void ensureQuoteLoaded(m_item.quote_id);
@@ -339,7 +359,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         if (onMessageSent) onMessageSent();
       } catch (err) {
         console.error('Failed to send message', err);
-        setErrorMsg((err as Error).message);
+        setErrorMsg(
+          `Failed to send message. ${(err as Error).message || 'Please try again later.'}`
+        );
         setUploading(0);
       }
     },
@@ -625,7 +647,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           const firstMsg = group.messages[0];
           const isSystem = firstMsg.message_type === 'system';
           const isSelf = !isSystem && firstMsg.sender_id === user?.id;
-          const anyUnread = group.messages.some((m_item) => m_item.unread);
+          const anyUnread = group.messages.some((m_item) => !m_item.is_read);
           const groupClass = `${idx > 0 ? 'mt-4' : ''} ${anyUnread ? 'bg-indigo-50 rounded-xl p-3 shadow-sm' : ''}`;
 
           return (
@@ -692,6 +714,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                     initial={{ opacity: 0, translateY: 8 }}
                     animate={{ opacity: 1, translateY: 0 }}
                     className={`flex flex-col ${mIdx < group.messages.length - 1 ? 'mb-1' : ''}`}
+                    ref={idx === firstUnreadIndex && mIdx === 0 ? firstUnreadRef : null}
                   >
                     <div className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
                       <div
@@ -774,6 +797,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                           </span>
                           {timeString}
                         </time>
+                        {msg.sender_id === user?.id && msg.is_read && (
+                          <span className="ml-6 text-[10px] text-gray-500">Seen</span>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -823,6 +849,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           </svg>
         </button>
       )}
+      {firstUnreadIndex !== -1 && (
+        <button
+          type="button"
+          aria-label="Jump to unread"
+          onClick={() =>
+            firstUnreadRef.current?.scrollIntoView({ behavior: 'smooth' })
+          }
+          className="fixed bottom-24 left-6 z-50 md:hidden rounded-full bg-indigo-600 p-3 text-white shadow-lg hover:bg-indigo-700 transition-colors"
+        >
+          Jump to unread
+        </button>
+      )}
       <div aria-live="polite" className="sr-only">{announceNewMessage}</div>
       {user && (
         <>
@@ -838,7 +876,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   className="w-12 h-12 object-cover rounded-md border border-gray-200"
                 />
               ) : (
-                <span className="text-sm text-gray-700 font-medium">{file?.name}</span>
+                <>
+                  {file?.type === 'application/pdf' ? (
+                    <DocumentIcon className="w-6 h-6 text-red-600" />
+                  ) : (
+                    <DocumentTextIcon className="w-6 h-6 text-gray-600" />
+                  )}
+                  <span className="text-sm text-gray-700 font-medium">{file?.name}</span>
+                </>
               )}
               <button type="button" onClick={() => setFile(null)} className="text-sm text-red-600 hover:text-red-700 font-medium">
                 Remove

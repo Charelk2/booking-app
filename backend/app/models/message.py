@@ -1,4 +1,13 @@
-from sqlalchemy import Column, Integer, Text, DateTime, Enum, ForeignKey, String
+from sqlalchemy import (
+    Column,
+    Integer,
+    Text,
+    DateTime,
+    Enum,
+    ForeignKey,
+    String,
+    Boolean,
+)
 from sqlalchemy.orm import relationship, backref
 from datetime import datetime
 import enum
@@ -28,6 +37,7 @@ class Message(BaseModel):
     quote_id = Column(Integer, ForeignKey("quotes_v2.id"), nullable=True)
     attachment_url = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    is_read = Column(Boolean, default=False)
 
     booking_request = relationship(
         "BookingRequest",

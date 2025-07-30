@@ -872,6 +872,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Unified feed combines booking updates and message threads.
 * Mark-as-read endpoints and “Mark All as Read”.
 * Individual notifications are updated via `PUT /api/v1/notifications/{id}/read` and all can be cleared with `PUT /api/v1/notifications/read-all`.
+* `PUT /api/v1/booking-requests/{id}/messages/read` marks all messages in a thread as read.
 * "Unread Only" toggle filters message threads and alerts in the drawer and full-screen modal.
 * Notification lists now use **react-window** for virtualization so scrolling large histories is smoother. Install `react-window` if you upgrade dependencies manually.
 * Grouped notification views are now generated in the UI from `/notifications` and the old `/notifications/grouped` endpoint was removed.
@@ -892,7 +893,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Message notifications now include the sender name in both the stored text and the API response so the drawer can display "New message from Alice" without additional lookups.
 * All notifications now include the sender's profile picture when available so avatars render consistently for artists and clients.
 * Artists marking a booking **completed** now trigger a **REVIEW_REQUEST** notification. The alert links to `/dashboard/client/bookings/{booking_id}?review=1` so clients can immediately leave feedback.
-* Chat message groups display a small unread badge on the right side when new messages arrive, clearing automatically once read.
+* Chat message groups display a small unread badge on the right side when new messages arrive, clearing automatically once read. A **Jump to unread** button quickly scrolls to the first unseen message and messages you send show a subtle *Seen* label once the recipient reads them.
+* File uploads now render PDF or document icons for non-image attachments so previews are clearer.
 * Day divider lines show the full date, while relative times remain visible next to each message group.
 * Booking request notifications display the sender name as the title and the service type in the subtitle with contextual icons. Service names are converted from `PascalCase` or `snake_case` and truncated for readability. The `/api/v1/notifications` endpoint now includes `sender_name` and `booking_type` fields so the frontend no longer parses them from the message string.
 * Deposit due, new booking and status update alerts also populate `sender_name` with the relevant artist or client so titles are consistent across notification types.
