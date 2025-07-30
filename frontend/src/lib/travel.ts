@@ -39,7 +39,7 @@ const RATE_PER_KM = 2.5;
 const MAX_TRANSFER_HOURS = 3;
 
 /** If the direct drive to the gig exceeds this, force a flight (if reachable) */
-const DIRECT_DRIVE_THRESHOLD_HOURS = 8;
+const DIRECT_DRIVE_THRESHOLD_HOURS = 5;
 
 /** Rough overhead for check-in, security, boarding, taxi etc. */
 const FLIGHT_OVERHEAD_HOURS = 2;
