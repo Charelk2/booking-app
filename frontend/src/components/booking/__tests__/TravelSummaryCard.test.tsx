@@ -31,9 +31,9 @@ describe('TravelSummaryCard', () => {
         />,
       );
     });
-    expect(div.textContent).toContain('Flights:');
+    expect(div.textContent).toContain('Flights (2):');
     expect(div.textContent).toContain(formatCurrency(5560));
-    expect(div.textContent).toContain('avg price for 2 travelling members');
+    expect(div.textContent).toContain('avg price');
     act(() => {
       root.unmount();
     });
