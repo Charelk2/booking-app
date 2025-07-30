@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import Button from '../ui/Button';
 import { ServiceItem, QuoteV2Create, QuoteTemplate } from '@/types';
@@ -13,6 +13,10 @@ interface Props {
   clientId: number;
   bookingRequestId: number;
   serviceName?: string;
+  // New props for initial quote data
+  initialBaseFee?: number;
+  initialTravelCost?: number;
+  initialSoundNeeded?: boolean; // New prop
 }
 
 const expiryOptions = [
@@ -29,6 +33,9 @@ const SendQuoteModal: React.FC<Props> = ({
   clientId,
   bookingRequestId,
   serviceName,
+  initialBaseFee,
+  initialTravelCost,
+  initialSoundNeeded, // Destructure new prop
 }) => {
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [serviceFee, setServiceFee] = useState(0);
@@ -44,31 +51,70 @@ const SendQuoteModal: React.FC<Props> = ({
 
   const currentDate = format(new Date(), 'PPP');
 
+  // Ref to track if initial pre-fill has happened
+  const hasPrefilled = useRef(false);
+
   useEffect(() => {
     if (open) {
+      // Fetch templates and generate quote number every time modal opens
       getQuoteTemplates(artistId)
         .then((res) => setTemplates(res.data))
         .catch(() => setTemplates([]));
       setQuoteNumber(generateQuoteNumber());
+
+      // Reset fields on open, unless a template is already selected
+      if (selectedTemplate === '') {
+        setServices([]);
+        setAccommodation('');
+        setDiscount(0);
+        setExpiresHours(null);
+        setDescription('');
+
+        // Apply initial props only if they are numbers and we haven't pre-filled yet
+        // This ensures initial values are set once on modal open if no template is active
+        if (!hasPrefilled.current) {
+          if (typeof initialBaseFee === 'number') {
+            setServiceFee(initialBaseFee);
+          } else {
+            setServiceFee(0); // Default if not provided
+          }
+          if (typeof initialTravelCost === 'number') {
+            setTravelFee(initialTravelCost);
+          } else {
+            setTravelFee(0); // Default if not provided
+          }
+          setSoundFee(initialSoundNeeded ? 250 : 0); // Assuming 250 is the default estimated sound cost
+          hasPrefilled.current = true; // Mark as pre-filled
+        }
+      }
+    } else {
+      // Reset hasPrefilled when modal closes
+      hasPrefilled.current = false;
+      setSelectedTemplate(''); // Reset selected template when modal closes
     }
-  }, [open, artistId]);
+  }, [open, artistId, initialBaseFee, initialTravelCost, initialSoundNeeded]); // Added initialSoundNeeded to dependencies
 
   useEffect(() => {
     const tmpl = templates.find((t) => t.id === selectedTemplate);
     if (tmpl) {
-      if (tmpl.services.length > 0) {
-        setServiceFee(Number(tmpl.services[0].price));
-        setServices(tmpl.services.slice(1));
-      } else {
-        setServiceFee(0);
-        setServices([]);
-      }
+      // Apply template values
+      setServiceFee(Number(tmpl.services[0]?.price || 0));
+      setServices(tmpl.services.slice(1));
       setSoundFee(tmpl.sound_fee);
       setTravelFee(tmpl.travel_fee);
       setAccommodation(tmpl.accommodation || '');
       setDiscount(tmpl.discount || 0);
+    } else if (selectedTemplate === '') {
+      // If "Choose template" is selected (or no template was initially chosen),
+      // revert to initial props or default to 0/empty
+      setServiceFee(typeof initialBaseFee === 'number' ? initialBaseFee : 0);
+      setTravelFee(typeof initialTravelCost === 'number' ? initialTravelCost : 0);
+      setSoundFee(initialSoundNeeded ? 250 : 0); // Revert soundFee based on initialSoundNeeded
+      setAccommodation('');
+      setDiscount(0);
+      setServices([]);
     }
-  }, [selectedTemplate, templates]);
+  }, [selectedTemplate, templates, initialBaseFee, initialTravelCost, initialSoundNeeded]); // Added initialSoundNeeded to dependencies
 
   const subtotal =
     serviceFee + services.reduce((acc, s) => acc + Number(s.price), 0) + soundFee + travelFee;
@@ -102,13 +148,13 @@ const SendQuoteModal: React.FC<Props> = ({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-medium">Send Quote</h2>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 border border-gray-100">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">Send Quote</h2>
           {templates.length > 0 && (
             <select
-              className="border rounded px-2 py-1 text-sm"
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
               value={selectedTemplate}
               onChange={(e) =>
                 setSelectedTemplate(e.target.value ? Number(e.target.value) : '')
@@ -123,113 +169,117 @@ const SendQuoteModal: React.FC<Props> = ({
             </select>
           )}
         </div>
-        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-          <div className="flex flex-col gap-y-2 mb-2 text-sm">
-            <div>{quoteNumber}</div>
-            <div>{currentDate}</div>
+        <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2">
+          <div className="flex flex-col gap-y-2 mb-2 text-sm text-gray-600">
+            <div><span className="font-medium">Quote No:</span> {quoteNumber}</div>
+            <div><span className="font-medium">Date:</span> {currentDate}</div>
             <input
               type="text"
-              className="border rounded p-1"
-              placeholder="Description"
+              className="border border-gray-300 rounded-md p-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Quote Description (e.g., 'Wedding Performance')"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-          <label htmlFor="service-fee" className="flex items-center gap-2 text-sm font-normal mb-2 border rounded p-2">
-            <span className="flex-1">{serviceName ?? 'Service'} fee</span>
-            <input
-              id="service-fee"
-              type="number"
-              inputMode="numeric"
-              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="Enter amount"
-              value={serviceFee}
-              onChange={(e) => setServiceFee(Number(e.target.value))}
-            />
-          </label>
-          <label htmlFor="sound-fee" className="flex items-center gap-2 text-sm font-normal mb-2 border rounded p-2">
-            <span className="flex-1">Sound fee</span>
-            <input
-              id="sound-fee"
-              type="number"
-              inputMode="numeric"
-              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="Enter amount"
-              value={soundFee}
-              onChange={(e) => setSoundFee(Number(e.target.value))}
-            />
-          </label>
-          <label htmlFor="travel-fee" className="flex items-center gap-2 text-sm font-normal mb-2 border rounded p-2">
-            <span className="flex-1">Travel fee</span>
-            <input
-              id="travel-fee"
-              type="number"
-              inputMode="numeric"
-              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="Enter amount"
-              value={travelFee}
-              onChange={(e) => setTravelFee(Number(e.target.value))}
-            />
-          </label>
+
+          <div className="space-y-3">
+            <label htmlFor="service-fee" className="flex items-center gap-2 text-sm font-normal border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <span className="flex-1 font-medium text-gray-700">{serviceName ?? 'Service'} fee</span>
+              <input
+                id="service-fee"
+                type="number"
+                inputMode="numeric"
+                className="w-28 border border-gray-300 rounded-md p-1.5 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="0.00"
+                value={serviceFee}
+                onChange={(e) => setServiceFee(Number(e.target.value))}
+              />
+            </label>
+            <label htmlFor="sound-fee" className="flex items-center gap-2 text-sm font-normal border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <span className="flex-1 font-medium text-gray-700">Sound fee</span>
+              <input
+                id="sound-fee"
+                type="number"
+                inputMode="numeric"
+                className="w-28 border border-gray-300 rounded-md p-1.5 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="0.00"
+                value={soundFee}
+                onChange={(e) => setSoundFee(Number(e.target.value))}
+              />
+            </label>
+            <label htmlFor="travel-fee" className="flex items-center gap-2 text-sm font-normal border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <span className="flex-1 font-medium text-gray-700">Travel fee</span>
+              <input
+                id="travel-fee"
+                type="number"
+                inputMode="numeric"
+                className="w-28 border border-gray-300 rounded-md p-1.5 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="0.00"
+                value={travelFee}
+                onChange={(e) => setTravelFee(Number(e.target.value))}
+              />
+            </label>
+          </div>
+
           {services.map((s, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm font-normal mb-2 border rounded p-2">
+            <div key={i} className="flex items-center gap-2 text-sm font-normal border border-gray-200 rounded-lg p-3 bg-gray-50">
               <input
                 type="text"
-                className="flex-1 border rounded p-1"
-                placeholder="Description"
+                className="flex-1 border border-gray-300 rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Item Description"
                 value={s.description}
                 onChange={(e) => updateService(i, 'description', e.target.value)}
               />
               <input
                 type="number"
-                className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
+                className="w-28 border border-gray-300 rounded-md p-1.5 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 inputMode="numeric"
-                placeholder="Enter amount"
+                placeholder="0.00"
                 value={s.price}
                 onChange={(e) => updateService(i, 'price', e.target.value)}
               />
-              {services.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => removeService(i)}
-                  aria-label="Remove item"
-                  className="text-red-600"
-                >
-                  ×
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => removeService(i)}
+                aria-label="Remove item"
+                className="text-red-500 hover:text-red-700 transition-colors text-lg font-bold"
+              >
+                &times;
+              </button>
             </div>
           ))}
-          <Button type="button" onClick={addService} className="text-sm" variant="secondary">
-            Add Item
+          <Button type="button" onClick={addService} className="text-sm w-full py-2.5" variant="secondary">
+            + Add Custom Item
           </Button>
-          <label htmlFor="accommodation" className="flex flex-col text-sm font-normal">
-            Accommodation (optional)
+
+          <label htmlFor="accommodation" className="flex flex-col text-sm font-normal mt-4">
+            <span className="font-medium text-gray-700 mb-1">Accommodation (optional)</span>
             <textarea
               id="accommodation"
-              className="w-full border rounded p-1 focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="Optional: e.g. 500"
+              className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="E.g., '1 night hotel stay: $150'"
               value={accommodation}
               onChange={(e) => setAccommodation(e.target.value)}
+              rows={2}
             />
           </label>
-          <label htmlFor="discount" className="flex items-center gap-2 text-sm font-normal mb-2">
-            <span className="flex-1">Discount (optional)</span>
+          <label htmlFor="discount" className="flex items-center gap-2 text-sm font-normal mt-4 border border-gray-200 rounded-lg p-3 bg-gray-50">
+            <span className="flex-1 font-medium text-gray-700">Discount (optional)</span>
             <input
               id="discount"
               type="number"
               inputMode="numeric"
-              className="w-24 border rounded p-1 text-left focus:outline-none focus:ring-2 focus:ring-brand"
-              placeholder="Optional: e.g. 500"
+              className="w-28 border border-gray-300 rounded-md p-1.5 text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="0.00"
               value={discount}
               onChange={(e) => setDiscount(Number(e.target.value))}
             />
           </label>
-          <label htmlFor="expires-hours" className="flex flex-col text-sm font-normal">
-            Expires in
+          <label htmlFor="expires-hours" className="flex flex-col text-sm font-normal mt-4">
+            <span className="font-medium text-gray-700 mb-1">Expires in</span>
             <select
               id="expires-hours"
-              className="w-full border rounded p-1 focus:outline-none focus:ring-2 focus:ring-brand"
+              className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               value={expiresHours ?? ''}
               onChange={(e) => setExpiresHours(e.target.value ? Number(e.target.value) : null)}
             >
@@ -241,21 +291,24 @@ const SendQuoteModal: React.FC<Props> = ({
               ))}
             </select>
           </label>
-          <hr className="border-t my-2" />
-          <div className="text-sm">
-            <span className="text-gray-500">Subtotal: {formatCurrency(subtotal)}</span>
-            <br />
-            <span className="font-medium">
-              Total (after discount): {formatCurrency(total)}
-            </span>
+          <hr className="border-t border-gray-200 my-4" />
+          <div className="text-base font-semibold text-gray-800">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-gray-600">Subtotal:</span>
+              <span>{formatCurrency(subtotal)}</span>
+            </div>
+            <div className="flex justify-between items-center text-lg font-bold text-indigo-700">
+              <span>Total (after discount):</span>
+              <span>{formatCurrency(total)}</span>
+            </div>
           </div>
         </div>
-        <div className="flex gap-2 mt-4">
-          <Button type="button" variant="secondary" onClick={onClose}>
+        <div className="flex gap-3 mt-6">
+          <Button type="button" variant="secondary" onClick={onClose} className="flex-1 py-2.5 rounded-full border-gray-300 text-gray-700 hover:bg-gray-100">
             Cancel
           </Button>
-          <Button type="button" onClick={handleSubmit} title="This quote will be sent to the client">
-            Send
+          <Button type="button" onClick={handleSubmit} title="This quote will be sent to the client" className="flex-1 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md">
+            Send Quote
           </Button>
         </div>
       </div>
