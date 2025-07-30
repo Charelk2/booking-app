@@ -124,7 +124,7 @@ export interface BookingRequestCreate {
 
 // This is what the backend returns when you GET a booking request:
 export interface BookingRequest {
-  sound_required: undefined;
+  sound_required?: boolean | null;
   id: number;
   client_id: number;
   artist_id: number;
