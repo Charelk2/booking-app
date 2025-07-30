@@ -287,6 +287,11 @@ export const downloadBookingIcs = (id: number) =>
     responseType: 'blob',
   });
 
+export const downloadQuotePdf = (id: number) =>
+  api.get<Blob>(`${API_V1}/quotes/${id}/pdf`, {
+    responseType: 'blob',
+  });
+
 // ─── REVIEWS ───────────────────────────────────────────────────────────────────
 
 // create review for a booking: POST /api/v1/reviews/bookings/{booking_id}/reviews

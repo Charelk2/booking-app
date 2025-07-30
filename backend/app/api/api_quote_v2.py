@@ -1,15 +1,21 @@
 from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 import logging
+import os
 
 from .. import models, schemas
 from ..utils import error_response
 from ..crud import crud_quote_v2, crud_message
-from .dependencies import get_db
+from .dependencies import get_db, get_current_user
+from ..services import quote_pdf
 
 router = APIRouter(tags=["QuotesV2"])
 logger = logging.getLogger(__name__)
+
+QUOTE_DIR = os.path.join(os.path.dirname(__file__), "..", "static", "quotes")
+os.makedirs(QUOTE_DIR, exist_ok=True)
 
 
 @router.post(
@@ -101,3 +107,26 @@ def accept_quote(
             {"quote_id": "db_error"},
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@router.get("/quotes/{quote_id}/pdf")
+def get_quote_pdf(
+    quote_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    quote = crud_quote_v2.get_quote(db, quote_id)
+    if not quote or (
+        quote.client_id != current_user.id and quote.artist_id != current_user.id
+    ):
+        raise error_response(
+            "Quote not found",
+            {"quote_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    pdf_bytes = quote_pdf.generate_pdf(quote)
+    filename = f"quote_{quote.id}.pdf"
+    path = os.path.join(QUOTE_DIR, filename)
+    with open(path, "wb") as f:
+        f.write(pdf_bytes)
+    return FileResponse(path, media_type="application/pdf", filename=filename)
