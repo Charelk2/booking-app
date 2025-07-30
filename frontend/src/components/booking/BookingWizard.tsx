@@ -8,7 +8,6 @@ import * as yup from 'yup';
 
 import { useBooking } from '@/contexts/BookingContext';
 import useIsMobile from '@/hooks/useIsMobile';
-// Assuming useBookingForm directly returns errors, not formState.errors
 import useBookingForm from '@/hooks/useBookingForm';
 import {
   getArtistAvailability,
@@ -24,12 +23,7 @@ import { calculateTravelMode, TravelResult, getDrivingMetrics } from '@/lib/trav
 
 import { BookingRequestCreate } from '@/types';
 import Stepper from '../ui/Stepper';
-import Button from '../ui/Button';
 import toast from '../ui/Toast';
-
-// Removed imports for LoadingSpinner and ErrorMessage
-// import LoadingSpinner from '../LoadingSpinner';
-// import ErrorMessage from '../ErrorMessage';
 
 // --- Step Components ---
 import EventTypeStep from './steps/EventTypeStep';
@@ -92,7 +86,7 @@ const instructions = [
   'What type of venue is it?',
   'Will sound equipment be needed?',
   'Anything else we should know?',
-  'Please confirm the information above before sending your request.',
+  'This is an estimated cost. The artist will review your request and send a formal quote.'
 ];
 
 // --- Animation Variants ---
@@ -137,6 +131,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [reviewDataError, setReviewDataError] = useState<string | null>(null);
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
+  const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
 
   const headingRef = useRef<HTMLHeadingElement>(null);
   const isMobile = useIsMobile();
@@ -217,7 +212,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         throw new Error(`Could not find geographic coordinates for event location: "${details.location}".`);
       }
 
-      const baseServicePrice = Number(svcRes.data.price);
+      const basePrice = Number(svcRes.data.price);
+      setBaseServicePrice(basePrice); // Set the base service price
+
       const travelRate = svcRes.data.travel_rate || 2.5;
       const numTravelMembers = svcRes.data.travel_members || 1;
 
@@ -230,7 +227,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const drivingEstimateCost = directDistanceKm * travelRate * 2;
 
       const quoteResponse = await calculateQuote({
-        base_fee: baseServicePrice,
+        base_fee: basePrice, // Use the fetched base price
         distance_km: directDistanceKm,
       });
       setCalculatedPrice(Number(quoteResponse.data.total));
@@ -257,7 +254,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   // Trigger the calculation when at or beyond the Guests step
   useEffect(() => {
-    if (step >= 4) {
+    if (step >= 4) { // Assuming Guests step is index 4
       void calculateReviewData();
     }
   }, [step, calculateReviewData]);
@@ -271,7 +268,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     if (step < steps.length - 1) {
       void next();
     } else {
-      void submitRequest();
+      // For the review step, the submit is handled by the ReviewStep component's internal button
+      // No action needed here for Enter key on the final step
     }
   };
 
@@ -286,7 +284,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       ['venueType'],
       ['sound'],
       [],
-      [],
+      [], // Review step has no fields to validate for "next"
     ];
     const fieldsToValidate = stepFields[step] as (keyof EventDetails)[];
 
@@ -405,9 +403,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           isLoadingReviewData={isLoadingReviewData}
           reviewDataError={reviewDataError}
           calculatedPrice={calculatedPrice}
-          onNext={submitRequest}
+          travelResult={travelResult} // Pass travelResult
+          onNext={submitRequest} // Pass submitRequest as onNext for the ReviewStep's button
           submitting={submitting}
           submitLabel="Submit Request"
+          baseServicePrice={baseServicePrice} // Pass baseServicePrice
         />
       );
       default: return null;
@@ -448,9 +448,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (isMobile) return;
-                  if (step < steps.length - 1) void next();
-                  else void submitRequest();
+                  // Prevent default form submission on Enter key press if not mobile
+                  // The submit logic for the final step is now handled by ReviewStep's internal button
                 }}
                 onKeyDown={handleKeyDown}
                 className="flex-1 overflow-y-scroll p-6 space-y-6"
@@ -485,28 +484,28 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 </AnimatePresence>
               </form>
 
+              {/* Navigation controls - Adjusted for ReviewStep */}
               <div className="flex-shrink-0 border-t border-gray-100 p-6 flex flex-col-reverse sm:flex-row sm:justify-between gap-2">
-                <Button variant="outline" onClick={step === 0 ? onClose : prev}>
+                {/* Back/Cancel Button */}
+                <button
+                  type="button" // Ensure it's a button, not a submit
+                  onClick={step === 0 ? onClose : prev}
+                  className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 w-32"
+                >
                   {step === 0 ? 'Cancel' : 'Back'}
-                </Button>
-                {step < steps.length - 1 ? (
-                  <Button
+                </button>
+
+                {/* Conditional rendering for Next button (only if not on Review Step) */}
+                {step < steps.length - 1 && (
+                  <button
+                    type="button" // Ensure it's a button, not a submit
                     onClick={next}
-                    data-testid={step === 0 ? 'date-next-button' : undefined}
-                    className="w-32"
+                    className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 w-32"
                   >
                     Next
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={submitRequest}
-                    isLoading={submitting || isLoadingReviewData}
-                    disabled={submitting || isLoadingReviewData || reviewDataError !== null || calculatedPrice === null || travelResult === null}
-                    className="w-32"
-                  >
-                    Submit Request
-                  </Button>
+                  </button>
                 )}
+                {/* The Submit Request button for the Review Step is now handled INSIDE ReviewStep.tsx */}
               </div>
             </Dialog.Panel>
           </Transition.Child>
