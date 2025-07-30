@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import MessageThread from '@/components/booking/MessageThread';
 import PersonalizedVideoFlow from '@/components/booking/PersonalizedVideoFlow';
+import BookingTimeline from '@/components/booking/BookingTimeline';
 import { getBookingRequestById, getArtist } from '@/lib/api';
 import { Spinner } from '@/components/ui';
 import { BookingRequest } from '@/types';
@@ -104,6 +105,7 @@ export default function BookingRequestDetailPage() {
             </p>
           )}
         </div>
+        <BookingTimeline status={request.status} />
         {request.service?.service_type === 'Personalized Video' ? (
           <PersonalizedVideoFlow
             bookingRequestId={request.id}
