@@ -454,7 +454,7 @@ describe('MessageThread component', () => {
       await flushPromises();
     });
     const buttons = container.querySelectorAll('button');
-    const found = Array.from(buttons).find((b) => b.textContent === 'View Quote');
+    const found = Array.from(buttons).find((b) => b.textContent === 'Send Quote');
     expect(found).not.toBeUndefined();
   });
 
@@ -471,7 +471,7 @@ describe('MessageThread component', () => {
 
     (api.getMessagesForBookingRequest as jest.Mock).mockClear();
 
-    const openBtn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'View Quote') as HTMLButtonElement;
+    const openBtn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent === 'Send Quote') as HTMLButtonElement;
     act(() => {
       openBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
