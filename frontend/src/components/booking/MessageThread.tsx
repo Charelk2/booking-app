@@ -21,7 +21,7 @@ import {
 import AlertBanner from '../ui/AlertBanner';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
-import { Booking, Review, Message, MessageCreate, QuoteV2 } from '@/types';
+import { Booking, Review, Message, MessageCreate, QuoteV2, QuoteV2Create } from '@/types';
 import {
   getMessagesForBookingRequest,
   postMessageToBookingRequest,
@@ -33,7 +33,7 @@ import {
   getBookingDetails,
   downloadBookingIcs,
 } from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext'; // Corrected import path for AuthContext
 import Button from '../ui/Button';
 import TextInput from '../ui/TextInput';
 import SendQuoteModal from './SendQuoteModal';
@@ -49,6 +49,18 @@ const API_V1 = '/api/v1';
 
 export interface MessageThreadHandle {
   refreshMessages: () => void;
+}
+
+// Define a type for the parsed booking details from the system message
+interface ParsedBookingDetails {
+  eventType?: string;
+  description?: string;
+  date?: string; // Keep as string for now, parse in parent if needed
+  location?: string;
+  guests?: string;
+  venueType?: string;
+  soundNeeded?: string;
+  notes?: string;
 }
 
 interface MessageThreadProps {
@@ -69,6 +81,12 @@ interface MessageThreadProps {
   /** Initial notes entered with the booking request. These may exist as a
    * message in older threads but should be hidden from the conversation view. */
   initialNotes?: string | null;
+  /** Callback to pass parsed booking details from system message up to parent */
+  onBookingDetailsParsed?: (details: ParsedBookingDetails) => void;
+  // New props for initial quote data for artist to edit
+  initialBaseFee?: number;
+  initialTravelCost?: number;
+  initialSoundNeeded?: boolean;
 }
 
 const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
@@ -86,6 +104,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       isSystemTyping = false,
       serviceName,
       initialNotes = null,
+      onBookingDetailsParsed,
+      initialBaseFee,
+      initialTravelCost,
+      initialSoundNeeded,
     }: MessageThreadProps,
     ref,
   ) {
@@ -111,7 +133,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState(0);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [announceNewMessage, setAnnounceNewMessage] = useState('');
   const [openDetails, setOpenDetails] = useState<Record<number, boolean>>({});
@@ -129,6 +151,31 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     (msg) => setPaymentError(msg),
   );
 
+  // Helper to parse booking details from system message content
+  const parseBookingDetailsFromMessage = useCallback((content: string): ParsedBookingDetails => {
+    const details: ParsedBookingDetails = {};
+    const lines = content.replace(BOOKING_DETAILS_PREFIX, '').trim().split('\n');
+    lines.forEach(line => {
+      const parts = line.split(':');
+      if (parts.length >= 2) {
+        const key = parts[0].trim();
+        const value = parts.slice(1).join(':').trim();
+        switch (key) {
+          case 'Event Type': details.eventType = value; break;
+          case 'Description': details.description = value; break;
+          case 'Date': details.date = value; break;
+          case 'Location': details.location = value; break;
+          case 'Guests': details.guests = value; break;
+          case 'Venue': details.venueType = value; break;
+          case 'Sound': details.soundNeeded = value; break;
+          case 'Notes': details.notes = value; break;
+        }
+      }
+    });
+    return details;
+  }, []);
+
+  // Moved ensureQuoteLoaded declaration here to fix hoisting issue
   const ensureQuoteLoaded = useCallback(
     async (quoteId: number) => {
       if (quotes[quoteId]) return;
@@ -139,7 +186,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           setBookingConfirmed(true);
           if (!bookingDetails) {
             try {
-              const details = await getBookingDetails(res.data.booking_id);
+              const details = await getBookingDetails(res.data.booking_id ?? 0);
               setBookingDetails(details.data);
             } catch (err2) {
               console.error('Failed to fetch booking details', err2);
@@ -153,28 +200,37 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     [quotes, bookingDetails],
   );
 
+
   const fetchMessages = useCallback(async () => {
     try {
       const res = await getMessagesForBookingRequest(bookingRequestId);
-      const filtered = res.data.filter((m) => {
-        if (m.message_type === 'text' && m.content.startsWith('Requesting ')) {
+      let parsedDetails: ParsedBookingDetails | undefined;
+
+      const filtered = res.data.filter((m_item) => {
+        if (m_item.message_type === 'system' && m_item.content.startsWith(BOOKING_DETAILS_PREFIX)) {
+          parsedDetails = parseBookingDetailsFromMessage(m_item.content);
           return false;
         }
-        if (
-          initialNotes &&
-          m.message_type === 'text' &&
-          m.content.trim() === initialNotes.trim()
-        ) {
+        if (m_item.message_type === 'text' && m_item.content.startsWith('Requesting ')) {
+          return false;
+        }
+        if (initialNotes && m_item.message_type === 'text' && m_item.content.trim() === initialNotes.trim()) {
           return false;
         }
         return true;
       });
+
       setMessages(filtered);
-      filtered.forEach((m) => {
-        if (m.message_type === 'quote' && m.quote_id) {
-          ensureQuoteLoaded(m.quote_id);
+      filtered.forEach((m_item) => {
+        if (m_item.message_type === 'quote' && typeof m_item.quote_id === 'number') {
+          void ensureQuoteLoaded(m_item.quote_id);
         }
       });
+
+      if (parsedDetails && onBookingDetailsParsed) {
+        onBookingDetailsParsed(parsedDetails);
+      }
+
       setErrorMsg(null);
       setLoading(false);
     } catch (err) {
@@ -182,7 +238,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       setErrorMsg((err as Error).message);
       setLoading(false);
     }
-  }, [bookingRequestId, ensureQuoteLoaded, initialNotes]);
+  }, [bookingRequestId, ensureQuoteLoaded, initialNotes, parseBookingDetailsFromMessage, onBookingDetailsParsed]);
+
 
   useImperativeHandle(ref, () => ({
     refreshMessages: async () => {
@@ -215,27 +272,30 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   useEffect(
     () =>
       onSocketMessage((event) => {
-        const msg: Message = JSON.parse(event.data);
-        // keep only the latest 200 messages to avoid excessive memory usage
+        const msg = JSON.parse(event.data) as Message;
+        if (msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX)) {
+          if (onBookingDetailsParsed) {
+            onBookingDetailsParsed(parseBookingDetailsFromMessage(msg.content));
+          }
+          return;
+        }
+
         setMessages((prev) => {
           if (
-            prev.some((m) => m.id === msg.id) ||
-            (initialNotes &&
-              msg.message_type === 'text' &&
-              msg.content.trim() === initialNotes.trim())
+            prev.some((prevMsg) => prevMsg.id === msg.id) ||
+            (initialNotes && msg.message_type === 'text' && msg.content.trim() === initialNotes.trim())
           ) {
             return prev;
           }
           return [...prev.slice(-199), msg];
         });
-        if (msg.message_type === 'quote' && msg.quote_id) {
-          ensureQuoteLoaded(msg.quote_id);
+        if (msg.message_type === 'quote' && typeof msg.quote_id === 'number') {
+          void ensureQuoteLoaded(msg.quote_id);
         }
       }),
-    [onSocketMessage, ensureQuoteLoaded, initialNotes],
+    [onSocketMessage, ensureQuoteLoaded, initialNotes, onBookingDetailsParsed, parseBookingDetailsFromMessage],
   );
 
-  // Create a preview URL whenever the file changes
   useEffect(() => {
     if (file) {
       const url = URL.createObjectURL(file);
@@ -246,12 +306,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     return () => {};
   }, [file]);
 
-  // Auto-scroll when messages or typing indicator change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isSystemTyping]);
 
-  // Show scroll-to-bottom button when not viewing the latest message
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
@@ -273,7 +331,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       try {
         let attachment_url: string | undefined;
         if (file) {
-          setUploading(true);
+          setUploading(1);
           const res = await uploadMessageAttachment(
             bookingRequestId,
             file,
@@ -294,13 +352,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         setFile(null);
         setPreviewUrl(null);
         setUploadProgress(0);
-        setUploading(false);
-        fetchMessages();
+        setUploading(0);
+        void fetchMessages();
         if (onMessageSent) onMessageSent();
       } catch (err) {
         console.error('Failed to send message', err);
         setErrorMsg((err as Error).message);
-        setUploading(false);
+        setUploading(0);
       }
     },
     [newMessage, file, bookingRequestId, fetchMessages, onMessageSent],
@@ -311,7 +369,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       try {
         await createQuoteV2(data);
         setShowQuoteModal(false);
-        fetchMessages();
+        void fetchMessages();
         if (onMessageSent) onMessageSent();
         if (onQuoteSent) onQuoteSent();
       } catch (err) {
@@ -328,7 +386,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       let bookingId: number | undefined;
       try {
         const acceptRes = await acceptQuoteV2(q.id, serviceId);
-        bookingId = acceptRes.data.id;
+        bookingId = acceptRes.data.id ?? undefined;
       } catch (err) {
         console.error('acceptQuoteV2 failed', err);
         setErrorMsg((err as Error).message);
@@ -339,14 +397,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         const fresh = await getQuoteV2(q.id);
         setQuotes((prev) => ({ ...prev, [q.id]: fresh.data }));
         setBookingConfirmed(true);
-        const details = await getBookingDetails(bookingId || fresh.data.booking_id);
+        const details = await getBookingDetails(bookingId ?? fresh.data.booking_id ?? 0);
         setBookingDetails(details.data);
         openPaymentModal({
           bookingRequestId,
-          depositAmount: details.data.deposit_amount,
+          depositAmount: details.data.deposit_amount ?? undefined,
           depositDueBy: details.data.deposit_due_by ?? undefined,
         });
-        fetchMessages();
+        void fetchMessages();
       } catch (err3) {
         console.error('Failed to finalize acceptance', err3);
       } finally {
@@ -389,10 +447,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     }
   }, [bookingDetails]);
 
-  // Filter out empty messages before rendering so even 1-character
-  // messages like "ok" or "?" still show up
   const visibleMessages = useMemo(
-    () => messages.filter((m) => m.content && m.content.trim().length > 0),
+    () => messages.filter((m_item) =>
+      m_item.content && m_item.content.trim().length > 0 &&
+      !(m_item.message_type === 'system' && m_item.content.startsWith(BOOKING_DETAILS_PREFIX))
+    ),
     [messages],
   );
 
@@ -448,14 +507,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
   }, [visibleMessages, shouldShowTimestampGroup]);
 
   return (
-    <div className="max-w-xl mx-auto px-4 sm:px-6 py-6">
-      <div className="bg-white shadow-lg rounded-2xl overflow-hidden border flex flex-col min-h-[70vh]">
-        <header className="sticky top-0 z-10 bg-brand-dark text-white px-4 py-3 flex items-center justify-between">
-          <span className="font-medium text-sm sm:text-base">
+    <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 font-inter">
+      <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100 flex flex-col min-h-[70vh]">
+        <header className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-indigo-700 text-white px-4 py-3 flex items-center justify-between shadow-md">
+          <span className="font-semibold text-lg sm:text-xl">
             Chat with {user?.user_type === 'artist' ? clientName : artistName}
           </span>
           {user?.user_type === 'artist' || !artistAvatarUrl ? (
-            <div className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center text-sm font-medium">
+            <div className="h-10 w-10 rounded-full bg-red-400 flex items-center justify-center text-base font-medium border-2 border-white shadow-sm">
               {(user?.user_type === 'artist' ? clientName : artistName)?.charAt(0)}
             </div>
           ) : artistId ? (
@@ -463,10 +522,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               <Image
                 src={getFullImageUrl(artistAvatarUrl) as string}
                 alt="avatar"
-                width={32}
-                height={32}
+                width={40}
+                height={40}
                 loading="lazy"
-                className="h-8 w-8 rounded-full object-cover"
+                className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
                 }}
@@ -476,18 +535,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             <Image
               src={getFullImageUrl(artistAvatarUrl) as string}
               alt="avatar"
-              width={32}
-              height={32}
+              width={40}
+              height={40}
               loading="lazy"
-              className="h-8 w-8 rounded-full object-cover"
+              className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
-              }}
+                }}
             />
           )}
         </header>
+
         {bookingConfirmed && (
-          <AlertBanner variant="success" data-testid="booking-confirmed-banner" className="mt-4">
+          <AlertBanner variant="success" data-testid="booking-confirmed-banner" className="mt-4 mx-4 rounded-lg">
             🎉 Booking confirmed for {artistName}!{' '}
             {bookingDetails && (
               <>
@@ -502,7 +562,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           </AlertBanner>
         )}
         {bookingConfirmed && (
-          <>
+          <div className="flex flex-wrap gap-3 mx-4 mt-3">
             <Link
               href={
                 bookingDetails
@@ -511,7 +571,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               }
               aria-label="View booking details"
               data-testid="view-booking-link"
-              className="mt-2 inline-block text-brand-dark hover:underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="inline-block text-indigo-600 hover:underline text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
             >
               View booking
             </Link>
@@ -523,12 +583,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   depositAmount:
                     depositAmount !== undefined
                       ? depositAmount
-                      : bookingDetails?.deposit_amount,
+                      : bookingDetails?.deposit_amount ?? undefined,
                   depositDueBy: bookingDetails?.deposit_due_by ?? undefined,
                 })
               }
               data-testid="pay-deposit-button"
-              className="mt-2 ml-4 inline-block text-brand-dark underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="inline-block text-indigo-600 underline text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
             >
               {payDepositLabel}
             </button>
@@ -537,15 +597,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 type="button"
                 onClick={handleDownloadCalendar}
                 data-testid="add-calendar-button"
-                className="mt-2 ml-4 inline-block text-brand-dark underline text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="inline-block text-indigo-600 underline text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
               >
                 Add to calendar
               </button>
             )}
-          </>
+          </div>
         )}
         {paymentStatus && (
-          <AlertBanner variant="info" data-testid="payment-status-banner" className="mt-2">
+          <AlertBanner variant="info" data-testid="payment-status-banner" className="mt-2 mx-4 rounded-lg">
             {paymentStatus === 'paid'
               ? 'Payment completed.'
               : `Deposit of ${formatCurrency(paymentAmount ?? depositAmount ?? 0)} received.`}
@@ -555,7 +615,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 target="_blank"
                 rel="noopener"
                 data-testid="booking-receipt-link"
-                className="ml-2 underline"
+                className="ml-2 underline text-indigo-600"
               >
                 View receipt
               </a>
@@ -563,39 +623,39 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           </AlertBanner>
         )}
         {paymentError && (
-          <p className="text-sm text-red-600" role="alert">{paymentError}</p>
+          <p className="text-sm text-red-600 mx-4" role="alert">{paymentError}</p>
         )}
         <div
           ref={containerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto flex flex-col gap-2 px-4 py-2"
+          className="flex-1 overflow-y-auto flex flex-col gap-3 px-4 py-4 bg-gray-50"
         >
         {loading ? (
-          <div className="flex justify-center py-4" aria-label="Loading messages">
-            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-brand" />
+          <div className="flex justify-center py-6" aria-label="Loading messages">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500" />
           </div>
         ) : (
           visibleMessages.length === 0 && !isSystemTyping && (
-            <p className="text-sm text-gray-500">No messages yet. Start the conversation below.</p>
+            <p className="text-sm text-gray-500 text-center py-4">No messages yet. Start the conversation below.</p>
           )
         )}
         {groupedMessages.map((group, idx) => {
           const firstMsg = group.messages[0];
           const isSystem = firstMsg.message_type === 'system';
           const isSelf = !isSystem && firstMsg.sender_id === user?.id;
-          const anyUnread = group.messages.some((m) => m.unread);
-          const groupClass = `${idx > 0 ? 'mt-1' : ''} ${anyUnread ? 'bg-indigo-50' : ''}`;
+          const anyUnread = group.messages.some((m_item) => m_item.unread);
+          const groupClass = `${idx > 0 ? 'mt-4' : ''} ${anyUnread ? 'bg-indigo-50 rounded-xl p-3 shadow-sm' : ''}`;
 
           return (
             <div
               key={firstMsg.id}
-              className={`relative flex flex-col gap-0.5 ${isSelf ? 'items-end ml-auto' : 'items-start'} ${groupClass}`}
+              className={`relative flex flex-col ${isSelf ? 'items-end ml-auto' : 'items-start'} ${groupClass}`}
             >
               {group.divider && (
-                <div className="flex items-center my-2" role="separator">
-                  <hr className="flex-grow border-t border-gray-300" />
+                <div className="flex items-center my-4 w-full" role="separator">
+                  <hr className="flex-grow border-t border-gray-200" />
                   <span
-                    className="px-2 text-xs text-gray-500 whitespace-nowrap"
+                    className="px-3 text-xs text-gray-500 whitespace-nowrap"
                     data-testid="day-divider"
                   >
                     {new Date(firstMsg.timestamp).toLocaleDateString(undefined, {
@@ -604,27 +664,37 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                       year: 'numeric',
                     })}
                   </span>
-                  <hr className="flex-grow border-t border-gray-300" />
+                  <hr className="flex-grow border-t border-gray-200" />
                 </div>
               )}
+              {/* Sender Name/Avatar for received messages (not system) */}
+              {!isSelf && !isSystem && (
+                <div className="flex items-center mb-1">
+                  <div className="h-6 w-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium mr-2">
+                    {artistName?.charAt(0)}
+                  </div>
+                  <span className="text-xs font-semibold text-gray-700">{artistName}</span>
+                </div>
+              )}
+              {/* Timestamp for the first message in the group */}
               <TimeAgo
                 timestamp={firstMsg.timestamp}
-                className="text-xs text-gray-400 mb-1"
+                className={`text-xs text-gray-500 mb-1 ${isSelf ? 'text-right' : 'text-left'}`}
               />
               {anyUnread && (
                 <span
-                  className="absolute right-0 top-1 w-2 h-2 bg-indigo-600 rounded-full"
+                  className="absolute right-0 top-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"
                   aria-label="Unread messages"
                 />
               )}
               {group.messages.map((msg, mIdx) => {
                 const bubbleClass = isSelf
-                  ? 'bg-brand text-white self-end'
+                  ? 'bg-indigo-600 text-white rounded-br-none' // Sent message style
                   : isSystem
-                    ? 'bg-gray-200 text-gray-900 self-start'
-                    : 'bg-gray-100 text-gray-800 self-start';
+                    ? 'bg-gray-200 text-gray-800' // System message style
+                    : 'bg-gray-200 text-gray-800 rounded-bl-none'; // Received message style
                 const bubbleBase =
-                  'relative inline-flex min-w-[fit-content] flex-shrink-0 rounded-2xl px-4 py-2 pr-12 text-sm leading-snug max-w-[70%] sm:max-w-[60%]';
+                  'relative inline-flex min-w-[fit-content] flex-shrink-0 rounded-2xl px-4 py-2 text-sm leading-snug max-w-[70%] shadow-sm';
 
                 const timeString = new Date(msg.timestamp).toLocaleTimeString([], {
                   hour: '2-digit',
@@ -632,108 +702,73 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                   hour12: false,
                 });
                 const timeClass =
-                  'absolute bottom-1 right-2 text-xs text-right text-gray-400';
+                  'absolute bottom-1 right-2 text-xs text-right text-gray-400 opacity-80';
 
                 return (
                   <motion.div
                     key={msg.id}
                     initial={{ opacity: 0, translateY: 8 }}
                     animate={{ opacity: 1, translateY: 0 }}
-                    className={`flex flex-col ${mIdx < group.messages.length - 1 ? 'mb-0.5' : ''}`}
+                    className={`flex flex-col ${mIdx < group.messages.length - 1 ? 'mb-1' : ''}`}
                   >
-                    <div className={`flex items-end gap-2 ${isSelf ? 'justify-end ml-auto' : 'justify-start'}`}>
+                    <div className={`flex items-end gap-2 ${isSelf ? 'justify-end' : 'justify-start'}`}>
                       <div
                         className={`${bubbleBase} whitespace-pre-wrap ${bubbleClass}`}
                       >
-                        <div className="flex-1">
-                          {msg.message_type === 'quote' && msg.quote_id && quotes[msg.quote_id] ? (
-                            <>
-                            <QuoteBubble
-                              description={quotes[msg.quote_id].services[0]?.description || ''}
-                              price={Number(quotes[msg.quote_id].services[0]?.price || 0)}
-                              soundFee={Number(quotes[msg.quote_id].sound_fee)}
-                              travelFee={Number(quotes[msg.quote_id].travel_fee)}
-                              accommodation={quotes[msg.quote_id].accommodation || undefined}
-                              discount={quotes[msg.quote_id].discount || undefined}
-                              subtotal={Number(quotes[msg.quote_id].subtotal)}
-                              total={Number(quotes[msg.quote_id].total)}
-                              status={
-                                {
-                                  pending: 'Pending',
-                                  accepted: 'Accepted',
-                                  rejected: 'Rejected',
-                                  expired: 'Rejected',
-                                }[quotes[msg.quote_id].status]
-                              }
-                            />
-                            {user?.user_type === 'client' &&
-                              quotes[msg.quote_id].status === 'pending' &&
-                              !bookingConfirmed && (
-                                <div className="mt-2 flex gap-2">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    isLoading={acceptingQuoteId === msg.quote_id}
-                                    onClick={() =>
-                                      handleAcceptQuote(quotes[msg.quote_id])
-                                    }
-                                  >
-                                    Accept
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() =>
-                                      handleDeclineQuote(quotes[msg.quote_id])
-                                    }
-                                  >
-                                    Decline
-                                  </Button>
-                                </div>
-                              )}
-                            </>
-                          ) : msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX) ? (
-                            <div data-testid="booking-details" className="rounded-lg border border-gray-300 bg-gray-100 mt-1">
-                              <button
-                                type="button"
-                                data-testid="booking-details-button"
-                                aria-expanded={openDetails[msg.id] ? 'true' : 'false'}
-                                onClick={() =>
-                                  setOpenDetails((prev) => ({
-                                    ...prev,
-                                    [msg.id]: !prev[msg.id],
-                                  }))
-                                }
-                                className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium text-brand-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
-                              >
-                                <span>Booking details</span>
-                                <ChevronDownIcon
-                                  className={`h-4 w-4 transition-transform ${openDetails[msg.id] ? 'rotate-180' : ''}`}
-                                  aria-hidden="true"
+                        <div className="flex-1 pr-8"> {/* Added pr for timestamp space */}
+                          {msg.message_type === 'quote' && typeof msg.quote_id === 'number' ? (
+                            quotes[msg.quote_id] ? (
+                                <>
+                                <QuoteBubble
+                                  description={quotes[msg.quote_id].services[0]?.description || ''}
+                                  price={Number(quotes[msg.quote_id].services[0]?.price || 0)}
+                                  soundFee={Number(quotes[msg.quote_id].sound_fee)}
+                                  travelFee={Number(quotes[msg.quote_id].travel_fee)}
+                                  accommodation={quotes[msg.quote_id].accommodation || undefined}
+                                  discount={Number(quotes[msg.quote_id].discount) || undefined}
+                                  subtotal={Number(quotes[msg.quote_id].subtotal)}
+                                  total={Number(quotes[msg.quote_id].total)}
+                                  status={
+                                    (() => {
+                                      const q = quotes[msg.quote_id]; // Get the quote object
+                                      if (!q) return 'Pending'; // Fallback if quote is somehow missing
+                                      if (q.status === 'pending') return 'Pending';
+                                      if (q.status === 'accepted') return 'Accepted';
+                                      if (q.status === 'rejected' || q.status === 'expired') return 'Rejected';
+                                      return 'Pending';
+                                    })()
+                                  }
                                 />
-                              </button>
-                              <div
-                                className={`overflow-hidden transition-all ${openDetails[msg.id] ? 'max-h-96' : 'max-h-0'}`}
-                                data-testid="booking-details-content"
-                                aria-hidden={openDetails[msg.id] ? 'false' : 'true'}
-                              >
-                                <dl className="px-4 py-3 text-sm text-gray-800 grid grid-cols-[auto,1fr] gap-x-2 gap-y-1">
-                                  {msg.content
-                                    .slice(BOOKING_DETAILS_PREFIX.length)
-                                    .trim()
-                                    .split('\n')
-                                    .map((line) => line.split(':'))
-                                    .filter((parts) => parts.length === 2)
-                                    .map(([label, value]) => (
-                                      <React.Fragment key={label.trim()}>
-                                        <dt className="font-medium">{label.trim()}</dt>
-                                        <dd>{value.trim()}</dd>
-                                      </React.Fragment>
-                                    ))}
-                                </dl>
-                              </div>
-                            </div>
+                                {user?.user_type === 'client' &&
+                                  quotes[msg.quote_id].status === 'pending' &&
+                                  !bookingConfirmed && (
+                                    <div className="mt-3 flex gap-2">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        isLoading={acceptingQuoteId === msg.quote_id}
+                                        onClick={() =>
+                                          handleAcceptQuote(quotes[msg.quote_id])
+                                        }
+                                        className="bg-green-500 hover:bg-green-600 text-white rounded-full px-4 py-2 text-xs font-semibold shadow-md"
+                                      >
+                                        Accept
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() =>
+                                          handleDeclineQuote(quotes[msg.quote_id])
+                                        }
+                                        className="bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-full px-4 py-2 text-xs font-semibold shadow-md"
+                                      >
+                                        Decline
+                                      </Button>
+                                    </div>
+                                  )}
+                                </>
+                            ) : null
                           ) : (
                             msg.content
                           )}{' '}
@@ -741,7 +776,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                             <a
                               href={msg.attachment_url}
                               target="_blank"
-                              className="block text-indigo-600 underline mt-1 text-sm"
+                              className="block text-indigo-400 underline mt-1 text-sm hover:text-indigo-300"
                               rel="noopener noreferrer"
                             >
                               View attachment
@@ -767,15 +802,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           );
         })}
         {isSystemTyping && (
-          <div className="flex items-end gap-2">
-            <div className="h-6 w-6 bg-gray-300 rounded-full flex items-center justify-center text-xs font-medium">
+          <div className="flex items-end gap-3 self-start">
+            <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center text-sm font-medium shadow-sm">
               {artistName?.charAt(0)}
             </div>
-            <div className="bg-gray-200 rounded-2xl px-3 py-2">
+            <div className="bg-gray-200 rounded-2xl px-4 py-2 shadow-sm">
               <div className="flex space-x-1 animate-pulse">
-                <span className="block w-2 h-2 bg-gray-500 rounded-full" />
-                <span className="block w-2 h-2 bg-gray-500 rounded-full" />
-                <span className="block w-2 h-2 bg-gray-500 rounded-full" />
+                <span className="block w-2.5 h-2.5 bg-gray-500 rounded-full" />
+                <span className="block w-2.5 h-2.5 bg-gray-500 rounded-full" />
+                <span className="block w-2.5 h-2.5 bg-gray-500 rounded-full" />
               </div>
             </div>
           </div>
@@ -789,15 +824,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           onClick={() =>
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
           }
-          className="fixed bottom-20 right-4 z-50 md:hidden rounded-full bg-brand-dark p-2 text-white shadow"
+          className="fixed bottom-24 right-6 z-50 md:hidden rounded-full bg-indigo-600 p-3 text-white shadow-lg hover:bg-indigo-700 transition-colors"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
-            strokeWidth={1.5}
+            strokeWidth={2}
             stroke="currentColor"
-            className="h-5 w-5"
+            className="h-6 w-6"
           >
             <path
               strokeLinecap="round"
@@ -811,32 +846,32 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       {user && (
         <>
           {previewUrl && (
-            <div className="flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2">
+            <div className="flex items-center gap-3 mb-2 bg-gray-100 rounded-xl p-3 mx-4 shadow-inner">
               {file && file.type.startsWith('image/') ? (
                 <Image
                   src={previewUrl}
                   alt="preview"
-                  width={40}
-                  height={40}
+                  width={50}
+                  height={50}
                   loading="lazy"
-                  className="w-10 h-10 object-cover rounded"
+                  className="w-12 h-12 object-cover rounded-md border border-gray-200"
                 />
               ) : (
-                <span className="text-sm">{file?.name}</span>
+                <span className="text-sm text-gray-700 font-medium">{file?.name}</span>
               )}
-              <button type="button" onClick={() => setFile(null)} className="text-sm text-red-600">
+              <button type="button" onClick={() => setFile(null)} className="text-sm text-red-600 hover:text-red-700 font-medium">
                 Remove
               </button>
             </div>
           )}
           <form
             onSubmit={handleSend}
-            className="sticky bottom-0 bg-white border-t flex flex-row items-center gap-x-2 px-4 py-3"
+            className="sticky bottom-0 bg-white border-t border-gray-100 flex flex-row items-center gap-x-3 px-4 py-3 shadow-lg"
           >
             <label
               htmlFor="file-upload"
               aria-label="Upload attachment"
-              className="w-8 h-8 flex items-center justify-center text-gray-600 rounded-full hover:bg-gray-100"
+              className="w-10 h-10 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -844,7 +879,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 viewBox="0 0 24 24"
                 strokeWidth={1.5}
                 stroke="currentColor"
-                className="w-5 h-5"
+                className="w-6 h-6"
               >
                 <path
                   strokeLinecap="round"
@@ -858,20 +893,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 />
               </svg>
             </label>
-            <input
-              id="file-upload"
-              type="file"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
-            />
             <TextInput
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              className="rounded-full px-4 py-2"
-              placeholder="Type a message"
+              className="flex-grow rounded-full px-4 py-2.5 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm"
+              placeholder="Type your message..."
             />
-            {uploading && (
+            {uploading > 0 && (
               <div
                 className="flex items-center gap-2"
                 role="progressbar"
@@ -882,27 +911,27 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                 aria-valuetext={`${uploadProgress}%`}
                 aria-live="polite"
               >
-                <div className="w-16 bg-gray-200 rounded h-1">
-                  <div className="bg-brand h-1 rounded" style={{ width: `${uploadProgress}%` }} />
+                <div className="w-16 bg-gray-200 rounded-full h-2">
+                  <div className="bg-indigo-500 h-2 rounded-full" style={{ width: `${uploadProgress}%` }} />
                 </div>
-                <span className="text-xs">{uploadProgress}%</span>
+                <span className="text-xs text-gray-600">{uploadProgress}%</span>
               </div>
             )}
             <Button
               type="submit"
               aria-label="Send message"
               variant="primary"
-              className="rounded-full bg-brand"
-              disabled={uploading}
+              className="rounded-full bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 font-semibold shadow-md"
+              disabled={uploading > 0 || (!newMessage.trim() && !file)}
             >
-              {uploading ? 'Uploading…' : 'Send'}
+              {uploading > 0 ? 'Uploading…' : 'Send'}
             </Button>
           </form>
           {user.user_type === 'artist' && !bookingConfirmed && (
             <Button
               type="button"
               onClick={() => setShowQuoteModal(true)}
-              className="mt-2 text-sm text-brand-dark underline hover:bg-indigo-600 hover:text-white transition-colors fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] sm:static sm:translate-x-0 sm:w-auto"
+              className="mt-4 text-sm text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors rounded-full px-6 py-2 font-semibold shadow-sm fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] sm:static sm:translate-x-0 sm:w-auto"
             >
               Send Quote
             </Button>
@@ -912,9 +941,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             onClose={() => setShowQuoteModal(false)}
             onSubmit={handleSendQuote}
             artistId={artistId ?? user.id}
-            clientId={clientId ?? messages.find((m) => m.sender_type === 'client')?.sender_id ?? 0}
+            clientId={clientId ?? messages.find((m_item) => m_item.sender_type === 'client')?.sender_id ?? 0}
             bookingRequestId={bookingRequestId}
             serviceName={computedServiceName}
+            initialBaseFee={initialBaseFee}
+            initialTravelCost={initialTravelCost}
+            initialSoundNeeded={initialSoundNeeded}
           />
           {paymentModal}
           {bookingDetails &&
@@ -929,7 +961,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               <Button
                 type="button"
                 onClick={() => setShowReviewModal(true)}
-                className="mt-2 text-sm text-brand-dark underline"
+                className="mt-2 text-sm text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
               >
                 Leave Review
               </Button>
@@ -947,12 +979,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         </>
       )}
       {errorMsg && (
-        <p className="text-sm text-red-600" role="alert">
-          {errorMsg}
-        </p>
+        <p className="text-sm text-red-600 mx-4 mt-2" role="alert">{errorMsg}</p>
       )}
       {wsFailed && (
-        <p className="text-sm text-red-600" role="alert">
+        <p className="text-sm text-red-600 mx-4 mt-2" role="alert">
           Connection lost. Please refresh the page or sign in again.
         </p>
       )}

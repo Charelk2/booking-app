@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import MessageThread from '@/components/booking/MessageThread';
@@ -9,6 +9,21 @@ import { getBookingRequestById, getArtist } from '@/lib/api';
 import { Spinner } from '@/components/ui';
 import { BookingRequest } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { InformationCircleIcon } from '@heroicons/react/20/solid';
+import { format, parseISO, isValid } from 'date-fns';
+import { motion } from 'framer-motion';
+
+// Define a type for the parsed booking details received from MessageThread
+interface ParsedBookingDetails {
+  eventType?: string;
+  description?: string;
+  date?: string;
+  location?: string;
+  guests?: string;
+  venueType?: string;
+  soundNeeded?: string;
+  notes?: string;
+}
 
 export default function BookingRequestDetailPage() {
   const params = useParams();
@@ -18,6 +33,9 @@ export default function BookingRequestDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [artistAvatar, setArtistAvatar] = useState<string | null>(null);
   const [artistName, setArtistName] = useState<string>('');
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
+  const [parsedBookingDetails, setParsedBookingDetails] = useState<ParsedBookingDetails | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -33,10 +51,10 @@ export default function BookingRequestDetailPage() {
             artistRes.data.business_name || artistRes.data.user.first_name,
           );
         } catch (err) {
-          console.error('Failed to load artist profile', err);
+          console.error('Failed to load artist profile:', err);
         }
       } catch (err) {
-        console.error('Failed to load booking request', err);
+        console.error('Failed to load booking request:', err);
         setError('Failed to load request');
       }
     };
@@ -79,49 +97,180 @@ export default function BookingRequestDetailPage() {
     );
   }
 
+  // Helper function to clean location string
+  const cleanLocation = (locationString: string | undefined) => {
+    if (!locationString) return 'N/A';
+    let cleaned = locationString.replace(/,?\s*South Africa/gi, '');
+    cleaned = cleaned.replace(/,\s*\d{4}\s*$/, '').trim();
+    cleaned = cleaned.replace(/,$/, '').trim();
+    return cleaned;
+  };
+
+  // Determine which date to use for display. Prioritize parsed details if available.
+  const displayProposedDateTime = parsedBookingDetails?.date
+    ? parseISO(parsedBookingDetails.date)
+    : (request.proposed_datetime_1 ? parseISO(request.proposed_datetime_1) : null);
+
+  // Derive initial quote data for the artist from the request object
+  const initialBaseFee = request.service?.price ? Number(request.service.price) : undefined;
+  const initialTravelCost = request.travel_cost ?? undefined;
+  const initialSoundNeeded = request.sound_required ?? undefined; // This is a boolean
+
+
   return (
     <MainLayout>
-      <div className="max-w-3xl mx-auto p-4 space-y-4">
-        <h1 className="text-xl font-semibold">
-          Chat with {artistName || request.artist?.first_name}
-        </h1>
-        <div className="space-y-1 text-sm text-gray-700">
-          {request.client && (
-            <p>
-              <span className="font-medium">Client:</span> {request.client.first_name}{' '}
-              {request.client.last_name} ({request.client.email})
-            </p>
-          )}
-          {request.service && (
-            <p>
-              <span className="font-medium">Service:</span> {request.service.title}
-            </p>
-          )}
-          {request.proposed_datetime_1 && (
-            <p>
-              <span className="font-medium">Proposed:</span>{' '}
-              {new Date(request.proposed_datetime_1).toLocaleString()}
-            </p>
+      <div className="flex flex-col md:flex-row max-w-6xl mx-auto p-4 gap-6 min-h-[85vh]">
+        {/* Sidebar for Booking Details (Desktop) / Toggleable for Mobile */}
+        <aside className={`${showSidebar ? 'block' : 'hidden'} md:block md:w-1/3 lg:w-1/4 bg-white shadow-xl rounded-2xl p-6 border border-gray-100 flex-shrink-0`}>
+          <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Booking Details</h2>
+          <div className="space-y-3 text-gray-700">
+            {/* Always visible details */}
+            <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
+              <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Client</dt>
+              <dd className="text-right text-sm flex-grow">
+                {request.client ? `${request.client.first_name} ${request.client.last_name}` : 'N/A'}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
+              <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Email</dt>
+              <dd className="text-right text-sm flex-grow overflow-hidden text-ellipsis whitespace-nowrap">
+                {request.client?.email || 'N/A'}
+              </dd>
+            </div>
+            <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
+              <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Service</dt>
+              <dd className="text-right text-sm flex-grow">
+                {request.service?.title || 'N/A'}
+              </dd>
+            </div>
+            {parsedBookingDetails?.eventType && (
+              <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
+                <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Event Type</dt>
+                <dd className="text-right text-sm flex-grow">{parsedBookingDetails.eventType}</dd>
+              </div>
+            )}
+            {displayProposedDateTime && isValid(displayProposedDateTime) && (
+              <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
+                <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Date & Time</dt>
+                <dd className="text-right text-sm flex-grow">
+                  {format(displayProposedDateTime, 'PPP')}
+                  {` at ${format(displayProposedDateTime, 'p')}`}
+                </dd>
+              </div>
+            )}
+            {parsedBookingDetails?.location && (
+              <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
+                <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Location</dt>
+                <dd className="text-right text-sm flex-grow">
+                  {cleanLocation(parsedBookingDetails.location)}
+                </dd>
+              </div>
+            )}
+
+            {/* Conditionally visible details */}
+            <motion.div
+              layout
+              initial={false}
+              animate={{ height: isDetailsExpanded ? 'auto' : 0, opacity: isDetailsExpanded ? 1 : 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              {parsedBookingDetails?.description && (
+                <div className="flex items-start justify-between py-1 border-b border-gray-100 last:border-b-0">
+                  <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Description</dt>
+                  <dd className="text-right text-sm flex-grow">{parsedBookingDetails.description}</dd>
+                </div>
+              )}
+              {parsedBookingDetails?.guests && (
+                <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
+                  <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Guests</dt>
+                  <dd className="text-right text-sm flex-grow">{parsedBookingDetails.guests}</dd>
+                </div>
+              )}
+              {parsedBookingDetails?.venueType && (
+                <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
+                  <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Venue Type</dt>
+                  <dd className="text-right text-sm flex-grow">{parsedBookingDetails.venueType}</dd>
+                </div>
+              )}
+              {parsedBookingDetails?.soundNeeded && (
+                <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
+                  <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Sound Needed</dt>
+                  <dd className="text-right text-sm flex-grow">
+                    {parsedBookingDetails.soundNeeded === 'Yes' ? 'Yes' : 'No'}
+                  </dd>
+                </div>
+              )}
+              {parsedBookingDetails?.notes && (
+                <div className="flex items-start justify-between py-1 border-b border-gray-100 last:border-b-0">
+                  <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Notes</dt>
+                  <dd className="text-right text-sm flex-grow">{parsedBookingDetails.notes}</dd>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Expand/Collapse Button */}
+            <div className="flex justify-center w-full pt-2">
+              <button
+                onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
+                className="text-gray-500 hover:text-gray-800 font-medium py-2 text-sm flex items-center justify-center space-x-1 cursor-pointer transition-colors"
+              >
+                <span className="text-xs">
+                  {isDetailsExpanded ? 'Hide Details' : 'Show More Details'}
+                </span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className={`h-4 w-4 transform transition-transform duration-300 ${isDetailsExpanded ? 'rotate-180' : ''}`}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25L12 15.75 4.5 8.25" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content Area (Chat Thread) */}
+        <div className="flex-1">
+          {/* Toggle button for sidebar on mobile */}
+          <div className="md:hidden flex justify-end mb-4">
+            <button
+              type="button"
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="bg-indigo-600 text-white rounded-full p-2 shadow-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
+              aria-label={showSidebar ? "Hide booking details" : "Show booking details"}
+            >
+              <InformationCircleIcon className="h-5 w-5" />
+              <span className="font-medium text-sm">{showSidebar ? "Hide Details" : "Show Details"}</span>
+            </button>
+          </div>
+
+          {request.service?.service_type === 'Personalized Video' ? (
+            <PersonalizedVideoFlow
+              bookingRequestId={request.id}
+              clientName={request.client?.first_name}
+              artistName={artistName || request.artist?.first_name}
+              artistAvatarUrl={artistAvatar}
+            />
+          ) : (
+            <MessageThread
+              bookingRequestId={request.id}
+              serviceId={request.service_id ?? undefined}
+              clientName={request.client?.first_name}
+              artistName={artistName || request.artist?.first_name}
+              artistAvatarUrl={artistAvatar}
+              serviceName={request.service?.title}
+              initialNotes={request.message ?? null}
+              onBookingDetailsParsed={setParsedBookingDetails}
+              initialBaseFee={initialBaseFee}
+              initialTravelCost={initialTravelCost}
+              initialSoundNeeded={initialSoundNeeded}
+            />
           )}
         </div>
-        {request.service?.service_type === 'Personalized Video' ? (
-          <PersonalizedVideoFlow
-            bookingRequestId={request.id}
-            clientName={request.client?.first_name}
-            artistName={artistName || request.artist?.first_name}
-            artistAvatarUrl={artistAvatar}
-          />
-        ) : (
-        <MessageThread
-          bookingRequestId={request.id}
-          serviceId={request.service_id ?? undefined}
-          clientName={request.client?.first_name}
-          artistName={artistName || request.artist?.first_name}
-          artistAvatarUrl={artistAvatar}
-          serviceName={request.service?.title}
-          initialNotes={request.message ?? null}
-        />
-        )}
       </div>
     </MainLayout>
   );
