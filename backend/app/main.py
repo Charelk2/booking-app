@@ -2,6 +2,7 @@
 
 import os
 import logging
+import asyncio
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -14,6 +15,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.exceptions import RequestValidationError
 
 from .database import engine, Base
+from .database import SessionLocal
 from .db_utils import (
     ensure_message_type_column,
     ensure_attachment_url_column,
@@ -39,6 +41,7 @@ from .models.booking import Booking
 from .models.review import Review
 from .models.request_quote import BookingRequest, Quote
 from .models.notification import Notification
+from . import models
 
 # Routers under app/api/
 from .api import auth
@@ -70,6 +73,8 @@ from .api.v1 import api_artist
 
 from .core.config import settings
 from .utils.redis_cache import close_redis_client
+from .crud import crud_quote_v2
+from .utils.notifications import notify_quote_expired
 
 logger = logging.getLogger(__name__)
 
@@ -334,6 +339,28 @@ def check_payment_gateway_url() -> None:
         logger.warning(
             "PAYMENT_GATEWAY_URL is set to the default placeholder; update .env to your gateway URL"
         )
+
+
+async def expire_quotes_loop() -> None:
+    """Periodically expire pending quotes and send notifications."""
+    while True:
+        await asyncio.sleep(300)
+        try:
+            with SessionLocal() as db:
+                expired = crud_quote_v2.expire_pending_quotes(db)
+                for q in expired:
+                    artist = q.artist
+                    client = q.client or db.query(models.User).get(q.client_id)
+                    notify_quote_expired(db, artist, q.id, q.booking_request_id)
+                    notify_quote_expired(db, client, q.id, q.booking_request_id)
+        except Exception as exc:  # pragma: no cover - log and continue
+            logger.exception("Error expiring quotes: %s", exc)
+
+
+@app.on_event("startup")
+async def start_background_tasks() -> None:
+    """Launch background maintenance tasks."""
+    asyncio.create_task(expire_quotes_loop())
 
 
 # ─── A simple root check ─────────────────────────────────────────────────────────────

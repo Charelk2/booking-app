@@ -31,6 +31,7 @@ from app.utils.notifications import (
     notify_new_booking,
     notify_booking_status_update,
     notify_quote_accepted,
+    notify_quote_expired,
 )
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
@@ -533,6 +534,7 @@ def test_format_notification_message_new_types():
         NotificationType.REVIEW_REQUEST, booking_id=42
     )
     msg_quote = format_notification_message(NotificationType.QUOTE_ACCEPTED, quote_id=7)
+    msg_expired = format_notification_message(NotificationType.QUOTE_EXPIRED, quote_id=9)
     msg_booking = format_notification_message(
         NotificationType.NEW_BOOKING, booking_id=8
     )
@@ -540,6 +542,7 @@ def test_format_notification_message_new_types():
     assert msg_review == "Please review your booking #42"
     assert msg_quote == "Quote #7 accepted"
     assert msg_booking == "New booking #8"
+    assert msg_expired == "Quote #9 expired"
 
 
 def test_format_notification_message_booking_request():
@@ -1234,4 +1237,50 @@ def test_quote_accepted_notification_includes_client_avatar_url():
     data = res.json()
     assert data[0]["sender_name"] == "Q Client"
     assert data[0]["avatar_url"] == "/static/profile_pics/client.jpg"
+    app.dependency_overrides.clear()
+
+
+def test_quote_expired_notification():
+    Session = setup_app()
+    db = Session()
+    artist = User(
+        email="exartist@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    client_user = User(
+        email="exclient@test.com",
+        password="x",
+        first_name="C",
+        last_name="Client",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client_user])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client_user)
+
+    br = BookingRequest(
+        client_id=client_user.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    notify_quote_expired(db, artist, 1, br.id)
+    db.close()
+
+    token = create_access_token({"sub": artist.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["type"] == "quote_expired"
     app.dependency_overrides.clear()

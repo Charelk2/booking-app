@@ -147,13 +147,55 @@ def _build_response(
                         .filter(models.User.id == br.client_id)
                         .first()
                     )
-                    if client:
-                        sender = f"{client.first_name} {client.last_name}"
-                        if client.profile_picture_url:
-                            avatar_url = client.profile_picture_url
+                if client:
+                    sender = f"{client.first_name} {client.last_name}"
+                    if client.profile_picture_url:
+                        avatar_url = client.profile_picture_url
         except (ValueError, IndexError) as exc:
             logger.warning(
                 "Failed to derive quote accepted details from link %s: %s",
+                n.link,
+                exc,
+            )
+    elif n.type == models.NotificationType.QUOTE_EXPIRED:
+        try:
+            match = re.search(r"/booking-requests/(\d+)", n.link)
+            if match:
+                request_id = int(match.group(1))
+                br = (
+                    db.query(models.BookingRequest)
+                    .filter(models.BookingRequest.id == request_id)
+                    .first()
+                )
+                if br:
+                    client = (
+                        db.query(models.User)
+                        .filter(models.User.id == br.client_id)
+                        .first()
+                    )
+                    artist = (
+                        db.query(models.User)
+                        .filter(models.User.id == br.artist_id)
+                        .first()
+                    )
+                    if n.user_id == br.artist_id and client:
+                        sender = f"{client.first_name} {client.last_name}"
+                        if client.profile_picture_url:
+                            avatar_url = client.profile_picture_url
+                    elif n.user_id == br.client_id and artist:
+                        sender = f"{artist.first_name} {artist.last_name}"
+                        profile = (
+                            db.query(models.ArtistProfile)
+                            .filter(models.ArtistProfile.user_id == artist.id)
+                            .first()
+                        )
+                        if profile and profile.business_name:
+                            sender = profile.business_name
+                        if profile and profile.profile_picture_url:
+                            avatar_url = profile.profile_picture_url
+        except (ValueError, IndexError) as exc:
+            logger.warning(
+                "Failed to derive quote expired details from link %s: %s",
                 n.link,
                 exc,
             )
