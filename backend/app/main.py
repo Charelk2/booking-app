@@ -3,6 +3,7 @@
 import os
 import logging
 import asyncio
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -75,6 +76,7 @@ from .core.config import settings
 from .utils.redis_cache import close_redis_client
 from .crud import crud_quote_v2
 from .utils.notifications import notify_quote_expired
+from .utils.notifications import notify_quote_expiring
 
 logger = logging.getLogger(__name__)
 
@@ -347,6 +349,28 @@ async def expire_quotes_loop() -> None:
         await asyncio.sleep(300)
         try:
             with SessionLocal() as db:
+                now = datetime.utcnow()
+                soon = now + timedelta(hours=24)
+                expiring = (
+                    db.query(models.QuoteV2)
+                    .filter(
+                        models.QuoteV2.status == models.QuoteStatusV2.PENDING,
+                        models.QuoteV2.expires_at != None,
+                        models.QuoteV2.expires_at > now,
+                        models.QuoteV2.expires_at <= soon,
+                    )
+                    .all()
+                )
+                for q in expiring:
+                    artist = q.artist
+                    client = q.client or db.query(models.User).get(q.client_id)
+                    notify_quote_expiring(
+                        db, artist, q.id, q.expires_at, q.booking_request_id
+                    )
+                    notify_quote_expiring(
+                        db, client, q.id, q.expires_at, q.booking_request_id
+                    )
+
                 expired = crud_quote_v2.expire_pending_quotes(db)
                 for q in expired:
                     artist = q.artist
