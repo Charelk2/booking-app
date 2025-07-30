@@ -13,6 +13,7 @@ from app.models import (
 )
 from app.models.base import BaseModel
 from app.api import api_message
+from app.crud import crud_message
 from app.schemas import MessageCreate
 
 
@@ -123,3 +124,45 @@ def test_message_response_includes_avatar_url_for_client():
     result = api_message.create_message(br.id, msg_in, db, current_user=client)
 
     assert result["avatar_url"] == "/static/profile_pics/client.jpg"
+
+
+def test_mark_messages_read_updates_flag():
+    db = setup_db()
+    client = User(
+        email="r@test.com",
+        password="x",
+        first_name="Reader",
+        last_name="Client",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="writer@test.com",
+        password="x",
+        first_name="Writer",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+
+    msg_in = MessageCreate(content="hello", message_type=MessageType.TEXT)
+    api_message.create_message(br.id, msg_in, db, current_user=artist)
+
+    # Ensure message unread initially
+    msgs = crud_message.get_messages_for_request(db, br.id)
+    assert msgs[0].is_read is False
+
+    api_message.mark_messages_read(br.id, db=db, current_user=client)
+
+    msgs = crud_message.get_messages_for_request(db, br.id)
+    assert msgs[0].is_read is True
