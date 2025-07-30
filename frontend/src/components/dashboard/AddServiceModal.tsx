@@ -13,20 +13,7 @@ import clsx from "clsx";
 import { Dialog, Transition } from "@headlessui/react";
 import { AnimatePresence, motion } from "framer-motion"; // Import motion and AnimatePresence
 
-<<<<<<< Updated upstream
 import type { Service } from "@/types";
-=======
-const serviceTypeIcons: Record<Service["service_type"], ElementType> = {
-  "Live Performance": MusicalNoteIcon,
-  "Personalized Video": VideoCameraIcon,
-  "Custom Song": SparklesIcon,
-  "Virtual Appearance": MusicalNoteIcon,
-  Other: SquaresPlusIcon,
-  
-};
-
-import { Service } from "@/types";
->>>>>>> Stashed changes
 import {
   createService as apiCreateService,
   getDashboardStats,
