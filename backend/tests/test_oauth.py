@@ -427,6 +427,8 @@ def test_google_oauth_token_error(monkeypatch):
     client = TestClient(app)
     res = client.get("/auth/google/callback?code=x&state=/done", follow_redirects=False)
     assert res.status_code == 400
-    assert res.json()["detail"] == "Google authentication failed"
+    data = res.json()
+    assert data["detail"]["message"] == "Google authentication failed"
+    assert data["detail"]["field_errors"] == {}
 
     app.dependency_overrides.pop(get_db, None)
