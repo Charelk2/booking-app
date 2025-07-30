@@ -34,11 +34,8 @@ export default function TravelSummaryCard({ result }: Props) {
       {mode === 'fly' ? (
         <ul className="text-sm space-y-1">
           <li>
-            Flights: {formatCurrency(fly.flightSubtotal)}{' '}
-            <span className="text-xs text-gray-500">
-              (avg price for {fly.travellers} travelling{' '}
-              {fly.travellers === 1 ? 'member' : 'members'})
-            </span>
+            Flights ({fly.travellers}): {formatCurrency(fly.flightSubtotal)}{' '}
+            <span className="text-xs text-gray-500">(avg price)</span>
           </li>
           <li>Car Rental: {formatCurrency(fly.carRental)}</li>
           <li>Transfers: {formatCurrency(fly.transferCost)}</li>
