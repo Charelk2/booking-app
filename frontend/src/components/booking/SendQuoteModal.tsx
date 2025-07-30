@@ -114,9 +114,7 @@ const SendQuoteModal: React.FC<Props> = ({
 
   const subtotal =
     serviceFee + services.reduce((acc, s) => acc + Number(s.price), 0) + soundFee + travelFee;
-  const subtotalAfterDiscount = subtotal - (discount || 0);
-  const taxesFees = subtotalAfterDiscount * 0.15;
-  const estimatedTotal = subtotalAfterDiscount + taxesFees;
+  const total = subtotal - (discount || 0);
 
   const addService = () => setServices([...services, { description: '', price: 0 }]);
   const removeService = (idx: number) =>
@@ -149,7 +147,7 @@ const SendQuoteModal: React.FC<Props> = ({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 border border-gray-100">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">View Quote</h2>
+          <h2 className="text-xl font-semibold text-gray-800">Send Quote</h2>
           {templates.length > 0 && (
             <select
               className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
@@ -290,66 +288,15 @@ const SendQuoteModal: React.FC<Props> = ({
             </select>
           </label>
           <hr className="border-t border-gray-200 my-4" />
-          <h5 className="font-bold text-lg mb-3 text-gray-800">Estimated Cost</h5>
-          <div className="space-y-2 text-gray-700">
-            <div className="flex justify-between items-center">
-              <span>Artist Base Fee</span>
-              <span>{formatCurrency(serviceFee)}</span>
+          <div className="text-base font-semibold text-gray-800">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-gray-600">Subtotal:</span>
+              <span>{formatCurrency(subtotal)}</span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="flex items-center group">
-                Travel
-                <span className="has-tooltip relative ml-1.5">
-                  <span className="cursor-pointer text-black-600">ⓘ</span>
-                  <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
-                    Travel costs you set for this quote.
-                  </div>
-                </span>
-              </span>
-              <span>{formatCurrency(travelFee)}</span>
+            <div className="flex justify-between items-center text-lg font-bold text-indigo-700">
+              <span>Total (after discount):</span>
+              <span>{formatCurrency(total)}</span>
             </div>
-            {soundFee !== 0 && (
-              <div className="flex items-center justify-between">
-                <span className="flex items-center group">
-                  Sound Equipment
-                  <span className="has-tooltip relative ml-1.5">
-                    <span className="cursor-pointer text-black-600">ⓘ</span>
-                    <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
-                      Standard package for events up to 150 guests.
-                    </div>
-                  </span>
-                </span>
-                <span>{formatCurrency(soundFee)}</span>
-              </div>
-            )}
-            {discount !== 0 && (
-              <div className="flex justify-between items-center">
-                <span>Discount</span>
-                <span>-{formatCurrency(discount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between items-center border-t pt-2 mt-2 border-dashed">
-              <span className="font-medium">Subtotal</span>
-              <span className="font-medium">{formatCurrency(subtotalAfterDiscount)}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Taxes & Fees (Est.)</span>
-              <span>{formatCurrency(taxesFees)}</span>
-            </div>
-            <div className="flex justify-between items-center text-xl font-bold text-gray-900 border-t pt-3 mt-3">
-              <span>Estimated Total</span>
-              <span>{formatCurrency(estimatedTotal)}</span>
-            </div>
-          </div>
-          <div className="flex items-start space-x-3 mt-6">
-            <input type="checkbox" id="terms" className="mt-1 h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500" />
-            <label htmlFor="terms" className="text-sm text-gray-600">
-              I have reviewed my details and agree to the{' '}
-              <a href="#" className="text-red-600 hover:underline">
-                terms of service
-              </a>
-              .
-            </label>
           </div>
         </div>
         <div className="flex gap-3 mt-6">
@@ -357,7 +304,7 @@ const SendQuoteModal: React.FC<Props> = ({
             Cancel
           </Button>
           <Button type="button" onClick={handleSubmit} title="This quote will be sent to the client" className="flex-1 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md">
-            Submit Request
+            Send Quote
           </Button>
         </div>
       </div>

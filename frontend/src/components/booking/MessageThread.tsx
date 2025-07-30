@@ -932,7 +932,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               onClick={() => setShowQuoteModal(true)}
               className="mt-4 text-sm text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors rounded-full px-6 py-2 font-semibold shadow-sm fixed bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] sm:static sm:translate-x-0 sm:w-auto"
             >
-              View Quote
+              Send Quote
             </Button>
           )}
           <SendQuoteModal
