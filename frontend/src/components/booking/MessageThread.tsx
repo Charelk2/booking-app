@@ -717,58 +717,57 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
                       >
                         <div className="flex-1 pr-8"> {/* Added pr for timestamp space */}
                           {msg.message_type === 'quote' && typeof msg.quote_id === 'number' ? (
-                            quotes[msg.quote_id] ? (
+                            (() => {
+                              const q = quotes[msg.quote_id];
+                              if (!q) return null;
+                              return (
                                 <>
-                                <QuoteBubble
-                                  description={quotes[msg.quote_id].services[0]?.description || ''}
-                                  price={Number(quotes[msg.quote_id].services[0]?.price || 0)}
-                                  soundFee={Number(quotes[msg.quote_id].sound_fee)}
-                                  travelFee={Number(quotes[msg.quote_id].travel_fee)}
-                                  accommodation={quotes[msg.quote_id].accommodation || undefined}
-                                  discount={Number(quotes[msg.quote_id].discount) || undefined}
-                                  subtotal={Number(quotes[msg.quote_id].subtotal)}
-                                  total={Number(quotes[msg.quote_id].total)}
-                                  status={
-                                    (() => {
-                                      const q = quotes[msg.quote_id]; // Get the quote object
-                                      if (!q) return 'Pending'; // Fallback if quote is somehow missing
-                                      if (q.status === 'pending') return 'Pending';
-                                      if (q.status === 'accepted') return 'Accepted';
-                                      if (q.status === 'rejected' || q.status === 'expired') return 'Rejected';
-                                      return 'Pending';
-                                    })()
-                                  }
-                                />
-                                {user?.user_type === 'client' &&
-                                  quotes[msg.quote_id].status === 'pending' &&
-                                  !bookingConfirmed && (
-                                    <div className="mt-3 flex gap-2">
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        isLoading={acceptingQuoteId === msg.quote_id}
-                                        onClick={() =>
-                                          handleAcceptQuote(quotes[msg.quote_id])
-                                        }
-                                        className="bg-green-500 hover:bg-green-600 text-white rounded-full px-4 py-2 text-xs font-semibold shadow-md"
-                                      >
-                                        Accept
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="secondary"
-                                        onClick={() =>
-                                          handleDeclineQuote(quotes[msg.quote_id])
-                                        }
-                                        className="bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-full px-4 py-2 text-xs font-semibold shadow-md"
-                                      >
-                                        Decline
-                                      </Button>
-                                    </div>
-                                  )}
+                                  <QuoteBubble
+                                    description={q.services[0]?.description || ''}
+                                    price={Number(q.services[0]?.price || 0)}
+                                    soundFee={Number(q.sound_fee)}
+                                    travelFee={Number(q.travel_fee)}
+                                    accommodation={q.accommodation || undefined}
+                                    discount={Number(q.discount) || undefined}
+                                    subtotal={Number(q.subtotal)}
+                                    total={Number(q.total)}
+                                    status={
+                                      q.status === 'pending'
+                                        ? 'Pending'
+                                        : q.status === 'accepted'
+                                          ? 'Accepted'
+                                          : q.status === 'rejected' || q.status === 'expired'
+                                            ? 'Rejected'
+                                            : 'Pending'
+                                    }
+                                  />
+                                  {user?.user_type === 'client' &&
+                                    q.status === 'pending' &&
+                                    !bookingConfirmed && (
+                                      <div className="mt-3 flex gap-2">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          isLoading={acceptingQuoteId === msg.quote_id}
+                                          onClick={() => handleAcceptQuote(q)}
+                                          className="bg-green-500 hover:bg-green-600 text-white rounded-full px-4 py-2 text-xs font-semibold shadow-md"
+                                        >
+                                          Accept
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="secondary"
+                                          onClick={() => handleDeclineQuote(q)}
+                                          className="bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-full px-4 py-2 text-xs font-semibold shadow-md"
+                                        >
+                                          Decline
+                                        </Button>
+                                      </div>
+                                    )}
                                 </>
-                            ) : null
+                              );
+                            })()
                           ) : (
                             msg.content
                           )}{' '}
