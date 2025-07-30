@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import clsx from 'clsx';
 import Button from '../ui/Button';
 import { QuoteV2 } from '@/types';
 import { formatCurrency } from '@/lib/utils';
@@ -18,6 +19,36 @@ const QuoteCard: React.FC<Props> = ({ quote, isClient, onAccept, onDecline, book
     rejected: 'Rejected',
     expired: 'Expired',
   };
+  const [remaining, setRemaining] = useState('');
+  const [warning, setWarning] = useState(false);
+
+  useEffect(() => {
+    if (!quote.expires_at || quote.status !== 'pending') {
+      setRemaining('');
+      setWarning(false);
+      return undefined;
+    }
+    const expires = new Date(quote.expires_at).getTime();
+    function update() {
+      const diff = expires - Date.now();
+      setWarning(diff < 24 * 60 * 60 * 1000);
+      if (diff <= 0) {
+        setRemaining('0h');
+        return;
+      }
+      const d = Math.floor(diff / (24 * 60 * 60 * 1000));
+      const h = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+      const m = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+      const parts: string[] = [];
+      if (d > 0) parts.push(`${d}d`);
+      if (h > 0) parts.push(`${h}h`);
+      else if (d === 0 && m > 0) parts.push(`${m}m`);
+      setRemaining(parts.join(' '));
+    }
+    update();
+    const id = setInterval(update, 60000);
+    return () => clearInterval(id);
+  }, [quote.expires_at, quote.status]);
   return (
     <div className="border rounded-lg p-3 bg-gray-50 mt-2" data-testid="quote-card">
       <div className="flex items-center justify-between mb-1">
@@ -41,8 +72,17 @@ const QuoteCard: React.FC<Props> = ({ quote, isClient, onAccept, onDecline, book
         <p className="text-sm">Discount: {formatCurrency(Number(quote.discount))}</p>
       )}
       <p className="font-semibold">Total: {formatCurrency(Number(quote.total))}</p>
-      {quote.expires_at && (
-        <span className="text-xs text-gray-500">Expires {new Date(quote.expires_at).toLocaleString()}</span>
+      {quote.expires_at && quote.status === 'pending' ? (
+        <span
+          className={clsx('text-xs', warning ? 'text-orange-600' : 'text-gray-500')}
+          data-testid="expires-countdown"
+        >
+          Expires in {remaining}
+        </span>
+      ) : (
+        quote.expires_at && (
+          <span className="text-xs text-gray-500">Expires {new Date(quote.expires_at).toLocaleString()}</span>
+        )
       )}
       <div className="mt-2">
         <span className="text-xs mr-2">Status: {statusMap[quote.status]}</span>
