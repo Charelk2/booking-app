@@ -6,25 +6,23 @@ import MainLayout from '@/components/layout/MainLayout';
 import MessageThread from '@/components/booking/MessageThread';
 import PersonalizedVideoFlow from '@/components/booking/PersonalizedVideoFlow';
 import BookingTimeline from '@/components/booking/BookingTimeline';
-import { getBookingRequestById, getArtist } from '@/lib/api';
+import {
+  getBookingRequestById,
+  getArtist,
+  getMessagesForBookingRequest,
+} from '@/lib/api';
 import { Spinner } from '@/components/ui';
 import { BookingRequest } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { InformationCircleIcon } from '@heroicons/react/20/solid';
 import { format, parseISO, isValid } from 'date-fns';
 import { motion } from 'framer-motion';
+import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
+import {
+  ParsedBookingDetails,
+  parseBookingDetailsFromMessage,
+} from '@/lib/bookingDetails';
 
-// Define a type for the parsed booking details received from MessageThread
-interface ParsedBookingDetails {
-  eventType?: string;
-  description?: string;
-  date?: string;
-  location?: string;
-  guests?: string;
-  venueType?: string;
-  soundNeeded?: string;
-  notes?: string;
-}
 
 export default function BookingRequestDetailPage() {
   const params = useParams();
@@ -37,6 +35,7 @@ export default function BookingRequestDetailPage() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
   const [parsedBookingDetails, setParsedBookingDetails] = useState<ParsedBookingDetails | null>(null);
+  const [initialSoundNeeded, setInitialSoundNeeded] = useState<boolean | undefined>(undefined);
 
   useEffect(() => {
     if (!id) return;
@@ -53,6 +52,24 @@ export default function BookingRequestDetailPage() {
           );
         } catch (err) {
           console.error('Failed to load artist profile:', err);
+        }
+
+        try {
+          const msgRes = await getMessagesForBookingRequest(id);
+          const detailsMsg = msgRes.data.find(
+            (m_item) =>
+              m_item.message_type === 'system' &&
+              m_item.content.startsWith(BOOKING_DETAILS_PREFIX),
+          );
+          if (detailsMsg) {
+            const parsed = parseBookingDetailsFromMessage(detailsMsg.content);
+            setParsedBookingDetails(parsed);
+            if (parsed.soundNeeded) {
+              setInitialSoundNeeded(parsed.soundNeeded.toLowerCase() === 'yes');
+            }
+          }
+        } catch (err2) {
+          console.error('Failed to load booking messages', err2);
         }
       } catch (err) {
         console.error('Failed to load booking request:', err);
@@ -114,8 +131,11 @@ export default function BookingRequestDetailPage() {
 
   // Derive initial quote data for the artist from the request object
   const initialBaseFee = request.service?.price ? Number(request.service.price) : undefined;
-  const initialTravelCost = request.travel_cost ?? undefined;
-  const initialSoundNeeded = request.sound_required ?? undefined; // This is a boolean
+  const initialTravelCost =
+    request.travel_cost !== null && request.travel_cost !== undefined
+      ? Number(request.travel_cost)
+      : undefined;
+  const initialSoundNeededProp = initialSoundNeeded;
 
 
   return (
@@ -268,7 +288,7 @@ export default function BookingRequestDetailPage() {
               onBookingDetailsParsed={setParsedBookingDetails}
               initialBaseFee={initialBaseFee}
               initialTravelCost={initialTravelCost}
-              initialSoundNeeded={initialSoundNeeded}
+              initialSoundNeeded={initialSoundNeededProp}
             />
           )}
         </div>
