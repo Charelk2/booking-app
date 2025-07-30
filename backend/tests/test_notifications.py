@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.models import (
     User,
@@ -32,6 +32,7 @@ from app.utils.notifications import (
     notify_booking_status_update,
     notify_quote_accepted,
     notify_quote_expired,
+    notify_quote_expiring,
 )
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
@@ -535,6 +536,7 @@ def test_format_notification_message_new_types():
     )
     msg_quote = format_notification_message(NotificationType.QUOTE_ACCEPTED, quote_id=7)
     msg_expired = format_notification_message(NotificationType.QUOTE_EXPIRED, quote_id=9)
+    msg_expiring = format_notification_message(NotificationType.QUOTE_EXPIRING, quote_id=5)
     msg_booking = format_notification_message(
         NotificationType.NEW_BOOKING, booking_id=8
     )
@@ -543,6 +545,7 @@ def test_format_notification_message_new_types():
     assert msg_quote == "Quote #7 accepted"
     assert msg_booking == "New booking #8"
     assert msg_expired == "Quote #9 expired"
+    assert msg_expiring == "Quote #5 expiring soon"
 
 
 def test_format_notification_message_booking_request():
@@ -1283,4 +1286,51 @@ def test_quote_expired_notification():
     assert res.status_code == 200
     data = res.json()
     assert data[0]["type"] == "quote_expired"
+    app.dependency_overrides.clear()
+
+
+def test_quote_expiring_notification():
+    Session = setup_app()
+    db = Session()
+    artist = User(
+        email="qxartist@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    client_user = User(
+        email="qxclient@test.com",
+        password="x",
+        first_name="C",
+        last_name="Client",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client_user])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client_user)
+
+    br = BookingRequest(
+        client_id=client_user.id,
+        artist_id=artist.id,
+        status=BookingRequestStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    expires_at = datetime.utcnow() + timedelta(hours=23, minutes=30)
+    notify_quote_expiring(db, artist, 1, expires_at, br.id)
+    db.close()
+
+    token = create_access_token({"sub": artist.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["type"] == "quote_expiring"
     app.dependency_overrides.clear()
