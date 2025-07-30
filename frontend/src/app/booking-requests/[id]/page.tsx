@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import MessageThread from '@/components/booking/MessageThread';
 import PersonalizedVideoFlow from '@/components/booking/PersonalizedVideoFlow';
+import BookingTimeline from '@/components/booking/BookingTimeline';
 import { getBookingRequestById, getArtist } from '@/lib/api';
 import { Spinner } from '@/components/ui';
 import { BookingRequest } from '@/types';
@@ -271,6 +272,28 @@ export default function BookingRequestDetailPage() {
             />
           )}
         </div>
+<<<<<<< HEAD
+=======
+        <BookingTimeline status={request.status} />
+        {request.service?.service_type === 'Personalized Video' ? (
+          <PersonalizedVideoFlow
+            bookingRequestId={request.id}
+            clientName={request.client?.first_name}
+            artistName={artistName || request.artist?.first_name}
+            artistAvatarUrl={artistAvatar}
+          />
+        ) : (
+        <MessageThread
+          bookingRequestId={request.id}
+          serviceId={request.service_id ?? undefined}
+          clientName={request.client?.first_name}
+          artistName={artistName || request.artist?.first_name}
+          artistAvatarUrl={artistAvatar}
+          serviceName={request.service?.title}
+          initialNotes={request.message ?? null}
+        />
+        )}
+>>>>>>> d22d35479679011954c5f8912a40f2c37c3ef624
       </div>
     </MainLayout>
   );
