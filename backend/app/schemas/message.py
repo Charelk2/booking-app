@@ -19,6 +19,7 @@ class MessageResponse(BaseModel):
     content: str
     quote_id: int | None = None
     attachment_url: str | None = None
+    is_read: bool = False
     timestamp: datetime
     avatar_url: str | None = None
 
