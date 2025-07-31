@@ -28,22 +28,22 @@ export default function SummarySidebar() {
       layout
       initial={{ x: 20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      className="space-y-6 p-0" // Removed bg-white, rounded-lg, shadow-md, changed padding to p-0
+      className="space-y-6 p-0"
     >
-      <h3 className="text-2xl font-bold text-gray-900 mb-4 border-b pb-2">Booking Summary</h3>
+      <h2 className="text-2xl font-bold text-gray-900 mb-1">Booking Summary</h2>
 
       {/* Always visible details */}
       <div className="space-y-3">
         {details.eventType && (
           <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
-            <dt className="font-bold text-gray-800 flex-shrink-0 w-1/3">Type</dt>
-            <dd className="text-gray-700 text-right text-sm flex-grow">{details.eventType}</dd>
+            <dt className="text-sm font-medium text-gray-700 flex-shrink-0 w-1/3">Type</dt>
+            <dd className="text-sm text-gray-900 text-right flex-grow">{details.eventType}</dd>
           </div>
         )}
         {details.date && isValid(dateValue) && (
           <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
-            <dt className="font-bold text-gray-800 flex-shrink-0 w-1/3">Date & Time</dt>
-            <dd className="text-gray-700 text-right text-sm flex-grow">
+            <dt className="text-sm font-medium text-gray-700 flex-shrink-0 w-1/3">Date & Time</dt>
+            <dd className="text-sm text-gray-900 text-right flex-grow">
               {format(dateValue, 'PPP')}
               {details.time && ` at ${details.time}`}
             </dd>
@@ -51,8 +51,8 @@ export default function SummarySidebar() {
         )}
         {details.location && (
           <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
-            <dt className="font-bold text-gray-800 flex-shrink-0 w-1/3">Location</dt>
-            <dd className="text-gray-700 text-right text-sm flex-grow">
+            <dt className="text-sm font-medium text-gray-700 flex-shrink-0 w-1/3">Location</dt>
+            <dd className="text-sm text-gray-900 text-right flex-grow">
               {cleanLocation(details.location)}
             </dd>
           </div>
@@ -70,34 +70,34 @@ export default function SummarySidebar() {
         >
           {details.eventDescription && (
             <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
-              <dt className="font-bold text-gray-800 flex-shrink-0 w-1/3">Details</dt>
-              <dd className="text-gray-700 text-right text-sm flex-grow">{details.eventDescription}</dd>
+              <dt className="text-sm font-medium text-gray-700 flex-shrink-0 w-1/3">Details</dt>
+              <dd className="text-sm text-gray-900 text-right flex-grow">{details.eventDescription}</dd>
             </div>
           )}
           {details.guests && (
             <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
-              <dt className="font-bold text-gray-800 flex-shrink-0 w-1/3">Guests</dt>
-              <dd className="text-gray-700 text-right text-sm flex-grow">{details.guests}</dd>
+              <dt className="text-sm font-medium text-gray-700 flex-shrink-0 w-1/3">Guests</dt>
+              <dd className="text-sm text-gray-900 text-right flex-grow">{details.guests}</dd>
             </div>
           )}
           {details.venueType && (
             <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
-              <dt className="font-bold text-gray-800 flex-shrink-0 w-1/3">Venue</dt>
-              <dd className="text-gray-700 text-right text-sm flex-grow">{details.venueType}</dd>
+              <dt className="text-sm font-medium text-gray-700 flex-shrink-0 w-1/3">Venue</dt>
+              <dd className="text-sm text-gray-900 text-right flex-grow">{details.venueType}</dd>
             </div>
           )}
           {details.sound && (
             <div className="flex items-center justify-between py-1 border-b border-gray-100 last:border-b-0">
-              <dt className="font-bold text-gray-800 flex-shrink-0 w-1/3">Sound Needed</dt>
-              <dd className="text-gray-700 text-right text-sm flex-grow">
+              <dt className="text-sm font-medium text-gray-700 flex-shrink-0 w-1/3">Sound Needed</dt>
+              <dd className="text-sm text-gray-900 text-right flex-grow">
                 {details.sound === 'yes' ? 'Yes' : 'No'}
               </dd>
             </div>
           )}
           {details.notes && (
             <div className="flex items-start justify-between py-1 border-b border-gray-100 last:border-b-0">
-              <dt className="font-bold text-gray-800 flex-shrink-0 w-1/3">Notes</dt>
-              <dd className="text-gray-700 text-right text-sm flex-grow">{details.notes}</dd>
+              <dt className="text-sm font-medium text-gray-700 flex-shrink-0 w-1/3">Notes</dt>
+              <dd className="text-sm text-gray-900 text-right flex-grow">{details.notes}</dd>
             </div>
           )}
         </motion.div>
