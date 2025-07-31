@@ -68,9 +68,16 @@ export default function ConversationList({
                   {format(new Date(date), 'MMM d, yyyy')}
                 </time>
               </div>
-              <div className={clsx('text-xs text-gray-600 truncate', req.is_unread_by_current_user && 'font-semibold')}
+              <div
+                className={clsx(
+                  'text-xs text-gray-600 truncate',
+                  req.is_unread_by_current_user && 'font-semibold'
+                )}
               >
-                {req.service?.title || req.message || 'New Request'}
+                {req.last_message_content ??
+                  req.service?.title ??
+                  req.message ??
+                  'New Request'}
               </div>
             </div>
             {req.is_unread_by_current_user && (
