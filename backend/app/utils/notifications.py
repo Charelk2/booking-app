@@ -170,7 +170,7 @@ def notify_user_new_message(
         user.id,
         NotificationType.NEW_MESSAGE,
         message,
-        f"/messages/thread/{booking_request_id}",
+        f"/booking-requests/{booking_request_id}",
         sender_name=sender_name,
         avatar_url=avatar_url,
     )

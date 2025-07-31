@@ -14,7 +14,7 @@ describe('getNotificationDisplayProps', () => {
       user_id: 1,
       type: 'new_message',
       message: 'New message from Bob: Hi there',
-      link: '/messages/thread/1',
+      link: '/booking-requests/1',
       is_read: false,
       timestamp: '2025-01-01T00:00:00Z',
       sender_name: 'Bob',
@@ -24,7 +24,7 @@ describe('getNotificationDisplayProps', () => {
     expect(props.from).toBe('Bob');
     expect(props.subtitle).toContain('Hi there');
     props.onClick();
-    expect(assignSpy).toHaveBeenCalledWith('/messages/thread/1');
+    expect(assignSpy).toHaveBeenCalledWith('/booking-requests/1');
   });
 
   it('maps deposit due unified notification', () => {
@@ -83,7 +83,7 @@ describe('getNotificationDisplayProps', () => {
       user_id: 1,
       type: 'new_message',
       message: 'New message from Ava: hi',
-      link: '/messages/thread/3',
+      link: '/booking-requests/3',
       is_read: false,
       timestamp: '2025-01-05T00:00:00Z',
       sender_name: 'Ava',
