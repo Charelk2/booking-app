@@ -15,6 +15,7 @@ interface MobileMenuDrawerProps {
   open: boolean;
   onClose: () => void;
   navigation: NavItem[];
+  drawerNavigation: NavItem[];
   user: User | null;
   logout: () => void;
   pathname: string;
@@ -28,6 +29,7 @@ export default function MobileMenuDrawer({
   open,
   onClose,
   navigation,
+  drawerNavigation,
   user,
   logout,
   pathname,
@@ -85,6 +87,25 @@ export default function MobileMenuDrawer({
                   </Link>
                 ))}
               </div>
+              {drawerNavigation.length > 0 && (
+                <div className="mt-2 space-y-1 px-2">
+                  {drawerNavigation.map((item) => (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={onClose}
+                      className={classNames(
+                        pathname === item.href
+                          ? "bg-brand-light border-brand text-brand-dark"
+                          : "border-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900",
+                        "block border-l-4 px-3 py-2 text-base font-medium no-underline hover:no-underline",
+                      )}
+                    >
+                      {item.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
               <div className="mt-4 border-t border-gray-200 pt-4 px-2">
                 {user ? (
                   <>
