@@ -604,24 +604,6 @@ useEffect(() => {
       [setQuotes, setThreadError],
     );
 
-    const handleDownloadCalendar = useCallback(async () => {
-      if (!bookingDetails?.id) return;
-      try {
-        const res = await downloadBookingIcs(bookingDetails.id);
-        const blob = new Blob([res.data], { type: 'text/calendar' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `booking-${bookingDetails.id}.ics`;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-      } catch (err: any) {
-        console.error('Calendar download error:', err);
-        setThreadError('Failed to download calendar event. Please try again.');
-      }
-    }, [bookingDetails?.id, setThreadError]);
 
     return (
       <div className="max-w-xl mx-auto px-4 sm:px-6 py-6">
