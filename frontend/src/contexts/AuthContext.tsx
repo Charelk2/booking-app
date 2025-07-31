@@ -34,6 +34,8 @@ interface AuthContextType {
   register: (data: Partial<User>) => Promise<void>;
   logout: () => void;
   refreshUser?: () => Promise<void>;
+  artistViewActive: boolean;
+  toggleArtistView: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,6 +45,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [artistViewActive, setArtistViewActive] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = localStorage.getItem('artistViewActive');
+    return stored ? stored === 'true' : true;
+  });
+
+  useEffect(() => {
+    if (user?.user_type === 'artist') {
+      localStorage.setItem('artistViewActive', String(artistViewActive));
+    }
+  }, [artistViewActive, user]);
 
   const fetchCurrentUserWithArtist = async () => {
     const res = await getCurrentUser();
@@ -197,6 +210,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const toggleArtistView = () => {
+    setArtistViewActive((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('artistViewActive', String(next));
+      }
+      return next;
+    });
+  };
+
   const register = async (data: Partial<User>) => {
     try {
       const response = await apiRegister(data);
@@ -212,8 +235,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     setToken(null);
+    setArtistViewActive(true);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    localStorage.removeItem('artistViewActive');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('token');
     router.push('/');
@@ -233,6 +258,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         refreshUser,
+        artistViewActive,
+        toggleArtistView,
       }}
     >
       {children}
