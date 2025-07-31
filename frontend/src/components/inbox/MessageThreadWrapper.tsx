@@ -10,7 +10,7 @@ import AlertBanner from '../ui/AlertBanner';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import * as api from '@/lib/api';
 import { formatCurrency, formatDepositReminder } from '@/lib/utils';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'; // Importing an icon for "Show Details" button
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -43,8 +43,8 @@ export default function MessageThreadWrapper({
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(null);
 
-  // Controls visibility of the booking details side panel
-  const [showSidePanel, setShowSidePanel] = useState(false);
+  // Default to false. This controls if the RIGHTMOST panel is open.
+  const [showSidePanel, setShowSidePanel] = useState(false); 
 
   const { openPaymentModal, paymentModal } = usePaymentModal(
     useCallback(({ status, amount, receiptUrl: url }) => {
@@ -74,28 +74,31 @@ export default function MessageThreadWrapper({
   }, [confirmedBookingDetails]);
 
   if (!bookingRequestId) {
-    return <p className="p-4">Select a conversation to view messages.</p>;
+    return (
+      <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
+        <p>Select a conversation to view messages.</p>
+      </div>
+    );
   }
 
   if (!bookingRequest) {
     return (
-      <div className="flex justify-center py-6">
+      <div className="flex justify-center py-6 h-full">
         <Spinner />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    // Root container of MessageThreadWrapper: flex-col to stack banners on top of main content area
+    <div className="flex flex-col h-full bg-white relative"> {/* Keep relative for potential absolute button */}
+      {/* Booking Confirmation & Actions Banner */}
       {bookingConfirmed && confirmedBookingDetails && (
         <AlertBanner variant="success" className="mx-4 mt-4 rounded-lg">
           🎉 Booking confirmed for {bookingRequest.artist?.first_name || 'Artist'}!{' '}
           {confirmedBookingDetails.service?.title} on{' '}
           {new Date(confirmedBookingDetails.start_time).toLocaleString()}.{' '}
-          {formatDepositReminder(
-            confirmedBookingDetails.deposit_amount ?? undefined,
-            confirmedBookingDetails.deposit_due_by ?? undefined,
-          )}
+          {formatDepositReminder(confirmedBookingDetails.deposit_amount ?? 0, confirmedBookingDetails.deposit_due_by ?? undefined)}.
           <div className="flex flex-wrap gap-3 mt-2">
             <Link
               href={`/dashboard/client/bookings/${confirmedBookingDetails.id}`}
@@ -127,6 +130,7 @@ export default function MessageThreadWrapper({
         </AlertBanner>
       )}
 
+      {/* Payment Status Banner */}
       {paymentStatus && (
         <AlertBanner variant="info" className="mx-4 mt-2 rounded-lg">
           {paymentStatus === 'paid'
@@ -140,9 +144,13 @@ export default function MessageThreadWrapper({
         </AlertBanner>
       )}
 
-      {/* Main area with chat and optional details side panel */}
-      <div className="flex flex-1 min-h-0 flex-col md:flex-row py-4">
-        <div className={`flex-1 min-w-0 px-4 sm:px-6 ${showSidePanel ? 'md:max-w-[calc(100%-300px)]' : ''}`}>
+      {/* Main Content Area: Chat and Booking Details Side Panel */}
+      {/* This container needs to manage the horizontal flex behavior */}
+      <div className="flex flex-1 min-h-0 py-4"> {/* flex-1 ensures it takes remaining vertical space */}
+        {/* Chat Messages */}
+        {/* Chat should take full width on mobile, and reduce width on desktop when panel is open */}
+        <div className={`flex-1 min-w-0 px-4 sm:px-6 transition-[margin-right] duration-300 ease-in-out
+                      ${showSidePanel ? 'md:mr-[300px] lg:mr-[360px]' : ''}`}> {/* Dynamic right margin to create space for panel */}
           <MessageThread
             bookingRequestId={bookingRequestId}
             serviceId={bookingRequest.service_id ?? undefined}
@@ -168,47 +176,55 @@ export default function MessageThreadWrapper({
           />
         </div>
 
-        {!showSidePanel && (
-          <div className="flex-shrink-0 px-4 md:px-0 md:border-l border-gray-200 pt-4 md:pt-0">
+        {/* Side Panel Toggle Button (placed at top-right of the whole wrapper or chat header for Airbnb style) */}
+        {/* Position this button to float over the content */}
+        <button
+          type="button"
+          onClick={() => setShowSidePanel(s => !s)}
+          aria-expanded={showSidePanel}
+          aria-controls="reservation-panel"
+          className="absolute top-4 right-4 md:top-6 md:right-6 z-20 p-2 rounded-full bg-white shadow-md text-gray-600 hover:bg-gray-100 transition-colors"
+        >
+          {showSidePanel ? 'Hide Details' : 'Show Details'}
+        </button>
+
+
+        {/* Booking Details Side Panel */}
+        <section
+          id="reservation-panel"
+          role="complementary"
+          className={`
+            fixed inset-y-0 right-0 z-10 /* Fixed positioning relative to viewport */
+            w-full md:w-[300px] lg:w-[360px] /* Defined width for desktop */
+            bg-white border-l border-gray-200 p-4
+            transform transition-transform duration-300 ease-in-out /* Smooth transition */
+            ${showSidePanel ? 'translate-x-0' : 'translate-x-full'} /* Slide in/out */
+            /* Add shadow to make it pop over the content */
+            shadow-lg
+          `}
+        >
+          {/* Close button for side panel (always visible on the panel itself) */}
+          <div className="flex justify-end mb-2">
             <button
               type="button"
-              onClick={() => setShowSidePanel(true)}
-              aria-expanded={showSidePanel}
-              aria-controls="reservation-panel"
-              className="px-4 py-2 rounded-full bg-indigo-600 text-white flex items-center gap-2 shadow-md transition-colors"
+              onClick={() => setShowSidePanel(false)}
+              className="p-1 rounded-full hover:bg-gray-100 text-gray-600"
             >
-              <MagnifyingGlassIcon className="h-5 w-5" />
-              Show Details
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
-        )}
-
-        {showSidePanel && (
-          <section
-            id="reservation-panel"
-            role="complementary"
-            className="side-panel fixed inset-y-0 right-0 z-10 w-full md:w-[300px] lg:w-[360px] flex-shrink-0 bg-white border-l border-gray-200 p-4"
-          >
-            <div className="flex justify-end md:hidden mb-2">
-              <button
-                type="button"
-                onClick={() => setShowSidePanel(false)}
-                className="p-1 rounded-full hover:bg-gray-100"
-              >
-                ✕
-              </button>
-            </div>
-            <BookingDetailsPanel
-              bookingRequest={bookingRequest}
-              parsedBookingDetails={parsedDetails}
-              artistName={bookingRequest.artist?.first_name || 'Artist'}
-              bookingConfirmed={bookingConfirmed}
-              confirmedBookingDetails={confirmedBookingDetails}
-              setShowReviewModal={setShowReviewModal}
-              paymentModal={paymentModal}
-            />
-          </section>
-        )}
+          <BookingDetailsPanel
+            bookingRequest={bookingRequest}
+            parsedBookingDetails={parsedDetails}
+            artistName={bookingRequest.artist?.first_name || 'Artist'}
+            bookingConfirmed={bookingConfirmed}
+            confirmedBookingDetails={confirmedBookingDetails}
+            setShowReviewModal={setShowReviewModal}
+            paymentModal={paymentModal}
+          />
+        </section>
       </div>
     </div>
   );
