@@ -10,6 +10,7 @@ import AlertBanner from '../ui/AlertBanner';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import * as api from '@/lib/api';
 import { formatCurrency, formatDepositReminder } from '@/lib/utils';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -41,6 +42,9 @@ export default function MessageThreadWrapper({
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(null);
+
+  // Controls visibility of the booking details side panel
+  const [showSidePanel, setShowSidePanel] = useState(false);
 
   const { openPaymentModal, paymentModal } = usePaymentModal(
     useCallback(({ status, amount, receiptUrl: url }) => {
@@ -136,8 +140,9 @@ export default function MessageThreadWrapper({
         </AlertBanner>
       )}
 
-      <div className="flex flex-1 min-h-0 md:flex-row py-4">
-        <div className="flex-1 md:w-3/4 min-w-0 px-4 sm:px-6">
+      {/* Main area with chat and optional details side panel */}
+      <div className="flex flex-1 min-h-0 py-4">
+        <div className={`flex-1 min-w-0 px-4 sm:px-6 ${showSidePanel ? 'md:max-w-[calc(100%-280px)]' : ''}`}>
           <MessageThread
             bookingRequestId={bookingRequestId}
             serviceId={bookingRequest.service_id ?? undefined}
@@ -163,17 +168,43 @@ export default function MessageThreadWrapper({
           />
         </div>
 
-        <div className="w-full md:w-1/4 min-w-[280px] md:border-l border-gray-200 px-4 pt-4 md:pt-0 flex-shrink-0">
-          <BookingDetailsPanel
-            bookingRequest={bookingRequest}
-            parsedBookingDetails={parsedDetails}
-            artistName={bookingRequest.artist?.first_name || 'Artist'}
-            bookingConfirmed={bookingConfirmed}
-            confirmedBookingDetails={confirmedBookingDetails}
-            setShowReviewModal={setShowReviewModal}
-            paymentModal={paymentModal}
-          />
-        </div>
+        {!showSidePanel && (
+          <div className="w-full md:w-auto px-4 md:px-0 md:border-l border-gray-200 pt-4 md:pt-0 flex justify-center items-center flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowSidePanel(true)}
+              className="px-4 py-2 rounded-full bg-indigo-600 text-white shadow-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
+            >
+              <MagnifyingGlassIcon className="h-5 w-5" />
+              <span>Show Details</span>
+            </button>
+          </div>
+        )}
+
+        {showSidePanel && (
+          <div className="w-full md:w-[280px] min-w-[280px] md:border-l border-gray-200 px-4 pt-4 md:pt-0 flex-shrink-0">
+            <div className="flex justify-end md:hidden mb-2">
+              <button
+                type="button"
+                onClick={() => setShowSidePanel(false)}
+                className="p-1 rounded-full hover:bg-gray-100 text-gray-600"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <BookingDetailsPanel
+              bookingRequest={bookingRequest}
+              parsedBookingDetails={parsedDetails}
+              artistName={bookingRequest.artist?.first_name || 'Artist'}
+              bookingConfirmed={bookingConfirmed}
+              confirmedBookingDetails={confirmedBookingDetails}
+              setShowReviewModal={setShowReviewModal}
+              paymentModal={paymentModal}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
