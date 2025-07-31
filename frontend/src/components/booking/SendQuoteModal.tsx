@@ -144,11 +144,11 @@ const SendQuoteModal: React.FC<Props> = ({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 py-8 sm:p-8 font-sans">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden border border-gray-100 max-h-[calc(100vh-4rem)] sm:max-h-[calc(100vh-6rem)]">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 py-16 sm:p-8 font-sans"> {/* Increased py-16 for mobile, sm:p-8 for larger screens */}
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden border border-gray-100"> {/* Removed my-auto, my-4, sm:my-8 as py-16 on parent handles spacing */}
 
         {/* Modal Header with Gradient */}
-        <div className="bg-gradient-to-br from-purple-700 to-indigo-800 text-white p-6 relative"> {/* Added relative positioning */}
+        <div className="bg-gradient-to-br from-purple-700 to-indigo-800 text-white p-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
           <div className="flex flex-col">
             <h2 className="text-2xl font-bold tracking-tight">Send Quote</h2>
             <div className="text-sm font-medium opacity-90 mt-1">
@@ -156,18 +156,11 @@ const SendQuoteModal: React.FC<Props> = ({
               <span className="block">Date: {currentDate}</span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-4 right-4 text-white text-3xl font-light opacity-80 hover:opacity-100 transition-opacity leading-none" // Absolute positioning
-            aria-label="Close modal"
-          >
-            &times;
-          </button>
+          <button type="button" onClick={onClose} className="text-white text-3xl font-light opacity-80 hover:opacity-100 transition-opacity leading-none self-start sm:self-center">&times;</button>
         </div>
 
         {/* Modal Content Area */}
-        <div className="p-6 space-y-6 overflow-y-auto flex-1">
+        <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
           
           {/* Quote Description Input */}
           <div className="relative">
