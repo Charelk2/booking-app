@@ -1,6 +1,7 @@
 from collections import defaultdict
 from sqlalchemy.orm import Session
 from typing import Dict, List, Iterable
+import re
 
 from ..utils.messages import BOOKING_DETAILS_PREFIX, parse_booking_details
 
@@ -85,10 +86,10 @@ def get_message_thread_notifications(db: Session, user_id: int) -> List[dict]:
 
     threads: Dict[int, dict] = {}
     for n in notifs:
-        try:
-            request_id = int(n.link.split("/")[-1])
-        except (IndexError, ValueError):
+        match = re.search(r"(?:/booking-requests/|/inbox\?requestId=)(\d+)", n.link)
+        if not match:
             continue
+        request_id = int(match.group(1))
 
         thread = threads.get(request_id)
         if thread is None:
@@ -163,7 +164,10 @@ def mark_thread_read(db: Session, user_id: int, booking_request_id: int) -> None
         .filter(
             models.Notification.user_id == user_id,
             models.Notification.type == models.NotificationType.NEW_MESSAGE,
-            models.Notification.link == f"/booking-requests/{booking_request_id}",
+            models.Notification.link.in_([
+                f"/booking-requests/{booking_request_id}",
+                f"/inbox?requestId={booking_request_id}",
+            ]),
             models.Notification.is_read == False,
         )
         .all()
