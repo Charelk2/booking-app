@@ -8,9 +8,8 @@ import BookingDetailsPanel from './BookingDetailsPanel';
 import Spinner from '../ui/Spinner';
 import AlertBanner from '../ui/AlertBanner';
 import usePaymentModal from '@/hooks/usePaymentModal';
-import ReviewFormModal from '../review/ReviewFormModal';
 import * as api from '@/lib/api';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDepositReminder } from '@/lib/utils';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -26,18 +25,21 @@ interface ParsedBookingDetails {
 interface MessageThreadWrapperProps {
   bookingRequestId: number | null;
   bookingRequest: BookingRequest | null;
+  showReviewModal: boolean;
+  setShowReviewModal: (show: boolean) => void;
 }
 
 export default function MessageThreadWrapper({
   bookingRequestId,
   bookingRequest,
+  showReviewModal,
+  setShowReviewModal,
 }: MessageThreadWrapperProps) {
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [confirmedBookingDetails, setConfirmedBookingDetails] = useState<Booking | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
-  const [showReviewModal, setShowReviewModal] = useState(false);
   const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(null);
 
   const { openPaymentModal, paymentModal } = usePaymentModal(
@@ -80,13 +82,16 @@ export default function MessageThreadWrapper({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white">
       {bookingConfirmed && confirmedBookingDetails && (
         <AlertBanner variant="success" className="mx-4 mt-4 rounded-lg">
           🎉 Booking confirmed for {bookingRequest.artist?.first_name || 'Artist'}!{' '}
           {confirmedBookingDetails.service?.title} on{' '}
           {new Date(confirmedBookingDetails.start_time).toLocaleString()}.{' '}
-          {confirmedBookingDetails.deposit_amount ? `Deposit of ${formatCurrency(confirmedBookingDetails.deposit_amount)} due by ${confirmedBookingDetails.deposit_due_by ? new Date(confirmedBookingDetails.deposit_due_by).toLocaleDateString() : ''}.` : ''}
+          {formatDepositReminder(
+            confirmedBookingDetails.deposit_amount ?? undefined,
+            confirmedBookingDetails.deposit_due_by ?? undefined,
+          )}
           <div className="flex flex-wrap gap-3 mt-2">
             <Link
               href={`/dashboard/client/bookings/${confirmedBookingDetails.id}`}
@@ -131,46 +136,45 @@ export default function MessageThreadWrapper({
         </AlertBanner>
       )}
 
-      <div className="flex-1 min-h-0 pb-4">
-        <MessageThread
-          bookingRequestId={bookingRequestId}
-          serviceId={bookingRequest.service_id ?? undefined}
-          clientName={bookingRequest.client?.first_name}
-          artistName={bookingRequest.artist?.first_name}
-          artistAvatarUrl={bookingRequest.artist?.profile_picture_url ?? null}
-        serviceName={bookingRequest.service?.title}
-        initialNotes={bookingRequest.message ?? null}
-        initialBaseFee={bookingRequest.service?.price ? Number(bookingRequest.service.price) : undefined}
-        onBookingDetailsParsed={setParsedDetails}
-        onBookingConfirmedChange={(confirmed, booking) => {
-          setBookingConfirmed(confirmed);
-          setConfirmedBookingDetails(booking);
-        }}
-        onPaymentStatusChange={(status, amount, url) => {
-          setPaymentStatus(status);
-          setPaymentAmount(amount);
-          setReceiptUrl(url);
-        }}
-          onShowReviewModal={(show) => setShowReviewModal(show)}
-        />
+      <div className="flex flex-1 min-h-0 md:flex-row py-4">
+        <div className="flex-1 md:w-3/4 min-w-0 px-4 sm:px-6">
+          <MessageThread
+            bookingRequestId={bookingRequestId}
+            serviceId={bookingRequest.service_id ?? undefined}
+            clientName={bookingRequest.client?.first_name}
+            artistName={bookingRequest.artist?.first_name}
+            artistAvatarUrl={bookingRequest.artist?.profile_picture_url ?? null}
+            serviceName={bookingRequest.service?.title}
+            initialNotes={bookingRequest.message ?? null}
+            initialBaseFee={bookingRequest.service?.price ? Number(bookingRequest.service.price) : undefined}
+            initialTravelCost={bookingRequest.travel_cost !== null && bookingRequest.travel_cost !== undefined ? Number(bookingRequest.travel_cost) : undefined}
+            initialSoundNeeded={parsedDetails?.soundNeeded?.toLowerCase() === 'yes'}
+            onBookingDetailsParsed={setParsedDetails}
+            onBookingConfirmedChange={(confirmed, booking) => {
+              setBookingConfirmed(confirmed);
+              setConfirmedBookingDetails(booking);
+            }}
+            onPaymentStatusChange={(status, amount, url) => {
+              setPaymentStatus(status);
+              setPaymentAmount(amount);
+              setReceiptUrl(url);
+            }}
+            onShowReviewModal={setShowReviewModal}
+          />
+        </div>
+
+        <div className="w-full md:w-1/4 min-w-[280px] md:border-l border-gray-200 px-4 pt-4 md:pt-0 flex-shrink-0">
+          <BookingDetailsPanel
+            bookingRequest={bookingRequest}
+            parsedBookingDetails={parsedDetails}
+            artistName={bookingRequest.artist?.first_name || 'Artist'}
+            bookingConfirmed={bookingConfirmed}
+            confirmedBookingDetails={confirmedBookingDetails}
+            setShowReviewModal={setShowReviewModal}
+            paymentModal={paymentModal}
+          />
+        </div>
       </div>
-      <BookingDetailsPanel
-        bookingRequest={bookingRequest}
-        parsedBookingDetails={parsedDetails}
-        artistName={bookingRequest.artist?.first_name || 'Artist'}
-        bookingConfirmed={bookingConfirmed}
-        confirmedBookingDetails={confirmedBookingDetails}
-        setShowReviewModal={setShowReviewModal}
-        paymentModal={paymentModal}
-      />
-      {confirmedBookingDetails && (
-        <ReviewFormModal
-          isOpen={showReviewModal}
-          bookingId={confirmedBookingDetails.id}
-          onClose={() => setShowReviewModal(false)}
-          onSubmitted={() => setShowReviewModal(false)}
-        />
-      )}
     </div>
   );
 }

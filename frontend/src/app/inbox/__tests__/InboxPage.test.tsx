@@ -16,6 +16,11 @@ jest.mock('@/components/layout/MainLayout', () => {
   Mock.displayName = 'MockMainLayout';
   return Mock;
 });
+jest.mock('@/components/review/ReviewFormModal', () => {
+  const Mock = () => <div />;
+  Mock.displayName = 'MockReviewFormModal';
+  return { __esModule: true, default: Mock };
+});
 
 function setup() {
   (useRouter as jest.Mock).mockReturnValue({ replace: jest.fn() });

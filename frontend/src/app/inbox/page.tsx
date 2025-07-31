@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@/components/ui';
 import ConversationList from '@/components/inbox/ConversationList';
 import MessageThreadWrapper from '@/components/inbox/MessageThreadWrapper';
+import ReviewFormModal from '@/components/review/ReviewFormModal';
 import {
   getMyBookingRequests,
   getBookingRequestsForArtist,
@@ -18,6 +19,7 @@ export default function InboxPage() {
   const [allBookingRequests, setAllBookingRequests] = useState<BookingRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [selectedBookingRequestId, setSelectedBookingRequestId] = useState<number | null>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -131,6 +133,8 @@ export default function InboxPage() {
             <MessageThreadWrapper
               bookingRequestId={selectedBookingRequestId}
               bookingRequest={selectedRequest}
+              showReviewModal={showReviewModal}
+              setShowReviewModal={setShowReviewModal}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
@@ -139,6 +143,14 @@ export default function InboxPage() {
           )}
         </div>
       </div>
+      {selectedRequest && (
+        <ReviewFormModal
+          isOpen={showReviewModal}
+          bookingId={(selectedRequest as any).booking_id || 0}
+          onClose={() => setShowReviewModal(false)}
+          onSubmitted={() => setShowReviewModal(false)}
+        />
+      )}
     </MainLayout>
   );
 }
