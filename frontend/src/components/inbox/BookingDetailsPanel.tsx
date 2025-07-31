@@ -1,10 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { InformationCircleIcon } from '@heroicons/react/20/solid';
 import { format, parseISO, isValid } from 'date-fns';
-import { Booking, BookingRequest } from '@/types';
+import { Booking, BookingRequest, Review } from '@/types';
 import Button from '../ui/Button';
 
 interface ParsedBookingDetails {
@@ -37,7 +34,6 @@ export default function BookingDetailsPanel({
   setShowReviewModal,
   paymentModal,
 }: BookingDetailsPanelProps) {
-  const [showFullDetails, setShowFullDetails] = useState(false);
 
   const cleanLocation = (locationString: string | undefined) => {
     if (!locationString) return 'N/A';
@@ -54,27 +50,9 @@ export default function BookingDetailsPanel({
     : null;
 
   return (
-    <div className="bg-white rounded-2xl p-6 border-t border-gray-200 shadow-sm mt-4">
-      <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowFullDetails((s) => !s)}>
-        <h2 className="text-lg font-semibold">Booking Details</h2>
-        <button
-          type="button"
-          className="text-sm text-indigo-600 hover:underline flex items-center gap-1"
-          aria-expanded={showFullDetails}
-          aria-controls="booking-details-content"
-        >
-          <span>{showFullDetails ? 'Hide Details' : 'Show Details'}</span>
-          <InformationCircleIcon className={`h-4 w-4 transform transition-transform ${showFullDetails ? 'rotate-180' : ''}`} />
-        </button>
-      </div>
-      <motion.div
-        initial={false}
-        animate={{ height: showFullDetails ? 'auto' : 0 }}
-        transition={{ duration: 0.3 }}
-        className="overflow-hidden"
-        id="booking-details-content"
-      >
-        <dl className="mt-4 space-y-2 text-sm text-gray-800">
+    <div className="bg-white rounded-2xl p-6 border-gray-200 shadow-sm sticky top-0">
+      <h2 className="text-lg font-semibold border-b border-gray-200 pb-2 mb-3">Booking Details</h2>
+      <dl className="space-y-2 text-sm text-gray-800">
             <div className="flex justify-between">
               <dt className="font-medium">Client</dt>
               <dd>
@@ -143,17 +121,19 @@ export default function BookingDetailsPanel({
               </div>
             )}
             {bookingConfirmed &&
-              confirmedBookingDetails?.status === 'completed' && (
-                <Button
-                  type="button"
-                  onClick={() => setShowReviewModal(true)}
-                  className="mt-2 text-indigo-700 underline"
-                >
-                  Leave Review
-                </Button>
+              confirmedBookingDetails?.status === 'completed' &&
+              !(confirmedBookingDetails as Booking & { review?: Review }).review && (
+                <div className="mt-4 text-center">
+                  <Button
+                    type="button"
+                    onClick={() => setShowReviewModal(true)}
+                    className="text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
+                  >
+                    Leave Review
+                  </Button>
+                </div>
               )}
-        </dl>
-      </motion.div>
+      </dl>
       {paymentModal}
     </div>
   );
