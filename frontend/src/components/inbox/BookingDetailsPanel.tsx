@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { InformationCircleIcon } from '@heroicons/react/20/solid';
-import Link from 'next/link';
 import { format, parseISO, isValid } from 'date-fns';
 import { Booking, BookingRequest } from '@/types';
 import Button from '../ui/Button';
@@ -23,14 +22,8 @@ interface BookingDetailsPanelProps {
   bookingRequest: BookingRequest;
   parsedBookingDetails: ParsedBookingDetails | null;
   artistName: string;
-  artistAvatarUrl: string | null;
   bookingConfirmed: boolean;
   confirmedBookingDetails: Booking | null;
-  paymentStatus: string | null;
-  paymentAmount: number | null;
-  receiptUrl: string | null;
-  openPaymentModal: (opts: any) => void;
-  handleDownloadCalendar: () => void;
   setShowReviewModal: (show: boolean) => void;
   paymentModal: React.ReactNode;
 }
@@ -39,14 +32,8 @@ export default function BookingDetailsPanel({
   bookingRequest,
   parsedBookingDetails,
   artistName,
-  artistAvatarUrl,
   bookingConfirmed,
   confirmedBookingDetails,
-  paymentStatus,
-  paymentAmount,
-  receiptUrl,
-  openPaymentModal,
-  handleDownloadCalendar,
   setShowReviewModal,
   paymentModal,
 }: BookingDetailsPanelProps) {
@@ -67,77 +54,27 @@ export default function BookingDetailsPanel({
     : null;
 
   return (
-    <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm space-y-4">
-      {bookingConfirmed && confirmedBookingDetails && (
-        <div>
-          <p className="text-sm text-green-700" data-testid="booking-confirmed">
-            🎉 Booking confirmed for {artistName} on{' '}
-            {format(
-              new Date(confirmedBookingDetails.start_time),
-              'PPP p'
-            )}
-          </p>
-          <div className="flex flex-wrap gap-3 mt-2">
-            <Link
-              href={`/dashboard/client/bookings/${confirmedBookingDetails.id}`}
-              className="text-indigo-600 underline text-sm"
-            >
-              View booking
-            </Link>
-            <button
-              type="button"
-              onClick={() =>
-                openPaymentModal({
-                  bookingRequestId: bookingRequest.id,
-                  depositAmount: confirmedBookingDetails.deposit_amount ?? undefined,
-                  depositDueBy: confirmedBookingDetails.deposit_due_by ?? undefined,
-                })
-              }
-              className="text-indigo-600 underline text-sm"
-            >
-              Pay deposit
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadCalendar}
-              className="text-indigo-600 underline text-sm"
-            >
-              Add to calendar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {paymentStatus && (
-        <div className="text-sm text-blue-700" data-testid="payment-status">
-          {paymentStatus === 'paid'
-            ? 'Payment completed.'
-            : `Deposit of R${paymentAmount ?? 0} received.`}{' '}
-          {receiptUrl && (
-            <a href={receiptUrl} target="_blank" rel="noopener" className="underline">
-              View receipt
-            </a>
-          )}
-        </div>
-      )}
-
-      <div>
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Booking Details</h2>
-          <button
-            type="button"
-            onClick={() => setShowFullDetails((s) => !s)}
-            className="text-sm text-indigo-600 underline"
-          >
-            {showFullDetails ? 'Hide Details' : 'Show More'}
-          </button>
-        </div>
-        {showFullDetails && (
-          <motion.dl
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            className="mt-2 space-y-2 text-sm"
-          >
+    <div className="bg-white rounded-2xl p-6 border-t border-gray-200 shadow-sm mt-4">
+      <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowFullDetails((s) => !s)}>
+        <h2 className="text-lg font-semibold">Booking Details</h2>
+        <button
+          type="button"
+          className="text-sm text-indigo-600 hover:underline flex items-center gap-1"
+          aria-expanded={showFullDetails}
+          aria-controls="booking-details-content"
+        >
+          <span>{showFullDetails ? 'Hide Details' : 'Show Details'}</span>
+          <InformationCircleIcon className={`h-4 w-4 transform transition-transform ${showFullDetails ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+      <motion.div
+        initial={false}
+        animate={{ height: showFullDetails ? 'auto' : 0 }}
+        transition={{ duration: 0.3 }}
+        className="overflow-hidden"
+        id="booking-details-content"
+      >
+        <dl className="mt-4 space-y-2 text-sm text-gray-800">
             <div className="flex justify-between">
               <dt className="font-medium">Client</dt>
               <dd>
@@ -215,9 +152,8 @@ export default function BookingDetailsPanel({
                   Leave Review
                 </Button>
               )}
-          </motion.dl>
-        )}
-      </div>
+        </dl>
+      </motion.div>
       {paymentModal}
     </div>
   );

@@ -4,7 +4,6 @@ import clsx from 'clsx';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { BookingRequest, User } from '@/types';
-import Link from 'next/link';
 
 interface ConversationListProps {
   bookingRequests: BookingRequest[];
@@ -50,10 +49,10 @@ export default function ConversationList({
                 alt="avatar"
                 width={40}
                 height={40}
-                className="rounded-full object-cover"
+                className="rounded-full object-cover flex-shrink-0"
               />
             ) : (
-              <div className="h-10 w-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-medium">
+              <div className="h-10 w-10 rounded-full bg-indigo-500 text-white flex-shrink-0 flex items-center justify-center font-medium">
                 {otherName.charAt(0)}
               </div>
             )}
@@ -86,9 +85,6 @@ export default function ConversationList({
           </div>
         );
       })}
-      {bookingRequests.length === 0 && (
-        <p className="p-4 text-sm text-gray-500">No conversations yet.</p>
-      )}
     </div>
   );
 }
