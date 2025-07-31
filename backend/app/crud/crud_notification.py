@@ -163,7 +163,7 @@ def mark_thread_read(db: Session, user_id: int, booking_request_id: int) -> None
         .filter(
             models.Notification.user_id == user_id,
             models.Notification.type == models.NotificationType.NEW_MESSAGE,
-            models.Notification.link == f"/messages/thread/{booking_request_id}",
+            models.Notification.link == f"/booking-requests/{booking_request_id}",
             models.Notification.is_read == False,
         )
         .all()
