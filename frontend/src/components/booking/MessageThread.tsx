@@ -16,6 +16,7 @@ import {
   formatCurrency,
   formatDepositReminder,
 } from '@/lib/utils';
+import AlertBanner from '../ui/AlertBanner';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
 import { DocumentIcon, DocumentTextIcon, BanknotesIcon } from '@heroicons/react/24/outline'; // Import BanknotesIcon for quote
@@ -38,6 +39,7 @@ import SendQuoteModal from './SendQuoteModal';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import QuoteBubble from './QuoteBubble';
 import useWebSocket from '@/hooks/useWebSocket';
+import ReviewFormModal from '../review/ReviewFormModal';
 import { format } from 'date-fns';
 
 
@@ -84,9 +86,6 @@ interface MessageThreadProps {
   initialBaseFee?: number;
   initialTravelCost?: number;
   initialSoundNeeded?: boolean;
-  onBookingConfirmedChange?: (isConfirmed: boolean, booking: Booking | null) => void;
-  onPaymentStatusChange?: (status: string | null, amount: number | null, receiptUrl: string | null) => void;
-  onShowReviewModal?: (show: boolean) => void;
 }
 
 // SVG Checkmark Icons (refined sizes and stroke)
@@ -136,9 +135,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       initialBaseFee,
       initialTravelCost,
       initialSoundNeeded,
-      onBookingConfirmedChange,
-      onPaymentStatusChange,
-      onShowReviewModal,
     }: MessageThreadProps,
     ref,
   ) {
@@ -152,6 +148,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
     const [showQuoteModal, setShowQuoteModal] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
     const [bookingDetails, setBookingDetails] = useState<Booking | null>(null);
     const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
     const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
@@ -189,10 +186,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         setPaymentStatus(status);
         setPaymentAmount(amount);
         setReceiptUrl(url ?? null);
-        if (onPaymentStatusChange) {
-          onPaymentStatusChange(status, amount, url ?? null);
-        }
-      }, [onPaymentStatusChange]),
+      }, []),
       useCallback((msg) => { /* usePaymentModal handles its own error display */ }, []),
     );
 
@@ -569,9 +563,6 @@ useEffect(() => {
           const freshQuote = await getQuoteV2(quote.id);
           setQuotes((prev) => ({ ...prev, [quote.id]: freshQuote.data }));
           setBookingConfirmed(true);
-          if (onBookingConfirmedChange) {
-            onBookingConfirmedChange(true, details.data);
-          }
 
           const details = await getBookingDetails(confirmedBookingId ?? freshQuote.data.booking_id ?? 0);
           setBookingDetails(details.data);
@@ -606,9 +597,30 @@ useEffect(() => {
       [setQuotes, setThreadError],
     );
 
+    const handleDownloadCalendar = useCallback(async () => {
+      if (!bookingDetails?.id) return;
+      try {
+        const res = await downloadBookingIcs(bookingDetails.id);
+        const blob = new Blob([res.data], { type: 'text/calendar' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `booking-${bookingDetails.id}.ics`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err: any) {
+        console.error('Calendar download error:', err);
+        setThreadError('Failed to download calendar event. Please try again.');
+      }
+    }, [bookingDetails?.id, setThreadError]);
 
     return (
-      <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100 flex flex-col p-6">
+      <div className="max-w-xl mx-auto px-4 sm:px-6 py-6">
+        {/* --- MAIN CONTAINER WITH FIXED HEIGHT (or max-height) --- */}
+        {/* Increased max-h to 75vh for a bit more vertical space, adjusted from 70vh */}
+        <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[75vh]">
           {/* Chat Header - Reduced py-3 to py-2 */}
           <header className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-indigo-700 text-white px-4 py-2 flex items-center justify-between shadow-md">
             <span className="font-semibold text-base sm:text-lg">
@@ -666,12 +678,88 @@ useEffect(() => {
             )}
           </header>
 
+          {/* Booking Confirmation & Actions Banner */}
+          {bookingConfirmed && (
+            <AlertBanner variant="success" data-testid="booking-confirmed-banner" className="mt-4 mx-4 rounded-lg">
+              🎉 Booking confirmed for {artistName}!{' '}
+              {bookingDetails && (
+                <>
+                  {bookingDetails.service?.title} on{' '}
+                  {new Date(bookingDetails.start_time).toLocaleString()}.{' '}
+                  {formatDepositReminder(
+                    bookingDetails.deposit_amount ?? 0,
+                    bookingDetails.deposit_due_by ?? undefined,
+                  )}
+                </>
+              )}
+            </AlertBanner>
+          )}
+          {bookingConfirmed && (
+            <div className="flex flex-wrap gap-3 mx-4 mt-3">
+              <Link
+                href={
+                  bookingDetails?.id
+                    ? `/dashboard/client/bookings/${bookingDetails.id}`
+                    : `/booking-requests/${bookingRequestId}`
+                }
+                aria-label="View booking details"
+                data-testid="view-booking-link"
+                className="inline-block text-indigo-600 hover:underline text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              >
+                View booking
+              </Link>
+              <button
+                type="button"
+                onClick={() =>
+                  openPaymentModal({
+                    bookingRequestId,
+                    depositAmount: bookingDetails?.deposit_amount ?? undefined,
+                    depositDueBy: bookingDetails?.deposit_due_by ?? undefined,
+                  })
+                }
+                data-testid="pay-deposit-button"
+                className="inline-block text-indigo-600 underline text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              >
+                {payDepositLabel}
+              </button>
+              {bookingDetails && (
+                <button
+                  type="button"
+                  onClick={handleDownloadCalendar}
+                  data-testid="add-calendar-button"
+                  className="inline-block text-indigo-600 underline text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                >
+                  Add to calendar
+                </button>
+              )}
+            </div>
+          )}
+          {paymentStatus && (
+            <AlertBanner variant="info" data-testid="payment-status-banner" className="mt-2 mx-4 rounded-lg">
+              {paymentStatus === 'paid'
+                ? 'Payment completed.'
+                : `Deposit of ${formatCurrency(paymentAmount ?? 0)} received.`}
+              {receiptUrl && (
+                <a
+                  href={receiptUrl}
+                  target="_blank"
+                  rel="noopener"
+                  data-testid="booking-receipt-link"
+                  className="ml-2 underline text-indigo-600"
+                >
+                  View receipt
+                </a>
+              )}
+            </AlertBanner>
+          )}
+          {/* paymentModal hook will display its own errors. No need for paymentError here */}
+          {paymentModal}
 
           {/* Messages Container */}
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto flex flex-col gap-3 bg-gray-50"
+            className="flex-1 overflow-y-auto flex flex-col gap-3 px-4 py-4 bg-gray-50"
           >
             {loading ? (
               <div className="flex justify-center py-6" aria-label="Loading messages">
@@ -1019,6 +1107,20 @@ useEffect(() => {
                 </Button>
               </form>
 
+              {/* Leave Review Button (Client only, after booking completed) */}
+              {/* This button stays at the bottom, not in header */}
+              {!isUserArtist &&
+                bookingDetails &&
+                bookingDetails.status === 'completed' &&
+                !(bookingDetails as Booking & { review?: Review; }).review && (
+                  <Button
+                    type="button"
+                    onClick={() => setShowReviewModal(true)}
+                    className="mt-1.5 text-xs text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
+                  >
+                    Leave Review
+                  </Button>
+                )}
 
               {/* Modals */}
               <SendQuoteModal
@@ -1033,15 +1135,26 @@ useEffect(() => {
                 initialTravelCost={initialTravelCost}
                 initialSoundNeeded={initialSoundNeeded}
               />
+              {paymentModal}
+              <ReviewFormModal
+                isOpen={showReviewModal}
+                bookingId={bookingDetails?.id ?? 0}
+                onClose={() => setShowReviewModal(false)}
+                onSubmitted={(review) =>
+                  setBookingDetails((prev) =>
+                    prev ? { ...prev, review: review } : prev,
+                  )
+                }
+              />
             </>
           )}
 
           {/* Error and WebSocket Connection Lost Messages */}
           {threadError && (
-            <p className="text-xs text-red-600 mt-1.5" role="alert">{threadError}</p>
+            <p className="text-xs text-red-600 mx-4 mt-1.5" role="alert">{threadError}</p>
           )}
           {wsFailed && (
-            <p className="text-xs text-red-600 mt-1.5" role="alert">
+            <p className="text-xs text-red-600 mx-4 mt-1.5" role="alert">
               Connection lost. Please refresh the page or sign in again.
             </p>
           )}
