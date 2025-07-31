@@ -26,7 +26,8 @@ export default function ConversationList({
         const otherName =
           currentUser.user_type === 'artist'
             ? req.client?.first_name || 'Client'
-            : req.artist?.first_name || 'Artist';
+            : req.artist?.business_name || req.artist?.first_name ||
+              (req.artist as any)?.user?.first_name || 'Artist';
         // Use getFullImageUrl for avatarUrl to ensure correct paths and handling
         const fullAvatarUrl =
           (currentUser.user_type === 'artist'
