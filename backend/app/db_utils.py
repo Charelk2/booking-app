@@ -48,6 +48,17 @@ def ensure_attachment_url_column(engine: Engine) -> None:
     )
 
 
+def ensure_message_is_read_column(engine: Engine) -> None:
+    """Add the ``is_read`` column to ``messages`` if missing."""
+
+    add_column_if_missing(
+        engine,
+        "messages",
+        "is_read",
+        "is_read BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+
+
 def ensure_request_attachment_column(engine: Engine) -> None:
     """Add the ``attachment_url`` column to ``booking_requests`` if missing."""
 
