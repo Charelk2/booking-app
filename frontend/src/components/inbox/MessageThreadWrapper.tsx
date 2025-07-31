@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Booking, BookingRequest } from '@/types';
 import MessageThread from '../booking/MessageThread';
@@ -10,7 +10,7 @@ import AlertBanner from '../ui/AlertBanner';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import * as api from '@/lib/api';
 import { formatCurrency, formatDepositReminder } from '@/lib/utils';
-
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'; // Importing an icon for "Show Details" button
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -43,9 +43,11 @@ export default function MessageThreadWrapper({
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(null);
 
-  // Whether the booking details side panel is visible
-  // Defaults to true on desktop screens and false on mobile
-  const [showSidePanel, setShowSidePanel] = useState(true);
+  // Default to false. This controls if the RIGHTMOST panel is open.
+  const [showSidePanel, setShowSidePanel] = useState(false);
+
+  const sidePanelWidthDesktop = showSidePanel ? 'md:w-[300px]' : 'md:w-0';
+  const sidePanelWidthLgDesktop = showSidePanel ? 'lg:w-[360px]' : 'lg:w-0';
 
   const { openPaymentModal, paymentModal } = usePaymentModal(
     useCallback(({ status, amount, receiptUrl: url }) => {
@@ -73,21 +75,6 @@ export default function MessageThreadWrapper({
       console.error('Calendar download error:', err);
     }
   }, [confirmedBookingDetails]);
-
-  // Effect to manage showSidePanel based on screen size
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setShowSidePanel(true); // Always show on desktop
-      } else {
-        setShowSidePanel(false); // Hide on mobile
-      }
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   if (!bookingRequestId) {
     return (
@@ -161,10 +148,13 @@ export default function MessageThreadWrapper({
       )}
 
       {/* Main Content Area: Chat and Booking Details Side Panel */}
-      {/* This container manages the horizontal flex behavior */}
-      <div className="flex flex-1 min-h-0 flex-col md:flex-row py-4 relative">
+      {/* This container needs to manage the horizontal flex behavior */}
+      <div className="flex flex-1 min-h-0 py-4"> {/* flex-1 ensures it takes remaining vertical space */}
         {/* Chat Messages */}
-        <div className="flex-1 min-w-0 px-4 sm:px-6">
+        {/* Chat should take full width on mobile, and reduce width on desktop when panel is open */}
+        <div
+          className={`flex-1 min-w-0 px-4 sm:px-6 transition-[margin-right] duration-300 ease-in-out ${showSidePanel ? 'md:mr-[300px] lg:mr-[360px]' : ''}`}
+        >
           <MessageThread
             bookingRequestId={bookingRequestId}
             serviceId={bookingRequest.service_id ?? undefined}
@@ -194,10 +184,10 @@ export default function MessageThreadWrapper({
         {/* Position this button to float over the content */}
         <button
           type="button"
-          onClick={() => setShowSidePanel((s) => !s)}
+          onClick={() => setShowSidePanel(s => !s)}
           aria-expanded={showSidePanel}
           aria-controls="reservation-panel"
-          className="absolute top-0 right-4 md:top-2 md:right-2 z-20 p-2 rounded-full bg-white shadow-md text-gray-600 hover:bg-gray-100 transition-colors"
+          className="absolute top-4 right-4 md:top-6 md:right-6 z-20 p-2 rounded-full bg-white shadow-md text-gray-600 hover:bg-gray-100 transition-colors"
         >
           {showSidePanel ? 'Hide Details' : 'Show Details'}
         </button>
@@ -209,13 +199,11 @@ export default function MessageThreadWrapper({
           role="complementary"
           className={`
             fixed inset-y-0 right-0 z-10
-            w-full
-            md:w-[300px] lg:w-[360px]
+            w-full ${sidePanelWidthDesktop} ${sidePanelWidthLgDesktop}
             bg-white border-l border-gray-200 p-4
             transform transition-transform duration-300 ease-in-out
             ${showSidePanel ? 'translate-x-0' : 'translate-x-full'}
             shadow-lg
-            md:static md:translate-x-0 md:shadow-none md:px-4 md:pt-4 md:pb-4 md:ml-4 flex-shrink-0 md:overflow-y-auto
           `}
         >
           {/* Close button for side panel (visible on mobile where it overlays) */}
