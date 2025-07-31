@@ -1,3 +1,4 @@
+// MessageThread.tsx
 'use client';
 
 import React, {
@@ -18,7 +19,7 @@ import {
 } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
-import { DocumentIcon, DocumentTextIcon, BanknotesIcon } from '@heroicons/react/24/outline'; // Import BanknotesIcon for quote
+import { DocumentIcon, DocumentTextIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import { Booking, Review, Message, MessageCreate, QuoteV2, QuoteV2Create } from '@/types';
 import {
   getMessagesForBookingRequest,
@@ -31,8 +32,8 @@ import {
   getBookingDetails,
   downloadBookingIcs,
   markMessagesRead,
+  useAuth,
 } from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
 import Button from '../ui/Button';
 import SendQuoteModal from './SendQuoteModal';
 import usePaymentModal from '@/hooks/usePaymentModal';
@@ -46,8 +47,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const WS_BASE = API_BASE.replace(/^http/, 'ws');
 const API_V1 = '/api/v1';
 const TEN_MINUTES_MS = 10 * 60 * 1000;
-const MIN_SCROLL_OFFSET = 20; // Used for "near bottom" check and showing scroll button
-const MAX_TEXTAREA_LINES = 10; // New constant for max lines
+const MIN_SCROLL_OFFSET = 20;
+const MAX_TEXTAREA_LINES = 10;
 
 // Interface for component handle
 export interface MessageThreadHandle {
@@ -87,6 +88,11 @@ interface MessageThreadProps {
   onBookingConfirmedChange?: (isConfirmed: boolean, booking: Booking | null) => void;
   onPaymentStatusChange?: (status: string | null, amount: number | null, receiptUrl: string | null) => void;
   onShowReviewModal?: (show: boolean) => void;
+  showSidePanel: boolean;
+  setShowSidePanel: (show: boolean) => void;
+  // ADD THESE TWO NEW PROPS:
+  showQuoteModal: boolean; // Controls the modal visibility
+  setShowQuoteModal: (show: boolean) => void; // Allows parent to control the modal
 }
 
 // SVG Checkmark Icons (refined sizes and stroke)
@@ -95,7 +101,7 @@ const CheckmarkIcon = (props: React.SVGProps<SVGSVGElement>) => (
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
     viewBox="0 0 24 24"
-    strokeWidth={2.5} // Slightly thinner/lighter stroke for single checkmark
+    strokeWidth={2.5}
     stroke="currentColor"
     {...props}
   >
@@ -108,7 +114,7 @@ const DoubleCheckmarkIcon = (props: React.SVGProps<SVGSVGElement>) => (
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
     viewBox="0 0 24 24"
-    strokeWidth={1} // Solid stroke for double checkmark
+    strokeWidth={1}
     stroke="currentColor"
     {...props}
   >
@@ -139,6 +145,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       onBookingConfirmedChange,
       onPaymentStatusChange,
       onShowReviewModal,
+      showSidePanel,
+      setShowSidePanel,
+      showQuoteModal, // Destructured from props
+      setShowQuoteModal, // Destructured from props
     }: MessageThreadProps,
     ref,
   ) {
@@ -151,11 +161,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [newMessageContent, setNewMessageContent] = useState('');
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
-    const [showQuoteModal, setShowQuoteModal] = useState(false);
+    // REMOVED: const [showQuoteModal, setShowQuoteModal] = useState(false); // No longer managed internally
     const [bookingDetails, setBookingDetails] = useState<Booking | null>(null);
-    const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
-    const [paymentAmount, setPaymentAmount] = useState<number | null>(null);
-    const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
     const [threadError, setThreadError] = useState<string | null>(null);
     const [wsFailed, setWsFailed] = useState(false);
     const [bookingConfirmed, setBookingConfirmed] = useState(false);
@@ -186,9 +193,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     // Payment Modal Hook
     const { openPaymentModal, paymentModal } = usePaymentModal(
       useCallback(({ status, amount, receiptUrl: url }) => {
-        setPaymentStatus(status);
-        setPaymentAmount(amount);
-        setReceiptUrl(url ?? null);
         if (onPaymentStatusChange) {
           onPaymentStatusChange(status, amount, url ?? null);
         }
@@ -205,12 +209,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         tempDiv.style.position = 'absolute';
         tempDiv.style.visibility = 'hidden';
         tempDiv.style.height = 'auto';
-        tempDiv.style.width = '200px'; // Important for accurate line height calculation
+        tempDiv.style.width = '200px';
         const computedStyle = getComputedStyle(textareaRef.current);
         tempDiv.style.fontFamily = computedStyle.fontFamily;
         tempDiv.style.fontSize = computedStyle.fontSize;
-        tempDiv.style.lineHeight = computedStyle.lineHeight; // The key property to capture
-        tempDiv.innerText = 'M'; // A single character to measure line height
+        tempDiv.style.lineHeight = computedStyle.lineHeight;
+        tempDiv.innerText = 'M';
         document.body.appendChild(tempDiv);
         setTextareaLineHeight(tempDiv.clientHeight);
         document.body.removeChild(tempDiv);
@@ -222,20 +226,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       const ta = textareaRef.current;
       if (!ta || textareaLineHeight === 0) return;
 
-      // reset so scrollHeight is accurate
       ta.style.height = 'auto';
 
-      // pull real paddings & borders
       const style = getComputedStyle(ta);
       const padT = parseFloat(style.paddingTop);
       const padB = parseFloat(style.paddingBottom);
       const bdrT = parseFloat(style.borderTopWidth);
       const bdrB = parseFloat(style.borderBottomWidth);
 
-      // max = lines × lineHeight + vertical padding + borders
       const maxH = textareaLineHeight * MAX_TEXTAREA_LINES + padT + padB + bdrT + bdrB;
 
-      // clamp to content’s scrollHeight
       const newH = Math.min(ta.scrollHeight, maxH);
       ta.style.height = `${newH}px`;
     }, [textareaLineHeight]);
@@ -379,18 +379,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
 
     useEffect(() => {
       if (attachmentFile) {
-        const url = URL.createObjectURL(attachmentFile); // Corrected: Use URL directly
+        const url = URL.createObjectURL(attachmentFile);
         setAttachmentPreviewUrl(url);
-        return () => URL.revokeObjectURL(url); // Corrected: Use URL directly
+        return () => URL.revokeObjectURL(url);
       }
       setAttachmentPreviewUrl(null);
       return () => {};
     }, [attachmentFile]);
 
     // Refined scrolling logic
-// Refined scrolling logic
 useEffect(() => {
-  if (!messagesContainerRef.current || !messagesEndRef.current) return; // Add check for messagesEndRef
+  if (!messagesContainerRef.current || !messagesEndRef.current) return;
 
   const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
   const atBottom = scrollHeight - scrollTop - clientHeight <= MIN_SCROLL_OFFSET;
@@ -398,7 +397,6 @@ useEffect(() => {
   const shouldAutoScroll = (messages.length > prevMessageCountRef.current || isSystemTyping) && (atBottom || !isUserScrolledUp);
 
   if (shouldAutoScroll) {
-    // MODIFIED: Explicitly scroll the messagesContainerRef
     messagesContainerRef.current.scrollTo({
       top: messagesContainerRef.current.scrollHeight,
       behavior: 'smooth'
@@ -406,7 +404,7 @@ useEffect(() => {
   }
 
   prevMessageCountRef.current = messages.length;
-}, [messages, isSystemTyping, isUserScrolledUp]); // Ensure all dependencies are correct
+}, [messages, isSystemTyping, isUserScrolledUp]);
 
     const handleScroll = useCallback(() => {
       if (!messagesContainerRef.current) return;
@@ -539,7 +537,7 @@ useEffect(() => {
       async (quoteData: QuoteV2Create) => {
         try {
           await createQuoteV2(quoteData);
-          setShowQuoteModal(false);
+          setShowQuoteModal(false); // Use the prop's setter
           void fetchMessages();
           if (onMessageSent) onMessageSent();
           if (onQuoteSent) onQuoteSent();
@@ -548,7 +546,7 @@ useEffect(() => {
           setThreadError(`Failed to send quote. ${(err as Error).message || 'Please try again.'}`);
         }
       },
-      [fetchMessages, onMessageSent, onQuoteSent, setShowQuoteModal, setThreadError],
+      [fetchMessages, onMessageSent, onQuoteSent, setShowQuoteModal, setThreadError], // Dependency added for setter
     );
 
     const handleAcceptQuote = useCallback(
@@ -568,12 +566,13 @@ useEffect(() => {
         try {
           const freshQuote = await getQuoteV2(quote.id);
           setQuotes((prev) => ({ ...prev, [quote.id]: freshQuote.data }));
+
+          const details = await getBookingDetails(confirmedBookingId ?? freshQuote.data.booking_id ?? 0);
           setBookingConfirmed(true);
           if (onBookingConfirmedChange) {
             onBookingConfirmedChange(true, details.data);
           }
 
-          const details = await getBookingDetails(confirmedBookingId ?? freshQuote.data.booking_id ?? 0);
           setBookingDetails(details.data);
 
           openPaymentModal({
@@ -589,7 +588,7 @@ useEffect(() => {
           setAcceptingQuoteId(null);
         }
       },
-      [bookingRequestId, fetchMessages, openPaymentModal, serviceId, setQuotes, setBookingConfirmed, setBookingDetails, setThreadError, setAcceptingQuoteId],
+      [bookingRequestId, fetchMessages, openPaymentModal, serviceId, setQuotes, setBookingConfirmed, setBookingDetails, setThreadError, setAcceptingQuoteId, onBookingConfirmedChange],
     );
 
     const handleDeclineQuote = useCallback(
@@ -606,446 +605,398 @@ useEffect(() => {
       [setQuotes, setThreadError],
     );
 
-
     return (
-      <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100 flex flex-col p-6">
-          {/* Chat Header - Reduced py-3 to py-2 */}
-          <header className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-indigo-700 text-white px-4 py-2 flex items-center justify-between shadow-md">
-            <span className="font-semibold text-base sm:text-lg">
-              Chat with {isUserArtist ? clientName : artistName}
-            </span>
-            {/* Quote Icon in Header (for Artist) */}
-            {isUserArtist && !bookingConfirmed && (
-                <button
-                    type="button"
-                    onClick={() => setShowQuoteModal(true)}
-                    aria-label="Send Quote"
-                    // Added ml-auto to push it to the right, next to the avatar
-                    className="ml-auto p-1 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                >
-                    <BanknotesIcon className="h-6 w-6 text-white" aria-hidden="true" />
-                </button>
-            )}
-            {/* Avatar Logic */}
-            {/* Conditional rendering for artist avatar or initial */}
-            {isUserArtist || !artistAvatarUrl ? (
-              // Display initial if user is artist or no artist avatar URL
-              <div className="h-10 w-10 rounded-full bg-red-400 flex items-center justify-center text-base font-medium border-2 border-white shadow-sm ml-2"> {/* Added ml-2 for spacing */}
-                {(isUserArtist ? clientName : artistName)?.charAt(0)}
+      <div className="flex flex-col h-full rounded-b-2xl overflow-hidden">
+        {/* Messages Container */}
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto flex flex-col gap-3 bg-white p-4"
+        >
+          {loading ? (
+            <div className="flex justify-center py-6" aria-label="Loading messages">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500" />
+            </div>
+          ) : (
+            visibleMessages.length === 0 && !isSystemTyping && (
+              <p className="text-xs text-gray-500 text-center py-4">No messages yet. Start the conversation below.</p>
+            )
+          )}
+
+          {/* Render Grouped Messages */}
+          {groupedMessages.map((group, idx) => {
+            const firstMsgInGroup = group.messages[0];
+            const isSystemMessage = firstMsgInGroup.message_type === 'system';
+            const isSenderSelf = firstMsgInGroup.sender_id === user?.id;
+
+            return (
+              <React.Fragment key={firstMsgInGroup.id}>
+                {/* Day Divider Line (WhatsApp style) */}
+                {group.showDayDivider && (
+                  <div className="flex items-center my-4 w-full">
+                    <hr className="flex-grow border-t border-gray-300" />
+                    <span className="px-3 text-xs text-gray-500 bg-gray-50 rounded-full py-1">
+                      {format(new Date(firstMsgInGroup.timestamp), 'MMM d, yyyy')}
+                    </span>
+                    <hr className="flex-grow border-t border-gray-300" />
+                  </div>
+                )}
+
+                {/* Message Group Container */}
+                <div className={`flex flex-col w-full`}>
+                  {/* Sender Name/Avatar for received messages (not system or self) */}
+                  {!isSenderSelf && !isSystemMessage && (
+                    <div className="flex items-center mb-1">
+                      {artistAvatarUrl ? (
+                        <Image
+                          src={getFullImageUrl(artistAvatarUrl) as string}
+                          alt="Artist avatar"
+                          width={20}
+                          height={20}
+                          className="h-5 w-5 rounded-full object-cover mr-2"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
+                          }}
+                        />
+                      ) : (
+                        <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium mr-2">
+                          {artistName?.charAt(0)}
+                        </div>
+                      )}
+                      <span className="text-xs font-semibold text-gray-700">{artistName}</span>
+                    </div>
+                  )}
+
+                  {/* Render individual messages within the group */}
+                  {group.messages.map((msg, msgIdx) => {
+                    const isMsgFromSelf = msg.sender_id === user?.id;
+                    const isLastInGroup = msgIdx === group.messages.length - 1;
+
+                    let bubbleShape: string;
+                    if (isSystemMessage) {
+                      bubbleShape = 'rounded-lg';
+                    } else if (isMsgFromSelf) {
+                      bubbleShape = isLastInGroup ? 'rounded-br-none rounded-xl' : 'rounded-xl';
+                    } else {
+                      bubbleShape = isLastInGroup ? 'rounded-bl-none rounded-xl' : 'rounded-xl';
+                    }
+
+                    const bubbleBase = isMsgFromSelf
+                      ? 'bg-blue-100 text-gray-900'
+                      : 'bg-white text-gray-800';
+
+                    const bubbleClasses = `${bubbleBase} ${bubbleShape}`;
+                    const messageTime = format(new Date(msg.timestamp), 'HH:mm');
+
+                    return (
+                      <div
+                        key={msg.id}
+                        className={`relative inline-block w-auto max-w-[75%] px-3 py-1.5 text-xs font-normal leading-snug shadow-sm ${bubbleClasses} ${msgIdx < group.messages.length - 1 ? 'mb-0.5' : ''} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'}`}
+                        ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
+                      >
+                        <div className="pr-10">
+                          {msg.sender_id !== user?.id && !(msg as any).is_read && (
+                            <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" aria-label="Unread message" />
+                          )}
+                          {msg.message_type === 'quote' && typeof msg.quote_id === 'number' ? (
+                            (() => {
+                              const quoteData = quotes[msg.quote_id];
+                              if (!quoteData) return null;
+
+                              return (
+                                <>
+                                  <QuoteBubble
+                                    description={quoteData.services[0]?.description || ''}
+                                    price={Number(quoteData.services[0]?.price || 0)}
+                                    soundFee={Number(quoteData.sound_fee)}
+                                    travelFee={Number(quoteData.travel_fee)}
+                                    accommodation={quoteData.accommodation || undefined}
+                                    discount={Number(quoteData.discount) || undefined}
+                                    subtotal={Number(quoteData.subtotal)}
+                                    total={Number(quoteData.total)}
+                                    status={
+                                      quoteData.status === 'pending'
+                                        ? 'Pending'
+                                        : quoteData.status === 'accepted'
+                                          ? 'Accepted'
+                                          : quoteData.status === 'rejected' || quoteData.status === 'expired'
+                                            ? 'Rejected'
+                                            : 'Pending'
+                                    }
+                                  />
+                                  {user?.user_type === 'client' &&
+                                    quoteData.status === 'pending' &&
+                                    !bookingConfirmed && (
+                                      <div className="mt-2 flex gap-1.5">
+                                        <Button
+                                          type="button"
+                                          isLoading={acceptingQuoteId === msg.quote_id}
+                                          onClick={() => handleAcceptQuote(quoteData)}
+                                          className="bg-green-500 hover:bg-green-600 text-white rounded-full px-3 py-1.5 text-xs font-semibold shadow-md"
+                                          disabled={acceptingQuoteId === msg.quote_id}
+                                        >
+                                          Accept
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          variant="secondary"
+                                          onClick={() => handleDeclineQuote(quoteData)}
+                                          className="bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-full px-3 py-1.5 text-xs font-semibold shadow-md"
+                                          disabled={acceptingQuoteId === msg.quote_id}
+                                        >
+                                          Decline
+                                        </Button>
+                                      </div>
+                                    )}
+                                </>
+                              );
+                            })()
+                          ) : (
+                            msg.content
+                          )}
+                          {msg.attachment_url && (
+                            <a
+                              href={msg.attachment_url}
+                              target="_blank"
+                              className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
+                              rel="noopener noreferrer"
+                            >
+                              View attachment
+                            </a>
+                          )}
+                        </div>
+                        {/* Timestamp and Read Receipts - positioned absolutely within the bubble */}
+                        <div className="absolute bottom-0.5 right-1.5 flex items-center space-x-0.5 text-[9px] text-right text-gray-400">
+                          <time
+                            dateTime={msg.timestamp}
+                            title={new Date(msg.timestamp).toLocaleString()}
+                          >
+                            {messageTime}
+                          </time>
+                          {isMsgFromSelf && (
+                            <div className="flex-shrink-0">
+                              <DoubleCheckmarkIcon
+                                className={`h-5 w-5 ${
+                                  (msg as any).is_read ? 'text-blue-500' : 'text-gray-400'
+                                } -ml-[8px]`}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </React.Fragment>
+            );
+          })}
+
+          {/* System Typing Indicator */}
+          {isSystemTyping && (
+            <div className="flex items-end gap-2 self-start">
+              <div className="h-7 w-7 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium shadow-sm">
+                {artistName?.charAt(0)}
               </div>
-            ) : (
-              // Display artist avatar (as link if propArtistId is number)
-              propArtistId && typeof propArtistId === 'number' ? (
-                <Link href={`/artists/${propArtistId}`} aria-label="Artist profile" className="ml-2"> {/* Added ml-2 for spacing */}
+              <div className="bg-gray-200 rounded-2xl px-3 py-1.5 shadow-sm">
+                <div className="flex space-x-0.5 animate-pulse">
+                  <span className="block w-2 h-2 bg-gray-500 rounded-full" />
+                  <span className="block w-2 h-2 bg-gray-500 rounded-full" />
+                  <span className="block w-2 h-2 bg-gray-500 rounded-full" />
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Scroll to Bottom Button (Mobile Only) */}
+        {showScrollButton && (
+          <button
+            type="button"
+            aria-label="Scroll to latest message"
+            onClick={() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              setShowScrollButton(false);
+              setIsUserScrolledUp(false);
+            }}
+            className="fixed bottom-24 right-6 z-50 md:hidden rounded-full bg-indigo-600 p-3 text-white shadow-lg hover:bg-indigo-700 transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="h-6 w-6"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19.5 8.25L12 15.75 4.5 8.25"
+              />
+            </svg>
+          </button>
+        )}
+
+        {/* Jump to Unread Button (Mobile Only) */}
+        {firstUnreadIndex !== -1 && (
+          <button
+            type="button"
+            aria-label="Jump to unread messages"
+            onClick={() => {
+              firstUnreadMessageRef.current?.scrollIntoView({ behavior: 'smooth' });
+              setShowScrollButton(true);
+              setIsUserScrolledUp(true);
+            }}
+            className="fixed bottom-24 left-6 z-50 md:hidden rounded-full bg-indigo-600 p-3 text-white shadow-lg hover:bg-indigo-700 transition-colors"
+          >
+            Jump to unread
+          </button>
+        )}
+
+        {/* Live Region for New Message Announcements */}
+        <div aria-live="polite" className="sr-only">{announceNewMessage}</div>
+
+        {/* Message Input and Action Bar */}
+        {user && (
+          <>
+            {/* Attachment Preview */}
+            {attachmentPreviewUrl && (
+              <div className="flex items-center gap-2 mb-1.5 bg-gray-100 rounded-xl p-2.5 shadow-inner">
+                {attachmentFile && attachmentFile.type.startsWith('image/') ? (
                   <Image
-                    src={getFullImageUrl(artistAvatarUrl) as string}
-                    alt="Artist avatar"
+                    src={attachmentPreviewUrl}
+                    alt="Attachment preview"
                     width={40}
                     height={40}
                     loading="lazy"
-                    className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
-                    }}
+                    className="w-10 h-10 object-cover rounded-md border border-gray-200"
                   />
-                </Link>
-              ) : (
-                // Fallback for artist avatar if not a number ID or not a link
-                <Image
-                  src={getFullImageUrl(artistAvatarUrl) as string}
-                  alt="Artist avatar"
-                  width={40}
-                  height={40}
-                  loading="lazy"
-                  className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm ml-2" // Added ml-2 for spacing
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
-                  }}
-                />
-              )
-            )}
-          </header>
-
-
-          {/* Messages Container */}
-          <div
-            ref={messagesContainerRef}
-            onScroll={handleScroll}
-            className="flex-1 overflow-y-auto flex flex-col gap-3 bg-gray-50"
-          >
-            {loading ? (
-              <div className="flex justify-center py-6" aria-label="Loading messages">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500" />
-              </div>
-            ) : (
-              visibleMessages.length === 0 && !isSystemTyping && (
-                <p className="text-xs text-gray-500 text-center py-4">No messages yet. Start the conversation below.</p>
-              )
-            )}
-
-            {/* Render Grouped Messages */}
-            {groupedMessages.map((group, idx) => {
-              const firstMsgInGroup = group.messages[0];
-              const isSystemMessage = firstMsgInGroup.message_type === 'system';
-              const isSenderSelf = firstMsgInGroup.sender_id === user?.id;
-
-              return (
-                <React.Fragment key={firstMsgInGroup.id}>
-                  {/* Day Divider Line (WhatsApp style) */}
-                  {group.showDayDivider && (
-                    <div className="flex items-center my-4 w-full">
-                      <hr className="flex-grow border-t border-gray-300" />
-                      <span className="px-3 text-xs text-gray-500 bg-gray-50 rounded-full py-1">
-                        {format(new Date(firstMsgInGroup.timestamp), 'MMM d, yyyy')}
-                      </span>
-                      <hr className="flex-grow border-t border-gray-300" />
-                    </div>
-                  )}
-
-                  {/* Message Group Container */}
-                  <div className={`flex flex-col w-full`}>
-                    {/* Sender Name/Avatar for received messages (not system or self) */}
-                    {!isSenderSelf && !isSystemMessage && (
-                      <div className="flex items-center mb-1">
-                        {artistAvatarUrl ? (
-                          <Image
-                            src={getFullImageUrl(artistAvatarUrl) as string}
-                            alt="Artist avatar"
-                            width={20}
-                            height={20}
-                            className="h-5 w-5 rounded-full object-cover mr-2"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
-                            }}
-                          />
-                        ) : (
-                          <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium mr-2">
-                            {artistName?.charAt(0)}
-                          </div>
-                        )}
-                        <span className="text-xs font-semibold text-gray-700">{artistName}</span>
-                      </div>
+                ) : (
+                  <>
+                    {attachmentFile?.type === 'application/pdf' ? (
+                      <DocumentIcon className="w-9 h-9 text-red-600" />
+                    ) : (
+                      <DocumentTextIcon className="w-9 h-9 text-gray-600" />
                     )}
-
-                    {/* Render individual messages within the group */}
-                    {group.messages.map((msg, msgIdx) => {
-                      const isMsgFromSelf = msg.sender_id === user?.id;
-                      const isLastInGroup = msgIdx === group.messages.length - 1;
-
-                      let bubbleShape: string;
-                      if (isSystemMessage) {
-                        bubbleShape = 'rounded-lg';
-                      } else if (isMsgFromSelf) {
-                        bubbleShape = isLastInGroup ? 'rounded-br-none rounded-xl' : 'rounded-xl';
-                      } else {
-                        bubbleShape = isLastInGroup ? 'rounded-bl-none rounded-xl' : 'rounded-xl';
-                      }
-
-                      const bubbleBase = isMsgFromSelf
-                        ? 'bg-blue-100 text-gray-900'
-                        : 'bg-white text-gray-800';
-
-                      const bubbleClasses = `${bubbleBase} ${bubbleShape}`;
-                      const messageTime = format(new Date(msg.timestamp), 'HH:mm');
-
-                      return (
-                        <div
-                          key={msg.id}
-                          className={`relative inline-block w-auto max-w-[75%] px-3 py-1.5 text-xs font-normal leading-snug shadow-sm ${bubbleClasses} ${msgIdx < group.messages.length - 1 ? 'mb-0.5' : ''} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'}`}
-                          ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
-                        >
-                          <div className="pr-10">
-                            {msg.sender_id !== user?.id && !(msg as any).is_read && (
-                              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" aria-label="Unread message" />
-                            )}
-                            {msg.message_type === 'quote' && typeof msg.quote_id === 'number' ? (
-                              (() => {
-                                const quoteData = quotes[msg.quote_id];
-                                if (!quoteData) return null;
-
-                                return (
-                                  <>
-                                    <QuoteBubble
-                                      description={quoteData.services[0]?.description || ''}
-                                      price={Number(quoteData.services[0]?.price || 0)}
-                                      soundFee={Number(quoteData.sound_fee)}
-                                      travelFee={Number(quoteData.travel_fee)}
-                                      accommodation={quoteData.accommodation || undefined}
-                                      discount={Number(quoteData.discount) || undefined}
-                                      subtotal={Number(quoteData.subtotal)}
-                                      total={Number(quoteData.total)}
-                                      status={
-                                        quoteData.status === 'pending'
-                                          ? 'Pending'
-                                          : quoteData.status === 'accepted'
-                                            ? 'Accepted'
-                                            : quoteData.status === 'rejected' || quoteData.status === 'expired'
-                                              ? 'Rejected'
-                                              : 'Pending'
-                                      }
-                                    />
-                                    {user?.user_type === 'client' &&
-                                      quoteData.status === 'pending' &&
-                                      !bookingConfirmed && (
-                                        <div className="mt-2 flex gap-1.5">
-                                          <Button
-                                            type="button"
-                                            isLoading={acceptingQuoteId === msg.quote_id}
-                                            onClick={() => handleAcceptQuote(quoteData)}
-                                            className="bg-green-500 hover:bg-green-600 text-white rounded-full px-3 py-1.5 text-xs font-semibold shadow-md"
-                                            disabled={acceptingQuoteId === msg.quote_id}
-                                          >
-                                            Accept
-                                          </Button>
-                                          <Button
-                                            type="button"
-                                            variant="secondary"
-                                            onClick={() => handleDeclineQuote(quoteData)}
-                                            className="bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-full px-3 py-1.5 text-xs font-semibold shadow-md"
-                                            disabled={acceptingQuoteId === msg.quote_id}
-                                          >
-                                            Decline
-                                          </Button>
-                                        </div>
-                                      )}
-                                  </>
-                                );
-                              })()
-                            ) : (
-                              msg.content
-                            )}
-                            {msg.attachment_url && (
-                              <a
-                                href={msg.attachment_url}
-                                target="_blank"
-                                className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
-                                rel="noopener noreferrer"
-                              >
-                                View attachment
-                              </a>
-                            )}
-                          </div>
-                          {/* Timestamp and Read Receipts - positioned absolutely within the bubble */}
-                          <div className="absolute bottom-0.5 right-1.5 flex items-center space-x-0.5 text-[9px] text-right text-gray-400">
-                            <time
-                              dateTime={msg.timestamp}
-                              title={new Date(msg.timestamp).toLocaleString()}
-                            >
-                              {messageTime}
-                            </time>
-                            {isMsgFromSelf && (
-                              <div className="flex-shrink-0">
-                                <DoubleCheckmarkIcon
-                                  className={`h-5 w-5 ${
-                                    (msg as any).is_read ? 'text-blue-500' : 'text-gray-400'
-                                  } -ml-[8px]`}
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </React.Fragment>
-              );
-            })}
-
-            {/* System Typing Indicator */}
-            {isSystemTyping && (
-              <div className="flex items-end gap-2 self-start">
-                <div className="h-7 w-7 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium shadow-sm">
-                  {artistName?.charAt(0)}
-                </div>
-                <div className="bg-gray-200 rounded-2xl px-3 py-1.5 shadow-sm">
-                  <div className="flex space-x-0.5 animate-pulse">
-                    <span className="block w-2 h-2 bg-gray-500 rounded-full" />
-                    <span className="block w-2 h-2 bg-gray-500 rounded-full" />
-                    <span className="block w-2 h-2 bg-gray-500 rounded-full" />
-                  </div>
-                </div>
+                    <span className="text-xs text-gray-700 font-medium">{attachmentFile?.name}</span>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setAttachmentFile(null)}
+                  className="text-xs text-red-600 hover:text-red-700 font-medium"
+                  aria-label="Remove attachment"
+                >
+                  Remove
+                </button>
               </div>
             )}
-            <div ref={messagesEndRef} />
-          </div>
 
-          {/* Scroll to Bottom Button (Mobile Only) */}
-          {showScrollButton && (
-            <button
-              type="button"
-              aria-label="Scroll to latest message"
-              onClick={() => {
-                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-                setShowScrollButton(false);
-                setIsUserScrolledUp(false);
-              }}
-              className="fixed bottom-24 right-6 z-50 md:hidden rounded-full bg-indigo-600 p-3 text-white shadow-lg hover:bg-indigo-700 transition-colors"
+            {/* Message Input Form */}
+            <form
+              onSubmit={handleSendMessage}
+              className="sticky bottom-0 bg-white border-t border-gray-100 flex items-center gap-x-2 px-3 py-2.5 shadow-lg"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="currentColor"
-                className="h-6 w-6"
+              <input
+                id="file-upload"
+                type="file"
+                className="hidden"
+                onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                accept="image/*,application/pdf"
+              />
+              <label
+                htmlFor="file-upload"
+                aria-label="Upload attachment"
+                className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19.5 8.25L12 15.75 4.5 8.25"
-                />
-              </svg>
-            </button>
-          )}
-
-          {/* Jump to Unread Button (Mobile Only) */}
-          {firstUnreadIndex !== -1 && (
-            <button
-              type="button"
-              aria-label="Jump to unread messages"
-              onClick={() => {
-                firstUnreadMessageRef.current?.scrollIntoView({ behavior: 'smooth' });
-                setShowScrollButton(true);
-                setIsUserScrolledUp(true);
-              }}
-              className="fixed bottom-24 left-6 z-50 md:hidden rounded-full bg-indigo-600 p-3 text-white shadow-lg hover:bg-indigo-700 transition-colors"
-            >
-              Jump to unread
-            </button>
-          )}
-
-          {/* Live Region for New Message Announcements */}
-          <div aria-live="polite" className="sr-only">{announceNewMessage}</div>
-
-          {/* Message Input and Action Bar */}
-          {user && (
-            <>
-              {/* Attachment Preview */}
-              {attachmentPreviewUrl && (
-                <div className="flex items-center gap-2 mb-1.5 bg-gray-100 rounded-xl p-2.5 mx-4 shadow-inner">
-                  {attachmentFile && attachmentFile.type.startsWith('image/') ? (
-                    <Image
-                      src={attachmentPreviewUrl}
-                      alt="Attachment preview"
-                      width={40}
-                      height={40}
-                      loading="lazy"
-                      className="w-10 h-10 object-cover rounded-md border border-gray-200"
-                    />
-                  ) : (
-                    <>
-                      {attachmentFile?.type === 'application/pdf' ? (
-                        <DocumentIcon className="w-9 h-9 text-red-600" />
-                      ) : (
-                        <DocumentTextIcon className="w-9 h-9 text-gray-600" />
-                      )}
-                      <span className="text-xs text-gray-700 font-medium">{attachmentFile?.name}</span>
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setAttachmentFile(null)}
-                    className="text-xs text-red-600 hover:text-red-700 font-medium"
-                    aria-label="Remove attachment"
-                  >
-                    Remove
-                  </button>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </label>
+              {/* Textarea for auto-expansion and scrolling */}
+              <textarea
+                ref={textareaRef}
+                value={newMessageContent}
+                onChange={(e) => {
+                  setNewMessageContent(e.target.value);
+                }}
+                onInput={autoResizeTextarea}
+                rows={1}
+                className="flex-grow rounded-xl px-3.5 py-1.5 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm resize-none overflow-y-auto text-xs font-medium"
+                placeholder="Type your message..."
+                aria-label="New message input"
+                disabled={isUploadingAttachment}
+              />
+              {isUploadingAttachment && (
+                <div
+                  className="flex items-center gap-1.5"
+                  role="progressbar"
+                  aria-label="Upload progress"
+                  aria-valuemin={0}
+                  aria-amax={100}
+                  aria-valuenow={uploadingProgress}
+                  aria-valuetext={`${uploadingProgress}%`}
+                >
+                  <div className="w-12 bg-gray-200 rounded-full h-1.5">
+                    <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${uploadingProgress}%` }} />
+                  </div>
+                  <span className="text-xs text-gray-600">{uploadingProgress}%</span>
                 </div>
               )}
-
-              {/* Message Input Form */}
-              <form
-                onSubmit={handleSendMessage}
-                className="sticky bottom-0 bg-white border-t border-gray-100 flex items-center gap-x-2 px-3 py-2.5 shadow-lg"
+              {/* Send Button: Circular arrow icon, make it smaller */}
+              <Button
+                type="submit"
+                aria-label="Send message"
+                className="flex-shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md min-h-0 !min-w-0 !w-9 h-9 p-1"
+                disabled={isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile)}
               >
-                <input
-                  id="file-upload"
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
-                  accept="image/*,application/pdf"
-                />
-                <label
-                  htmlFor="file-upload"
-                  aria-label="Upload attachment"
-                  className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                </label>
-                {/* Textarea for auto-expansion and scrolling */}
-                <textarea
-                  ref={textareaRef}
-                  value={newMessageContent}
-                  onChange={(e) => {
-                    setNewMessageContent(e.target.value);
-                  }}
-                  onInput={autoResizeTextarea}
-                  rows={1}
-                  className="flex-grow rounded-xl px-3.5 py-1.5 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm resize-none overflow-y-auto text-xs font-medium"
-                  placeholder="Type your message..."
-                  aria-label="New message input"
-                  disabled={isUploadingAttachment}
-                  // minHeight is now fully managed by autoResizeTextarea
-                />
-                {isUploadingAttachment && (
-                  <div
-                    className="flex items-center gap-1.5"
-                    role="progressbar"
-                    aria-label="Upload progress"
-                    aria-valuemin={0}
-                    aria-amax={100}
-                    aria-valuenow={uploadingProgress}
-                    aria-valuetext={`${uploadingProgress}%`}
-                  >
-                    <div className="w-12 bg-gray-200 rounded-full h-1.5">
-                      <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${uploadingProgress}%` }} />
-                    </div>
-                    <span className="text-xs text-gray-600">{uploadingProgress}%</span>
-                  </div>
-                )}
-                {/* Send Button: Circular arrow icon, make it smaller */}
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+              </Button>
+            </form>
+
+            {/* Leave Review Button (Client only, after booking completed) */}
+            {user?.user_type === 'client' &&
+              bookingDetails &&
+              bookingDetails.status === "completed" &&
+              !(bookingDetails as Booking & { review?: Review }).review && (
                 <Button
-                  type="submit"
-                  aria-label="Send message"
-                  // OVERRIDE: Add min-h-0 and h-6 to explicitly control height
-                  className="flex-shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md min-h-0 !min-w-0 !w-9 h-9 p-1"
-                  disabled={isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile)}
+                  type="button"
+                  onClick={() => onShowReviewModal?.(true)}
+                  className="mt-1.5 text-xs text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                  </svg>
+                  Leave Review
                 </Button>
-              </form>
+              )}
 
+            {/* Modals */}
+            <SendQuoteModal
+              open={showQuoteModal} // Uses the prop value
+              onClose={() => setShowQuoteModal(false)} // Uses the prop setter
+              onSubmit={handleSendQuote}
+              artistId={currentArtistId}
+              clientId={currentClientId}
+              bookingRequestId={bookingRequestId}
+              serviceName={computedServiceName}
+              initialBaseFee={initialBaseFee}
+              initialTravelCost={initialTravelCost}
+              initialSoundNeeded={initialSoundNeeded}
+            />
+            {paymentModal}
+          </>
+        )}
 
-              {/* Modals */}
-              <SendQuoteModal
-                open={showQuoteModal}
-                onClose={() => setShowQuoteModal(false)}
-                onSubmit={handleSendQuote}
-                artistId={currentArtistId}
-                clientId={currentClientId}
-                bookingRequestId={bookingRequestId}
-                serviceName={computedServiceName}
-                initialBaseFee={initialBaseFee}
-                initialTravelCost={initialTravelCost}
-                initialSoundNeeded={initialSoundNeeded}
-              />
-            </>
-          )}
-
-          {/* Error and WebSocket Connection Lost Messages */}
-          {threadError && (
-            <p className="text-xs text-red-600 mt-1.5" role="alert">{threadError}</p>
-          )}
-          {wsFailed && (
-            <p className="text-xs text-red-600 mt-1.5" role="alert">
-              Connection lost. Please refresh the page or sign in again.
-            </p>
-          )}
-        </div>
+        {/* Error and WebSocket Connection Lost Messages */}
+        {threadError && (
+          <p className="text-xs text-red-600 p-4 mt-1.5" role="alert">{threadError}</p>
+        )}
+        {wsFailed && (
+          <p className="text-xs text-red-600 p-4 mt-1.5" role="alert">
+            Connection lost. Please refresh the page or sign in again.
+          </p>
+        )}
       </div>
     );
   },

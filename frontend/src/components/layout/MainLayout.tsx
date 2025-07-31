@@ -1,3 +1,4 @@
+// components/layout/MainLayout.tsx
 'use client';
 
 import { ComponentProps } from 'react';
@@ -7,8 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import Header from './Header';
 import MobileBottomNav from './MobileBottomNav';
 import { HelpPrompt } from '../ui';
-
-
 
 // --- CONSTANTS ---
 const baseNavigation = [
@@ -76,11 +75,16 @@ import { usePathname } from 'next/navigation';
 interface Props {
   children: React.ReactNode;
   headerAddon?: React.ReactNode;
+  fullWidthContent?: boolean;
 }
 
-export default function MainLayout({ children, headerAddon }: Props) {
+export default function MainLayout({ children, headerAddon, fullWidthContent = false }: Props) {
   const { user } = useAuth();
   const pathname = usePathname();
+
+  const contentWrapperClasses = fullWidthContent
+    ? 'w-full' // REVERTED: Now truly w-full without internal padding
+    : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'; // Original classes for padded content
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 bg-gradient-to-b from-brand-light/50 to-gray-50">
@@ -95,7 +99,9 @@ export default function MainLayout({ children, headerAddon }: Props) {
 
         {/* CONTENT */}
         <main className="py-6 pb-24">
-          <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">{children}</div>
+          {/* Apply conditional classes here */}
+          <div className={contentWrapperClasses}>{children}</div>
+          {/* HelpPrompt always stays within the standard layout */}
           <HelpPrompt className="mx-auto mt-10 max-w-7xl sm:px-6 lg:px-8" />
         </main>
       </div>

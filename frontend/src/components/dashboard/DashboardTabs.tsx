@@ -4,7 +4,7 @@ import React from 'react';
 import './dashboard.css';
 
 interface Tab {
-  id: string;
+  id: "bookings" | "services" | "requests"; // Make id specific to allowed tab types
   label: string;
   icon?: React.ReactNode;
   count?: number;
@@ -12,8 +12,8 @@ interface Tab {
 
 interface DashboardTabsProps {
   tabs: Tab[];
-  active: string;
-  onChange: (id: string) => void;
+  active: "bookings" | "services" | "requests"; // Make active specific to allowed tab types
+  onChange: (id: "bookings" | "services" | "requests") => void; // Make onChange id specific
 }
 
 export default function DashboardTabs({ tabs, active, onChange }: DashboardTabsProps) {

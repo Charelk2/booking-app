@@ -1,8 +1,10 @@
+// Your InboxPage.tsx
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
+// Corrected import path for AuthContext (assuming it's directly in contexts)
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@/components/ui';
 import ConversationList from '@/components/inbox/ConversationList';
@@ -92,10 +94,11 @@ export default function InboxPage() {
   const selectedRequest = allBookingRequests.find((r) => r.id === selectedBookingRequestId) || null;
 
   return (
-    <MainLayout>
-      <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] bg-gray-100">
-        <div className="w-full md:w-1/4 lg:w-1/5 border-r border-gray-200 overflow-y-auto bg-white flex-shrink-0">
-          <div className="sticky top-0 bg-white p-4 border-b border-gray-200 flex justify-between items-center z-10">
+    <MainLayout fullWidthContent>
+      {/* Add the padding directly to this div */}
+      <div className="px-2 sm:px-4 lg:px-6 flex flex-col md:flex-row h-[calc(100vh-64px)] bg-gray-100">
+        <div className="w-full md:w-1/4 lg:w-1/4 border-r border-gray-200 overflow-y-auto bg-white flex-shrink-0">
+          <div className="sticky top-0 bg-white p-3 border-b border-gray-200 flex justify-between items-center z-10">
             <h1 className="text-xl font-semibold">Messages</h1>
             <button
               className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
@@ -128,7 +131,7 @@ export default function InboxPage() {
             <p className="p-6 text-center text-gray-500">No conversations yet.</p>
           )}
         </div>
-        <div className="flex-1 overflow-y-auto relative bg-white">
+        <div className="flex-1 overflow-y-auto relative">
           {selectedBookingRequestId ? (
             <MessageThreadWrapper
               bookingRequestId={selectedBookingRequestId}
