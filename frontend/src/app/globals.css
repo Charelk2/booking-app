@@ -159,6 +159,15 @@
   .map-container-expanded {
     @apply h-[250px];
   }
+
+  /* Slide-out reservation side panel */
+  .side-panel {
+    @apply transform transition-transform duration-200 ease-in-out;
+  }
+
+  .side-panel-hidden {
+    @apply translate-x-full md:translate-x-0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
