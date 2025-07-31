@@ -141,8 +141,8 @@ export default function MessageThreadWrapper({
       )}
 
       {/* Main area with chat and optional details side panel */}
-      <div className="flex flex-1 min-h-0 py-4">
-        <div className={`flex-1 min-w-0 px-4 sm:px-6 ${showSidePanel ? 'md:max-w-[calc(100%-280px)]' : ''}`}>
+      <div className="flex flex-1 min-h-0 flex-col md:flex-row py-4">
+        <div className={`flex-1 min-w-0 px-4 sm:px-6 ${showSidePanel ? 'md:max-w-[calc(100%-300px)]' : ''}`}>
           <MessageThread
             bookingRequestId={bookingRequestId}
             serviceId={bookingRequest.service_id ?? undefined}
@@ -169,29 +169,33 @@ export default function MessageThreadWrapper({
         </div>
 
         {!showSidePanel && (
-          <div className="w-full md:w-auto px-4 md:px-0 md:border-l border-gray-200 pt-4 md:pt-0 flex justify-center items-center flex-shrink-0">
+          <div className="flex-shrink-0 px-4 md:px-0 md:border-l border-gray-200 pt-4 md:pt-0">
             <button
               type="button"
               onClick={() => setShowSidePanel(true)}
-              className="px-4 py-2 rounded-full bg-indigo-600 text-white shadow-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
+              aria-expanded={showSidePanel}
+              aria-controls="reservation-panel"
+              className="px-4 py-2 rounded-full bg-indigo-600 text-white flex items-center gap-2 shadow-md transition-colors"
             >
               <MagnifyingGlassIcon className="h-5 w-5" />
-              <span>Show Details</span>
+              Show Details
             </button>
           </div>
         )}
 
         {showSidePanel && (
-          <div className="w-full md:w-[280px] min-w-[280px] md:border-l border-gray-200 px-4 pt-4 md:pt-0 flex-shrink-0">
+          <section
+            id="reservation-panel"
+            role="complementary"
+            className="side-panel fixed inset-y-0 right-0 z-10 w-full md:w-[300px] lg:w-[360px] flex-shrink-0 bg-white border-l border-gray-200 p-4"
+          >
             <div className="flex justify-end md:hidden mb-2">
               <button
                 type="button"
                 onClick={() => setShowSidePanel(false)}
-                className="p-1 rounded-full hover:bg-gray-100 text-gray-600"
+                className="p-1 rounded-full hover:bg-gray-100"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                ✕
               </button>
             </div>
             <BookingDetailsPanel
@@ -203,7 +207,7 @@ export default function MessageThreadWrapper({
               setShowReviewModal={setShowReviewModal}
               paymentModal={paymentModal}
             />
-          </div>
+          </section>
         )}
       </div>
     </div>
