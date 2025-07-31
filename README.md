@@ -894,7 +894,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Deposit due alerts now display "Booking confirmed – deposit R{amount} due by {date}" only the first time a booking is confirmed. Subsequent reminders omit the greeting. The drawer parses this format to show `R50.00 due by Jan 1, 2025` as the subtitle and links directly to the booking.
 * Quote acceptance and booking confirmation notifications now render dynamic titles such as **"Quote accepted by Jane Doe"** instead of a generic label.
 * Message notifications now include the sender name in both the stored text and the API response so the drawer can display "New message from Alice" without additional lookups.
-* Clicking a new message alert opens `/booking-requests/{id}` with the full request details instead of the standalone thread page.
+* Clicking a new message alert opens `/inbox?requestId={id}` with the conversation active.
 * All notifications now include the sender's profile picture when available so avatars render consistently for artists and clients.
 * Artists marking a booking **completed** now trigger a **REVIEW_REQUEST** notification. The alert links to `/dashboard/client/bookings/{booking_id}?review=1` so clients can immediately leave feedback.
 * Chat message groups display a small unread badge on the right side when new messages arrive, clearing automatically once read. A **Jump to unread** button quickly scrolls to the first unseen message and messages you send show a subtle *Seen* label once the recipient reads them.
@@ -1074,7 +1074,7 @@ keeps the current view, e.g.
 * Unread message counts badge on Messages icon. Badge now sits snugly over the icon on all devices.
 * Chat attachment button stays inline with the message input and send button on all screens.
 * Tap feedback on icons via `active:bg-gray-100`.
-* **Inbox** page redesigned with a sticky "Messages" header and search icon. The left column lists conversations while the right shows the selected chat with booking details.
+* **Inbox** page redesigned with a sticky "Messages" header and search icon. The left column lists conversations while the right shows the selected chat with booking details. Message notifications open directly to this page so clients can read and respond without hunting for the correct thread.
 * `/booking-requests` lists all requests with search and filters. Search and filter inputs now include hidden labels for screen readers.
 * `ChatThreadView` component for mobile-friendly chat threads using a modern card-style layout.
 * Tap a booking request card to open `/booking-requests/[id]`.
