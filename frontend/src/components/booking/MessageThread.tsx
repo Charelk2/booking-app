@@ -137,6 +137,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       initialBaseFee,
       initialTravelCost,
       initialSoundNeeded,
+      onBookingConfirmedChange,
+      onPaymentStatusChange,
+      onShowReviewModal,
     }: MessageThreadProps,
     ref,
   ) {
