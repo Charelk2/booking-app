@@ -1072,7 +1072,7 @@ keeps the current view, e.g.
 * Unread message counts badge on Messages icon. Badge now sits snugly over the icon on all devices.
 * Chat attachment button stays inline with the message input and send button on all screens.
 * Tap feedback on icons via `active:bg-gray-100`.
-* **Inbox** page at `/inbox` separates Booking Requests and Chats into tabs.
+* **Inbox** page at `/inbox` shows a two-column view with your conversations on the left and the selected chat on the right.
 * `/booking-requests` lists all requests with search and filters. Search and filter inputs now include hidden labels for screen readers.
 * `ChatThreadView` component for mobile-friendly chat threads using a modern card-style layout.
 * Tap a booking request card to open `/booking-requests/[id]`.
