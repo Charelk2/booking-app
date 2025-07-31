@@ -28,7 +28,7 @@ function classNames(...classes: string[]) {
 }
 
 export default function Header({ extraBar }: { extraBar?: ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, logout, artistViewActive, toggleArtistView } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -50,13 +50,23 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
     router.push(qs ? `/artists?${qs}` : '/artists');
   };
 
-  const navigation = [...baseNavigation];
+  let navigation = [...baseNavigation];
+  const drawerNavigation = [...baseNavigation];
   if (user?.user_type === 'artist') {
-    navigation.push(
+    drawerNavigation.push(
       { name: 'Sound Providers', href: '/sound-providers' },
       { name: 'Quote Calculator', href: '/quote-calculator' },
-      { name: 'Quote Templates', href: '/dashboard/profile/quote-templates' }
+      { name: 'Quote Templates', href: '/dashboard/profile/quote-templates' },
     );
+
+    if (artistViewActive) {
+      navigation = [
+        { name: 'Today', href: '/dashboard/today' },
+        { name: 'View Profile', href: `/artists/${user.id}` },
+        { name: 'Services', href: '/dashboard?tab=services' },
+        { name: 'Messages', href: '/inbox' },
+      ];
+    }
   }
 
   return (
@@ -91,6 +101,15 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
               <>
                 <BookingRequestIcon />
                 <NotificationBell />
+                {user.user_type === 'artist' && (
+                  <button
+                    type="button"
+                    onClick={toggleArtistView}
+                    className="text-sm text-gray-700 hover:text-brand-dark"
+                  >
+                    {artistViewActive ? 'Switch to Booking' : 'Switch to Artist View'}
+                  </button>
+                )}
                 <Menu as="div" className="relative ml-3">
                   <div>
                     <Menu.Button className="flex rounded-full bg-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2">
@@ -185,6 +204,15 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
         <div className="flex items-center sm:hidden">
           {user && <BookingRequestIcon />}
           {user && <NotificationBell />}
+          {user?.user_type === 'artist' && (
+            <button
+              type="button"
+              onClick={toggleArtistView}
+              className="ml-2 text-sm text-gray-700 hover:text-brand-dark"
+            >
+              {artistViewActive ? 'Switch to Booking' : 'Switch to Artist View'}
+            </button>
+          )}
           <button
             onClick={() => setMenuOpen(true)}
             className="-mr-2 ml-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand"
@@ -217,7 +245,7 @@ export default function Header({ extraBar }: { extraBar?: ReactNode }) {
       <MobileMenuDrawer
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        navigation={navigation}
+        navigation={drawerNavigation}
         user={user}
         logout={logout}
         pathname={pathname}

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import clsx from 'clsx';
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Booking, Service, ArtistProfile, BookingRequest } from "@/types";
@@ -164,8 +164,21 @@ export default function DashboardPage() {
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [requestToUpdate, setRequestToUpdate] = useState<BookingRequest | null>(null);
-  const [activeTab, setActiveTab] = useState<'requests' | 'bookings' | 'services'>('requests');
+  const params = useSearchParams();
+  const initialTab =
+    params.get('tab') === 'bookings'
+      ? 'bookings'
+      : params.get('tab') === 'services'
+        ? 'services'
+        : 'requests';
+  const [activeTab, setActiveTab] = useState<'requests' | 'bookings' | 'services'>(initialTab);
   const [dashboardStats, setDashboardStats] = useState<{ monthly_new_inquiries: number; profile_views: number; response_rate: number } | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', activeTab);
+    router.replace(`${pathname}?${params.toString()}`);
+  }, [activeTab, router, pathname]);
 
   // Aggregated totals for dashboard statistics
   const servicesCount = services.length;

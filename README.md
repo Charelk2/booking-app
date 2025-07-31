@@ -1367,6 +1367,14 @@ Additional CSS conventions are documented in
 [docs/css_best_practices.md](docs/css_best_practices.md).
 For the booking wizard HTML structure reference, see [docs/booking_wizard_layout.md](docs/booking_wizard_layout.md).
 
+### Artist View Toggle
+
+Artists can switch between managing their profile and acting as a client.
+When logged in as an artist, the navigation bar shows **Today**, **View Profile**,
+**Services**, and **Messages**. A **Switch to Booking** button toggles to the
+client view, returning the standard navigation links. All other artist options
+are available from the mobile menu or profile dropdown.
+
 ## Contributing
 
 Before opening a pull request, run `./scripts/test-all.sh` to execute the

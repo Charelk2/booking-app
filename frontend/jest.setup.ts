@@ -35,6 +35,8 @@ jest.mock('@/contexts/AuthContext', () => {
     verifyMfa: jest.fn(),
     register: jest.fn(),
     logout: jest.fn(),
+    artistViewActive: true,
+    toggleArtistView: jest.fn(),
   }));
   return { useAuth: mock };
 });
