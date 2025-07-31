@@ -33,9 +33,13 @@ export default function BookingRequestDetailPage() {
   const [artistAvatar, setArtistAvatar] = useState<string | null>(null);
   const [artistName, setArtistName] = useState<string>('');
   const [showSidebar, setShowSidebar] = useState(true);
-  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
   const [parsedBookingDetails, setParsedBookingDetails] = useState<ParsedBookingDetails | null>(null);
   const [initialSoundNeeded, setInitialSoundNeeded] = useState<boolean | undefined>(undefined);
+
+  useEffect(() => {
+    // Scroll to the top of the page when the component mounts
+    
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   useEffect(() => {
     if (!id) return;
@@ -140,7 +144,8 @@ export default function BookingRequestDetailPage() {
 
   return (
     <MainLayout>
-      <div className="flex flex-col md:flex-row max-w-7xl mx-auto p-6 gap-6 min-h-[85vh]">
+      {/* Added items-start to align children to the top */}
+      <div className="flex flex-col md:flex-row max-w-7xl mx-auto p-6 gap-6 min-h-[85vh] items-start">
         {/* Booking Timeline on the Left */}
         <div className="md:w-1/4 lg:w-1/5 flex-shrink-0">
           <BookingTimeline status={request.status} />
@@ -186,115 +191,84 @@ export default function BookingRequestDetailPage() {
         </div>
 
         {/* Sidebar for Booking Details (Summary) on the Right */}
-        <aside className={`${showSidebar ? 'block' : 'hidden'} md:block md:w-1/4 lg:w-1/5 bg-white-100 rounded-2xl p-6 border-white-100 flex-shrink-0`}>
-          <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b border-gray-1-300 last:border-b-0 pb-2">Booking Details</h2>
-          <div className="space-y-3 text-gray-700">
+        <aside className={`${showSidebar ? 'block' : 'hidden'} md:block md:w-1/4 lg:w-1/5 bg-white rounded-2xl p-6 border border-gray-200 flex-shrink-0 shadow-sm max-h-[85vh] overflow-y-auto`}>
+          <h2 className="text-lg font-semibold text-gray-800 mb-3 border-b border-gray-200 pb-2">Booking Details</h2>
+          <div className="space-y-3 text-sm text-gray-800">
             {/* Always visible details */}
-            <div className="flex items-center justify-between py-1 border-b border-gray-300 last:border-b-0">
-              <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Client</dt>
-              <dd className="text-right text-sm flex-grow">
+            <div className="flex items-start justify-between py-2 border-b border-gray-200 last:border-b-0">
+              <dt className="font-medium text-gray-700 flex-shrink-0 w-2/5">Client</dt>
+              <dd className="text-right flex-grow">
                 {request.client ? `${request.client.first_name} ${request.client.last_name}` : 'N/A'}
               </dd>
             </div>
-            <div className="flex items-center justify-between py-1 border-b border-gray-300 last:border-b-0">
-              <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Email</dt>
-              <dd className="text-right text-sm flex-grow overflow-hidden text-ellipsis whitespace-nowrap">
+            <div className="flex items-start justify-between py-2 border-b border-gray-200 last:border-b-0">
+              <dt className="font-medium text-gray-700 flex-shrink-0 w-2/5">Email</dt>
+              <dd className="text-right flex-grow overflow-hidden text-ellipsis whitespace-nowrap">
                 {request.client?.email || 'N/A'}
               </dd>
             </div>
-            <div className="flex items-center justify-between py-1 border-b border-gray-300 last:border-b-0">
-              <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Service</dt>
-              <dd className="text-right text-sm flex-grow">
+            <div className="flex items-start justify-between py-2 border-b border-gray-200 last:border-b-0">
+              <dt className="font-medium text-gray-700 flex-shrink-0 w-2/5">Service</dt>
+              <dd className="text-right flex-grow">
                 {request.service?.title || 'N/A'}
               </dd>
             </div>
             {parsedBookingDetails?.eventType && (
-              <div className="flex items-center justify-between py-1 border-b border-gray-300 last:border-b-0">
-                <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Event Type</dt>
-                <dd className="text-right text-sm flex-grow">{parsedBookingDetails.eventType}</dd>
+              <div className="flex items-start justify-between py-2 border-b border-gray-200 last:border-b-0">
+                <dt className="font-medium text-gray-700 flex-shrink-0 w-2/5">Event Type</dt>
+                <dd className="text-right flex-grow">{parsedBookingDetails.eventType}</dd>
               </div>
             )}
             {displayProposedDateTime && isValid(displayProposedDateTime) && (
-              <div className="flex items-center justify-between py-1 border-b border-gray-300 last:border-b-0">
-                <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Date & Time</dt>
-                <dd className="text-right text-sm flex-grow">
+              <div className="flex items-start justify-between py-2 border-b border-gray-200 last:border-b-0">
+                <dt className="font-medium text-gray-700 flex-shrink-0 w-2/5">Date & Time</dt>
+                <dd className="text-right flex-grow">
                   {format(displayProposedDateTime, 'PPP')}
                   {` at ${format(displayProposedDateTime, 'p')}`}
                 </dd>
               </div>
             )}
             {parsedBookingDetails?.location && (
-              <div className="flex items-center justify-between py-1 border-b border-gray-300 last:border-b-0">
-                <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Location</dt>
-                <dd className="text-right text-sm flex-grow">
+              <div className="flex items-start justify-between py-2 border-b border-gray-200 last:border-b-0">
+                <dt className="font-medium text-gray-700 flex-shrink-0 w-2/5">Location</dt>
+                <dd className="text-right flex-grow">
                   {cleanLocation(parsedBookingDetails.location)}
                 </dd>
               </div>
             )}
 
-            {/* Conditionally visible details */}
-            <motion.div
-              layout
-              initial={false}
-              animate={{ height: isDetailsExpanded ? 'auto' : 0, opacity: isDetailsExpanded ? 1 : 0 }}
-              transition={{ duration: 0.3 }}
-              className="overflow-hidden"
-            >
-              {parsedBookingDetails?.description && (
-                <div className="flex items-start justify-between py-1 border-b border-gray-300 last:border-b-0">
-                  <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Description</dt>
-                  <dd className="text-right text-sm flex-grow">{parsedBookingDetails.description}</dd>
-                </div>
-              )}
-              {parsedBookingDetails?.guests && (
-                <div className="flex items-center justify-between py-1 border-b border-gray-300 last:border-b-0">
-                  <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Guests</dt>
-                  <dd className="text-right text-sm flex-grow">{parsedBookingDetails.guests}</dd>
-                </div>
-              )}
-              {parsedBookingDetails?.venueType && (
-                <div className="flex items-center justify-between py-1 border-b border-gray-300 last:border-b-0">
-                  <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Venue Type</dt>
-                  <dd className="text-right text-sm flex-grow">{parsedBookingDetails.venueType}</dd>
-                </div>
-              )}
-              {parsedBookingDetails?.soundNeeded && (
-                <div className="flex items-center justify-between py-1 border-b border-gray-300 last:border-b-0">
-                  <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Sound Needed</dt>
-                  <dd className="text-right text-sm flex-grow">
-                    {parsedBookingDetails.soundNeeded === 'Yes' ? 'Yes' : 'No'}
-                  </dd>
-                </div>
-              )}
-              {parsedBookingDetails?.notes && (
-                <div className="flex items-start justify-between py-1 border-b border-gray-300 last:border-b-0">
-                  <dt className="font-medium text-gray-900 flex-shrink-0 w-1/3">Notes</dt>
-                  <dd className="text-right text-sm flex-grow">{parsedBookingDetails.notes}</dd>
-                </div>
-              )}
-            </motion.div>
-
-            {/* Expand/Collapse Button */}
-            <div className="flex justify-center w-full pt-2">
-              <button
-                onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
-                className="text-gray-500 hover:text-gray-800 font-medium py-2 text-sm flex items-center justify-center space-x-1 cursor-pointer transition-colors"
-              >
-                <span className="text-xs">
-                  {isDetailsExpanded ? 'Hide Details' : 'Show More Details'}
-                </span>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                  className={`h-4 w-4 transform transition-transform duration-300 ${isDetailsExpanded ? 'rotate-180' : ''}`}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25L12 15.75 4.5 8.25" />
-                </svg>
-              </button>
-            </div>
+            {parsedBookingDetails?.description && (
+              <div className="flex items-start justify-between py-2 border-b border-gray-200 last:border-b-0">
+                <dt className="font-medium text-gray-700 flex-shrink-0 w-2/5">Description</dt>
+                <dd className="text-right flex-grow">{parsedBookingDetails.description}</dd>
+              </div>
+            )}
+            {parsedBookingDetails?.guests && (
+              <div className="flex items-start justify-between py-2 border-b border-gray-200 last:border-b-0">
+                <dt className="font-medium text-gray-700 flex-shrink-0 w-2/5">Guests</dt>
+                <dd className="text-right flex-grow">{parsedBookingDetails.guests}</dd>
+              </div>
+            )}
+            {parsedBookingDetails?.venueType && (
+              <div className="flex items-start justify-between py-2 border-b border-gray-200 last:border-b-0">
+                <dt className="font-medium text-gray-700 flex-shrink-0 w-2/5">Venue Type</dt>
+                <dd className="text-right flex-grow">{parsedBookingDetails.venueType}</dd>
+              </div>
+            )}
+            {parsedBookingDetails?.soundNeeded && (
+              <div className="flex items-start justify-between py-2 border-b border-gray-200 last:border-b-0">
+                <dt className="font-medium text-gray-700 flex-shrink-0 w-2/5">Sound Needed</dt>
+                <dd className="text-right flex-grow">
+                  {parsedBookingDetails.soundNeeded === 'Yes' ? 'Yes' : 'No'}
+                </dd>
+              </div>
+            )}
+            {parsedBookingDetails?.notes && (
+              <div className="flex items-start justify-between py-2 border-b border-gray-200 last:border-b-0">
+                <dt className="font-medium text-gray-700 flex-shrink-0 w-2/5">Notes</dt>
+                <dd className="text-right flex-grow">{parsedBookingDetails.notes}</dd>
+              </div>
+            )}
           </div>
         </aside>
       </div>
