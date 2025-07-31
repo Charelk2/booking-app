@@ -164,7 +164,7 @@ describe('NotificationDrawer component', () => {
       booking_request_id: 8,
       name: 'Tom',
       unread_count: 1,
-      link: '/messages/thread/8',
+      link: '/booking-requests/8',
     } as UnifiedNotification;
 
     const onItemClick = jest.fn();

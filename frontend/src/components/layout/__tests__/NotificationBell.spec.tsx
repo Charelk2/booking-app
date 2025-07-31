@@ -63,7 +63,7 @@ describe('NotificationBell accessibility', () => {
           id: 1,
           type: 'new_message',
           message: 'New message',
-          link: '/messages/thread/1',
+          link: '/booking-requests/1',
           is_read: false,
           timestamp: new Date().toISOString(),
         },
@@ -93,7 +93,7 @@ describe('NotificationBell accessibility', () => {
     });
 
     expect(markItem).toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith('/messages/thread/1');
+    expect(push).toHaveBeenCalledWith('/booking-requests/1');
     act(() => {
       root.unmount();
     });
