@@ -4,7 +4,7 @@ import { Controller, Control } from 'react-hook-form'; // REMOVED FieldValues
 import ReactDatePicker from 'react-datepicker';
 import '../../../styles/datepicker.css';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isBefore, startOfDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import useIsMobile from '@/hooks/useIsMobile';
 import { DateInput } from '../../ui'; // Assuming DateInput is imported
@@ -28,7 +28,8 @@ export default function DateTimeStep({
   const isMobile = useIsMobile();
   const filterDate = (date: Date) => {
     const day = format(date, 'yyyy-MM-dd');
-    return !unavailable.includes(day) && date >= new Date();
+    const today = startOfDay(new Date());
+    return !unavailable.includes(day) && !isBefore(date, today);
   };
   return (
     <div className="wizard-step-container">
@@ -64,6 +65,7 @@ export default function DateTimeStep({
                   inline
                   locale={enUS}
                   filterDate={filterDate}
+                  minDate={startOfDay(new Date())}
                   onChange={(date: Date | null) => field.onChange(date)}
                   renderCustomHeader={({
                     date,
