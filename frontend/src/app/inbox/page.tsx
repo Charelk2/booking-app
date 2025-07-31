@@ -91,20 +91,52 @@ export default function InboxPage() {
 
   return (
     <MainLayout>
-      <div className="flex flex-col md:flex-row h-[calc(100vh-64px)]">
-        <div className="md:w-1/3 border-r border-gray-200 overflow-y-auto">
-          <ConversationList
-            bookingRequests={allBookingRequests}
-            selectedRequestId={selectedBookingRequestId}
-            onSelectRequest={handleSelect}
-            currentUser={user!}
-          />
+      <div className="flex flex-col md:flex-row h-[calc(100vh-64px)] bg-gray-100">
+        <div className="w-full md:w-1/4 lg:w-1/5 border-r border-gray-200 overflow-y-auto bg-white flex-shrink-0">
+          <div className="sticky top-0 bg-white p-4 border-b border-gray-200 flex justify-between items-center z-10">
+            <h1 className="text-xl font-semibold">Messages</h1>
+            <button
+              className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
+              aria-label="Search messages"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-6 h-6"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                />
+              </svg>
+            </button>
+          </div>
+          {allBookingRequests.length > 0 ? (
+            <ConversationList
+              bookingRequests={allBookingRequests}
+              selectedRequestId={selectedBookingRequestId}
+              onSelectRequest={handleSelect}
+              currentUser={user!}
+            />
+          ) : (
+            <p className="p-6 text-center text-gray-500">No conversations yet.</p>
+          )}
         </div>
-        <div className="flex-1 overflow-y-auto">
-          <MessageThreadWrapper
-            bookingRequestId={selectedBookingRequestId}
-            bookingRequest={selectedRequest}
-          />
+        <div className="flex-1 overflow-y-auto relative bg-white">
+          {selectedBookingRequestId ? (
+            <MessageThreadWrapper
+              bookingRequestId={selectedBookingRequestId}
+              bookingRequest={selectedRequest}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
+              <p>Select a conversation to view messages.</p>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>
