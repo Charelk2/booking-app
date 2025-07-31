@@ -11,6 +11,7 @@ from app.db_utils import (
     ensure_mfa_columns,
     ensure_calendar_account_email_column,
     ensure_booking_request_travel_columns,
+    ensure_message_is_read_column,
 )
 
 
@@ -146,6 +147,21 @@ def setup_booking_request_engine() -> Engine:
     return engine
 
 
+def setup_message_engine() -> Engine:
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE messages (
+                    id INTEGER PRIMARY KEY
+                )
+                """
+            )
+        )
+    return engine
+
+
 def test_add_price_visible_column():
     engine = setup_artist_engine()
     ensure_price_visible_column(engine)
@@ -210,4 +226,12 @@ def test_booking_request_travel_columns():
     assert "travel_mode" in cols
     assert "travel_cost" in cols
     assert "travel_breakdown" in cols
+
+
+def test_message_is_read_column():
+    engine = setup_message_engine()
+    ensure_message_is_read_column(engine)
+    inspector = inspect(engine)
+    cols = [c["name"] for c in inspector.get_columns("messages")]
+    assert "is_read" in cols
 
