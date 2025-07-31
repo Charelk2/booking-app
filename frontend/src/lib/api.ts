@@ -22,10 +22,10 @@ import {
   ArtistSoundPreference,
   QuoteCalculationResponse,
   QuoteTemplate,
-  
   Notification,
   ThreadNotification,
 } from '@/types';
+import { useAuth as useContextAuth } from '@/contexts/AuthContext'; // Renamed to avoid conflict with default export 'api'
 
 // Create a single axios instance for all requests
 const api = axios.create({
@@ -121,17 +121,24 @@ export const getCurrentUser = () => api.get<User>('/auth/me');
 
 const API_V1 = '/api/v1';
 
-// Helper to ensure API responses always include `user_id`
+// Helper to ensure API responses always include `user_id` and `id`
 const normalizeArtistProfile = (
   profile: Partial<ArtistProfile> | ArtistProfile
-): ArtistProfile => ({
-  ...profile,
-  user_id: (profile.user_id ?? profile.id) as number,
-  service_price:
-    profile.service_price != null
-      ? parseFloat(profile.service_price as unknown as string)
-      : undefined,
-});
+): ArtistProfile => {
+  // Ensure 'id' is always a number. Assuming 'profile.id' or 'profile.user_id' can serve as it.
+  const id = (profile.id ?? profile.user_id) as number; // Use user_id as fallback for id
+  const user_id = (profile.user_id ?? profile.id) as number; // Ensure user_id is number
+
+  return {
+    ...profile,
+    id: id, // Explicitly set id to ensure it's number
+    user_id: user_id, // Explicitly set user_id
+    service_price:
+      profile.service_price != null
+        ? parseFloat(profile.service_price as unknown as string)
+        : undefined,
+  } as ArtistProfile; // Cast to ArtistProfile to satisfy the return type, if confident
+};
 
 // ─── ARTISTS ───────────────────────────────────────────────────────────────────
 
@@ -553,4 +560,8 @@ export const exportMyAccount = () =>
 export const deleteMyAccount = (password: string) =>
   api.delete(`${API_V1}/users/me`, { data: { password } });
 
-export default api;
+export default api; // Export the axios instance as default
+
+// Re-export useAuth from its original context file if it's there
+// This fixes the 'Function not implemented' warning and potential import conflicts.
+export { useContextAuth as useAuth }; // Re-export as 'useAuth'

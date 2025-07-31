@@ -23,6 +23,9 @@ interface BookingDetailsPanelProps {
   confirmedBookingDetails: Booking | null;
   setShowReviewModal: (show: boolean) => void;
   paymentModal: React.ReactNode;
+  // These props are passed but no longer used for buttons inside this component.
+  setShowSidePanel: (show: boolean) => void;
+  showSidePanel: boolean;
 }
 
 export default function BookingDetailsPanel({
@@ -33,6 +36,8 @@ export default function BookingDetailsPanel({
   confirmedBookingDetails,
   setShowReviewModal,
   paymentModal,
+  setShowSidePanel,
+  showSidePanel,
 }: BookingDetailsPanelProps) {
 
   const cleanLocation = (locationString: string | undefined) => {
@@ -50,9 +55,9 @@ export default function BookingDetailsPanel({
     : null;
 
   return (
-    <div className="bg-white rounded-2xl p-6 border-gray-200 shadow-sm sticky top-0">
-      <h2 className="text-lg font-semibold border-b border-gray-200 pb-2 mb-3">Booking Details</h2>
-      <dl className="space-y-2 text-sm text-gray-800">
+    // Added bg-white and shadow-sm directly to this component's root div
+    <div className="bg-white shadow-sm flex flex-col h-full rounded-2xl overflow-hidden">
+      <dl className="flex-1 overflow-y-auto space-y-2 text-sm text-gray-800 p-4">
             <div className="flex justify-between">
               <dt className="font-medium">Client</dt>
               <dd>
