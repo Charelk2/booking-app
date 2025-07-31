@@ -6,6 +6,7 @@ import MessageThread from '../booking/MessageThread';
 import BookingDetailsPanel from './BookingDetailsPanel';
 import Spinner from '../ui/Spinner';
 import usePaymentModal from '@/hooks/usePaymentModal';
+import { downloadBookingIcs } from '@/lib/api';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -43,6 +44,26 @@ export default function MessageThreadWrapper({
     }, []),
     useCallback(() => {}, [])
   );
+
+  const handleDownloadCalendar = useCallback(async () => {
+    const bookingId = confirmedBookingDetails?.id;
+    if (!bookingId) return;
+    try {
+      const res = await downloadBookingIcs(bookingId);
+      const blob = new Blob([res.data], { type: 'text/calendar' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `booking-${bookingId}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Calendar download error:', err);
+    }
+  }, [confirmedBookingDetails]);
 
   if (!bookingRequestId) {
     return <p className="p-4">Select a conversation to view messages.</p>;
@@ -90,7 +111,7 @@ export default function MessageThreadWrapper({
         paymentAmount={paymentAmount}
         receiptUrl={receiptUrl}
         openPaymentModal={openPaymentModal}
-        handleDownloadCalendar={() => {}}
+        handleDownloadCalendar={handleDownloadCalendar}
         setShowReviewModal={setShowReviewModal}
         paymentModal={paymentModal}
       />

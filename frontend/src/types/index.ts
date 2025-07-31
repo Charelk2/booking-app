@@ -145,6 +145,12 @@ export interface BookingRequest {
   service?: Service;
   quotes?: Quote[];
   accepted_quote_id?: number | null;
+  /** Whether the latest message is unread by the current user */
+  is_unread_by_current_user?: boolean;
+  /** Optional last message snippet returned by the API */
+  last_message_content?: string | null;
+  /** ISO timestamp of the last message */
+  last_message_timestamp?: string | null;
 }
 
 // If you need to handle Quotes (e.g. when the artist replies):
