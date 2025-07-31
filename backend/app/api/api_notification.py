@@ -28,6 +28,9 @@ def _build_response(
                 sender = match.group(1).strip()
 
             br_match = re.search(r"/(?:booking-requests|messages/thread)/(\d+)", n.link)
+            if not br_match:
+                q_match = re.search(r"/inbox\?requestId=(\d+)", n.link)
+                br_match = q_match
             if br_match:
                 br_id = int(br_match.group(1))
                 br = (
@@ -65,7 +68,10 @@ def _build_response(
             )
     elif n.type == models.NotificationType.NEW_BOOKING_REQUEST:
         try:
-            request_id = int(n.link.split("/")[-1])
+            match = re.search(r"(?:/booking-requests/|/inbox\?requestId=)(\d+)", n.link)
+            if not match:
+                raise ValueError("invalid link")
+            request_id = int(match.group(1))
             br = (
                 db.query(models.BookingRequest)
                 .filter(models.BookingRequest.id == request_id)
@@ -134,6 +140,10 @@ def _build_response(
     elif n.type == models.NotificationType.QUOTE_ACCEPTED:
         try:
             match = re.search(r"/booking-requests/(\d+)", n.link)
+            if not match:
+                match = re.search(r"/inbox\?requestId=(\d+)", n.link)
+            if not match:
+                match = re.search(r"/inbox\?requestId=(\d+)", n.link)
             if match:
                 request_id = int(match.group(1))
                 br = (
