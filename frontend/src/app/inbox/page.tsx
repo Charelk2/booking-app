@@ -1,200 +1,111 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import clsx from 'clsx';
-import { useRouter } from 'next/navigation';
-import { formatDistanceToNow } from 'date-fns';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
-import useNotifications from '@/hooks/useNotifications';
-import { Spinner, Avatar } from '@/components/ui';
-
-
-interface BookingPreview {
-  id: number;
-  senderName: string;
-  formattedDate: string;
-  location?: string;
-  guests?: string;
-  venueType?: string;
-  unread: number;
-}
+import { useAuth } from '@/contexts/AuthContext';
+import { Spinner } from '@/components/ui';
+import ConversationList from '@/components/inbox/ConversationList';
+import MessageThreadWrapper from '@/components/inbox/MessageThreadWrapper';
+import {
+  getMyBookingRequests,
+  getBookingRequestsForArtist,
+} from '@/lib/api';
+import { BookingRequest } from '@/types';
 
 export default function InboxPage() {
-  const { items, loading, error, markItem } = useNotifications();
+  const { user, loading: authLoading } = useAuth();
+  const [allBookingRequests, setAllBookingRequests] = useState<BookingRequest[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [selectedBookingRequestId, setSelectedBookingRequestId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
   const router = useRouter();
 
-  const messageThreads = useMemo(
-    () => items.filter((i) => i.type === 'message' && i.booking_request_id),
-    [items],
-  );
-
-  const [activeTab, setActiveTab] = useState<'requests' | 'chats'>('requests');
-  const [bookings, setBookings] = useState<BookingPreview[]>([]);
-  const [chats, setChats] = useState<typeof messageThreads>([]);
+  const fetchAllRequests = useCallback(async () => {
+    setLoadingRequests(true);
+    try {
+      const [mineRes, artistRes] = await Promise.all([
+        getMyBookingRequests(),
+        getBookingRequestsForArtist(),
+      ]);
+      const combined = [...mineRes.data, ...artistRes.data].reduce<BookingRequest[]>((acc, req) => {
+        if (!acc.find((r) => r.id === req.id)) acc.push(req);
+        return acc;
+      }, []);
+      combined.sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime());
+      setAllBookingRequests(combined);
+      const urlId = Number(searchParams.get('requestId'));
+      if (urlId && combined.find((r) => r.id === urlId)) {
+        setSelectedBookingRequestId(urlId);
+      } else if (combined.length > 0) {
+        setSelectedBookingRequestId(combined[0].id);
+      }
+    } catch (err: any) {
+      console.error('Failed to load booking requests:', err);
+      setError('Failed to load conversations');
+    } finally {
+      setLoadingRequests(false);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
-    const bookingList: BookingPreview[] = [];
-    const chatList: typeof messageThreads = [];
-
-    messageThreads.forEach((t) => {
-      if (t.booking_details) {
-        bookingList.push({
-          id: t.booking_request_id,
-          senderName: t.name,
-          formattedDate: new Date(t.booking_details.timestamp).toLocaleDateString(),
-          location: t.booking_details.location,
-          guests: t.booking_details.guests,
-          venueType: t.booking_details.venue_type,
-          unread: t.unread_count,
-        });
+    if (!authLoading) {
+      if (!user) {
+        router.replace('/login?redirect=/inbox');
       } else {
-        chatList.push(t);
+        fetchAllRequests();
       }
-    });
-
-    setBookings(bookingList);
-    setChats(chatList);
-  }, [messageThreads]);
-
-  const handleClick = async (id: number) => {
-    const item = messageThreads.find((t) => t.booking_request_id === id);
-    if (item && !item.is_read) {
-      await markItem(item);
     }
+  }, [authLoading, user, router, fetchAllRequests]);
 
-    if (activeTab === 'requests') {
-      router.push(`/booking-requests/${id}`);
-    } else {
-      router.push(`/messages/thread/${id}`);
-    }
-  };
-
-  const renderBookings = () => (
-    <ul className="space-y-3">
-      {bookings.map((b) => (
-        <li key={b.id}>
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => handleClick(b.id)}
-            onKeyPress={() => handleClick(b.id)}
-            className={clsx(
-              'shadow rounded-lg p-4 space-y-2 cursor-pointer active:bg-gray-100 transition',
-              b.unread > 0
-                ? 'bg-brand-light border-l-4 border-brand'
-                : 'bg-white'
-            )}
-          >
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm">{b.senderName}</span>
-                {b.unread > 0 && (
-                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full">
-                    {b.unread > 99 ? '99+' : b.unread}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">{b.formattedDate}</span>
-                {b.unread > 0 && (
-                  <span
-                    className="w-2 h-2 bg-red-600 rounded-full"
-                    aria-label="Unread messages"
-                  />
-                )}
-              </div>
-            </div>
-            <div className="text-sm text-gray-600">
-              📍 {b.location || '—'} | 👥 {b.guests || '—'} | 🏠 {b.venueType || '—'}
-            </div>
-          </div>
-        </li>
-      ))}
-    </ul>
+  const handleSelect = useCallback(
+    (id: number) => {
+      setSelectedBookingRequestId(id);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('requestId', String(id));
+      router.replace(`?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams]
   );
 
-  const renderChats = () => (
-    <div>
-      {chats.map((t) => {
-        const initials = t.name
-          .split(' ')
-          .map((w) => w[0])
-          .join('');
-        return (
-          <div
-            key={t.booking_request_id}
-            role="button"
-            tabIndex={0}
-            onClick={() => handleClick(t.booking_request_id)}
-            onKeyPress={() => handleClick(t.booking_request_id)}
-            className="flex items-center space-x-3 px-4 py-3 border-b cursor-pointer hover:bg-gray-50 active:bg-gray-100"
-          >
-            <Avatar src={t.avatar_url || null} initials={initials} size={40} />
-            <div className="flex-1 overflow-hidden">
-              <div className="flex items-center gap-2">
-                <div className="font-medium text-sm">{t.name}</div>
-                {(t.unread_count ?? 0) > 0 && (
-                  <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full">
-                    {t.unread_count && t.unread_count > 99 ? '99+' : t.unread_count}
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-gray-500 truncate">{t.content}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <time
-                dateTime={t.timestamp}
-                title={new Date(t.timestamp).toLocaleString()}
-                className="text-xs text-gray-400"
-              >
-                <span className="sr-only">
-                  {new Date(t.timestamp).toLocaleString()}
-                </span>
-                {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true })}
-              </time>
-              {(t.unread_count ?? 0) > 0 && (
-                <span
-                  className="w-2 h-2 bg-red-600 rounded-full"
-                  aria-label="Unread messages"
-                />
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
+  if (authLoading || loadingRequests) {
+    return (
+      <MainLayout>
+        <div className="flex justify-center items-center min-h-[60vh]">
+          <Spinner />
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="p-4 text-red-600">{error}</div>
+      </MainLayout>
+    );
+  }
+
+  const selectedRequest = allBookingRequests.find((r) => r.id === selectedBookingRequestId) || null;
 
   return (
     <MainLayout>
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
-        <h1 className="text-xl font-semibold">Inbox</h1>
-        <div className="flex space-x-4 border-b mb-4">
-          <button
-            type="button"
-            onClick={() => setActiveTab('requests')}
-            className={`pb-2 font-medium ${
-              activeTab === 'requests' ? 'border-b-2 border-brand-dark' : 'text-gray-500'
-            }`}
-          >
-            Booking Requests
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('chats')}
-            className={`pb-2 font-medium ${
-              activeTab === 'chats' ? 'border-b-2 border-brand-dark' : 'text-gray-500'
-            }`}
-          >
-            Chats
-          </button>
+      <div className="flex flex-col md:flex-row h-[calc(100vh-64px)]">
+        <div className="md:w-1/3 border-r border-gray-200 overflow-y-auto">
+          <ConversationList
+            bookingRequests={allBookingRequests}
+            selectedRequestId={selectedBookingRequestId}
+            onSelectRequest={handleSelect}
+            currentUser={user!}
+          />
         </div>
-        {loading && <Spinner className="my-4" />}
-        {error && <p className="text-red-600">{error.message}</p>}
-        {!loading && !error && bookings.length === 0 && chats.length === 0 && (
-          <p className="text-sm text-gray-500">No messages yet.</p>
-        )}
-        {activeTab === 'requests' ? renderBookings() : renderChats()}
+        <div className="flex-1 overflow-y-auto">
+          <MessageThreadWrapper
+            bookingRequestId={selectedBookingRequestId}
+            bookingRequest={selectedRequest}
+          />
+        </div>
       </div>
     </MainLayout>
   );
