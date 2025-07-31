@@ -16,7 +16,6 @@ import {
   formatCurrency,
   formatDepositReminder,
 } from '@/lib/utils';
-import AlertBanner from '../ui/AlertBanner';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
 import { DocumentIcon, DocumentTextIcon, BanknotesIcon } from '@heroicons/react/24/outline'; // Import BanknotesIcon for quote
