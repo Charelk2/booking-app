@@ -608,10 +608,7 @@ useEffect(() => {
 
 
     return (
-      <div className="max-w-xl mx-auto px-4 sm:px-6 py-6">
-        {/* --- MAIN CONTAINER WITH FIXED HEIGHT (or max-height) --- */}
-        {/* Increased max-h to 75vh for a bit more vertical space, adjusted from 70vh */}
-        <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[75vh]">
+      <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100 flex flex-col p-6">
           {/* Chat Header - Reduced py-3 to py-2 */}
           <header className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-indigo-700 text-white px-4 py-2 flex items-center justify-between shadow-md">
             <span className="font-semibold text-base sm:text-lg">
@@ -674,7 +671,7 @@ useEffect(() => {
           <div
             ref={messagesContainerRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto flex flex-col gap-3 px-4 py-4 bg-gray-50"
+            className="flex-1 overflow-y-auto flex flex-col gap-3 bg-gray-50"
           >
             {loading ? (
               <div className="flex justify-center py-6" aria-label="Loading messages">
@@ -1041,10 +1038,10 @@ useEffect(() => {
 
           {/* Error and WebSocket Connection Lost Messages */}
           {threadError && (
-            <p className="text-xs text-red-600 mx-4 mt-1.5" role="alert">{threadError}</p>
+            <p className="text-xs text-red-600 mt-1.5" role="alert">{threadError}</p>
           )}
           {wsFailed && (
-            <p className="text-xs text-red-600 mx-4 mt-1.5" role="alert">
+            <p className="text-xs text-red-600 mt-1.5" role="alert">
               Connection lost. Please refresh the page or sign in again.
             </p>
           )}

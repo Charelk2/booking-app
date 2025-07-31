@@ -44,7 +44,10 @@ export default function MessageThreadWrapper({
   const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(null);
 
   // Default to false. This controls if the RIGHTMOST panel is open.
-  const [showSidePanel, setShowSidePanel] = useState(false); 
+  const [showSidePanel, setShowSidePanel] = useState(false);
+
+  const sidePanelWidthDesktop = showSidePanel ? 'md:w-[300px]' : 'md:w-0';
+  const sidePanelWidthLgDesktop = showSidePanel ? 'lg:w-[360px]' : 'lg:w-0';
 
   const { openPaymentModal, paymentModal } = usePaymentModal(
     useCallback(({ status, amount, receiptUrl: url }) => {
@@ -149,8 +152,9 @@ export default function MessageThreadWrapper({
       <div className="flex flex-1 min-h-0 py-4"> {/* flex-1 ensures it takes remaining vertical space */}
         {/* Chat Messages */}
         {/* Chat should take full width on mobile, and reduce width on desktop when panel is open */}
-        <div className={`flex-1 min-w-0 px-4 sm:px-6 transition-[margin-right] duration-300 ease-in-out
-                      ${showSidePanel ? 'md:mr-[300px] lg:mr-[360px]' : ''}`}> {/* Dynamic right margin to create space for panel */}
+        <div
+          className={`flex-1 min-w-0 px-4 sm:px-6 transition-[margin-right] duration-300 ease-in-out ${showSidePanel ? 'md:mr-[300px] lg:mr-[360px]' : ''}`}
+        >
           <MessageThread
             bookingRequestId={bookingRequestId}
             serviceId={bookingRequest.service_id ?? undefined}
@@ -194,17 +198,16 @@ export default function MessageThreadWrapper({
           id="reservation-panel"
           role="complementary"
           className={`
-            fixed inset-y-0 right-0 z-10 /* Fixed positioning relative to viewport */
-            w-full md:w-[300px] lg:w-[360px] /* Defined width for desktop */
+            fixed inset-y-0 right-0 z-10
+            w-full ${sidePanelWidthDesktop} ${sidePanelWidthLgDesktop}
             bg-white border-l border-gray-200 p-4
-            transform transition-transform duration-300 ease-in-out /* Smooth transition */
-            ${showSidePanel ? 'translate-x-0' : 'translate-x-full'} /* Slide in/out */
-            /* Add shadow to make it pop over the content */
+            transform transition-transform duration-300 ease-in-out
+            ${showSidePanel ? 'translate-x-0' : 'translate-x-full'}
             shadow-lg
           `}
         >
-          {/* Close button for side panel (always visible on the panel itself) */}
-          <div className="flex justify-end mb-2">
+          {/* Close button for side panel (visible on mobile where it overlays) */}
+          <div className="flex justify-end mb-2 md:hidden">
             <button
               type="button"
               onClick={() => setShowSidePanel(false)}
