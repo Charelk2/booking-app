@@ -157,10 +157,10 @@ def _build_response(
                         .filter(models.User.id == br.client_id)
                         .first()
                     )
-                if client:
-                    sender = f"{client.first_name} {client.last_name}"
-                    if client.profile_picture_url:
-                        avatar_url = client.profile_picture_url
+                    if client:
+                        sender = f"{client.first_name} {client.last_name}"
+                        if client.profile_picture_url:
+                            avatar_url = client.profile_picture_url
         except (ValueError, IndexError) as exc:
             logger.warning(
                 "Failed to derive quote accepted details from link %s: %s",
