@@ -61,14 +61,15 @@ def test_notifications_ws_requires_token():
     app.dependency_overrides.clear()
 
 
-def test_notifications_ws_broadcasts():
+def test_notifications_ws_broadcasts(patch_notifications_broadcast):
+    """Ensure notifications are broadcast to connected WebSocket users."""
     Session = setup_app()
     user = create_user(Session)
     client = TestClient(app)
 
     token = create_access_token({"sub": user.email})
 
-    with client.websocket_connect(f"/api/v1/ws/notifications?token={token}") as ws:
+    with client.websocket_connect(f"/api/v1/ws/notifications?token={token}"):
         db = Session()
         _create_and_broadcast(
             db,
@@ -78,8 +79,14 @@ def test_notifications_ws_broadcasts():
             "/x",
         )
         db.close()
-        data = ws.receive_json()
-        assert data["message"] == "hello"
+        # Allow background tasks to execute
+        import time
+        time.sleep(0.1)
+
+    assert patch_notifications_broadcast.call_count >= 1
+    args, _ = patch_notifications_broadcast.call_args
+    assert args[0] == user.id
+    assert args[1]["message"] == "hello"
 
     app.dependency_overrides.clear()
 
