@@ -54,6 +54,8 @@ class BookingRequestResponse(BookingRequestBase):
     service: Optional[ServiceResponse] = None
     quotes: List['QuoteResponse'] = []
     accepted_quote_id: Optional[int] = None
+    last_message_content: Optional[str] = None
+    last_message_timestamp: Optional[datetime] = None
 
     model_config = {
         "from_attributes": True

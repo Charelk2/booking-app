@@ -38,6 +38,16 @@ def get_messages_for_request(db: Session, booking_request_id: int) -> List[model
     )
 
 
+def get_last_message_for_request(db: Session, booking_request_id: int) -> models.Message | None:
+    """Return the most recent message for the given booking request."""
+    return (
+        db.query(models.Message)
+        .filter(models.Message.booking_request_id == booking_request_id)
+        .order_by(models.Message.timestamp.desc())
+        .first()
+    )
+
+
 def mark_messages_read(db: Session, booking_request_id: int, user_id: int) -> int:
     """Mark all messages sent by the other user as read."""
     updated = (

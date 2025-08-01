@@ -34,7 +34,8 @@ export default function ConversationList({
             ? req.client?.profile_picture_url
             : req.artist?.profile_picture_url) || '/static/default-avatar.svg'; // Fallback to a default SVG if no URL
 
-        const date = req.updated_at || req.created_at;
+        const date =
+          req.last_message_timestamp || req.updated_at || req.created_at;
 
         return (
           <div
