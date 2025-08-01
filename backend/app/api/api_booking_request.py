@@ -121,29 +121,15 @@ def read_my_client_booking_requests(
     """
     Retrieve booking requests made by the current client.
     """
-    requests = crud.crud_booking_request.get_booking_requests_by_client(
-        db=db, client_id=current_user.id, skip=skip, limit=limit
+    requests = crud.crud_booking_request.get_booking_requests_with_last_message(
+        db=db,
+        client_id=current_user.id,
+        skip=skip,
+        limit=limit,
     )
     for req in requests:
         for q in req.quotes:
             q.booking_request = None
-        accepted = next(
-            (
-                q
-                for q in req.quotes
-                if q.status in [
-                    models.QuoteStatus.ACCEPTED_BY_CLIENT,
-                    models.QuoteStatus.CONFIRMED_BY_ARTIST,
-                ]
-            ),
-            None,
-        )
-        if accepted:
-            setattr(req, "accepted_quote_id", accepted.id)
-        last_msg = crud.crud_message.get_last_message_for_request(db, req.id)
-        if last_msg:
-            setattr(req, "last_message_content", last_msg.content)
-            setattr(req, "last_message_timestamp", last_msg.timestamp)
     return requests
 
 @router.get("/me/artist", response_model=List[schemas.BookingRequestResponse])
@@ -156,29 +142,15 @@ def read_my_artist_booking_requests(
     """
     Retrieve booking requests made to the current artist.
     """
-    requests = crud.crud_booking_request.get_booking_requests_by_artist(
-        db=db, artist_id=current_artist.id, skip=skip, limit=limit
+    requests = crud.crud_booking_request.get_booking_requests_with_last_message(
+        db=db,
+        artist_id=current_artist.id,
+        skip=skip,
+        limit=limit,
     )
     for req in requests:
         for q in req.quotes:
             q.booking_request = None
-        accepted = next(
-            (
-                q
-                for q in req.quotes
-                if q.status in [
-                    models.QuoteStatus.ACCEPTED_BY_CLIENT,
-                    models.QuoteStatus.CONFIRMED_BY_ARTIST,
-                ]
-            ),
-            None,
-        )
-        if accepted:
-            setattr(req, "accepted_quote_id", accepted.id)
-        last_msg = crud.crud_message.get_last_message_for_request(db, req.id)
-        if last_msg:
-            setattr(req, "last_message_content", last_msg.content)
-            setattr(req, "last_message_timestamp", last_msg.timestamp)
     return requests
 
 @router.get("/{request_id:int}", response_model=schemas.BookingRequestResponse)
