@@ -43,7 +43,7 @@ function LocationInputInner({
   // Wrap getPlacePredictions so it remains stable across renders and
   // doesn't trigger effects unnecessarily.
   const stableGetPlacePredictions = useCallback(
-    (req: google.maps.places.AutocompleteRequest) => getPlacePredictions(req),
+    (req: google.maps.places.AutocompletionRequest) => getPlacePredictions(req),
     [getPlacePredictions]
   );
 
