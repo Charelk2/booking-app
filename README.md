@@ -895,6 +895,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Quote acceptance and booking confirmation notifications now render dynamic titles such as **"Quote accepted by Jane Doe"** instead of a generic label.
 * Message notifications now include the sender name in both the stored text and the API response so the drawer can display "New message from Alice" without additional lookups.
 * Clicking a new message alert opens `/inbox?requestId={id}` with the conversation active.
+* Legacy `/messages/{id}` and `/messages/thread/{id}` URLs now redirect to the Inbox so older links remain valid.
 * All notifications now include the sender's profile picture when available so avatars render consistently for artists and clients.
 * Artists marking a booking **completed** now trigger a **REVIEW_REQUEST** notification. The alert links to `/dashboard/client/bookings/{booking_id}?review=1` so clients can immediately leave feedback.
 * Chat message groups display a small unread badge on the right side when new messages arrive, clearing automatically once read. A **Jump to unread** button quickly scrolls to the first unseen message and messages you send show a subtle *Seen* label once the recipient reads them.
