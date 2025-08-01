@@ -109,7 +109,7 @@ export default function MessageThreadWrapper({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-2xl shadow-xl border border-gray-100 relative">
+    <div className="flex flex-col h-full bg-white shadow-xl border border-gray-100 relative">
       {/* Unified Header */}
       <header className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-indigo-700 text-white px-4 py-2 flex items-center  md:min-h-[64px]">
         <div className="flex items-center transition-all duration-300 ease-in-out">

@@ -124,7 +124,10 @@ export interface BookingRequestCreate {
 
 // This is what the backend returns when you GET a booking request:
 export interface BookingRequest {
-  sound_required?: boolean | null;
+  last_message_timestamp: string;
+  is_unread_by_current_user: any;
+  last_message_content: string | undefined;
+  sound_required: undefined;
   id: number;
   client_id: number;
   artist_id: number;
@@ -145,12 +148,6 @@ export interface BookingRequest {
   service?: Service;
   quotes?: Quote[];
   accepted_quote_id?: number | null;
-  /** Whether the latest message is unread by the current user */
-  is_unread_by_current_user?: boolean;
-  /** Optional last message snippet returned by the API */
-  last_message_content?: string | null;
-  /** ISO timestamp of the last message */
-  last_message_timestamp?: string | null;
 }
 
 // If you need to handle Quotes (e.g. when the artist replies):
@@ -241,8 +238,8 @@ export interface Message {
   quote_id?: number | null;
   attachment_url?: string | null;
   avatar_url?: string | null;
-  /** True if the recipient has viewed the message */
-  is_read: boolean;
+  /** Whether the message has been read by the current user */
+  unread?: boolean;
   timestamp: string;
 }
 
