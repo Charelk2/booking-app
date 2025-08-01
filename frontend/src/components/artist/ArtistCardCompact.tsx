@@ -9,7 +9,6 @@ import {
 import clsx from 'clsx';
 
 export interface ArtistCardCompactProps extends HTMLAttributes<HTMLDivElement> {
-  id: number;
   name: string;
   subtitle?: string;
   imageUrl?: string;
@@ -21,7 +20,6 @@ export interface ArtistCardCompactProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export default function ArtistCardCompact({
-  id,
   name,
   subtitle,
   imageUrl,

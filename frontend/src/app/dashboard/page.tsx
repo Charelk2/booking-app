@@ -41,6 +41,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -358,7 +359,7 @@ export default function DashboardPage() {
     hintTimer.current = setTimeout(() => setShowReorderHint(false), 1500);
   };
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     setIsReordering(false);
     const { active, over } = event;
     if (!over || active.id === over.id) {

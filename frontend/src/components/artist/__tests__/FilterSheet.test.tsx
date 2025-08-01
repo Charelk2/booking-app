@@ -5,7 +5,13 @@ import FilterSheet from '../FilterSheet';
 
 jest.mock('@/hooks/useMediaQuery', () => jest.fn(() => true));
 
-jest.mock('@/components/ui/PriceFilter', () => function MockPriceFilter({ onApply, onClear }: any) {
+jest.mock('@/components/ui/PriceFilter', () => function MockPriceFilter({
+  onApply,
+  onClear,
+}: {
+  onApply: (v: { minPrice: number; maxPrice: number }) => void;
+  onClear: () => void;
+}) {
   return (
     <div>
       <button data-testid="apply" type="button" onClick={() => onApply({ minPrice: 10, maxPrice: 20 })}>
