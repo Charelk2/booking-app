@@ -4,6 +4,7 @@ trap "echo '❌ Test run aborted'; exit 130" INT TERM
 
 export GOOGLE_CLIENT_ID=id
 export GOOGLE_CLIENT_SECRET=sec
+export PYTEST_RUN=1
 
 start_backend=$(date +%s)
 
