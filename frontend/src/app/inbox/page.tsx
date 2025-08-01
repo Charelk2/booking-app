@@ -51,7 +51,7 @@ export default function InboxPage() {
       } else if (combined.length > 0) {
         setSelectedBookingRequestId(combined[0].id);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load booking requests:', err);
       setError(err instanceof Error ? err.message : 'Failed to load conversations');
     } finally {
@@ -155,7 +155,9 @@ export default function InboxPage() {
       {selectedRequest && (
         <ReviewFormModal
           isOpen={showReviewModal}
-          bookingId={(selectedRequest as any).booking_id || 0}
+          bookingId={
+            (selectedRequest as { booking_id?: number | null }).booking_id ?? 0
+          }
           onClose={() => setShowReviewModal(false)}
           onSubmitted={() => setShowReviewModal(false)}
         />
