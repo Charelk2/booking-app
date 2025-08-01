@@ -131,7 +131,7 @@ export default function InboxPage() {
               bookingRequests={allBookingRequests}
               selectedRequestId={selectedBookingRequestId}
               onSelectRequest={handleSelect}
-              currentUser={user!}
+              currentUser={user}
             />
           ) : (
             <p className="p-6 text-center text-gray-500">No conversations yet.</p>
