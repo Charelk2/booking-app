@@ -32,16 +32,7 @@ export default function ConversationList({
           }
           const artist = req.artist;
           if (!artist) return 'Artist';
-          if ('business_name' in artist && artist.business_name) {
-            return artist.business_name;
-          }
-          if ('user' in artist && artist.user?.first_name) {
-            return artist.user.first_name;
-          }
-          if ('first_name' in artist) {
-            return (artist as User).first_name;
-          }
-          return 'Artist';
+          return artist.business_name || artist.user?.first_name || 'Artist';
         })();
         // Use getFullImageUrl for avatarUrl to ensure correct paths and handling
         const fullAvatarUrl =
