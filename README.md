@@ -59,6 +59,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Status badges on booking request cards now use classes like `status-badge-quote-provided` for consistent colors.
 - Error fallback messages now detect authentication failures and prompt users to log in.
 - Booking request API responses now include `last_message_content` and `last_message_timestamp` so inbox conversations sort by recent chats.
+- Backend now fetches these fields using a single optimized query for improved performance.
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
