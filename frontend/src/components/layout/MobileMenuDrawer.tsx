@@ -15,7 +15,7 @@ interface MobileMenuDrawerProps {
   open: boolean;
   onClose: () => void;
   navigation: NavItem[];
-  drawerNavigation: NavItem[];
+  drawerNavigation?: NavItem[];
   user: User | null;
   logout: () => void;
   pathname: string;
@@ -29,7 +29,7 @@ export default function MobileMenuDrawer({
   open,
   onClose,
   navigation,
-  drawerNavigation,
+  drawerNavigation = [],
   user,
   logout,
   pathname,
@@ -87,9 +87,9 @@ export default function MobileMenuDrawer({
                   </Link>
                 ))}
               </div>
-              {drawerNavigation.length > 0 && (
+              {(drawerNavigation ?? []).length > 0 && (
                 <div className="mt-2 space-y-1 px-2">
-                  {drawerNavigation.map((item) => (
+                  {(drawerNavigation ?? []).map((item) => (
                     <Link
                       key={item.name}
                       href={item.href}
