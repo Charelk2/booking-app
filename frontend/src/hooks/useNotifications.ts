@@ -1,2 +1,1 @@
-export { default, default as useNotifications } from './useNotifications.tsx';
-export * from './useNotifications.tsx';
+export { default, NotificationsProvider } from './useNotifications.tsx';

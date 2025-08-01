@@ -11,6 +11,7 @@ import {
 import type { User } from '@/types';
 import useNotifications from '@/hooks/useNotifications';
 import { toUnifiedFromNotification } from '@/hooks/notificationUtils';
+import type { UnifiedNotification } from '@/types';
 import useScrollDirection from '@/hooks/useScrollDirection';
 
 interface MobileBottomNavProps {
@@ -38,7 +39,7 @@ function classNames(...classes: (string | false | undefined)[]) {
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const router = useRouter();
   const { items } = useNotifications();
-  const notificationItems = items.map((n) => toUnifiedFromNotification(n));
+  const notificationItems = items;
   const scrollDir = useScrollDirection();
   if (!user) {
     return null;
@@ -46,8 +47,8 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   // Next.js App Router doesn’t expose pathname in its types, so we use a type assertion
   const pathname = (router as unknown as { pathname?: string }).pathname || '';
   const unreadMessages = notificationItems
-    .filter((i) => i.type === 'message')
-    .reduce((sum, t) => sum + (t.unread_count || 0), 0);
+    .filter((i: UnifiedNotification) => i.type === 'message')
+    .reduce((sum, t: UnifiedNotification) => sum + (t.unread_count || 0), 0);
   const badgeCount = unreadMessages > 99 ? '99+' : String(unreadMessages);
 
   return (

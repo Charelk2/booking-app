@@ -13,7 +13,8 @@ import axios, { type AxiosRequestHeaders } from 'axios';
 import toast from 'react-hot-toast';
 import useWebSocket from './useWebSocket';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Notification } from '@/types';
+import type { Notification, UnifiedNotification } from '@/types';
+import { toUnifiedFromNotification } from './notificationUtils';
 import { authAwareMessage } from '@/lib/utils';
 
 // Use the root API URL and include the /api prefix on each request so
@@ -47,8 +48,8 @@ interface NotificationsContextValue {
   markAllAsRead: () => Promise<void>;
   deleteNotification: (id: number) => Promise<void>;
   /** compatibility with legacy hooks */
-  items: Notification[];
-  markItem: (notification: Notification) => Promise<void>;
+  items: UnifiedNotification[];
+  markItem: (notification: UnifiedNotification) => Promise<void>;
   markAll: () => Promise<void>;
   loadMore: () => Promise<void>;
   hasMore: boolean;
@@ -210,6 +211,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, [notifications.length]);
 
+  const unifiedItems = notifications.map(toUnifiedFromNotification);
+
   const value: NotificationsContextValue = {
     notifications,
     unreadCount,
@@ -219,8 +222,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     markAllAsRead,
     deleteNotification,
     // legacy compatibility
-    items: notifications,
-    markItem: (n: Notification) => markAsRead(n.id),
+    items: unifiedItems,
+    markItem: (n: UnifiedNotification) => (n.id ? markAsRead(n.id) : Promise.resolve()),
     markAll: markAllAsRead,
     loadMore,
     hasMore,
