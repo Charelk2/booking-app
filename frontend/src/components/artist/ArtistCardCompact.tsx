@@ -1,7 +1,7 @@
 'use client';
 import Image from 'next/image';
-import Link from 'next/link';
-import type { HTMLAttributes } from 'react';
+import Link, { LinkProps } from 'next/link';
+import type { AnchorHTMLAttributes } from 'react';
 import { useState } from 'react';
 import {
   StarIcon,
@@ -9,7 +9,9 @@ import {
 import clsx from 'clsx';
 import { getFullImageUrl } from '@/lib/utils';
 
-export interface ArtistCardCompactProps extends HTMLAttributes<HTMLDivElement> {
+export interface ArtistCardCompactProps
+  extends LinkProps,
+    Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof LinkProps> {
   artistId: number;
   name: string;
   subtitle?: string;
