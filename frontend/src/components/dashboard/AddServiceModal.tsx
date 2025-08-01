@@ -12,6 +12,7 @@ import type { ElementType } from "react";
 import clsx from "clsx";
 import { Dialog, Transition } from "@headlessui/react";
 import { AnimatePresence, motion } from "framer-motion"; // Import motion and AnimatePresence
+import Image from "next/image";
 
 import type { Service } from "@/types";
 import {
@@ -491,8 +492,17 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                         <div className="flex flex-wrap gap-3 mt-4">
                           {/* Use thumbnails from useImageThumbnails hook */}
                           {thumbnails.map((src: string, i: number) => (
-                            <div key={i} className="relative w-24 h-24 border rounded overflow-hidden">
-                              <img src={src} alt={`media-${i}`} className="object-cover w-full h-full" />
+                            <div
+                              key={i}
+                              className="relative w-24 h-24 border rounded overflow-hidden"
+                            >
+                              <Image
+                                src={src}
+                                alt={`media-${i}`}
+                                width={96}
+                                height={96}
+                                className="object-cover w-full h-full"
+                              />
                               <button
                                 type="button"
                                 onClick={() => removeFile(i)}
@@ -596,7 +606,14 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                               <div className="flex flex-wrap gap-2 mt-2">
                                 {/* Use thumbnails from useImageThumbnails hook */}
                                 {thumbnails.map((src: string, i: number) => (
-                                  <img key={i} src={src} alt={`media-${i}`} className="w-20 h-20 object-cover rounded" />
+                                  <Image
+                                    key={i}
+                                    src={src}
+                                    alt={`media-${i}`}
+                                    width={80}
+                                    height={80}
+                                    className="w-20 h-20 object-cover rounded"
+                                  />
                                 ))}
                               </div>
                             </div>
