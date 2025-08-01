@@ -7,7 +7,7 @@ import { waitFor } from '@testing-library/react';
 import DashboardPage from '../page';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArtistProfile, User, Service, BookingRequest } from '@/types';
 
 jest.mock('@/lib/api');
@@ -15,6 +15,7 @@ jest.mock('@/contexts/AuthContext');
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   usePathname: jest.fn(() => '/dashboard'),
+  useSearchParams: jest.fn(),
 }));
 
 
@@ -24,12 +25,17 @@ if (typeof global.PointerEvent === 'undefined') {
   global.PointerEvent = window.MouseEvent;
 }
 
+beforeEach(() => {
+  (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
+});
+
 describe('DashboardPage empty state', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
   beforeEach(async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client', email: 'c@example.com' } });
     (api.getMyClientBookings as jest.Mock).mockResolvedValue({ data: [] });
     (api.getMyBookingRequests as jest.Mock).mockResolvedValue({ data: [] });
@@ -73,6 +79,7 @@ describe('DashboardPage artist stats', () => {
 
   beforeEach(async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
     (api.getMyArtistBookings as jest.Mock).mockResolvedValue({
       data: [
@@ -194,6 +201,7 @@ describe('DashboardPage client stats', () => {
 
   beforeEach(async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 3, user_type: 'client', email: 'c@example.com' } });
     (api.getMyClientBookings as jest.Mock).mockResolvedValue({
       data: [
@@ -247,6 +255,7 @@ describe('DashboardPage list toggles', () => {
 
   beforeEach(async () => {
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
 
     const bookings = Array.from({ length: 6 }).map((_, i) => ({
