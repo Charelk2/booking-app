@@ -11,8 +11,6 @@ export default function NavBar() {
     unreadCount,
     markItem,
     markAll,
-    loadMore,
-    hasMore,
     error,
   } = useNotifications();
   const handleItemClick = async (itemId: number) => {
@@ -47,8 +45,6 @@ export default function NavBar() {
         items={items}
         onItemClick={handleItemClick}
         markAllRead={markAllRead}
-        loadMore={loadMore}
-        hasMore={hasMore}
         error={error}
       />
     </nav>

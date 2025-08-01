@@ -13,7 +13,12 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('rheostat', () => {
   // simple mock slider with two inputs
-  return function MockSlider({ values, onValuesUpdated, onChange }: any) {
+  interface MockSliderProps {
+    values: number[];
+    onValuesUpdated: (state: { values: number[] }) => void;
+    onChange: (state: { values: number[] }) => void;
+  }
+  return function MockSlider({ values, onValuesUpdated, onChange }: MockSliderProps) {
     return (
       <div>
         <input

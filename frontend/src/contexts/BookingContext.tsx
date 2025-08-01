@@ -5,6 +5,8 @@ export interface EventDetails {
   eventType: string;
   eventDescription: string;
   date: Date;
+  /** Optional time string in HH:mm format */
+  time?: string;
   location: string;
   guests: string;
   venueType: 'indoor' | 'outdoor' | 'hybrid';
@@ -36,6 +38,7 @@ const initialDetails: EventDetails = {
   eventType: '',
   eventDescription: '',
   date: new Date(),
+  time: '',
   location: '',
   guests: '',
   venueType: 'indoor',
@@ -72,7 +75,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
     try {
       const parsed = JSON.parse(stored) as {
         step?: number;
-        details?: Partial<EventDetails> & { date?: string };
+        details?: Partial<EventDetails> & { date?: string; time?: string };
         serviceId?: number;
         requestId?: number;
         travelResult?: TravelResult | null;
@@ -112,7 +115,10 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window === 'undefined') return;
     const data = {
       step,
-      details: { ...details, date: new Date(details.date).toISOString() },
+      details: {
+        ...details,
+        date: new Date(details.date).toISOString(),
+      },
       serviceId,
       requestId,
       travelResult,

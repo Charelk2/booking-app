@@ -87,7 +87,7 @@ export default function MessageThreadWrapper({
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Calendar download error:', err);
     }
   }, [confirmedBookingDetails]);
@@ -137,7 +137,7 @@ export default function MessageThreadWrapper({
             <div className="h-10 w-10 rounded-full bg-red-400 flex items-center justify-center text-base font-medium border-2 border-white shadow-sm flex-shrink-0">
               {(
                 bookingRequest.artist?.business_name ||
-                bookingRequest.artist?.first_name ||
+                bookingRequest.artist?.user?.first_name ||
                 bookingRequest.client?.first_name
               )?.charAt(0) || 'U'}
             </div>
@@ -145,7 +145,7 @@ export default function MessageThreadWrapper({
 
           {/* Name next to avatar */}
           <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis ml-2">
-            Chat with {bookingRequest.client?.first_name || bookingRequest.artist?.business_name || bookingRequest.artist?.first_name || 'User'}
+            Chat with {bookingRequest.client?.first_name || bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name || 'User'}
           </span>
 
           {/* Send Quote button next */}
@@ -214,7 +214,7 @@ export default function MessageThreadWrapper({
       {/* Alert Banners */}
       {bookingConfirmed && confirmedBookingDetails && (
         <AlertBanner variant="success" className="mx-4 mt-4 rounded-lg z-10">
-          🎉 Booking confirmed for {bookingRequest.artist?.business_name || bookingRequest.artist?.first_name || 'Artist'}! {confirmedBookingDetails.service?.title} on {new Date(confirmedBookingDetails.start_time).toLocaleString()}. {formatDepositReminder(confirmedBookingDetails.deposit_amount ?? 0, confirmedBookingDetails.deposit_due_by ?? undefined)}.
+          🎉 Booking confirmed for {bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name || 'Artist'}! {confirmedBookingDetails.service?.title} on {new Date(confirmedBookingDetails.start_time).toLocaleString()}. {formatDepositReminder(confirmedBookingDetails.deposit_amount ?? 0, confirmedBookingDetails.deposit_due_by ?? undefined)}.
           <div className="flex flex-wrap gap-3 mt-2">
             <Link href={`/dashboard/client/bookings/${confirmedBookingDetails.id}`} className="inline-block text-indigo-600 hover:underline text-sm font-medium">
               View booking
@@ -261,7 +261,7 @@ export default function MessageThreadWrapper({
             bookingRequestId={bookingRequestId}
             serviceId={bookingRequest.service_id ?? undefined}
             clientName={bookingRequest.client?.first_name}
-            artistName={bookingRequest.artist?.business_name || bookingRequest.artist?.first_name}
+            artistName={bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name}
             artistAvatarUrl={bookingRequest.artist?.profile_picture_url ?? null}
             serviceName={bookingRequest.service?.title}
             initialNotes={bookingRequest.message ?? null}
@@ -300,7 +300,7 @@ export default function MessageThreadWrapper({
           <BookingDetailsPanel
             bookingRequest={bookingRequest}
             parsedBookingDetails={parsedDetails}
-            artistName={bookingRequest.artist?.business_name || bookingRequest.artist?.first_name || 'Artist'}
+            artistName={bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name || 'Artist'}
             bookingConfirmed={bookingConfirmed}
             confirmedBookingDetails={confirmedBookingDetails}
             setShowReviewModal={setShowReviewModal}
@@ -320,7 +320,7 @@ export default function MessageThreadWrapper({
           <BookingDetailsPanel
             bookingRequest={bookingRequest}
             parsedBookingDetails={parsedDetails}
-            artistName={bookingRequest.artist?.business_name || bookingRequest.artist?.first_name || 'Artist'}
+            artistName={bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name || 'Artist'}
             bookingConfirmed={bookingConfirmed}
             confirmedBookingDetails={confirmedBookingDetails}
             setShowReviewModal={setShowReviewModal}

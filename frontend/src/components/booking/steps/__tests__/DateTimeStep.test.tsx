@@ -1,16 +1,17 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import { useForm, Control, FieldValues } from 'react-hook-form';
+import { useForm, Control } from 'react-hook-form';
+import type { EventDetails } from '@/contexts/BookingContext';
 import DateTimeStep from '../DateTimeStep';
 
 function Wrapper() {
-  const { control } = useForm({
+  const { control } = useForm<EventDetails>({
     defaultValues: { date: new Date('2025-06-20') },
   });
   return (
     <DateTimeStep
-      control={control as unknown as Control<FieldValues>}
+      control={control as Control<EventDetails>}
       unavailable={[]}
       step={0}
       steps={['one']}
@@ -22,10 +23,10 @@ function Wrapper() {
 }
 
 function LoadingWrapper() {
-  const { control } = useForm();
+  const { control } = useForm<EventDetails>();
   return (
     <DateTimeStep
-      control={control as unknown as Control<FieldValues>}
+      control={control as Control<EventDetails>}
       unavailable={[]}
       loading
       step={0}
