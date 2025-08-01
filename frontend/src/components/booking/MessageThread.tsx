@@ -907,7 +907,7 @@ useEffect(() => {
                   role="progressbar"
                   aria-label="Upload progress"
                   aria-valuemin={0}
-                  aria-amax={100}
+                  aria-valuemax={100}
                   aria-valuenow={uploadingProgress}
                   aria-valuetext={`${uploadingProgress}%`}
                 >
