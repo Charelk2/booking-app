@@ -2,14 +2,12 @@
 
 import { forwardRef, Fragment } from 'react';
 import ReactDatePicker from 'react-datepicker';
-
-import '../../styles/datepicker.css';
 import { Listbox, Transition } from '@headlessui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import LocationInput from '../ui/LocationInput';
 import { UI_CATEGORIES } from '@/lib/categoryMap';
-
+import '../../styles/datepicker.css';
 
 export type Category = (typeof UI_CATEGORIES)[number];
 
@@ -22,7 +20,13 @@ export interface SearchFieldsProps {
   setWhen: (d: Date | null) => void;
 }
 
-type CustomHeaderProps = typeof import('react-datepicker')['ReactDatePickerCustomHeaderProps'];
+type CustomHeaderProps = {
+  date: Date;
+  decreaseMonth: () => void;
+  increaseMonth: () => void;
+  prevMonthButtonDisabled: boolean;
+  nextMonthButtonDisabled: boolean;
+};
 
 export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
   ({ category, setCategory, location, setLocation, when, setWhen }, ref) => {
@@ -30,28 +34,36 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       <>
         {/* Category */}
         <div ref={ref} className="flex-1 px-4 py-3 flex flex-col text-left">
-          <span className="text-xs text-gray-500">Category</span>
+          <label htmlFor="category" className="text-xs text-gray-500 mb-1">Category</label>
           <Listbox value={category} onChange={setCategory}>
             <div className="relative w-full">
-              <Listbox.Button className="mt-1 w-full text-sm bg-transparent focus:outline-none flex items-center">
-                <span
-                  className={clsx(
-                    'w-full text-left',
-                    { 'text-gray-400': category === null },
-                    { 'text-gray-700': category !== null }
-                  )}
-                >
+              <Listbox.Button
+                id="category"
+                className="w-full text-sm bg-transparent flex items-center border-none outline-none"
+              >
+                <span className={clsx(
+                  'w-full text-left truncate',
+                  category ? 'text-gray-700' : 'text-gray-400 italic'
+                )}>
                   {category ? category.label : 'Choose category'}
                 </span>
               </Listbox.Button>
-              <Transition as={Fragment} leave="transition ease-in duration-100" leaveFrom="opacity-100" leaveTo="opacity-0">
+              <Transition
+                as={Fragment}
+                leave="transition ease-in duration-100"
+                leaveFrom="opacity-100"
+                leaveTo="opacity-0"
+              >
                 <Listbox.Options className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5">
                   {UI_CATEGORIES.map((c) => (
                     <Listbox.Option
                       key={c.value}
                       value={c}
                       className={({ active }) =>
-                        clsx('px-4 py-2 text-sm cursor-pointer', active ? 'bg-indigo-100 text-indigo-900' : 'text-gray-700')
+                        clsx(
+                          'px-4 py-2 text-sm cursor-pointer',
+                          active ? 'bg-indigo-100 text-indigo-900' : 'text-gray-700'
+                        )
                       }
                     >
                       {c.label}
@@ -65,59 +77,59 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
 
         <div className="border-l border-gray-200" />
 
-        {/* Where */}
+        {/* Location */}
         <div className="flex-1 px-4 py-3 flex flex-col text-left">
-          <span className="text-xs text-gray-500">Where</span>
+          <label htmlFor="location" className="text-xs text-gray-500 mb-1">Where</label>
           <LocationInput
             value={location}
             onValueChange={setLocation}
             onPlaceSelect={() => {}}
             placeholder="City or venue"
-            inputClassName="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none"
+            inputClassName="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent border-none outline-none"
           />
         </div>
 
         <div className="border-l border-gray-200" />
 
-        {/* When */}
+        {/* Date */}
         <div className="flex-1 px-4 py-3 flex flex-col text-left">
-          <span className="text-xs text-gray-500">When</span>
+          <label htmlFor="date" className="text-xs text-gray-500 mb-1">When</label>
           <ReactDatePicker
             selected={when}
             onChange={(d: Date | null) => setWhen(d)}
             dateFormat="MMM d, yyyy"
             placeholderText="Add date"
-            className="mt-1 w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none"
-            renderCustomHeader={({
-              date,
-              decreaseMonth,
-              increaseMonth,
-              prevMonthButtonDisabled,
-              nextMonthButtonDisabled,
-            }: CustomHeaderProps) => (
+            id="date"
+            className="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent border-none outline-none"
+            renderCustomHeader={(props: CustomHeaderProps) => (
               <div className="flex justify-between items-center px-3 pt-2 pb-2">
                 <button
+                  type="button"
                   onClick={(e) => {
-                    e.preventDefault(); // Prevent default button behavior
-                    e.stopPropagation(); // <--- CRITICAL FIX: Stop event from bubbling up
-                    decreaseMonth();
+                    e.preventDefault();
+                    e.stopPropagation();
+                    props.decreaseMonth();
                   }}
-                  disabled={prevMonthButtonDisabled}
-                  className="p-1 rounded-full hover:bg-gray-100"
+                  disabled={props.prevMonthButtonDisabled}
+                  className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-40"
                 >
                   <ChevronLeftIcon className="h-5 w-5 text-gray-500" />
                 </button>
                 <span className="text-base font-semibold text-gray-900">
-                  {date.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                  {props.date.toLocaleString('default', {
+                    month: 'long',
+                    year: 'numeric',
+                  })}
                 </span>
                 <button
+                  type="button"
                   onClick={(e) => {
-                    e.preventDefault(); // Prevent default button behavior
-                    e.stopPropagation(); // <--- CRITICAL FIX: Stop event from bubbling up
-                    increaseMonth();
+                    e.preventDefault();
+                    e.stopPropagation();
+                    props.increaseMonth();
                   }}
-                  disabled={nextMonthButtonDisabled}
-                  className="p-1 rounded-full hover:bg-gray-100"
+                  disabled={props.nextMonthButtonDisabled}
+                  className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-40"
                 >
                   <ChevronRightIcon className="h-5 w-5 text-gray-500" />
                 </button>
@@ -129,6 +141,6 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     );
   }
 );
-SearchFields.displayName = 'SearchFields';
 
+SearchFields.displayName = 'SearchFields';
 export default SearchFields;

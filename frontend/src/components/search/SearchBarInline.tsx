@@ -93,7 +93,7 @@ export default function SearchBarInline({
         <button
           type="button"
           onClick={expand}
-          className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-hidden w-full hover:ring-2 hover:ring-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] transition-all duration-300 ease-out"
+          className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-hidden w-full transition-all duration-300 ease-out"
         >
           <div className="flex-1 px-4 py-2 text-sm text-gray-700">
             {category ? category.label : 'Choose category'}
