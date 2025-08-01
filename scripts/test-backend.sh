@@ -2,6 +2,9 @@
 set -euo pipefail
 trap "echo '❌ Test run aborted'; exit 130" INT TERM
 
+export GOOGLE_CLIENT_ID=id
+export GOOGLE_CLIENT_SECRET=sec
+
 start_backend=$(date +%s)
 
 if [ "${SKIP_BACKEND:-}" = 1 ]; then
@@ -41,7 +44,7 @@ if [ "${FAST:-}" != 1 ]; then
 fi
 
 
-pytest_args=("-q" "--maxfail=1" "--disable-warnings" "-n" "auto")
+pytest_args=("-q" "--maxfail=1" "--disable-warnings" "-n" "auto" "--timeout=20")
 if ! python -c "import pkgutil, sys; sys.exit(pkgutil.find_loader('xdist') is None)"; then
   :
 else
