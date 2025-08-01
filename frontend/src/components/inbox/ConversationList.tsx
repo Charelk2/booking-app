@@ -2,7 +2,7 @@
 
 import clsx from 'clsx';
 import Image from 'next/image';
-import { format } from 'date-fns';
+import { formatRelative } from 'date-fns';
 import { BookingRequest, User } from '@/types';
 import { getFullImageUrl } from '@/lib/utils'; // Import getFullImageUrl
 
@@ -87,7 +87,7 @@ export default function ConversationList({
                   dateTime={date}
                   className="text-xs text-gray-500 flex-shrink-0 ml-2" // Added ml-2 for spacing
                 >
-                  {format(new Date(date), 'MMM d, yyyy')}
+                  {formatRelative(new Date(date), new Date())}
                 </time>
               </div>
               <div
