@@ -32,8 +32,13 @@ def _require_credentials() -> None:
         raise HTTPException(500, "Google Calendar credentials not configured")
 
 
-def _flow(redirect_uri: str) -> Flow:
-    return Flow.from_client_config(
+def require_credentials() -> None:
+    """Public wrapper for :func:`_require_credentials` for easier patching."""
+    _require_credentials()
+
+
+def _flow(redirect_uri: str, flow_cls: type[Flow] = Flow) -> Flow:
+    return flow_cls.from_client_config(
         {
             "web": {
                 "client_id": settings.GOOGLE_CLIENT_ID,
@@ -50,7 +55,7 @@ def _flow(redirect_uri: str) -> Flow:
 
 def get_auth_url(user_id: int, redirect_uri: str) -> str:
     """Return the Google OAuth authorization URL for the user."""
-    _require_credentials()
+    require_credentials()
     flow = _flow(redirect_uri)
     auth_url, _ = flow.authorization_url(
         access_type="offline",
@@ -63,7 +68,7 @@ def get_auth_url(user_id: int, redirect_uri: str) -> str:
 
 def exchange_code(user_id: int, code: str, redirect_uri: str, db: Session) -> None:
     """Exchange OAuth code for tokens and store them."""
-    _require_credentials()
+    require_credentials()
     flow = _flow(redirect_uri)
     flow.fetch_token(code=code)
     creds = flow.credentials

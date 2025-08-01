@@ -31,7 +31,9 @@ class DummyFlow:
 def google_dummy_flow(monkeypatch: pytest.MonkeyPatch) -> None:
     """Patch ``calendar_service._flow`` to return :class:`DummyFlow`."""
 
-    monkeypatch.setattr(calendar_service, "_flow", lambda uri: DummyFlow())
+    monkeypatch.setattr(
+        calendar_service, "_flow", lambda uri, flow_cls=calendar_service.Flow: DummyFlow()
+    )
 
 
 # Fixtures for tests can import google_dummy_flow to patch the OAuth flow.
