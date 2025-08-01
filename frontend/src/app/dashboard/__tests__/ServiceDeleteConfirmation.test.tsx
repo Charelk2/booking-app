@@ -4,7 +4,7 @@ import { act } from 'react';
 import DashboardPage from '../page';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Service } from '@/types';
 import { flushPromises } from '@/test/utils/flush';
 
@@ -13,7 +13,12 @@ jest.mock('@/contexts/AuthContext');
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   usePathname: jest.fn(() => '/dashboard'),
+  useSearchParams: jest.fn(),
 }));
+
+beforeEach(() => {
+  (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
+});
 
 describe('Service deletion confirmation', () => {
   let container: HTMLDivElement;
