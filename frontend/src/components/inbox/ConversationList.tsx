@@ -10,7 +10,7 @@ interface ConversationListProps {
   bookingRequests: BookingRequest[];
   selectedRequestId: number | null;
   onSelectRequest: (id: number) => void;
-  currentUser: User;
+  currentUser?: User | null;
 }
 
 export default function ConversationList({
@@ -19,6 +19,9 @@ export default function ConversationList({
   onSelectRequest,
   currentUser,
 }: ConversationListProps) {
+  if (!currentUser) {
+    return null;
+  }
   return (
     <div className="divide-y-2 divide-gray-100">
       {bookingRequests.map((req) => {
