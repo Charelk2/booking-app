@@ -18,6 +18,14 @@ export default function getNotificationDisplayProps(
   const parsed = parseItem(unified);
   const link = unified.link;
 
+  let from = parsed.title;
+  if ((unified.type === 'message' || unified.type === 'new_message') && !from) {
+    const match = unified.content?.match(/New message from (.*?):/i);
+    if (match && match[1]) {
+      from = match[1].trim();
+    }
+  }
+
   const onClick = () => {
     if (link) {
       window.location.assign(link);
@@ -26,7 +34,7 @@ export default function getNotificationDisplayProps(
 
   return {
     type: parsed.status ?? 'reminder',
-    from: parsed.title,
+    from,
     subtitle: parsed.subtitle,
     metadata: parsed.metadata,
     avatarUrl: parsed.avatarUrl ?? null,
