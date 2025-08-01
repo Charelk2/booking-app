@@ -6,11 +6,11 @@ import MainLayout from '@/components/layout/MainLayout';
 import { Spinner } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 
-export default function ThreadPageRedirect() {
+export default function MessagesRedirectPage() {
   const params = useParams();
   const router = useRouter();
   const { user, loading } = useAuth();
-  const id = Number((params as { threadId?: string }).threadId);
+  const id = Number((params as { id?: string }).id);
 
   useEffect(() => {
     if (!loading) {
@@ -21,7 +21,7 @@ export default function ThreadPageRedirect() {
           router.replace('/inbox');
         }
       } else {
-        router.replace(`/login?redirect=/messages/thread/${id}`);
+        router.replace(`/login?redirect=/messages/${id}`);
       }
     }
   }, [id, router, user, loading]);
