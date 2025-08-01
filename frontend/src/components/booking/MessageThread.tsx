@@ -11,15 +11,12 @@ import React, {
   useCallback,
 } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import {
   getFullImageUrl,
-  formatCurrency,
-  formatDepositReminder,
 } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
-import { DocumentIcon, DocumentTextIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { DocumentIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { Booking, Review, Message, MessageCreate, QuoteV2, QuoteV2Create } from '@/types';
 import {
   getMessagesForBookingRequest,
@@ -30,7 +27,6 @@ import {
   acceptQuoteV2,
   updateQuoteAsClient,
   getBookingDetails,
-  downloadBookingIcs,
   markMessagesRead,
   useAuth,
 } from '@/lib/api';
@@ -73,7 +69,6 @@ interface MessageThreadProps {
   onMessageSent?: () => void;
   onQuoteSent?: () => void;
   serviceId?: number;
-  clientName?: string;
   artistName?: string;
   clientId?: number;
   artistId?: number;
@@ -88,27 +83,12 @@ interface MessageThreadProps {
   onBookingConfirmedChange?: (isConfirmed: boolean, booking: Booking | null) => void;
   onPaymentStatusChange?: (status: string | null, amount: number | null, receiptUrl: string | null) => void;
   onShowReviewModal?: (show: boolean) => void;
-  showSidePanel: boolean;
-  setShowSidePanel: (show: boolean) => void;
   // ADD THESE TWO NEW PROPS:
   showQuoteModal: boolean; // Controls the modal visibility
   setShowQuoteModal: (show: boolean) => void; // Allows parent to control the modal
 }
 
 // SVG Checkmark Icons (refined sizes and stroke)
-const CheckmarkIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={2.5}
-    stroke="currentColor"
-    {...props}
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-  </svg>
-);
-
 const DoubleCheckmarkIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -130,7 +110,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       onMessageSent,
       onQuoteSent,
       serviceId,
-      clientName = 'Client',
       artistName = 'Artist',
       clientId: propClientId,
       artistId: propArtistId,
@@ -145,8 +124,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       onBookingConfirmedChange,
       onPaymentStatusChange,
       onShowReviewModal,
-      showSidePanel,
-      setShowSidePanel,
       showQuoteModal, // Destructured from props
       setShowQuoteModal, // Destructured from props
     }: MessageThreadProps,
@@ -182,9 +159,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Derived values
-    const payDepositLabel = 'Pay deposit';
     const computedServiceName = serviceName ?? bookingDetails?.service?.title;
-    const isUserArtist = user?.user_type === 'artist';
 
     const currentClientId = propClientId || bookingDetails?.client_id || messages.find((m) => m.sender_type === 'client')?.sender_id || 0;
     const currentArtistId = propArtistId || bookingDetails?.artist_id || user?.id || 0;
@@ -197,7 +172,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           onPaymentStatusChange(status, amount, url ?? null);
         }
       }, [onPaymentStatusChange]),
-      useCallback((msg) => { /* usePaymentModal handles its own error display */ }, []),
+      useCallback(() => { /* usePaymentModal handles its own error display */ }, []),
     );
 
     // --- Helper Functions and Callbacks ---
@@ -247,7 +222,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
 
 
     const firstUnreadIndex = useMemo(
-      () => messages.findIndex((msg) => msg.sender_id !== user?.id && !(msg as any).is_read),
+      () => messages.findIndex((msg) => msg.sender_id !== user?.id && !msg.is_read),
       [messages, user?.id],
     );
 
@@ -264,12 +239,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
               try {
                 const detailsRes = await getBookingDetails(res.data.booking_id);
                 setBookingDetails(detailsRes.data);
-              } catch (err: any) {
+              } catch (err: unknown) {
                 console.error('Failed to fetch booking details for accepted quote:', err);
               }
             }
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error(`Failed to fetch quote ${quoteId}:`, err);
         }
       },
@@ -299,12 +274,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         setMessages(filteredMessages);
 
         const hasUnread = filteredMessages.some(
-          (msg) => msg.sender_id !== user?.id && !(msg as any).is_read
+          (msg) => msg.sender_id !== user?.id && !msg.is_read
         );
         if (hasUnread) {
           try {
             await markMessagesRead(bookingRequestId);
-          } catch (err: any) {
+          } catch (err: unknown) {
             console.error('Failed to mark messages read:', err);
           }
         }
@@ -320,7 +295,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         }
 
         setThreadError(null);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to fetch messages:', err);
         setThreadError(`Failed to load messages. ${(err as Error).message || 'Please try again.'}`);
       } finally {
@@ -522,7 +497,7 @@ useEffect(() => {
           }
           void fetchMessages();
           if (onMessageSent) onMessageSent();
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('Failed to send message:', err);
           setThreadError(
             `Failed to send message. ${(err as Error).message || 'Please try again later.'}`
@@ -541,7 +516,7 @@ useEffect(() => {
           void fetchMessages();
           if (onMessageSent) onMessageSent();
           if (onQuoteSent) onQuoteSent();
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('Failed to send quote:', err);
           setThreadError(`Failed to send quote. ${(err as Error).message || 'Please try again.'}`);
         }
@@ -556,7 +531,7 @@ useEffect(() => {
         try {
           const acceptRes = await acceptQuoteV2(quote.id, serviceId);
           confirmedBookingId = acceptRes.data.id ?? undefined;
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('Failed to accept quote:', err);
           setThreadError(`Failed to accept quote. ${(err as Error).message || 'Please try again.'}`);
           setAcceptingQuoteId(null);
@@ -581,7 +556,7 @@ useEffect(() => {
             depositDueBy: details.data.deposit_due_by ?? undefined,
           });
           void fetchMessages();
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('Failed to finalize quote acceptance process:', err);
           setThreadError(`Quote accepted, but there was an issue setting up payment. ${(err as Error).message || 'Please try again.'}`);
         } finally {
@@ -597,7 +572,7 @@ useEffect(() => {
           await updateQuoteAsClient(quote.id, { status: 'rejected_by_client' });
           const updatedQuote = await getQuoteV2(quote.id);
           setQuotes((prev) => ({ ...prev, [quote.id]: updatedQuote.data }));
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('Failed to decline quote:', err);
           setThreadError('Failed to decline quote. Please refresh and try again.');
         }
@@ -695,7 +670,7 @@ useEffect(() => {
                         ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                       >
                         <div className="pr-10">
-                          {msg.sender_id !== user?.id && !(msg as any).is_read && (
+                          {msg.sender_id !== user?.id && !msg.is_read && (
                             <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" aria-label="Unread message" />
                           )}
                           {msg.message_type === 'quote' && typeof msg.quote_id === 'number' ? (
@@ -775,11 +750,9 @@ useEffect(() => {
                           </time>
                           {isMsgFromSelf && (
                             <div className="flex-shrink-0">
-                              <DoubleCheckmarkIcon
-                                className={`h-5 w-5 ${
-                                  (msg as any).is_read ? 'text-blue-500' : 'text-gray-400'
-                                } -ml-[8px]`}
-                              />
+                                <DoubleCheckmarkIcon
+                                  className={`h-5 w-5 ${msg.is_read ? 'text-blue-500' : 'text-gray-400'} -ml-[8px]`}
+                                />
                             </div>
                           )}
                         </div>

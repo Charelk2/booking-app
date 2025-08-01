@@ -4,8 +4,20 @@ import userEvent from '@testing-library/user-event';
 import Header from '../components/layout/Header';
 import { useAuth } from '@/contexts/AuthContext';
 
-jest.mock('../components/layout/NotificationBell', () => () => <div />);
-jest.mock('../components/layout/BookingRequestIcon', () => () => <div />);
+jest.mock('../components/layout/NotificationBell', () => {
+  function MockNotificationBell() {
+    return <div />;
+  }
+  MockNotificationBell.displayName = 'MockNotificationBell';
+  return MockNotificationBell;
+});
+jest.mock('../components/layout/BookingRequestIcon', () => {
+  function MockBookingRequestIcon() {
+    return <div />;
+  }
+  MockBookingRequestIcon.displayName = 'MockBookingRequestIcon';
+  return MockBookingRequestIcon;
+});
 
 jest.mock('@/contexts/AuthContext');
 
