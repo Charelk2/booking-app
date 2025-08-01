@@ -2319,6 +2319,52 @@
         }
       }
     },
+    "/api/v1/quotes/{quote_id}/pdf": {
+      "get": {
+        "tags": [
+          "quotes-v2",
+          "QuotesV2"
+        ],
+        "summary": "Get Quote Pdf",
+        "operationId": "get_quote_pdf_api_v1_quotes__quote_id__pdf_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quote_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Quote Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/booking-requests/{request_id}/quotes": {
       "post": {
         "tags": [
@@ -2644,52 +2690,6 @@
                 "schema": {
                   "$ref": "#/components/schemas/BookingResponse"
                 }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/quotes/{quote_id}/pdf": {
-      "get": {
-        "tags": [
-          "quotes",
-          "Quotes"
-        ],
-        "summary": "Get Quote Pdf",
-        "operationId": "get_quote_pdf_api_v1_quotes__quote_id__pdf_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "quote_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Quote Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
               }
             }
           },
@@ -3060,6 +3060,53 @@
                 "schema": {
                   "$ref": "#/components/schemas/MessageResponse"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/booking-requests/{request_id}/messages/read": {
+      "put": {
+        "tags": [
+          "messages",
+          "messages"
+        ],
+        "summary": "Mark Messages Read",
+        "description": "Mark messages in the thread as read by the current user.",
+        "operationId": "mark_messages_read_api_v1_booking_requests__request_id__messages_read_put",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -5473,6 +5520,29 @@
               }
             ],
             "title": "Accepted Quote Id"
+          },
+          "last_message_content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message Content"
+          },
+          "last_message_timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message Timestamp"
           }
         },
         "type": "object",
@@ -6219,6 +6289,11 @@
               }
             ],
             "title": "Attachment Url"
+          },
+          "is_read": {
+            "type": "boolean",
+            "title": "Is Read",
+            "default": false
           },
           "timestamp": {
             "type": "string",

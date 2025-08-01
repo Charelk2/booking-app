@@ -39,7 +39,11 @@ export default function InboxPage() {
         if (!acc.find((r) => r.id === req.id)) acc.push(req);
         return acc;
       }, []);
-      combined.sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime());
+      combined.sort(
+        (a, b) =>
+          new Date(b.last_message_timestamp ?? b.updated_at ?? b.created_at).getTime() -
+          new Date(a.last_message_timestamp ?? a.updated_at ?? a.created_at).getTime(),
+      );
       setAllBookingRequests(combined);
       const urlId = Number(searchParams.get('requestId'));
       if (urlId && combined.find((r) => r.id === urlId)) {

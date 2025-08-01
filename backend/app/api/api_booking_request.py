@@ -140,6 +140,10 @@ def read_my_client_booking_requests(
         )
         if accepted:
             setattr(req, "accepted_quote_id", accepted.id)
+        last_msg = crud.crud_message.get_last_message_for_request(db, req.id)
+        if last_msg:
+            setattr(req, "last_message_content", last_msg.content)
+            setattr(req, "last_message_timestamp", last_msg.timestamp)
     return requests
 
 @router.get("/me/artist", response_model=List[schemas.BookingRequestResponse])
@@ -171,6 +175,10 @@ def read_my_artist_booking_requests(
         )
         if accepted:
             setattr(req, "accepted_quote_id", accepted.id)
+        last_msg = crud.crud_message.get_last_message_for_request(db, req.id)
+        if last_msg:
+            setattr(req, "last_message_content", last_msg.content)
+            setattr(req, "last_message_timestamp", last_msg.timestamp)
     return requests
 
 @router.get("/{request_id:int}", response_model=schemas.BookingRequestResponse)
@@ -217,6 +225,10 @@ def read_booking_request(
     )
     if accepted:
         setattr(db_request, "accepted_quote_id", accepted.id)
+    last_msg = crud.crud_message.get_last_message_for_request(db, db_request.id)
+    if last_msg:
+        setattr(db_request, "last_message_content", last_msg.content)
+        setattr(db_request, "last_message_timestamp", last_msg.timestamp)
     return db_request
 
 @router.put("/{request_id:int}/client", response_model=schemas.BookingRequestResponse)
