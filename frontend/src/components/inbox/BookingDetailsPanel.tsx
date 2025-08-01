@@ -18,26 +18,19 @@ interface ParsedBookingDetails {
 interface BookingDetailsPanelProps {
   bookingRequest: BookingRequest;
   parsedBookingDetails: ParsedBookingDetails | null;
-  artistName: string;
   bookingConfirmed: boolean;
   confirmedBookingDetails: Booking | null;
   setShowReviewModal: (show: boolean) => void;
   paymentModal: React.ReactNode;
-  // These props are passed but no longer used for buttons inside this component.
-  setShowSidePanel: (show: boolean) => void;
-  showSidePanel: boolean;
 }
 
 export default function BookingDetailsPanel({
   bookingRequest,
   parsedBookingDetails,
-  artistName,
   bookingConfirmed,
   confirmedBookingDetails,
   setShowReviewModal,
   paymentModal,
-  setShowSidePanel,
-  showSidePanel,
 }: BookingDetailsPanelProps) {
 
   const cleanLocation = (locationString: string | undefined) => {

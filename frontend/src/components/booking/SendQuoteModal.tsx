@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
-import Button from '../ui/Button';
 import { ServiceItem, QuoteV2Create, QuoteTemplate } from '@/types';
 import { getQuoteTemplates } from '@/lib/api';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
