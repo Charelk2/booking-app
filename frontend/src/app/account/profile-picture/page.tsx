@@ -7,6 +7,7 @@ import { uploadMyProfilePicture } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { getFullImageUrl } from '@/lib/utils';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import { type Crop, type PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { centerAspectCrop, getCroppedImage } from '@/lib/imageCrop';
@@ -80,15 +81,19 @@ export default function ProfilePicturePage() {
       <div className="mx-auto max-w-sm py-10 space-y-4">
         <h1 className="text-2xl font-bold">Profile Picture</h1>
         {preview ? (
-          <img
+          <Image
             src={preview}
             alt="Preview"
+            width={128}
+            height={128}
             className="w-32 h-32 object-cover rounded-full"
           />
         ) : currentUrl ? (
-          <img
+          <Image
             src={currentUrl}
             alt="Current profile"
+            width={128}
+            height={128}
             className="w-32 h-32 object-cover rounded-full"
           />
         ) : null}
@@ -108,13 +113,14 @@ export default function ProfilePicturePage() {
                 onComplete={(c) => setCompletedCrop(c)}
                 aspect={1}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   ref={imgRef}
                   src={originalSrc}
                   alt="Crop me"
                   onLoad={onImageLoad}
-                  style={{ maxHeight: 300, objectFit: 'contain' }}
+                  width={300}
+                  height={300}
+                  className="max-h-[300px] object-contain"
                 />
               </ReactCrop>
               <Button
