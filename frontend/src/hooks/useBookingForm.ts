@@ -3,10 +3,7 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import type * as yup from 'yup';
-import { EventDetails } from '@/contexts/BookingContext'; // Assuming EventDetails is here
-
-// Import React's Dispatch and SetStateAction types explicitly
-import type { Dispatch, SetStateAction } from 'react'; // Keep this import, though its usage is indirect
+import { EventDetails } from '@/contexts/BookingContext';
 import type { Control, FieldErrors, UseFormHandleSubmit, UseFormSetValue, UseFormWatch, UseFormTrigger } from 'react-hook-form';
 
 
@@ -35,7 +32,6 @@ export default function useBookingForm(
     watch,
     setValue,
     formState: { errors, isValid },
-    getValues
   } = useForm<EventDetails>({
     defaultValues,
     resolver: yupResolver(schema),

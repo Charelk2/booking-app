@@ -17,9 +17,6 @@ const baseNavigation = [
   { name: 'Contact', href: '/contact' },
 ];
 
-function classNames(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
-}
 
 // --- FOOTER COMPONENT (Defined within MainLayout) ---
 const SocialIcon = ({ href, children }: { href: string; children: React.ReactNode }) => (

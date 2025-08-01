@@ -1,31 +1,18 @@
 'use client';
 // Larger touch targets and contextual help improve usability on mobile.
-import { Controller, Control, FieldValues } from 'react-hook-form'; // Keep FieldValues if WizardNav uses it
+import { Controller, Control } from 'react-hook-form';
 import useIsMobile from '@/hooks/useIsMobile';
-import { Button, TextInput } from '../../ui'; // Assuming Button and TextInput are imported
-import WizardNav from '../WizardNav'; // Assuming WizardNav component exists
+import { TextInput } from '../../ui';
 
 // Import EventDetails if your actual WizardNav uses it for deeper checks
 import { EventDetails } from '@/contexts/BookingContext'; // Added EventDetails
 
 
 interface Props {
-  control: Control<EventDetails>; // CORRECTED: Use Control<EventDetails>
-  step: number;
-  steps: string[];
-  onBack: () => void;
-  onSaveDraft: (e?: React.BaseSyntheticEvent) => Promise<void>; // Corrected signature
-  onNext: (e?: React.BaseSyntheticEvent) => Promise<void>; // Corrected signature
+  control: Control<EventDetails>;
 }
 
-export default function GuestsStep({
-  control,
-  step,
-  steps,
-  onBack,
-  onSaveDraft,
-  onNext,
-}: Props) {
+export default function GuestsStep({ control }: Props) {
   const isMobile = useIsMobile();
   return (
     <div className="wizard-step-container">

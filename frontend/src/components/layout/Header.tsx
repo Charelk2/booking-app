@@ -11,7 +11,7 @@ import NotificationBell from './NotificationBell';
 import BookingRequestIcon from './BookingRequestIcon';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import SearchBar from '../search/SearchBar';
-import { UI_CATEGORIES, UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
+import { UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
 import { type Category } from '../search/SearchFields';
 import { useRouter } from 'next/navigation';
 import { Avatar } from '../ui';

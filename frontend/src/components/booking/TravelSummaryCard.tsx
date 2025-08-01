@@ -9,7 +9,7 @@ interface Props {
 
 export default function TravelSummaryCard({ result }: Props) {
   const [open, setOpen] = useState(false);
-  const { mode, totalCost, breakdown } = result;
+  const { mode, totalCost } = result;
 
   const fly = result.breakdown.fly;
   const drive = result.breakdown.drive;

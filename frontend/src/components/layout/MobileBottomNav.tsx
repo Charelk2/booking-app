@@ -8,7 +8,7 @@ import {
   ChatBubbleLeftRightIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
-import type { User, UnifiedNotification } from '@/types';
+import type { User } from '@/types';
 import useNotifications from '@/hooks/useNotifications';
 import { toUnifiedFromNotification } from '@/hooks/notificationUtils';
 import useScrollDirection from '@/hooks/useScrollDirection';
