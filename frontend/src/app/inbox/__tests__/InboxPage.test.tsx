@@ -22,9 +22,9 @@ jest.mock('@/components/review/ReviewFormModal', () => {
   return { __esModule: true, default: Mock };
 });
 
-function setup() {
+function setup(userType: 'client' | 'artist' = 'client') {
   (useRouter as jest.Mock).mockReturnValue({ replace: jest.fn() });
-  (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client' }, loading: false });
+  (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: userType }, loading: false });
   (api.getMyBookingRequests as jest.Mock).mockResolvedValue({ data: [{ id: 1, client_id: 1, artist_id: 2, created_at: '2024-01-01', updated_at: '2024-01-02' }] });
   (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [] });
   const container = document.createElement('div');
@@ -45,6 +45,20 @@ describe('InboxPage', () => {
     });
     await act(async () => {});
     expect(container.textContent).toContain('Artist');
+    expect(api.getMyBookingRequests).toHaveBeenCalledTimes(1);
+    expect(api.getBookingRequestsForArtist).not.toHaveBeenCalled();
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('fetches artist requests for artist users', async () => {
+    const { container, root } = setup('artist');
+    await act(async () => {
+      root.render(<InboxPage />);
+    });
+    await act(async () => {});
+    expect(api.getMyBookingRequests).toHaveBeenCalledTimes(1);
+    expect(api.getBookingRequestsForArtist).toHaveBeenCalledTimes(1);
     act(() => root.unmount());
     container.remove();
   });

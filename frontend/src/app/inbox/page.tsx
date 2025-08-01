@@ -3,6 +3,7 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import type { AxiosResponse } from 'axios';
 import MainLayout from '@/components/layout/MainLayout';
 // Corrected import path for AuthContext (assuming it's directly in contexts)
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,10 +30,11 @@ export default function InboxPage() {
   const fetchAllRequests = useCallback(async () => {
     setLoadingRequests(true);
     try {
-      const [mineRes, artistRes] = await Promise.all([
-        getMyBookingRequests(),
-        getBookingRequestsForArtist(),
-      ]);
+      const mineRes = await getMyBookingRequests();
+      let artistRes: AxiosResponse<BookingRequest[]> = { data: [] } as AxiosResponse<BookingRequest[]>;
+      if (user?.user_type === 'artist') {
+        artistRes = await getBookingRequestsForArtist();
+      }
       const combined = [...mineRes.data, ...artistRes.data].reduce<BookingRequest[]>((acc, req) => {
         if (!acc.find((r) => r.id === req.id)) acc.push(req);
         return acc;
@@ -47,11 +49,11 @@ export default function InboxPage() {
       }
     } catch (err: any) {
       console.error('Failed to load booking requests:', err);
-      setError('Failed to load conversations');
+      setError(err instanceof Error ? err.message : 'Failed to load conversations');
     } finally {
       setLoadingRequests(false);
     }
-  }, [searchParams]);
+  }, [searchParams, user]);
 
   useEffect(() => {
     if (!authLoading) {
