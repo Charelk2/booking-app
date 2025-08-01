@@ -4,7 +4,6 @@ import React from 'react';
 import { act } from 'react';
 import Header from '../Header';
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
 
 jest.mock('next/link', () => ({ __esModule: true, default: (props: Record<string, unknown>) => <a {...props} /> }));
 jest.mock('next/navigation', () => ({

@@ -5,7 +5,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import SearchBar from '../search/SearchBar'; // ✨ Import your new component
-import { UI_CATEGORIES, UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
+import { UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
 import { type Category } from '../search/SearchFields';
 import { useRouter } from 'next/navigation';
 

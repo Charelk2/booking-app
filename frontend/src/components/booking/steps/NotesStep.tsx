@@ -5,7 +5,6 @@ import useIsMobile from '@/hooks/useIsMobile';
 import { uploadBookingAttachment } from '@/lib/api';
 import toast from '../../ui/Toast';
 import { useState } from 'react';
-import { Button } from '../../ui'; // Assuming Button is imported
 // WizardNav is REMOVED from here.
 
 import { EventDetails } from '@/contexts/BookingContext'; // For correct Control and setValue typing

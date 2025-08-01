@@ -11,7 +11,6 @@ import {
 import { BookingRequest } from '@/types';
 import { formatStatus } from '@/lib/utils';
 import { Avatar } from '../ui';
-import { buttonVariants } from '@/styles/buttonVariants';
 
 const getBadgeClass = (status: string): string => {
   if (
