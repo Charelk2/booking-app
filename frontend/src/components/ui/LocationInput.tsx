@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import usePlacesService from 'react-google-autocomplete/lib/usePlacesAutocompleteService';
+import { loadPlaces } from '@/lib/loadPlaces';
 import { MapPinIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 
@@ -12,15 +13,17 @@ interface CustomLocationInputProps {
   placeholder?: string;
   className?: string;
   inputClassName?: string;
+  required?: boolean;
 }
 
-export default function CustomLocationInput({
+function LocationInputInner({
   value,
   onValueChange,
   onPlaceSelect,
   placeholder = 'Search location',
   className,
   inputClassName,
+  required = false,
 }: CustomLocationInputProps) {
   const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [isDropdownVisible, setDropdownVisible] = useState(false);
@@ -36,6 +39,13 @@ export default function CustomLocationInput({
     apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
     debounce: 300,
   });
+
+  // Wrap getPlacePredictions so it remains stable across renders and
+  // doesn't trigger effects unnecessarily.
+  const stableGetPlacePredictions = useCallback(
+    (req: google.maps.places.AutocompleteRequest) => getPlacePredictions(req),
+    [getPlacePredictions]
+  );
 
   // 🌍 Get user's current location
   useEffect(() => {
@@ -60,7 +70,7 @@ export default function CustomLocationInput({
       setPredictions(placePredictions);
       setDropdownVisible(true);
     }
-  }, [placePredictions]);
+  }, [placePredictions, value.length]);
 
   // 🎯 Trigger new predictions from user-typed input only
   useEffect(() => {
@@ -70,7 +80,7 @@ export default function CustomLocationInput({
     }
 
     if (value.trim().length > 0) {
-      getPlacePredictions({
+      stableGetPlacePredictions({
         input: value,
         componentRestrictions: { country: 'za' },
         ...(userLocation && {
@@ -82,7 +92,7 @@ export default function CustomLocationInput({
       setPredictions([]);
       setDropdownVisible(false);
     }
-  }, [value, userLocation]);
+  }, [value, userLocation, stableGetPlacePredictions]);
 
   // 🖱 Close dropdown on outside click
   useEffect(() => {
@@ -127,6 +137,7 @@ export default function CustomLocationInput({
           if (predictions.length > 0) setDropdownVisible(true);
         }}
         placeholder={placeholder}
+        required={required}
         className={clsx(
           'w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none',
           inputClassName,
@@ -157,4 +168,40 @@ export default function CustomLocationInput({
       )}
     </div>
   );
+}
+
+export default function CustomLocationInput(props: CustomLocationInputProps) {
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const api = await loadPlaces();
+      if (mounted && api) setLoaded(true);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (!loaded) {
+    const { value, onValueChange, placeholder = 'Search location', className, inputClassName, required = false } = props;
+    return (
+      <div className={clsx('relative w-full', className)}>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onValueChange(e.target.value)}
+          placeholder={placeholder}
+          required={required}
+          className={clsx(
+            'w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none',
+            inputClassName,
+          )}
+        />
+      </div>
+    );
+  }
+
+  return <LocationInputInner {...props} />;
 }
