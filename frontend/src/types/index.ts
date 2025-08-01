@@ -229,7 +229,7 @@ export interface BookingSimple {
 }
 
 export interface Message {
-  is_read: any;
+  is_read: boolean;
   id: number;
   booking_request_id: number;
   sender_id: number;
