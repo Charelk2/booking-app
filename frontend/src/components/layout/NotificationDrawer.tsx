@@ -9,6 +9,7 @@ import {
   FixedSizeList,
   type ListChildComponentProps,
 } from 'react-window';
+import type { FixedSizeList as FixedSizeListType } from 'react-window';
 import NotificationCard from '../ui/NotificationCard';
 import getNotificationDisplayProps from '@/hooks/getNotificationDisplayProps';
 import { ToggleSwitch, IconButton } from '../ui';
@@ -52,7 +53,7 @@ export default function NotificationDrawer({
 
   const [showUnread, setShowUnread] = useState(false);
   const [visibleCount, setVisibleCount] = useState(pageSize);
-  const listRef = useRef<FixedSizeList>(null);
+  const listRef = useRef<FixedSizeListType>(null);
   const prevCountRef = useRef(visibleCount);
 
   // clamp visibleCount when pageSize changes

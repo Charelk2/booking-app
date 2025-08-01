@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { ClipboardIcon } from '@heroicons/react/24/outline';
 import useNotifications from '@/hooks/useNotifications';
+import type { UnifiedNotification } from '@/types';
 
 export default function BookingRequestIcon() {
   const { items } = useNotifications();
   const unreadIds = new Set<number>();
-  items.forEach((n) => {
+  items.forEach((n: UnifiedNotification) => {
     if (n.type === 'message' && n.booking_request_id && (n.unread_count ?? 0) > 0) {
       unreadIds.add(n.booking_request_id);
     }

@@ -125,7 +125,7 @@ export interface BookingRequestCreate {
 // This is what the backend returns when you GET a booking request:
 export interface BookingRequest {
   last_message_timestamp: string;
-  is_unread_by_current_user: any;
+  is_unread_by_current_user: boolean;
   last_message_content: string | undefined;
   sound_required: undefined;
   id: number;
@@ -144,7 +144,7 @@ export interface BookingRequest {
   updated_at: string;
   // Optional expanded relations returned by the API
   client?: User;
-  artist?: User;
+  artist?: ArtistProfile;
   service?: Service;
   quotes?: Quote[];
   accepted_quote_id?: number | null;

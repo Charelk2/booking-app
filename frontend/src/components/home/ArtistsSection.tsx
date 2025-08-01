@@ -91,7 +91,7 @@ export default function ArtistsSection({
             return (
               <ArtistCardCompact
                 key={a.id}
-                id={a.id}
+                artistId={a.id}
                 name={name}
                 subtitle={a.custom_subtitle || undefined}
                 imageUrl={

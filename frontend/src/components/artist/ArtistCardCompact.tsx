@@ -7,8 +7,10 @@ import {
   StarIcon,
 } from '@heroicons/react/24/solid';
 import clsx from 'clsx';
+import { getFullImageUrl } from '@/lib/utils';
 
 export interface ArtistCardCompactProps extends HTMLAttributes<HTMLDivElement> {
+  artistId: number;
   name: string;
   subtitle?: string;
   imageUrl?: string;
@@ -20,6 +22,7 @@ export interface ArtistCardCompactProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export default function ArtistCardCompact({
+  artistId,
   name,
   subtitle,
   imageUrl,

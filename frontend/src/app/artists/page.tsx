@@ -219,7 +219,7 @@ const fetchArtists = useCallback(
             return (
               <ArtistCard
                 key={a.id}
-                id={a.id}
+                artistId={a.id}
                 priority={i === 0}
                 name={name}
                 subtitle={a.custom_subtitle || undefined}

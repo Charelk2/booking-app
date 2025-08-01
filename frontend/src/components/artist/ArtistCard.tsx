@@ -10,9 +10,10 @@ import {
   CheckBadgeIcon,
 } from '@heroicons/react/24/solid';
 import { Tag } from '@/components/ui';
+import { getFullImageUrl } from '@/lib/utils';
 
 export interface ArtistCardProps extends HTMLAttributes<HTMLDivElement> {
-  id: number;
+  artistId: number;
   imageUrl?: string | null;
   name: string;
   subtitle?: string | null;
@@ -39,7 +40,7 @@ export interface ArtistCardProps extends HTMLAttributes<HTMLDivElement> {
 // ratingCount and isAvailable are currently unused but may be utilized in the future.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function ArtistCard({
-  id,
+  artistId,
   imageUrl,
   name,
   subtitle,
@@ -128,7 +129,7 @@ export default function ArtistCard({
         {limitedTags.length > 0 && (
           <div className="flex flex-nowrap overflow-hidden gap-1 mt-2 whitespace-nowrap">
             {limitedTags.map((s) => (
-              <Tag key={`${id}-${s}`} className="text-[10px]">
+              <Tag key={`${artistId}-${s}`} className="text-[10px]">
                 {s}
               </Tag>
             ))}
