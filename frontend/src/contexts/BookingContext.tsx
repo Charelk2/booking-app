@@ -122,7 +122,7 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
     } catch (e) {
       console.error('Failed to save booking progress:', e);
     }
-  }, [step, details, serviceId, requestId]);
+  }, [step, details, serviceId, requestId, travelResult]);
   return (
     <BookingContext.Provider
       value={{
