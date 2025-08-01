@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { formatCurrency } from '@/lib/utils';
 import {
@@ -29,7 +29,7 @@ export default function SoundProvidersPage() {
   const [prefProviderId, setPrefProviderId] = useState('');
   const [prefPriority, setPrefPriority] = useState('');
 
-  const fetchPreferences = async () => {
+  const fetchPreferences = useCallback(async () => {
     if (user?.user_type !== 'artist') return;
     try {
       const prefRes = await getSoundProvidersForArtist(user.id);
@@ -37,9 +37,9 @@ export default function SoundProvidersPage() {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [user]);
 
-  const fetchProviders = async () => {
+  const fetchProviders = useCallback(async () => {
     try {
       const res = await getSoundProviders();
       setProviders(res.data);
@@ -47,11 +47,11 @@ export default function SoundProvidersPage() {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [fetchPreferences]);
 
   useEffect(() => {
     fetchProviders();
-  }, [user]);
+  }, [user, fetchProviders]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

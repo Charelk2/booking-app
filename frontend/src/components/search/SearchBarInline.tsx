@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { format } from 'date-fns';
@@ -39,10 +39,10 @@ export default function SearchBarInline({
   const [expanded, setExpanded] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const collapse = () => {
+  const collapse = useCallback(() => {
     setExpanded(false);
     onExpandedChange?.(false);
-  };
+  }, [onExpandedChange]);
 
   const expand = () => {
     setExpanded(true);
@@ -62,7 +62,7 @@ export default function SearchBarInline({
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, []);
+  }, [collapse]);
 
   // run search and collapse
   const handleSearch = (params: { category?: string; location?: string; when?: Date | null }) => {
