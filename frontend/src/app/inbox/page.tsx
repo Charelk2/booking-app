@@ -142,7 +142,6 @@ export default function InboxPage() {
             <MessageThreadWrapper
               bookingRequestId={selectedBookingRequestId}
               bookingRequest={selectedRequest}
-              showReviewModal={showReviewModal}
               setShowReviewModal={setShowReviewModal}
             />
           ) : (
