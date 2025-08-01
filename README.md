@@ -1334,6 +1334,8 @@ NEXT_PUBLIC_DEFAULT_CURRENCY=EUR
    ```bash
    pytest
    ```
+   Set `PYTEST_RUN=1` to run tests against an in-memory SQLite database.
+   The `scripts/test-backend.sh` helper exports this variable automatically.
 
 2. **Frontend lint**:
 
