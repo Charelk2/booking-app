@@ -28,6 +28,27 @@ if ! command -v npm >/dev/null; then
 fi
 echo "npm $(npm --version)"
 
+# Verify that the Git remote 'origin' is configured correctly before fetching
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+EXPECTED_REMOTE="git@github.com:Charelk2/booking-app.git"
+if origin_url=$(git -C "$ROOT_DIR" remote get-url origin 2>/dev/null); then
+  if [ "$origin_url" != "$EXPECTED_REMOTE" ]; then
+    cat >&2 <<EOF
+❌ Git remote 'origin' is '$origin_url' but should be '$EXPECTED_REMOTE'.
+Update the remote with:
+  git remote set-url origin $EXPECTED_REMOTE
+EOF
+    exit 1
+  fi
+else
+  cat >&2 <<EOF
+❌ Git remote 'origin' not found.
+Add the remote with:
+  git remote add origin $EXPECTED_REMOTE
+EOF
+  exit 1
+fi
+
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 git fetch origin main >/dev/null 2>&1
 if base_ref=$(git merge-base origin/main HEAD 2>/dev/null); then

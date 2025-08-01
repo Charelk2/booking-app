@@ -18,6 +18,26 @@ VENV_DIR="$ROOT_DIR/backend/venv"
 REQ_FILE="$ROOT_DIR/backend/requirements.txt"
 DEV_REQ_FILE="$ROOT_DIR/requirements-dev.txt"
 
+# Verify the Git remote before running any tests
+EXPECTED_REMOTE="git@github.com:Charelk2/booking-app.git"
+if origin_url=$(git -C "$ROOT_DIR" remote get-url origin 2>/dev/null); then
+  if [ "$origin_url" != "$EXPECTED_REMOTE" ]; then
+    cat >&2 <<EOF
+❌ Git remote 'origin' is '$origin_url' but should be '$EXPECTED_REMOTE'.
+Update the remote with:
+  git remote set-url origin $EXPECTED_REMOTE
+EOF
+    exit 1
+  fi
+else
+  cat >&2 <<EOF
+❌ Git remote 'origin' not found.
+Add the remote with:
+  git remote add origin $EXPECTED_REMOTE
+EOF
+  exit 1
+fi
+
 if [ ! -d "$VENV_DIR" ]; then
   if [ "${FAST:-}" = 1 ]; then
     echo "❌ FAST=1 but $VENV_DIR missing." >&2
