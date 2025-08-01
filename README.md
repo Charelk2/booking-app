@@ -1337,6 +1337,16 @@ NEXT_PUBLIC_DEFAULT_CURRENCY=EUR
    Set `PYTEST_RUN=1` to run tests against an in-memory SQLite database.
    The `scripts/test-backend.sh` helper exports this variable automatically.
 
+### Test environment variables
+
+Backend tests load `.env.test` from the project root automatically. This file
+defines dummy values so no real credentials are ever used during testing:
+
+```env
+GOOGLE_CLIENT_ID=id
+GOOGLE_CLIENT_SECRET=sec
+```
+
 2. **Frontend lint**:
 
    ```bash
