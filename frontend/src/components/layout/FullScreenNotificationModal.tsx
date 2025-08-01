@@ -9,6 +9,7 @@ import {
   FixedSizeList,
   type ListChildComponentProps,
 } from 'react-window';
+import type { FixedSizeList as FixedSizeListType } from 'react-window';
 import NotificationCard from '../ui/NotificationCard';
 import getNotificationDisplayProps from '@/hooks/getNotificationDisplayProps';
 import type { UnifiedNotification } from '@/types';
@@ -42,7 +43,7 @@ export default function FullScreenNotificationModal({
   const [showUnread, setShowUnread] = useState(false);
   // how many loaded into the list
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const listRef = useRef<FixedSizeList>(null);
+  const listRef = useRef<FixedSizeListType>(null);
   const prevCountRef = useRef(visibleCount);
 
   // auto-scroll when loading more

@@ -1,7 +1,7 @@
 'use client';
 import { Controller, Control } from 'react-hook-form'; // REMOVED FieldValues
 // WizardNav is REMOVED from here, as navigation is global now.
-import ReactDatePicker from 'react-datepicker';
+import ReactDatePicker, { type ReactDatePickerCustomHeaderProps } from 'react-datepicker';
 import '../../../styles/datepicker.css';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { format, parseISO, isBefore, startOfDay } from 'date-fns';
@@ -67,13 +67,15 @@ export default function DateTimeStep({
                   filterDate={filterDate}
                   minDate={startOfDay(new Date())}
                   onChange={(date: Date | null) => field.onChange(date)}
-                  renderCustomHeader={({
-                    date,
-                    decreaseMonth,
-                    increaseMonth,
-                    prevMonthButtonDisabled,
-                    nextMonthButtonDisabled,
-                  }) => (
+                  renderCustomHeader={(
+                    {
+                      date,
+                      decreaseMonth,
+                      increaseMonth,
+                      prevMonthButtonDisabled,
+                      nextMonthButtonDisabled,
+                    }: ReactDatePickerCustomHeaderProps,
+                  ) => (
                     <div className="flex justify-between items-center px-3 pt-2 pb-2">
                       <button
                         onClick={(e) => {
