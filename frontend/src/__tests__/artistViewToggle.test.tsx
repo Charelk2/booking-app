@@ -5,16 +5,12 @@ import Header from '../components/layout/Header';
 import { useAuth } from '@/contexts/AuthContext';
 
 jest.mock('../components/layout/NotificationBell', () => {
-  function MockNotificationBell() {
-    return <div />;
-  }
+  const MockNotificationBell: React.FC = () => <div />;
   MockNotificationBell.displayName = 'MockNotificationBell';
   return MockNotificationBell;
 });
 jest.mock('../components/layout/BookingRequestIcon', () => {
-  function MockBookingRequestIcon() {
-    return <div />;
-  }
+  const MockBookingRequestIcon: React.FC = () => <div />;
   MockBookingRequestIcon.displayName = 'MockBookingRequestIcon';
   return MockBookingRequestIcon;
 });
