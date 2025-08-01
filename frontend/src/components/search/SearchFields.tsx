@@ -25,11 +25,11 @@ export interface SearchFieldsProps {
 type CustomHeaderProps = typeof import('react-datepicker')['ReactDatePickerCustomHeaderProps'];
 
 export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
-  ({ category, setCategory, location, setLocation, when, setWhen }) => {
+  ({ category, setCategory, location, setLocation, when, setWhen }, ref) => {
     return (
       <>
         {/* Category */}
-        <div className="flex-1 px-4 py-3 flex flex-col text-left">
+        <div ref={ref} className="flex-1 px-4 py-3 flex flex-col text-left">
           <span className="text-xs text-gray-500">Category</span>
           <Listbox value={category} onChange={setCategory}>
             <div className="relative w-full">
