@@ -31,7 +31,7 @@ export default function InboxPage() {
     setLoadingRequests(true);
     try {
       const mineRes = await getMyBookingRequests();
-      let artistRes: AxiosResponse<BookingRequest[]> = { data: [] } as AxiosResponse<BookingRequest[]>;
+      let artistRes: AxiosResponse<BookingRequest[]> = { data: [] } as unknown as AxiosResponse<BookingRequest[]>;
       if (user?.user_type === 'artist') {
         artistRes = await getBookingRequestsForArtist();
       }
