@@ -283,8 +283,6 @@ export default function MessageThreadWrapper({
               setReceiptUrl(url);
             }}
             onShowReviewModal={setShowReviewModal}
-            showSidePanel={showSidePanel}
-            setShowSidePanel={setShowSidePanel}
             showQuoteModal={showQuoteModal}
             setShowQuoteModal={setShowQuoteModal}
           />
@@ -304,8 +302,6 @@ export default function MessageThreadWrapper({
             confirmedBookingDetails={confirmedBookingDetails}
             setShowReviewModal={setShowReviewModal}
             paymentModal={paymentModal}
-            showSidePanel={showSidePanel}
-            setShowSidePanel={setShowSidePanel}
           />
         </section>
 
@@ -323,8 +319,6 @@ export default function MessageThreadWrapper({
             confirmedBookingDetails={confirmedBookingDetails}
             setShowReviewModal={setShowReviewModal}
             paymentModal={paymentModal}
-            showSidePanel={showSidePanel}
-            setShowSidePanel={setShowSidePanel}
           />
         </section>
       </div>
