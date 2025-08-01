@@ -25,7 +25,7 @@ export interface SearchFieldsProps {
 type CustomHeaderProps = typeof import('react-datepicker')['ReactDatePickerCustomHeaderProps'];
 
 export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
-  ({ category, setCategory, location, setLocation, when, setWhen }, _ref) => {
+  ({ category, setCategory, location, setLocation, when, setWhen }) => {
     return (
       <>
         {/* Category */}

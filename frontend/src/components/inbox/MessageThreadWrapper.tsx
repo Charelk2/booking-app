@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Booking, BookingRequest } from '@/types';
 import MessageThread from '../booking/MessageThread';
@@ -10,7 +10,6 @@ import AlertBanner from '../ui/AlertBanner';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import * as api from '@/lib/api';
 import { formatCurrency, formatDepositReminder, getFullImageUrl } from '@/lib/utils';
-import { format } from 'date-fns';
 import { InformationCircleIcon, BanknotesIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 
@@ -28,14 +27,12 @@ interface ParsedBookingDetails {
 interface MessageThreadWrapperProps {
   bookingRequestId: number | null;
   bookingRequest: BookingRequest | null;
-  showReviewModal: boolean;
   setShowReviewModal: (show: boolean) => void;
 }
 
 export default function MessageThreadWrapper({
   bookingRequestId,
   bookingRequest,
-  showReviewModal,
   setShowReviewModal,
 }: MessageThreadWrapperProps) {
   const [bookingConfirmed, setBookingConfirmed] = useState(false);

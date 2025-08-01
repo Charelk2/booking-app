@@ -1,7 +1,7 @@
 'use client';
 // The map only appears after a location is selected. A tooltip explains any
 // distance warnings so users understand why we show them.
-import { Controller, Control, FieldValues } from 'react-hook-form'; // Keep FieldValues if your WizardNav uses it
+import { Controller, Control } from 'react-hook-form';
 import dynamic from 'next/dynamic';
 import { loadPlaces } from '@/lib/loadPlaces';
 import LocationInput from '../../ui/LocationInput'; // Assuming correct path
@@ -15,23 +15,17 @@ const Marker = dynamic(
   { ssr: false },
 );
 import { useRef, useState, useEffect } from 'react';
-import { Button, Tooltip } from '../../ui'; // Assuming Button and Tooltip are imported
+import { Button, Tooltip } from '../../ui';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
-import WizardNav from '../WizardNav'; // Assuming WizardNav component exists
 
 // Import EventDetails if your actual WizardNav uses it for deeper checks
 import { EventDetails } from '@/contexts/BookingContext'; // Added EventDetails
 
 
 interface Props {
-  control: Control<EventDetails>; // CORRECTED: Use Control<EventDetails>
+  control: Control<EventDetails>;
   artistLocation?: string | null;
   setWarning: (w: string | null) => void;
-  step: number;
-  steps: string[];
-  onBack: () => void;
-  onSaveDraft: (e?: React.BaseSyntheticEvent) => Promise<void>; // Corrected signature
-  onNext: (e?: React.BaseSyntheticEvent) => Promise<void>; // Corrected signature
 }
 
 function GoogleMapsLoader({
@@ -60,11 +54,6 @@ export default function LocationStep({
   control,
   artistLocation,
   setWarning,
-  step,
-  steps,
-  onBack,
-  onSaveDraft,
-  onNext,
 }: Props): JSX.Element {
   const [shouldLoadMap, setShouldLoadMap] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);

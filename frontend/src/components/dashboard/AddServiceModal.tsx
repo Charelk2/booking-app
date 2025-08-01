@@ -21,7 +21,6 @@ import {
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import Button from "../ui/Button";
 import { Stepper, TextInput, TextArea, ToggleSwitch } from "../ui";
-import useIsMobile from "@/hooks/useIsMobile";
 
 const serviceTypeIcons: Record<Service["service_type"], ElementType> = {
   "Live Performance": MusicalNoteIcon,
@@ -33,7 +32,7 @@ const serviceTypeIcons: Record<Service["service_type"], ElementType> = {
 
 // This class will now primarily control internal spacing of step content,
 // as the outer modal panel will handle the background, shadow, and rounded corners.
-const stepContentInternalClasses = "space-y-6";
+// Reserved for potential future styling hooks
 
 // Hook for optimized image preview thumbnails
 function useImageThumbnails(files: File[]) {
@@ -122,13 +121,12 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
   const [packages, setPackages] = useState<PackageData[]>([{ name: "", price: "" }]);
   const [packageErrors, setPackageErrors] = useState<{ name?: string; price?: string }[]>([{}]);
   const [publishing, setPublishing] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [, setServerError] = useState<string | null>(null);
   const [stats, setStats] = useState<{ monthly_new_inquiries: number }>();
 
   const watchTitle = watch("title");
   const watchDescription = watch("description");
   const watchServiceType = watch("service_type");
-  const isMobile = useIsMobile();
 
   // Optimized image thumbnails from uploaded files
   const thumbnails = useImageThumbnails(mediaFiles);

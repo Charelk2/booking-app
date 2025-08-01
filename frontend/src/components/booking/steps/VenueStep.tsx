@@ -3,26 +3,15 @@ import { Controller, Control } from 'react-hook-form'; // Removed FieldValues
 import { useState, useRef } from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
 import { BottomSheet, Button } from '../../ui';
-import WizardNav from '../WizardNav'; // WizardNav is back!
 
 import { EventDetails } from '@/contexts/BookingContext'; // For correct Control typing
 
 interface Props {
   control: Control<EventDetails>;
-  step: number;
-  steps: string[];
-  onBack: () => void;
-  onSaveDraft: (e?: React.BaseSyntheticEvent) => Promise<void>;
-  onNext: (e?: React.BaseSyntheticEvent) => Promise<void>;
 }
 
 export default function VenueStep({
   control,
-  step,
-  steps,
-  onBack,
-  onSaveDraft,
-  onNext,
 }: Props) {
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
