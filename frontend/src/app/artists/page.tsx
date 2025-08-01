@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
 import clsx from 'clsx';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
@@ -73,43 +73,56 @@ export default function ArtistsPage() {
   const LIMIT = 20;
 
 
-  const fetchArtists = async (
-    { append = false, pageOverride }: { append?: boolean; pageOverride?: number } = {},
-  ) => {
-    setLoading(true);
-    try {
-      const res = await getArtists({
-        category,
-        location: location || undefined,
-        when: when || undefined,
-        sort,
-        minPrice: debouncedMinPrice,
-        maxPrice: debouncedMaxPrice,
-        page: pageOverride ?? page,
-        limit: LIMIT,
-        includePriceDistribution: true,
-      });
-      const filtered = res.data.filter((a) => a.business_name || a.user);
-      setHasMore(filtered.length === LIMIT);
-      setArtists((prev) => (append ? [...prev, ...filtered] : filtered));
-      setPriceDistribution(res.price_distribution || []);
-    } catch (err) {
-      console.error(err);
-      setError('Failed to load artists.');
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchArtists = useCallback(
+    async (
+      {
+        append = false,
+        pageNumber,
+      }: { append?: boolean; pageNumber: number },
+    ) => {
+      setLoading(true);
+      try {
+        const res = await getArtists({
+          category,
+          location: location || undefined,
+          when: when || undefined,
+          sort,
+          minPrice: debouncedMinPrice,
+          maxPrice: debouncedMaxPrice,
+          page: pageNumber,
+          limit: LIMIT,
+          includePriceDistribution: true,
+        });
+        const filtered = res.data.filter((a) => a.business_name || a.user);
+        setHasMore(filtered.length === LIMIT);
+        setArtists((prev) => (append ? [...prev, ...filtered] : filtered));
+        setPriceDistribution(res.price_distribution || []);
+      } catch (err) {
+        console.error(err);
+        setError('Failed to load artists.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      category,
+      location,
+      when,
+      sort,
+      debouncedMinPrice,
+      debouncedMaxPrice,
+    ],
+  );
 
   useEffect(() => {
     setPage(1);
-    fetchArtists({ pageOverride: 1 });
-  }, [category, location, when, sort, debouncedMinPrice, debouncedMaxPrice]);
+    fetchArtists({ pageNumber: 1 });
+  }, [category, location, when, sort, debouncedMinPrice, debouncedMaxPrice, fetchArtists]);
 
   const loadMore = () => {
     const next = page + 1;
     setPage(next);
-    fetchArtists({ append: true, pageOverride: next });
+    fetchArtists({ append: true, pageNumber: next });
   };
 
   const handleSearchEdit = ({ category: uiCat, location: loc, when: date }: {

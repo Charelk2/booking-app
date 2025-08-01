@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import ArtistCardCompact from '@/components/artist/ArtistCardCompact';
 import { getArtists } from '@/lib/api';
@@ -35,12 +35,15 @@ export default function ArtistsSection({
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const serializedQuery = useMemo(() => JSON.stringify(query), [query]);
+
   useEffect(() => {
     let isMounted = true;
     async function fetchArtists() {
       setLoading(true);
       try {
-        const res = await getArtists({ ...query, limit });
+        const params = JSON.parse(serializedQuery) as Record<string, unknown>;
+        const res = await getArtists({ ...(params as object), limit });
         if (isMounted) {
           setArtists(res.data.filter((a) => a.business_name || a.user));
         }
@@ -56,7 +59,7 @@ export default function ArtistsSection({
     return () => {
       isMounted = false;
     };
-  }, [JSON.stringify(query), limit]);
+  }, [serializedQuery, limit]);
 
   if (!loading && artists.length === 0 && hideIfEmpty) {
     return null;

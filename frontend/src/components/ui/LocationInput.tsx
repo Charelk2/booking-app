@@ -63,7 +63,7 @@ function LocationInputInner({
       setPredictions(placePredictions);
       setDropdownVisible(true);
     }
-  }, [placePredictions]);
+  }, [placePredictions, value.length]);
 
   // 🎯 Trigger new predictions from user-typed input only
   useEffect(() => {
@@ -85,7 +85,7 @@ function LocationInputInner({
       setPredictions([]);
       setDropdownVisible(false);
     }
-  }, [value, userLocation]);
+  }, [value, userLocation, getPlacePredictions]);
 
   // 🖱 Close dropdown on outside click
   useEffect(() => {

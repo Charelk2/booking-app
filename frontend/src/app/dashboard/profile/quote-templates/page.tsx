@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import type { QuoteTemplate, ServiceItem } from '@/types';
@@ -32,7 +32,7 @@ export default function QuoteTemplatesPage() {
   const [editAccommodation, setEditAccommodation] = useState('');
   const [editDiscount, setEditDiscount] = useState(0);
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     if (!user) return;
     try {
       const res = await getQuoteTemplates(user.id);
@@ -43,13 +43,13 @@ export default function QuoteTemplatesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (user && user.user_type === 'artist') {
       fetchTemplates();
     }
-  }, [user]);
+  }, [user, fetchTemplates]);
 
   const addService = () =>
     setServices([...services, { description: '', price: 0 }]);
