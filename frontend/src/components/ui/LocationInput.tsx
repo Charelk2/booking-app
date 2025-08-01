@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import usePlacesService from 'react-google-autocomplete/lib/usePlacesAutocompleteService';
 import { loadPlaces } from '@/lib/loadPlaces';
 import { MapPinIcon } from '@heroicons/react/24/outline';
@@ -40,12 +40,12 @@ function LocationInputInner({
     debounce: 300,
   });
 
-  // Wrap getPlacePredictions so it remains stable across renders and
-  // doesn't trigger effects unnecessarily.
-  const stableGetPlacePredictions = useCallback(
-    (req: google.maps.places.AutocompletionRequest) => getPlacePredictions(req),
-    [getPlacePredictions]
-  );
+  // Store the latest getPlacePredictions function in a ref so we can
+  // call it inside effects without re-triggering them on every render.
+  const getPlacePredictionsRef = useRef(getPlacePredictions);
+  useEffect(() => {
+    getPlacePredictionsRef.current = getPlacePredictions;
+  }, [getPlacePredictions]);
 
   // 🌍 Get user's current location
   useEffect(() => {
@@ -80,19 +80,20 @@ function LocationInputInner({
     }
 
     if (value.trim().length > 0) {
-      stableGetPlacePredictions({
+      const request: google.maps.places.AutocompletionRequest = {
         input: value,
         componentRestrictions: { country: 'za' },
         ...(userLocation && {
           location: new google.maps.LatLng(userLocation.lat, userLocation.lng),
           radius: 30000,
         }),
-      });
+      };
+      getPlacePredictionsRef.current(request);
     } else {
       setPredictions([]);
       setDropdownVisible(false);
     }
-  }, [value, userLocation, stableGetPlacePredictions]);
+  }, [value, userLocation]);
 
   // 🖱 Close dropdown on outside click
   useEffect(() => {
