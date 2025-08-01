@@ -11,7 +11,9 @@ Important fields returned by `/api/v1/notifications`:
 
 - **sender_name** – name or business name of the actor that triggered the
   notification. When not stored, the backend derives it from related booking
-  requests or bookings.
+  requests or bookings. `getNotificationDisplayProps` also falls back to parsing
+  the sender name from message strings like `"New message from Bob: Hi"` when
+  this field is missing.
 - **link** – relative path to navigate to when the card is clicked. The UI uses
   `router.push(link)` so paths must be valid client routes.
 - **avatar_url** – optional profile picture for the relevant artist or client.

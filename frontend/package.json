@@ -8,8 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "test": "jest --passWithNoTests",
-    "test:unit": "jest --testPathIgnorePatterns=e2e --passWithNoTests",
+    "test": "NODE_OPTIONS=--max-old-space-size=4096 jest --passWithNoTests",
+    "test:unit": "NODE_OPTIONS=--max-old-space-size=4096 jest --testPathIgnorePatterns=e2e --passWithNoTests",
     "test:debug": "jest --runInBand --detectOpenHandles --forceExit",
     "test:e2e": "playwright test",
     "lint:css": "stylelint 'src/**/*.css'"
