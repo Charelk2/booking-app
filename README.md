@@ -1335,11 +1335,11 @@ NEXT_PUBLIC_DEFAULT_CURRENCY=EUR
    pytest
    ```
    Set `PYTEST_RUN=1` to run tests against an in-memory SQLite database.
-   The `scripts/test-backend.sh` helper exports this variable automatically.
-   Ensure your Git remote `origin` points to
-   `git@github.com:Charelk2/booking-app.git`.
-   Both `scripts/test-backend.sh` and `scripts/test-all.sh` verify this and exit
-   if the remote is misconfigured.
+  The `scripts/test-backend.sh` helper exports this variable automatically.
+  Ensure your Git remote `origin` points to
+  `https://github.com/Charelk2/booking-app.git` (or the SSH equivalent).
+  Both `scripts/test-backend.sh` and `scripts/test-all.sh` will rewrite an SSH
+  remote to HTTPS automatically when network restrictions block port 22.
 
 ### Test environment variables
 
