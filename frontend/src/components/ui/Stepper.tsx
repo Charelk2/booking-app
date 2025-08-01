@@ -154,7 +154,6 @@ export default function Stepper({
             key={label}
             role="listitem"
             aria-current={isActive ? 'step' : undefined}
-            aria-disabled="true"
             className={clsx(
               'cursor-default',
               // Same flex behavior as buttons for non-clickable items
