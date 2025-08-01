@@ -29,7 +29,7 @@ from backend.tests.google_mocks import google_dummy_flow  # noqa: F401
 def patch_calendar(monkeypatch):
     """Disable credential checks and avoid network calls."""
 
-    monkeypatch.setattr(calendar_service, "_require_credentials", lambda: None)
+    monkeypatch.setattr(calendar_service, "require_credentials", lambda: None)
 
     def dummy_build(api, version, credentials=None):
         if api == "oauth2":
@@ -82,7 +82,9 @@ def test_exchange_code_missing_refresh_token(monkeypatch):
         def fetch_token(self, code):
             pass
 
-    monkeypatch.setattr(calendar_service, '_flow', lambda uri: DummyFlow())
+    monkeypatch.setattr(
+        calendar_service, '_flow', lambda uri, flow_cls=calendar_service.Flow: DummyFlow()
+    )
 
     with pytest.raises(HTTPException) as exc:
         calendar_service.exchange_code(user.id, 'code', 'uri', db)
