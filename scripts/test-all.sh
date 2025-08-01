@@ -28,24 +28,15 @@ if ! command -v npm >/dev/null; then
 fi
 echo "npm $(npm --version)"
 
-# Verify that the Git remote 'origin' is configured correctly before fetching
+# Verify and potentially rewrite the Git remote 'origin' before fetching
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-EXPECTED_REMOTE="git@github.com:Charelk2/booking-app.git"
 if origin_url=$(git -C "$ROOT_DIR" remote get-url origin 2>/dev/null); then
-  if [ "$origin_url" != "$EXPECTED_REMOTE" ]; then
-    cat >&2 <<EOF
-❌ Git remote 'origin' is '$origin_url' but should be '$EXPECTED_REMOTE'.
-Update the remote with:
-  git remote set-url origin $EXPECTED_REMOTE
-EOF
-    exit 1
+  if [[ "$origin_url" == git@github.com:* ]]; then
+    echo "⚠️ Switching Git remote from SSH to HTTPS due to network restrictions." >&2
+    git -C "$ROOT_DIR" remote set-url origin https://github.com/Charelk2/booking-app.git
   fi
 else
-  cat >&2 <<EOF
-❌ Git remote 'origin' not found.
-Add the remote with:
-  git remote add origin $EXPECTED_REMOTE
-EOF
+  echo "❌ Git remote 'origin' not found." >&2
   exit 1
 fi
 
