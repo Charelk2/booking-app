@@ -137,7 +137,12 @@ def get_booking_requests_with_last_message(
         query = query.filter(models.BookingRequest.artist_id == artist_id)
 
     rows = (
-        query.order_by(models.BookingRequest.created_at.desc())
+        query.order_by(
+            func.coalesce(
+                latest_msg.c.last_message_timestamp,
+                models.BookingRequest.created_at,
+            ).desc()
+        )
         .offset(skip)
         .limit(limit)
         .all()
