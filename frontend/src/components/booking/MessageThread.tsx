@@ -70,6 +70,7 @@ interface MessageThreadProps {
   onQuoteSent?: () => void;
   serviceId?: number;
   artistName?: string;
+  clientName?: string;
   clientId?: number;
   artistId?: number;
   artistAvatarUrl?: string | null;
