@@ -300,7 +300,6 @@ export default function MessageThreadWrapper({
           <BookingDetailsPanel
             bookingRequest={bookingRequest}
             parsedBookingDetails={parsedDetails}
-            artistName={bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name || 'Artist'}
             bookingConfirmed={bookingConfirmed}
             confirmedBookingDetails={confirmedBookingDetails}
             setShowReviewModal={setShowReviewModal}
@@ -320,7 +319,6 @@ export default function MessageThreadWrapper({
           <BookingDetailsPanel
             bookingRequest={bookingRequest}
             parsedBookingDetails={parsedDetails}
-            artistName={bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name || 'Artist'}
             bookingConfirmed={bookingConfirmed}
             confirmedBookingDetails={confirmedBookingDetails}
             setShowReviewModal={setShowReviewModal}
