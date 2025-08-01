@@ -7,3 +7,5 @@ Clients and artists communicate through the dedicated **Inbox** page. The layout
 3. **Booking details panel** on the right summarises key information from the request and, when a quote is accepted, provides quick links to pay the deposit and add the event to a calendar.
 
 Notifications for new messages link directly to the relevant conversation in the Inbox. When the artist sends a final quote the client can open it here, accept it and proceed with payment without leaving the page.
+
+The conversation list merges booking requests created by the user with those where they are the artist. If the logged-in user is not an artist the page only fetches their client requests to avoid API errors.
