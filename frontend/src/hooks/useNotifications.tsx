@@ -146,7 +146,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         ),
       );
     }
-  }, [api]);
+  }, []);
 
   const markAllAsRead = useCallback(
     async () => {
@@ -168,7 +168,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         );
       }
     },
-    [api, notifications, unreadCount],
+    [notifications, unreadCount],
   );
 
   const deleteNotification = useCallback(async (id: number) => {
