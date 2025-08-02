@@ -36,6 +36,10 @@ Primary, secondary and outline buttons now use the brand color for borders and b
 
 See [../docs/design_guidelines.md](../docs/design_guidelines.md) for a summary of spacing, typography and component styles.
 
+### Search Interface
+
+The global search bar and its compact pill are rendered only on the home page and artist pages. Other routes omit these elements for a cleaner layout.
+
 ### Loading Indicators
 
 `Spinner` and `SkeletonList` components in `src/components/ui` provide
