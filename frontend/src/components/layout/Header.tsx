@@ -12,7 +12,6 @@ import NotificationBell from './NotificationBell'; // Assuming NotificationBell 
 import BookingRequestIcon from './BookingRequestIcon'; // Assuming BookingRequestIcon is set up
 import MobileMenuDrawer from './MobileMenuDrawer'; // Assuming MobileMenuDrawer is set up
 import SearchBar from '../search/SearchBar'; // The full search bar component
-import SearchBarInline from '../search/SearchBarInline'; // The compact pill component
 import { UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
 import { Avatar } from '../ui'; // Assuming Avatar is set up
 import clsx from 'clsx';
@@ -69,9 +68,10 @@ interface HeaderProps {
   extraBar?: ReactNode;
   headerState: HeaderState; // New prop for header state
   onForceHeaderState: (state: HeaderState) => void; // New callback for state control
+  showSearchBar?: boolean; // Controls visibility of built-in search bar
 }
 
-export default function Header({ extraBar, headerState, onForceHeaderState }: HeaderProps) {
+export default function Header({ extraBar, headerState, onForceHeaderState, showSearchBar = true }: HeaderProps) {
   const { user, logout, artistViewActive, toggleArtistView } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -147,33 +147,35 @@ export default function Header({ extraBar, headerState, onForceHeaderState }: He
             </div>
 
             {/* Compact Search Pill (Visible when scrolled/compacted) */}
-            <div className="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center">
-              <div
-                id="compact-search-trigger" // Use this ID for JS listener in MainLayout
-                onClick={(e) => {
-                    e.stopPropagation(); // VERY IMPORTANT: Stop click from bubbling to document and closing overlay prematurely
-                    onForceHeaderState('expanded-from-compact');
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md cursor-pointer flex items-center justify-between text-sm transition-all duration-200"
-              >
-                <span className="text-gray-500">Category, Location, When</span>
-                <svg
-                  className="h-5 w-5 text-gray-500"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth="2"
-                  stroke="currentColor"
-                  aria-hidden="true"
+            {showSearchBar && (
+              <div className="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center">
+                <div
+                  id="compact-search-trigger" // Use this ID for JS listener in MainLayout
+                  onClick={(e) => {
+                      e.stopPropagation(); // VERY IMPORTANT: Stop click from bubbling to document and closing overlay prematurely
+                      onForceHeaderState('expanded-from-compact');
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md cursor-pointer flex items-center justify-between text-sm transition-all duration-200"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-                  />
-                </svg>
+                  <span className="text-gray-500">Category, Location, When</span>
+                  <svg
+                    className="h-5 w-5 text-gray-500"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth="2"
+                    stroke="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                    />
+                  </svg>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Icons */}
@@ -225,19 +227,21 @@ export default function Header({ extraBar, headerState, onForceHeaderState }: He
         </div>
 
         {/* Full Search Bar (Visible initially, and when expanded from compact) */}
-        <div className="content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto">
-          <SearchBar
-            category={category}
-            setCategory={setCategory}
-            location={location}
-            setLocation={setLocation}
-            when={when}
-            setWhen={setWhen}
-            onSearch={handleSearch}
-            onCancel={handleSearchBarCancel} // Pass handler for closing from SearchBar's internal popups
-            compact={false} // This SearchBar is always the "full" one for visuals
-          />
-        </div>
+        {showSearchBar && (
+          <div className="content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto">
+            <SearchBar
+              category={category}
+              setCategory={setCategory}
+              location={location}
+              setLocation={setLocation}
+              when={when}
+              setWhen={setWhen}
+              onSearch={handleSearch}
+              onCancel={handleSearchBarCancel} // Pass handler for closing from SearchBar's internal popups
+              compact={false} // This SearchBar is always the "full" one for visuals
+            />
+          </div>
+        )}
 
         {/* Extra content bar (if needed, its visibility logic might need to align with headerState) */}
         {extraBar && (headerState === 'initial' || headerState === 'expanded-from-compact') && (

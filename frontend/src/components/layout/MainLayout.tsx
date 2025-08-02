@@ -133,6 +133,8 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
     ? 'w-full'
     : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8';
 
+  const isArtistsRoot = pathname === '/artists';
+
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 bg-gradient-to-b from-brand-light/50 to-gray-50">
       {/* Global Overlay for expanded search form */}
@@ -156,10 +158,9 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
           headerState={headerState}
           onForceHeaderState={forceHeaderState}
           extraBar={
-            pathname.startsWith('/artists') ? (
-              <div className="mx-auto w-full px-4">{headerAddon}</div>
-            ) : undefined
+            isArtistsRoot ? <div className="mx-auto w-full px-4">{headerAddon}</div> : undefined
           }
+          showSearchBar={!isArtistsRoot}
         />
 
         {/* CONTENT */}
