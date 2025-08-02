@@ -128,8 +128,8 @@ export default function SearchBar({
       {/* Overlay for SearchBar's internal popups (e.g., calendar/category list) */}
       {showPopup && (
         <div
-          // This overlay needs to be on top of EVERYTHING else in the app (including the header's Z-40)
-          className="fixed inset-0 bg-black bg-opacity-30 z-50 cursor-pointer animate-fadeIn"
+          // Overlay covers the page but stays below the popup content
+          className="fixed inset-0 bg-black bg-opacity-30 z-40 cursor-pointer animate-fadeIn"
           aria-hidden="true"
           onClick={closeAllInternalPopups} // This closes the internal popup
         />
@@ -141,8 +141,8 @@ export default function SearchBar({
         onSubmit={handleSubmit}
         autoComplete="off"
         className={clsx(
-          // Ensure this form itself has a decent z-index to be above normal content
-          'relative z-45 flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out', // Adjusted to z-45
+          // Ensure this form and its popup sit above the overlay
+          'relative z-50 flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out',
           compact ? 'text-sm' : 'text-base',
           showPopup ? 'shadow-xl' : 'shadow-md hover:shadow-lg'
         )}
