@@ -118,31 +118,31 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
   return (
     <div ref={ref} className="flex flex-1 divide-x divide-gray-200">
       {renderField(
-        'category',
-        'Category',
-        category ? category.label : 'Add artist',
-        categoryButtonRef,
-        () => setCategory(null)
-      )}
-
-      <div className="border-l border-gray-200" />
-
-      {renderField(
         'location',
         'Where',
-        location || 'Add location',
-        locationButtonRef,
-        () => setLocation('')
-      )}
+          location || 'Add location',
+          locationButtonRef,
+          () => setLocation('')
+        )}
 
-      <div className="border-l border-gray-200" />
+        <div className="border-l border-gray-200" />
 
-      {renderField(
-        'when',
-        'When',
-        when ? dateFormatter.format(when) : 'Add dates',
-        whenButtonRef,
-        () => setWhen(null)
+        {renderField(
+          'when',
+          'When',
+          when ? dateFormatter.format(when) : 'Add dates',
+          whenButtonRef,
+          () => setWhen(null)
+        )}
+
+        <div className="border-l border-gray-200" />
+
+        {renderField(
+          'category',
+          'Category',
+          category ? category.label : 'Add artist',
+          categoryButtonRef,
+          () => setCategory(null)
       )}
     </div>
   );
