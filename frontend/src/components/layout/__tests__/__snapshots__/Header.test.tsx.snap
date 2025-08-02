@@ -223,31 +223,47 @@ exports[`Header renders search bar when enabled 1`] = `
         <div
           class="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center"
         >
-          <div
-            class="flex-1 px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md cursor-pointer flex items-center justify-between text-sm transition-all duration-200"
+          <button
+            class="flex-1 w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
             id="compact-search-trigger"
+            type="button"
           >
-            <span
-              class="text-gray-500"
+            <div
+              class="flex flex-1 divide-x divide-gray-300"
             >
-              Category, Location, When
-            </span>
+              <div
+                class="flex-1 px-2 truncate"
+              >
+                Add artist
+              </div>
+              <div
+                class="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis"
+              >
+                Add location
+              </div>
+              <div
+                class="flex-1 px-2 truncate"
+              >
+                Add dates
+              </div>
+            </div>
             <svg
               aria-hidden="true"
-              class="h-5 w-5 text-gray-500"
+              class="ml-2 h-5 w-5 text-gray-500 flex-shrink-0"
+              data-slot="icon"
               fill="none"
               stroke="currentColor"
-              stroke-width="2"
+              stroke-width="1.5"
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               />
             </svg>
-          </div>
+          </button>
         </div>
       </div>
       <div
