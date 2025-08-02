@@ -224,8 +224,9 @@
   transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out 0.1s; /* Slight delay on opacity for slide effect */
 }
 
-/* When header is compacted, hide these */
-#app-header[data-header-state="compacted"] .content-area-wrapper {
+/* When header is compacted, hide nav links and the full search bar */
+#app-header[data-header-state="compacted"] .header-nav-links,
+#app-header[data-header-state="compacted"] .header-full-search-bar {
   max-height: 0;
   opacity: 0;
   pointer-events: none;
