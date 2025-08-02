@@ -27,8 +27,6 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Dashboard now casts `user.id` to a number when fetching services to avoid 422 errors if the ID is stored as a string.
 - Search categories now map **Musician / Band** to the `Live Performance` service
   type so searching musicians shows available artists.
-- Categories for **DJ**, **Photographer**, and **Venue** now map to their respective
-  `DJ`, `Photography`, and `Venue` service types so filtering works as expected.
 - An unobtrusive marketing strip replaces the old Hero section.
 - The homepage now highlights popular, top rated, and new artists using a compact card grid similar to Airbnb.
 - Bookings now track `payment_status`, `deposit_amount`, and `deposit_paid` in
@@ -1001,7 +999,7 @@ The dashboard brings common actions to the surface with a tidy layout:
 ### Service Types
 
 * New **service\_type** field:
-  `"Live Performance"`, `"Virtual Appearance"`, `"Personalized Video"`, `"Custom Song"`, `"DJ"`, `"Photography"`, `"Venue"`, `"Other"`.
+  `"Live Performance"`, `"Virtual Appearance"`, `"Personalized Video"`, `"Custom Song"`, `"Other"`.
 * Non–Live/Virtual services go directly to chat instead of the wizard.
 * Personalized Video flow handled via `PersonalizedVideoFlow` wrapper and automated questions.
 

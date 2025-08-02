@@ -7513,9 +7513,6 @@
           "Virtual Appearance",
           "Personalized Video",
           "Custom Song",
-          "DJ",
-          "Photography",
-          "Venue",
           "Other"
         ],
         "title": "ServiceType",
