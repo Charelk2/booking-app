@@ -3,12 +3,11 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import Header from '../Header';
-import { usePathname } from 'next/navigation';
 
 jest.mock('next/link', () => ({ __esModule: true, default: (props: Record<string, unknown>) => <a {...props} /> }));
 jest.mock('next/navigation', () => ({
-  usePathname: jest.fn(),
   useRouter: () => ({ push: jest.fn() }),
+  usePathname: jest.fn(() => '/'),
   useSearchParams: () => new URLSearchParams(),
 }));
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: jest.fn(() => ({ user: null, logout: jest.fn() })) }));
@@ -27,8 +26,7 @@ describe('Header', () => {
     document.body.innerHTML = '';
   });
 
-  it('renders search bar on home page', async () => {
-    (usePathname as jest.Mock).mockReturnValue('/');
+  it('renders search bar when enabled', async () => {
     const { div, root } = render();
     await act(async () => {
       root.render(<Header />);
@@ -39,11 +37,10 @@ describe('Header', () => {
     div.remove();
   });
 
-  it('hides search bar on other pages without extraBar', async () => {
-    (usePathname as jest.Mock).mockReturnValue('/artists');
+  it('hides search bar when disabled', async () => {
     const { div, root } = render();
     await act(async () => {
-      root.render(<Header />);
+      root.render(<Header showSearchBar={false} />);
     });
     await flushPromises();
     expect(div.firstChild).toMatchSnapshot();
@@ -51,11 +48,10 @@ describe('Header', () => {
     div.remove();
   });
 
-  it('renders artists header when extraBar provided', async () => {
-    (usePathname as jest.Mock).mockReturnValue('/artists');
+  it('renders extraBar when provided', async () => {
     const { div, root } = render();
     await act(async () => {
-      root.render(<Header extraBar={<div>bar</div>} />);
+      root.render(<Header showSearchBar={false} extraBar={<div>bar</div>} />);
     });
     await flushPromises();
     expect(div.firstChild).toMatchSnapshot();
