@@ -1052,17 +1052,17 @@ Passing a `when` date returns only artists available on that day and sets
 When filtering by a specific `category`, each profile also includes
 `service_price` showing the price of that service for the artist.
 
-The redesigned listing page features a sticky search header. On desktop the
-header shows **Category**, **Location** and **Date** fields inline, mirroring
-Airbnb’s style. The search icon sits on the right of these fields. The bar now
-sits directly beneath the global navigation whenever you visit `/artists`,
-providing a consistent header across the site. A
+The redesigned listing page features a sticky search header. On desktop this
+header collapses to a single segment that expands inline to show **Category**,
+**Location** and **Date** fields, mirroring Airbnb’s style. The search icon sits
+on the right in a pink pill. Clicking any part opens all fields together in one
+popover, which floats above the header and closes on ESC or outside clicks. The
+bar now sits directly beneath the global navigation whenever you visit
+`/artists`, providing a consistent header across the site. A
 `useMediaQuery('(min-width:768px)')` hook picks between this inline bar and the
 mobile `SearchModal`. On mobile a compact summary displays the selected values;
 tapping it opens the modal prefilled with those values. A **Filters** button
-opens `FilterSheet` for sort and price range. On desktop the filter modal uses a
-React portal to keep its fixed overlay centered. The button stores chosen values
-locally until **Apply filters** is clicked, updating the URL and results. It then
+opens `FilterSheet` for sort and price range. On desktop the filter modal uses a React portal to keep its fixed overlay centered. The button stores chosen values locally until **Apply filters** is clicked, updating the URL and results. It then
 shows a tiny pink dot when any filter is active. The page
 rests on a soft gradient background from the brand color to white. When no
 results match the current filters the page shows "No artists found" beneath the
