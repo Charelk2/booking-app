@@ -3,7 +3,7 @@
 
 import { useState, useCallback, Fragment, ReactNode } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { Bars3Icon } from '@heroicons/react/24/outline';
+import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext'; // Assuming AuthContext is set up
@@ -89,6 +89,12 @@ export default function Header({
   const [location, setLocation] = useState<string>('');
   const [when, setWhen] = useState<Date | null>(null);
 
+  const dateFormatter = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
   // Common search handler for when the user clicks the final "Search" button on the full SearchBar
   const handleSearch = useCallback(
     ({ category, location, when }: SearchParams) => {
@@ -160,31 +166,28 @@ export default function Header({
             {/* Compact Search Pill (Visible when scrolled/compacted) */}
             {showSearchBar && (
               <div className="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center">
-                <div
-                  id="compact-search-trigger" // Use this ID for JS listener in MainLayout
+                <button
+                  id="compact-search-trigger"
+                  type="button"
                   onClick={(e) => {
-                      e.stopPropagation(); // VERY IMPORTANT: Stop click from bubbling to document and closing overlay prematurely
-                      onForceHeaderState('expanded-from-compact');
+                    e.stopPropagation();
+                    onForceHeaderState('expanded-from-compact');
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md cursor-pointer flex items-center justify-between text-sm transition-all duration-200"
+                  className="flex-1 w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
                 >
-                  <span className="text-gray-500">Category, Location, When</span>
-                  <svg
-                    className="h-5 w-5 text-gray-500"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth="2"
-                    stroke="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-                    />
-                  </svg>
-                </div>
+                  <div className="flex flex-1 divide-x divide-gray-300">
+                    <div className="flex-1 px-2 truncate">
+                      {category ? category.label : 'Add artist'}
+                    </div>
+                    <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
+                      {location || 'Add location'}
+                    </div>
+                    <div className="flex-1 px-2 truncate">
+                      {when ? dateFormatter.format(when) : 'Add dates'}
+                    </div>
+                  </div>
+                  <MagnifyingGlassIcon className="ml-2 h-5 w-5 text-gray-500 flex-shrink-0" />
+                </button>
               </div>
             )}
           </div>
