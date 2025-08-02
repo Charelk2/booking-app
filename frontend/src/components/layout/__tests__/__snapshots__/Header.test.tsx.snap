@@ -1,286 +1,269 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Header hides search bar on other pages without extraBar 1`] = `
+exports[`Header hides search bar when disabled 1`] = `
 <header
-  class="sticky top-0 z-40 bg-gray-100"
+  class="app-header sticky top-0 z-40 bg-white transition-all duration-300 ease-in-out"
+  id="app-header"
 >
   <div
     class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
   >
     <div
-      class="h-16 grid grid-cols-[auto,1fr,auto] items-center"
+      class="grid grid-cols-[auto,1fr,auto] items-center"
     >
       <div
         class="flex flex-col"
       >
         <a
-          class="flex shrink-0 items-center text-xl font-bold text-brand-dark"
+          class="text-xl font-bold text-brand-dark no-underline"
           href="/"
         >
           Booka.co.za
         </a>
       </div>
-      <nav
-        class="hidden md:flex justify-center gap-6"
-      >
-        <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-primary text-gray-900"
-          href="/artists"
-        >
-          Artists
-        </a>
-        <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          href="/services"
-        >
-          Services
-        </a>
-        <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          href="/faq"
-        >
-          FAQ
-        </a>
-        <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          href="/contact"
-        >
-          Contact
-        </a>
-      </nav>
       <div
-        class="hidden sm:flex items-center justify-end space-x-4"
+        class="hidden md:flex justify-center flex-grow relative"
+      >
+        <div
+          class="content-area-wrapper header-nav-links"
+        >
+          <nav
+            class="flex gap-6"
+          >
+            <a
+              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              href="/artists"
+            >
+              Artists
+            </a>
+            <a
+              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              href="/services"
+            >
+              Services
+            </a>
+            <a
+              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              href="/faq"
+            >
+              FAQ
+            </a>
+            <a
+              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              href="/contact"
+            >
+              Contact
+            </a>
+          </nav>
+        </div>
+      </div>
+      <div
+        class="hidden sm:flex items-center gap-4"
       >
         <div
           class="space-x-4"
         >
           <a
-            class="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+            class="text-sm text-gray-600"
             href="/login"
           >
             Sign in
           </a>
           <a
-            class="bg-brand-dark text-white hover:bg-brand-dark px-3 py-2 rounded-md text-sm font-medium"
+            class="text-sm text-white bg-brand-dark px-3 py-1 rounded"
             href="/register"
           >
             Sign up
           </a>
         </div>
       </div>
-    </div>
-    <div
-      class="flex items-center sm:hidden"
-    >
-      <button
-        class="-mr-2 ml-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand"
-      >
-        <span
-          class="sr-only"
-        >
-          Open main menu
-        </span>
-        <svg
-          aria-hidden="true"
-          class="h-6 w-6"
-          data-slot="icon"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </button>
     </div>
   </div>
 </header>
 `;
 
-exports[`Header renders artists header when extraBar provided 1`] = `
+exports[`Header renders extraBar when provided 1`] = `
 <header
-  class="sticky top-0 z-40 bg-gray-100"
+  class="app-header sticky top-0 z-40 bg-white transition-all duration-300 ease-in-out"
+  id="app-header"
 >
   <div
     class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
   >
     <div
-      class="h-16 grid grid-cols-[auto,1fr,auto] items-center"
+      class="grid grid-cols-[auto,1fr,auto] items-center"
     >
       <div
         class="flex flex-col"
       >
         <a
-          class="flex shrink-0 items-center text-xl font-bold text-brand-dark"
+          class="text-xl font-bold text-brand-dark no-underline"
           href="/"
         >
           Booka.co.za
         </a>
       </div>
-      <nav
-        class="hidden md:flex justify-center gap-6"
-      >
-        <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-primary text-gray-900"
-          href="/artists"
-        >
-          Artists
-        </a>
-        <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          href="/services"
-        >
-          Services
-        </a>
-        <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          href="/faq"
-        >
-          FAQ
-        </a>
-        <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          href="/contact"
-        >
-          Contact
-        </a>
-      </nav>
       <div
-        class="hidden sm:flex items-center justify-end space-x-4"
+        class="hidden md:flex justify-center flex-grow relative"
+      >
+        <div
+          class="content-area-wrapper header-nav-links"
+        >
+          <nav
+            class="flex gap-6"
+          >
+            <a
+              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              href="/artists"
+            >
+              Artists
+            </a>
+            <a
+              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              href="/services"
+            >
+              Services
+            </a>
+            <a
+              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              href="/faq"
+            >
+              FAQ
+            </a>
+            <a
+              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              href="/contact"
+            >
+              Contact
+            </a>
+          </nav>
+        </div>
+      </div>
+      <div
+        class="hidden sm:flex items-center gap-4"
       >
         <div
           class="space-x-4"
         >
           <a
-            class="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+            class="text-sm text-gray-600"
             href="/login"
           >
             Sign in
           </a>
           <a
-            class="bg-brand-dark text-white hover:bg-brand-dark px-3 py-2 rounded-md text-sm font-medium"
+            class="text-sm text-white bg-brand-dark px-3 py-1 rounded"
             href="/register"
           >
             Sign up
           </a>
         </div>
-      </div>
-    </div>
-    <div
-      class="flex items-center sm:hidden"
-    >
-      <button
-        class="-mr-2 ml-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand"
-      >
-        <span
-          class="sr-only"
-        >
-          Open main menu
-        </span>
-        <svg
-          aria-hidden="true"
-          class="h-6 w-6"
-          data-slot="icon"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </button>
-    </div>
-    <div
-      class="pb-3 pt-2"
-    >
-      <div>
-        bar
       </div>
     </div>
   </div>
-  <div
-    class="border-t border-gray-200"
-  />
 </header>
 `;
 
-exports[`Header renders search bar on home page 1`] = `
+exports[`Header renders search bar when enabled 1`] = `
 <header
-  class="sticky top-0 z-40 bg-gray-100"
+  class="app-header sticky top-0 z-40 bg-white transition-all duration-300 ease-in-out"
+  id="app-header"
 >
   <div
     class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
   >
     <div
-      class="h-16 grid grid-cols-[auto,1fr,auto] items-center"
+      class="grid grid-cols-[auto,1fr,auto] items-center"
     >
       <div
         class="flex flex-col"
       >
         <a
-          class="flex shrink-0 items-center text-xl font-bold text-brand-dark"
+          class="text-xl font-bold text-brand-dark no-underline"
           href="/"
         >
           Booka.co.za
         </a>
-        <span
-          class="hidden sm:block -mt-0.5 text-[11px] leading-4 text-gray-600"
-        >
-          Book legendary artists
-        </span>
       </div>
-      <nav
-        class="hidden md:flex justify-center gap-6"
-      >
-        <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          href="/artists"
-        >
-          Artists
-        </a>
-        <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          href="/services"
-        >
-          Services
-        </a>
-        <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          href="/faq"
-        >
-          FAQ
-        </a>
-        <a
-          class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-          href="/contact"
-        >
-          Contact
-        </a>
-      </nav>
       <div
-        class="hidden sm:flex items-center justify-end space-x-4"
+        class="hidden md:flex justify-center flex-grow relative"
+      >
+        <div
+          class="content-area-wrapper header-nav-links"
+        >
+          <nav
+            class="flex gap-6"
+          >
+            <a
+              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              href="/artists"
+            >
+              Artists
+            </a>
+            <a
+              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              href="/services"
+            >
+              Services
+            </a>
+            <a
+              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              href="/faq"
+            >
+              FAQ
+            </a>
+            <a
+              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              href="/contact"
+            >
+              Contact
+            </a>
+          </nav>
+        </div>
+        <div
+          class="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center"
+        >
+          <div
+            class="flex-1 px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md cursor-pointer flex items-center justify-between text-sm transition-all duration-200"
+            id="compact-search-trigger"
+          >
+            <span
+              class="text-gray-500"
+            >
+              Category, Location, When
+            </span>
+            <svg
+              aria-hidden="true"
+              class="h-5 w-5 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div
+        class="hidden sm:flex items-center gap-4"
       >
         <div
           class="space-x-4"
         >
           <a
-            class="text-gray-500 hover:text-gray-700 px-3 py-2 text-sm font-medium"
+            class="text-sm text-gray-600"
             href="/login"
           >
             Sign in
           </a>
           <a
-            class="bg-brand-dark text-white hover:bg-brand-dark px-3 py-2 rounded-md text-sm font-medium"
+            class="text-sm text-white bg-brand-dark px-3 py-1 rounded"
             href="/register"
           >
             Sign up
@@ -289,122 +272,93 @@ exports[`Header renders search bar on home page 1`] = `
       </div>
     </div>
     <div
-      class="flex items-center sm:hidden"
-    >
-      <button
-        class="-mr-2 ml-2 inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand"
-      >
-        <span
-          class="sr-only"
-        >
-          Open main menu
-        </span>
-        <svg
-          aria-hidden="true"
-          class="h-6 w-6"
-          data-slot="icon"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </button>
-    </div>
-    <div
-      class="w-full max-w-4xl mx-auto px-4 pb-5 pt-2"
+      class="content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto"
     >
       <form
-        class="flex items-stretch bg-white rounded-full shadow-lg overflow-visible text-sm"
+        aria-label="Artist booking search"
+        autocomplete="off"
+        class="relative z-45 flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out text-base shadow-md hover:shadow-lg"
+        role="search"
       >
         <div
-          class="flex-1 px-4 py-3 flex flex-col text-left"
+          class="flex flex-1 divide-x divide-gray-200"
         >
-          <span
-            class="text-xs text-gray-500"
-          >
-            Category
-          </span>
           <div
-            class="relative w-full"
+            class="relative flex-1 min-w-0"
           >
             <button
+              aria-controls="location-popup"
               aria-expanded="false"
-              aria-haspopup="listbox"
-              class="mt-1 w-full flex justify-between items-center text-sm text-gray-700 focus:outline-none"
-              data-headlessui-state=""
-              id="headlessui-listbox-button-:r0:"
+              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-6 py-3 hover:bg-gray-50 focus:bg-gray-50"
+              id="location-search-button"
               type="button"
             >
-              <span>
-                Musician / Band
-              </span>
-              <svg
-                aria-hidden="true"
-                class="h-4 w-4 text-gray-400"
-                data-slot="icon"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
+              <span
+                class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
               >
-                <path
-                  d="m19.5 8.25-7.5 7.5-7.5-7.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+                Where
+              </span>
+              <span
+                class="block truncate pointer-events-none select-none text-gray-400 italic text-base"
+              >
+                Add location
+              </span>
+            </button>
+          </div>
+          <div
+            class="border-l border-gray-200"
+          />
+          <div
+            class="relative flex-1 min-w-0"
+          >
+            <button
+              aria-controls="when-popup"
+              aria-expanded="false"
+              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-6 py-3 hover:bg-gray-50 focus:bg-gray-50"
+              id="when-search-button"
+              type="button"
+            >
+              <span
+                class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
+              >
+                When
+              </span>
+              <span
+                class="block truncate pointer-events-none select-none text-gray-400 italic text-base"
+              >
+                Add dates
+              </span>
+            </button>
+          </div>
+          <div
+            class="border-l border-gray-200"
+          />
+          <div
+            class="relative flex-1 min-w-0"
+          >
+            <button
+              aria-controls="category-popup"
+              aria-expanded="false"
+              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-6 py-3 hover:bg-gray-50 focus:bg-gray-50"
+              id="category-search-button"
+              type="button"
+            >
+              <span
+                class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
+              >
+                Category
+              </span>
+              <span
+                class="block truncate pointer-events-none select-none text-gray-400 italic text-base"
+              >
+                Add artist
+              </span>
             </button>
           </div>
         </div>
-        <div
-          class="border-l border-gray-200"
-        />
-        <div
-          class="flex-1 px-4 py-3 flex flex-col text-left"
-        >
-          <span
-            class="text-xs text-gray-500"
-          >
-            Where
-          </span>
-          <div
-            class="relative w-full"
-          >
-            <input
-              class="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none"
-              placeholder="City or venue"
-              type="text"
-              value=""
-            />
-          </div>
-        </div>
-        <div
-          class="border-l border-gray-200"
-        />
-        <div
-          class="flex-1 px-4 py-3 flex flex-col text-left"
-        >
-          <span
-            class="text-xs text-gray-500"
-          >
-            When
-          </span>
-          <input
-            class="mt-1 w-full text-sm text-gray-700 focus:outline-none"
-            dateformat="MMM d, yyyy"
-            placeholdertext="Add date"
-          />
-        </div>
         <button
-          class="bg-[var(--color-accent)] hover:bg-[var(--color-accent)]/90 px-5 py-3 flex items-center justify-center text-white rounded-r-full"
+          aria-label="Search now"
+          class="bg-[var(--color-accent)] hover:bg-[var(--color-accent)]/90 px-5 py-3 flex items-center justify-center text-white rounded-r-full transition-all duration-200 ease-out active:scale-95"
           type="submit"
         >
           <svg
@@ -432,8 +386,5 @@ exports[`Header renders search bar on home page 1`] = `
       </form>
     </div>
   </div>
-  <div
-    class="border-t border-gray-200"
-  />
 </header>
 `;
