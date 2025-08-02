@@ -86,6 +86,7 @@ const mockAutocomplete = jest.fn(function Autocomplete(this: any) {
   maps: {
     places: {
       Autocomplete: mockAutocomplete,
+      AutocompleteSessionToken: jest.fn(),
     },
   },
 };
