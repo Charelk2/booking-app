@@ -1,7 +1,7 @@
 // src/components/search/SearchBar.tsx
 'use client';
 
-import { useRef, useState, KeyboardEvent, FormEvent, useCallback, Fragment, useLayoutEffect } from 'react'; // NEW: useLayoutEffect
+import { useRef, useState, KeyboardEvent, FormEvent, useCallback, Fragment, useLayoutEffect, useMemo } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { SearchFields, type Category, type SearchFieldId } from './SearchFields';
@@ -38,6 +38,7 @@ export default function SearchBar({
   when,
   setWhen,
   onSearch,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onCancel,
   compact = false,
 }: SearchBarProps) {
@@ -53,6 +54,7 @@ export default function SearchBar({
 
   const locationInputRef = useRef<HTMLInputElement>(null);
   const categoryListboxOptionsRef = useRef<HTMLUListElement>(null);
+  const popupContainerRef = useRef<HTMLDivElement>(null);
 
   // UseLayoutEffect to calculate position before browser paints
   useLayoutEffect(() => {
@@ -89,10 +91,12 @@ export default function SearchBar({
     }, 200);
   }, []);
 
-  useClickOutside(formRef, () => {
-      if (showInternalPopup) {
-          closeThisSearchBarsInternalPopups();
-      }
+  const clickOutsideRefs = useMemo(() => [formRef, popupContainerRef], []);
+
+  useClickOutside(clickOutsideRefs, () => {
+    if (showInternalPopup) {
+      closeThisSearchBarsInternalPopups();
+    }
   });
 
   const handleKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
@@ -188,6 +192,7 @@ export default function SearchBar({
             leaveTo="opacity-0 -translate-y-2"
           >
             <div
+              ref={popupContainerRef}
               className={clsx(
                 "absolute rounded-xl bg-white p-4 shadow-xl ring-1 ring-black ring-opacity-5 z-47",
                 "origin-top-left"

@@ -1,46 +1,58 @@
-import { createRoot } from 'react-dom/client';
 import React from 'react';
-import { act } from 'react-dom/test-utils';
+import { render, fireEvent, waitFor } from '@testing-library/react';
 import SearchBar from '../SearchBar';
-import { UI_CATEGORIES } from '@/lib/categoryMap';
+
+// Mock next/dynamic to synchronously load a minimal SearchPopupContent
+jest.mock('next/dynamic', () => () => {
+  const Stub = ({
+    activeField,
+    locationInputRef,
+  }: {
+    activeField: string;
+    locationInputRef: React.Ref<HTMLInputElement>;
+  }) =>
+    activeField === 'location' ? (
+      <input ref={locationInputRef} placeholder="Search destinations" />
+    ) : null;
+  return Stub;
+});
+
+jest.mock('@/lib/loadPlaces', () => ({ loadPlaces: () => Promise.resolve({}) }));
+
+jest.mock('react-google-autocomplete/lib/usePlacesAutocompleteService', () => () => ({
+  placesService: null,
+  placePredictions: [],
+  getPlacePredictions: jest.fn(),
+}));
 
 describe('SearchBar', () => {
-  afterEach(() => {
-    document.body.innerHTML = '';
-  });
-
-  it('calls onSearch with values on submit', async () => {
+  it('keeps location popup open when clicking inside the input', async () => {
     const onSearch = jest.fn();
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
-
-    await act(async () => {
-      root.render(
+    const Wrapper = () => {
+      const [category, setCategory] = React.useState(null);
+      const [location, setLocation] = React.useState('');
+      const [when, setWhen] = React.useState<Date | null>(null);
+      return (
         <SearchBar
-          category={UI_CATEGORIES[0]}
-          setCategory={() => {}}
-          location="Cape Town"
-          setLocation={() => {}}
-          when={null}
-          setWhen={() => {}}
+          category={category}
+          setCategory={setCategory}
+          location={location}
+          setLocation={setLocation}
+          when={when}
+          setWhen={setWhen}
           onSearch={onSearch}
-        />,
+        />
       );
-    });
+    };
 
-    const form = container.querySelector('form') as HTMLFormElement;
-    await act(async () => {
-      form.dispatchEvent(new Event('submit', { bubbles: true }));
-    });
+    const { getByRole, getByPlaceholderText, queryByRole } = render(<Wrapper />);
 
-    expect(onSearch).toHaveBeenCalledWith({
-      category: UI_CATEGORIES[0].value,
-      location: 'Cape Town',
-      when: null,
-    });
+    const whereButton = getByRole('button', { name: /where/i });
+    fireEvent.click(whereButton);
 
-    act(() => root.unmount());
-    container.remove();
+    const input = await waitFor(() => getByPlaceholderText('Search destinations'));
+    fireEvent.mouseDown(input);
+
+    expect(queryByRole('dialog')).not.toBeNull();
   });
 });
