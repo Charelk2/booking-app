@@ -1053,9 +1053,9 @@ When filtering by a specific `category`, each profile also includes
 `service_price` showing the price of that service for the artist.
 
 The redesigned listing page features a sticky search header. On desktop this
-header collapses to a single segment that expands inline to show **Category**,
+header collapses to a compact search bar that expands inline to show **Category**,
 **Location** and **Date** fields, mirroring Airbnb’s style. The search icon sits
-on the right in a pink pill. Clicking any part opens all fields together in one
+on the right inside the bar. Clicking any field opens all inputs together in one
 popover, which floats above the header and closes on ESC or outside clicks. The
 bar now sits directly beneath the global navigation whenever you visit
 `/artists`, providing a consistent header across the site. A
