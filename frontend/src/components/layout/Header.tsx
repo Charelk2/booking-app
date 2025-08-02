@@ -69,9 +69,16 @@ interface HeaderProps {
   headerState: HeaderState; // New prop for header state
   onForceHeaderState: (state: HeaderState) => void; // New callback for state control
   showSearchBar?: boolean; // Controls visibility of built-in search bar
+  alwaysCompact?: boolean; // Keeps pill visible regardless of scroll
 }
 
-export default function Header({ extraBar, headerState, onForceHeaderState, showSearchBar = true }: HeaderProps) {
+export default function Header({
+  extraBar,
+  headerState,
+  onForceHeaderState,
+  showSearchBar = true,
+  alwaysCompact = false,
+}: HeaderProps) {
   const { user, logout, artistViewActive, toggleArtistView } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -91,25 +98,29 @@ export default function Header({ extraBar, headerState, onForceHeaderState, show
       if (when) params.set('when', when.toISOString());
       router.push(`/artists?${params.toString()}`);
       // After search submission, revert header to compacted or initial based on scroll
-      if (window.scrollY > 150) { // Using the same scrollThreshold as MainLayout
+      if (alwaysCompact) {
+        onForceHeaderState('compacted');
+      } else if (window.scrollY > 150) {
         onForceHeaderState('compacted');
       } else {
         onForceHeaderState('initial');
       }
     },
-    [router, onForceHeaderState]
+    [router, onForceHeaderState, alwaysCompact]
   );
 
   // This is crucial: Called by SearchBar when its *internal popups* are closed (e.g., clicking outside calendar)
   const handleSearchBarCancel = useCallback(() => {
     // Determine the state to revert to: compacted if scrolled, initial if at top
     // This allows the full search bar to "collapse" back into the header's normal flow.
-    if (window.scrollY > 150) { // Using the same scrollThreshold as MainLayout
+    if (alwaysCompact) {
+      onForceHeaderState('compacted');
+    } else if (window.scrollY > 150) {
       onForceHeaderState('compacted');
     } else {
       onForceHeaderState('initial');
     }
-  }, [onForceHeaderState]);
+  }, [onForceHeaderState, alwaysCompact]);
 
   // Main header classes reacting to headerState
   const headerClasses = clsx(
