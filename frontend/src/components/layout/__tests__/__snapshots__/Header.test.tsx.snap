@@ -221,122 +221,32 @@ exports[`Header renders search bar when enabled 1`] = `
           </nav>
         </div>
         <div
-          class="compact-searchbar-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center"
+          class="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center"
         >
           <div
-            class="flex-1"
-            id="compact-search-bar"
+            class="flex-1 px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md cursor-pointer flex items-center justify-between text-sm transition-all duration-200"
+            id="compact-search-trigger"
           >
-            <form
-              aria-label="Artist booking search"
-              autocomplete="off"
-              class="relative z-45 flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out text-sm shadow-md hover:shadow-lg"
-              role="search"
+            <span
+              class="text-gray-500"
             >
-              <div
-                class="flex flex-1 divide-x divide-gray-200"
-              >
-                <div
-                  class="relative flex-1 min-w-0"
-                >
-                  <button
-                    aria-controls="category-popup"
-                    aria-expanded="false"
-                    class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-4 py-2 hover:bg-gray-50 focus:bg-gray-50"
-                    id="category-search-button"
-                    type="button"
-                  >
-                    <span
-                      class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
-                    >
-                      Category
-                    </span>
-                    <span
-                      class="block truncate pointer-events-none select-none text-gray-400 italic text-sm"
-                    >
-                      Add artist
-                    </span>
-                  </button>
-                </div>
-                <div
-                  class="border-l border-gray-200"
-                />
-                <div
-                  class="relative flex-1 min-w-0"
-                >
-                  <button
-                    aria-controls="location-popup"
-                    aria-expanded="false"
-                    class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-4 py-2 hover:bg-gray-50 focus:bg-gray-50"
-                    id="location-search-button"
-                    type="button"
-                  >
-                    <span
-                      class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
-                    >
-                      Where
-                    </span>
-                    <span
-                      class="block truncate pointer-events-none select-none text-gray-400 italic text-sm"
-                    >
-                      Add location
-                    </span>
-                  </button>
-                </div>
-                <div
-                  class="border-l border-gray-200"
-                />
-                <div
-                  class="relative flex-1 min-w-0"
-                >
-                  <button
-                    aria-controls="when-popup"
-                    aria-expanded="false"
-                    class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-4 py-2 hover:bg-gray-50 focus:bg-gray-50"
-                    id="when-search-button"
-                    type="button"
-                  >
-                    <span
-                      class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
-                    >
-                      When
-                    </span>
-                    <span
-                      class="block truncate pointer-events-none select-none text-gray-400 italic text-sm"
-                    >
-                      Add dates
-                    </span>
-                  </button>
-                </div>
-              </div>
-              <button
-                aria-label="Search now"
-                class="bg-[var(--color-accent)] hover:bg-[var(--color-accent)]/90 px-5 py-3 flex items-center justify-center text-white rounded-r-full transition-all duration-200 ease-out active:scale-95"
-                type="submit"
-              >
-                <svg
-                  aria-hidden="true"
-                  class="h-5 w-5"
-                  data-slot="icon"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-                <span
-                  class="sr-only"
-                >
-                  Search
-                </span>
-              </button>
-            </form>
+              Category, Location, When
+            </span>
+            <svg
+              aria-hidden="true"
+              class="h-5 w-5 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
           </div>
         </div>
       </div>
@@ -373,31 +283,6 @@ exports[`Header renders search bar when enabled 1`] = `
         <div
           class="flex flex-1 divide-x divide-gray-200"
         >
-          <div
-            class="relative flex-1 min-w-0"
-          >
-            <button
-              aria-controls="category-popup"
-              aria-expanded="false"
-              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-6 py-3 hover:bg-gray-50 focus:bg-gray-50"
-              id="category-search-button"
-              type="button"
-            >
-              <span
-                class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
-              >
-                Category
-              </span>
-              <span
-                class="block truncate pointer-events-none select-none text-gray-400 italic text-base"
-              >
-                Add artist
-              </span>
-            </button>
-          </div>
-          <div
-            class="border-l border-gray-200"
-          />
           <div
             class="relative flex-1 min-w-0"
           >
@@ -442,6 +327,31 @@ exports[`Header renders search bar when enabled 1`] = `
                 class="block truncate pointer-events-none select-none text-gray-400 italic text-base"
               >
                 Add dates
+              </span>
+            </button>
+          </div>
+          <div
+            class="border-l border-gray-200"
+          />
+          <div
+            class="relative flex-1 min-w-0"
+          >
+            <button
+              aria-controls="category-popup"
+              aria-expanded="false"
+              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-6 py-3 hover:bg-gray-50 focus:bg-gray-50"
+              id="category-search-button"
+              type="button"
+            >
+              <span
+                class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
+              >
+                Category
+              </span>
+              <span
+                class="block truncate pointer-events-none select-none text-gray-400 italic text-base"
+              >
+                Add artist
               </span>
             </button>
           </div>
