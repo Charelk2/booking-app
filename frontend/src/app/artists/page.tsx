@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
-import clsx from 'clsx';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { getArtists, type PriceBucket } from '@/lib/api';
@@ -144,63 +143,51 @@ const fetchArtists = useCallback(
     });
   };
 
-  const [searchExpanded, setSearchExpanded] = useState(false);
-
   const header = (
-    <div
-      className={clsx(
-        'relative mx-auto transition-all duration-300 ease-out',
-        searchExpanded
-          ? 'max-w-full md:max-w-5xl lg:max-w-6xl'
-          : 'max-w-2xl'
-      )}
-    >
-      <SearchBarInline
-        initialCategory={uiValue}
-        initialLocation={location}
-        initialWhen={when}
-        onSearch={handleSearchEdit}
-        onExpandedChange={setSearchExpanded}
+    <div className="relative mx-auto flex max-w-full md:max-w-5xl lg:max-w-6xl items-center gap-2">
+      <div className="flex-1">
+        <SearchBarInline
+          initialCategory={uiValue}
+          initialLocation={location}
+          initialWhen={when}
+          onSearch={handleSearchEdit}
+        />
+      </div>
+      <ArtistsPageHeader
+        iconOnly
+        categoryLabel={uiLabel}
+        categoryValue={uiValue}
+        location={location}
+        when={when}
+        onSearchEdit={handleSearchEdit}
+        initialSort={sort}
+        initialMinPrice={minPrice}
+        initialMaxPrice={maxPrice}
+        priceDistribution={priceDistribution}
+        onFilterApply={({ sort: s, minPrice: min, maxPrice: max }) => {
+          setSort(s || undefined);
+          setMinPrice(min);
+          setMaxPrice(max);
+          updateQueryParams(router, pathname, {
+            category,
+            location,
+            when,
+            sort: s,
+            minPrice: min,
+            maxPrice: max,
+          });
+        }}
+        onFilterClear={() => {
+          setSort(undefined);
+          setMinPrice(SLIDER_MIN);
+          setMaxPrice(SLIDER_MAX);
+          updateQueryParams(router, pathname, {
+            category,
+            location,
+            when,
+          });
+        }}
       />
-      {!searchExpanded && (
-        <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2">
-          <ArtistsPageHeader
-            iconOnly
-            categoryLabel={uiLabel}
-            categoryValue={uiValue}
-            location={location}
-            when={when}
-            onSearchEdit={handleSearchEdit}
-            initialSort={sort}
-            initialMinPrice={minPrice}
-            initialMaxPrice={maxPrice}
-            priceDistribution={priceDistribution}
-            onFilterApply={({ sort: s, minPrice: min, maxPrice: max }) => {
-              setSort(s || undefined);
-              setMinPrice(min);
-              setMaxPrice(max);
-              updateQueryParams(router, pathname, {
-                category,
-                location,
-                when,
-                sort: s,
-                minPrice: min,
-                maxPrice: max,
-              });
-            }}
-            onFilterClear={() => {
-              setSort(undefined);
-              setMinPrice(SLIDER_MIN);
-              setMaxPrice(SLIDER_MAX);
-              updateQueryParams(router, pathname, {
-                category,
-                location,
-                when,
-              });
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 
