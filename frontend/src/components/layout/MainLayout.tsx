@@ -20,7 +20,7 @@ const baseNavigation = [
 ];
 
 // Define header states (shared type)
-type HeaderState = 'initial' | 'compacted' | 'expanded-from-compact';
+type HeaderState = 'initial' | 'compacted';
 
 // --- FOOTER COMPONENT (Defined within MainLayout) ---
 const SocialIcon = ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -89,8 +89,6 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
   const [headerState, setHeaderState] = useState<HeaderState>(
     isArtistDetail ? 'compacted' : 'initial',
   );
-  // Boolean derived from headerState to control global overlay visibility
-  const showSearchOverlay = headerState === 'expanded-from-compact';
 
   const scrollThreshold = 150; // Distance to scroll before compacting header
 
@@ -101,14 +99,9 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
 
   // Effect for scroll-based header state changes
   useEffect(() => {
-    if (isArtistDetail) return; // Keep pill visible on artist detail pages
+    if (isArtistDetail) return;
 
     const handleScroll = () => {
-      // Only change state based on scroll if not currently in 'expanded-from-compact' state
-      if (headerState === 'expanded-from-compact') {
-        return;
-      }
-
       const scrollY = window.scrollY;
       if (scrollY > scrollThreshold) {
         setHeaderState('compacted');
@@ -117,23 +110,12 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
       }
     };
 
-    // Attach/detach scroll listener
-    handleScroll(); // Set initial state on mount
+    handleScroll();
     window.addEventListener('scroll', handleScroll);
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [headerState, isArtistDetail]); // Re-run effect if headerState changes (to update scroll behavior)
-
-
-  // Effect to manage body scroll based on showSearchOverlay
-  useEffect(() => {
-    if (showSearchOverlay) {
-      document.body.classList.add('no-scroll');
-    } else {
-      document.body.classList.remove('no-scroll');
-    }
-  }, [showSearchOverlay]);
+  }, [isArtistDetail]);
 
   const contentWrapperClasses = fullWidthContent
     ? 'w-full'
@@ -144,24 +126,6 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 bg-gradient-to-b from-brand-light/50 to-gray-50">
-      {/* Global Overlay for expanded search form */}
-      {showSearchOverlay && (
-        <div
-          id="expanded-search-overlay"
-          className="fixed inset-0 bg-black bg-opacity-30 z-40 animate-fadeIn"
-          onClick={() => {
-            // Revert to compacted or initial based on scroll when overlay is clicked
-            if (isArtistDetail) {
-              forceHeaderState('compacted');
-            } else if (window.scrollY > scrollThreshold) {
-              forceHeaderState('compacted');
-            } else {
-              forceHeaderState('initial');
-            }
-          }}
-        />
-      )}
-
       <div className="flex-grow">
         <Header
           headerState={headerState}
