@@ -61,9 +61,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         !['Add dates', 'Add artist', 'Add location'].includes(currentValue);
 
       return (
-        <div
-          className="relative flex-1 min-w-0"
-        >
+        <div className="relative flex-1 min-w-0">
           {/* min-w-0 ensures flex children can shrink and truncate long values */}
           <button
             ref={buttonRef} // Attach ref to the button element
@@ -90,26 +88,26 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             >
               {currentValue}
             </span>
-
-            {/* Clear button - only visible when a value is present AND the field is NOT active */}
-            {isValuePresent && !isActive && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation(); // Prevent opening the popup
-                  onClear(); // Clear the specific field
-                  if (buttonRef.current) {
-                      buttonRef.current.focus(); // Return focus to the button
-                  }
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none  rounded-full p-1 z-20 transition-transform active:scale-90"
-                aria-label={`Clear ${label}`}
-                title={`Clear ${label}`}
-              >
-                &times;
-              </button>
-            )}
           </button>
+
+          {/* Clear button - only visible when a value is present AND the field is NOT active */}
+          {isValuePresent && !isActive && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent opening the popup
+                onClear(); // Clear the specific field
+                if (buttonRef.current) {
+                  buttonRef.current.focus(); // Return focus to the button
+                }
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none rounded-full p-1 z-20 transition-transform active:scale-90"
+              aria-label={`Clear ${label}`}
+              title={`Clear ${label}`}
+            >
+              &times;
+            </button>
+          )}
         </div>
       );
     };
