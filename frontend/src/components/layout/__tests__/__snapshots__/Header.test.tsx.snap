@@ -160,13 +160,6 @@ exports[`Header renders extraBar when provided 1`] = `
         </div>
       </div>
     </div>
-    <div
-      class="mt-3"
-    >
-      <div>
-        bar
-      </div>
-    </div>
   </div>
 </header>
 `;
@@ -226,6 +219,35 @@ exports[`Header renders search bar when enabled 1`] = `
               Contact
             </a>
           </nav>
+        </div>
+        <div
+          class="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center"
+        >
+          <div
+            class="flex-1 px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md cursor-pointer flex items-center justify-between text-sm transition-all duration-200"
+            id="compact-search-trigger"
+          >
+            <span
+              class="text-gray-500"
+            >
+              Category, Location, When
+            </span>
+            <svg
+              aria-hidden="true"
+              class="h-5 w-5 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
         </div>
       </div>
       <div
