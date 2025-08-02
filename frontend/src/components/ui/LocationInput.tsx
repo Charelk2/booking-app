@@ -83,10 +83,18 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       }
     }, [placePredictions, value]);
 
+    // Keep getPlacePredictions in a ref to avoid it being a changing dependency
+    // which can cause this effect to fire continuously and exceed the update depth
+    const getPredictionsRef = useRef(getPlacePredictions);
+
+    useEffect(() => {
+      getPredictionsRef.current = getPlacePredictions;
+    }, [getPlacePredictions]);
+
     // 🎯 Trigger new predictions from user input
     useEffect(() => {
       if (value.trim().length > 0) {
-        getPlacePredictions({
+        getPredictionsRef.current({
           input: value,
           ...(userLocation && {
             location: new google.maps.LatLng(userLocation.lat, userLocation.lng),
@@ -99,7 +107,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
         setDropdownVisible(false);
         setHighlightedIndex(-1);
       }
-    }, [value, getPlacePredictions, userLocation]);
+    }, [value, userLocation]);
 
     // 🖱 Close dropdown on outside click
     useEffect(() => {
