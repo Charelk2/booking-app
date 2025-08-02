@@ -118,8 +118,6 @@ Now** overlay button when hovered. A sticky header hosts the search UI. On
  Filters show a tiny pink dot when active. The filter icon now sits slightly closer to the pill and automatically hides when the inline bar expands into the full form. All search options and filters persist in the URL so pages can be shared
 or refreshed without losing state.
 
-The collapsed pill UI is provided by `SearchBarCompact`, a reusable component that shows the current **Category**, **Location** and **Date** placeholders and calls an `onOpen` handler when clicked to reveal the full search form.
-
 ## Testing
 
 Run `npm test` when you only want to execute the frontend Jest suite. The `pretest` script defined in
