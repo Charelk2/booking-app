@@ -55,9 +55,10 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     ) => {
       const isActive = activeField === id;
       // Adjusted isValuePresent logic for clarity and consistency across all placeholders
-      const isValuePresent = typeof currentValue === 'string' && 
-                             currentValue !== '' && 
-                             !['Add dates', 'Add artists', 'Search destinations'].includes(currentValue);
+      const isValuePresent =
+        typeof currentValue === 'string' &&
+        currentValue !== '' &&
+        !['Add dates', 'Add artist', 'Add location'].includes(currentValue);
 
       return (
         <div className="relative flex-1">
@@ -118,7 +119,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         {renderField(
           'location',
           'Where',
-          location || 'Search destinations',
+          location || 'Add location',
           locationButtonRef,
           () => setLocation('')
         )}
@@ -138,7 +139,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         {renderField(
           'category',
           'Category',
-          category ? category.label : 'Add artists',
+          category ? category.label : 'Add artist',
           categoryButtonRef,
           () => setCategory(null)
         )}
