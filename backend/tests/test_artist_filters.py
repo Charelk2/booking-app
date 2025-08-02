@@ -147,3 +147,27 @@ def test_service_price_none_without_category(monkeypatch):
     assert len(res["data"]) == 1
     assert res["data"][0].service_price is None
 
+
+def test_filter_new_categories(monkeypatch):
+    db = setup_db()
+    create_artist(db, 'Spin', 'Cape Town', ServiceType.DJ)
+    create_artist(db, 'Snap', 'Cape Town', ServiceType.PHOTOGRAPHY)
+
+    monkeypatch.setattr(
+        'app.utils.redis_cache.get_cached_artist_list',
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        'app.utils.redis_cache.cache_artist_list',
+        lambda *args, **kwargs: None,
+    )
+
+    res = read_all_artist_profiles(
+        category=ServiceType.DJ,
+        db=db,
+        page=1,
+        limit=20,
+    )
+    assert len(res["data"]) == 1
+    assert res["data"][0].business_name == 'Spin'
+
