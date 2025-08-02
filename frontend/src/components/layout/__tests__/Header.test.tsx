@@ -12,6 +12,11 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: jest.fn(() => ({ user: null, logout: jest.fn() })) }));
+jest.mock('../../search/SearchBarExpanded', () => ({
+  __esModule: true,
+  default: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+    open ? <div data-testid="search-expanded-overlay" onClick={onClose} /> : null,
+}));
 
 
 function render() {
@@ -27,38 +32,54 @@ describe('Header', () => {
     document.body.innerHTML = '';
   });
 
-  it('renders search bar on home page', async () => {
+  it('renders compact search bar on home page', async () => {
     (usePathname as jest.Mock).mockReturnValue('/');
     const { div, root } = render();
     await act(async () => {
       root.render(<Header />);
     });
     await flushPromises();
-    expect(div.firstChild).toMatchSnapshot();
+    const button = div.querySelector('button');
+    expect(button).toBeTruthy();
     act(() => root.unmount());
     div.remove();
   });
 
-  it('hides search bar on other pages without extraBar', async () => {
-    (usePathname as jest.Mock).mockReturnValue('/artists');
+  it('opens and closes expanded search', async () => {
+    (usePathname as jest.Mock).mockReturnValue('/');
     const { div, root } = render();
     await act(async () => {
       root.render(<Header />);
     });
     await flushPromises();
-    expect(div.firstChild).toMatchSnapshot();
+
+    const button = div.querySelector('button');
+    await act(async () => {
+      button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await flushPromises();
+    expect(div.querySelector('[data-testid="search-expanded-overlay"]')).toBeTruthy();
+
+    const overlay = div.querySelector('[data-testid="search-expanded-overlay"]');
+    await act(async () => {
+      overlay?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await flushPromises();
+    expect(div.querySelector('[data-testid="search-expanded-overlay"]')).toBeNull();
+
     act(() => root.unmount());
     div.remove();
   });
 
-  it('renders artists header when extraBar provided', async () => {
-    (usePathname as jest.Mock).mockReturnValue('/artists');
+  it('renders compact bar regardless of screen size', async () => {
+    (usePathname as jest.Mock).mockReturnValue('/');
     const { div, root } = render();
     await act(async () => {
-      root.render(<Header extraBar={<div>bar</div>} />);
+      root.render(<Header />);
     });
     await flushPromises();
-    expect(div.firstChild).toMatchSnapshot();
+    const button = div.querySelector('button');
+    expect(button).toBeTruthy();
     act(() => root.unmount());
     div.remove();
   });
