@@ -92,10 +92,10 @@ export default function SearchBarInline({
         >
           <div className="flex flex-1 divide-x divide-gray-300">
             <div className="flex-1 px-2 truncate">
-              {category ? category.label : 'Add artists'}
+              {category ? category.label : 'Add artist'}
             </div>
             <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
-              {location || 'Search destinations'}
+              {location || 'Add location'}
             </div>
             <div className="flex-1 px-2 truncate">
               {when ? dateFormatter.format(when) : 'Add dates'}
