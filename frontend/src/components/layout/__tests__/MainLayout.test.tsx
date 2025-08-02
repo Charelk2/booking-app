@@ -113,4 +113,21 @@ describe('MainLayout user menu', () => {
     act(() => { root.unmount(); });
     div.remove();
   });
+
+  it('hides search bar outside home and artists pages', async () => {
+    mockUsePathname.mockReturnValue('/contact');
+    mockUseParams.mockReturnValue({});
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 4, email: 'd@test.com', user_type: 'client' } as User, logout: jest.fn() });
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(React.createElement(MainLayout, null, React.createElement('div')));
+    });
+    await flushPromises();
+    expect(div.querySelector('#compact-search-trigger')).toBeNull();
+    expect(div.querySelector('.header-full-search-bar')).toBeNull();
+    act(() => { root.unmount(); });
+    div.remove();
+  });
 });
