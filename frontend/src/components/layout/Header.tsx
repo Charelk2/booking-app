@@ -19,7 +19,7 @@ import { type Category } from '../search/SearchFields'; // Import Category type 
 
 
 // Define header states (must match MainLayout)
-type HeaderState = 'initial' | 'compacted' | 'expanded-from-compact';
+export type HeaderState = 'initial' | 'compacted' | 'expanded-from-compact'; // Exported for MainLayout
 
 type SearchParams = {
   category?: string;
@@ -67,7 +67,7 @@ function ArtistNav({ user, pathname }: { user: { id: number }; pathname: string 
 interface HeaderProps {
   extraBar?: ReactNode;
   headerState: HeaderState; // New prop for header state
-  onForceHeaderState: (state: HeaderState) => void; // New callback for state control
+  onForceHeaderState: (state: HeaderState, scrollTarget?: number) => void; // MODIFIED: Added scrollTarget
   showSearchBar?: boolean; // Controls visibility of built-in search bar
   alwaysCompact?: boolean; // Keeps pill visible regardless of scroll
 }
@@ -103,30 +103,20 @@ export default function Header({
       if (location) params.set('location', location);
       if (when) params.set('when', when.toISOString());
       router.push(`/artists?${params.toString()}`);
-      // After search submission, revert header to compacted or initial based on scroll
-      if (alwaysCompact) {
-        onForceHeaderState('compacted');
-      } else if (window.scrollY > 150) {
-        onForceHeaderState('compacted');
-      } else {
-        onForceHeaderState('initial');
-      }
+      
+      // After search submission, revert header.
+      // Let MainLayout's scroll logic handle the final state based on current scroll.
+      // We explicitly close the expanded state here.
+      onForceHeaderState(window.scrollY > 0 ? 'compacted' : 'initial', window.scrollY > 0 ? undefined : 0);
     },
-    [router, onForceHeaderState, alwaysCompact]
+    [router, onForceHeaderState] // Removed alwaysCompact as it's handled by MainLayout
   );
 
   // This is crucial: Called by SearchBar when its *internal popups* are closed (e.g., clicking outside calendar)
   const handleSearchBarCancel = useCallback(() => {
-    // Determine the state to revert to: compacted if scrolled, initial if at top
-    // This allows the full search bar to "collapse" back into the header's normal flow.
-    if (alwaysCompact) {
-      onForceHeaderState('compacted');
-    } else if (window.scrollY > 150) {
-      onForceHeaderState('compacted');
-    } else {
-      onForceHeaderState('initial');
-    }
-  }, [onForceHeaderState, alwaysCompact]);
+    // Let MainLayout's scroll logic determine the final state based on current scroll.
+    onForceHeaderState(window.scrollY > 0 ? 'compacted' : 'initial', window.scrollY > 0 ? undefined : 0);
+  }, [onForceHeaderState]);
 
   // Main header classes reacting to headerState
   const headerClasses = clsx(
@@ -140,9 +130,9 @@ export default function Header({
 
   return (
     <header id="app-header" className={headerClasses} data-header-state={headerState}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Row: Logo - Center - Icons */}
-        <div className="grid grid-cols-[auto,1fr,auto] items-center">
+        <div className="grid grid-cols-[auto,1fr,auto] items-center py-2"> {/* Added py-2 back for consistency */}
           {/* Logo */}
           <div className="flex flex-col">
             <Link href="/" className="text-xl font-bold text-brand-dark no-underline">
@@ -153,7 +143,10 @@ export default function Header({
           {/* Center Section: Dynamically switches between Nav Links and Compact Pill */}
           <div className="hidden md:flex justify-center flex-grow relative">
             {/* Nav Links (Visible initially, and when compact search expands) */}
-            <div className="content-area-wrapper header-nav-links">
+            <div className={clsx("content-area-wrapper header-nav-links", {
+              "opacity-0 pointer-events-none": headerState === 'compacted',
+              "opacity-100 pointer-events-auto transition-opacity duration-300 delay-100": headerState !== 'compacted'
+            })}>
               <nav className="flex gap-6">
                 {user?.user_type === 'artist' && artistViewActive ? (
                   <ArtistNav user={user} pathname={pathname} />
@@ -165,7 +158,10 @@ export default function Header({
 
             {/* Compact Search Pill (Visible when scrolled/compacted) */}
             {showSearchBar && (
-              <div className="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center">
+              <div className={clsx("compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center", {
+                "opacity-0 pointer-events-none": headerState !== 'compacted',
+                "opacity-100 pointer-events-auto transition-opacity duration-300 delay-100": headerState === 'compacted'
+              })}>
                 <button
                   id="compact-search-trigger"
                   type="button"
@@ -242,7 +238,10 @@ export default function Header({
 
         {/* Full Search Bar (Visible initially, and when expanded from compact) */}
         {showSearchBar && !extraBar && (
-          <div className="content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto">
+          <div className={clsx("content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto", {
+            "opacity-0 scale-y-0 h-0 pointer-events-none": headerState === 'compacted',
+            "opacity-100 scale-y-100 pointer-events-auto": headerState !== 'compacted'
+          })}>
             <SearchBar
               category={category}
               setCategory={setCategory}

@@ -190,7 +190,7 @@
 
 /* === Header Core Styles & Transitions === */
 #app-header {
-  transition: all 0.3s ease-in-out; /* Smooth transitions for height and shadow */
+  transition: all 0.5s ease-in-out; /* Smooth transitions for height and shadow */
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); /* Default shadow-sm */
   /* Default: initial-expanded state styles */
   padding-top: 1rem; /* py-4 */
@@ -221,7 +221,7 @@
   opacity: 1;
   pointer-events: auto;
   overflow: hidden; /* Hide overflow during transition */
-  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out 0.1s; /* Slight delay on opacity for slide effect */
+  transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out 0.5s; /* Slight delay on opacity for slide effect */
 }
 
 /* When header is compacted, hide nav links and the full search bar */
@@ -230,7 +230,7 @@
   max-height: 0;
   opacity: 0;
   pointer-events: none;
-  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out; /* No delay when hiding */
+  transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out; /* No delay when hiding */
 }
 
 /* .compact-pill-wrapper (visible only in compacted state) */
@@ -240,7 +240,7 @@
   pointer-events: none;
   overflow: hidden;
   /* Adjust width transition for the pill */
-  transition: max-width 0.3s ease-in-out, opacity 0.3s ease-in-out 0.1s; 
+  transition: max-width 0.5s ease-in-out, opacity 0.3s ease-in-out 0.1s; 
 }
 
 /* When header is compacted, show the pill */
@@ -248,7 +248,7 @@
   max-width: 32rem; /* max-w-lg */
   opacity: 1;
   pointer-events: auto;
-  transition: max-width 0.3s ease-in-out, opacity 0.3s ease-in-out 0.1s;
+  transition: max-width 0.5s ease-in-out, opacity 0.3s ease-in-out 0.1s;
 }
 
 /* When header is expanded from compact (clicked pill), hide the pill */
@@ -256,7 +256,7 @@
   max-width: 0;
   opacity: 0;
   pointer-events: none;
-  transition: max-width 0.3s ease-in-out, opacity 0.3s ease-in-out;
+  transition: max-width 0.5s ease-in-out, opacity 0.3s ease-in-out;
 }
 
 /* Overlay for expanded search form */
