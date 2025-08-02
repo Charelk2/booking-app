@@ -82,9 +82,14 @@ interface Props {
 export default function MainLayout({ children, headerAddon, fullWidthContent = false }: Props) {
   const { user } = useAuth();
   const pathname = usePathname();
+  const params =
+    typeof useParams === 'function' ? (useParams() as { id?: string }) : {};
+  const isArtistDetail = pathname.startsWith('/artists') && Boolean(params.id);
 
   // State to manage the header's visual and functional state
-  const [headerState, setHeaderState] = useState<HeaderState>('initial');
+  const [headerState, setHeaderState] = useState<HeaderState>(
+    isArtistDetail ? 'compacted' : 'initial',
+  );
   // Boolean derived from headerState to control global overlay visibility
   const showSearchOverlay = headerState === 'expanded-from-compact';
 
@@ -97,6 +102,8 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
 
   // Effect for scroll-based header state changes
   useEffect(() => {
+    if (isArtistDetail) return; // Keep pill visible on artist detail pages
+
     const handleScroll = () => {
       // Only change state based on scroll if not currently in 'expanded-from-compact' state
       if (headerState === 'expanded-from-compact') {
@@ -117,7 +124,7 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [headerState]); // Re-run effect if headerState changes (to update scroll behavior)
+  }, [headerState, isArtistDetail]); // Re-run effect if headerState changes (to update scroll behavior)
 
 
   // Effect to manage body scroll based on showSearchOverlay
@@ -133,8 +140,6 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
     ? 'w-full'
     : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8';
 
-  const params =
-    typeof useParams === 'function' ? (useParams() as { id?: string }) : {};
   const isArtistsRoot = pathname === '/artists' && !params.id;
 
   return (
@@ -146,7 +151,9 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
           className="fixed inset-0 bg-black bg-opacity-30 z-40 animate-fadeIn"
           onClick={() => {
             // Revert to compacted or initial based on scroll when overlay is clicked
-            if (window.scrollY > scrollThreshold) {
+            if (isArtistDetail) {
+              forceHeaderState('compacted');
+            } else if (window.scrollY > scrollThreshold) {
               forceHeaderState('compacted');
             } else {
               forceHeaderState('initial');
@@ -163,6 +170,7 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
             isArtistsRoot ? <div className="mx-auto w-full px-4">{headerAddon}</div> : undefined
           }
           showSearchBar={!isArtistsRoot}
+          alwaysCompact={isArtistDetail}
         />
 
         {/* CONTENT */}
