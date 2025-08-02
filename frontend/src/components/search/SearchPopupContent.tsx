@@ -1,3 +1,4 @@
+// src/components/search/SearchPopupContent.tsx
 'use client';
 
 import React, { useEffect, useState, RefObject, useCallback } from 'react';
@@ -5,23 +6,15 @@ import ReactDatePicker from 'react-datepicker';
 import { Listbox } from '@headlessui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
-import LocationInput from '../ui/LocationInput';
+import LocationInput, { PlaceResult } from '../ui/LocationInput'; // Import LocationInput and its PlaceResult type
 import { UI_CATEGORIES } from '@/lib/categoryMap';
 
-// CORRECTED IMPORT: Import ActivePopup from SearchBar, but Category and SearchFieldId from SearchFields
-// because SearchFields is where these types are originally defined and exported.
+// Import types from SearchBar and SearchFields
 import type { ActivePopup } from './SearchBar';
-import type { Category, SearchFieldId } from './SearchFields'; // <-- CORRECTED IMPORT
+import type { Category, SearchFieldId } from './SearchFields';
 
-// IMPORTANT: Ensure 'react-datepicker/dist/react-datepicker.css' is imported GLOBALLY.
-// (e.g., in your globals.css or _app.tsx / root layout.tsx)
-// If you remove it globally, you MUST uncomment the line below:
+// If you removed datepicker.css globally, uncomment here, but GLOBAL is preferred
 // import 'react-datepicker/dist/react-datepicker.css';
-
-// Remove this line if you're not using a CSS module for datepicker styles:
-// import styles from './SearchPopupContent.module.css';
-
-// --- MISSING DEFINITIONS RE-ADDED BELOW ---
 
 interface SearchPopupContentProps {
   activeField: ActivePopup;
@@ -44,11 +37,7 @@ type CustomHeaderProps = {
   nextMonthButtonDisabled: boolean;
 };
 
-type PlaceResult = {
-  name?: string;
-  formatted_address?: string;
-};
-
+// MOCK data for location suggestions (replace with real data/logic if LocationInput doesn't handle visuals)
 const MOCK_LOCATION_SUGGESTIONS = [
   { name: 'Nearby', description: 'Find what\'s around you', image: '/images/location-nearby.png' },
   { name: 'Stellenbosch', description: 'Western Cape', image: '/images/location-stellenbosch.png' },
@@ -58,8 +47,6 @@ const MOCK_LOCATION_SUGGESTIONS = [
   { name: 'Stanford', description: 'Near you', image: '/images/location-stanford.png' },
   { name: 'Kleinmond', description: 'Popular with travelers near you', image: '/images/location-kleinmond.png' },
 ];
-
-// --- END RE-ADDED DEFINITIONS ---
 
 
 export default function SearchPopupContent({
@@ -80,6 +67,7 @@ export default function SearchPopupContent({
     setIsClient(true);
 
     const timer = setTimeout(() => {
+      // Focus relevant input/element when popup opens
       if (activeField === 'location' && locationInputRef.current) {
         locationInputRef.current.focus();
       } else if (activeField === 'category' && categoryListboxOptionsRef.current) {
@@ -91,28 +79,25 @@ export default function SearchPopupContent({
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [activeField, locationInputRef, categoryListboxOptionsRef]); // Ref dependencies added
+  }, [activeField, locationInputRef, categoryListboxOptionsRef]);
 
   const handleLocationSelect = useCallback((place: PlaceResult) => {
-    if (place.name) {
-      setLocation(place.name);
-    } else if (place.formatted_address) {
-      setLocation(place.formatted_address);
-    }
-    closeAllPopups();
+    // Determine the best display name for the selected place
+    const displayName = place.formatted_address || place.name || '';
+    setLocation(displayName);
+    closeAllPopups(); // Close popup after selection
   }, [setLocation, closeAllPopups]);
 
   const handleCategorySelect = useCallback((c: Category | null) => {
     setCategory(c);
-    closeAllPopups();
+    closeAllPopups(); // Close popup after selection
   }, [setCategory, closeAllPopups]);
 
   const handleDateSelect = useCallback((date: Date | null) => {
     setWhen(date);
-    closeAllPopups();
+    closeAllPopups(); // Close popup after selection
   }, [setWhen, closeAllPopups]);
 
-  // Ensure 'item' is typed by MOCK_LOCATION_SUGGESTIONS's structure
   const filteredSuggestions = MOCK_LOCATION_SUGGESTIONS.filter((item) =>
     location === '' ||
     item.name.toLowerCase().includes(location.toLowerCase()) ||
@@ -130,28 +115,30 @@ export default function SearchPopupContent({
         placeholder="Search destinations"
         inputClassName="w-full text-base border border-gray-300 rounded-lg p-3 mb-4 focus:outline-none transition-all"
       />
-      <ul className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-hidden scrollbar-thin">
-        {/* Ensure 's' is typed by MOCK_LOCATION_SUGGESTIONS's structure */}
-        {filteredSuggestions.map((s) => (
-          <li
-            key={s.name}
-            role="option"
-            aria-label={`${s.name}${s.description ? `, ${s.description}` : ''}`}
-            onClick={() => handleLocationSelect({ name: s.name, formatted_address: s.description })}
-            className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
-            tabIndex={0}
-          >
-            {s.image && <img src={s.image} alt="" className="h-10 w-10 rounded-lg object-cover flex-shrink-0" />}
-            <div>
-              <p className="text-sm font-medium text-gray-800">{s.name}</p>
-              <p className="text-xs text-gray-500">{s.description}</p>
-            </div>
-          </li>
-        ))}
-        {filteredSuggestions.length === 0 && location && (
-          <li className="col-span-2 text-sm text-gray-500 px-4 py-2">No suggestions found.</li>
-        )}
-      </ul>
+      {/* Display mock suggestions if LocationInput doesn't handle its own visual suggestions */}
+      {location.length === 0 && ( /* Only show mock suggestions if input is empty */
+          <ul className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-hidden scrollbar-thin">
+            {MOCK_LOCATION_SUGGESTIONS.map((s) => (
+              <li
+                key={s.name}
+                role="option"
+                aria-label={`${s.name}${s.description ? `, ${s.description}` : ''}`}
+                onClick={() => handleLocationSelect({ name: s.name, formatted_address: s.description || '' })}
+                className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
+                tabIndex={0}
+              >
+                {s.image && <img src={s.image} alt="" className="h-10 w-10 rounded-lg object-cover flex-shrink-0" />}
+                <div>
+                  <p className="text-sm font-medium text-gray-800">{s.name}</p>
+                  <p className="text-xs text-gray-500">{s.description}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+      )}
+      {location.length > 0 && filteredSuggestions.length === 0 && (
+        <li className="col-span-2 text-sm text-gray-500 px-4 py-2">No suggestions found.</li>
+      )}
     </div>
   );
 
@@ -165,8 +152,7 @@ export default function SearchPopupContent({
     }
 
     return (
-      // Added 'flex justify-center' to this div to center its content
-      <div className="flex justify-center">
+      <div className="flex justify-center w-full"> {/* Added w-full here for datepicker's 100% width */}
         <h3 className="text-sm font-semibold text-gray-800 sr-only" id="search-popup-label-when">Select date</h3>
         <ReactDatePicker
           selected={when}
@@ -174,13 +160,13 @@ export default function SearchPopupContent({
           dateFormat="MMM d, yyyy"
           inline
           calendarClassName="react-datepicker-custom-calendar" // This targets your existing CSS
-          renderCustomHeader={(props: CustomHeaderProps) => ( // Ensure props is typed correctly
+          renderCustomHeader={(props: CustomHeaderProps) => (
             <div className="flex justify-between items-center px-3 pt-2 pb-2">
               <button
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
-                  e.stopPropagation();
+                  e.stopPropagation(); // Prevent click from bubbling and closing popup
                   props.decreaseMonth();
                 }}
                 disabled={props.prevMonthButtonDisabled}
@@ -196,7 +182,7 @@ export default function SearchPopupContent({
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
-                  e.stopPropagation();
+                  e.stopPropagation(); // Prevent click from bubbling and closing popup
                   props.increaseMonth();
                 }}
                 disabled={props.nextMonthButtonDisabled}
@@ -217,7 +203,7 @@ export default function SearchPopupContent({
       <h3 className="text-sm font-semibold text-gray-800 mb-2" id="search-popup-label-category">Select an artist category</h3>
       <Listbox value={category} onChange={handleCategorySelect}>
         <Listbox.Options
-          static
+          static // Keep options in DOM for ref access
           as="ul"
           ref={categoryListboxOptionsRef}
           className="max-h-60 overflow-auto rounded-lg bg-white py-1 focus:outline-none scrollbar-thin"
@@ -249,7 +235,6 @@ export default function SearchPopupContent({
       <div className="mt-6">
         <h4 className="text-md font-semibold text-gray-700 mb-3">Popular Artist Locations</h4>
         <ul className="grid grid-cols-2 gap-4">
-          {/* Ensure 's' is typed by MOCK_LOCATION_SUGGESTIONS's structure */}
           {MOCK_LOCATION_SUGGESTIONS.slice(0, 4).map((s) => (
             <li
               key={`default-${s.name}`}

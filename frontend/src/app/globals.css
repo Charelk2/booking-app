@@ -1,11 +1,13 @@
+/* src/styles/globals.css */
 
-@import 'react-datepicker/dist/react-datepicker.css'; /* MUST be first */
-@import '../styles/datepicker.css';
+/* MUST be first. If you remove this, calendar will break! */
+@import 'react-datepicker/dist/react-datepicker.css'; 
+/* Your custom datepicker styles that override react-datepicker defaults */
+@import '../styles/datepicker.css'; 
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-
 
 :root {
   --font-sans: var(--font-inter);
@@ -113,7 +115,7 @@
   /* --- ADD THIS CODE --- */
   .pac-container {
     /* Ensures the Google Maps dropdown appears above modal dialogs */
-    z-index: 50;
+    z-index: 50; /* Needs to be high enough for Google Maps autocomplete */
   }
 
   html[data-headlessui-focus-visible] {
@@ -186,4 +188,88 @@
   }
 }
 
-/* ... (rest of your globals.css content) ... */
+/* === Header Core Styles & Transitions === */
+#app-header {
+  transition: all 0.3s ease-in-out; /* Smooth transitions for height and shadow */
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); /* Default shadow-sm */
+  /* Default: initial-expanded state styles */
+  padding-top: 1rem; /* py-4 */
+  padding-bottom: 1rem; /* py-4 */
+}
+
+/* State: Compacted */
+#app-header[data-header-state="compacted"] {
+  height: 4rem; /* h-16 */
+  padding-top: 0.5rem; /* py-2 */
+  padding-bottom: 0.5rem; /* py-2 */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+}
+
+/* State: Expanded from Compact (when pill is clicked) */
+#app-header[data-header-state="expanded-from-compact"] {
+  /* Same as initial for height/padding/shadow for seamless feel */
+  padding-top: 1rem; /* py-4 */
+  padding-bottom: 1rem; /* py-4 */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* shadow-xl for prominent pop-up */
+}
+
+/* Content Visibility & Transitions within Header */
+
+/* Default for .content-area-wrapper (visible in initial & expanded-from-compact states) */
+.content-area-wrapper {
+  max-height: 100px; /* Sufficient height to show content */
+  opacity: 1;
+  pointer-events: auto;
+  overflow: hidden; /* Hide overflow during transition */
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out 0.1s; /* Slight delay on opacity for slide effect */
+}
+
+/* When header is compacted, hide these */
+#app-header[data-header-state="compacted"] .content-area-wrapper {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out; /* No delay when hiding */
+}
+
+/* .compact-pill-wrapper (visible only in compacted state) */
+.compact-pill-wrapper {
+  max-width: 0; /* Hidden by default */
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  /* Adjust width transition for the pill */
+  transition: max-width 0.3s ease-in-out, opacity 0.3s ease-in-out 0.1s; 
+}
+
+/* When header is compacted, show the pill */
+#app-header[data-header-state="compacted"] .compact-pill-wrapper {
+  max-width: 32rem; /* max-w-lg */
+  opacity: 1;
+  pointer-events: auto;
+  transition: max-width 0.3s ease-in-out, opacity 0.3s ease-in-out 0.1s;
+}
+
+/* When header is expanded from compact (clicked pill), hide the pill */
+#app-header[data-header-state="expanded-from-compact"] .compact-pill-wrapper {
+  max-width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: max-width 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+/* Overlay for expanded search form */
+#expanded-search-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.3);
+  z-index: 39; /* Below header, above page content */
+}
+
+/* Prevent body scroll when popup is active */
+body.no-scroll {
+  overflow: hidden;
+}

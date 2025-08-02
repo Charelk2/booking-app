@@ -1,13 +1,16 @@
-// components/layout/MainLayout.tsx
+// src/components/layout/MainLayout.tsx
 'use client';
 
 import { ComponentProps, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext'; // Assuming AuthContext is set up
 import Header from './Header';
-import MobileBottomNav from './MobileBottomNav';
-import { HelpPrompt } from '../ui';
+import MobileBottomNav from './MobileBottomNav'; // Assuming MobileBottomNav is set up
+import { HelpPrompt } from '../ui'; // Assuming HelpPrompt is set up
 import clsx from 'clsx';
+import { usePathname } from 'next/navigation';
+import useClickOutside from '@/hooks/useClickOutside'; // Import useClickOutside for overlay logic
+
 
 // --- CONSTANTS ---
 const baseNavigation = [
@@ -16,6 +19,9 @@ const baseNavigation = [
   { name: 'FAQ', href: '/faq' },
   { name: 'Contact', href: '/contact' },
 ];
+
+// Define header states (shared type)
+type HeaderState = 'initial' | 'compacted' | 'expanded-from-compact';
 
 // --- FOOTER COMPONENT (Defined within MainLayout) ---
 const SocialIcon = ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -66,7 +72,6 @@ const Footer = () => (
   </footer>
 );
 
-import { usePathname } from 'next/navigation';
 
 interface Props {
   children: React.ReactNode;
@@ -78,37 +83,51 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
   const { user } = useAuth();
   const pathname = usePathname();
 
-  const [showHeaderCompact, setShowHeaderCompact] = useState(false);
+  // State to manage the header's visual and functional state
+  const [headerState, setHeaderState] = useState<HeaderState>('initial');
+  // Boolean derived from headerState to control global overlay visibility
+  const showSearchOverlay = headerState === 'expanded-from-compact';
 
-  const handleForceHeaderExpand = useCallback(() => {
-    // When inline search is activated, force the header to be non-compact
-    setShowHeaderCompact(false);
+  const scrollThreshold = 150; // Distance to scroll before compacting header
+
+  // Callback to force header state (e.g., when compact search is clicked or search is submitted)
+  const forceHeaderState = useCallback((state: HeaderState) => {
+    setHeaderState(state);
   }, []);
 
+  // Effect for scroll-based header state changes
   useEffect(() => {
     const handleScroll = () => {
-      const scrollY = window.scrollY;
-      const scrollThreshold = 100; // This is the point where header should go compact
-
-      // Only change to compact if scrolled past threshold AND it's not currently forced open
-      // The `!showHeaderCompact` in condition prevents flickering if it was already manually expanded.
-      if (scrollY > scrollThreshold && !showHeaderCompact) {
-        setShowHeaderCompact(true);
+      // Only change state based on scroll if not currently in 'expanded-from-compact' state
+      if (headerState === 'expanded-from-compact') {
+        return;
       }
-      // Expand if scrolled back above threshold AND it's currently compact
-      // This also covers the case where it was forced expanded and then scrolled to top.
-      else if (scrollY <= scrollThreshold && showHeaderCompact) {
-        setShowHeaderCompact(false);
+
+      const scrollY = window.scrollY;
+      if (scrollY > scrollThreshold) {
+        setHeaderState('compacted');
+      } else {
+        setHeaderState('initial');
       }
     };
 
-    handleScroll(); // Run once on mount to set initial state
+    // Attach/detach scroll listener
+    handleScroll(); // Set initial state on mount
     window.addEventListener('scroll', handleScroll);
-
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, [showHeaderCompact]); // Dependency ensures effect re-runs if showHeaderCompact changes internally
+  }, [headerState]); // Re-run effect if headerState changes (to update scroll behavior)
+
+
+  // Effect to manage body scroll based on showSearchOverlay
+  useEffect(() => {
+    if (showSearchOverlay) {
+      document.body.classList.add('no-scroll');
+    } else {
+      document.body.classList.remove('no-scroll');
+    }
+  }, [showSearchOverlay]);
 
   const contentWrapperClasses = fullWidthContent
     ? 'w-full'
@@ -116,10 +135,26 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 bg-gradient-to-b from-brand-light/50 to-gray-50">
+      {/* Global Overlay for expanded search form */}
+      {showSearchOverlay && (
+        <div
+          id="expanded-search-overlay"
+          className="fixed inset-0 bg-black bg-opacity-30 z-40 animate-fadeIn"
+          onClick={() => {
+            // Revert to compacted or initial based on scroll when overlay is clicked
+            if (window.scrollY > scrollThreshold) {
+              forceHeaderState('compacted');
+            } else {
+              forceHeaderState('initial');
+            }
+          }}
+        />
+      )}
+
       <div className="flex-grow">
         <Header
-          isCompact={showHeaderCompact}
-          onForceHeaderExpand={handleForceHeaderExpand} // Pass the new function
+          headerState={headerState}
+          onForceHeaderState={forceHeaderState}
           extraBar={
             pathname.startsWith('/artists') ? (
               <div className="mx-auto w-full px-4">{headerAddon}</div>
@@ -128,14 +163,9 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
         />
 
         {/* CONTENT */}
-        {/* We need to ensure content below pushes down when header expands */}
-        {/* The padding-top or margin-top of the main content should dynamically
-            match the header's height to prevent content jump. */}
         <main className={clsx("py-6 pb-24", {
-          // You might need to adjust this padding value based on your actual header heights
-          // For example, if your compact header is h-16 and full is h-24 + pb-5 + pt-2
-          // You'd calculate the difference and apply as dynamic top padding/margin.
-          // For now, let's assume default flow handles it with sticky.
+          // Adjust padding if content jumps due to header height changes.
+          // With max-height transitions, it should typically flow well.
         })}>
           <div className={contentWrapperClasses}>{children}</div>
           <HelpPrompt className="mx-auto mt-10 max-w-7xl sm:px-6 lg:px-8" />
