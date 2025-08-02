@@ -238,7 +238,7 @@ export default function Header({
         </div>
 
         {/* Full Search Bar (Visible initially, and when expanded from compact) */}
-        {showSearchBar && (
+        {showSearchBar && !extraBar && (
           <div className="content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto">
             <SearchBar
               category={category}

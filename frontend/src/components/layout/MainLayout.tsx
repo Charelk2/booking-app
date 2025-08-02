@@ -169,7 +169,6 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
           extraBar={
             isArtistsRoot ? <div className="mx-auto w-full px-4">{headerAddon}</div> : undefined
           }
-          showSearchBar={!isArtistsRoot}
           alwaysCompact={isArtistDetail}
         />
 
