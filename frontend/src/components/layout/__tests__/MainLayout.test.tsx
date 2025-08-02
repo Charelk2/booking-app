@@ -72,7 +72,7 @@ describe('MainLayout user menu', () => {
     div.remove();
   });
 
-  it('renders compact search pill on artist detail pages', async () => {
+  it('renders full search bar on artist detail pages', async () => {
     mockUsePathname.mockReturnValue('/artists');
     mockUseParams.mockReturnValue({ id: '123' });
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, email: 'a@test.com', user_type: 'artist' } as User, logout: jest.fn() });
@@ -86,12 +86,13 @@ describe('MainLayout user menu', () => {
     const header = div.querySelector('#app-header') as HTMLElement;
     expect(header).toBeTruthy();
     expect(header.getAttribute('data-header-state')).toBe('compacted');
-    expect(div.querySelector('#compact-search-trigger')).toBeTruthy();
+    expect(div.querySelector('#compact-search-trigger')).toBeNull();
+    expect(div.querySelector('.header-full-search-bar')).toBeTruthy();
     act(() => { root.unmount(); });
     div.remove();
   });
 
-  it('keeps search pill available on artists listing page', async () => {
+  it('keeps search bar visible on artists listing page', async () => {
     mockUsePathname.mockReturnValue('/artists');
     mockUseParams.mockReturnValue({});
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 3, email: 'c@test.com', user_type: 'client' } as User, logout: jest.fn() });
@@ -108,8 +109,8 @@ describe('MainLayout user menu', () => {
       );
     });
     await flushPromises();
-    expect(div.querySelector('#compact-search-trigger')).toBeTruthy();
-    expect(div.querySelector('.header-full-search-bar')).toBeNull();
+    expect(div.querySelector('#compact-search-trigger')).toBeNull();
+    expect(div.textContent).toContain('addon');
     act(() => { root.unmount(); });
     div.remove();
   });
