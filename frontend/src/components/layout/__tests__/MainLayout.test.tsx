@@ -8,16 +8,22 @@ import type { User } from '@/types';
 
 jest.mock('@/contexts/AuthContext');
 jest.mock('next/link', () => ({ __esModule: true, default: (props: Record<string, unknown>) => <a {...props} /> }));
+const usePathnameMock = jest.fn(() => '/');
+const useParamsMock = jest.fn(() => ({}));
+
 jest.mock('next/navigation', () => ({
-  usePathname: () => '/',
+  usePathname: () => usePathnameMock(),
   useRouter: () => ({}),
   useSearchParams: () => new URLSearchParams(),
+  useParams: () => useParamsMock(),
 }));
 
 
 describe('MainLayout user menu', () => {
   afterEach(() => {
     jest.clearAllMocks();
+    usePathnameMock.mockReturnValue('/');
+    useParamsMock.mockReturnValue({});
   });
 
   it('shows artist links for artist users', async () => {
@@ -62,6 +68,22 @@ describe('MainLayout user menu', () => {
     await flushPromises();
     expect(div.textContent).toContain('My Bookings');
     expect(div.textContent).toContain('Account');
+    act(() => { root.unmount(); });
+    div.remove();
+  });
+
+  it('renders compact search pill on artist detail pages', async () => {
+    usePathnameMock.mockReturnValue('/artists');
+    useParamsMock.mockReturnValue({ id: '123' });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, email: 'a@test.com', user_type: 'artist' } as User, logout: jest.fn() });
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(React.createElement(MainLayout, null, React.createElement('div')));
+    });
+    await flushPromises();
+    expect(div.querySelector('#compact-search-trigger')).toBeTruthy();
     act(() => { root.unmount(); });
     div.remove();
   });
