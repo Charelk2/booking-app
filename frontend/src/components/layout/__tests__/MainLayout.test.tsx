@@ -8,22 +8,22 @@ import type { User } from '@/types';
 
 jest.mock('@/contexts/AuthContext');
 jest.mock('next/link', () => ({ __esModule: true, default: (props: Record<string, unknown>) => <a {...props} /> }));
-const usePathnameMock = jest.fn(() => '/');
-const useParamsMock = jest.fn(() => ({}));
+const mockUsePathname = jest.fn(() => '/');
+const mockUseParams = jest.fn(() => ({}));
 
 jest.mock('next/navigation', () => ({
-  usePathname: () => usePathnameMock(),
+  usePathname: () => mockUsePathname(),
   useRouter: () => ({}),
   useSearchParams: () => new URLSearchParams(),
-  useParams: () => useParamsMock(),
+  useParams: () => mockUseParams(),
 }));
 
 
 describe('MainLayout user menu', () => {
   afterEach(() => {
     jest.clearAllMocks();
-    usePathnameMock.mockReturnValue('/');
-    useParamsMock.mockReturnValue({});
+    mockUsePathname.mockReturnValue('/');
+    mockUseParams.mockReturnValue({});
   });
 
   it('shows artist links for artist users', async () => {
@@ -73,8 +73,8 @@ describe('MainLayout user menu', () => {
   });
 
   it('renders compact search pill on artist detail pages', async () => {
-    usePathnameMock.mockReturnValue('/artists');
-    useParamsMock.mockReturnValue({ id: '123' });
+    mockUsePathname.mockReturnValue('/artists');
+    mockUseParams.mockReturnValue({ id: '123' });
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, email: 'a@test.com', user_type: 'artist' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -83,6 +83,9 @@ describe('MainLayout user menu', () => {
       root.render(React.createElement(MainLayout, null, React.createElement('div')));
     });
     await flushPromises();
+    const header = div.querySelector('#app-header') as HTMLElement;
+    expect(header).toBeTruthy();
+    expect(header.getAttribute('data-header-state')).toBe('compacted');
     expect(div.querySelector('#compact-search-trigger')).toBeTruthy();
     act(() => { root.unmount(); });
     div.remove();
