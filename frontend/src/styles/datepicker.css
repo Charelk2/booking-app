@@ -1,8 +1,9 @@
+/* src/styles/datepicker.css */
 /* Custom styles for react-datepicker */
 
 /* Ensures the date picker popover is on top of other content */
 .react-datepicker-popper {
-    z-index: 50;
+    z-index: 50; /* Ensure this is always higher than other overlays if it's a popper */
   }
   
   /* Base styles for the date picker container */
@@ -13,12 +14,14 @@
     background-color: var(--color-background);
     box-shadow: 0 10px 25px rgb(0 0 0 / 6%); /* Custom shadow for depth */
     padding: 1rem;
-    /* --- CHANGE 1: Make it full width of its parent popup container --- */
     width: 100%; /* Make it span the full width of its parent */
     max-width: none; /* Remove any max-width constraints */
     min-width: auto; /* Allow it to shrink if container is small, but 100% takes precedence */
-    /* --- END CHANGE 1 --- */
     animation: fadeIn 0.2s ease-out; /* Smooth fade-in animation */
+    /* Added to debug potential clipping: */
+    box-sizing: border-box; /* Ensure padding doesn't push it out of parent */
+    display: block; /* Ensure it's a block element */
+    overflow: visible; /* Ensure nothing is clipped within it */
   }
   
   @media (prefers-reduced-motion: reduce) {
@@ -50,10 +53,8 @@
     background-color: var(--color-background);
     border: none;
     padding-bottom: 0.5rem;
-    /* --- IMPROVEMENT: Adjust padding for the header (optional) --- */
     padding-left: 0.5rem;
     padding-right: 0.5rem;
-    /* --- END IMPROVEMENT --- */
   }
   
   /* Hides the default current month display within the header */
@@ -88,26 +89,24 @@
   .react-datepicker__week {
     display: grid;
     grid-template-columns: repeat(7, 1fr); /* 7 columns for days of the week */
-    /* --- CHANGE 2: Increase gap for more spacing between days --- */
     gap: 0.5rem; /* Increased from 0.25rem for more space */
-    /* --- END CHANGE 2 --- */
     padding: 0 0.5rem;
   }
   
   /* Styles for individual day names and day numbers */
   .react-datepicker__day-name,
   .react-datepicker__day {
-    /* --- CHANGE 3: Increase size of day cells for better readability and touch targets --- */
     width: 3rem; /* Increased from 2.25rem */
     height: 3rem; /* Increased from 2.25rem */
     line-height: 3rem; /* Centers text vertically, matches new height */
-    /* --- END CHANGE 3 --- */
     font-size: 0.875rem; /* Equivalent to Tailwind's text-sm (keep this) */
     text-align: center;
     color: var(--color-gray-700);
     border-radius: 0.5rem; /* Slight rounding for day cells (keep this) */
     transition: background-color 0.2s ease;
     cursor: pointer;
+    /* Added to debug potential clipping */
+    box-sizing: border-box; 
   }
   
   /* Accessible focus style for day cells */
@@ -145,11 +144,22 @@
     color: var(--color-gray-500);
   }
   
-  /* --- OPTIONAL: Centering the calendar within its container --- */
-  /* If the calendar doesn't visually center itself after width: 100%, */
-  /* you might need to adjust its parent container's styles in SearchPopupContent.tsx */
-  /* For example, ensure the parent div of ReactDatePicker is a flex container with justify-content: center */
-  /* .your-react-datepicker-parent-div {
-    display: flex;
-    justify-content: center;
+  /* Ensure the month container itself is not hidden or too small */
+  .react-datepicker__month-container {
+      display: block; /* Ensure it's not display:none by some other rule */
+      /* Often float is used, but if display:grid or flex is on parent, remove float */
+      /* float: left; */ 
+      width: 100%; /* Ensure it fills parent */
+      /* If debugging, add: border: 1px dashed red; */
+  }
+  
+  .react-datepicker__month {
+      /* If debugging, add: border: 1px dashed blue; */
+  }
+  
+  /* If the problem persists, you might need to target even higher ancestors like this,
+     though it's less common for an inline datepicker. */
+  /* .react-datepicker-wrapper, .react-datepicker__input-container {
+    display: block;
+    width: 100%;
   } */

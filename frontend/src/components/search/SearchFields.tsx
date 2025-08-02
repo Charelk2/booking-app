@@ -1,10 +1,16 @@
+// src/components/search/SearchFields.tsx
 'use client';
 
 import { forwardRef, useRef } from 'react';
 import clsx from 'clsx';
 
-// Import types directly from SearchBar to ensure consistency
-import type { ActivePopup } from './SearchBar';
+// Import types for consistency
+import type { ActivePopup } from './SearchBar'; // Assuming SearchBar defines ActivePopup
+import { Category as CategoryType } from '@/lib/categoryMap'; // Correctly import Category from categoryMap.ts
+
+// Re-exporting for external use, if needed
+export type Category = CategoryType;
+export type SearchFieldId = 'location' | 'when' | 'category';
 
 
 export interface SearchFieldsProps {
@@ -43,12 +49,15 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     const renderField = (
       id: SearchFieldId,
       label: string,
-      currentValue: string | JSX.Element, // Can be string or JSX element for placeholder
+      currentValue: string | JSX.Element,
       buttonRef: React.RefObject<HTMLButtonElement>,
       onClear: () => void // Function to clear the specific field
     ) => {
       const isActive = activeField === id;
-      const isValuePresent = typeof currentValue === 'string' && currentValue !== '' && currentValue !== 'Add dates' && currentValue !== 'Add artists' && currentValue !== 'Search destinations';
+      // Adjusted isValuePresent logic for clarity and consistency across all placeholders
+      const isValuePresent = typeof currentValue === 'string' && 
+                             currentValue !== '' && 
+                             !['Add dates', 'Add artists', 'Search destinations'].includes(currentValue);
 
       return (
         <div className="relative flex-1">
@@ -57,11 +66,11 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             type="button"
             onClick={() => onFieldClick(id, buttonRef.current!)} // Pass the ID and the button element
             className={clsx(
-              'group relative z-10 w-full flex flex-col justify-center text-left  transition-all duration-200 ease-out outline-none',
+              'group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none',
               compact ? 'px-4 py-2' : 'px-6 py-3',
               isActive
-                ? 'bg-gray-100  shadow-md'
-                : 'hover:bg-gray-50 focus:bg-gray-50' // Added focus state for keyboard users
+                ? 'bg-gray-100 shadow-md'
+                : 'hover:bg-gray-50 focus:bg-gray-50'
             )}
             aria-expanded={isActive}
             aria-controls={`${id}-popup`}
@@ -71,7 +80,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             <span
               className={clsx(
                 'block truncate pointer-events-none select-none',
-                isValuePresent ? 'text-gray-800' : 'text-gray-400 italic', // Adjusted for hydration
+                isValuePresent ? 'text-gray-800' : 'text-gray-400 italic', // Uses italic for placeholders
                 compact ? 'text-sm' : 'text-base'
               )}
             >
@@ -101,12 +110,15 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       );
     };
 
+    // Use a stable date formatter for consistent output across server/client
+    const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
     return (
       <div ref={ref} className="flex flex-1 divide-x divide-gray-200">
         {renderField(
           'location',
           'Where',
-          location || 'Search destinations', // Ensure consistent placeholder for hydration
+          location || 'Search destinations',
           locationButtonRef,
           () => setLocation('')
         )}
@@ -116,7 +128,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         {renderField(
           'when',
           'When',
-          when ? when.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Add dates', // Ensure consistent placeholder for hydration
+          when ? dateFormatter.format(when) : 'Add dates',
           whenButtonRef,
           () => setWhen(null)
         )}
@@ -126,7 +138,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         {renderField(
           'category',
           'Category',
-          category ? category.label : 'Add artists', // Ensure consistent placeholder for hydration
+          category ? category.label : 'Add artists',
           categoryButtonRef,
           () => setCategory(null)
         )}
@@ -134,10 +146,3 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     );
   }
 );
-
-export type Category = {
-  label: string;
-  value: string;
-};
-
-export type SearchFieldId = 'location' | 'when' | 'category';

@@ -1,3 +1,4 @@
+// components/search/SearchBar.tsx
 'use client';
 
 import { useRef, useState, KeyboardEvent, FormEvent, useCallback, Fragment } from 'react';
@@ -19,10 +20,11 @@ export interface SearchBarProps {
   when: Date | null;
   setWhen: (d: Date | null) => void;
   onSearch: (params: { category?: string; location?: string; when?: Date | null }) => void | Promise<void>;
-  onCancel?: () => void;
-  compact?: boolean;
+  onCancel?: () => void; // This prop is called when its internal popups are closed
+  compact?: boolean; // This should always be 'false' when used in the Header for the 'full' search bar
 }
 
+// Ensure DynamicSearchPopupContent exists at this path
 const DynamicSearchPopupContent = dynamic(() => import('./SearchPopupContent'), {
   ssr: false,
   loading: () => <div className="p-4 text-center text-gray-500">Loading search options...</div>,
@@ -42,7 +44,7 @@ export default function SearchBar({
   const formRef = useRef<HTMLFormElement>(null);
   const [isSubmitting, setSubmitting] = useState(false);
   const [activeField, setActiveField] = useState<ActivePopup>(null);
-  const [showPopup, setShowPopup] = useState(false);
+  const [showPopup, setShowPopup] = useState(false); // Controls internal popups (category, date, etc.)
 
   const lastActiveButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -52,48 +54,57 @@ export default function SearchBar({
 
   const handleFieldClick = useCallback((fieldId: SearchFieldId, buttonElement: HTMLButtonElement) => {
     setActiveField(fieldId);
-    setShowPopup(true);
+    setShowPopup(true); // <--- This is the key to showing the popup
     lastActiveButtonRef.current = buttonElement;
   }, []);
 
-  const closeAllPopups = useCallback(() => {
+  // Function to close internal popups (calendar, category list)
+  const closeAllInternalPopups = useCallback(() => {
     setShowPopup(false);
     setTimeout(() => {
         setActiveField(null);
+        // Important: Call onCancel to notify the parent (Header) that the internal search form's popups are closed.
+        // The Header will then decide if it needs to change its state (e.g., revert from expanded-from-compact).
         if (onCancel) onCancel();
         if (lastActiveButtonRef.current) {
             (lastActiveButtonRef.current as HTMLElement).focus();
             lastActiveButtonRef.current = null;
         }
-    }, 200);
+    }, 200); // Small delay to allow CSS transition
   }, [onCancel]);
 
-  useClickOutside(formRef, closeAllPopups);
+  // Hook to close popups when clicking outside the SearchBar's form
+  useClickOutside(formRef, () => {
+      if (showPopup) { // Only attempt to close if a popup is currently open
+          closeAllInternalPopups();
+      }
+  });
 
   const handleKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      closeAllPopups();
+      closeAllInternalPopups();
     }
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
-    closeAllPopups();
+    closeAllInternalPopups(); // Close internal popups before submitting
 
     try {
-      await onSearch({
+      await onSearch({ // Call the onSearch prop passed from Header
         category: category?.value,
         location: location || undefined,
         when,
       });
     } finally {
       setSubmitting(false);
-      (formRef.current?.querySelector('button[type="submit"]') as HTMLButtonElement)?.focus();
+      // The onSearch callback (from Header) already contains logic to revert header state after a search
     }
   };
 
+  // Classes for positioning and sizing the internal popups
   const popupPositionAndSizeClasses = clsx(
     {
       'min-w-[300px]': true,
@@ -114,11 +125,13 @@ export default function SearchBar({
 
   return (
     <>
+      {/* Overlay for SearchBar's internal popups (e.g., calendar/category list) */}
       {showPopup && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-30 z-40 cursor-pointer animate-fadeIn"
+          // This overlay needs to be on top of EVERYTHING else in the app (including the header's Z-40)
+          className="fixed inset-0 bg-black bg-opacity-30 z-50 cursor-pointer animate-fadeIn"
           aria-hidden="true"
-          onClick={closeAllPopups}
+          onClick={closeAllInternalPopups} // This closes the internal popup
         />
       )}
 
@@ -128,7 +141,8 @@ export default function SearchBar({
         onSubmit={handleSubmit}
         autoComplete="off"
         className={clsx(
-          'relative z-50 flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out',
+          // Ensure this form itself has a decent z-index to be above normal content
+          'relative z-45 flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out', // Adjusted to z-45
           compact ? 'text-sm' : 'text-base',
           showPopup ? 'shadow-xl' : 'shadow-md hover:shadow-lg'
         )}
@@ -170,19 +184,17 @@ export default function SearchBar({
         <Transition
           show={showPopup}
           as={Fragment}
-          // --- ADDED THIS LINE ---
           key={activeField} // Forces re-animation when the active field changes
-          // --- END ADDED ---
-          enter="transition ease-out duration-1000"
-          enterFrom="opacity-0 -translate-x-4"
-          enterTo="opacity-100 translate-x-0"
-          leave="transition ease-in duration-1000"
-          leaveFrom="opacity-100 translate-x-0"
-          leaveTo="opacity-0 -translate-x-4"
+          enter="transition ease-out duration-300"
+          enterFrom="opacity-0 -translate-y-2"
+          enterTo="opacity-100 translate-y-0"
+          leave="transition ease-in duration-200"
+          leaveFrom="opacity-100 translate-y-0"
+          leaveTo="opacity-0 -translate-y-2"
         >
           <div
             className={clsx(
-              "absolute top-full mt-2 rounded-xl bg-white p-4 shadow-xl ring-1 ring-black ring-opacity-5 z-50",
+              "absolute top-full mt-2 rounded-xl bg-white p-4 shadow-xl ring-1 ring-black ring-opacity-5 z-50", // z-50 to ensure it's on top of internal overlay
               "origin-top-left",
               "hover:shadow-2xl hover:ring-[var(--color-accent)]/30",
               popupPositionAndSizeClasses
@@ -191,7 +203,7 @@ export default function SearchBar({
             aria-modal="true"
             aria-labelledby={activeField ? `search-popup-label-${activeField}` : undefined}
           >
-            {showPopup && (
+            {showPopup && ( // This ensures DynamicSearchPopupContent is only mounted when needed
               <DynamicSearchPopupContent
                 activeField={activeField}
                 category={category}
@@ -200,7 +212,7 @@ export default function SearchBar({
                 setLocation={setLocation}
                 when={when}
                 setWhen={setWhen}
-                closeAllPopups={closeAllPopups}
+                closeAllPopups={closeAllInternalPopups} // Pass this component's close function
                 locationInputRef={locationInputRef}
                 categoryListboxOptionsRef={categoryListboxOptionsRef}
               />
@@ -209,6 +221,5 @@ export default function SearchBar({
         </Transition>
       </form>
     </>
-    
   );
 }
