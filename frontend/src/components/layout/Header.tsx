@@ -19,7 +19,7 @@ import { type Category } from '../search/SearchFields'; // Import Category type 
 
 
 // Define header states (must match MainLayout)
-type HeaderState = 'initial' | 'compacted' | 'expanded-from-compact';
+type HeaderState = 'initial' | 'compacted';
 
 type SearchParams = {
   category?: string;
@@ -66,10 +66,10 @@ function ArtistNav({ user, pathname }: { user: { id: number }; pathname: string 
 
 interface HeaderProps {
   extraBar?: ReactNode;
-  headerState: HeaderState; // New prop for header state
-  onForceHeaderState: (state: HeaderState) => void; // New callback for state control
+  headerState: HeaderState; // Current header state
+  onForceHeaderState: (state: HeaderState) => void; // Callback for state control
   showSearchBar?: boolean; // Controls visibility of built-in search bar
-  alwaysCompact?: boolean; // Keeps pill visible regardless of scroll
+  alwaysCompact?: boolean; // Keeps header compact regardless of scroll
 }
 
 export default function Header({
@@ -109,27 +109,13 @@ export default function Header({
     [router, onForceHeaderState, alwaysCompact]
   );
 
-  // This is crucial: Called by SearchBar when its *internal popups* are closed (e.g., clicking outside calendar)
-  const handleSearchBarCancel = useCallback(() => {
-    // Determine the state to revert to: compacted if scrolled, initial if at top
-    // This allows the full search bar to "collapse" back into the header's normal flow.
-    if (alwaysCompact) {
-      onForceHeaderState('compacted');
-    } else if (window.scrollY > 150) {
-      onForceHeaderState('compacted');
-    } else {
-      onForceHeaderState('initial');
-    }
-  }, [onForceHeaderState, alwaysCompact]);
-
   // Main header classes reacting to headerState
   const headerClasses = clsx(
-    "app-header sticky top-0 z-40 bg-white transition-all duration-300 ease-in-out",
+    'app-header sticky top-0 z-40 bg-white transition-all duration-300 ease-in-out',
     {
-      "compacted": headerState === 'compacted',
-      "expanded-from-compact": headerState === 'expanded-from-compact',
-      // 'initial' state has no additional class, relies on default styling
-    }
+      compacted: headerState === 'compacted',
+      // 'initial' state has no additional class
+    },
   );
 
   return (
@@ -144,9 +130,8 @@ export default function Header({
             </Link>
           </div>
 
-          {/* Center Section: Dynamically switches between Nav Links and Compact Pill */}
+          {/* Center Section: Navigation links */}
           <div className="hidden md:flex justify-center flex-grow relative">
-            {/* Nav Links (Visible initially, and when compact search expands) */}
             <div className="content-area-wrapper header-nav-links">
               <nav className="flex gap-6">
                 {user?.user_type === 'artist' && artistViewActive ? (
@@ -156,37 +141,6 @@ export default function Header({
                 )}
               </nav>
             </div>
-
-            {/* Compact Search Pill (Visible when scrolled/compacted) */}
-            {showSearchBar && (
-              <div className="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center">
-                <div
-                  id="compact-search-trigger" // Use this ID for JS listener in MainLayout
-                  onClick={(e) => {
-                      e.stopPropagation(); // VERY IMPORTANT: Stop click from bubbling to document and closing overlay prematurely
-                      onForceHeaderState('expanded-from-compact');
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md cursor-pointer flex items-center justify-between text-sm transition-all duration-200"
-                >
-                  <span className="text-gray-500">Category, Location, When</span>
-                  <svg
-                    className="h-5 w-5 text-gray-500"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth="2"
-                    stroke="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-                    />
-                  </svg>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Icons */}
@@ -237,8 +191,8 @@ export default function Header({
           </div>
         </div>
 
-        {/* Full Search Bar (Visible initially, and when expanded from compact) */}
-        {showSearchBar && !extraBar && (
+        {/* Full Search Bar */}
+        {showSearchBar && (
           <div className="content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto">
             <SearchBar
               category={category}
@@ -248,16 +202,13 @@ export default function Header({
               when={when}
               setWhen={setWhen}
               onSearch={handleSearch}
-              onCancel={handleSearchBarCancel} // Pass handler for closing from SearchBar's internal popups
-              compact={false} // This SearchBar is always the "full" one for visuals
+              compact={false}
             />
           </div>
         )}
 
-        {/* Extra content bar (if needed, its visibility logic might need to align with headerState) */}
-        {extraBar && (headerState === 'initial' || headerState === 'expanded-from-compact') && (
-          <div className="mt-3">{extraBar}</div>
-        )}
+        {/* Extra content bar */}
+        {extraBar && <div className="mt-3">{extraBar}</div>}
       </div>
 
       <MobileMenuDrawer
