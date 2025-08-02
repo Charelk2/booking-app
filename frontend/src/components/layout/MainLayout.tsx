@@ -1,12 +1,12 @@
 // src/components/layout/MainLayout.tsx
 'use client';
 
-import { ComponentProps, useState, useEffect, useCallback } from 'react';
+import { ComponentProps, useState, useEffect, useCallback, useRef } from 'react'; // Import useRef
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext'; // Assuming AuthContext is set up
-import Header from './Header';
-import MobileBottomNav from './MobileBottomNav'; // Assuming MobileBottomNav is set up
-import { HelpPrompt } from '../ui'; // Assuming HelpPrompt is set up
+import { useAuth } from '@/contexts/AuthContext';
+import Header, { HeaderState } from './Header'; // Import HeaderState
+import MobileBottomNav from './MobileBottomNav';
+import { HelpPrompt } from '../ui';
 import clsx from 'clsx';
 import { usePathname, useParams } from 'next/navigation';
 
@@ -19,8 +19,9 @@ const baseNavigation = [
   { name: 'Contact', href: '/contact' },
 ];
 
-// Define header states (shared type)
-type HeaderState = 'initial' | 'compacted' | 'expanded-from-compact';
+const SCROLL_THRESHOLD_DOWN = 60; // Scroll down past this to compact
+const SCROLL_THRESHOLD_UP = 50;    // Scroll up before this to expand (must be < SCROLL_THRESHOLD_DOWN)
+const TRANSITION_DURATION = 300; // Match Header's CSS transition duration in ms
 
 // --- FOOTER COMPONENT (Defined within MainLayout) ---
 const SocialIcon = ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -81,7 +82,6 @@ interface Props {
 export default function MainLayout({ children, headerAddon, fullWidthContent = false }: Props) {
   const { user } = useAuth();
   const pathname = usePathname();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const params = typeof useParams === 'function' ? (useParams() as { id?: string }) : {};
   const isArtistDetail = pathname.startsWith('/artists') && Boolean(params.id);
 
@@ -89,42 +89,142 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
   const [headerState, setHeaderState] = useState<HeaderState>(
     isArtistDetail ? 'compacted' : 'initial',
   );
+
+  // Refs for scroll logic
+  const prevScrollY = useRef(0);
+  const isAdjustingScroll = useRef(false);
+  const animationFrameId = useRef<number | null>(null);
+  const headerRef = useRef<HTMLElement>(null); // Ref to get header height
+  const prevHeaderHeight = useRef(0); // Store header height before state change
+
   // Boolean derived from headerState to control global overlay visibility
   const showSearchOverlay = headerState === 'expanded-from-compact';
 
-  const scrollThreshold = 150; // Distance to scroll before compacting header
 
   // Callback to force header state (e.g., when compact search is clicked or search is submitted)
-  const forceHeaderState = useCallback((state: HeaderState) => {
+  // This function is passed to the Header component.
+  const forceHeaderState = useCallback((state: HeaderState, scrollTarget?: number) => {
+    // Only update state if it's actually changing
+    if (headerState === state) return;
+
+    // Capture current header height before state change (for later scroll adjustment)
+    if (headerRef.current) {
+        prevHeaderHeight.current = headerRef.current.offsetHeight;
+    }
+
     setHeaderState(state);
-  }, []);
+
+    // If a specific scroll target is provided, initiate programmatic scroll
+    if (typeof scrollTarget === 'number') {
+        isAdjustingScroll.current = true;
+        window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+        // Reset flag after scroll is expected to complete
+        setTimeout(() => {
+            isAdjustingScroll.current = false;
+        }, TRANSITION_DURATION + 150);
+    }
+  }, [headerState]); // Depend on headerState to prevent stale closures
+
+  // Function to adjust scroll after header's height transition
+  const adjustScrollAfterHeaderChange = useCallback(() => {
+    // Do not adjust if we are already in a programmatic scroll (e.g., snapping)
+    if (isAdjustingScroll.current) {
+        return;
+    }
+
+    if (headerRef.current) {
+        const currentHeaderHeight = headerRef.current.offsetHeight;
+        const heightDifference = currentHeaderHeight - prevHeaderHeight.current;
+
+        // Only adjust scroll if there's a significant height change
+        // and we are not at the very top of the page (where scrollY is 0)
+        // and prevHeaderHeight is valid (not 0 from initial load)
+        if (heightDifference !== 0 && window.scrollY > 0 && prevHeaderHeight.current !== 0) {
+            isAdjustingScroll.current = true; // Set flag
+            window.scrollBy({
+                top: heightDifference,
+                behavior: 'smooth'
+            });
+            setTimeout(() => {
+                isAdjustingScroll.current = false; // Reset flag after scroll settles
+            }, TRANSITION_DURATION + 150);
+        }
+    }
+  }, []); // No dependencies needed as refs are mutable
+
+  // Main scroll handler for state changes and snapping
+  const handleScroll = useCallback(() => {
+    const currentScrollY = window.scrollY;
+    const scrollDirection = currentScrollY > prevScrollY.current ? 'down' : 'up';
+    prevScrollY.current = currentScrollY; // Update previous scroll position
+
+    // If header is manually expanded, or if programmatic scroll is active, do nothing
+    if (headerState === 'expanded-from-compact' || isAdjustingScroll.current) {
+      return;
+    }
+
+    // --- Core Logic: Hysteresis and Auto-Snapping ---
+    if (scrollDirection === 'down') {
+      if (currentScrollY > SCROLL_THRESHOLD_DOWN) {
+        setHeaderState('compacted');
+      } else if (currentScrollY >= SCROLL_THRESHOLD_UP && currentScrollY <= SCROLL_THRESHOLD_DOWN) {
+        // User is in the dead zone, scrolling down, and header is initial: snap to compacted
+        if (headerState === 'initial') {
+          isAdjustingScroll.current = true; // Block further scroll handling
+          setHeaderState('compacted'); // Immediately set the state visually
+          window.scrollTo({ top: SCROLL_THRESHOLD_DOWN + 1, behavior: 'smooth' }); // Programmatically scroll
+          setTimeout(() => {
+            isAdjustingScroll.current = false; // Allow scroll handling again
+          }, TRANSITION_DURATION + 150); // Wait for scroll to complete
+        }
+      }
+    } else { // scrollDirection === 'up'
+      if (currentScrollY < SCROLL_THRESHOLD_UP) {
+        setHeaderState('initial');
+      } else if (currentScrollY >= SCROLL_THRESHOLD_UP && currentScrollY <= SCROLL_THRESHOLD_DOWN) {
+        // User is in the dead zone, scrolling up, and header is compacted: snap to initial
+        if (headerState === 'compacted') {
+          isAdjustingScroll.current = true; // Block further scroll handling
+          setHeaderState('initial'); // Immediately set the state visually
+          window.scrollTo({ top: 0, behavior: 'smooth' }); // Programmatically scroll to top
+          setTimeout(() => {
+            isAdjustingScroll.current = false; // Allow scroll handling again
+          }, TRANSITION_DURATION + 150); // Wait for scroll to complete
+        }
+      }
+    }
+  }, [headerState]); // Depend on headerState to get its latest value
+
+  // Optimized scroll handler with requestAnimationFrame
+  const optimizedScrollHandler = useCallback(() => {
+    if (animationFrameId.current) {
+      cancelAnimationFrame(animationFrameId.current);
+    }
+    animationFrameId.current = requestAnimationFrame(handleScroll);
+  }, [handleScroll]); // Depend on handleScroll
 
   // Effect for scroll-based header state changes
   useEffect(() => {
-    if (isArtistDetail) return; // Keep pill visible on artist detail pages
+    if (isArtistDetail) {
+      // For artist detail pages, always keep compacted initially, and no scroll-based changes
+      setHeaderState('compacted');
+      return;
+    }
 
-    const handleScroll = () => {
-      // Only change state based on scroll if not currently in 'expanded-from-compact' state
-      if (headerState === 'expanded-from-compact') {
-        return;
-      }
+    // Attach scroll listener
+    window.addEventListener('scroll', optimizedScrollHandler);
 
-      const scrollY = window.scrollY;
-      if (scrollY > scrollThreshold) {
-        setHeaderState('compacted');
-      } else {
-        setHeaderState('initial');
-      }
-    };
+    // Initial state check on mount
+    handleScroll();
 
-    // Attach/detach scroll listener
-    handleScroll(); // Set initial state on mount
-    window.addEventListener('scroll', handleScroll);
     return () => {
-      window.removeEventListener('scroll', handleScroll);
+      // Detach scroll listener on unmount
+      window.removeEventListener('scroll', optimizedScrollHandler);
+      if (animationFrameId.current) {
+          cancelAnimationFrame(animationFrameId.current);
+      }
     };
-  }, [headerState, isArtistDetail]); // Re-run effect if headerState changes (to update scroll behavior)
-
+  }, [isArtistDetail, optimizedScrollHandler, handleScroll]); // Dependencies
 
   // Effect to manage body scroll based on showSearchOverlay
   useEffect(() => {
@@ -134,6 +234,24 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
       document.body.classList.remove('no-scroll');
     }
   }, [showSearchOverlay]);
+
+  // Effect to attach and detach transitionend listener to the header
+  useEffect(() => {
+    const headerElement = headerRef.current;
+    if (headerElement) {
+        // We listen for max-height transition end to trigger scroll adjustment
+        const transitionEndHandler = (event: TransitionEvent) => {
+            if (event.propertyName === 'max-height') {
+                adjustScrollAfterHeaderChange();
+            }
+        };
+        headerElement.addEventListener('transitionend', transitionEndHandler);
+        return () => {
+            headerElement.removeEventListener('transitionend', transitionEndHandler);
+        };
+    }
+  }, [adjustScrollAfterHeaderChange]);
+
 
   const contentWrapperClasses = fullWidthContent
     ? 'w-full'
@@ -150,20 +268,16 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
           id="expanded-search-overlay"
           className="fixed inset-0 bg-black bg-opacity-30 z-40 animate-fadeIn"
           onClick={() => {
-            // Revert to compacted or initial based on scroll when overlay is clicked
-            if (isArtistDetail) {
-              forceHeaderState('compacted');
-            } else if (window.scrollY > scrollThreshold) {
-              forceHeaderState('compacted');
-            } else {
-              forceHeaderState('initial');
-            }
+            // This click dismisses the overlay and sets header state.
+            // MainLayout's handleScroll logic will then re-evaluate the scroll position.
+            forceHeaderState(window.scrollY > SCROLL_THRESHOLD_DOWN ? 'compacted' : 'initial', window.scrollY > 0 ? undefined : 0);
           }}
         />
       )}
 
       <div className="flex-grow">
         <Header
+          ref={headerRef} // Pass ref to Header
           headerState={headerState}
           onForceHeaderState={forceHeaderState}
           extraBar={
