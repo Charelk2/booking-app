@@ -39,8 +39,9 @@ describe('SearchBarInline', () => {
     const searchBtn = container.querySelector('button[type="submit"]') as HTMLButtonElement;
     expect(searchBtn).not.toBeNull();
 
-    act(() => {
+    await act(async () => {
       searchBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
     });
     expect(onChange).toHaveBeenLastCalledWith(false);
 
@@ -92,7 +93,7 @@ describe('SearchBarInline', () => {
       await Promise.resolve();
     });
 
-    const locationDiv = container.querySelector('button > div:nth-child(2)') as HTMLDivElement;
+    const locationDiv = container.querySelector('button > div > div:nth-child(2)') as HTMLDivElement;
     expect(locationDiv.className).toMatch(/whitespace-nowrap/);
     expect(locationDiv.className).toMatch(/overflow-hidden/);
     expect(locationDiv.className).toMatch(/text-ellipsis/);
@@ -122,6 +123,26 @@ describe('SearchBarInline', () => {
     });
 
     expect(wrapper.className).toMatch(/max-w-4xl/);
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('shows placeholders when no values set', async () => {
+    const onSearch = jest.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<SearchBarInline onSearch={onSearch} />);
+      await Promise.resolve();
+    });
+
+    const trigger = container.querySelector('button') as HTMLButtonElement;
+    expect(trigger.textContent).toContain('Add artist');
+    expect(trigger.textContent).toContain('Add location');
+    expect(trigger.textContent).toContain('Add dates');
 
     act(() => root.unmount());
     container.remove();
