@@ -157,20 +157,33 @@ export default function Header({
               </nav>
             </div>
 
-            {/* Compact Search Bar (Visible when scrolled/compacted) */}
+            {/* Compact Search Pill (Visible when scrolled/compacted) */}
             {showSearchBar && (
-              <div className="compact-searchbar-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center">
-                <div id="compact-search-bar" className="flex-1">
-                  <SearchBar
-                    category={category}
-                    setCategory={setCategory}
-                    location={location}
-                    setLocation={setLocation}
-                    when={when}
-                    setWhen={setWhen}
-                    onSearch={handleSearch}
-                    compact
-                  />
+              <div className="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center">
+                <div
+                  id="compact-search-trigger" // Use this ID for JS listener in MainLayout
+                  onClick={(e) => {
+                      e.stopPropagation(); // VERY IMPORTANT: Stop click from bubbling to document and closing overlay prematurely
+                      onForceHeaderState('expanded-from-compact');
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md cursor-pointer flex items-center justify-between text-sm transition-all duration-200"
+                >
+                  <span className="text-gray-500">Category, Location, When</span>
+                  <svg
+                    className="h-5 w-5 text-gray-500"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth="2"
+                    stroke="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                    />
+                  </svg>
                 </div>
               </div>
             )}
