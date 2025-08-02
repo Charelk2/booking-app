@@ -38,7 +38,7 @@ See [../docs/design_guidelines.md](../docs/design_guidelines.md) for a summary o
 
 ### Search Interface
 
-The global search bar and its compact pill are rendered only on the home page and artist pages. Other routes omit these elements for a cleaner layout.
+The global search bar and its compact pill are rendered only on the home page and artist pages. Other routes omit these elements for a cleaner layout. The compact pill now mirrors the collapsed SearchBar, displaying any selected category, location, and dates when the full bar is hidden.
 
 ### Loading Indicators
 
