@@ -11,7 +11,7 @@ import { UI_CATEGORIES } from '@/lib/categoryMap';
 // CORRECTED IMPORT: Import ActivePopup from SearchBar, but Category and SearchFieldId from SearchFields
 // because SearchFields is where these types are originally defined and exported.
 import type { ActivePopup } from './SearchBar';
-import type { Category, SearchFieldId } from './SearchFields'; // <-- CORRECTED IMPORT
+import type { Category } from './SearchFields'; // <-- CORRECTED IMPORT
 
 // IMPORTANT: Ensure 'react-datepicker/dist/react-datepicker.css' is imported GLOBALLY.
 // (e.g., in your globals.css or _app.tsx / root layout.tsx)
@@ -25,15 +25,18 @@ import type { Category, SearchFieldId } from './SearchFields'; // <-- CORRECTED 
 
 interface SearchPopupContentProps {
   activeField: ActivePopup;
-  category: Category | null;
-  setCategory: (c: Category | null) => void;
+  category?: Category | null;
+  setCategory?: (c: Category | null) => void;
+  guests?: number | null;
+  setGuests?: (n: number | null) => void;
   location: string;
   setLocation: (l: string) => void;
   when: Date | null;
   setWhen: (d: Date | null) => void;
   closeAllPopups: () => void;
   locationInputRef: RefObject<HTMLInputElement>;
-  categoryListboxOptionsRef: RefObject<HTMLUListElement>;
+  categoryListboxOptionsRef?: RefObject<HTMLUListElement>;
+  guestsInputRef?: RefObject<HTMLInputElement>;
 }
 
 type CustomHeaderProps = {
@@ -66,6 +69,8 @@ export default function SearchPopupContent({
   activeField,
   category,
   setCategory,
+  guests,
+  setGuests,
   location,
   setLocation,
   when,
@@ -73,6 +78,7 @@ export default function SearchPopupContent({
   closeAllPopups,
   locationInputRef,
   categoryListboxOptionsRef,
+  guestsInputRef,
 }: SearchPopupContentProps) {
   const [isClient, setIsClient] = useState(false);
 
@@ -82,16 +88,18 @@ export default function SearchPopupContent({
     const timer = setTimeout(() => {
       if (activeField === 'location' && locationInputRef.current) {
         locationInputRef.current.focus();
-      } else if (activeField === 'category' && categoryListboxOptionsRef.current) {
+      } else if (activeField === 'category' && categoryListboxOptionsRef?.current) {
         const target =
           categoryListboxOptionsRef.current.querySelector('[aria-selected="true"]') ??
           categoryListboxOptionsRef.current.querySelector('[role="option"]');
         (target as HTMLElement | null)?.focus();
+      } else if (activeField === 'guests' && guestsInputRef?.current) {
+        guestsInputRef.current.focus();
       }
     }, 50);
 
     return () => clearTimeout(timer);
-  }, [activeField, locationInputRef, categoryListboxOptionsRef]); // Ref dependencies added
+  }, [activeField, locationInputRef, categoryListboxOptionsRef, guestsInputRef]);
 
   const handleLocationSelect = useCallback((place: PlaceResult) => {
     if (place.name) {
@@ -102,15 +110,29 @@ export default function SearchPopupContent({
     closeAllPopups();
   }, [setLocation, closeAllPopups]);
 
-  const handleCategorySelect = useCallback((c: Category | null) => {
-    setCategory(c);
-    closeAllPopups();
-  }, [setCategory, closeAllPopups]);
+  const handleCategorySelect = useCallback(
+    (c: Category | null) => {
+      setCategory?.(c);
+      closeAllPopups();
+    },
+    [setCategory, closeAllPopups]
+  );
 
-  const handleDateSelect = useCallback((date: Date | null) => {
-    setWhen(date);
-    closeAllPopups();
-  }, [setWhen, closeAllPopups]);
+  const handleDateSelect = useCallback(
+    (date: Date | null) => {
+      setWhen(date);
+      closeAllPopups();
+    },
+    [setWhen, closeAllPopups]
+  );
+
+  const handleGuestsChange = useCallback(
+    (value: string) => {
+      const parsed = value ? parseInt(value, 10) : null;
+      setGuests?.(parsed);
+    },
+    [setGuests]
+  );
 
   // Ensure 'item' is typed by MOCK_LOCATION_SUGGESTIONS's structure
   const filteredSuggestions = MOCK_LOCATION_SUGGESTIONS.filter((item) =>
@@ -245,7 +267,7 @@ export default function SearchPopupContent({
   const renderDefault = () => (
     <div className="text-center text-gray-500 py-8">
       <h3 className="text-lg font-semibold mb-2" id="search-popup-label-default">Find artists for your event!</h3>
-      <p className="text-sm">Click 'Where', 'When', or 'Category' to start.</p>
+      <p className="text-sm">Click 'Where', 'When', or {category !== undefined ? "'Category'" : "'Guests'"} to start.</p>
       <div className="mt-6">
         <h4 className="text-md font-semibold text-gray-700 mb-3">Popular Artist Locations</h4>
         <ul className="grid grid-cols-2 gap-4">
@@ -268,6 +290,21 @@ export default function SearchPopupContent({
     </div>
   );
 
+  const renderGuests = () => (
+    <div>
+      <h3 className="text-sm font-semibold text-gray-800 mb-2" id="search-popup-label-guests">Guests</h3>
+      <input
+        ref={guestsInputRef}
+        type="number"
+        min={1}
+        value={guests != null ? guests : ''}
+        onChange={(e) => handleGuestsChange(e.target.value)}
+        onBlur={closeAllPopups}
+        className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none"
+      />
+    </div>
+  );
+
   switch (activeField) {
     case 'location':
       return renderLocation();
@@ -275,6 +312,8 @@ export default function SearchPopupContent({
       return renderDate();
     case 'category':
       return renderCategory();
+    case 'guests':
+      return renderGuests();
     default:
       return renderDefault();
   }
