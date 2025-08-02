@@ -126,4 +126,31 @@ describe('SearchBarInline', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('displays initial parameters in collapsed pill', async () => {
+    const onSearch = jest.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <SearchBarInline
+          onSearch={onSearch}
+          initialCategory="dj"
+          initialLocation="Cape Town"
+          initialWhen={new Date('2025-05-01')}
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    const trigger = container.querySelector('button') as HTMLButtonElement;
+    expect(trigger.textContent).toContain('DJ');
+    expect(trigger.textContent).toContain('Cape Town');
+    expect(trigger.textContent).toMatch(/May\s+1,\s+2025/);
+
+    act(() => root.unmount());
+    container.remove();
+  });
 });
