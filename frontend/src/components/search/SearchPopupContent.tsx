@@ -6,15 +6,11 @@ import ReactDatePicker from 'react-datepicker';
 import { Listbox } from '@headlessui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
-import LocationInput, { PlaceResult } from '../ui/LocationInput'; // Import LocationInput and its PlaceResult type
+import LocationInput, { PlaceResult } from '../ui/LocationInput';
 import { UI_CATEGORIES } from '@/lib/categoryMap';
 
-// Import types from SearchBar and SearchFields
 import type { ActivePopup } from './SearchBar';
 import type { Category, SearchFieldId } from './SearchFields';
-
-// If you removed datepicker.css globally, uncomment here, but GLOBAL is preferred
-// import 'react-datepicker/dist/react-datepicker.css';
 
 interface SearchPopupContentProps {
   activeField: ActivePopup;
@@ -24,7 +20,7 @@ interface SearchPopupContentProps {
   setLocation: (l: string) => void;
   when: Date | null;
   setWhen: (d: Date | null) => void;
-  closeAllPopups: () => void;
+  closeAllPopups: () => void; // Function to close these internal popups
   locationInputRef: RefObject<HTMLInputElement>;
   categoryListboxOptionsRef: RefObject<HTMLUListElement>;
 }
@@ -37,7 +33,7 @@ type CustomHeaderProps = {
   nextMonthButtonDisabled: boolean;
 };
 
-// MOCK data for location suggestions (replace with real data/logic if LocationInput doesn't handle visuals)
+// MOCK data for location suggestions (ensure images exist or remove image paths)
 const MOCK_LOCATION_SUGGESTIONS = [
   { name: 'Nearby', description: 'Find what\'s around you', image: '/images/location-nearby.png' },
   { name: 'Stellenbosch', description: 'Western Cape', image: '/images/location-stellenbosch.png' },
@@ -57,7 +53,7 @@ export default function SearchPopupContent({
   setLocation,
   when,
   setWhen,
-  closeAllPopups,
+  closeAllPopups, // This now calls closeThisSearchBarsInternalPopups
   locationInputRef,
   categoryListboxOptionsRef,
 }: SearchPopupContentProps) {
@@ -67,7 +63,6 @@ export default function SearchPopupContent({
     setIsClient(true);
 
     const timer = setTimeout(() => {
-      // Focus relevant input/element when popup opens
       if (activeField === 'location' && locationInputRef.current) {
         locationInputRef.current.focus();
       } else if (activeField === 'category' && categoryListboxOptionsRef.current) {
@@ -82,7 +77,6 @@ export default function SearchPopupContent({
   }, [activeField, locationInputRef, categoryListboxOptionsRef]);
 
   const handleLocationSelect = useCallback((place: PlaceResult) => {
-    // Determine the best display name for the selected place
     const displayName = place.formatted_address || place.name || '';
     setLocation(displayName);
     closeAllPopups(); // Close popup after selection
@@ -116,29 +110,29 @@ export default function SearchPopupContent({
         inputClassName="w-full text-base border border-gray-300 rounded-lg p-3 mb-4 focus:outline-none transition-all"
       />
       {/* Display mock suggestions if LocationInput doesn't handle its own visual suggestions */}
-      {location.length === 0 && ( /* Only show mock suggestions if input is empty */
-          <ul className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-hidden scrollbar-thin">
-            {MOCK_LOCATION_SUGGESTIONS.map((s) => (
-              <li
-                key={s.name}
-                role="option"
-                aria-label={`${s.name}${s.description ? `, ${s.description}` : ''}`}
-                onClick={() => handleLocationSelect({ name: s.name, formatted_address: s.description || '' })}
-                className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
-                tabIndex={0}
-              >
-                {s.image && <img src={s.image} alt="" className="h-10 w-10 rounded-lg object-cover flex-shrink-0" />}
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{s.name}</p>
-                  <p className="text-xs text-gray-500">{s.description}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-      )}
-      {location.length > 0 && filteredSuggestions.length === 0 && (
-        <li className="col-span-2 text-sm text-gray-500 px-4 py-2">No suggestions found.</li>
-      )}
+      {/* Remove `location.length === 0` if you want mock suggestions always */}
+      {/* Check if images exist in public/images or remove image paths from MOCK_LOCATION_SUGGESTIONS */}
+      <ul className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-hidden scrollbar-thin">
+        {MOCK_LOCATION_SUGGESTIONS.map((s) => (
+          <li
+            key={s.name}
+            role="option"
+            aria-label={`${s.name}${s.description ? `, ${s.description}` : ''}`}
+            onClick={() => handleLocationSelect({ name: s.name, formatted_address: s.description || '' })}
+            className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
+            tabIndex={0}
+          >
+            {s.image && <img src={s.image} alt="" className="h-10 w-10 rounded-lg object-cover flex-shrink-0" />}
+            <div>
+              <p className="text-sm font-medium text-gray-800">{s.name}</p>
+              <p className="text-xs text-gray-500">{s.description}</p>
+            </div>
+          </li>
+        ))}
+        {location.length > 0 && filteredSuggestions.length === 0 && (
+          <li className="col-span-2 text-sm text-gray-500 px-4 py-2">No suggestions found.</li>
+        )}
+      </ul>
     </div>
   );
 
@@ -152,21 +146,21 @@ export default function SearchPopupContent({
     }
 
     return (
-      <div className="flex justify-center w-full"> {/* Added w-full here for datepicker's 100% width */}
+      <div className="flex justify-center w-full">
         <h3 className="text-sm font-semibold text-gray-800 sr-only" id="search-popup-label-when">Select date</h3>
         <ReactDatePicker
           selected={when}
           onChange={handleDateSelect}
           dateFormat="MMM d, yyyy"
           inline
-          calendarClassName="react-datepicker-custom-calendar" // This targets your existing CSS
+          calendarClassName="react-datepicker-custom-calendar"
           renderCustomHeader={(props: CustomHeaderProps) => (
             <div className="flex justify-between items-center px-3 pt-2 pb-2">
               <button
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
-                  e.stopPropagation(); // Prevent click from bubbling and closing popup
+                  e.stopPropagation(); // Prevents click from bubbling and closing the main header's overlay
                   props.decreaseMonth();
                 }}
                 disabled={props.prevMonthButtonDisabled}
@@ -182,7 +176,7 @@ export default function SearchPopupContent({
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
-                  e.stopPropagation(); // Prevent click from bubbling and closing popup
+                  e.stopPropagation(); // Prevents click from bubbling and closing the main header's overlay
                   props.increaseMonth();
                 }}
                 disabled={props.nextMonthButtonDisabled}
