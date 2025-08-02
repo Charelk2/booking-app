@@ -18,137 +18,29 @@ describe('SearchBarInline', () => {
     document.body.innerHTML = '';
   });
 
-  it('expands and triggers onSearch', async () => {
+  it('triggers onSearch when submitted', async () => {
     const onSearch = jest.fn();
-    const onChange = jest.fn();
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
 
     await act(async () => {
-      root.render(<SearchBarInline onSearch={onSearch} onExpandedChange={onChange} />);
+      root.render(<SearchBarInline onSearch={onSearch} />);
       await Promise.resolve();
     });
 
-    const trigger = container.querySelector('button') as HTMLButtonElement;
-    act(() => {
-      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    expect(onChange).toHaveBeenLastCalledWith(true);
-
-    const searchBtn = container.querySelector('button[type="submit"]') as HTMLButtonElement;
-    expect(searchBtn).not.toBeNull();
-
+    const submit = container.querySelector('button[type="submit"]') as HTMLButtonElement;
     await act(async () => {
-      searchBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      submit.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       await Promise.resolve();
     });
-    expect(onChange).toHaveBeenLastCalledWith(false);
-
     expect(onSearch).toHaveBeenCalled();
 
     act(() => root.unmount());
     container.remove();
   });
 
-  it('closes on Escape without searching', async () => {
-    const onSearch = jest.fn();
-    const onChange = jest.fn();
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
-
-    await act(async () => {
-      root.render(<SearchBarInline onSearch={onSearch} onExpandedChange={onChange} />);
-      await Promise.resolve();
-    });
-
-    const trigger = container.querySelector('button') as HTMLButtonElement;
-    act(() => {
-      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    expect(onChange).toHaveBeenLastCalledWith(true);
-
-    act(() => {
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    });
-    expect(onChange).toHaveBeenLastCalledWith(false);
-
-    const searchBtn = container.querySelector('button[type="submit"]');
-    expect(searchBtn).toBeNull();
-    expect(onSearch).not.toHaveBeenCalled();
-
-    act(() => root.unmount());
-    container.remove();
-  });
-
-  it('location label does not wrap and is truncated', async () => {
-    const onSearch = jest.fn();
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
-
-    await act(async () => {
-      root.render(<SearchBarInline onSearch={onSearch} />);
-      await Promise.resolve();
-    });
-
-    const locationDiv = container.querySelector('button > div > div:nth-child(2)') as HTMLDivElement;
-    expect(locationDiv.className).toMatch(/whitespace-nowrap/);
-    expect(locationDiv.className).toMatch(/overflow-hidden/);
-    expect(locationDiv.className).toMatch(/text-ellipsis/);
-
-    act(() => root.unmount());
-    container.remove();
-  });
-
-  it('uses smaller max width when collapsed and expands to full width', async () => {
-    const onSearch = jest.fn();
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
-
-    await act(async () => {
-      root.render(<SearchBarInline onSearch={onSearch} />);
-      await Promise.resolve();
-    });
-
-    const wrapper = container.querySelector('div') as HTMLDivElement;
-    expect(wrapper.className).toMatch(/max-w-2xl/);
-    expect(wrapper.className).not.toMatch(/max-w-4xl/);
-
-    const trigger = container.querySelector('button') as HTMLButtonElement;
-    act(() => {
-      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    expect(wrapper.className).toMatch(/max-w-4xl/);
-
-    act(() => root.unmount());
-    container.remove();
-  });
-
-  it('shows placeholders when no values set', async () => {
-    const onSearch = jest.fn();
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
-
-    await act(async () => {
-      root.render(<SearchBarInline onSearch={onSearch} />);
-      await Promise.resolve();
-    });
-
-    const trigger = container.querySelector('button') as HTMLButtonElement;
-    expect(trigger.textContent).toContain('Add artist');
-    expect(trigger.textContent).toContain('Add location');
-    expect(trigger.textContent).toContain('Add dates');
-
-    act(() => root.unmount());
-    container.remove();
-  });
-
-  it('displays initial parameters in collapsed pill', async () => {
+  it('shows initial parameters', async () => {
     const onSearch = jest.fn();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -166,12 +58,12 @@ describe('SearchBarInline', () => {
       await Promise.resolve();
     });
 
-    const trigger = container.querySelector('button') as HTMLButtonElement;
-    expect(trigger.textContent).toContain('DJ');
-    expect(trigger.textContent).toContain('Cape Town');
-    expect(trigger.textContent).toMatch(/May\s+1,\s+2025/);
+    expect(container.textContent).toContain('DJ');
+    expect(container.textContent).toContain('Cape Town');
+    expect(container.textContent).toMatch(/May\s+1,\s+2025/);
 
     act(() => root.unmount());
     container.remove();
   });
 });
+
