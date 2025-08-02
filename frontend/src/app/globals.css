@@ -1,6 +1,11 @@
+
+@import 'react-datepicker/dist/react-datepicker.css'; /* MUST be first */
+@import '../styles/datepicker.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
 
 :root {
   --font-sans: var(--font-inter);

@@ -1,10 +1,15 @@
 'use client';
 
-import { useRef, useState, KeyboardEvent, FormEvent } from 'react';
+import { useRef, useState, KeyboardEvent, FormEvent, useCallback, Fragment } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
-import { SearchFields, type Category } from './SearchFields';
+import { SearchFields, type Category, type SearchFieldId } from './SearchFields';
 import useClickOutside from '@/hooks/useClickOutside';
+import { Transition } from '@headlessui/react';
+import dynamic from 'next/dynamic';
+
+
+export type ActivePopup = SearchFieldId | null;
 
 export interface SearchBarProps {
   category: Category | null;
@@ -17,6 +22,11 @@ export interface SearchBarProps {
   onCancel?: () => void;
   compact?: boolean;
 }
+
+const DynamicSearchPopupContent = dynamic(() => import('./SearchPopupContent'), {
+  ssr: false,
+  loading: () => <div className="p-4 text-center text-gray-500">Loading search options...</div>,
+});
 
 export default function SearchBar({
   category,
@@ -31,21 +41,46 @@ export default function SearchBar({
 }: SearchBarProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [isSubmitting, setSubmitting] = useState(false);
+  const [activeField, setActiveField] = useState<ActivePopup>(null);
+  const [showPopup, setShowPopup] = useState(false);
 
-  useClickOutside(formRef, () => {
-    if (onCancel) onCancel();
-  });
+  const lastActiveButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const locationInputRef = useRef<HTMLInputElement>(null);
+  const categoryListboxOptionsRef = useRef<HTMLUListElement>(null);
+
+
+  const handleFieldClick = useCallback((fieldId: SearchFieldId, buttonElement: HTMLButtonElement) => {
+    setActiveField(fieldId);
+    setShowPopup(true);
+    lastActiveButtonRef.current = buttonElement;
+  }, []);
+
+  const closeAllPopups = useCallback(() => {
+    setShowPopup(false);
+    setTimeout(() => {
+        setActiveField(null);
+        if (onCancel) onCancel();
+        if (lastActiveButtonRef.current) {
+            (lastActiveButtonRef.current as HTMLElement).focus();
+            lastActiveButtonRef.current = null;
+        }
+    }, 200);
+  }, [onCancel]);
+
+  useClickOutside(formRef, closeAllPopups);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
-    if (e.key === 'Escape' && onCancel) {
+    if (e.key === 'Escape') {
       e.preventDefault();
-      onCancel();
+      closeAllPopups();
     }
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
+    closeAllPopups();
 
     try {
       await onSearch({
@@ -55,42 +90,125 @@ export default function SearchBar({
       });
     } finally {
       setSubmitting(false);
+      (formRef.current?.querySelector('button[type="submit"]') as HTMLButtonElement)?.focus();
     }
   };
 
+  const popupPositionAndSizeClasses = clsx(
+    {
+      'min-w-[300px]': true,
+    },
+    {
+      'left-0 right-auto': activeField === 'location',
+      'w-[calc(100%+2rem)] md:w-[480px] md:min-w-[400px] max-h-[1000px] ': activeField === 'location',
+    },
+    {
+      'left-1/2 -translate-x-1/2 right-auto': activeField === 'when',
+      'w-fit min-w-[400px] max-w-[600px] max-h-fit': activeField === 'when',
+    },
+    {
+      'right-1 left-auto': activeField === 'category',
+      'w-[350px] max-h-[300px] overflow-hidden': activeField === 'category',
+    }
+  );
+
   return (
-    <form
-      ref={formRef}
-      onKeyDown={handleKeyDown}
-      onSubmit={handleSubmit}
-      autoComplete="off"
-      className={clsx(
-        'flex items-stretch bg-white rounded-full shadow-lg transition-all duration-200',
-        compact ? 'text-sm' : 'text-base'
+    <>
+      {showPopup && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-30 z-40 cursor-pointer animate-fadeIn"
+          aria-hidden="true"
+          onClick={closeAllPopups}
+        />
       )}
-      role="search"
-      aria-label="Booking search"
-    >
-      <SearchFields
-        category={category}
-        setCategory={setCategory}
-        location={location}
-        setLocation={setLocation}
-        when={when}
-        setWhen={setWhen}
-      />
-      <button
-        type="submit"
+
+      <form
+        ref={formRef}
+        onKeyDown={handleKeyDown}
+        onSubmit={handleSubmit}
+        autoComplete="off"
         className={clsx(
-          'bg-[var(--color-accent)] hover:bg-[var(--color-accent)]/90 px-5 py-3 flex items-center justify-center text-white rounded-r-full transition-colors duration-200',
-          isSubmitting && 'opacity-70 cursor-not-allowed'
+          'relative z-50 flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out',
+          compact ? 'text-sm' : 'text-base',
+          showPopup ? 'shadow-xl' : 'shadow-md hover:shadow-lg'
         )}
-        aria-label="Search now"
-        disabled={isSubmitting}
+        role="search"
+        aria-label="Artist booking search"
       >
-        <MagnifyingGlassIcon className="h-5 w-5" />
-        <span className="sr-only">Search</span>
-      </button>
-    </form>
+        <SearchFields
+          category={category}
+          setCategory={setCategory}
+          location={location}
+          setLocation={setLocation}
+          when={when}
+          setWhen={setWhen}
+          activeField={activeField}
+          onFieldClick={handleFieldClick}
+          compact={compact}
+        />
+        <button
+          type="submit"
+          className={clsx(
+            'bg-[var(--color-accent)] hover:bg-[var(--color-accent)]/90 px-5 py-3 flex items-center justify-center text-white rounded-r-full transition-all duration-200 ease-out',
+            isSubmitting && 'opacity-70 cursor-not-allowed',
+            !isSubmitting && 'active:scale-95'
+          )}
+          aria-label="Search now"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            <MagnifyingGlassIcon className="h-5 w-5" />
+          )}
+          <span className="sr-only">Search</span>
+        </button>
+
+        <Transition
+          show={showPopup}
+          as={Fragment}
+          // --- ADDED THIS LINE ---
+          key={activeField} // Forces re-animation when the active field changes
+          // --- END ADDED ---
+          enter="transition ease-out duration-1000"
+          enterFrom="opacity-0 -translate-x-4"
+          enterTo="opacity-100 translate-x-0"
+          leave="transition ease-in duration-1000"
+          leaveFrom="opacity-100 translate-x-0"
+          leaveTo="opacity-0 -translate-x-4"
+        >
+          <div
+            className={clsx(
+              "absolute top-full mt-2 rounded-xl bg-white p-4 shadow-xl ring-1 ring-black ring-opacity-5 z-50",
+              "origin-top-left",
+              "hover:shadow-2xl hover:ring-[var(--color-accent)]/30",
+              popupPositionAndSizeClasses
+            )}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={activeField ? `search-popup-label-${activeField}` : undefined}
+          >
+            {showPopup && (
+              <DynamicSearchPopupContent
+                activeField={activeField}
+                category={category}
+                setCategory={setCategory}
+                location={location}
+                setLocation={setLocation}
+                when={when}
+                setWhen={setWhen}
+                closeAllPopups={closeAllPopups}
+                locationInputRef={locationInputRef}
+                categoryListboxOptionsRef={categoryListboxOptionsRef}
+              />
+            )}
+          </div>
+        </Transition>
+      </form>
+    </>
+    
   );
 }

@@ -14,11 +14,8 @@ interface Props {
   initialLocation?: string;
   initialWhen?: Date | null;
   onSearch: (p: { category?: string; location?: string; when?: Date | null }) => void;
-  /**
-   * Fired whenever the bar expands or collapses.
-   * Use to hide surrounding UI like filter buttons.
-   */
   onExpandedChange?: (expanded: boolean) => void;
+  isOpen?: boolean;
 }
 
 export default function SearchBarInline({
@@ -27,8 +24,8 @@ export default function SearchBarInline({
   initialWhen,
   onSearch,
   onExpandedChange,
+  isOpen,
 }: Props) {
-  // pick a default category object or null for placeholder
   const initialCat = initialCategory
     ? UI_CATEGORIES.find((c) => c.value === initialCategory) ?? null
     : null;
@@ -37,6 +34,7 @@ export default function SearchBarInline({
   const [location, setLocation] = useState(initialLocation ?? '');
   const [when, setWhen] = useState<Date | null>(initialWhen ?? null);
   const [expanded, setExpanded] = useState(false);
+
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const collapse = useCallback(() => {
@@ -49,10 +47,8 @@ export default function SearchBarInline({
     onExpandedChange?.(true);
   };
 
-  // close when clicking outside
   useClickOutside(wrapperRef, collapse);
 
-  // close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -64,21 +60,25 @@ export default function SearchBarInline({
     return () => document.removeEventListener('keydown', handler);
   }, [collapse]);
 
-  // run search and collapse
-  const handleSearch = (params: { category?: string; location?: string; when?: Date | null }) => {
-    onSearch(params);
-    collapse();
-  };
+  const handleSearch = useCallback(
+    (params: { category?: string; location?: string; when?: Date | null }) => {
+      onSearch(params);
+      collapse();
+    },
+    [onSearch, collapse]
+  );
+
+  const isExpanded = expanded || isOpen;
 
   return (
     <div
       ref={wrapperRef}
       className={clsx(
-        'relative w-full mx-auto px-4 transition-all duration-300 ease-out',
-        expanded ? 'max-w-4xl pb-2' : 'max-w-2xl'
+        'relative w-full mx-auto transition-all duration-300 ease-out',
+        isExpanded ? 'max-w-4xl pb-2' : 'max-w-2xl'
       )}
     >
-      {expanded ? (
+      {isExpanded ? (
         <SearchBar
           category={category}
           setCategory={setCategory}
@@ -88,23 +88,24 @@ export default function SearchBarInline({
           setWhen={setWhen}
           onSearch={handleSearch}
           onCancel={collapse}
+          compact={true} // This ensures it matches homepage layout
         />
       ) : (
         <button
           type="button"
           onClick={expand}
-          className="flex items-center bg-white border border-gray-200 rounded-full shadow-sm divide-x divide-gray-200 overflow-hidden w-full transition-all duration-300 ease-out"
+          className="flex items-center bg-white px-4 py-2 shadow-md rounded-full w-full transition-all duration-300 ease-out"
         >
-          <div className="flex-1 px-4 py-2 text-sm text-gray-700">
+          <div className="px-4 py-1 text-sm text-gray-700 flex-grow">
             {category ? category.label : 'Choose category'}
           </div>
-          <div className="flex-1 px-4 py-2 text-sm text-gray-700 whitespace-nowrap overflow-hidden text-ellipsis">
+          <div className="px-4 py-1 text-sm text-gray-700 whitespace-nowrap overflow-hidden text-ellipsis flex-grow">
             {location || 'Anywhere'}
           </div>
-          <div className="flex-1 px-4 py-2 text-sm text-gray-700">
+          <div className="px-4 py-1 text-sm text-gray-700 flex-grow">
             {when ? format(when, 'd\u00A0MMM\u00A0yyyy') : 'Add\u00A0date'}
           </div>
-          <div className="p-2 bg-[var(--color-accent)] text-white rounded-r-full">
+          <div className="p-1 bg-[var(--color-accent)] text-white rounded-full">
             <MagnifyingGlassIcon className="h-5 w-5" />
           </div>
         </button>
