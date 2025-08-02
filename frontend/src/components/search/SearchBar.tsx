@@ -91,7 +91,11 @@ export default function SearchBar({
     }, 200);
   }, []);
 
-  const clickOutsideRefs = useMemo(() => [formRef, popupContainerRef], []);
+  // Cast refs to a generic HTMLElement array so useClickOutside accepts them
+  const clickOutsideRefs = useMemo(
+    () => [formRef, popupContainerRef] as React.RefObject<HTMLElement | null>[],
+    [],
+  );
 
   useClickOutside(clickOutsideRefs, () => {
     if (showInternalPopup) {
