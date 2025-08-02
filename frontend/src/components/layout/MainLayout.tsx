@@ -1,13 +1,13 @@
 // components/layout/MainLayout.tsx
 'use client';
 
-import { ComponentProps } from 'react';
+import { ComponentProps, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-
 import Header from './Header';
 import MobileBottomNav from './MobileBottomNav';
 import { HelpPrompt } from '../ui';
+import clsx from 'clsx';
 
 // --- CONSTANTS ---
 const baseNavigation = [
@@ -16,7 +16,6 @@ const baseNavigation = [
   { name: 'FAQ', href: '/faq' },
   { name: 'Contact', href: '/contact' },
 ];
-
 
 // --- FOOTER COMPONENT (Defined within MainLayout) ---
 const SocialIcon = ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -79,14 +78,48 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
   const { user } = useAuth();
   const pathname = usePathname();
 
+  const [showHeaderCompact, setShowHeaderCompact] = useState(false);
+
+  const handleForceHeaderExpand = useCallback(() => {
+    // When inline search is activated, force the header to be non-compact
+    setShowHeaderCompact(false);
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      const scrollThreshold = 100; // This is the point where header should go compact
+
+      // Only change to compact if scrolled past threshold AND it's not currently forced open
+      // The `!showHeaderCompact` in condition prevents flickering if it was already manually expanded.
+      if (scrollY > scrollThreshold && !showHeaderCompact) {
+        setShowHeaderCompact(true);
+      }
+      // Expand if scrolled back above threshold AND it's currently compact
+      // This also covers the case where it was forced expanded and then scrolled to top.
+      else if (scrollY <= scrollThreshold && showHeaderCompact) {
+        setShowHeaderCompact(false);
+      }
+    };
+
+    handleScroll(); // Run once on mount to set initial state
+    window.addEventListener('scroll', handleScroll);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [showHeaderCompact]); // Dependency ensures effect re-runs if showHeaderCompact changes internally
+
   const contentWrapperClasses = fullWidthContent
-    ? 'w-full' // REVERTED: Now truly w-full without internal padding
-    : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'; // Original classes for padded content
+    ? 'w-full'
+    : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8';
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 bg-gradient-to-b from-brand-light/50 to-gray-50">
       <div className="flex-grow">
         <Header
+          isCompact={showHeaderCompact}
+          onForceHeaderExpand={handleForceHeaderExpand} // Pass the new function
           extraBar={
             pathname.startsWith('/artists') ? (
               <div className="mx-auto w-full px-4">{headerAddon}</div>
@@ -95,15 +128,20 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
         />
 
         {/* CONTENT */}
-        <main className="py-6 pb-24">
-          {/* Apply conditional classes here */}
+        {/* We need to ensure content below pushes down when header expands */}
+        {/* The padding-top or margin-top of the main content should dynamically
+            match the header's height to prevent content jump. */}
+        <main className={clsx("py-6 pb-24", {
+          // You might need to adjust this padding value based on your actual header heights
+          // For example, if your compact header is h-16 and full is h-24 + pb-5 + pt-2
+          // You'd calculate the difference and apply as dynamic top padding/margin.
+          // For now, let's assume default flow handles it with sticky.
+        })}>
           <div className={contentWrapperClasses}>{children}</div>
-          {/* HelpPrompt always stays within the standard layout */}
           <HelpPrompt className="mx-auto mt-10 max-w-7xl sm:px-6 lg:px-8" />
         </main>
       </div>
 
-      {/* RENDER THE FOOTER HERE */}
       <Footer />
 
       {user && <MobileBottomNav user={user} />}

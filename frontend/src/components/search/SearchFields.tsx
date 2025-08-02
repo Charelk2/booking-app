@@ -1,15 +1,11 @@
 'use client';
 
-import { forwardRef, Fragment } from 'react';
-import ReactDatePicker from 'react-datepicker';
-import { Listbox, Transition } from '@headlessui/react';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { forwardRef, useRef } from 'react';
 import clsx from 'clsx';
-import LocationInput from '../ui/LocationInput';
-import { UI_CATEGORIES } from '@/lib/categoryMap';
-import '../../styles/datepicker.css';
 
-export type Category = (typeof UI_CATEGORIES)[number];
+// Import types directly from SearchBar to ensure consistency
+import type { ActivePopup } from './SearchBar';
+
 
 export interface SearchFieldsProps {
   category: Category | null;
@@ -18,129 +14,130 @@ export interface SearchFieldsProps {
   setLocation: (l: string) => void;
   when: Date | null;
   setWhen: (d: Date | null) => void;
+  activeField: ActivePopup;
+  onFieldClick: (fieldId: SearchFieldId, buttonElement: HTMLButtonElement) => void;
+  compact?: boolean;
 }
 
-type CustomHeaderProps = {
-  date: Date;
-  decreaseMonth: () => void;
-  increaseMonth: () => void;
-  prevMonthButtonDisabled: boolean;
-  nextMonthButtonDisabled: boolean;
-};
-
 export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
-  ({ category, setCategory, location, setLocation, when, setWhen }, ref) => {
-    return (
-      <>
-        {/* Category */}
-        <div ref={ref} className="flex-1 px-4 py-3 flex flex-col text-left">
-          <label htmlFor="category" className="text-xs text-gray-500 mb-1">Category</label>
-          <Listbox value={category} onChange={setCategory}>
-            <div className="relative w-full">
-              <Listbox.Button
-                id="category"
-                className="w-full text-sm bg-transparent flex items-center border-none outline-none"
-              >
-                <span className={clsx(
-                  'w-full text-left truncate',
-                  category ? 'text-gray-700' : 'text-gray-400 italic'
-                )}>
-                  {category ? category.label : 'Choose category'}
-                </span>
-              </Listbox.Button>
-              <Transition
-                as={Fragment}
-                leave="transition ease-in duration-100"
-                leaveFrom="opacity-100"
-                leaveTo="opacity-0"
-              >
-                <Listbox.Options className="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5">
-                  {UI_CATEGORIES.map((c) => (
-                    <Listbox.Option
-                      key={c.value}
-                      value={c}
-                      className={({ active }) =>
-                        clsx(
-                          'px-4 py-2 text-sm cursor-pointer',
-                          active ? 'bg-indigo-100 text-indigo-900' : 'text-gray-700'
-                        )
-                      }
-                    >
-                      {c.label}
-                    </Listbox.Option>
-                  ))}
-                </Listbox.Options>
-              </Transition>
-            </div>
-          </Listbox>
-        </div>
+  (
+    {
+      category,
+      setCategory,
+      location,
+      setLocation,
+      when,
+      setWhen,
+      activeField,
+      onFieldClick,
+      compact = false,
+    },
+    ref
+  ) => {
+    // Individual refs for each field's button element to store and return focus
+    const categoryButtonRef = useRef<HTMLButtonElement>(null);
+    const locationButtonRef = useRef<HTMLButtonElement>(null);
+    const whenButtonRef = useRef<HTMLButtonElement>(null);
 
-        <div className="border-l border-gray-200" />
+    // Helper to render a generic search field button
+    const renderField = (
+      id: SearchFieldId,
+      label: string,
+      currentValue: string | JSX.Element, // Can be string or JSX element for placeholder
+      buttonRef: React.RefObject<HTMLButtonElement>,
+      onClear: () => void // Function to clear the specific field
+    ) => {
+      const isActive = activeField === id;
+      const isValuePresent = typeof currentValue === 'string' && currentValue !== '' && currentValue !== 'Add dates' && currentValue !== 'Add artists' && currentValue !== 'Search destinations';
 
-        {/* Location */}
-        <div className="flex-1 px-4 py-3 flex flex-col text-left">
-          <label htmlFor="location" className="text-xs text-gray-500 mb-1">Where</label>
-          <LocationInput
-            value={location}
-            onValueChange={setLocation}
-            onPlaceSelect={() => {}}
-            placeholder="City or venue"
-            inputClassName="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent border-none outline-none"
-          />
-        </div>
-
-        <div className="border-l border-gray-200" />
-
-        {/* Date */}
-        <div className="flex-1 px-4 py-3 flex flex-col text-left">
-          <label htmlFor="date" className="text-xs text-gray-500 mb-1">When</label>
-          <ReactDatePicker
-            selected={when}
-            onChange={(d: Date | null) => setWhen(d)}
-            dateFormat="MMM d, yyyy"
-            placeholderText="Add date"
-            id="date"
-            className="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent border-none outline-none"
-            renderCustomHeader={(props: CustomHeaderProps) => (
-              <div className="flex justify-between items-center px-3 pt-2 pb-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    props.decreaseMonth();
-                  }}
-                  disabled={props.prevMonthButtonDisabled}
-                  className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-40"
-                >
-                  <ChevronLeftIcon className="h-5 w-5 text-gray-500" />
-                </button>
-                <span className="text-base font-semibold text-gray-900">
-                  {props.date.toLocaleString('default', {
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                </span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    props.increaseMonth();
-                  }}
-                  disabled={props.nextMonthButtonDisabled}
-                  className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-40"
-                >
-                  <ChevronRightIcon className="h-5 w-5 text-gray-500" />
-                </button>
-              </div>
+      return (
+        <div className="relative flex-1">
+          <button
+            ref={buttonRef} // Attach ref to the button element
+            type="button"
+            onClick={() => onFieldClick(id, buttonRef.current!)} // Pass the ID and the button element
+            className={clsx(
+              'group relative z-10 w-full flex flex-col justify-center text-left  transition-all duration-200 ease-out outline-none',
+              compact ? 'px-4 py-2' : 'px-6 py-3',
+              isActive
+                ? 'bg-gray-100  shadow-md'
+                : 'hover:bg-gray-50 focus:bg-gray-50' // Added focus state for keyboard users
             )}
-          />
+            aria-expanded={isActive}
+            aria-controls={`${id}-popup`}
+            id={`${id}-search-button`} // Provide a unique ID for aria-controls
+          >
+            <span className="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none">{label}</span>
+            <span
+              className={clsx(
+                'block truncate pointer-events-none select-none',
+                isValuePresent ? 'text-gray-800' : 'text-gray-400 italic', // Adjusted for hydration
+                compact ? 'text-sm' : 'text-base'
+              )}
+            >
+              {currentValue}
+            </span>
+
+            {/* Clear button - only visible when a value is present AND the field is NOT active */}
+            {isValuePresent && !isActive && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent opening the popup
+                  onClear(); // Clear the specific field
+                  if (buttonRef.current) {
+                      buttonRef.current.focus(); // Return focus to the button
+                  }
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none  rounded-full p-1 z-20 transition-transform active:scale-90"
+                aria-label={`Clear ${label}`}
+                title={`Clear ${label}`}
+              >
+                &times;
+              </button>
+            )}
+          </button>
         </div>
-      </>
+      );
+    };
+
+    return (
+      <div ref={ref} className="flex flex-1 divide-x divide-gray-200">
+        {renderField(
+          'location',
+          'Where',
+          location || 'Search destinations', // Ensure consistent placeholder for hydration
+          locationButtonRef,
+          () => setLocation('')
+        )}
+
+        <div className="border-l border-gray-200" />
+
+        {renderField(
+          'when',
+          'When',
+          when ? when.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Add dates', // Ensure consistent placeholder for hydration
+          whenButtonRef,
+          () => setWhen(null)
+        )}
+
+        <div className="border-l border-gray-200" />
+
+        {renderField(
+          'category',
+          'Category',
+          category ? category.label : 'Add artists', // Ensure consistent placeholder for hydration
+          categoryButtonRef,
+          () => setCategory(null)
+        )}
+      </div>
     );
   }
 );
 
-SearchFields.displayName = 'SearchFields';
-export default SearchFields;
+export type Category = {
+  label: string;
+  value: string;
+};
+
+export type SearchFieldId = 'location' | 'when' | 'category';
