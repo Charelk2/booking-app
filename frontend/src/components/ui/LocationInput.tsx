@@ -66,22 +66,34 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       }
     }, []);
 
+    const arePredictionsEqual = (
+      a: google.maps.places.AutocompletePrediction[],
+      b: google.maps.places.AutocompletePrediction[],
+    ) =>
+      a.length === b.length &&
+      a.every((pred, idx) => pred.place_id === b[idx].place_id);
+
     // 🔄 Update predictions when Google returns new ones
     useEffect(() => {
-      if (placePredictions && placePredictions.length > 0) {
-        setPredictions(placePredictions);
-        setDropdownVisible(true);
+      if (!placePredictions) return;
+
+      setPredictions((prev) =>
+        arePredictionsEqual(prev, placePredictions) ? prev : placePredictions,
+      );
+      setDropdownVisible(placePredictions.length > 0);
+      if (placePredictions.length > 0) {
         setHighlightedIndex(-1);
-      } else if (value.length > 0) {
-        setPredictions([]);
-        setDropdownVisible(false);
-        setHighlightedIndex(-1);
-      } else {
+      }
+    }, [placePredictions]);
+
+    // Clear predictions when input is emptied
+    useEffect(() => {
+      if (value.trim().length === 0) {
         setPredictions([]);
         setDropdownVisible(false);
         setHighlightedIndex(-1);
       }
-    }, [placePredictions, value]);
+    }, [value]);
 
     // Keep getPlacePredictions in a ref to avoid it being a changing dependency
     // which can cause this effect to fire continuously and exceed the update depth
@@ -102,10 +114,6 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
           }),
           sessionToken: new google.maps.places.AutocompleteSessionToken(),
         });
-      } else {
-        setPredictions([]);
-        setDropdownVisible(false);
-        setHighlightedIndex(-1);
       }
     }, [value, userLocation]);
 
