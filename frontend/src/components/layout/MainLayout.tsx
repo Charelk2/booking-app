@@ -8,7 +8,7 @@ import Header from './Header';
 import MobileBottomNav from './MobileBottomNav'; // Assuming MobileBottomNav is set up
 import { HelpPrompt } from '../ui'; // Assuming HelpPrompt is set up
 import clsx from 'clsx';
-import { usePathname } from 'next/navigation';
+import { usePathname, useParams } from 'next/navigation';
 import useClickOutside from '@/hooks/useClickOutside'; // Import useClickOutside for overlay logic
 
 
@@ -133,7 +133,9 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
     ? 'w-full'
     : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8';
 
-  const isArtistsRoot = pathname === '/artists';
+  const params =
+    typeof useParams === 'function' ? (useParams() as { id?: string }) : {};
+  const isArtistsRoot = pathname === '/artists' && !params.id;
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 bg-gradient-to-b from-brand-light/50 to-gray-50">
