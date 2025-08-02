@@ -61,7 +61,10 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         !['Add dates', 'Add artist', 'Add location'].includes(currentValue);
 
       return (
-        <div className="relative flex-1">
+        <div
+          className="relative flex-1 min-w-0"
+        >
+          {/* min-w-0 ensures flex children can shrink and truncate long values */}
           <button
             ref={buttonRef} // Attach ref to the button element
             type="button"
@@ -114,11 +117,11 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     // Use a stable date formatter for consistent output across server/client
     const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-    return (
-      <div ref={ref} className="flex flex-1 divide-x divide-gray-200">
-        {renderField(
-          'location',
-          'Where',
+  return (
+    <div ref={ref} className="flex flex-1 divide-x divide-gray-200">
+      {renderField(
+        'location',
+        'Where',
           location || 'Add location',
           locationButtonRef,
           () => setLocation('')
@@ -142,8 +145,11 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           category ? category.label : 'Add artist',
           categoryButtonRef,
           () => setCategory(null)
-        )}
-      </div>
-    );
-  }
+      )}
+    </div>
+  );
+}
 );
+
+// Explicitly set display name to satisfy React and ESLint rules
+SearchFields.displayName = 'SearchFields';
