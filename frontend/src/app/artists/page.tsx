@@ -98,8 +98,8 @@ const fetchArtists = useCallback(
         setArtists((prev) => (append ? [...prev, ...filtered] : filtered));
         setPriceDistribution(res.price_distribution || []);
       } catch (err) {
-        console.error(err);
-        setError('Failed to load artists.');
+        console.error('Error fetching artists:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load artists.');
       } finally {
         setLoading(false);
       }
