@@ -20,9 +20,6 @@ class ServiceType(str, enum.Enum):
     VIRTUAL_APPEARANCE = "Virtual Appearance"
     PERSONALIZED_VIDEO = "Personalized Video"
     CUSTOM_SONG = "Custom Song"
-    DJ = "DJ"
-    PHOTOGRAPHY = "Photography"
-    VENUE = "Venue"
     OTHER = "Other"
 
 
