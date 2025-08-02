@@ -1,7 +1,7 @@
 // src/components/search/SearchBar.tsx
 'use client';
 
-import { useRef, useState, KeyboardEvent, FormEvent, useCallback, Fragment, useLayoutEffect, useMemo } from 'react';
+import { useRef, useState, KeyboardEvent, FormEvent, useCallback, Fragment, useLayoutEffect } from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { SearchFields, type Category, type SearchFieldId } from './SearchFields';
@@ -91,13 +91,8 @@ export default function SearchBar({
     }, 200);
   }, []);
 
-  // Cast refs to a generic HTMLElement array so useClickOutside accepts them
-  const clickOutsideRefs = useMemo(
-    () => [formRef, popupContainerRef] as React.RefObject<HTMLElement | null>[],
-    [],
-  );
-
-  useClickOutside(clickOutsideRefs, () => {
+  // Close popups when clicking outside the search form or its floating content
+  useClickOutside([formRef, popupContainerRef], () => {
     if (showInternalPopup) {
       closeThisSearchBarsInternalPopups();
     }
