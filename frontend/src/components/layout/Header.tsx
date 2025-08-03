@@ -3,7 +3,6 @@
 
 import { Fragment, ReactNode, forwardRef, useCallback, useState } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext'; // Assuming AuthContext is set up
@@ -12,7 +11,7 @@ import NotificationBell from './NotificationBell'; // Assuming NotificationBell 
 import BookingRequestIcon from './BookingRequestIcon'; // Assuming BookingRequestIcon is set up
 import MobileMenuDrawer from './MobileMenuDrawer'; // Assuming MobileMenuDrawer is set up
 import SearchBar from '../search/SearchBar'; // The full search bar component
-import { UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
+import { UI_CATEGORY_TO_SERVICE, UI_CATEGORIES } from '@/lib/categoryMap';
 import { Avatar } from '../ui'; // Assuming Avatar is set up
 import clsx from 'clsx';
 import { type Category } from '../search/SearchFields'; // Import Category type from SearchFields
@@ -69,7 +68,11 @@ interface HeaderProps {
   headerState: HeaderState; // New prop for header state
   onForceHeaderState: (state: HeaderState, scrollTarget?: number) => void; // MODIFIED: Added scrollTarget
   showSearchBar?: boolean; // Controls visibility of built-in search bar
-  alwaysCompact?: boolean; // Keeps pill visible regardless of scroll
+  filterAddon?: ReactNode; // Optional element (e.g., filter button) rendered next to search bar
+  forceCompactSearchBar?: boolean; // If true, shows compact search bar even in initial state
+  initialCategory?: string; // Pre-populate search bar category
+  initialLocation?: string; // Pre-populate search bar location
+  initialWhen?: Date | null; // Pre-populate search bar date
 }
 
 // Forward the ref so MainLayout can access the header DOM element
@@ -79,7 +82,11 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     headerState,
     onForceHeaderState,
     showSearchBar = true,
-    alwaysCompact = false,
+    filterAddon,
+    forceCompactSearchBar = false,
+    initialCategory,
+    initialLocation,
+    initialWhen,
   }: HeaderProps,
   ref,
 ) {
@@ -89,9 +96,12 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const [menuOpen, setMenuOpen] = useState(false); // Mobile menu drawer state
 
   // Search parameters for the search bars (managed locally by Header and passed to SearchBar)
-  const [category, setCategory] = useState<Category | null>(null);
-  const [location, setLocation] = useState<string>('');
-  const [when, setWhen] = useState<Date | null>(null);
+  const initialCategoryObj = initialCategory
+    ? UI_CATEGORIES.find((c) => c.value === initialCategory) || null
+    : null;
+  const [category, setCategory] = useState<Category | null>(initialCategoryObj);
+  const [location, setLocation] = useState<string>(initialLocation || '');
+  const [when, setWhen] = useState<Date | null>(initialWhen || null);
 
   const dateFormatter = new Intl.DateTimeFormat('en-US', {
     month: 'short',
@@ -113,7 +123,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       // We explicitly close the expanded state here.
       onForceHeaderState(window.scrollY > 0 ? 'compacted' : 'initial', window.scrollY > 0 ? undefined : 0);
     },
-    [router, onForceHeaderState] // Removed alwaysCompact as it's handled by MainLayout
+    [router, onForceHeaderState]
   );
 
   // This is crucial: Called by SearchBar when its *internal popups* are closed (e.g., clicking outside calendar)
@@ -144,13 +154,15 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             </Link>
           </div>
 
-          {/* Center Section: Dynamically switches between Nav Links and Compact Pill */}
-          <div className="hidden md:flex justify-center flex-grow relative">
-            {/* Nav Links (Visible initially, and when compact search expands) */}
-            <div className={clsx("content-area-wrapper header-nav-links", {
-              "opacity-0 pointer-events-none": headerState === 'compacted',
-              "opacity-100 pointer-events-auto transition-opacity duration-300 delay-100": headerState !== 'compacted'
-            })}>
+          {/* Center Section: Nav links and compact search bar */}
+          <div className="hidden md:flex items-center justify-center flex-grow gap-4 relative">
+            {/* Nav Links (hide when compacted) */}
+            <div
+              className={clsx('content-area-wrapper header-nav-links', {
+                'opacity-0 pointer-events-none': headerState === 'compacted',
+                'opacity-100 pointer-events-auto transition-opacity duration-300 delay-100': headerState !== 'compacted',
+              })}
+            >
               <nav className="flex gap-6">
                 {user?.user_type === 'artist' && artistViewActive ? (
                   <ArtistNav user={user} pathname={pathname} />
@@ -160,36 +172,24 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               </nav>
             </div>
 
-            {/* Compact Search Pill (Visible when scrolled/compacted) */}
-            {showSearchBar && (
-              <div className={clsx("compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center", {
-                "opacity-0 pointer-events-none": headerState !== 'compacted',
-                "opacity-100 pointer-events-auto transition-opacity duration-300 delay-100": headerState === 'compacted'
-              })}>
-                <button
-                  id="compact-search-trigger"
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onForceHeaderState('expanded-from-compact');
-                  }}
-                  className="flex-1 w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
-                >
-                  <div className="flex flex-1 divide-x divide-gray-300">
-                    <div className="flex-1 px-2 truncate">
-                      {category ? category.label : 'Add artist'}
-                    </div>
-                    <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
-                      {location || 'Add location'}
-                    </div>
-                    <div className="flex-1 px-2 truncate">
-                      {when ? dateFormatter.format(when) : 'Add dates'}
-                    </div>
-                  </div>
-                  <MagnifyingGlassIcon className="ml-2 h-5 w-5 text-gray-500 flex-shrink-0" />
-                </button>
+            {/* Compact Search Bar */}
+            {showSearchBar && (forceCompactSearchBar || headerState === 'compacted') && (
+              <div className="flex-1 max-w-md">
+                <SearchBar
+                  category={category}
+                  setCategory={setCategory}
+                  location={location}
+                  setLocation={setLocation}
+                  when={when}
+                  setWhen={setWhen}
+                  onSearch={handleSearch}
+                  onCancel={handleSearchBarCancel}
+                  compact
+                />
               </div>
             )}
+
+            {filterAddon && <div className="shrink-0">{filterAddon}</div>}
           </div>
 
           {/* Icons */}
@@ -244,7 +244,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         </div>
 
         {/* Full Search Bar (Visible initially, and when expanded from compact) */}
-        {showSearchBar && !extraBar && (
+        {showSearchBar && !extraBar && !forceCompactSearchBar && (
           <div className={clsx("content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto", {
             "opacity-0 scale-y-0 h-0 pointer-events-none": headerState === 'compacted',
             "opacity-100 scale-y-100 pointer-events-auto": headerState !== 'compacted'
