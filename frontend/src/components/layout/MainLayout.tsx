@@ -85,13 +85,14 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
   const pathname = usePathname();
   const params = useParams() as { id?: string };
   const searchParams = useSearchParams();
+  const isHome = pathname === '/';
   const isArtistDetail = pathname.startsWith('/artists') && Boolean(params.id);
   const isArtistsRoot = pathname === '/artists' && !params.id;
   const hasSearchParams = searchParams.toString().length > 0;
 
   // State to manage the header's visual and functional state
   const [headerState, setHeaderState] = useState<HeaderState>(
-    isArtistDetail || (isArtistsRoot && hasSearchParams) ? 'compacted' : 'initial',
+    isHome || isArtistDetail || (isArtistsRoot && hasSearchParams) ? 'compacted' : 'initial',
   );
 
   // Refs for scroll logic
@@ -212,7 +213,9 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
     if (isArtistDetail) return; // No scroll listener on artist detail pages
 
     window.addEventListener('scroll', optimizedScrollHandler);
-    handleScroll();
+    if (!isHome) {
+      handleScroll();
+    }
 
     return () => {
       window.removeEventListener('scroll', optimizedScrollHandler);
@@ -220,14 +223,14 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
         cancelAnimationFrame(animationFrameId.current);
       }
     };
-  }, [isArtistDetail, optimizedScrollHandler, handleScroll]); // Dependencies
+  }, [isArtistDetail, isHome, optimizedScrollHandler, handleScroll]); // Dependencies
 
-  // Ensure artist detail pages start compact but allow expansion when clicked
+  // Ensure artist detail and home pages start compact but allow expansion when clicked
   useEffect(() => {
-    if (isArtistDetail) {
+    if (isArtistDetail || isHome) {
       setHeaderState('compacted');
     }
-  }, [isArtistDetail]);
+  }, [isArtistDetail, isHome]);
 
   // Effect to manage body scroll based on showSearchOverlay
   useEffect(() => {
