@@ -259,6 +259,14 @@
   transition: max-width 0.5s ease-in-out, opacity 0.3s ease-in-out;
 }
 
+/* Ensure full search bar and nav links are visible when expanded from compact */
+#app-header[data-header-state="expanded-from-compact"] .header-nav-links,
+#app-header[data-header-state="expanded-from-compact"] .header-full-search-bar {
+  max-height: 100px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Overlay for expanded search form */
 #expanded-search-overlay {
   position: fixed;
