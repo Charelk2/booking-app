@@ -25,13 +25,6 @@ interface Item {
   auth?: boolean;
 }
 
-const navItems: Item[] = [
-  { name: 'Home', href: '/', icon: HomeIcon },
-  { name: 'Artists', href: '/artists', icon: UsersIcon },
-  { name: 'Messages', href: '/inbox', icon: ChatBubbleLeftRightIcon, auth: true },
-  { name: 'Dashboard', href: '/dashboard', icon: UserCircleIcon, auth: true },
-];
-
 function classNames(...classes: (string | false | undefined)[]) {
   return classes.filter(Boolean).join(' ');
 }
@@ -41,6 +34,12 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const { items } = useNotifications();
   const notificationItems = items;
   const scrollDir = useScrollDirection();
+  const navItems: Item[] = [
+    { name: 'Home', href: '/', icon: HomeIcon },
+    { name: 'Artists', href: '/artists', icon: UsersIcon },
+    { name: 'Messages', href: '/inbox', icon: ChatBubbleLeftRightIcon, auth: true },
+    { name: 'Dashboard', href: user?.user_type === 'artist' ? '/dashboard/artist' : '/dashboard/client', icon: UserCircleIcon, auth: true },
+  ];
   if (!user) {
     return null;
   }
