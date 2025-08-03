@@ -115,6 +115,8 @@ describe('MainLayout user menu', () => {
     const header = div.querySelector('#app-header') as HTMLElement;
     expect(header.getAttribute('data-header-state')).toBe('expanded-from-compact');
     expect(div.querySelector('.header-full-search-bar')).toBeTruthy();
+    expect(div.querySelector('#expanded-search-overlay')).toBeTruthy();
+    expect(header.className).toMatch('z-50');
     act(() => { root.unmount(); });
     div.remove();
   });

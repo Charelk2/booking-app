@@ -149,7 +149,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   // Main header classes reacting to headerState
   const headerClasses = clsx(
-    "app-header sticky top-0 z-40 bg-white transition-all duration-300 ease-in-out",
+    "app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out",
     {
       "compacted": headerState === 'compacted',
       "expanded-from-compact": headerState === 'expanded-from-compact',
