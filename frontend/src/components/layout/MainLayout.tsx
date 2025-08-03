@@ -8,7 +8,7 @@ import Header, { HeaderState } from './Header'; // Import HeaderState
 import MobileBottomNav from './MobileBottomNav';
 import { HelpPrompt } from '../ui';
 import clsx from 'clsx';
-import { usePathname, useParams, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 
 // --- CONSTANTS ---
@@ -83,15 +83,13 @@ interface Props {
 export default function MainLayout({ children, headerAddon, headerFilter, fullWidthContent = false }: Props) {
   const { user } = useAuth();
   const pathname = usePathname();
-  const params = useParams() as { id?: string };
-  const searchParams = useSearchParams();
-  const isArtistDetail = pathname.startsWith('/artists') && Boolean(params.id);
-  const isArtistsRoot = pathname === '/artists' && !params.id;
-  const hasSearchParams = searchParams.toString().length > 0;
+  const isArtistDetail = /^\/artists\//.test(pathname) && pathname.split('/').length > 2;
+  const isArtistsRoot = pathname === '/artists';
+  const isArtistsPage = pathname.startsWith('/artists');
 
   // State to manage the header's visual and functional state
   const [headerState, setHeaderState] = useState<HeaderState>(
-    isArtistDetail || (isArtistsRoot && hasSearchParams) ? 'compacted' : 'initial',
+    isArtistsPage ? 'compacted' : 'initial',
   );
 
   // Refs for scroll logic
