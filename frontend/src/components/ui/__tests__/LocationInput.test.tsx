@@ -13,6 +13,10 @@ jest.mock('react-google-autocomplete/lib/usePlacesAutocompleteService', () => ({
   }),
 }));
 
+beforeAll(() => {
+  process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = 'test-key';
+});
+
 describe('LocationInput', () => {
   it('calls getPlacePredictions once when value changes', async () => {
     const Wrapper = () => {
