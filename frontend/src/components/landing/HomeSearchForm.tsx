@@ -1,19 +1,18 @@
 'use client';
 import { useState, FormEvent } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 
 export default function HomeSearchForm() {
   const router = useRouter();
-  const params = useSearchParams();
-  const [destination, setDestination] = useState(params.get('location') || '');
-  const [when, setWhen] = useState(params.get('when') || '');
+  const [destination, setDestination] = useState('');
+  const [date, setDate] = useState('');
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
     if (destination) params.set('location', destination);
-    if (when) params.set('when', when);
+    if (date) params.set('date', date);
     router.push(`/artists?${params.toString()}`);
   };
 
@@ -31,8 +30,8 @@ export default function HomeSearchForm() {
       />
       <input
         type="date"
-        value={when}
-        onChange={(e) => setWhen(e.target.value)}
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
         className="min-h-[44px] w-56 rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand"
       />
       <Button
