@@ -137,6 +137,29 @@ describe('MainLayout user menu', () => {
     div.remove();
   });
 
+  it('expands search bar when compact pill is clicked on artists listing page', async () => {
+    mockUsePathname.mockReturnValue('/artists');
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 5, email: 'e@test.com', user_type: 'client' } as User, logout: jest.fn() });
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(React.createElement(MainLayout, null, React.createElement('div')));
+    });
+    await flushPromises();
+    const trigger = div.querySelector('#compact-search-trigger') as HTMLButtonElement;
+    expect(trigger).toBeTruthy();
+    await act(async () => {
+      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await flushPromises();
+    const header = div.querySelector('#app-header') as HTMLElement;
+    expect(header.getAttribute('data-header-state')).toBe('expanded-from-compact');
+    expect(div.querySelector('.header-full-search-bar')).toBeTruthy();
+    act(() => { root.unmount(); });
+    div.remove();
+  });
+
   it('initializes compact header when search params present', async () => {
     mockUsePathname.mockReturnValue('/artists');
     mockUseSearchParams.mockReturnValue(new URLSearchParams('category=Live%20Performance'));
