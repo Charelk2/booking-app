@@ -8,7 +8,7 @@ import Header, { HeaderState } from './Header'; // Import HeaderState
 import MobileBottomNav from './MobileBottomNav';
 import { HelpPrompt } from '../ui';
 import clsx from 'clsx';
-import { usePathname, useParams } from 'next/navigation';
+import { usePathname, useParams, useSearchParams } from 'next/navigation';
 
 
 // --- CONSTANTS ---
@@ -76,18 +76,22 @@ const Footer = () => (
 interface Props {
   children: React.ReactNode;
   headerAddon?: React.ReactNode;
+  headerFilter?: React.ReactNode;
   fullWidthContent?: boolean;
 }
 
-export default function MainLayout({ children, headerAddon, fullWidthContent = false }: Props) {
+export default function MainLayout({ children, headerAddon, headerFilter, fullWidthContent = false }: Props) {
   const { user } = useAuth();
   const pathname = usePathname();
   const params = typeof useParams === 'function' ? (useParams() as { id?: string }) : {};
+  const searchParams = useSearchParams();
   const isArtistDetail = pathname.startsWith('/artists') && Boolean(params.id);
+  const isArtistsRoot = pathname === '/artists' && !params.id;
+  const hasSearchParams = searchParams.toString().length > 0;
 
   // State to manage the header's visual and functional state
   const [headerState, setHeaderState] = useState<HeaderState>(
-    isArtistDetail ? 'compacted' : 'initial',
+    isArtistDetail || (isArtistsRoot && hasSearchParams) ? 'compacted' : 'initial',
   );
 
   // Refs for scroll logic
@@ -257,7 +261,6 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
     ? 'w-full'
     : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8';
 
-  const isArtistsRoot = pathname === '/artists' && !params.id;
   const showSearchBar = pathname === '/' || pathname.startsWith('/artists');
 
   return (
@@ -285,6 +288,7 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
           }
           showSearchBar={showSearchBar}
           alwaysCompact={isArtistDetail}
+          filterControl={headerFilter}
         />
 
         {/* CONTENT */}

@@ -1,21 +1,22 @@
 // src/components/layout/Header.tsx
 'use client';
 
-import { Fragment, ReactNode, forwardRef, useCallback, useState } from 'react';
+import { Fragment, ReactNode, forwardRef, useCallback, useState, useEffect } from 'react';
 import { Menu, Transition } from '@headlessui/react';
 import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext'; // Assuming AuthContext is set up
 import NavLink from './NavLink'; // Assuming NavLink is set up
 import NotificationBell from './NotificationBell'; // Assuming NotificationBell is set up
 import BookingRequestIcon from './BookingRequestIcon'; // Assuming BookingRequestIcon is set up
 import MobileMenuDrawer from './MobileMenuDrawer'; // Assuming MobileMenuDrawer is set up
 import SearchBar from '../search/SearchBar'; // The full search bar component
-import { UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
+import { UI_CATEGORY_TO_SERVICE, SERVICE_TO_UI_CATEGORY, UI_CATEGORIES } from '@/lib/categoryMap';
 import { Avatar } from '../ui'; // Assuming Avatar is set up
 import clsx from 'clsx';
 import { type Category } from '../search/SearchFields'; // Import Category type from SearchFields
+import { parseISO, isValid } from 'date-fns';
 
 
 // Define header states (must match MainLayout)
@@ -70,6 +71,7 @@ interface HeaderProps {
   onForceHeaderState: (state: HeaderState, scrollTarget?: number) => void; // MODIFIED: Added scrollTarget
   showSearchBar?: boolean; // Controls visibility of built-in search bar
   alwaysCompact?: boolean; // Keeps pill visible regardless of scroll
+  filterControl?: ReactNode;
 }
 
 // Forward the ref so MainLayout can access the header DOM element
@@ -80,18 +82,41 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     onForceHeaderState,
     showSearchBar = true,
     alwaysCompact = false,
+    filterControl,
   }: HeaderProps,
   ref,
 ) {
   const { user, logout, artistViewActive, toggleArtistView } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [menuOpen, setMenuOpen] = useState(false); // Mobile menu drawer state
 
   // Search parameters for the search bars (managed locally by Header and passed to SearchBar)
   const [category, setCategory] = useState<Category | null>(null);
   const [location, setLocation] = useState<string>('');
   const [when, setWhen] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const serviceCat = searchParams.get('category');
+    const uiValue = serviceCat ? SERVICE_TO_UI_CATEGORY[serviceCat] || serviceCat : undefined;
+    const uiCategory = uiValue ? UI_CATEGORIES.find((c) => c.value === uiValue) || null : null;
+    setCategory(uiCategory);
+
+    setLocation(searchParams.get('location') || '');
+
+    const w = searchParams.get('when');
+    if (w) {
+      try {
+        const parsed = parseISO(w);
+        setWhen(isValid(parsed) ? parsed : null);
+      } catch {
+        setWhen(null);
+      }
+    } else {
+      setWhen(null);
+    }
+  }, [searchParams]);
 
   const dateFormatter = new Intl.DateTimeFormat('en-US', {
     month: 'short',
@@ -245,10 +270,15 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
         {/* Full Search Bar (Visible initially, and when expanded from compact) */}
         {showSearchBar && !extraBar && (
-          <div className={clsx("content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto", {
-            "opacity-0 scale-y-0 h-0 pointer-events-none": headerState === 'compacted',
-            "opacity-100 scale-y-100 pointer-events-auto": headerState !== 'compacted'
-          })}>
+          <div
+            className={clsx(
+              "content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto relative",
+              {
+                "opacity-0 scale-y-0 h-0 pointer-events-none": headerState === 'compacted',
+                "opacity-100 scale-y-100 pointer-events-auto": headerState !== 'compacted',
+              },
+            )}
+          >
             <SearchBar
               category={category}
               setCategory={setCategory}
@@ -260,6 +290,11 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               onCancel={handleSearchBarCancel} // Pass handler for closing from SearchBar's internal popups
               compact={false} // This SearchBar is always the "full" one for visuals
             />
+            {filterControl && headerState !== 'compacted' && (
+              <div className="absolute top-1/2 right-0 -translate-y-1/2 pr-2">
+                {filterControl}
+              </div>
+            )}
           </div>
         )}
 

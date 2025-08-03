@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
-import clsx from 'clsx';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { getArtists, type PriceBucket } from '@/lib/api';
@@ -10,15 +9,9 @@ import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCard from '@/components/artist/ArtistCard';
 import ArtistsPageHeader from '@/components/artist/ArtistsPageHeader';
-import SearchBarInline from '@/components/search/SearchBarInline';
 import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
 import { useDebounce } from '@/hooks/useDebounce';
 import { updateQueryParams } from '@/lib/urlParams';
-import {
-  UI_CATEGORIES,
-  SERVICE_TO_UI_CATEGORY,
-  UI_CATEGORY_TO_SERVICE,
-} from '@/lib/categoryMap';
 import { Spinner } from '@/components/ui';
 
 export default function ArtistsPage() {
@@ -26,43 +19,16 @@ export default function ArtistsPage() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  const serviceCategory = searchParams.get('category') || undefined;
-  const uiValue = serviceCategory
-    ? SERVICE_TO_UI_CATEGORY[serviceCategory] || serviceCategory
-    : undefined;
-  const uiLabel = uiValue
-    ? UI_CATEGORIES.find((c) => c.value === uiValue)?.label
-    : undefined;
-
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [category, setCategory] = useState<string | undefined>(serviceCategory);
-  const [location, setLocation] = useState(
-    searchParams.get('location') || ''
-  );
-  const [sort, setSort] = useState<string | undefined>(
-    searchParams.get('sort') || undefined
-  );
-  const [when, setWhen] = useState<Date | null>(() => {
-    const w = searchParams.get('when');
-    if (!w) return null;
-    try {
-      const parsed = parseISO(w);
-      const formatted = format(parsed, 'yyyy-MM-dd');
-      const normalized = parseISO(formatted);
-      return isValid(normalized) ? normalized : null;
-    } catch {
-      return null;
-    }
-  });
-  const [minPrice, setMinPrice] = useState<number>(
-    searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : SLIDER_MIN
-  );
-  const [maxPrice, setMaxPrice] = useState<number>(
-    searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : SLIDER_MAX
-  );
+  const [category, setCategory] = useState<string | undefined>(undefined);
+  const [location, setLocation] = useState('');
+  const [sort, setSort] = useState<string | undefined>(undefined);
+  const [when, setWhen] = useState<Date | null>(null);
+  const [minPrice, setMinPrice] = useState<number>(SLIDER_MIN);
+  const [maxPrice, setMaxPrice] = useState<number>(SLIDER_MAX);
   const [priceDistribution, setPriceDistribution] = useState<PriceBucket[]>([]);
 
   const debouncedMinPrice = useDebounce(minPrice, 300);
@@ -72,8 +38,29 @@ export default function ArtistsPage() {
   const [hasMore, setHasMore] = useState(true);
   const LIMIT = 20;
 
+  useEffect(() => {
+    const serviceCat = searchParams.get('category') || undefined;
+    setCategory(serviceCat);
+    setLocation(searchParams.get('location') || '');
+    const w = searchParams.get('when');
+    if (w) {
+      try {
+        const parsed = parseISO(w);
+        const formatted = format(parsed, 'yyyy-MM-dd');
+        const normalized = parseISO(formatted);
+        setWhen(isValid(normalized) ? normalized : null);
+      } catch {
+        setWhen(null);
+      }
+    } else {
+      setWhen(null);
+    }
+    setSort(searchParams.get('sort') || undefined);
+    setMinPrice(searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : SLIDER_MIN);
+    setMaxPrice(searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : SLIDER_MAX);
+  }, [searchParams]);
 
-const fetchArtists = useCallback(
+  const fetchArtists = useCallback(
     async (
       {
         append = false,
@@ -124,88 +111,41 @@ const fetchArtists = useCallback(
     setPage(next);
     fetchArtists({ append: true, pageNumber: next });
   };
-
-  const handleSearchEdit = ({ category: uiCat, location: loc, when: date }: {
-    category?: string;
-    location?: string;
-    when?: Date | null;
-  }) => {
-    const serviceCat = uiCat ? UI_CATEGORY_TO_SERVICE[uiCat] || uiCat : undefined;
-    setCategory(serviceCat);
-    setLocation(loc || '');
-    setWhen(date || null);
-    updateQueryParams(router, pathname, {
-      category: serviceCat,
-      location: loc,
-      when: date || undefined,
-      sort,
-      minPrice,
-      maxPrice,
-    });
-  };
-
-  const [searchExpanded, setSearchExpanded] = useState(false);
-
-  const header = (
-    <div
-      className={clsx(
-        'relative mx-auto transition-all duration-300 ease-out',
-        searchExpanded
-          ? 'max-w-full md:max-w-5xl lg:max-w-6xl'
-          : 'max-w-2xl'
-      )}
-    >
-      <SearchBarInline
-        initialCategory={uiValue}
-        initialLocation={location}
-        initialWhen={when}
-        onSearch={handleSearchEdit}
-        onExpandedChange={setSearchExpanded}
-      />
-      {!searchExpanded && (
-        <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2">
-          <ArtistsPageHeader
-            iconOnly
-            categoryLabel={uiLabel}
-            categoryValue={uiValue}
-            location={location}
-            when={when}
-            onSearchEdit={handleSearchEdit}
-            initialSort={sort}
-            initialMinPrice={minPrice}
-            initialMaxPrice={maxPrice}
-            priceDistribution={priceDistribution}
-            onFilterApply={({ sort: s, minPrice: min, maxPrice: max }) => {
-              setSort(s || undefined);
-              setMinPrice(min);
-              setMaxPrice(max);
-              updateQueryParams(router, pathname, {
-                category,
-                location,
-                when,
-                sort: s,
-                minPrice: min,
-                maxPrice: max,
-              });
-            }}
-            onFilterClear={() => {
-              setSort(undefined);
-              setMinPrice(SLIDER_MIN);
-              setMaxPrice(SLIDER_MAX);
-              updateQueryParams(router, pathname, {
-                category,
-                location,
-                when,
-              });
-            }}
-          />
-        </div>
-      )}
-    </div>
+  const filterControl = (
+    <ArtistsPageHeader
+      iconOnly
+      initialSort={sort}
+      initialMinPrice={minPrice}
+      initialMaxPrice={maxPrice}
+      priceDistribution={priceDistribution}
+      onFilterApply={({ sort: s, minPrice: min, maxPrice: max }) => {
+        setSort(s || undefined);
+        setMinPrice(min);
+        setMaxPrice(max);
+        updateQueryParams(router, pathname, {
+          category,
+          location,
+          when,
+          sort: s,
+          minPrice: min,
+          maxPrice: max,
+        });
+      }}
+      onFilterClear={() => {
+        setSort(undefined);
+        setMinPrice(SLIDER_MIN);
+        setMaxPrice(SLIDER_MAX);
+        updateQueryParams(router, pathname, {
+          category,
+          location,
+          when,
+        });
+      }}
+    />
   );
 
   return (
-    <MainLayout headerAddon={header}>
+    <MainLayout headerFilter={filterControl}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Artists grid */}
         {loading && <Spinner className="my-4" />}
