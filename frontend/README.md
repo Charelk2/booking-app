@@ -114,13 +114,18 @@ The View Quote modal also generates a quote number automatically, shows today's 
 ### Artist Listing
 
 The artists page uses a responsive grid that shows one card per row on mobile,
-two cards on tablets and three or more on larger screens. Each artist card
-displays a skeleton placeholder until the image loads and reveals a **Book
-Now** overlay button when hovered. A sticky header hosts the search UI. On
-  desktop a segmented bar (`SearchBarInline`) collapses into three segments showing the chosen **Category**, **Location** and **Date**. Clicking anywhere on this bar smoothly expands it into the full homepage search form with identical styling. When expanded the wrapper stays centered with a fixed `md:max-w-4xl` width and a 300ms ease-out transition, while the collapsed pill uses a narrower `md:max-w-2xl` so it takes up about 25% less space. Keyboard users can press **Enter** to search or **Escape** to cancel. On mobile the compact pill opens a `SearchModal`
- bottom sheet while the filter icon opens `FilterSheet`. On larger screens this icon sits to the right of the inline search bar without shifting its centered position. The desktop filter now opens in a white rounded card with a pink range slider and clear/apply buttons, similar to Airbnb.
- Filters show a tiny pink dot when active. The filter icon now sits slightly closer to the pill and automatically hides when the inline bar expands into the full form. All search options and filters persist in the URL so pages can be shared
-or refreshed without losing state.
+ two cards on tablets and three or more on larger screens. Each artist card
+ displays a skeleton placeholder until the image loads and reveals a **Book
+ Now** overlay button when hovered. A sticky header hosts the search UI. On
+ desktop the header includes a compact pill that collapses into three segments
+ showing the chosen **Category**, **Location** and **Date**. Clicking the pill
+ expands it into the full homepage search form with identical styling. The
+ wrapper stays centered with a fixed `md:max-w-4xl` width and a 300ms ease-out
+ transition, while the collapsed pill uses a narrower `md:max-w-2xl` so it takes
+ up about 25% less space. Keyboard users can press **Enter** to search or
+ **Escape** to cancel. On mobile the compact pill opens a `SearchModal` bottom
+ sheet while the filter icon opens `FilterSheet`. All search options and filters
+ persist in the URL so pages can be shared or refreshed without losing state.
 
 ## Testing
 
