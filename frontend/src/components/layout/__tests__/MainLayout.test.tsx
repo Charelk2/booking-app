@@ -95,6 +95,30 @@ describe('MainLayout user menu', () => {
     div.remove();
   });
 
+  it('expands search bar when compact pill is clicked on artist detail pages', async () => {
+    mockUsePathname.mockReturnValue('/artists');
+    mockUseParams.mockReturnValue({ id: '999' });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 9, email: 'x@test.com', user_type: 'artist' } as User, logout: jest.fn() });
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(React.createElement(MainLayout, null, React.createElement('div')));
+    });
+    await flushPromises();
+    const trigger = div.querySelector('#compact-search-trigger') as HTMLButtonElement;
+    expect(trigger).toBeTruthy();
+    await act(async () => {
+      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await flushPromises();
+    const header = div.querySelector('#app-header') as HTMLElement;
+    expect(header.getAttribute('data-header-state')).toBe('expanded-from-compact');
+    expect(div.querySelector('.header-full-search-bar')).toBeTruthy();
+    act(() => { root.unmount(); });
+    div.remove();
+  });
+
   it('keeps search pill available on artists listing page', async () => {
     mockUsePathname.mockReturnValue('/artists');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 3, email: 'c@test.com', user_type: 'client' } as User, logout: jest.fn() });

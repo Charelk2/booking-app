@@ -83,7 +83,7 @@ interface Props {
 export default function MainLayout({ children, headerAddon, headerFilter, fullWidthContent = false }: Props) {
   const { user } = useAuth();
   const pathname = usePathname();
-  const params = typeof useParams === 'function' ? (useParams() as { id?: string }) : {};
+  const params = useParams() as { id?: string };
   const searchParams = useSearchParams();
   const isArtistDetail = pathname.startsWith('/artists') && Boolean(params.id);
   const isArtistsRoot = pathname === '/artists' && !params.id;
@@ -209,26 +209,25 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
 
   // Effect for scroll-based header state changes
   useEffect(() => {
-    if (isArtistDetail) {
-      // For artist detail pages, always keep compacted initially, and no scroll-based changes
-      setHeaderState('compacted');
-      return;
-    }
+    if (isArtistDetail) return; // No scroll listener on artist detail pages
 
-    // Attach scroll listener
     window.addEventListener('scroll', optimizedScrollHandler);
-
-    // Initial state check on mount
     handleScroll();
 
     return () => {
-      // Detach scroll listener on unmount
       window.removeEventListener('scroll', optimizedScrollHandler);
       if (animationFrameId.current) {
-          cancelAnimationFrame(animationFrameId.current);
+        cancelAnimationFrame(animationFrameId.current);
       }
     };
   }, [isArtistDetail, optimizedScrollHandler, handleScroll]); // Dependencies
+
+  // Ensure artist detail pages start compact but allow expansion when clicked
+  useEffect(() => {
+    if (isArtistDetail) {
+      setHeaderState('compacted');
+    }
+  }, [isArtistDetail]);
 
   // Effect to manage body scroll based on showSearchOverlay
   useEffect(() => {
