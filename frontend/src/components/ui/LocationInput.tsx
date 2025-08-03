@@ -34,6 +34,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
     const [isDropdownVisible, setDropdownVisible] = useState(false);
     const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+    const [isPlacesReady, setIsPlacesReady] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null); // For detecting outside clicks for the entire component
     const inputInternalRef = useRef<HTMLInputElement>(null); // Internal ref for the input element
 
@@ -63,6 +64,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
         autocompleteServiceRef.current = new places.AutocompleteService();
         placesServiceRef.current = new places.PlacesService(document.createElement('div'));
         sessionTokenRef.current = new places.AutocompleteSessionToken();
+        setIsPlacesReady(true);
       })();
       return () => {
         mounted = false;
@@ -98,7 +100,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
 
     // 🎯 Trigger new predictions from user input (debounced)
     useEffect(() => {
-      if (value.trim().length === 0 || !autocompleteServiceRef.current) return;
+      if (value.trim().length === 0 || !isPlacesReady) return;
       const handler = setTimeout(() => {
         autocompleteServiceRef.current?.getPlacePredictions(
           {
@@ -119,7 +121,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
         );
       }, 300);
       return () => clearTimeout(handler);
-    }, [value, userLocation]);
+    }, [value, userLocation, isPlacesReady]);
 
     // 🖱 Close dropdown on outside click
     useEffect(() => {
