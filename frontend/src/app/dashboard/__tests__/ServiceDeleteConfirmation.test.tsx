@@ -12,7 +12,7 @@ jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
-  usePathname: jest.fn(() => '/dashboard/artist'),
+  usePathname: jest.fn(() => '/dashboard'),
   useSearchParams: jest.fn(),
 }));
 
