@@ -36,6 +36,10 @@ jest.mock('react-google-autocomplete/lib/usePlacesAutocompleteService', () => {
   };
 });
 
+beforeAll(() => {
+  process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = 'test-key';
+});
+
 function Wrapper() {
   const { control } = useForm();
   return (

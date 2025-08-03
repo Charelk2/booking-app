@@ -35,12 +35,20 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
 
     const listboxId = 'autocomplete-options';
 
+    const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+    if (!googleMapsApiKey) {
+      console.error(
+        'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set. Location autocomplete will be disabled.',
+      );
+    }
+
     const {
       placesService,
       placePredictions,
       getPlacePredictions,
     } = usePlacesService({
-      apiKey: process.env.NEXT_PUBLIC_Maps_API_KEY, // CRITICAL: Ensure this env var is set
+      apiKey: googleMapsApiKey,
       debounce: 300,
       options: {
         componentRestrictions: { country: ['za'] }, // Filter to South Africa
