@@ -4,6 +4,7 @@ import React from "react";
 import { act } from "react";
 import BookingWizard from "../BookingWizard";
 import { BookingProvider, useBooking } from "@/contexts/BookingContext";
+import { useAuth } from "@/contexts/AuthContext";
 import * as api from "@/lib/api";
 import { geocodeAddress } from "@/lib/geo";
 import { calculateTravelMode, getDrivingMetrics } from "@/lib/travel";
@@ -11,6 +12,7 @@ import { calculateTravelMode, getDrivingMetrics } from "@/lib/travel";
 jest.mock("@/lib/api");
 jest.mock("@/lib/geo");
 jest.mock("@/lib/travel");
+jest.mock("@/contexts/AuthContext");
 
 function Wrapper({ serviceId }: { serviceId?: number } = {}) {
   return (
@@ -44,8 +46,10 @@ function ExposeSetter() {
 describe("BookingWizard flow", () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
+  const mockUseAuth = useAuth as jest.Mock;
 
   beforeEach(async () => {
+    mockUseAuth.mockReturnValue({ user: { id: 1 } });
     Object.defineProperty(window, "innerWidth", { value: 500, writable: true });
     (api.getArtistAvailability as jest.Mock).mockResolvedValue({
       data: { unavailable_dates: [] },
@@ -84,6 +88,7 @@ describe("BookingWizard flow", () => {
     });
     container.remove();
     jest.clearAllMocks();
+    mockUseAuth.mockReset();
   });
 
   function getButton(label: string): HTMLButtonElement {

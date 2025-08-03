@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
 
 import { useBooking } from '@/contexts/BookingContext';
+import { useAuth } from '@/contexts/AuthContext';
 import useIsMobile from '@/hooks/useIsMobile';
 import useBookingForm from '@/hooks/useBookingForm';
 import {
@@ -122,6 +123,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     setTravelResult,
     loadSavedProgress,
   } = useBooking();
+  const { user } = useAuth();
 
   // --- Component States ---
   const [unavailable, setUnavailable] = useState<string[]>([]);
@@ -337,6 +339,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   // Handles final submission of the booking request
   const submitRequest = handleSubmit(async (vals: EventDetails) => {
+    if (!user) {
+      const wantsLogin = window.confirm(
+        'You need an account to submit a booking request. Press OK to sign in or Cancel to sign up.'
+      );
+      router.push(wantsLogin ? '/login' : '/register');
+      return;
+    }
     if (isLoadingReviewData || reviewDataError || calculatedPrice === null || travelResult === null) {
       setValidationError('Review data is not ready. Please wait or check for errors before submitting.');
       return;
