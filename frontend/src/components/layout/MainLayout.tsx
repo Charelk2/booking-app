@@ -180,22 +180,25 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
           }, TRANSITION_DURATION + 150); // Wait for scroll to complete
         }
       }
-    } else { // scrollDirection === 'up'
-      if (currentScrollY < SCROLL_THRESHOLD_UP) {
-        setHeaderState('initial');
-      } else if (currentScrollY >= SCROLL_THRESHOLD_UP && currentScrollY <= SCROLL_THRESHOLD_DOWN) {
-        // User is in the dead zone, scrolling up, and header is compacted: snap to initial
-        if (headerState === 'compacted') {
-          isAdjustingScroll.current = true; // Block further scroll handling
-          setHeaderState('initial'); // Immediately set the state visually
-          window.scrollTo({ top: 0, behavior: 'smooth' }); // Programmatically scroll to top
-          setTimeout(() => {
-            isAdjustingScroll.current = false; // Allow scroll handling again
-          }, TRANSITION_DURATION + 150); // Wait for scroll to complete
+    } else {
+      // scrollDirection === 'up'
+      if (!isArtistsPage) {
+        if (currentScrollY < SCROLL_THRESHOLD_UP) {
+          setHeaderState('initial');
+        } else if (currentScrollY >= SCROLL_THRESHOLD_UP && currentScrollY <= SCROLL_THRESHOLD_DOWN) {
+          // User is in the dead zone, scrolling up, and header is compacted: snap to initial
+          if (headerState === 'compacted') {
+            isAdjustingScroll.current = true; // Block further scroll handling
+            setHeaderState('initial'); // Immediately set the state visually
+            window.scrollTo({ top: 0, behavior: 'smooth' }); // Programmatically scroll to top
+            setTimeout(() => {
+              isAdjustingScroll.current = false; // Allow scroll handling again
+            }, TRANSITION_DURATION + 150); // Wait for scroll to complete
+          }
         }
       }
     }
-  }, [headerState]); // Depend on headerState to get its latest value
+  }, [headerState, isArtistsPage]); // Depend on headerState to get its latest value
 
   // Optimized scroll handler with requestAnimationFrame
   const optimizedScrollHandler = useCallback(() => {
@@ -272,7 +275,9 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
           onClick={() => {
             // This click dismisses the overlay and sets header state.
             // MainLayout's handleScroll logic will then re-evaluate the scroll position.
-            forceHeaderState(window.scrollY > SCROLL_THRESHOLD_DOWN ? 'compacted' : 'initial', window.scrollY > 0 ? undefined : 0);
+            const targetState = isArtistsPage || window.scrollY > SCROLL_THRESHOLD_DOWN ? 'compacted' : 'initial';
+            const scrollTarget = !isArtistsPage && window.scrollY === 0 ? 0 : undefined;
+            forceHeaderState(targetState, scrollTarget);
           }}
         />
       )}
