@@ -323,6 +323,9 @@ styling and behaviour consistent with the homepage and artist page search bars
 while ensuring the Maps script is injected only once, avoiding the
 "API included multiple times" warning. When the API key is missing the field
 degrades to a plain text input instead of throwing a runtime error.
+If a user begins typing before the script finishes loading, their query is now
+retried automatically once the API becomes available so suggestions appear
+without requiring additional input.
 
 The **Edit Profile** page now uses this same component and requires a location
 to be entered so travel fees can be estimated correctly.
