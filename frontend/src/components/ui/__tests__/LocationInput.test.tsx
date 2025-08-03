@@ -1,16 +1,18 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react';
+import { render, fireEvent, waitFor, act } from '@testing-library/react';
 import LocationInput from '../LocationInput';
 
 const mockGetPlacePredictions = jest.fn();
 
-jest.mock('react-google-autocomplete/lib/usePlacesAutocompleteService', () => ({
-  __esModule: true,
-  default: () => ({
-    placesService: null,
-    placePredictions: [],
-    getPlacePredictions: mockGetPlacePredictions,
-  }),
+jest.mock('@/lib/loadPlaces', () => ({
+  loadPlaces: () =>
+    Promise.resolve({
+      AutocompleteService: function () {
+        this.getPlacePredictions = mockGetPlacePredictions;
+      },
+      PlacesService: function () {},
+      AutocompleteSessionToken: function () {},
+    }),
 }));
 
 beforeAll(() => {
@@ -31,15 +33,21 @@ describe('LocationInput', () => {
     };
 
     const { getByRole } = render(<Wrapper />);
+    await act(async () => {});
     const input = getByRole('combobox');
 
+    jest.useFakeTimers();
     fireEvent.change(input, { target: { value: 'Cape Town' } });
+    act(() => {
+      jest.advanceTimersByTime(350);
+    });
 
     await waitFor(() => {
       expect(mockGetPlacePredictions).toHaveBeenCalledTimes(1);
-      expect(mockGetPlacePredictions).toHaveBeenCalledWith(
+      expect(mockGetPlacePredictions.mock.calls[0][0]).toEqual(
         expect.objectContaining({ input: 'Cape Town' }),
       );
     });
+    jest.useRealTimers();
   });
 });

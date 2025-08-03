@@ -17,12 +17,15 @@ jest.mock('next/dynamic', () => () => {
   return Stub;
 });
 
-jest.mock('@/lib/loadPlaces', () => ({ loadPlaces: () => Promise.resolve({}) }));
-
-jest.mock('react-google-autocomplete/lib/usePlacesAutocompleteService', () => () => ({
-  placesService: null,
-  placePredictions: [],
-  getPlacePredictions: jest.fn(),
+jest.mock('@/lib/loadPlaces', () => ({
+  loadPlaces: () =>
+    Promise.resolve({
+      AutocompleteService: function () {
+        this.getPlacePredictions = jest.fn();
+      },
+      PlacesService: function () {},
+      AutocompleteSessionToken: function () {},
+    }),
 }));
 
 describe('SearchBar', () => {

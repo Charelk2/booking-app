@@ -5,36 +5,31 @@ import { useForm, Control, FieldValues } from 'react-hook-form';
 import LocationStep from '../LocationStep';
 
 jest.mock('@/lib/loadPlaces', () => ({
-  loadPlaces: () => Promise.resolve({}),
-}));
-
-jest.mock('react-google-autocomplete/lib/usePlacesAutocompleteService', () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const React = require('react');
-  return () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [preds, setPreds] = React.useState<any[]>([]);
-    return {
-      placesService: {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        getDetails: (_opts: any, cb: (p: any) => void) =>
-          cb({
-            geometry: { location: { lat: () => 1, lng: () => 2 } },
-            formatted_address: 'Test',
-          }),
+  loadPlaces: () =>
+    Promise.resolve({
+      AutocompleteService: function () {
+        this.getPlacePredictions = (_opts: any, cb: (r: any[]) => void) =>
+          cb([
+            {
+              place_id: '1',
+              description: 'Test',
+              structured_formatting: { main_text: 'Test', secondary_text: 'SA' },
+            },
+          ]);
       },
-      placePredictions: preds,
-      getPlacePredictions: () =>
-        setPreds([
-          {
-            place_id: '1',
-            description: 'Test',
-            structured_formatting: { main_text: 'Test', secondary_text: 'SA' },
-          },
-        ]),
-    };
-  };
-});
+      PlacesService: function () {
+        this.getDetails = (_opts: any, cb: any) =>
+          cb(
+            {
+              geometry: { location: { lat: () => 1, lng: () => 2 } },
+              formatted_address: 'Test',
+            },
+            (global as any).google.maps.places.PlacesServiceStatus.OK,
+          );
+      },
+      AutocompleteSessionToken: function () {},
+    }),
+}));
 
 beforeAll(() => {
   process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = 'test-key';
@@ -79,15 +74,18 @@ describe('LocationStep selection', () => {
       await Promise.resolve();
     });
     const input = container.querySelector('input') as HTMLInputElement;
+    jest.useFakeTimers();
     await act(async () => {
       input.value = 'Test';
       input.dispatchEvent(new Event('input', { bubbles: true }));
+      jest.advanceTimersByTime(350);
     });
     const option = container.querySelector('[data-testid="location-option"]') as HTMLDivElement;
     await act(async () => {
       option.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     expect(container.querySelector('[data-testid="map"]')).not.toBeNull();
+    jest.useRealTimers();
   });
 
   it('reveals tooltip on focus', async () => {
