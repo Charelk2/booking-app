@@ -135,6 +135,23 @@ describe('MainLayout user menu', () => {
     div.remove();
   });
 
+  it('renders compact search pill on the home page', async () => {
+    mockUsePathname.mockReturnValue('/');
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 11, email: 'h@test.com', user_type: 'client' } as User, logout: jest.fn() });
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(React.createElement(MainLayout, null, React.createElement('div')));
+    });
+    await flushPromises();
+    const header = div.querySelector('#app-header') as HTMLElement;
+    expect(header.getAttribute('data-header-state')).toBe('compacted');
+    expect(div.querySelector('#compact-search-trigger')).toBeTruthy();
+    act(() => { root.unmount(); });
+    div.remove();
+  });
+
   it('initializes compact header when search params present', async () => {
     mockUsePathname.mockReturnValue('/artists');
     mockUseSearchParams.mockReturnValue(new URLSearchParams('category=Live%20Performance'));
