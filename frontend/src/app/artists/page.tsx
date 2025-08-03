@@ -143,6 +143,7 @@ export default function ArtistsPage() {
       }}
     />
   );
+  const qs = searchParams.toString();
 
   return (
     <MainLayout headerFilter={filterControl}>
@@ -180,7 +181,7 @@ export default function ArtistsPage() {
                 ratingCount={a.rating_count ?? undefined}
                 verified={user?.is_verified}
                 isAvailable={a.is_available}
-                href={`/artists/${a.id}`}
+                href={qs ? `/artists/${a.id}?${qs}` : `/artists/${a.id}`}
               />
             );
           })}
