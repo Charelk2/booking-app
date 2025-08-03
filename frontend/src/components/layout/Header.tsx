@@ -90,6 +90,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const isArtistsPage = pathname.startsWith('/artists');
   const [menuOpen, setMenuOpen] = useState(false); // Mobile menu drawer state
 
   // Search parameters for the search bars (managed locally by Header and passed to SearchBar)
@@ -136,16 +137,30 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       // After search submission, revert header.
       // Let MainLayout's scroll logic handle the final state based on current scroll.
       // We explicitly close the expanded state here.
-      onForceHeaderState(window.scrollY > 0 ? 'compacted' : 'initial', window.scrollY > 0 ? undefined : 0);
+      if (isArtistsPage) {
+        onForceHeaderState('compacted');
+      } else {
+        onForceHeaderState(
+          window.scrollY > 0 ? 'compacted' : 'initial',
+          window.scrollY > 0 ? undefined : 0,
+        );
+      }
     },
-    [router, onForceHeaderState] // Removed alwaysCompact as it's handled by MainLayout
+    [router, onForceHeaderState, isArtistsPage] // Include isArtistsPage for conditional compacting
   );
 
   // This is crucial: Called by SearchBar when its *internal popups* are closed (e.g., clicking outside calendar)
   const handleSearchBarCancel = useCallback(() => {
     // Let MainLayout's scroll logic determine the final state based on current scroll.
-    onForceHeaderState(window.scrollY > 0 ? 'compacted' : 'initial', window.scrollY > 0 ? undefined : 0);
-  }, [onForceHeaderState]);
+    if (isArtistsPage) {
+      onForceHeaderState('compacted');
+    } else {
+      onForceHeaderState(
+        window.scrollY > 0 ? 'compacted' : 'initial',
+        window.scrollY > 0 ? undefined : 0,
+      );
+    }
+  }, [onForceHeaderState, isArtistsPage]);
 
   // Main header classes reacting to headerState
   const headerClasses = clsx(
@@ -298,11 +313,6 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               onCancel={handleSearchBarCancel} // Pass handler for closing from SearchBar's internal popups
               compact={false} // This SearchBar is always the "full" one for visuals
             />
-            {filterControl && headerState !== 'compacted' && (
-              <div className="absolute top-1/2 right-0 -translate-y-1/2 pr-2">
-                {filterControl}
-              </div>
-            )}
           </div>
         )}
 
