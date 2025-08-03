@@ -275,8 +275,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
           </div>
         </div>
 
-        {/* Full Search Bar (Visible initially, and when expanded from compact) */}
-        {showSearchBar && !extraBar && (
+        {/* Full Search Bar (Visible initially, and when expanded from compact). */}
+        {/* Always render even when extraBar is present so compact mode can expand. */}
+        {showSearchBar && (
           <div
             className={clsx(
               "content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto relative",
