@@ -20,7 +20,7 @@ const baseNavigation = [
 ];
 
 const SCROLL_THRESHOLD_DOWN = 60; // Scroll down past this to compact
-const SCROLL_THRESHOLD_UP = 50;    // Scroll up before this to expand (must be < SCROLL_THRESHOLD_DOWN)
+const SCROLL_THRESHOLD_UP = 10;    // Scroll up before this to expand (must be < SCROLL_THRESHOLD_DOWN)
 const TRANSITION_DURATION = 300; // Match Header's CSS transition duration in ms
 
 // --- FOOTER COMPONENT (Defined within MainLayout) ---
@@ -147,7 +147,7 @@ export default function MainLayout({ children, headerAddon, fullWidthContent = f
             });
             setTimeout(() => {
                 isAdjustingScroll.current = false; // Reset flag after scroll settles
-            }, TRANSITION_DURATION + 150);
+            }, TRANSITION_DURATION + 550);
         }
     }
   }, []); // No dependencies needed as refs are mutable
