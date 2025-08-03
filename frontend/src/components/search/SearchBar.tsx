@@ -1,7 +1,16 @@
 // src/components/search/SearchBar.tsx
 'use client';
 
-import { useRef, useState, KeyboardEvent, FormEvent, useCallback, Fragment, useLayoutEffect } from 'react';
+import {
+  Fragment,
+  type RefObject,
+  FormEvent,
+  KeyboardEvent,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { SearchFields, type Category, type SearchFieldId } from './SearchFields';
@@ -92,11 +101,17 @@ export default function SearchBar({
   }, []);
 
   // Close popups when clicking outside the search form or its floating content
-  useClickOutside([formRef, popupContainerRef], () => {
-    if (showInternalPopup) {
-      closeThisSearchBarsInternalPopups();
-    }
-  });
+  useClickOutside(
+    [
+      formRef as RefObject<HTMLElement | null>,
+      popupContainerRef as RefObject<HTMLElement | null>,
+    ],
+    () => {
+      if (showInternalPopup) {
+        closeThisSearchBarsInternalPopups();
+      }
+    },
+  );
 
   const handleKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
     if (e.key === 'Escape') {
