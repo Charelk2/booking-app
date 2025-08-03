@@ -40,4 +40,16 @@ describe('DashboardTabs', () => {
     });
     expect(onChange).toHaveBeenCalledWith('b');
   });
+
+  it('renders no buttons when tabs are omitted', () => {
+    act(() => {
+      root.render(
+        React.createElement(DashboardTabs, {
+          active: 'bookings',
+          onChange: jest.fn(),
+        })
+      );
+    });
+    expect(container.querySelectorAll('button')).toHaveLength(0);
+  });
 });
