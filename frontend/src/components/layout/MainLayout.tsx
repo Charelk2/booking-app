@@ -76,22 +76,10 @@ const Footer = () => (
 interface Props {
   children: React.ReactNode;
   headerAddon?: React.ReactNode;
-  headerFilter?: React.ReactNode;
   fullWidthContent?: boolean;
-  initialCategory?: string;
-  initialLocation?: string;
-  initialWhen?: Date | null;
 }
 
-export default function MainLayout({
-  children,
-  headerAddon,
-  headerFilter,
-  fullWidthContent = false,
-  initialCategory,
-  initialLocation,
-  initialWhen,
-}: Props) {
+export default function MainLayout({ children, headerAddon, fullWidthContent = false }: Props) {
   const { user } = useAuth();
   const pathname = usePathname();
   const params = typeof useParams === 'function' ? (useParams() as { id?: string }) : {};
@@ -270,8 +258,7 @@ export default function MainLayout({
     : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8';
 
   const isArtistsRoot = pathname === '/artists' && !params.id;
-  const isArtistsPage = pathname.startsWith('/artists');
-  const showSearchBar = pathname === '/' || isArtistsPage;
+  const showSearchBar = pathname === '/' || pathname.startsWith('/artists');
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 bg-gradient-to-b from-brand-light/50 to-gray-50">
@@ -297,11 +284,7 @@ export default function MainLayout({
             isArtistsRoot ? <div className="mx-auto w-full px-4">{headerAddon}</div> : undefined
           }
           showSearchBar={showSearchBar}
-          filterAddon={headerFilter}
-          forceCompactSearchBar={isArtistsPage}
-          initialCategory={initialCategory}
-          initialLocation={initialLocation}
-          initialWhen={initialWhen}
+          alwaysCompact={isArtistDetail}
         />
 
         {/* CONTENT */}
