@@ -210,7 +210,9 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
     if (isArtistDetail) return; // No scroll listener on artist detail pages
 
     window.addEventListener('scroll', optimizedScrollHandler);
-    handleScroll();
+    if (window.scrollY > 0) {
+      handleScroll();
+    }
 
     return () => {
       window.removeEventListener('scroll', optimizedScrollHandler);

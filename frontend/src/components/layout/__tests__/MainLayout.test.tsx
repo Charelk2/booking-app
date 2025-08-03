@@ -152,6 +152,34 @@ describe('MainLayout user menu', () => {
     div.remove();
   });
 
+  it('displays search values and filter control in compact pill on artists page', async () => {
+    mockUsePathname.mockReturnValue('/artists');
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams('category=Live%20Performance&location=Cape%20Town&when=2025-07-01'),
+    );
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 8, email: 't@test.com', user_type: 'client' } as User, logout: jest.fn() });
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(
+        React.createElement(
+          MainLayout,
+          { headerFilter: React.createElement('button', { 'aria-label': 'Filters' }) },
+          React.createElement('div'),
+        ),
+      );
+    });
+    await flushPromises();
+    const trigger = div.querySelector('#compact-search-trigger') as HTMLButtonElement;
+    expect(trigger.textContent).toContain('Musician / Band');
+    expect(trigger.textContent).toContain('Cape Town');
+    expect(trigger.textContent).toContain('Jul 1, 2025');
+    expect(div.querySelector('[aria-label="Filters"]')).toBeTruthy();
+    act(() => { root.unmount(); });
+    div.remove();
+  });
+
   it('hides search bar outside home and artists pages', async () => {
     mockUsePathname.mockReturnValue('/contact');
     mockUseParams.mockReturnValue({});
