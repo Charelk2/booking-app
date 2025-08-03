@@ -317,14 +317,12 @@ The `next.config.js` file now explicitly includes `/static/cover_photos/**` and
 `/static/portfolio_images/**` alongside `/static/profile_pics/**` in its
 `remotePatterns` list.
 
-The location input now reuses the `LocationInput` component powered by the
-`react-google-autocomplete` package. It matches the styling and behaviour of the
-homepage and artist page search bars. The Google Maps script still loads lazily
-via the `loadPlaces()` helper so it is only injected once and avoids the "API
-included multiple times" warning.
-`LocationInput` waits for this helper to resolve before creating the
-autocomplete service. When the API key is missing the field degrades to a plain
-text input instead of throwing a runtime error.
+The location input now reuses the `LocationInput` component which directly
+invokes the Google Places API via the shared `loadPlaces()` helper. This keeps
+styling and behaviour consistent with the homepage and artist page search bars
+while ensuring the Maps script is injected only once, avoiding the
+"API included multiple times" warning. When the API key is missing the field
+degrades to a plain text input instead of throwing a runtime error.
 
 The **Edit Profile** page now uses this same component and requires a location
 to be entered so travel fees can be estimated correctly.

@@ -75,22 +75,36 @@ jest.mock('@react-google-maps/api', () => {
 });
 
 
-// Stub Places Autocomplete used by LocationStep
+// Stub Google Maps objects used across tests
 const mockAutocomplete = jest.fn(function Autocomplete(this: any) {
   this.getPlace = jest.fn();
   this.addListener = jest.fn((evt: string, cb: () => void) => {
     if (evt === 'place_changed') this._cb = cb;
   });
 });
+const mockAutocompleteService = jest.fn(function AutocompleteService(this: any) {
+  this.getPlacePredictions = jest.fn();
+});
+const mockPlacesService = jest.fn(function PlacesService(this: any) {
+  this.getDetails = jest.fn();
+});
 (globalThis as any).google = {
   maps: {
+    LatLng: function LatLng(lat: number, lng: number) {
+      return { lat: () => lat, lng: () => lng } as any;
+    },
     places: {
       Autocomplete: mockAutocomplete,
+      AutocompleteService: mockAutocompleteService,
+      PlacesService: mockPlacesService,
+      PlacesServiceStatus: { OK: 'OK' },
       AutocompleteSessionToken: jest.fn(),
     },
   },
 };
 (globalThis as any).mockAutocomplete = mockAutocomplete;
+(globalThis as any).mockAutocompleteService = mockAutocompleteService;
+(globalThis as any).mockPlacesService = mockPlacesService;
 
 // Stub gmpx-place-autocomplete web component used in LocationMapModal
 class GmpxPlaceAutocomplete extends HTMLElement {
