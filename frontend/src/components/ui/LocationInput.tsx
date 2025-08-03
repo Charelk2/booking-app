@@ -1,10 +1,17 @@
 // src/components/ui/LocationInput.tsx
 'use client';
 
-import React, { useState, useEffect, useRef, KeyboardEvent, forwardRef, useImperativeHandle } from 'react';
-import usePlacesService from 'react-google-autocomplete/lib/usePlacesAutocompleteService';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  KeyboardEvent,
+  forwardRef,
+  useImperativeHandle,
+} from 'react';
 import { MapPinIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
+import { loadPlaces } from '@/lib/loadPlaces';
 
 // Define the type alias for Google's PlaceResult here for local clarity
 // This ensures compatibility with the `google.maps.places.PlaceResult` type
@@ -43,18 +50,24 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       );
     }
 
-    const {
-      placesService,
-      placePredictions,
-      getPlacePredictions,
-    } = usePlacesService({
-      apiKey: googleMapsApiKey,
-      debounce: 300,
-      options: {
-        componentRestrictions: { country: ['za'] }, // Filter to South Africa
-        // types: ['(cities)'], // Optional: uncomment if you only want city results
-      }
-    });
+    const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
+    const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+    const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+
+    // Load Google Places API once and initialise services
+    useEffect(() => {
+      let mounted = true;
+      (async () => {
+        const places = await loadPlaces();
+        if (!mounted || !places) return;
+        autocompleteServiceRef.current = new places.AutocompleteService();
+        placesServiceRef.current = new places.PlacesService(document.createElement('div'));
+        sessionTokenRef.current = new places.AutocompleteSessionToken();
+      })();
+      return () => {
+        mounted = false;
+      };
+    }, []);
 
     // 🌍 Get user's current location once
     useEffect(() => {
@@ -74,26 +87,6 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       }
     }, []);
 
-    const arePredictionsEqual = (
-      a: google.maps.places.AutocompletePrediction[],
-      b: google.maps.places.AutocompletePrediction[],
-    ) =>
-      a.length === b.length &&
-      a.every((pred, idx) => pred.place_id === b[idx].place_id);
-
-    // 🔄 Update predictions when Google returns new ones
-    useEffect(() => {
-      if (!placePredictions) return;
-
-      setPredictions((prev) =>
-        arePredictionsEqual(prev, placePredictions) ? prev : placePredictions,
-      );
-      setDropdownVisible(placePredictions.length > 0);
-      if (placePredictions.length > 0) {
-        setHighlightedIndex(-1);
-      }
-    }, [placePredictions]);
-
     // Clear predictions when input is emptied
     useEffect(() => {
       if (value.trim().length === 0) {
@@ -103,26 +96,29 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       }
     }, [value]);
 
-    // Keep getPlacePredictions in a ref to avoid it being a changing dependency
-    // which can cause this effect to fire continuously and exceed the update depth
-    const getPredictionsRef = useRef(getPlacePredictions);
-
+    // 🎯 Trigger new predictions from user input (debounced)
     useEffect(() => {
-      getPredictionsRef.current = getPlacePredictions;
-    }, [getPlacePredictions]);
-
-    // 🎯 Trigger new predictions from user input
-    useEffect(() => {
-      if (value.trim().length > 0) {
-        getPredictionsRef.current({
-          input: value,
-          ...(userLocation && {
-            location: new google.maps.LatLng(userLocation.lat, userLocation.lng),
-            radius: 30000, // 30km radius
-          }),
-          sessionToken: new google.maps.places.AutocompleteSessionToken(),
-        });
-      }
+      if (value.trim().length === 0 || !autocompleteServiceRef.current) return;
+      const handler = setTimeout(() => {
+        autocompleteServiceRef.current?.getPlacePredictions(
+          {
+            input: value,
+            componentRestrictions: { country: ['za'] },
+            ...(userLocation && {
+              location: new google.maps.LatLng(userLocation.lat, userLocation.lng),
+              radius: 30000, // 30km radius
+            }),
+            sessionToken: sessionTokenRef.current || undefined,
+          },
+          (results) => {
+            const preds = results || [];
+            setPredictions(preds);
+            setDropdownVisible(preds.length > 0);
+            if (preds.length > 0) setHighlightedIndex(-1);
+          },
+        );
+      }, 300);
+      return () => clearTimeout(handler);
     }, [value, userLocation]);
 
     // 🖱 Close dropdown on outside click
@@ -181,26 +177,35 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       setPredictions([]);
       setDropdownVisible(false);
 
-      if (!placesService) {
-        console.error("Google Places Service not available. Check API key and script loading.");
+      const service = placesServiceRef.current;
+      if (!service) {
+        console.error('Google Places Service not available. Check API key and script loading.');
         onPlaceSelect({ name: prediction.description, formatted_address: prediction.description } as PlaceResult);
         onValueChange(prediction.description);
         return;
       }
 
       if (prediction.place_id) {
-        placesService.getDetails(
+        service.getDetails(
           { placeId: prediction.place_id, fields: ['name', 'formatted_address', 'geometry'] },
-          (placeDetails: google.maps.places.PlaceResult | null, status: google.maps.places.PlacesServiceStatus) => {
+          (
+            placeDetails: google.maps.places.PlaceResult | null,
+            status: google.maps.places.PlacesServiceStatus,
+          ) => {
             if (status === google.maps.places.PlacesServiceStatus.OK && placeDetails) {
               onPlaceSelect(placeDetails as PlaceResult);
-              onValueChange(placeDetails.formatted_address || placeDetails.name || prediction.description);
+              onValueChange(
+                placeDetails.formatted_address || placeDetails.name || prediction.description,
+              );
             } else {
               console.error('PlacesService.getDetails failed:', status);
-              onPlaceSelect({ name: prediction.description, formatted_address: prediction.description } as PlaceResult);
+              onPlaceSelect({
+                name: prediction.description,
+                formatted_address: prediction.description,
+              } as PlaceResult);
               onValueChange(prediction.description);
             }
-          }
+          },
         );
       } else {
         onPlaceSelect({ name: prediction.description, formatted_address: prediction.description } as PlaceResult);
