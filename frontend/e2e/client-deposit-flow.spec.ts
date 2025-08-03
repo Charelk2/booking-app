@@ -17,7 +17,7 @@ test.describe('Client deposit flow from notification', () => {
     await page.getByLabel('Email address').fill('client@test.com');
     await page.getByLabel('Password').fill('secret');
     await page.getByRole('button', { name: /sign in/i }).click();
-    await expect(page).toHaveURL('/dashboard/client');
+    await expect(page).toHaveURL('/dashboard');
 
     await page.getByRole('button', { name: /view notifications/i }).click();
     await page.getByText('Deposit Due').click();
