@@ -1,7 +1,7 @@
 // src/components/layout/Header.tsx
 'use client';
 
-import { useState, useCallback, Fragment, ReactNode } from 'react';
+import { Fragment, ReactNode, forwardRef, useCallback, useState } from 'react';
 import { Menu, Transition } from '@headlessui/react';
 import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
@@ -72,13 +72,17 @@ interface HeaderProps {
   alwaysCompact?: boolean; // Keeps pill visible regardless of scroll
 }
 
-export default function Header({
-  extraBar,
-  headerState,
-  onForceHeaderState,
-  showSearchBar = true,
-  alwaysCompact = false,
-}: HeaderProps) {
+// Forward the ref so MainLayout can access the header DOM element
+const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
+  {
+    extraBar,
+    headerState,
+    onForceHeaderState,
+    showSearchBar = true,
+    alwaysCompact = false,
+  }: HeaderProps,
+  ref,
+) {
   const { user, logout, artistViewActive, toggleArtistView } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -129,7 +133,7 @@ export default function Header({
   );
 
   return (
-    <header id="app-header" className={headerClasses} data-header-state={headerState}>
+    <header ref={ref} id="app-header" className={headerClasses} data-header-state={headerState}>
       <div className="mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Row: Logo - Center - Icons */}
         <div className="grid grid-cols-[auto,1fr,auto] items-center py-2"> {/* Added py-2 back for consistency */}
@@ -273,4 +277,6 @@ export default function Header({
       />
     </header>
   );
-}
+});
+
+export default Header;
