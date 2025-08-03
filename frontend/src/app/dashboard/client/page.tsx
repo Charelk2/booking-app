@@ -98,7 +98,7 @@ export default function ClientDashboardPage() {
               <SectionList
                 title="Booking Requests"
                 data={bookingRequests}
-                renderItem={(r) => <BookingRequestCard key={r.id} request={r} onUpdate={() => {}} />}
+                renderItem={(r) => <BookingRequestCard req={r} />}
                 emptyState={<span>No requests yet</span>}
               />
             </section>
