@@ -11,12 +11,18 @@ interface Tab {
 }
 
 interface DashboardTabsProps {
-  tabs: Tab[];
+  tabs?: Tab[]; // Tabs are optional to allow rendering without data
   active: "bookings" | "services" | "requests"; // Make active specific to allowed tab types
   onChange: (id: "bookings" | "services" | "requests") => void; // Make onChange id specific
 }
 
-export default function DashboardTabs({ tabs, active, onChange }: DashboardTabsProps) {
+export default function DashboardTabs({
+  tabs = [],
+  active,
+  onChange,
+}: DashboardTabsProps) {
+  if (tabs.length === 0) return null;
+
   return (
     <div className="sticky top-0 z-30 bg-gray-50 border-b">
       <div className="flex text-sm">
