@@ -215,12 +215,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     <Menu.Items className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
                       <Menu.Item>
                         {({ active }) => (
-                      <Link
-                        href={user.user_type === 'artist' ? '/dashboard/artist' : '/dashboard/client'}
-                        className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
-                      >
-                        Dashboard
-                      </Link>
+                          <Link href="/dashboard" className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}>
+                            Dashboard
+                          </Link>
                         )}
                       </Menu.Item>
                       <Menu.Item>

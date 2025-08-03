@@ -27,7 +27,7 @@ test.describe('Signup to deposit flow', () => {
     await page.getByLabel('Email address').fill('new@test.com');
     await page.getByLabel('Password').fill('secret!1');
     await page.getByRole('button', { name: /sign in/i }).click();
-    await expect(page).toHaveURL('/dashboard/client');
+    await expect(page).toHaveURL('/dashboard');
 
     await page.goto('/booking?artist_id=1&service_id=1');
     await expect(page.getByTestId('step-heading')).toHaveText(/Date & Time/);
