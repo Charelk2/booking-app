@@ -233,31 +233,6 @@
   transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out; /* No delay when hiding */
 }
 
-/* .compact-pill-wrapper (visible only in compacted state) */
-.compact-pill-wrapper {
-  max-width: 0; /* Hidden by default */
-  opacity: 0;
-  pointer-events: none;
-  overflow: hidden;
-  /* Adjust width transition for the pill */
-  transition: max-width 0.5s ease-in-out, opacity 0.3s ease-in-out 0.1s; 
-}
-
-/* When header is compacted, show the pill */
-#app-header[data-header-state="compacted"] .compact-pill-wrapper {
-  max-width: 32rem; /* max-w-lg */
-  opacity: 1;
-  pointer-events: auto;
-  transition: max-width 0.5s ease-in-out, opacity 0.3s ease-in-out 0.1s;
-}
-
-/* When header is expanded from compact (clicked pill), hide the pill */
-#app-header[data-header-state="expanded-from-compact"] .compact-pill-wrapper {
-  max-width: 0;
-  opacity: 0;
-  pointer-events: none;
-  transition: max-width 0.5s ease-in-out, opacity 0.3s ease-in-out;
-}
 
 /* Overlay for expanded search form */
 #expanded-search-overlay {

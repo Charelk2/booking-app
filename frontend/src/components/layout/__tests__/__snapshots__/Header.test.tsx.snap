@@ -6,11 +6,12 @@ exports[`Header hides search bar when disabled 1`] = `
   id="app-header"
 >
   <div
-    class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
+    class="mx-auto px-4 sm:px-6 lg:px-8"
   >
     <div
-      class="grid grid-cols-[auto,1fr,auto] items-center"
+      class="grid grid-cols-[auto,1fr,auto] items-center py-2"
     >
+       
       <div
         class="flex flex-col"
       >
@@ -22,10 +23,10 @@ exports[`Header hides search bar when disabled 1`] = `
         </a>
       </div>
       <div
-        class="hidden md:flex justify-center flex-grow relative"
+        class="hidden md:flex items-center justify-center flex-grow gap-4 relative"
       >
         <div
-          class="content-area-wrapper header-nav-links"
+          class="content-area-wrapper header-nav-links opacity-100 pointer-events-auto transition-opacity duration-300 delay-100"
         >
           <nav
             class="flex gap-6"
@@ -88,11 +89,12 @@ exports[`Header renders extraBar when provided 1`] = `
   id="app-header"
 >
   <div
-    class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
+    class="mx-auto px-4 sm:px-6 lg:px-8"
   >
     <div
-      class="grid grid-cols-[auto,1fr,auto] items-center"
+      class="grid grid-cols-[auto,1fr,auto] items-center py-2"
     >
+       
       <div
         class="flex flex-col"
       >
@@ -104,10 +106,10 @@ exports[`Header renders extraBar when provided 1`] = `
         </a>
       </div>
       <div
-        class="hidden md:flex justify-center flex-grow relative"
+        class="hidden md:flex items-center justify-center flex-grow gap-4 relative"
       >
         <div
-          class="content-area-wrapper header-nav-links"
+          class="content-area-wrapper header-nav-links opacity-100 pointer-events-auto transition-opacity duration-300 delay-100"
         >
           <nav
             class="flex gap-6"
@@ -170,11 +172,12 @@ exports[`Header renders search bar when enabled 1`] = `
   id="app-header"
 >
   <div
-    class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
+    class="mx-auto px-4 sm:px-6 lg:px-8"
   >
     <div
-      class="grid grid-cols-[auto,1fr,auto] items-center"
+      class="grid grid-cols-[auto,1fr,auto] items-center py-2"
     >
+       
       <div
         class="flex flex-col"
       >
@@ -186,10 +189,10 @@ exports[`Header renders search bar when enabled 1`] = `
         </a>
       </div>
       <div
-        class="hidden md:flex justify-center flex-grow relative"
+        class="hidden md:flex items-center justify-center flex-grow gap-4 relative"
       >
         <div
-          class="content-area-wrapper header-nav-links"
+          class="content-area-wrapper header-nav-links opacity-100 pointer-events-auto transition-opacity duration-300 delay-100"
         >
           <nav
             class="flex gap-6"
@@ -220,51 +223,6 @@ exports[`Header renders search bar when enabled 1`] = `
             </a>
           </nav>
         </div>
-        <div
-          class="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center"
-        >
-          <button
-            class="flex-1 w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
-            id="compact-search-trigger"
-            type="button"
-          >
-            <div
-              class="flex flex-1 divide-x divide-gray-300"
-            >
-              <div
-                class="flex-1 px-2 truncate"
-              >
-                Add artist
-              </div>
-              <div
-                class="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis"
-              >
-                Add location
-              </div>
-              <div
-                class="flex-1 px-2 truncate"
-              >
-                Add dates
-              </div>
-            </div>
-            <svg
-              aria-hidden="true"
-              class="ml-2 h-5 w-5 text-gray-500 flex-shrink-0"
-              data-slot="icon"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
       </div>
       <div
         class="hidden sm:flex items-center gap-4"
@@ -288,7 +246,7 @@ exports[`Header renders search bar when enabled 1`] = `
       </div>
     </div>
     <div
-      class="content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto"
+      class="content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto opacity-100 scale-y-100 pointer-events-auto"
     >
       <form
         aria-label="Artist booking search"
@@ -310,12 +268,12 @@ exports[`Header renders search bar when enabled 1`] = `
               type="button"
             >
               <span
-                class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
+                class="text-sm text-gray-700 font-semibold  pointer-events-none select-none"
               >
                 Where
               </span>
               <span
-                class="block truncate pointer-events-none select-none text-gray-400 italic text-base"
+                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
               >
                 Add location
               </span>
@@ -335,12 +293,12 @@ exports[`Header renders search bar when enabled 1`] = `
               type="button"
             >
               <span
-                class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
+                class="text-sm text-gray-700 font-semibold  pointer-events-none select-none"
               >
                 When
               </span>
               <span
-                class="block truncate pointer-events-none select-none text-gray-400 italic text-base"
+                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
               >
                 Add dates
               </span>
@@ -360,12 +318,12 @@ exports[`Header renders search bar when enabled 1`] = `
               type="button"
             >
               <span
-                class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
+                class="text-sm text-gray-700 font-semibold  pointer-events-none select-none"
               >
                 Category
               </span>
               <span
-                class="block truncate pointer-events-none select-none text-gray-400 italic text-base"
+                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
               >
                 Add artist
               </span>
