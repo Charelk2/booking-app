@@ -110,7 +110,7 @@ export default function MobileMenuDrawer({
                 {user ? (
                   <>
                     <Link
-                      href={user.user_type === 'artist' ? '/dashboard/artist' : '/dashboard/client'}
+                      href="/dashboard"
                       onClick={onClose}
                       className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     >
