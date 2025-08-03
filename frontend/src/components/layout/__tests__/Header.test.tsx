@@ -5,10 +5,14 @@ import { act } from 'react';
 import Header from '../Header';
 
 jest.mock('next/link', () => ({ __esModule: true, default: (props: Record<string, unknown>) => <a {...props} /> }));
+const mockUseSearchParams = jest.fn(() => new URLSearchParams());
+const mockUsePathname = jest.fn(() => '/');
+const mockUseRouter = jest.fn(() => ({ push: jest.fn() }));
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
-  usePathname: jest.fn(() => '/'),
-  useSearchParams: () => new URLSearchParams(),
+  ...jest.requireActual('next/navigation'),
+  useRouter: () => mockUseRouter(),
+  usePathname: () => mockUsePathname(),
+  useSearchParams: () => mockUseSearchParams(),
 }));
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: jest.fn(() => ({ user: null, logout: jest.fn() })) }));
 
@@ -29,7 +33,9 @@ describe('Header', () => {
   it('renders search bar when enabled', async () => {
     const { div, root } = render();
     await act(async () => {
-      root.render(<Header />);
+      root.render(
+        <Header headerState="initial" onForceHeaderState={jest.fn()} />,
+      );
     });
     await flushPromises();
     expect(div.firstChild).toMatchSnapshot();
@@ -40,7 +46,13 @@ describe('Header', () => {
   it('hides search bar when disabled', async () => {
     const { div, root } = render();
     await act(async () => {
-      root.render(<Header showSearchBar={false} />);
+      root.render(
+        <Header
+          headerState="initial"
+          onForceHeaderState={jest.fn()}
+          showSearchBar={false}
+        />,
+      );
     });
     await flushPromises();
     expect(div.firstChild).toMatchSnapshot();
@@ -51,7 +63,52 @@ describe('Header', () => {
   it('renders extraBar when provided', async () => {
     const { div, root } = render();
     await act(async () => {
-      root.render(<Header showSearchBar={false} extraBar={<div>bar</div>} />);
+      root.render(
+        <Header
+          headerState="initial"
+          onForceHeaderState={jest.fn()}
+          showSearchBar={false}
+          extraBar={<div>bar</div>}
+        />,
+      );
+    });
+    await flushPromises();
+    expect(div.firstChild).toMatchSnapshot();
+    act(() => root.unmount());
+    div.remove();
+  });
+
+  it('initializes from query params', async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams(
+        'category=Live%20Performance&location=Cape%20Town&when=2025-12-31',
+      ),
+    );
+    const { div, root } = render();
+    await act(async () => {
+      root.render(
+        <Header headerState="compacted" onForceHeaderState={jest.fn()} />,
+      );
+    });
+    await flushPromises();
+    expect(div.textContent).toContain('Musician / Band');
+    expect(div.textContent).toContain('Cape Town');
+    expect(div.textContent).toContain('Dec');
+    act(() => root.unmount());
+    div.remove();
+    mockUseSearchParams.mockReturnValue(new URLSearchParams());
+  });
+
+  it('matches compact snapshot with filter control', async () => {
+    const { div, root } = render();
+    await act(async () => {
+      root.render(
+        <Header
+          headerState="compacted"
+          onForceHeaderState={jest.fn()}
+          filterControl={<button>F</button>}
+        />,
+      );
     });
     await flushPromises();
     expect(div.firstChild).toMatchSnapshot();
