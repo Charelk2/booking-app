@@ -91,13 +91,13 @@ export default function SearchBarInline({
           className="w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
         >
           <div className="flex flex-1 divide-x divide-gray-300">
-            <div className="flex-1 px-2 truncate">
+            <div className="flex-1 px-2 truncate text-xs">
               {category ? category.label : 'Add artist'}
             </div>
-            <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
+            <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis text-xs">
               {location || 'Add location'}
             </div>
-            <div className="flex-1 px-2 truncate">
+            <div className="flex-1 px-2 truncate text-xs">
               {when ? dateFormatter.format(when) : 'Add dates'}
             </div>
           </div>

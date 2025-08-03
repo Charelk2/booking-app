@@ -78,12 +78,12 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             aria-controls={`${id}-popup`}
             id={`${id}-search-button`} // Provide a unique ID for aria-controls
           >
-            <span className="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none">{label}</span>
+            <span className="text-sm text-gray-700 font-semibold  pointer-events-none select-none">{label}</span>
             <span
               className={clsx(
                 'block truncate pointer-events-none select-none',
-                isValuePresent ? 'text-gray-800' : 'text-gray-400 italic', // Uses italic for placeholders
-                compact ? 'text-sm' : 'text-base'
+                isValuePresent ? 'text-gray-800' : 'text-gray-500', // Uses italic for placeholders
+                compact ? 'text-sm' : 'text-base text-xs'
               )}
             >
               {currentValue}
