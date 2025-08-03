@@ -187,10 +187,16 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
             {/* Compact Search Pill (Visible when scrolled/compacted) */}
             {showSearchBar && (
-              <div className={clsx("compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center", {
-                "opacity-0 pointer-events-none": headerState !== 'compacted',
-                "opacity-100 pointer-events-auto transition-opacity duration-300 delay-100": headerState === 'compacted'
-              })}>
+              <div
+                className={clsx(
+                  "compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex items-center justify-center gap-2",
+                  {
+                    "opacity-0 pointer-events-none": headerState !== 'compacted',
+                    "opacity-100 pointer-events-auto transition-opacity duration-300 delay-100":
+                      headerState === 'compacted',
+                  },
+                )}
+              >
                 <button
                   id="compact-search-trigger"
                   type="button"
@@ -198,7 +204,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     e.stopPropagation();
                     onForceHeaderState('expanded-from-compact');
                   }}
-                  className="flex-1 w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
+                  className="flex-1 w-full max-w-xl flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
                 >
                   <div className="flex flex-1 divide-x divide-gray-300">
                     <div className="flex-1 px-2 truncate">
@@ -213,6 +219,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   </div>
                   <MagnifyingGlassIcon className="ml-2 h-5 w-5 text-gray-500 flex-shrink-0" />
                 </button>
+                {filterControl && <div className="shrink-0">{filterControl}</div>}
               </div>
             )}
           </div>
