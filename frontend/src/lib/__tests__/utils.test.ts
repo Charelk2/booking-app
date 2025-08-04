@@ -8,6 +8,7 @@ import {
   formatStatus,
   generateQuoteNumber,
   applyDisplayOrder,
+  getStreetFromAddress,
 } from '../utils';
 import { DEFAULT_CURRENCY } from '../constants';
 import api from '../api';
@@ -163,6 +164,16 @@ describe('formatStatus', () => {
 
   it('humanises unknown values', () => {
     expect(formatStatus('foo_bar')).toBe('Foo Bar');
+  });
+});
+
+describe('getStreetFromAddress', () => {
+  it('returns text before the first comma', () => {
+    expect(getStreetFromAddress('123 Main St, Cape Town, South Africa')).toBe('123 Main St');
+  });
+
+  it('returns original when no comma is present', () => {
+    expect(getStreetFromAddress('Cape Town')).toBe('Cape Town');
   });
 });
 
