@@ -114,7 +114,26 @@ export default function MessageThreadWrapper({
       <header className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-indigo-700 text-white px-4 py-2 flex items-center  md:min-h-[64px]">
         <div className="flex items-center transition-all duration-300 ease-in-out">
           {/* Avatar on left */}
-          {bookingRequest.artist?.profile_picture_url ? (
+          {isUserArtist ? (
+            bookingRequest.client?.profile_picture_url ? (
+              <Image
+                src={getFullImageUrl(bookingRequest.client.profile_picture_url) as string}
+                alt="Client avatar"
+                width={40}
+                height={40}
+                loading="lazy"
+                className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm flex-shrink-0"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src =
+                    getFullImageUrl('/static/default-avatar.svg') as string;
+                }}
+              />
+            ) : (
+              <div className="h-10 w-10 rounded-full bg-red-400 flex items-center justify-center text-base font-medium border-2 border-white shadow-sm flex-shrink-0">
+                {bookingRequest.client?.first_name?.charAt(0) || 'U'}
+              </div>
+            )
+          ) : bookingRequest.artist?.profile_picture_url ? (
             <Link
               href={`/artists/${bookingRequest.artist.id}`}
               aria-label="Artist profile"
@@ -145,7 +164,13 @@ export default function MessageThreadWrapper({
 
           {/* Name next to avatar */}
           <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis ml-2">
-            Chat with {bookingRequest.client?.first_name || bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name || 'User'}
+            Chat with {
+              isUserArtist
+                ? bookingRequest.client?.first_name || 'User'
+                : bookingRequest.artist?.business_name ||
+                  bookingRequest.artist?.user?.first_name ||
+                  'User'
+            }
           </span>
 
           {/* Send Quote button next */}
