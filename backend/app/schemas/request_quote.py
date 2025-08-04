@@ -3,15 +3,10 @@ from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
 
-from ..models.request_quote import (
-    BookingRequestStatus,
-    QuoteStatus,
-)  # Enums from models
-from .user import UserResponse  # For nesting user details
-from .service import ServiceResponse  # For nesting service details
-from .artist import (
-    ArtistProfileNested,
-)  # Include artist business name for booking requests
+from ..models.request_quote import BookingRequestStatus, QuoteStatus # Enums from models
+from .user import UserResponse # For nesting user details
+from .service import ServiceResponse # For nesting service details
+# from .booking import BookingResponse # For nesting booking if created from quote
 
 # --- BookingRequest Schemas ---
 
@@ -55,12 +50,7 @@ class BookingRequestResponse(BookingRequestBase):
     travel_breakdown: Optional[dict] = None
     
     client: Optional[UserResponse] = None
-    # Expose the artist's business profile as "artist" in the API response.
-    # The underlying attribute is ``artist_profile`` to avoid clashing with the
-    # BookingRequest SQLAlchemy relationship to ``User``.
-    artist_profile: Optional[ArtistProfileNested] = Field(
-        default=None, alias="artist"
-    )
+    artist: Optional[UserResponse] = None # Artist's UserResponse
     service: Optional[ServiceResponse] = None
     quotes: List['QuoteResponse'] = []
     accepted_quote_id: Optional[int] = None
@@ -68,8 +58,7 @@ class BookingRequestResponse(BookingRequestBase):
     last_message_timestamp: Optional[datetime] = None
 
     model_config = {
-        "from_attributes": True,
-        "populate_by_name": True,
+        "from_attributes": True
     }
 
 # --- Quote Schemas ---
