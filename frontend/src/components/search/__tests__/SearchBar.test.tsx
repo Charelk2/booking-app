@@ -21,7 +21,7 @@ jest.mock('@/lib/loadPlaces', () => ({
 }));
 
 describe('SearchBar', () => {
-  it('shows suggestions on click and hides them on escape', async () => {
+  it('shows suggestions on focus and hides them on typing', async () => {
     const onSearch = jest.fn();
     const Wrapper = () => {
       const [category, setCategory] = React.useState(null);
@@ -40,15 +40,14 @@ describe('SearchBar', () => {
       );
     };
 
-    const { getByText, getByRole, queryAllByRole } = render(<Wrapper />);
+    const { getByPlaceholderText, queryAllByRole } = render(<Wrapper />);
 
-    const button = getByText('Add location');
-    fireEvent.click(button);
+    const input = getByPlaceholderText('Add location');
+    fireEvent.focus(input);
 
     expect(queryAllByRole('dialog').length).toBeGreaterThan(0);
 
-    const form = getByRole('search');
-    fireEvent.keyDown(form, { key: 'Escape' });
+    fireEvent.change(input, { target: { value: 'Cape' } });
 
     await waitFor(() => expect(queryAllByRole('dialog').length).toBe(0));
   });
