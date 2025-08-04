@@ -74,6 +74,7 @@ interface MessageThreadProps {
   clientId?: number;
   artistId?: number;
   artistAvatarUrl?: string | null;
+  clientAvatarUrl?: string | null;
   isSystemTyping?: boolean;
   serviceName?: string;
   initialNotes?: string | null;
@@ -112,6 +113,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       onQuoteSent,
       serviceId,
       artistName = 'Artist',
+      clientName = 'Client',
+      clientAvatarUrl = null,
       clientId: propClientId,
       artistId: propArtistId,
       artistAvatarUrl = null,
@@ -623,23 +626,46 @@ useEffect(() => {
                   {/* Sender Name/Avatar for received messages (not system or self) */}
                   {!isSenderSelf && !isSystemMessage && (
                     <div className="flex items-center mb-1">
-                      {artistAvatarUrl ? (
-                        <Image
-                          src={getFullImageUrl(artistAvatarUrl) as string}
-                          alt="Artist avatar"
-                          width={20}
-                          height={20}
-                          className="h-5 w-5 rounded-full object-cover mr-2"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
-                          }}
-                        />
-                      ) : (
-                        <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium mr-2">
-                          {artistName?.charAt(0)}
-                        </div>
-                      )}
-                      <span className="text-xs font-semibold text-gray-700">{artistName}</span>
+                      {user?.user_type === 'artist'
+                        ? clientAvatarUrl
+                          ? (
+                              <Image
+                                src={getFullImageUrl(clientAvatarUrl) as string}
+                                alt="Client avatar"
+                                width={20}
+                                height={20}
+                                className="h-5 w-5 rounded-full object-cover mr-2"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
+                                }}
+                              />
+                            )
+                          : (
+                              <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium mr-2">
+                                {clientName?.charAt(0)}
+                              </div>
+                            )
+                        : artistAvatarUrl
+                          ? (
+                              <Image
+                                src={getFullImageUrl(artistAvatarUrl) as string}
+                                alt="Artist avatar"
+                                width={20}
+                                height={20}
+                                className="h-5 w-5 rounded-full object-cover mr-2"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
+                                }}
+                              />
+                            )
+                          : (
+                              <div className="h-5 w-5 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium mr-2">
+                                {artistName?.charAt(0)}
+                              </div>
+                            )}
+                      <span className="text-xs font-semibold text-gray-700">
+                        {user?.user_type === 'artist' ? clientName : artistName}
+                      </span>
                     </div>
                   )}
 
@@ -769,7 +795,7 @@ useEffect(() => {
           {isSystemTyping && (
             <div className="flex items-end gap-2 self-start">
               <div className="h-7 w-7 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium shadow-sm">
-                {artistName?.charAt(0)}
+                {user?.user_type === 'artist' ? clientName?.charAt(0) : artistName?.charAt(0)}
               </div>
               <div className="bg-gray-200 rounded-2xl px-3 py-1.5 shadow-sm">
                 <div className="flex space-x-0.5 animate-pulse">
