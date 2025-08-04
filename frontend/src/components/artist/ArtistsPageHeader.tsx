@@ -89,7 +89,7 @@ export default function ArtistsPageHeader({
 
   return (
     <>
-      <div className="flex items-center justify-between md:justify-start md:gap-2">
+      <div className="flex items-center justify-between md:justify-start md:gap-1">
         {!isDesktop && (
           <button
             type="button"
