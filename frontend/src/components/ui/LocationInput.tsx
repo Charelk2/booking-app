@@ -248,7 +248,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
           <div
             id={listboxId}
             role="listbox"
-            className="pac-container absolute left-0 z-50 mt-2 w-full max-h-60 overflow-auto rounded-xl bg-white p-2 shadow-xl ring-1 ring-black ring-opacity-5 scrollbar-thin"
+            className="pac-container absolute left-0 top-full z-50 mt-2 w-full max-h-60 overflow-auto rounded-xl bg-white p-2 shadow-xl ring-1 ring-black ring-opacity-5 scrollbar-thin"
           >
             {predictions.map((prediction, index) => {
               const isActive = index === highlightedIndex;
