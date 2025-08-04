@@ -87,11 +87,25 @@ export default function SearchBar({
     setTimeout(() => {
       setActiveField(null);
       if (lastActiveButtonRef.current) {
-        lastActiveButtonRef.current.focus();
+        if (activeField === 'location' && locationInputRef.current) {
+          locationInputRef.current.focus();
+        } else {
+          lastActiveButtonRef.current.focus();
+        }
         lastActiveButtonRef.current = null;
       }
     }, 200);
-  }, []);
+  }, [activeField]);
+
+  const handleLocationChange = useCallback(
+    (value: string) => {
+      setLocation(value);
+      if (showInternalPopup && activeField === 'location') {
+        closeThisSearchBarsInternalPopups();
+      }
+    },
+    [setLocation, showInternalPopup, activeField, closeThisSearchBarsInternalPopups],
+  );
 
   const handleFieldClick = useCallback(
     (fieldId: SearchFieldId, element: HTMLElement) => {
@@ -156,11 +170,12 @@ export default function SearchBar({
           category={category}
           setCategory={setCategory}
           location={location}
-          setLocation={setLocation}
+          setLocation={handleLocationChange}
           when={when}
           setWhen={setWhen}
           activeField={activeField}
           onFieldClick={handleFieldClick}
+          locationInputRef={locationInputRef}
           compact={compact}
         />
         <button
