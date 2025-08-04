@@ -26,7 +26,12 @@ def create_booking_request(
 def get_booking_request(db: Session, request_id: int) -> Optional[models.BookingRequest]:
     return (
         db.query(models.BookingRequest)
-        .options(joinedload(models.BookingRequest.quotes))
+        .options(
+            joinedload(models.BookingRequest.quotes),
+            joinedload(models.BookingRequest.artist).joinedload(
+                models.User.artist_profile
+            ),
+        )
         .filter(models.BookingRequest.id == request_id)
         .first()
     )
@@ -120,8 +125,12 @@ def get_booking_requests_with_last_message(
         db.query(models.BookingRequest)
         .options(
             joinedload(models.BookingRequest.client),
-            joinedload(models.BookingRequest.artist),
-            joinedload(models.BookingRequest.service),
+            joinedload(models.BookingRequest.artist).joinedload(
+                models.User.artist_profile
+            ),
+            joinedload(models.BookingRequest.service).joinedload(
+                models.Service.artist
+            ),
             joinedload(models.BookingRequest.quotes),
         )
         .outerjoin(latest_msg, models.BookingRequest.id == latest_msg.c.br_id)

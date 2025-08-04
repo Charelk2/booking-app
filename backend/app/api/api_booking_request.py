@@ -128,6 +128,12 @@ def read_my_client_booking_requests(
         limit=limit,
     )
     for req in requests:
+        # Attach the artist profile so the response includes business_name
+        if req.artist and getattr(req.artist, "artist_profile", None):
+            req.artist_profile = req.artist.artist_profile
+        # Remove the ``artist`` user object to prevent Pydantic from treating it
+        # as the ``artist`` alias during serialization.
+        req.artist = None
         for q in req.quotes:
             q.booking_request = None
     return requests
@@ -149,6 +155,9 @@ def read_my_artist_booking_requests(
         limit=limit,
     )
     for req in requests:
+        if req.artist and getattr(req.artist, "artist_profile", None):
+            req.artist_profile = req.artist.artist_profile
+        req.artist = None
         for q in req.quotes:
             q.booking_request = None
     return requests
@@ -178,6 +187,9 @@ def read_booking_request(
             {"request_id": "Not found"},
             status.HTTP_404_NOT_FOUND,
         )
+    if db_request.artist and getattr(db_request.artist, "artist_profile", None):
+        db_request.artist_profile = db_request.artist.artist_profile
+    db_request.artist = None
     if not (db_request.client_id == current_user.id or db_request.artist_id == current_user.id):
         raise error_response(
             "Not authorized to access this request",
