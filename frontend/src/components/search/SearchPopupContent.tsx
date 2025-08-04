@@ -108,6 +108,7 @@ export default function SearchPopupContent({
           <li
             key={s.name}
             role="option"
+            aria-selected="false"
             aria-label={`${s.name}${s.description ? `, ${s.description}` : ''}`}
             onClick={() => handleLocationSelect({ name: s.name, formatted_address: s.description })}
             className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
@@ -137,7 +138,7 @@ export default function SearchPopupContent({
     }
 
     return (
-      <div className="flex justify-center items-center w-full h-full">
+      <div className="flex justify-center items-center w-full">
         <h3 className="text-sm font-semibold text-gray-800 sr-only" id="search-popup-label-when">Select date</h3>
         <ReactDatePicker
           selected={when}
@@ -216,7 +217,7 @@ export default function SearchPopupContent({
   const renderDefault = () => (
     <div className="text-center text-gray-500 py-8">
       <h3 className="text-lg font-semibold mb-2" id="search-popup-label-default">Find artists for your event!</h3>
-      <p className="text-sm">Click 'Where', 'When', or 'Category' to start.</p>
+      <p className="text-sm">Click &quot;Where&quot;, &quot;When&quot;, or &quot;Category&quot; to start.</p>
       <div className="mt-6">
         <h4 className="text-md font-semibold text-gray-700 mb-3">Popular Artist Locations</h4>
         <ul className="grid grid-cols-2 gap-4">
