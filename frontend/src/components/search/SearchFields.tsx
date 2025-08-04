@@ -3,7 +3,7 @@
 
 import { forwardRef, useRef } from 'react';
 import clsx from 'clsx';
-import { getStreetFromAddress } from '@/lib/utils';
+import LocationInput, { PlaceResult } from '../ui/LocationInput';
 
 // Import types for consistency
 import type { ActivePopup } from './SearchBar'; // Assuming SearchBar defines ActivePopup
@@ -22,8 +22,9 @@ export interface SearchFieldsProps {
   when: Date | null;
   setWhen: (d: Date | null) => void;
   activeField: ActivePopup;
-  onFieldClick: (fieldId: SearchFieldId, buttonElement: HTMLButtonElement) => void;
+  onFieldClick: (fieldId: SearchFieldId, element: HTMLElement) => void;
   compact?: boolean;
+  locationInputRef: React.RefObject<HTMLInputElement>;
 }
 
 export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
@@ -38,12 +39,13 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       activeField,
       onFieldClick,
       compact = false,
+      locationInputRef,
     },
     ref
   ) => {
     // Individual refs for each field's button element to store and return focus
     const categoryButtonRef = useRef<HTMLButtonElement>(null);
-    const locationButtonRef = useRef<HTMLButtonElement>(null);
+    const locationContainerRef = useRef<HTMLDivElement>(null);
     const whenButtonRef = useRef<HTMLButtonElement>(null);
 
     // Helper to render a generic search field button
@@ -118,23 +120,60 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
 
   return (
     <div ref={ref} className="flex flex-1 divide-x divide-gray-200">
+      {/* Location field now uses a direct input instead of a button */}
+      <div
+        ref={locationContainerRef}
+        className={clsx(
+          'relative flex-1 min-w-0 transition-all duration-200 ease-out',
+          compact ? 'px-4 py-2' : 'px-6 py-3',
+          activeField === 'location'
+            ? 'bg-gray-100 shadow-md'
+            : 'hover:bg-gray-50 focus-within:bg-gray-50',
+        )}
+        onFocus={() => onFieldClick('location', locationContainerRef.current!)}
+        onClick={() => locationInputRef.current?.focus()}
+      >
+        <span className="text-sm text-gray-700 font-semibold pointer-events-none select-none">Where</span>
+        <LocationInput
+          ref={locationInputRef}
+          value={location}
+          onValueChange={setLocation}
+          onPlaceSelect={(place: PlaceResult) => setLocation(place.formatted_address || place.name || '')}
+          placeholder="Add location"
+          className="w-full"
+          inputClassName={clsx(
+            'block truncate p-0 bg-transparent',
+            location ? 'text-gray-800' : 'text-gray-500',
+            compact ? 'text-sm' : 'text-base text-xs',
+          )}
+        />
+
+        {location && activeField !== 'location' && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLocation('');
+              locationInputRef.current?.focus();
+            }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none rounded-full p-1 z-20 transition-transform active:scale-90"
+            aria-label="Clear location"
+            title="Clear location"
+          >
+            &times;
+          </button>
+        )}
+      </div>
+
+      <div className="border-l border-gray-200" />
+
       {renderField(
-        'location',
-        'Where',
-          (compact && location ? getStreetFromAddress(location) : location) || 'Add location',
-          locationButtonRef,
-          () => setLocation('')
-        )}
-
-        <div className="border-l border-gray-200" />
-
-        {renderField(
-          'when',
-          'When',
-          when ? dateFormatter.format(when) : 'Add dates',
-          whenButtonRef,
-          () => setWhen(null)
-        )}
+        'when',
+        'When',
+        when ? dateFormatter.format(when) : 'Add dates',
+        whenButtonRef,
+        () => setWhen(null)
+      )}
 
         <div className="border-l border-gray-200" />
 
