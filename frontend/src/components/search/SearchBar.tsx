@@ -75,7 +75,7 @@ export default function SearchBar({
       const buttonRect = lastActiveButtonRef.current.getBoundingClientRect(); // Coords of clicked button
       const formRect = formRef.current.getBoundingClientRect(); // Coords of the whole search bar
 
-      let top = buttonRect.bottom + window.scrollY + 8; // Default 8px margin below button
+      const top = buttonRect.bottom + window.scrollY + 8; // Default 8px margin below button
       let left = formRect.left + window.scrollX; // Default align with SearchBar's left edge
       let width = formRect.width; // Default popup width equals SearchBar width
       let height: number | undefined;
@@ -85,12 +85,8 @@ export default function SearchBar({
       } else if (activeField === 'category') {
         width = formRect.width / 2; // Half width anchored right
         left = formRect.left + window.scrollX + formRect.width / 2;
-      } else if (activeField === 'when') {
-        top = window.scrollY; // Full-screen overlay starts at top of viewport
-        left = window.scrollX; // Align to left edge of viewport
-        width = window.innerWidth; // Full screen width
-        height = window.innerHeight; // Full screen height
       }
+      // The 'when' popup spans the entire SearchBar width without taking over the screen
 
       setPopupPosition({ top, left, width, height });
     } else {
