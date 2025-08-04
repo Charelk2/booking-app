@@ -74,8 +74,8 @@ export default function SearchBar({
       // Calculate position relative to the viewport
       setPopupPosition({
         top: buttonRect.bottom + window.scrollY + 8, // 8px margin below button
-        left: buttonRect.left + window.scrollX,
-        width: formRect.width // Make popup same width as the entire search bar form
+        left: formRect.left + window.scrollX, // Align popup with the SearchBar's left edge
+        width: formRect.width, // Popup matches the SearchBar width
       });
     } else {
       setPopupPosition(null); // Clear position when popup is not visible
