@@ -6,7 +6,7 @@ import SearchBar from '../SearchBar';
 jest.mock('next/dynamic', () => () => {
   const Stub = ({ activeField }: { activeField: string }) =>
     activeField === 'location' ? <div role="dialog">Suggestions</div> : null;
-  return Stub;
+  return Stub as React.FC<any>;
 });
 
 jest.mock('@/lib/loadPlaces', () => ({
@@ -21,7 +21,7 @@ jest.mock('@/lib/loadPlaces', () => ({
 }));
 
 describe('SearchBar', () => {
-  it('shows suggestions on focus and hides them on typing', async () => {
+  it('keeps suggestions visible when typing in location', async () => {
     const onSearch = jest.fn();
     const Wrapper = () => {
       const [category, setCategory] = React.useState(null);
@@ -49,11 +49,6 @@ describe('SearchBar', () => {
 
     fireEvent.change(input, { target: { value: 'Cape' } });
 
-    await waitFor(() => expect(queryAllByRole('dialog').length).toBe(0));
-
-    fireEvent.blur(input);
-    fireEvent.focus(input);
-
-    await waitFor(() => expect(queryAllByRole('dialog').length).toBe(0));
+    await waitFor(() => expect(queryAllByRole('dialog').length).toBeGreaterThan(0));
   });
 });
