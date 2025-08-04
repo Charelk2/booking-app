@@ -2,15 +2,17 @@
 
 exports[`Header hides search bar when disabled 1`] = `
 <header
-  class="app-header sticky top-0 z-40 bg-white transition-all duration-300 ease-in-out"
+  class="app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out"
+  data-header-state="initial"
   id="app-header"
 >
   <div
-    class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
+    class="mx-auto px-4 sm:px-6 lg:px-8"
   >
     <div
-      class="grid grid-cols-[auto,1fr,auto] items-center"
+      class="grid grid-cols-[auto,1fr,auto] items-center py-2"
     >
+       
       <div
         class="flex flex-col"
       >
@@ -25,7 +27,7 @@ exports[`Header hides search bar when disabled 1`] = `
         class="hidden md:flex justify-center flex-grow relative"
       >
         <div
-          class="content-area-wrapper header-nav-links"
+          class="content-area-wrapper header-nav-links opacity-100 pointer-events-auto transition-opacity duration-300 delay-100"
         >
           <nav
             class="flex gap-6"
@@ -84,7 +86,7 @@ exports[`Header hides search bar when disabled 1`] = `
 
 exports[`Header matches compact snapshot with filter control 1`] = `
 <header
-  class="app-header sticky top-0 z-40 bg-white transition-all duration-300 ease-in-out compacted"
+  class="app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out compacted"
   data-header-state="compacted"
   id="app-header"
 >
@@ -141,10 +143,10 @@ exports[`Header matches compact snapshot with filter control 1`] = `
           </nav>
         </div>
         <div
-          class="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center opacity-100 pointer-events-auto transition-opacity duration-300 delay-100"
+          class="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex items-center justify-center gap-2 opacity-100 pointer-events-auto transition-opacity duration-300 delay-100"
         >
           <button
-            class="flex-1 w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
+            class="flex-1 w-full max-w-xl flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
             id="compact-search-trigger"
             type="button"
           >
@@ -184,6 +186,13 @@ exports[`Header matches compact snapshot with filter control 1`] = `
               />
             </svg>
           </button>
+          <div
+            class="shrink-0"
+          >
+            <button>
+              F
+            </button>
+          </div>
         </div>
       </div>
       <div
@@ -213,7 +222,7 @@ exports[`Header matches compact snapshot with filter control 1`] = `
       <form
         aria-label="Artist booking search"
         autocomplete="off"
-        class="relative z-45 flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out text-base shadow-md hover:shadow-lg"
+        class="relative z-[45] flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out text-base shadow-md hover:shadow-lg"
         role="search"
       >
         <div
@@ -327,15 +336,17 @@ exports[`Header matches compact snapshot with filter control 1`] = `
 
 exports[`Header renders extraBar when provided 1`] = `
 <header
-  class="app-header sticky top-0 z-40 bg-white transition-all duration-300 ease-in-out"
+  class="app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out"
+  data-header-state="initial"
   id="app-header"
 >
   <div
-    class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
+    class="mx-auto px-4 sm:px-6 lg:px-8"
   >
     <div
-      class="grid grid-cols-[auto,1fr,auto] items-center"
+      class="grid grid-cols-[auto,1fr,auto] items-center py-2"
     >
+       
       <div
         class="flex flex-col"
       >
@@ -350,7 +361,7 @@ exports[`Header renders extraBar when provided 1`] = `
         class="hidden md:flex justify-center flex-grow relative"
       >
         <div
-          class="content-area-wrapper header-nav-links"
+          class="content-area-wrapper header-nav-links opacity-100 pointer-events-auto transition-opacity duration-300 delay-100"
         >
           <nav
             class="flex gap-6"
@@ -403,21 +414,30 @@ exports[`Header renders extraBar when provided 1`] = `
         </div>
       </div>
     </div>
+    <div
+      class="mt-3"
+    >
+      <div>
+        bar
+      </div>
+    </div>
   </div>
 </header>
 `;
 
 exports[`Header renders search bar when enabled 1`] = `
 <header
-  class="app-header sticky top-0 z-40 bg-white transition-all duration-300 ease-in-out"
+  class="app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out"
+  data-header-state="initial"
   id="app-header"
 >
   <div
-    class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
+    class="mx-auto px-4 sm:px-6 lg:px-8"
   >
     <div
-      class="grid grid-cols-[auto,1fr,auto] items-center"
+      class="grid grid-cols-[auto,1fr,auto] items-center py-2"
     >
+       
       <div
         class="flex flex-col"
       >
@@ -432,7 +452,7 @@ exports[`Header renders search bar when enabled 1`] = `
         class="hidden md:flex justify-center flex-grow relative"
       >
         <div
-          class="content-area-wrapper header-nav-links"
+          class="content-area-wrapper header-nav-links opacity-100 pointer-events-auto transition-opacity duration-300 delay-100"
         >
           <nav
             class="flex gap-6"
@@ -464,10 +484,10 @@ exports[`Header renders search bar when enabled 1`] = `
           </nav>
         </div>
         <div
-          class="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex justify-center"
+          class="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex items-center justify-center gap-2 opacity-0 pointer-events-none"
         >
           <button
-            class="flex-1 w-full flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
+            class="flex-1 w-full max-w-xl flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
             id="compact-search-trigger"
             type="button"
           >
@@ -531,12 +551,12 @@ exports[`Header renders search bar when enabled 1`] = `
       </div>
     </div>
     <div
-      class="content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto"
+      class="content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto relative opacity-100 scale-y-100 pointer-events-auto"
     >
       <form
         aria-label="Artist booking search"
         autocomplete="off"
-        class="relative z-45 flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out text-base shadow-md hover:shadow-lg"
+        class="relative z-[45] flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out text-base shadow-md hover:shadow-lg"
         role="search"
       >
         <div
@@ -553,12 +573,12 @@ exports[`Header renders search bar when enabled 1`] = `
               type="button"
             >
               <span
-                class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
+                class="text-sm text-gray-700 font-semibold  pointer-events-none select-none"
               >
                 Where
               </span>
               <span
-                class="block truncate pointer-events-none select-none text-gray-400 italic text-base"
+                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
               >
                 Add location
               </span>
@@ -578,12 +598,12 @@ exports[`Header renders search bar when enabled 1`] = `
               type="button"
             >
               <span
-                class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
+                class="text-sm text-gray-700 font-semibold  pointer-events-none select-none"
               >
                 When
               </span>
               <span
-                class="block truncate pointer-events-none select-none text-gray-400 italic text-base"
+                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
               >
                 Add dates
               </span>
@@ -603,12 +623,12 @@ exports[`Header renders search bar when enabled 1`] = `
               type="button"
             >
               <span
-                class="text-xs text-gray-500 font-semibold mb-1 pointer-events-none select-none"
+                class="text-sm text-gray-700 font-semibold  pointer-events-none select-none"
               >
                 Category
               </span>
               <span
-                class="block truncate pointer-events-none select-none text-gray-400 italic text-base"
+                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
               >
                 Add artist
               </span>
