@@ -144,7 +144,7 @@ export default function SearchBar({
         onSubmit={handleSubmit}
         autoComplete="off"
         className={clsx(
-          'relative z-45 flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out',
+          'relative z-[45] flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out',
           compact ? 'text-sm' : 'text-base',
           showInternalPopup ? 'shadow-xl' : 'shadow-md hover:shadow-lg'
         )}
@@ -189,7 +189,7 @@ export default function SearchBar({
         <>
           {/* Overlay for SearchBar's internal popups (dims the page area around the popup) */}
           <div
-            className="fixed inset-0 bg-black bg-opacity-30 z-46 cursor-pointer animate-fadeIn"
+            className="fixed inset-0 bg-black bg-opacity-30 z-[46] cursor-pointer animate-fadeIn"
             aria-hidden="true"
             onClick={closeThisSearchBarsInternalPopups}
           />
@@ -208,7 +208,7 @@ export default function SearchBar({
             <div
               ref={popupContainerRef}
               className={clsx(
-                "absolute rounded-xl bg-white p-4 shadow-xl ring-1 ring-black ring-opacity-5 z-47",
+                "absolute rounded-xl bg-white p-4 shadow-xl ring-1 ring-black ring-opacity-5 z-[47]",
                 "origin-top-left"
               )}
               role="dialog"
