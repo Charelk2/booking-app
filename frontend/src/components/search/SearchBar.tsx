@@ -59,7 +59,7 @@ export default function SearchBar({
   // NEW: State to store the position of the clicked field and width of the search bar
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number; width: number; } | null>(null);
 
-  const lastActiveButtonRef = useRef<HTMLButtonElement | null>(null);
+  const lastActiveButtonRef = useRef<HTMLElement | null>(null);
 
   const locationInputRef = useRef<HTMLInputElement>(null);
   const categoryListboxOptionsRef = useRef<HTMLUListElement>(null);
@@ -82,23 +82,37 @@ export default function SearchBar({
     }
   }, [showInternalPopup, activeField]); // Recalculate if popup state or active field changes
 
-  const handleFieldClick = useCallback((fieldId: SearchFieldId, buttonElement: HTMLButtonElement) => {
+  const handleLocationChange = useCallback(
+    (value: string) => {
+      setLocation(value);
+      if (showInternalPopup && activeField === 'location') {
+        closeThisSearchBarsInternalPopups();
+      }
+    },
+    [setLocation, showInternalPopup, activeField, closeThisSearchBarsInternalPopups],
+  );
+
+  const handleFieldClick = useCallback((fieldId: SearchFieldId, buttonElement: HTMLElement) => {
     setActiveField(fieldId);
     setShowInternalPopup(true);
     lastActiveButtonRef.current = buttonElement;
     // Position calculated in useLayoutEffect
-  }, []);
+  }, [activeField]);
 
   const closeThisSearchBarsInternalPopups = useCallback(() => {
     setShowInternalPopup(false);
     setTimeout(() => {
         setActiveField(null);
         if (lastActiveButtonRef.current) {
-            (lastActiveButtonRef.current as HTMLElement).focus();
+            if (activeField === 'location' && locationInputRef.current) {
+                locationInputRef.current.focus();
+            } else {
+                lastActiveButtonRef.current.focus();
+            }
             lastActiveButtonRef.current = null;
         }
     }, 200);
-  }, []);
+  }, [activeField]);
 
   // Close popups when clicking outside the search form or its floating content
   useClickOutside(
@@ -155,11 +169,12 @@ export default function SearchBar({
           category={category}
           setCategory={setCategory}
           location={location}
-          setLocation={setLocation}
+          setLocation={handleLocationChange}
           when={when}
           setWhen={setWhen}
           activeField={activeField}
           onFieldClick={handleFieldClick}
+          locationInputRef={locationInputRef}
           compact={compact}
         />
         <button
