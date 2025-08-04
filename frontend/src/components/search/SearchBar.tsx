@@ -73,7 +73,7 @@ export default function SearchBar({
     if (showInternalPopup && formRef.current) {
       const formRect = formRef.current.getBoundingClientRect(); // Coords of the whole search bar
 
-      const top = formRect.bottom + window.scrollY + 8; // Uniform 8px gap below SearchBar
+      const top = formRect.bottom + window.scrollY + 4; // Uniform 8px gap below SearchBar
       let left = formRect.left + window.scrollX; // Default align with SearchBar's left edge
       let width = formRect.width; // Default popup width equals SearchBar width
       let height: number | undefined;
