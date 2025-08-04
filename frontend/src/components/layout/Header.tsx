@@ -17,6 +17,7 @@ import { Avatar } from '../ui'; // Assuming Avatar is set up
 import clsx from 'clsx';
 import { type Category } from '../search/SearchFields'; // Import Category type from SearchFields
 import { parseISO, isValid } from 'date-fns';
+import { getStreetFromAddress } from '@/lib/utils';
 
 
 // Define header states (must match MainLayout)
@@ -226,7 +227,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       {category ? category.label : 'Add artist'}
                     </div>
                     <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
-                      {location || 'Add location'}
+                      {location ? getStreetFromAddress(location) : 'Add location'}
                     </div>
                     <div className="flex-1 px-2 truncate">
                       {when ? dateFormatter.format(when) : 'Add dates'}
