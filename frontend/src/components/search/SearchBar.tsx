@@ -55,6 +55,9 @@ export default function SearchBar({
   const [isSubmitting, setSubmitting] = useState(false);
   const [activeField, setActiveField] = useState<ActivePopup>(null);
   const [showInternalPopup, setShowInternalPopup] = useState(false);
+  // Tracks if the user has typed in the location field so that suggested destinations
+  // popup does not reappear once dismissed
+  const [locationPopupDismissed, setLocationPopupDismissed] = useState(false);
 
   // NEW: State to store the position of the clicked field and width of the search bar
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number; width: number; } | null>(null);
@@ -100,22 +103,34 @@ export default function SearchBar({
   const handleLocationChange = useCallback(
     (value: string) => {
       setLocation(value);
+      if (!locationPopupDismissed && value.trim().length > 0) {
+        setLocationPopupDismissed(true);
+      }
       if (showInternalPopup && activeField === 'location') {
         closeThisSearchBarsInternalPopups();
       }
     },
-    [setLocation, showInternalPopup, activeField, closeThisSearchBarsInternalPopups],
+    [
+      setLocation,
+      showInternalPopup,
+      activeField,
+      closeThisSearchBarsInternalPopups,
+      locationPopupDismissed,
+    ],
   );
 
   const handleFieldClick = useCallback(
     (fieldId: SearchFieldId, element: HTMLElement) => {
+      if (fieldId === 'location' && locationPopupDismissed) {
+        return;
+      }
       setActiveField(fieldId);
       setShowInternalPopup(true);
       // Store the element that triggered the popup so we can restore focus later
       lastActiveButtonRef.current = element;
       // Position is calculated in useLayoutEffect
     },
-    [],
+    [locationPopupDismissed],
   );
 
   // Close popups when clicking outside the search form or its floating content

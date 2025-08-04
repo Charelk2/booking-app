@@ -50,5 +50,10 @@ describe('SearchBar', () => {
     fireEvent.change(input, { target: { value: 'Cape' } });
 
     await waitFor(() => expect(queryAllByRole('dialog').length).toBe(0));
+
+    fireEvent.blur(input);
+    fireEvent.focus(input);
+
+    await waitFor(() => expect(queryAllByRole('dialog').length).toBe(0));
   });
 });
