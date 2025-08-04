@@ -40,7 +40,7 @@ See [../docs/design_guidelines.md](../docs/design_guidelines.md) for a summary o
 
 The global search bar and its compact pill are rendered only on the home page and artist pages. Other routes omit these elements for a cleaner layout. On the artists listing page, the header loads directly in its compact pill state, preserving any category, location, and date selections from the URL and showing the filter icon beside the pill for quick refinement. Clicking the pill now expands the full SearchBar above the filter controls, and the compact pill mirrors the collapsed SearchBar by displaying any selected category, location, and dates when the full bar is hidden. For addresses, the pill shows only the street name to keep things concise.
 
-Focusing the location input opens a popup of suggested destinations that spans half the search bar from the left. The category chooser opens on the right half, and selecting dates launches a full-screen calendar overlay. Once the user types in a location, the suggestions popup closes and will not reappear, while Google Places autocomplete suggestions show directly beneath the input.
+Focusing the location input opens a popup of suggested destinations that spans half the search bar from the left. The category chooser opens on the right half, and selecting dates launches a full-screen calendar overlay. If the suggested destinations exceed the popup height, the list now scrolls so all options remain accessible. Once the user types in a location, the suggestions popup closes and will not reappear, while Google Places autocomplete suggestions show directly beneath the input.
 
 ### Loading Indicators
 
