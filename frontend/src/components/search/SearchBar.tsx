@@ -55,9 +55,8 @@ export default function SearchBar({
   const [isSubmitting, setSubmitting] = useState(false);
   const [activeField, setActiveField] = useState<ActivePopup>(null);
   const [showInternalPopup, setShowInternalPopup] = useState(false);
-  // Tracks if the user has typed in the location field so that suggested destinations
-  // popup does not reappear once dismissed
-  const [locationPopupDismissed, setLocationPopupDismissed] = useState(false);
+  const [locationPredictions, setLocationPredictions] =
+    useState<google.maps.places.AutocompletePrediction[]>([]);
 
   // NEW: State to store the position and size of the popup
   const [popupPosition, setPopupPosition] =
@@ -112,34 +111,19 @@ export default function SearchBar({
   const handleLocationChange = useCallback(
     (value: string) => {
       setLocation(value);
-      if (!locationPopupDismissed && value.trim().length > 0) {
-        setLocationPopupDismissed(true);
-      }
-      if (showInternalPopup && activeField === 'location') {
-        closeThisSearchBarsInternalPopups();
-      }
     },
-    [
-      setLocation,
-      showInternalPopup,
-      activeField,
-      closeThisSearchBarsInternalPopups,
-      locationPopupDismissed,
-    ],
+    [setLocation],
   );
 
   const handleFieldClick = useCallback(
     (fieldId: SearchFieldId, element: HTMLElement) => {
-      if (fieldId === 'location' && locationPopupDismissed) {
-        return;
-      }
       setActiveField(fieldId);
       setShowInternalPopup(true);
       // Store the element that triggered the popup so we can restore focus later
       lastActiveButtonRef.current = element;
       // Position is calculated in useLayoutEffect
     },
-    [locationPopupDismissed],
+    [],
   );
 
   // Close popups when clicking outside the search form or its floating content
@@ -201,6 +185,7 @@ export default function SearchBar({
           onFieldClick={handleFieldClick}
           locationInputRef={locationInputRef}
           compact={compact}
+          onPredictionsChange={setLocationPredictions}
         />
         <button
           type="submit"
@@ -276,6 +261,7 @@ export default function SearchBar({
                   closeAllPopups={closeThisSearchBarsInternalPopups}
                   locationInputRef={locationInputRef}
                   categoryListboxOptionsRef={categoryListboxOptionsRef}
+                  locationPredictions={locationPredictions}
                 />
               )}
             </div>

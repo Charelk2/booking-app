@@ -25,11 +25,27 @@ interface LocationInputProps {
   placeholder?: string;
   className?: string; // For the outer div container
   inputClassName?: string; // For the input element itself
+  onPredictionsChange?: (
+    predictions: google.maps.places.AutocompletePrediction[],
+  ) => void;
+  showDropdown?: boolean;
 }
 
 // Use forwardRef to allow parent components to pass a ref to the internal input element
 const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
-  ({ value, onValueChange, onPlaceSelect, placeholder = 'Search location', className, inputClassName }, ref) => {
+  (
+    {
+      value,
+      onValueChange,
+      onPlaceSelect,
+      placeholder = 'Search location',
+      className,
+      inputClassName,
+      onPredictionsChange,
+      showDropdown = true,
+    },
+    ref,
+  ) => {
     const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
     const [isDropdownVisible, setDropdownVisible] = useState(false);
     const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
@@ -95,8 +111,9 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
         setPredictions([]);
         setDropdownVisible(false);
         setHighlightedIndex(-1);
+        onPredictionsChange?.([]);
       }
-    }, [value]);
+    }, [value, onPredictionsChange]);
 
     // 🎯 Trigger new predictions from user input (debounced)
     useEffect(() => {
@@ -115,13 +132,14 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
           (results) => {
             const preds = results || [];
             setPredictions(preds);
+            onPredictionsChange?.(preds);
             setDropdownVisible(preds.length > 0);
             if (preds.length > 0) setHighlightedIndex(-1);
           },
         );
       }, 300);
       return () => clearTimeout(handler);
-    }, [value, userLocation, isPlacesReady]);
+    }, [value, userLocation, isPlacesReady, onPredictionsChange]);
 
     // 🖱 Close dropdown on outside click
     useEffect(() => {
@@ -244,7 +262,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
           }
         />
 
-        {isDropdownVisible && predictions.length > 0 && (
+        {showDropdown && isDropdownVisible && predictions.length > 0 && (
           <div
             id={listboxId}
             role="listbox"
