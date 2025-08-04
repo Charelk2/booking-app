@@ -14,9 +14,9 @@
     background-color: var(--color-background);
     box-shadow: 0 10px 25px rgb(0 0 0 / 6%); /* Custom shadow for depth */
     padding: 1rem;
-    width: 100%; /* Make it span the full width of its parent */
-    max-width: none; /* Remove any max-width constraints */
-    min-width: auto; /* Allow it to shrink if container is small, but 100% takes precedence */
+    /* Fit the calendar to its content while respecting the popup width */
+    width: auto;
+    max-width: 100%;
     animation: fadeIn 0.2s ease-out; /* Smooth fade-in animation */
     /* Added to debug potential clipping: */
     box-sizing: border-box; /* Ensure padding doesn't push it out of parent */
