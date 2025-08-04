@@ -58,7 +58,7 @@ export default function DateTimeStep({
                 inputClassName="input-base"
               />
             ) : (
-              <div className="mx-auto w-fit border border-gray-200 rounded-lg hover:shadow-lg">
+              <div className="mx-auto w-fit">
                 <ReactDatePicker
                   {...field}
                   selected={currentValue}

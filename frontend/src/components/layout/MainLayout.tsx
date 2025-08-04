@@ -259,9 +259,8 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
   }, [adjustScrollAfterHeaderChange]);
 
 
-  const contentWrapperClasses = fullWidthContent
-    ? 'w-full'
-    : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8';
+  const contentWrapperClasses = 'w-full px-4 sm:px-6 lg:px-8';
+
 
   const showSearchBar = pathname === '/' || pathname.startsWith('/artists');
 
@@ -296,12 +295,12 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
         />
 
         {/* CONTENT */}
-        <main className={clsx("py-6 pb-24", {
+        <main className={clsx("py-1 pb-24", {
           // Adjust padding if content jumps due to header height changes.
           // With max-height transitions, it should typically flow well.
         })}>
           <div className={contentWrapperClasses}>{children}</div>
-          <HelpPrompt className="mx-auto mt-10 max-w-7xl sm:px-6 lg:px-8" />
+          <HelpPrompt className="mx-auto mt-10 sm:px-6 lg:px-8" />
         </main>
       </div>
 

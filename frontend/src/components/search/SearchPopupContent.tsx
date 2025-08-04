@@ -166,7 +166,7 @@ export default function SearchPopupContent({
           </li>
         ))}
         {locationPredictions.length === 0 && (
-          <li className="text-sm text-gray-500 px-4 py-2">searching...</li>
+          <li className="text-sm text-gray-500 px-4 py-2">Loading search...</li>
         )}
       </ul>
     );
