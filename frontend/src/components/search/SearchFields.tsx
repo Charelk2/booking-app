@@ -26,7 +26,7 @@ export interface SearchFieldsProps {
   compact?: boolean;
   // Ref forwarded to the internal location input so parent components can focus it
   // The ref's `current` will be `null` initially but will point to the input element once mounted
-  locationInputRef: React.RefObject<HTMLInputElement>;
+  locationInputRef: React.MutableRefObject<HTMLInputElement | null>;
 }
 
 export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
