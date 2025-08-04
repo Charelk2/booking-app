@@ -106,7 +106,8 @@ export default function SearchPopupContent({
           >
             Suggested destinations
           </h3>
-          <ul className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-hidden scrollbar-thin">
+          {/* Enable vertical scrolling when suggestions exceed container height */}
+          <ul className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-auto scrollbar-thin">
             {MOCK_LOCATION_SUGGESTIONS.map((s) => (
               <li
                 key={s.name}
