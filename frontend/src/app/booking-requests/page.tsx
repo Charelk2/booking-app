@@ -73,9 +73,13 @@ export default function BookingRequestsPage() {
     const lowerSearch = search.toLowerCase();
     return requests
       .filter((r) => {
-        const name = r.client
-          ? `${r.client.first_name} ${r.client.last_name}`.toLowerCase()
-          : '';
+        const name = user?.user_type === 'artist'
+          ? r.client
+            ? `${r.client.first_name} ${r.client.last_name}`.toLowerCase()
+            : ''
+          : r.artist
+            ? (r.artist.business_name || r.artist.user?.first_name || '').toLowerCase()
+            : '';
         const matchesSearch = name.includes(lowerSearch);
         const matchesStatus =
           !statusFilter || r.status === statusFilter;
@@ -83,7 +87,7 @@ export default function BookingRequestsPage() {
           !serviceFilter || r.service?.service_type === serviceFilter;
         return matchesSearch && matchesStatus && matchesService;
       });
-  }, [requests, search, statusFilter, serviceFilter]);
+  }, [requests, search, statusFilter, serviceFilter, user]);
 
 
   const handleRowClick = async (id: number) => {
@@ -123,8 +127,8 @@ export default function BookingRequestsPage() {
             <div className="p-2 space-y-2 sm:flex sm:space-y-0 sm:space-x-2 bg-gray-50">
               <input
                 type="text"
-                placeholder="Search by client name"
-                aria-label="Search by client name"
+                placeholder={user?.user_type === 'artist' ? 'Search by client name' : 'Search by artist name'}
+                aria-label={user?.user_type === 'artist' ? 'Search by client name' : 'Search by artist name'}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="border rounded-md p-1 text-sm flex-1"

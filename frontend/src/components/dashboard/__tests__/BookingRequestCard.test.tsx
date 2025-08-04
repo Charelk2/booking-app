@@ -3,6 +3,9 @@ import React from 'react';
 import { act } from 'react';
 import BookingRequestCard from '../BookingRequestCard';
 import type { BookingRequest, Service } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+
+jest.mock('@/contexts/AuthContext');
 
 const baseReq: BookingRequest = {
   id: 1,
@@ -21,7 +24,22 @@ const baseReq: BookingRequest = {
     is_active: true,
     is_verified: true,
     profile_picture_url: null,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any,
+  artist: {
+    id: 3,
+    business_name: 'The Band',
+    user: {
+      id: 3,
+      email: 'a@band.com',
+      user_type: 'artist',
+      first_name: 'Band',
+      last_name: 'Leader',
+      phone_number: '',
+      is_active: true,
+      is_verified: true,
+      profile_picture_url: null,
+    },
+    profile_picture_url: null,
   } as any,
   service: { id: 9, artist_id: 3, title: 'Live Musiek' } as Service,
 } as BookingRequest;
@@ -35,6 +53,7 @@ describe('BookingRequestCard', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+    (useAuth as jest.Mock).mockReturnValue({ user: { user_type: 'artist' } });
   });
 
   afterEach(() => {
@@ -75,6 +94,14 @@ describe('BookingRequestCard', () => {
     });
     const img = container.querySelector('img');
     expect(img).toBeNull();
+  });
+
+  it('shows artist business name to client users', () => {
+    (useAuth as jest.Mock).mockReturnValue({ user: { user_type: 'client' } });
+    act(() => {
+      root.render(React.createElement(BookingRequestCard, { req: baseReq }));
+    });
+    expect(container.textContent).toContain('The Band');
   });
 
   it('applies status badge classes based on status', () => {

@@ -154,11 +154,7 @@ export default function MessageThreadWrapper({
             </Link>
           ) : (
             <div className="h-10 w-10 rounded-full bg-red-400 flex items-center justify-center text-base font-medium border-2 border-white shadow-sm flex-shrink-0">
-              {(
-                bookingRequest.artist?.business_name ||
-                bookingRequest.artist?.user?.first_name ||
-                bookingRequest.client?.first_name
-              )?.charAt(0) || 'U'}
+              {(bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name || 'U').charAt(0)}
             </div>
           )}
 
@@ -288,6 +284,7 @@ export default function MessageThreadWrapper({
             clientName={bookingRequest.client?.first_name}
             artistName={bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name}
             artistAvatarUrl={bookingRequest.artist?.profile_picture_url ?? null}
+            clientAvatarUrl={bookingRequest.client?.profile_picture_url ?? null}
             serviceName={bookingRequest.service?.title}
             initialNotes={bookingRequest.message ?? null}
             initialBaseFee={bookingRequest.service?.price ? Number(bookingRequest.service.price) : undefined}

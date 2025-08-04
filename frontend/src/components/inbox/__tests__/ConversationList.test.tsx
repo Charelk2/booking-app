@@ -45,7 +45,12 @@ describe('ConversationList', () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         client: { id: 1, email: 'a', user_type: 'client', first_name: 'A', last_name: 'B', phone_number: '', is_active: true, is_verified: true },
-        artist: { id: 2, email: 'b', user_type: 'artist', first_name: 'B', last_name: 'C', phone_number: '', is_active: true, is_verified: true },
+        artist: {
+          id: 2,
+          business_name: 'Biz',
+          user: { id: 2, email: 'b', user_type: 'artist', first_name: 'B', last_name: 'C', phone_number: '', is_active: true, is_verified: true },
+          profile_picture_url: null,
+        } as any,
       } as BookingRequest,
     ];
     const { container, root, props } = renderComponent({
@@ -56,7 +61,7 @@ describe('ConversationList', () => {
       root.render(<ConversationList {...props} />);
     });
     await flushPromises();
-    expect(container.textContent).toContain('B');
+    expect(container.textContent).toContain('Biz');
     act(() => root.unmount());
     container.remove();
   });
