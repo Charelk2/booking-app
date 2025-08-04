@@ -3,7 +3,7 @@
 
 import { Fragment, ReactNode, forwardRef, useCallback, useState, useEffect } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext'; // Assuming AuthContext is set up
@@ -82,7 +82,6 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     headerState,
     onForceHeaderState,
     showSearchBar = true,
-    alwaysCompact = false,
     filterControl,
   }: HeaderProps,
   ref,
@@ -269,6 +268,16 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       >
                         Dashboard
                       </Link>
+                        )}
+                      </Menu.Item>
+                      <Menu.Item>
+                        {({ active }) => (
+                          <Link
+                            href={user.user_type === 'artist' ? '/dashboard/profile/edit' : '/account'}
+                            className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
+                          >
+                            Edit Profile
+                          </Link>
                         )}
                       </Menu.Item>
                       <Menu.Item>
