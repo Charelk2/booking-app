@@ -203,10 +203,11 @@ export default function SearchBar({
       {/* NEW: Render the internal popup content using a portal */}
       {showInternalPopup && popupPosition && createPortal(
         <>
-          {/* Overlay for SearchBar's internal popups (dims the page area around the popup) */}
+          {/* Overlay for SearchBar's internal popups (dims the page area around the popup)
+             Use a z-index lower than the header (z-50) so the active search field
+             remains visible above the overlay while the rest of the page is dimmed. */}
           <div
-            // z-[51] so overlay also covers the header (z-50)
-            className="fixed inset-0 bg-black bg-opacity-30 z-[51] cursor-pointer animate-fadeIn"
+            className="fixed inset-0 bg-black bg-opacity-30 z-40 cursor-pointer animate-fadeIn"
             aria-hidden="true"
             onClick={closeThisSearchBarsInternalPopups}
           />
@@ -225,8 +226,8 @@ export default function SearchBar({
             <div
               ref={popupContainerRef}
               className={clsx(
-                // z-[52] so popup appears above header (z-50) and overlay (z-[51])
-                "absolute rounded-xl bg-white p-4 shadow-xl ring-1 ring-black ring-opacity-5 z-[52]",
+                // z-50 is reserved for the header; raise above it and the overlay (z-40)
+                "absolute rounded-xl bg-white p-4 shadow-xl ring-1 ring-black ring-opacity-5 z-[60]",
                 "origin-top-left"
               )}
               role="dialog"
