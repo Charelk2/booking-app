@@ -27,6 +27,9 @@ export interface SearchFieldsProps {
   // Ref forwarded to the internal location input so parent components can focus it
   // The ref's `current` will be `null` initially but will point to the input element once mounted
   locationInputRef: React.MutableRefObject<HTMLInputElement | null>;
+  onPredictionsChange: (
+    predictions: google.maps.places.AutocompletePrediction[],
+  ) => void;
 }
 
 export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
@@ -42,6 +45,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       onFieldClick,
       compact = false,
       locationInputRef,
+      onPredictionsChange,
     },
     ref
   ) => {
@@ -148,6 +152,8 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             location ? 'text-gray-800' : 'text-gray-500',
             compact ? 'text-sm' : 'text-base text-xs',
           )}
+          showDropdown={false}
+          onPredictionsChange={onPredictionsChange}
         />
 
         {location && activeField !== 'location' && (
