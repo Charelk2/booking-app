@@ -42,6 +42,17 @@ export default function useWebSocket(
 
     const connect = () => {
       if (cancelled) return;
+
+      // Close any existing socket before establishing a new connection to
+      // prevent accumulating open sockets in the browser.
+      if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) {
+        try {
+          socketRef.current.close();
+        } catch {
+          /* ignore */
+        }
+      }
+
       const ws = new WebSocket(url);
       socketRef.current = ws;
 
@@ -67,10 +78,23 @@ export default function useWebSocket(
         if (onError) onError(e);
         attemptsRef.current += 1;
         const delay = Math.min(30000, 1000 * 2 ** (attemptsRef.current - 1));
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+        }
         timerRef.current = setTimeout(connect, delay);
       };
 
-      ws.onerror = () => scheduleReconnect();
+      ws.onerror = () => {
+        // Ensure the socket is closed before scheduling a reconnect. This helps
+        // avoid lingering connections that can trigger "Insufficient resources"
+        // errors in some browsers.
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+        scheduleReconnect();
+      };
       ws.onclose = scheduleReconnect;
     };
 
@@ -78,9 +102,17 @@ export default function useWebSocket(
 
     return () => {
       cancelled = true;
-      socketRef.current?.close();
+      if (socketRef.current) {
+        try {
+          socketRef.current.close();
+        } catch {
+          /* ignore */
+        }
+        socketRef.current = null;
+      }
       if (timerRef.current) {
         clearTimeout(timerRef.current);
+        timerRef.current = null;
       }
     };
   }, [url, onError]);

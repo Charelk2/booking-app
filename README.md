@@ -851,6 +851,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 ### Real-time Chat
 
 * WebSocket-powered updates via a reusable `useWebSocket` hook with automatic reconnection.
+* The hook now closes stale sockets and clears reconnect timers to prevent browser "Insufficient resources" errors during repeated failures.
 * Polished bubbles with timestamps, avatars, image previews.
 * Consecutive messages from the same sender now group together, showing the
   relative time only below the last bubble.
