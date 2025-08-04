@@ -50,6 +50,7 @@ function setup(markItem = jest.fn()) {
         created_at: '2025-06-01T00:00:00Z',
         updated_at: '',
         client: { first_name: 'Alice', last_name: 'A' },
+        artist: { business_name: 'Artist One', user: { first_name: 'AO' } },
         service: { service_type: 'Live Performance' },
       },
       {
@@ -61,6 +62,7 @@ function setup(markItem = jest.fn()) {
         created_at: '2025-06-02T00:00:00Z',
         updated_at: '',
         client: { first_name: 'Bob', last_name: 'B' },
+        artist: { business_name: 'Artist Two', user: { first_name: 'AT' } },
         service: { service_type: 'Custom Song' },
       },
     ],
@@ -99,7 +101,7 @@ describe('BookingRequestsPage', () => {
     });
     await flushPromises();
     const input = container.querySelector(
-      'input[aria-label="Search by client name"]',
+      'input[aria-label="Search by artist name"]',
     ) as HTMLInputElement;
     act(() => {
       input.value = 'Bob';
@@ -107,7 +109,7 @@ describe('BookingRequestsPage', () => {
     });
     await flushPromises();
     const bobRow = Array.from(container.querySelectorAll('li[data-request-id]')).find((li) =>
-      li.textContent?.includes('Bob B'),
+      li.textContent?.includes('Artist Two'),
     );
     expect(bobRow).toBeTruthy();
     act(() => {

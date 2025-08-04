@@ -34,11 +34,11 @@ export default function ConversationList({
           if (!artist) return 'Artist';
           return artist.business_name || artist.user?.first_name || 'Artist';
         })();
-        // Use getFullImageUrl for avatarUrl to ensure correct paths and handling
-        const fullAvatarUrl =
-          (currentUser.user_type === 'artist'
+        // Determine avatar URL for the other participant
+        const avatarUrl =
+          currentUser.user_type === 'artist'
             ? req.client?.profile_picture_url
-            : req.artist?.profile_picture_url) || '/static/default-avatar.svg'; // Fallback to a default SVG if no URL
+            : req.artist?.profile_picture_url;
 
         const date =
           req.last_message_timestamp || req.updated_at || req.created_at;
@@ -63,21 +63,19 @@ export default function ConversationList({
             )}
           >
             {/* Avatar Handling */}
-            {fullAvatarUrl ? (
+            {avatarUrl ? (
               <Image
-                src={getFullImageUrl(fullAvatarUrl) as string} // Ensure getFullImageUrl is applied
-                alt={`${otherName} avatar`} // More descriptive alt text
+                src={getFullImageUrl(avatarUrl) as string}
+                alt={`${otherName} avatar`}
                 width={40}
                 height={40}
-                loading="lazy" // Lazy load images
-                className="rounded-full object-cover flex-shrink-0 border border-gray-200" // Added a subtle border
+                loading="lazy"
+                className="rounded-full object-cover flex-shrink-0 border border-gray-200"
                 onError={(e) => {
-                  // Fallback to a generic avatar if the specific image fails to load
                   (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
                 }}
               />
             ) : (
-              // Fallback for no avatar URL (should ideally be covered by fullAvatarUrl logic)
               <div className="h-10 w-10 rounded-full bg-indigo-500 text-white flex-shrink-0 flex items-center justify-center font-medium text-lg">
                 {otherName.charAt(0)}
               </div>
