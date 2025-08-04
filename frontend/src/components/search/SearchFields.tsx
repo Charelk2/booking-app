@@ -24,7 +24,8 @@ export interface SearchFieldsProps {
   activeField: ActivePopup;
   onFieldClick: (fieldId: SearchFieldId, element: HTMLElement) => void;
   compact?: boolean;
-  locationInputRef: React.RefObject<HTMLInputElement>;
+  // Ref forwarded to the internal location input so parent components can focus it
+  locationInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(

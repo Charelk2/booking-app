@@ -82,6 +82,21 @@ export default function SearchBar({
     }
   }, [showInternalPopup, activeField]); // Recalculate if popup state or active field changes
 
+  const closeThisSearchBarsInternalPopups = useCallback(() => {
+    setShowInternalPopup(false);
+    setTimeout(() => {
+      setActiveField(null);
+      if (lastActiveButtonRef.current) {
+        if (activeField === 'location' && locationInputRef.current) {
+          locationInputRef.current.focus();
+        } else {
+          lastActiveButtonRef.current.focus();
+        }
+        lastActiveButtonRef.current = null;
+      }
+    }, 200);
+  }, [activeField]);
+
   const handleLocationChange = useCallback(
     (value: string) => {
       setLocation(value);
@@ -97,29 +112,11 @@ export default function SearchBar({
     setShowInternalPopup(true);
     lastActiveButtonRef.current = buttonElement;
     // Position calculated in useLayoutEffect
-  }, [activeField]);
-
-  const closeThisSearchBarsInternalPopups = useCallback(() => {
-    setShowInternalPopup(false);
-    setTimeout(() => {
-        setActiveField(null);
-        if (lastActiveButtonRef.current) {
-            if (activeField === 'location' && locationInputRef.current) {
-                locationInputRef.current.focus();
-            } else {
-                lastActiveButtonRef.current.focus();
-            }
-            lastActiveButtonRef.current = null;
-        }
-    }, 200);
-  }, [activeField]);
+  }, []);
 
   // Close popups when clicking outside the search form or its floating content
   useClickOutside(
-    [
-      formRef as RefObject<HTMLElement | null>,
-      popupContainerRef as RefObject<HTMLElement | null>,
-    ],
+    [formRef, popupContainerRef] as Array<RefObject<HTMLElement | null>>,
     () => {
       if (showInternalPopup) {
         closeThisSearchBarsInternalPopups();
