@@ -137,7 +137,7 @@ export default function SearchPopupContent({
     }
 
     return (
-      <div className="flex justify-center w-full">
+      <div className="flex justify-center items-center w-full h-full">
         <h3 className="text-sm font-semibold text-gray-800 sr-only" id="search-popup-label-when">Select date</h3>
         <ReactDatePicker
           selected={when}

@@ -59,8 +59,9 @@ export default function SearchBar({
   // popup does not reappear once dismissed
   const [locationPopupDismissed, setLocationPopupDismissed] = useState(false);
 
-  // NEW: State to store the position of the clicked field and width of the search bar
-  const [popupPosition, setPopupPosition] = useState<{ top: number; left: number; width: number; } | null>(null);
+  // NEW: State to store the position and size of the popup
+  const [popupPosition, setPopupPosition] =
+    useState<{ top: number; left: number; width: number; height?: number } | null>(null);
 
   const lastActiveButtonRef = useRef<HTMLElement | null>(null);
 
@@ -71,15 +72,27 @@ export default function SearchBar({
   // UseLayoutEffect to calculate position before browser paints
   useLayoutEffect(() => {
     if (showInternalPopup && lastActiveButtonRef.current && formRef.current) {
-      const buttonRect = lastActiveButtonRef.current.getBoundingClientRect(); // Get coords of clicked button
-      const formRect = formRef.current.getBoundingClientRect(); // Get coords of the whole search bar form
+      const buttonRect = lastActiveButtonRef.current.getBoundingClientRect(); // Coords of clicked button
+      const formRect = formRef.current.getBoundingClientRect(); // Coords of the whole search bar
 
-      // Calculate position relative to the viewport
-      setPopupPosition({
-        top: buttonRect.bottom + window.scrollY + 8, // 8px margin below button
-        left: formRect.left + window.scrollX, // Align popup with the SearchBar's left edge
-        width: formRect.width, // Popup matches the SearchBar width
-      });
+      let top = buttonRect.bottom + window.scrollY + 8; // Default 8px margin below button
+      let left = formRect.left + window.scrollX; // Default align with SearchBar's left edge
+      let width = formRect.width; // Default popup width equals SearchBar width
+      let height: number | undefined;
+
+      if (activeField === 'location') {
+        width = formRect.width / 2; // Half width anchored left
+      } else if (activeField === 'category') {
+        width = formRect.width / 2; // Half width anchored right
+        left = formRect.left + window.scrollX + formRect.width / 2;
+      } else if (activeField === 'when') {
+        top = window.scrollY; // Full-screen overlay starts at top of viewport
+        left = window.scrollX; // Align to left edge of viewport
+        width = window.innerWidth; // Full screen width
+        height = window.innerHeight; // Full screen height
+      }
+
+      setPopupPosition({ top, left, width, height });
     } else {
       setPopupPosition(null); // Clear position when popup is not visible
     }
@@ -251,7 +264,8 @@ export default function SearchBar({
               style={{
                 top: popupPosition.top,
                 left: popupPosition.left,
-                width: popupPosition.width, // Popup width matches the SearchBar's form width
+                width: popupPosition.width,
+                height: popupPosition.height,
               }}
             >
               {activeField && ( // Ensure activeField is set before rendering content
