@@ -6,11 +6,10 @@ import ReactDatePicker from 'react-datepicker';
 import { Listbox } from '@headlessui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
-import LocationInput, { PlaceResult } from '../ui/LocationInput';
 import { UI_CATEGORIES } from '@/lib/categoryMap';
 
 import type { ActivePopup } from './SearchBar';
-import type { Category, SearchFieldId } from './SearchFields';
+import type { Category } from './SearchFields';
 
 interface SearchPopupContentProps {
   activeField: ActivePopup;
@@ -76,11 +75,14 @@ export default function SearchPopupContent({
     return () => clearTimeout(timer);
   }, [activeField, locationInputRef, categoryListboxOptionsRef]);
 
-  const handleLocationSelect = useCallback((place: PlaceResult) => {
-    const displayName = place.formatted_address || place.name || '';
-    setLocation(displayName);
-    closeAllPopups(); // Close popup after selection
-  }, [setLocation, closeAllPopups]);
+  const handleLocationSelect = useCallback(
+    (place: { name: string; formatted_address?: string }) => {
+      const displayName = place.formatted_address || place.name || '';
+      setLocation(displayName);
+      closeAllPopups(); // Close popup after selection
+    },
+    [setLocation, closeAllPopups],
+  );
 
   const handleCategorySelect = useCallback((c: Category | null) => {
     setCategory(c);
@@ -101,24 +103,13 @@ export default function SearchPopupContent({
   const renderLocation = () => (
     <div>
       <h3 className="text-sm font-semibold text-gray-800 mb-4" id="search-popup-label-location">Suggested destinations</h3>
-      <LocationInput
-        ref={locationInputRef}
-        value={location}
-        onValueChange={setLocation}
-        onPlaceSelect={handleLocationSelect}
-        placeholder="Search destinations"
-        inputClassName="w-full text-base border border-gray-300 rounded-lg p-3 mb-4 focus:outline-none transition-all"
-      />
-      {/* Display mock suggestions if LocationInput doesn't handle its own visual suggestions */}
-      {/* Remove `location.length === 0` if you want mock suggestions always */}
-      {/* Check if images exist in public/images or remove image paths from MOCK_LOCATION_SUGGESTIONS */}
       <ul className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-hidden scrollbar-thin">
-        {MOCK_LOCATION_SUGGESTIONS.map((s) => (
+        {filteredSuggestions.map((s) => (
           <li
             key={s.name}
             role="option"
             aria-label={`${s.name}${s.description ? `, ${s.description}` : ''}`}
-            onClick={() => handleLocationSelect({ name: s.name, formatted_address: s.description || '' })}
+            onClick={() => handleLocationSelect({ name: s.name, formatted_address: s.description })}
             className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
             tabIndex={0}
           >
