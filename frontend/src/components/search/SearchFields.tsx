@@ -27,7 +27,12 @@ export interface SearchFieldsProps {
   // Ref forwarded to the internal location input so parent components can focus it
   // The ref's `current` will be `null` initially but will point to the input element once mounted
   locationInputRef: React.MutableRefObject<HTMLInputElement | null>;
-  onPredictionsChange: (
+  /**
+   * Callback fired whenever the Google Places autocomplete predictions update.
+   * Made optional so callers that do not need prediction data do not have to
+   * provide a handler.
+   */
+  onPredictionsChange?: (
     predictions: google.maps.places.AutocompletePrediction[],
   ) => void;
 }
