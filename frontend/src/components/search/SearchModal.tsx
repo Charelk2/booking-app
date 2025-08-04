@@ -31,6 +31,9 @@ export default function SearchModal({
   const [location, setLocation] = useState(initialLocation || '');
   const [when, setWhen] = useState<Date | null>(initialWhen || null);
   const firstRef = useRef<HTMLDivElement>(null);
+  const locationInputRef = useRef<HTMLInputElement>(null);
+  // SearchModal renders fields inline, so we don't track an active field
+  const handleFieldClick = () => {};
 
   useEffect(() => {
     if (open) {
@@ -68,6 +71,9 @@ export default function SearchModal({
           setLocation={setLocation}
           when={when}
           setWhen={setWhen}
+          activeField={null}
+          onFieldClick={handleFieldClick}
+          locationInputRef={locationInputRef}
         />
         <div className="flex justify-between pt-4">
           <button

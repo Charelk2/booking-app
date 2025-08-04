@@ -107,12 +107,16 @@ export default function SearchBar({
     [setLocation, showInternalPopup, activeField, closeThisSearchBarsInternalPopups],
   );
 
-  const handleFieldClick = useCallback((fieldId: SearchFieldId, buttonElement: HTMLElement) => {
-    setActiveField(fieldId);
-    setShowInternalPopup(true);
-    lastActiveButtonRef.current = buttonElement;
-    // Position calculated in useLayoutEffect
-  }, []);
+  const handleFieldClick = useCallback(
+    (fieldId: SearchFieldId, element: HTMLElement) => {
+      setActiveField(fieldId);
+      setShowInternalPopup(true);
+      // Store the element that triggered the popup so we can restore focus later
+      lastActiveButtonRef.current = element;
+      // Position is calculated in useLayoutEffect
+    },
+    [],
+  );
 
   // Close popups when clicking outside the search form or its floating content
   useClickOutside(
