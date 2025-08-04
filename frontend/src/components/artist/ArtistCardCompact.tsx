@@ -47,7 +47,7 @@ export default function ArtistCardCompact({
       )}
       {...props}
     >
-      <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+      <div className="relative aspect-[4/4] bg-gray-100 overflow-hidden">
         {!loaded && (
           <div className="absolute inset-0 animate-pulse bg-gray-200" />
         )}
@@ -68,7 +68,7 @@ export default function ArtistCardCompact({
             src={getFullImageUrl('/static/default-avatar.svg') as string}
             alt={name}
             fill
-            sizes="(max-width:768px) 50vw, 33vw"
+            sizes="(max-width:768px) 0vw, 33vw"
             className="object-cover w-full h-full"
             onLoad={() => setLoaded(true)}
           />
@@ -88,7 +88,7 @@ export default function ArtistCardCompact({
           </span>
         )}
       </div>
-      <div className="p-3 space-y-0.5">
+      <div className="p-1 space-y-0.5">
         <p className="text-sm font-semibold truncate">{name}</p>
         {subtitle && <p className="text-xs text-gray-500 truncate">{subtitle}</p>}
         {location && (

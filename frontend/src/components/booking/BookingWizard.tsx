@@ -481,7 +481,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                     >
                       {steps[step]}
                     </h2>
-                    <p className="text-gray-600 mb-4">{instructions[step]}</p>
+                    <p className="text-gray-600 mb-1">{instructions[step]}</p>
                     {renderStep()}
 
                     {warning && <p className="text-orange-600 text-sm mt-4">{warning}</p>}

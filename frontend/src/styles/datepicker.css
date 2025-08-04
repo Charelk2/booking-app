@@ -13,7 +13,7 @@
     border-radius: 0.75rem; /* Equivalent to Tailwind's rounded-lg */
     background-color: var(--color-background);
     box-shadow: 0 10px 25px rgb(0 0 0 / 6%); /* Custom shadow for depth */
-    padding: 1rem;
+    padding: 0.5rem;
     /* Fit the calendar to its content while respecting the popup width */
     width: auto;
     max-width: 100%;
@@ -96,9 +96,9 @@
   /* Styles for individual day names and day numbers */
   .react-datepicker__day-name,
   .react-datepicker__day {
-    width: 3rem; /* Increased from 2.25rem */
-    height: 3rem; /* Increased from 2.25rem */
-    line-height: 3rem; /* Centers text vertically, matches new height */
+    width: 2.25rem; /* Increased from 2.25rem */
+    height: 2.25rem; /* Increased from 2.25rem */
+    line-height: 2.25rem; /* Centers text vertically, matches new height */
     font-size: 0.875rem; /* Equivalent to Tailwind's text-sm (keep this) */
     text-align: center;
     color: var(--color-gray-700);
