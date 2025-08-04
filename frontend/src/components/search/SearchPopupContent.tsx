@@ -22,6 +22,7 @@ interface SearchPopupContentProps {
   closeAllPopups: () => void; // Function to close these internal popups
   locationInputRef: RefObject<HTMLInputElement>;
   categoryListboxOptionsRef: RefObject<HTMLUListElement>;
+  locationPredictions: google.maps.places.AutocompletePrediction[];
 }
 
 type CustomHeaderProps = {
@@ -55,6 +56,7 @@ export default function SearchPopupContent({
   closeAllPopups, // This now calls closeThisSearchBarsInternalPopups
   locationInputRef,
   categoryListboxOptionsRef,
+  locationPredictions,
 }: SearchPopupContentProps) {
   const [isClient, setIsClient] = useState(false);
 
@@ -94,39 +96,80 @@ export default function SearchPopupContent({
     closeAllPopups(); // Close popup after selection
   }, [setWhen, closeAllPopups]);
 
-  const filteredSuggestions = MOCK_LOCATION_SUGGESTIONS.filter((item) =>
-    location === '' ||
-    item.name.toLowerCase().includes(location.toLowerCase()) ||
-    item.description?.toLowerCase().includes(location.toLowerCase())
-  );
+  const renderLocation = () => {
+    if (location.trim().length === 0) {
+      return (
+        <div>
+          <h3
+            className="text-sm font-semibold text-gray-800 mb-4"
+            id="search-popup-label-location"
+          >
+            Suggested destinations
+          </h3>
+          <ul className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-hidden scrollbar-thin">
+            {MOCK_LOCATION_SUGGESTIONS.map((s) => (
+              <li
+                key={s.name}
+                role="option"
+                aria-selected="false"
+                aria-label={`${s.name}${s.description ? `, ${s.description}` : ''}`}
+                onClick={() =>
+                  handleLocationSelect({ name: s.name, formatted_address: s.description })
+                }
+                className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
+                tabIndex={0}
+              >
+                {s.image && (
+                  <img
+                    src={s.image}
+                    alt=""
+                    className="h-10 w-10 rounded-lg object-cover flex-shrink-0"
+                  />
+                )}
+                <div>
+                  <p className="text-sm font-medium text-gray-800">{s.name}</p>
+                  <p className="text-xs text-gray-500">{s.description}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
 
-  const renderLocation = () => (
-    <div>
-      <h3 className="text-sm font-semibold text-gray-800 mb-4" id="search-popup-label-location">Suggested destinations</h3>
-      <ul className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-hidden scrollbar-thin">
-        {filteredSuggestions.map((s) => (
+    return (
+      <ul className="max-h-[300px] overflow-y-auto scrollbar-thin" id="search-popup-label-location">
+        {locationPredictions.map((p) => (
           <li
-            key={s.name}
+            key={p.place_id || p.description}
+            onClick={() =>
+              handleLocationSelect({
+                name: p.description,
+                formatted_address: p.description,
+              })
+            }
+            className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
             role="option"
             aria-selected="false"
-            aria-label={`${s.name}${s.description ? `, ${s.description}` : ''}`}
-            onClick={() => handleLocationSelect({ name: s.name, formatted_address: s.description })}
-            className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
-            tabIndex={0}
           >
-            {s.image && <img src={s.image} alt="" className="h-10 w-10 rounded-lg object-cover flex-shrink-0" />}
             <div>
-              <p className="text-sm font-medium text-gray-800">{s.name}</p>
-              <p className="text-xs text-gray-500">{s.description}</p>
+              <p className="text-sm font-medium text-gray-800">
+                {p.structured_formatting.main_text}
+              </p>
+              {p.structured_formatting.secondary_text && (
+                <p className="text-xs text-gray-500">
+                  {p.structured_formatting.secondary_text}
+                </p>
+              )}
             </div>
           </li>
         ))}
-        {location.length > 0 && filteredSuggestions.length === 0 && (
-          <li className="col-span-2 text-sm text-gray-500 px-4 py-2">No suggestions found.</li>
+        {locationPredictions.length === 0 && (
+          <li className="text-sm text-gray-500 px-4 py-2">No suggestions found.</li>
         )}
       </ul>
-    </div>
-  );
+    );
+  };
 
   const renderDate = () => {
     if (!isClient) {
