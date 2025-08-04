@@ -224,6 +224,11 @@
   transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out 0.5s; /* Slight delay on opacity for slide effect */
 }
 
+/* Allow dropdowns like the LocationInput suggestions to escape clipping */
+.header-full-search-bar {
+  overflow: visible;
+}
+
 /* When header is compacted, hide nav links and the full search bar */
 #app-header[data-header-state="compacted"] .header-nav-links,
 #app-header[data-header-state="compacted"] .header-full-search-bar {
