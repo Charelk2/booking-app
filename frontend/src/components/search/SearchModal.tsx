@@ -74,7 +74,7 @@ export default function SearchModal({
           activeField={null}
           onFieldClick={handleFieldClick}
           locationInputRef={locationInputRef}
-          onPredictionsChange={() => {}}
+          onPredictionsChange={(_predictions) => {}}
         />
         <div className="flex justify-between pt-4">
           <button
