@@ -94,6 +94,16 @@ export const authAwareMessage = (
   return fallback;
 };
 
+/**
+ * Return only the street portion of a full address string.
+ * Useful for compact UI where space is limited.
+ */
+export const getStreetFromAddress = (address: string): string => {
+  if (!address) return '';
+  const [street] = address.split(',');
+  return street.trim();
+};
+
 export const normalizeQuoteTemplate = (
   tmpl: QuoteTemplate,
 ): QuoteTemplate => ({

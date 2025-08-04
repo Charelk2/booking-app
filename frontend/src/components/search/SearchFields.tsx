@@ -3,6 +3,7 @@
 
 import { forwardRef, useRef } from 'react';
 import clsx from 'clsx';
+import { getStreetFromAddress } from '@/lib/utils';
 
 // Import types for consistency
 import type { ActivePopup } from './SearchBar'; // Assuming SearchBar defines ActivePopup
@@ -120,7 +121,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       {renderField(
         'location',
         'Where',
-          location || 'Add location',
+          (compact && location ? getStreetFromAddress(location) : location) || 'Add location',
           locationButtonRef,
           () => setLocation('')
         )}

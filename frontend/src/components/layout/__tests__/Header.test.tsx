@@ -115,4 +115,23 @@ describe('Header', () => {
     act(() => root.unmount());
     div.remove();
   });
+
+  it('shows only street name in compact pill when location contains commas', async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams('location=123%20Main%20St%2C%20Cape%20Town%2C%20South%20Africa'),
+    );
+    const { div, root } = render();
+    await act(async () => {
+      root.render(
+        <Header headerState="compacted" onForceHeaderState={jest.fn()} />,
+      );
+    });
+    await flushPromises();
+    const trigger = div.querySelector('#compact-search-trigger') as HTMLButtonElement;
+    expect(trigger.textContent).toContain('123 Main St');
+    expect(trigger.textContent).not.toContain('Cape Town');
+    act(() => root.unmount());
+    div.remove();
+    mockUseSearchParams.mockReturnValue(new URLSearchParams());
+  });
 });
