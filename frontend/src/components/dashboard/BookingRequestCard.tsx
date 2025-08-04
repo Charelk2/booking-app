@@ -11,6 +11,7 @@ import {
 import { BookingRequest } from '@/types';
 import { formatStatus } from '@/lib/utils';
 import { Avatar } from '../ui';
+import { useAuth } from '@/contexts/AuthContext';
 
 const getBadgeClass = (status: string): string => {
   if (
@@ -40,10 +41,16 @@ export interface BookingRequestCardProps {
 }
 
 export default function BookingRequestCard({ req }: BookingRequestCardProps) {
-  const avatarSrc = req.client?.profile_picture_url || null;
-  const clientName = req.client
-    ? `${req.client.first_name} ${req.client.last_name}`
-    : 'Unknown Client';
+  const { user } = useAuth();
+  const isUserArtist = user?.user_type === 'artist';
+  const avatarSrc = isUserArtist
+    ? req.client?.profile_picture_url || null
+    : req.artist?.profile_picture_url || null;
+  const displayName = isUserArtist
+    ? req.client
+      ? `${req.client.first_name} ${req.client.last_name}`
+      : 'Unknown Client'
+    : req.artist?.business_name || req.artist?.user?.first_name || 'Unknown Artist';
   const ServiceIcon =
     req.service?.title === 'Live Musiek' ? MicrophoneIcon : MusicalNoteIcon;
   const formattedDate = format(new Date(req.created_at), 'dd MMM yyyy');
@@ -53,12 +60,12 @@ export default function BookingRequestCard({ req }: BookingRequestCardProps) {
       <div className="flex gap-4 items-center">
         <Avatar
           src={avatarSrc}
-          initials={clientName.charAt(0)}
+          initials={displayName.charAt(0)}
           size={48}
           className="bg-blue-100 w-12 h-12"
         />
         <div>
-          <div className="font-bold text-gray-800">{clientName}</div>
+          <div className="font-bold text-gray-800">{displayName}</div>
           <div className="flex items-center gap-1 text-sm text-gray-600">
             <ServiceIcon className="w-4 h-4" />
             <span>{req.service?.title || '—'}</span>

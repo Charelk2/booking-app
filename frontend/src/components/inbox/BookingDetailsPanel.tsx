@@ -3,6 +3,7 @@
 import { format, parseISO, isValid } from 'date-fns';
 import { Booking, BookingRequest, Review } from '@/types';
 import Button from '../ui/Button';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -32,6 +33,8 @@ export default function BookingDetailsPanel({
   setShowReviewModal,
   paymentModal,
 }: BookingDetailsPanelProps) {
+  const { user } = useAuth();
+  const isUserArtist = user?.user_type === 'artist';
 
   const cleanLocation = (locationString: string | undefined) => {
     if (!locationString) return 'N/A';
@@ -52,16 +55,22 @@ export default function BookingDetailsPanel({
     <div className="bg-white shadow-sm flex flex-col h-full rounded-2xl overflow-hidden">
       <dl className="flex-1 overflow-y-auto space-y-2 text-sm text-gray-800 p-4">
             <div className="flex justify-between">
-              <dt className="font-medium">Client</dt>
+              <dt className="font-medium">{isUserArtist ? 'Client' : 'Artist'}</dt>
               <dd>
-                {bookingRequest.client
-                  ? `${bookingRequest.client.first_name} ${bookingRequest.client.last_name}`
-                  : 'N/A'}
+                {isUserArtist
+                  ? bookingRequest.client
+                    ? `${bookingRequest.client.first_name} ${bookingRequest.client.last_name}`
+                    : 'N/A'
+                  : bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name || 'N/A'}
               </dd>
             </div>
             <div className="flex justify-between">
               <dt className="font-medium">Email</dt>
-              <dd>{bookingRequest.client?.email || 'N/A'}</dd>
+              <dd>
+                {isUserArtist
+                  ? bookingRequest.client?.email || 'N/A'
+                  : bookingRequest.artist?.user?.email || 'N/A'}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="font-medium">Service</dt>
