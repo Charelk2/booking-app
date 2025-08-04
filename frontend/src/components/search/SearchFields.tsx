@@ -1,7 +1,13 @@
 // src/components/search/SearchFields.tsx
 'use client';
 
-import { forwardRef, useRef } from 'react';
+import {
+  forwardRef,
+  useRef,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from 'react';
 import clsx from 'clsx';
 import LocationInput, { PlaceResult } from '../ui/LocationInput';
 
@@ -26,15 +32,15 @@ export interface SearchFieldsProps {
   compact?: boolean;
   // Ref forwarded to the internal location input so parent components can focus it
   // The ref's `current` will be `null` initially but will point to the input element once mounted
-  locationInputRef: React.MutableRefObject<HTMLInputElement | null>;
+  locationInputRef: MutableRefObject<HTMLInputElement | null>;
   /**
    * Callback fired whenever the Google Places autocomplete predictions update.
-   * Made optional so callers that do not need prediction data do not have to
-   * provide a handler.
+   * Made optional so callers that do not need prediction data do not have to provide a handler.
+   * Typed as a React state dispatcher so callers can directly pass a `useState` setter.
    */
-  onPredictionsChange?: (
-    predictions: google.maps.places.AutocompletePrediction[],
-  ) => void;
+  onPredictionsChange?: Dispatch<
+    SetStateAction<google.maps.places.AutocompletePrediction[]>
+  >;
 }
 
 export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
