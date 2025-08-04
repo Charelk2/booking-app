@@ -70,11 +70,10 @@ export default function SearchBar({
 
   // UseLayoutEffect to calculate position before browser paints
   useLayoutEffect(() => {
-    if (showInternalPopup && lastActiveButtonRef.current && formRef.current) {
-      const buttonRect = lastActiveButtonRef.current.getBoundingClientRect(); // Coords of clicked button
+    if (showInternalPopup && formRef.current) {
       const formRect = formRef.current.getBoundingClientRect(); // Coords of the whole search bar
 
-      const top = buttonRect.bottom + window.scrollY + 8; // Default 8px margin below button
+      const top = formRect.bottom + window.scrollY + 8; // Uniform 8px gap below SearchBar
       let left = formRect.left + window.scrollX; // Default align with SearchBar's left edge
       let width = formRect.width; // Default popup width equals SearchBar width
       let height: number | undefined;
