@@ -248,7 +248,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
           <div
             id={listboxId}
             role="listbox"
-            className="pac-container absolute z-50 mt-2 w-full max-h-60 overflow-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 scrollbar-thin"
+            className="pac-container absolute left-0 z-50 mt-2 w-full max-h-60 overflow-auto rounded-xl bg-white p-2 shadow-xl ring-1 ring-black ring-opacity-5 scrollbar-thin"
           >
             {predictions.map((prediction, index) => {
               const isActive = index === highlightedIndex;
@@ -264,7 +264,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
                   onMouseDown={() => handleSelect(prediction)}
                   className={clsx(
                     'flex items-center px-4 py-2 text-sm cursor-pointer',
-                    isActive ? 'bg-indigo-100' : 'hover:bg-indigo-50'
+                    isActive ? 'bg-gray-100' : 'hover:bg-gray-50'
                   )}
                   data-testid="location-option"
                 >
