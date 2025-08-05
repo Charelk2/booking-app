@@ -72,7 +72,7 @@ export default function ArtistCard({
 
   return (
     <motion.div
-      whileHover={{ y: -4, boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}
+      whileHover={{ y: 'calc(-1 * var(--space-1))', boxShadow: 'var(--shadow-md)' }}
       className={clsx(
         'rounded-2xl bg-white shadow-lg overflow-hidden transition-shadow',
         className,

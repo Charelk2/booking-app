@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { FunnelIcon } from '@heroicons/react/24/outline';
 import SearchModal from '@/components/search/SearchModal';
 import useMediaQuery from '@/hooks/useMediaQuery';
+import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { format } from 'date-fns';
 import FilterSheet from './FilterSheet';
 import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
@@ -47,7 +48,7 @@ export default function ArtistsPageHeader({
   onFilterClear,
   iconOnly,
 }: ArtistsPageHeaderProps) {
-  const isDesktop = useMediaQuery('(min-width:768px)');
+  const isDesktop = useMediaQuery(`(min-width:${BREAKPOINT_MD}px)`);
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
 

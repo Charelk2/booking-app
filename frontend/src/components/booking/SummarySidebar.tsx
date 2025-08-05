@@ -99,7 +99,7 @@ export default function SummarySidebar() {
         )}
       </div>
 
-      <div className="flex justify-center w-full" style={{ marginTop: '0.01rem' }}>
+      <div className="flex justify-center w-full mt-[var(--space-px)]">
         <button
           onClick={() => setIsVisible(false)}
           className="text-gray-400 hover:text-gray-800 font-medium py-2 text-sm flex items-center justify-center space-x-1 cursor-pointer"

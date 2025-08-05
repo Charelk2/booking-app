@@ -36,7 +36,7 @@
 }
 
 .shadow-custom {
-  box-shadow: 0 6px 20px rgb(0 0 0 / 8%);
+  box-shadow: var(--shadow-sm);
 }
 
 .progress-bar-fill {

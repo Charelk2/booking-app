@@ -15,6 +15,7 @@ import NotificationCard from '../ui/NotificationCard';
 import getNotificationDisplayProps from '@/hooks/getNotificationDisplayProps';
 import { ToggleSwitch, IconButton } from '../ui';
 import type { UnifiedNotification } from '@/types';
+import { BREAKPOINT_SM } from '@/lib/breakpoints';
 
 interface NotificationDrawerProps {
   open: boolean;
@@ -41,8 +42,8 @@ export default function NotificationDrawer({
 }: NotificationDrawerProps) {
   const ROW_HEIGHT = 72;
 
-  // responsive PAGE_SIZE: 3 rows on small (<640px), else 5
-  const getPageSize = () => (window.innerWidth < 640 ? 3 : 5);
+  // responsive PAGE_SIZE: 3 rows on small (<BREAKPOINT_SM), else 5
+  const getPageSize = () => (window.innerWidth < BREAKPOINT_SM ? 3 : 5);
   const [pageSize, setPageSize] = useState(getPageSize);
 
   // update pageSize on window resize
