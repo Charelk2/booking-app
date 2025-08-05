@@ -46,6 +46,8 @@ This document outlines key friction points in the current booking wizard and pro
 * Defer maps and heavy images until after the initial step loads.
 * Provide skeleton loaders for availability checks and quote calculations.
 * Maintain the existing <code>MobileBottomNav</code> for consistent navigation.
+* Keep the hamburger menu visible so the main navigation drawer is always accessible. ✅ Implemented July 2025.
+* Simplify the hamburger menu by deduplicating links and grouping related items under clear section headings. ✅ Implemented July 2025.
 
 ## Collapsible Sections Component
 The `CollapsibleSection` component replaces raw `<details>` elements in the booking wizard. Each step header is rendered as a button with proper `aria-expanded` state so screen readers and keyboard users can toggle sections just as easily as touch users.

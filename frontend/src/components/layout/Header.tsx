@@ -3,7 +3,7 @@
 
 import { Fragment, ReactNode, forwardRef, useCallback, useState, useEffect } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, Bars3Icon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext'; // Assuming AuthContext is set up
@@ -178,8 +178,16 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       <div className="mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Row: Logo - Center - Icons */}
         <div className="grid grid-cols-[auto,1fr,auto] items-center py-2"> {/* Added py-2 back for consistency */}
-          {/* Logo */}
-          <div className="flex flex-col">
+          {/* Logo and Mobile Menu Button */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Open menu"
+              className={clsx(navItemClasses, 'md:hidden')}
+            >
+              <Bars3Icon className="h-6 w-6" />
+            </button>
             <Link href="/" className="text-xl font-bold text-brand-dark no-underline">
               Booka.co.za
             </Link>
@@ -354,7 +362,6 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         navigation={clientNav}
-        drawerNavigation={clientNav}
         user={user}
         logout={logout}
         pathname={pathname}
