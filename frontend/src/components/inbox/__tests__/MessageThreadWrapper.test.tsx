@@ -3,6 +3,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import MessageThreadWrapper from '../MessageThreadWrapper';
 import * as api from '@/lib/api';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 jest.mock('@/lib/api');
 
@@ -13,7 +14,7 @@ jest.mock('../BookingDetailsPanel', () => {
 });
 
 jest.mock('@/components/booking/MessageThread', () => {
-  const Mock = () => <div />;
+  const Mock = jest.fn(() => <div />);
   Mock.displayName = 'MockMessageThread';
   return { __esModule: true, default: Mock };
 });
@@ -33,6 +34,11 @@ jest.mock('next/image', () => ({
   default: (props: any) => <img {...props} />,
 }));
 
+jest.mock('next/navigation', () => ({
+  useSearchParams: jest.fn(),
+  useRouter: jest.fn(),
+}));
+
 const bookingRequest = {
   id: 1,
   artist: {
@@ -48,8 +54,10 @@ const bookingRequest = {
   },
 };
 
-function setup(userType: 'client' | 'artist') {
+function setup(userType: 'client' | 'artist', params = '') {
   (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 99, user_type: userType }, loading: false });
+  (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams(params));
+  (useRouter as jest.Mock).mockReturnValue({ replace: jest.fn() });
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -101,6 +109,23 @@ describe('MessageThreadWrapper', () => {
     const hideButton = container.querySelector('button[aria-label="Hide details panel"]');
     expect(showButton).not.toBeNull();
     expect(hideButton).toBeNull();
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('opens quote modal when sendQuote param is present', async () => {
+    const { container, root } = setup('artist', 'sendQuote=1');
+    const MessageThreadMock = require('../MessageThread').default as jest.Mock;
+    await act(async () => {
+      root.render(
+        <MessageThreadWrapper bookingRequestId={1} bookingRequest={bookingRequest as any} setShowReviewModal={() => {}} />,
+      );
+    });
+    await act(async () => {});
+    expect(MessageThreadMock).toHaveBeenCalledWith(
+      expect.objectContaining({ showQuoteModal: true }),
+      expect.anything(),
+    );
     act(() => root.unmount());
     container.remove();
   });

@@ -1083,6 +1083,7 @@ keeps the current view, e.g.
 * Chat attachment button stays inline with the message input and send button on all screens.
 * Tap feedback on icons via `active:bg-gray-100`.
 * **Inbox** page redesigned with a sticky "Messages" header and search icon. The left column lists conversations while the right shows the selected chat with booking details. Message notifications open directly to this page so clients can read and respond without hunting for the correct thread.
+* URL parameters on `/inbox` include `requestId` to select a conversation and `sendQuote=1` to open the Send Quote modal for artists.
 * `/booking-requests` lists all requests with search and filters. Search and filter inputs now include hidden labels for screen readers.
 * `ChatThreadView` component for mobile-friendly chat threads using a modern card-style layout.
 * Tap a booking request card to open `/booking-requests/[id]`.
