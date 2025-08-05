@@ -2,6 +2,7 @@
 import Link, { LinkProps } from 'next/link';
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import clsx from 'clsx';
+import { navLinkClasses } from './navStyles';
 
 interface NavLinkProps
   extends LinkProps,
@@ -19,13 +20,7 @@ export default function NavLink({
   return (
     <Link
       {...props}
-      className={clsx(
-        'inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline',
-        isActive
-          ? 'border-primary text-gray-900'
-          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
-        className,
-      )}
+      className={clsx(navLinkClasses(isActive), className)}
     >
       {children}
     </Link>

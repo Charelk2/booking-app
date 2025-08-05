@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   HomeIcon,
@@ -12,6 +11,9 @@ import type { User } from '@/types';
 import useNotifications from '@/hooks/useNotifications';
 import type { UnifiedNotification } from '@/types';
 import useScrollDirection from '@/hooks/useScrollDirection';
+import NavLink from './NavLink';
+import { navItemClasses } from './navStyles';
+import clsx from 'clsx';
 
 interface MobileBottomNavProps {
   user: User | null;
@@ -24,10 +26,6 @@ interface Item {
   auth?: boolean;
 }
 
-function classNames(...classes: (string | false | undefined)[]) {
-  return classes.filter(Boolean).join(' ');
-}
-
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const router = useRouter();
   const { items } = useNotifications();
@@ -37,7 +35,12 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
     { name: 'Home', href: '/', icon: HomeIcon },
     { name: 'Artists', href: '/artists', icon: UsersIcon },
     { name: 'Messages', href: '/inbox', icon: ChatBubbleLeftRightIcon, auth: true },
-    { name: 'Dashboard', href: user?.user_type === 'artist' ? '/dashboard/artist' : '/dashboard/client', icon: UserCircleIcon, auth: true },
+    {
+      name: 'Dashboard',
+      href: user?.user_type === 'artist' ? '/dashboard/artist' : '/dashboard/client',
+      icon: UserCircleIcon,
+      auth: true,
+    },
   ];
   if (!user) {
     return null;
@@ -51,7 +54,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
 
   return (
     <nav
-      className={classNames(
+      className={clsx(
         'fixed bottom-0 w-full h-[56px] py-1 bg-background border-t shadow z-50 sm:hidden transition-transform pb-safe',
         scrollDir === 'down' ? 'translate-y-full' : 'translate-y-0',
       )}
@@ -64,30 +67,31 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
 
           return (
             <li key={item.name} className="flex-1">
-              <Link
+              <NavLink
                 href={item.href}
+                isActive={active}
                 aria-current={active ? 'page' : undefined}
-                className={classNames(
-                  'flex flex-col items-center justify-center gap-1 py-0.5 transition-colors no-underline hover:no-underline',
+                aria-label={item.name}
+                className={clsx(
+                  navItemClasses,
+                  'flex flex-col items-center justify-center gap-1 h-full',
                   active
-                    ? 'text-brand-dark border-b-2 border-brand-dark'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'text-brand-dark border-brand-dark'
+                    : 'text-gray-500 hover:text-gray-700',
                 )}
               >
-                <div className="flex flex-col items-center space-y-0.5">
-                  <div className="relative flex items-center justify-center">
-                    <item.icon className="h-6 w-6" aria-hidden="true" />
-                    {showBadge && (
-                      <span
-                        className="absolute top-0 right-0 inline-flex translate-x-1/2 -translate-y-1/2 items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white"
-                      >
-                        {badgeCount}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[11px]">{item.name}</span>
+                <div className="relative flex items-center justify-center">
+                  <item.icon className="h-6 w-6" aria-hidden="true" />
+                  {showBadge && (
+                    <span
+                      className="absolute top-0 right-0 inline-flex translate-x-1/2 -translate-y-1/2 items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white"
+                    >
+                      {badgeCount}
+                    </span>
+                  )}
                 </div>
-              </Link>
+                <span className="text-[11px]">{item.name}</span>
+              </NavLink>
             </li>
           );
         })}

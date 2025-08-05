@@ -97,6 +97,18 @@ describe('MobileBottomNav', () => {
     expect(activeLink).not.toBeNull();
   });
 
+  it('nav links meet touch target size', () => {
+    mockUseRouter.mockReturnValue({ pathname: '/' });
+    act(() => {
+      root.render(
+        React.createElement(MobileBottomNav, { user: {} as User })
+      );
+    });
+    const link = container.querySelector('a');
+    expect(link?.className).toContain('min-w-[44px]');
+    expect(link?.className).toContain('min-h-[44px]');
+  });
+
   it('hides on scroll down and shows on scroll up', () => {
     mockUseRouter.mockReturnValue({ pathname: '/' });
     Object.defineProperty(window, 'scrollY', { value: 0, writable: true });

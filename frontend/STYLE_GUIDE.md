@@ -53,6 +53,13 @@ Use `<CollapsibleSection>` from `@/components/ui` for expandable groups. It rend
 
 Mobile navigation uses the `MobileBottomNav` component. It appears only below the `sm` breakpoint, hides on downward scroll, and supports unread message badges. Keep route names and icons consistent across the app.
 
+### Navigation Guidelines
+
+- All navigation links and buttons should use the shared `NavLink` component or the `navItemClasses` utility to ensure consistent typography and spacing.
+- Interactive targets must be at least `44x44px` (`min-w-[44px] min-h-[44px]`).
+- Provide either visible text or an `aria-label` for every interactive element.
+- Active links are styled by passing `isActive` to `NavLink`.
+
 ## Maintenance
 
 Review and update this file alongside major UI or design system changes.
