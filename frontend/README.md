@@ -36,6 +36,8 @@ Primary, secondary and outline buttons now use the brand color for borders and b
 
 See [../docs/design_guidelines.md](../docs/design_guidelines.md) for a summary of spacing, typography and component styles.
 
+[STYLE_GUIDE.md](STYLE_GUIDE.md) documents Tailwind breakpoints, CSS variables and UI patterns like `CollapsibleSection` and `BottomSheet`. Update it whenever major UI changes are introduced.
+
 ### Responsive Breakpoints
 
 The `BREAKPOINT_SM` constant in `breakpoints.config.js` defines the `sm`
