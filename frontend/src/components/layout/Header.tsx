@@ -12,6 +12,7 @@ import NotificationBell from './NotificationBell'; // Assuming NotificationBell 
 import BookingRequestIcon from './BookingRequestIcon'; // Assuming BookingRequestIcon is set up
 import MobileMenuDrawer from './MobileMenuDrawer'; // Assuming MobileMenuDrawer is set up
 import SearchBar from '../search/SearchBar'; // The full search bar component
+import { navItemClasses } from './navStyles';
 import { UI_CATEGORY_TO_SERVICE, SERVICE_TO_UI_CATEGORY, UI_CATEGORIES } from '@/lib/categoryMap';
 import { Avatar } from '../ui'; // Assuming Avatar is set up
 import clsx from 'clsx';
@@ -244,14 +245,24 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             {user ? (
               <>
                 {user.user_type === 'artist' && (
-                  <button onClick={toggleArtistView} className="text-sm text-gray-700">
+                  <button
+                    onClick={toggleArtistView}
+                    className={clsx(navItemClasses, 'text-gray-700')}
+                  >
                     {artistViewActive ? 'Switch to Booking' : 'Switch to Artist View'}
                   </button>
                 )}
-                <BookingRequestIcon />
-                <NotificationBell />
+                <div className={navItemClasses}>
+                  <BookingRequestIcon />
+                </div>
+                <div className={navItemClasses}>
+                  <NotificationBell />
+                </div>
                 <Menu as="div" className="relative">
-                  <Menu.Button className="flex rounded-full bg-gray-100 text-sm focus:outline-none">
+                  <Menu.Button
+                    aria-label="Account menu"
+                    className={clsx(navItemClasses, 'rounded-full bg-gray-100 text-sm focus:outline-none')}
+                  >
                     <Avatar
                       src={user.profile_picture_url || null}
                       initials={user.first_name?.[0] || user.email[0]}
@@ -292,9 +303,16 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 </Menu>
               </>
             ) : (
-              <div className="space-x-4">
-                <Link href="/login" className="text-sm text-gray-600">Sign in</Link>
-                <Link href="/register" className="text-sm text-white bg-brand-dark px-3 py-1 rounded">Sign up</Link>
+              <div className="flex gap-2">
+                <Link href="/login" className={clsx(navItemClasses, 'text-gray-600')}>
+                  Sign in
+                </Link>
+                <Link
+                  href="/register"
+                  className={clsx(navItemClasses, 'bg-brand-dark text-white rounded')}
+                >
+                  Sign up
+                </Link>
               </div>
             )}
           </div>
