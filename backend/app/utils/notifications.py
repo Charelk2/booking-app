@@ -1,16 +1,18 @@
 from sqlalchemy.orm import Session
 from ..models import User, NotificationType
+from sqlalchemy.orm import Session
 from .. import models
+from ..models import User, NotificationType
 from ..crud import crud_notification
 from ..schemas.notification import NotificationResponse
 from ..api.api_ws import notifications_manager
-from ..api.api_notification import _build_response
 from typing import Optional
 import asyncio
 from datetime import datetime
 import os
 import logging
 import enum
+import re
 from twilio.rest import Client
 
 TWILIO_SID = os.getenv("TWILIO_ACCOUNT_SID")
@@ -76,6 +78,299 @@ def format_notification_message(
     if ntype == NotificationType.REVIEW_REQUEST:
         return f"Please review your booking #{kwargs.get('booking_id')}"
     return str(kwargs.get("content", ""))
+
+
+def _resolve_sender_avatar(
+    db: Session, user_id: int, client_id: int, artist_id: int
+) -> tuple[str | None, str | None]:
+    """Return sender name and avatar for the party opposite ``user_id``.
+
+    If the current user is the artist we show client details and vice versa.
+    Returning ``None`` for any field means the caller's existing value should
+    be retained. Centralizing this logic ensures consistency across notification
+    creators and API responses.
+    """
+
+    if user_id == artist_id:
+        client = db.query(models.User).filter(models.User.id == client_id).first()
+        if client:
+            return (
+                f"{client.first_name} {client.last_name}",
+                client.profile_picture_url,
+            )
+    elif user_id == client_id:
+        artist = db.query(models.User).filter(models.User.id == artist_id).first()
+        if artist:
+            sender = f"{artist.first_name} {artist.last_name}"
+            profile = (
+                db.query(models.ArtistProfile)
+                .filter(models.ArtistProfile.user_id == artist.id)
+                .first()
+            )
+            if profile and profile.business_name:
+                sender = profile.business_name
+            # Prefer the artist's profile picture from their profile, but fall
+            # back to the user record's ``profile_picture_url`` when the
+            # profile lacks one. This ensures notifications like booking
+            # confirmed or deposit due can always display the artist's avatar
+            # to clients.
+            avatar = None
+            if profile and profile.profile_picture_url:
+                avatar = profile.profile_picture_url
+            elif artist.profile_picture_url:
+                avatar = artist.profile_picture_url
+            return sender, avatar
+    return None, None
+
+
+def _build_response(db: Session, n: models.Notification) -> NotificationResponse:
+    """Augment a ``Notification`` with derived fields for API responses."""
+
+    data = NotificationResponse.model_validate(n).model_dump()
+    sender = data.get("sender_name")
+    btype = data.get("booking_type")
+    avatar_url = data.get("avatar_url")
+
+    if n.type == models.NotificationType.NEW_MESSAGE:
+        try:
+            match = re.match(r"New message from ([^:]+):", n.message)
+            if match and not sender:
+                sender = match.group(1).strip()
+
+            br_match = re.search(r"/(?:booking-requests|messages/thread)/(\d+)", n.link)
+            if not br_match:
+                q_match = re.search(r"/inbox\?requestId=(\d+)", n.link)
+                br_match = q_match
+            if br_match:
+                br_id = int(br_match.group(1))
+                br = (
+                    db.query(models.BookingRequest)
+                    .filter(models.BookingRequest.id == br_id)
+                    .first()
+                )
+                if br:
+                    other_id = (
+                        br.client_id if br.artist_id == n.user_id else br.artist_id
+                    )
+                    other = (
+                        db.query(models.User).filter(models.User.id == other_id).first()
+                    )
+                    if other:
+                        if not sender:
+                            sender = f"{other.first_name} {other.last_name}"
+                        if other.user_type == models.UserType.ARTIST:
+                            profile = (
+                                db.query(models.ArtistProfile)
+                                .filter(models.ArtistProfile.user_id == other.id)
+                                .first()
+                            )
+                            if profile and profile.business_name and not match:
+                                sender = profile.business_name
+                            if profile and profile.profile_picture_url:
+                                avatar_url = profile.profile_picture_url
+                        elif other.profile_picture_url:
+                            avatar_url = other.profile_picture_url
+        except Exception as exc:  # pragma: no cover - defensive parsing
+            logger.warning(
+                "Failed to parse sender from message '%s': %s",
+                n.message,
+                exc,
+            )
+    elif n.type == models.NotificationType.NEW_BOOKING_REQUEST:
+        try:
+            match = re.search(r"(?:/booking-requests/|/inbox\?requestId=)(\d+)", n.link)
+            if not match:
+                raise ValueError("invalid link")
+            request_id = int(match.group(1))
+            br = (
+                db.query(models.BookingRequest)
+                .filter(models.BookingRequest.id == request_id)
+                .first()
+            )
+            if br:
+                tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                    db, n.user_id, br.client_id, br.artist_id
+                )
+                if tmp_sender:
+                    sender = tmp_sender
+                if tmp_avatar:
+                    avatar_url = tmp_avatar
+                if br.service_id:
+                    service = (
+                        db.query(models.Service)
+                        .filter(models.Service.id == br.service_id)
+                        .first()
+                    )
+                    if service:
+                        btype = service.service_type
+                        if isinstance(btype, enum.Enum):
+                            btype = btype.value
+        except (ValueError, IndexError) as exc:
+            logger.warning(
+                "Failed to derive booking request details from link %s: %s",
+                n.link,
+                exc,
+            )
+    elif n.type in [
+        models.NotificationType.DEPOSIT_DUE,
+        models.NotificationType.NEW_BOOKING,
+    ]:
+        try:
+            match = re.search(r"/bookings/(\d+)", n.link)
+            if match:
+                booking_id = int(match.group(1))
+                booking = (
+                    db.query(models.BookingSimple)
+                    .filter(models.BookingSimple.id == booking_id)
+                    .first()
+                )
+                if booking:
+                    tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                        db, n.user_id, booking.client_id, booking.artist_id
+                    )
+                    if tmp_sender:
+                        sender = tmp_sender
+                    if tmp_avatar:
+                        avatar_url = tmp_avatar
+        except Exception as exc:  # pragma: no cover - defensive parsing
+            logger.warning(
+                "Failed to derive review request details from link %s: %s",
+                n.link,
+                exc,
+            )
+    elif n.type == models.NotificationType.QUOTE_ACCEPTED:
+        try:
+            match = re.search(r"/booking-requests/(\d+)", n.link)
+            if not match:
+                match = re.search(r"/inbox\?requestId=(\d+)", n.link)
+            if not match:
+                match = re.search(r"/inbox\?requestId=(\d+)", n.link)
+            if match:
+                request_id = int(match.group(1))
+                br = (
+                    db.query(models.BookingRequest)
+                    .filter(models.BookingRequest.id == request_id)
+                    .first()
+                )
+                if br:
+                    tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                        db, n.user_id, br.client_id, br.artist_id
+                    )
+                    if tmp_sender:
+                        sender = tmp_sender
+                    if tmp_avatar:
+                        avatar_url = tmp_avatar
+        except (ValueError, IndexError) as exc:
+            logger.warning(
+                "Failed to derive quote accepted details from link %s: %s",
+                n.link,
+                exc,
+            )
+    elif n.type == models.NotificationType.QUOTE_EXPIRED:
+        try:
+            match = re.search(r"/booking-requests/(\d+)", n.link)
+            if match:
+                request_id = int(match.group(1))
+                br = (
+                    db.query(models.BookingRequest)
+                    .filter(models.BookingRequest.id == request_id)
+                    .first()
+                )
+                if br:
+                    tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                        db, n.user_id, br.client_id, br.artist_id
+                    )
+                    if tmp_sender:
+                        sender = tmp_sender
+                    if tmp_avatar:
+                        avatar_url = tmp_avatar
+        except (ValueError, IndexError) as exc:
+            logger.warning(
+                "Failed to derive quote expired details from link %s: %s",
+                n.link,
+                exc,
+            )
+    elif n.type == models.NotificationType.QUOTE_EXPIRING:
+        try:
+            match = re.search(r"/quotes/(\d+)", n.link)
+            if match:
+                quote_id = int(match.group(1))
+                quote = (
+                    db.query(models.QuoteV2)
+                    .filter(models.QuoteV2.id == quote_id)
+                    .first()
+                )
+                if not quote:
+                    quote = (
+                        db.query(models.Quote)
+                        .filter(models.Quote.id == quote_id)
+                        .first()
+                    )
+                if quote:
+                    tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                        db, n.user_id, quote.client_id, quote.artist_id
+                    )
+                    if tmp_sender:
+                        sender = tmp_sender
+                    if tmp_avatar:
+                        avatar_url = tmp_avatar
+        except Exception as exc:  # pragma: no cover - defensive parsing
+            logger.warning(
+                "Failed to derive quote expiring details from link %s: %s",
+                n.link,
+                exc,
+            )
+    elif n.type == models.NotificationType.REVIEW_REQUEST:
+        try:
+            match = re.search(r"/bookings/(\d+)", n.link)
+            if match:
+                booking_id = int(match.group(1))
+                booking = (
+                    db.query(models.BookingSimple)
+                    .filter(models.BookingSimple.id == booking_id)
+                    .first()
+                )
+                if booking:
+                    tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                        db, n.user_id, booking.client_id, booking.artist_id
+                    )
+                    if tmp_sender:
+                        sender = tmp_sender
+                    if tmp_avatar:
+                        avatar_url = tmp_avatar
+        except Exception as exc:  # pragma: no cover - defensive parsing
+            logger.warning(
+                "Failed to derive review request details from link %s: %s",
+                n.link,
+                exc,
+            )
+    elif n.type == models.NotificationType.BOOKING_STATUS_UPDATED:
+        try:
+            request_id = int(n.link.split("/")[-1])
+            br = (
+                db.query(models.BookingRequest)
+                .filter(models.BookingRequest.id == request_id)
+                .first()
+            )
+            if br:
+                tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                    db, n.user_id, br.client_id, br.artist_id
+                )
+                if tmp_sender:
+                    sender = tmp_sender
+                if tmp_avatar:
+                    avatar_url = tmp_avatar
+        except (ValueError, IndexError) as exc:
+            logger.warning(
+                "Failed to derive booking status update details from link %s: %s",
+                n.link,
+                exc,
+            )
+
+    data["sender_name"] = sender
+    data["booking_type"] = btype
+    data["avatar_url"] = avatar_url
+    return NotificationResponse(**data)
 
 
 def _send_sms(phone: Optional[str], message: str) -> None:
@@ -208,32 +503,9 @@ def notify_deposit_due(
     # Resolve the opposite party so the frontend can display the correct
     # avatar and sender name. Clients should see the artist's avatar while
     # artists (if ever notified) would see the client's details.
-    sender_name: str | None = None
-    avatar_url: str | None = None
-    if user.id == booking.client_id:
-        artist = (
-            db.query(models.User).filter(models.User.id == booking.artist_id).first()
-        )
-        if artist:
-            sender_name = f"{artist.first_name} {artist.last_name}"
-            profile = (
-                db.query(models.ArtistProfile)
-                .filter(models.ArtistProfile.user_id == artist.id)
-                .first()
-            )
-            if profile and profile.business_name:
-                sender_name = profile.business_name
-            if profile and profile.profile_picture_url:
-                avatar_url = profile.profile_picture_url
-            elif artist.profile_picture_url:
-                avatar_url = artist.profile_picture_url
-    elif user.id == booking.artist_id:
-        client = (
-            db.query(models.User).filter(models.User.id == booking.client_id).first()
-        )
-        if client:
-            sender_name = f"{client.first_name} {client.last_name}"
-            avatar_url = client.profile_picture_url
+    sender_name, avatar_url = _resolve_sender_avatar(
+        db, user.id, booking.client_id, booking.artist_id
+    )
 
     prefix = ""
     if not booking.deposit_paid:
