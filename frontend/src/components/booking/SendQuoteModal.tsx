@@ -1,13 +1,10 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-} from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
 import { ServiceItem, QuoteV2Create, QuoteTemplate } from '@/types';
 import { getQuoteTemplates } from '@/lib/api';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
-import { BottomSheet } from '../ui';
+// You mentioned `BottomSheet` in your previous code. Assuming it's a separate component.
+// If not, the modal structure below replaces its functionality.
 
 interface Props {
   open: boolean;
@@ -17,10 +14,9 @@ interface Props {
   clientId: number;
   bookingRequestId: number;
   serviceName?: string;
-  // New props for initial quote data
   initialBaseFee?: number;
   initialTravelCost?: number;
-  initialSoundNeeded?: boolean; // New prop
+  initialSoundNeeded?: boolean;
 }
 
 const expiryOptions = [
@@ -50,22 +46,16 @@ const SendQuoteModal: React.FC<Props> = ({
   const [expiresHours, setExpiresHours] = useState<number | null>(null);
   const [templates, setTemplates] = useState<QuoteTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<number | ''>('');
-  const [quoteNumber, setQuoteNumber] = useState('');
+  const [quoteNumber] = useState(generateQuoteNumber());
   const [description, setDescription] = useState('');
 
   const firstFieldRef = useRef<HTMLInputElement>(null);
-
   const currentDate = format(new Date(), 'PPP');
 
-  // Ref to track if initial pre-fill from props has happened
-  const hasPrefilledFromProps = useRef(false);
-
-  // Effect to fetch templates and handle initial pre-filling
+  // Unified effect hook to handle fetching data and setting initial state.
   useEffect(() => {
     if (!open) {
-      // reset when modal closes so next open can prefill again
-      hasPrefilledFromProps.current = false;
-      setSelectedTemplate('');
+      // Reset state when modal closes
       setServices([]);
       setServiceFee(0);
       setSoundFee(0);
@@ -74,26 +64,18 @@ const SendQuoteModal: React.FC<Props> = ({
       setDiscount(0);
       setExpiresHours(null);
       setDescription('');
+      setSelectedTemplate('');
       return;
     }
+
+    firstFieldRef.current?.focus();
 
     getQuoteTemplates(artistId)
       .then((res) => setTemplates(res.data))
       .catch(() => setTemplates([]));
-    setQuoteNumber(generateQuoteNumber());
+  }, [open, artistId]);
 
-    if (selectedTemplate === '') {
-      // Apply initial props only once when modal opens AND no template is selected
-      if (!hasPrefilledFromProps.current) {
-        setServiceFee(typeof initialBaseFee === 'number' ? initialBaseFee : 0);
-        setTravelFee(typeof initialTravelCost === 'number' ? initialTravelCost : 0);
-        setSoundFee(initialSoundNeeded ? 250 : 0); // Assuming 250 is the default estimated sound cost
-        hasPrefilledFromProps.current = true;
-      }
-    }
-  }, [open, selectedTemplate, artistId, initialBaseFee, initialTravelCost, initialSoundNeeded]);
-
-  // Effect to apply template values or revert to initial props/defaults
+  // Effect to apply template values or revert to initial props/defaults.
   useEffect(() => {
     const tmpl = templates.find((t) => t.id === selectedTemplate);
     if (tmpl) {
@@ -104,11 +86,10 @@ const SendQuoteModal: React.FC<Props> = ({
       setTravelFee(tmpl.travel_fee);
       setAccommodation(tmpl.accommodation || '');
       setDiscount(tmpl.discount || 0);
-    } else if (selectedTemplate === '') {
-      // If "Choose template" is selected (or no template was initially chosen),
-      // revert to initial props or default to 0/empty
-      setServiceFee(typeof initialBaseFee === 'number' ? initialBaseFee : 0);
-      setTravelFee(typeof initialTravelCost === 'number' ? initialTravelCost : 0);
+    } else {
+      // Revert to initial props or default if no template is selected
+      setServiceFee(initialBaseFee ?? 0);
+      setTravelFee(initialTravelCost ?? 0);
       setSoundFee(initialSoundNeeded ? 250 : 0);
       setAccommodation('');
       setDiscount(0);
@@ -116,22 +97,34 @@ const SendQuoteModal: React.FC<Props> = ({
     }
   }, [selectedTemplate, templates, initialBaseFee, initialTravelCost, initialSoundNeeded]);
 
-  const subtotal =
-    serviceFee + services.reduce((acc, s) => acc + Number(s.price), 0) + soundFee + travelFee;
-  const subtotalAfterDiscount = subtotal - (discount || 0);
-  const taxesFees = subtotalAfterDiscount * 0.15; // Assuming 15% tax/fees
-  const estimatedTotal = subtotalAfterDiscount + taxesFees;
+  // Use `useMemo` for efficient calculation of totals.
+  const { subtotal, taxesFees, estimatedTotal } = useMemo(() => {
+    const calculatedSubtotal =
+      serviceFee + services.reduce((acc, s) => acc + Number(s.price), 0) + soundFee + travelFee;
+    const subtotalAfterDiscount = calculatedSubtotal - (discount || 0);
+    const calculatedTaxesFees = subtotalAfterDiscount * 0.15;
+    const calculatedEstimatedTotal = subtotalAfterDiscount + calculatedTaxesFees;
+    return {
+      subtotal: calculatedSubtotal,
+      taxesFees: calculatedTaxesFees,
+      estimatedTotal: calculatedEstimatedTotal,
+    };
+  }, [services, serviceFee, soundFee, travelFee, discount]);
 
+  // Handler functions
   const addService = () => setServices([...services, { description: '', price: 0 }]);
-  const removeService = (idx: number) =>
-    setServices(services.filter((_, i) => i !== idx));
+  const removeService = (idx: number) => setServices(services.filter((_, i) => i !== idx));
   const updateService = (idx: number, field: keyof ServiceItem, value: string) => {
-    const updated = services.map((s, i) => (i === idx ? { ...s, [field]: field === 'price' ? Number(value) : value } : s));
+    const updated = services.map((s, i) =>
+      i === idx ? { ...s, [field]: field === 'price' ? Number(value) : value } : s
+    );
     setServices(updated);
   };
 
   const handleSubmit = async () => {
-    const expires_at = expiresHours ? new Date(Date.now() + expiresHours * 3600000).toISOString() : null;
+    const expires_at = expiresHours
+      ? new Date(Date.now() + expiresHours * 3600000).toISOString()
+      : null;
     await onSubmit({
       booking_request_id: bookingRequestId,
       artist_id: artistId,
@@ -148,57 +141,76 @@ const SendQuoteModal: React.FC<Props> = ({
     });
   };
 
+  // If `open` is false, render nothing
+  if (!open) return null;
+
   return (
-    <BottomSheet
-      open={open}
-      onClose={onClose}
-      initialFocus={firstFieldRef}
-      testId="send-quote-modal"
-      desktopCenter
-      panelClassName="md:max-w-3xl md:mx-auto border border-gray-100 overflow-hidden"
-    >
-      <div className="flex h-screen sm:h-auto flex-col font-sans">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 py-8 sm:p-8 font-sans">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl border border-gray-100 flex flex-col max-h-[90vh] overflow-hidden">
         {/* Modal Header with Gradient */}
-        <div className="bg-gradient-to-br from-purple-700 to-indigo-800 text-white p-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+        <div className="bg-gradient-to-br from-purple-700 to-indigo-800 text-white p-6 flex justify-between items-center gap-2 flex-wrap">
           <div className="flex flex-col">
             <h2 className="text-2xl font-bold tracking-tight">Send Quote</h2>
             <div className="text-sm font-medium opacity-90 mt-1">
-              <span className="block">Quote No: {quoteNumber}</span>
-              <span className="block">Date: {currentDate}</span>
+              <span>Quote No: {quoteNumber}</span>
+              <span className="ml-4">Date: {currentDate}</span>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-white text-3xl font-light opacity-80 hover:opacity-100 transition-opacity leading-none self-start sm:self-center"
+            className="text-white text-3xl font-light opacity-80 hover:opacity-100 transition-opacity leading-none"
+            aria-label="Close"
           >
             &times;
           </button>
         </div>
 
-        {/* Modal Content Area */}
+        {/* Modal Content Area - Made scrollable */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
+          {/* Template Selection */}
+          <div>
+            <label htmlFor="template-select" className="block text-sm font-medium text-gray-700 mb-1">
+              Choose a template
+            </label>
+            <select
+              id="template-select"
+              className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+              value={selectedTemplate}
+              onChange={(e) => setSelectedTemplate(e.target.value ? Number(e.target.value) : '')}
+            >
+              <option value="">No template</option>
+              {templates.map((tmpl) => (
+                <option key={tmpl.id} value={tmpl.id}>
+                  {tmpl.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
           {/* Quote Description Input */}
           <div className="relative">
+            <label htmlFor="quote-description" className="sr-only">Quote Description</label>
             <input
               ref={firstFieldRef}
+              id="quote-description"
               type="text"
               placeholder="Quote Description (e.g., 'Wedding Performance')"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 text-base shadow-sm"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            <p className="absolute -bottom-5 left-0 text-xs text-gray-500">A brief, descriptive title for this quote.</p>
+            <p className="absolute -bottom-5 left-0 text-xs text-gray-500">
+              A brief, descriptive title for this quote.
+            </p>
           </div>
 
-          {/* Estimated Cost Section - All editable inputs and read-only totals */}
           <h3 className="text-xl font-bold text-gray-900 mt-8">Estimated Cost</h3>
           <div className="space-y-2 text-gray-700">
             {/* Artist Base Fee */}
             <div className="flex justify-between items-center py-2">
               <span className="font-medium">Artist Base Fee</span>
               <input
-                id="service-fee"
                 type="number"
                 inputMode="numeric"
                 className="w-28 text-right p-1 rounded border border-gray-300"
@@ -210,15 +222,16 @@ const SendQuoteModal: React.FC<Props> = ({
 
             {/* Travel Fee */}
             <div className="flex justify-between items-center py-2">
-              <span className="flex items-center group">
+              <span className="flex items-center group font-medium">
                 Travel
-                <span className="has-tooltip relative ml-1.5">
-                  <span className="cursor-pointer text-blue-500">ⓘ</span>
-                  <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">Calculated based on artist's location and event venue distance.</div>
+                <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
+                  ⓘ
+                  <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
+                    Calculated based on artist's location and event venue distance.
+                  </div>
                 </span>
               </span>
               <input
-                id="travel-fee"
                 type="number"
                 inputMode="numeric"
                 className="w-28 text-right p-1 rounded border border-gray-300"
@@ -230,15 +243,16 @@ const SendQuoteModal: React.FC<Props> = ({
 
             {/* Sound Equipment */}
             <div className="flex justify-between items-center py-2">
-              <span className="flex items-center group">
+              <span className="flex items-center group font-medium">
                 Sound Equipment
-                <span className="has-tooltip relative ml-1.5">
-                  <span className="cursor-pointer text-blue-500">ⓘ</span>
-                  <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">Standard package for events up to 150 guests.</div>
+                <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
+                  ⓘ
+                  <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
+                    Standard package for events up to 150 guests.
+                  </div>
                 </span>
               </span>
               <input
-                id="sound-fee"
                 type="number"
                 inputMode="numeric"
                 className="w-28 text-right p-1 rounded border border-gray-300"
@@ -250,7 +264,7 @@ const SendQuoteModal: React.FC<Props> = ({
 
             {/* Dynamic Custom Service Items */}
             {services.map((s, i) => (
-              <div key={i} className="flex justify-between items-center py-2">
+              <div key={i} className="flex justify-between items-center py-2 gap-2">
                 <input
                   type="text"
                   className="flex-1 p-1 rounded border border-gray-300 text-sm"
@@ -270,7 +284,7 @@ const SendQuoteModal: React.FC<Props> = ({
                   type="button"
                   onClick={() => removeService(i)}
                   aria-label="Remove item"
-                  className="text-red-500 hover:text-red-700 transition-colors text-lg font-bold ml-2"
+                  className="text-red-500 hover:text-red-700 transition-colors text-lg font-bold ml-1"
                 >
                   &times;
                 </button>
@@ -290,7 +304,6 @@ const SendQuoteModal: React.FC<Props> = ({
             <div className="flex justify-between items-center py-2">
               <span className="font-medium">Discount (optional)</span>
               <input
-                id="discount"
                 type="number"
                 inputMode="numeric"
                 className="w-28 text-right p-1 rounded border border-gray-300"
@@ -337,7 +350,6 @@ const SendQuoteModal: React.FC<Props> = ({
             <div className="flex flex-col py-2">
               <span className="font-medium mb-1">Accommodation (optional)</span>
               <textarea
-                id="accommodation"
                 className="w-full p-2 border border-gray-300 rounded-lg text-sm"
                 placeholder="E.g., '1 night hotel stay: $150'"
                 value={accommodation}
@@ -349,11 +361,7 @@ const SendQuoteModal: React.FC<Props> = ({
 
           {/* Terms of Service Checkbox */}
           <div className="flex items-start space-x-3 mt-6">
-            <input
-              type="checkbox"
-              id="terms"
-              className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
+            <input type="checkbox" id="terms" className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
             <label htmlFor="terms" className="text-sm text-gray-600">
               I have reviewed the quote and agree to the{' '}
               <a href="#" className="text-blue-600 hover:underline">
@@ -366,24 +374,15 @@ const SendQuoteModal: React.FC<Props> = ({
 
         {/* Modal Footer Buttons */}
         <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end space-x-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-          >
+          <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors">
             Cancel
           </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            title="This quote will be sent to the client"
-            className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-          >
+          <button type="button" onClick={handleSubmit} title="This quote will be sent to the client" className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
             Send Quote
           </button>
         </div>
       </div>
-    </BottomSheet>
+    </div>
   );
 };
 
