@@ -9,6 +9,7 @@ def test_extract_booking_details_basic():
     assert result.date.isoformat() == "2025-12-25"
     assert result.location == "Cape Town"
     assert result.guests == 50
+    assert result.event_type is None
 
 
 def test_extract_handles_lowercase_location_and_no_year():
@@ -19,3 +20,12 @@ def test_extract_handles_lowercase_location_and_no_year():
     assert result.date.year == expected_year
     assert (result.date.month, result.date.day) == (8, 6)
     assert result.guests is None
+    assert result.event_type == "Birthday"
+
+
+def test_extract_respects_explicit_year_and_event_type():
+    text = "birthday 7 april 2026"
+    result = nlp_booking.extract_booking_details(text)
+    assert (result.date.year, result.date.month, result.date.day) == (2026, 4, 7)
+    assert result.event_type == "Birthday"
+

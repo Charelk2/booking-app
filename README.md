@@ -825,6 +825,9 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * New **Review** step showing cost breakdown and selections.
 * The review page now displays a single optimized summary with event type and
   details and calculates a price estimate based on distance.
+* AI text parsing now respects explicit years (e.g. "birthday 7 April 2026") and
+  recognizes event types defined in `frontend/src/data/eventTypes.json` for
+  easier updates.
 * Success toasts when saving a draft or submitting a request.
 * Simplified buttons sit below each step in a responsive button group. On phones
   the order is **Next**, **Save Draft**, **Back** but remains **Back**, **Save Draft**,

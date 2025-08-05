@@ -127,7 +127,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
   const [aiText, setAiText] = useState('');
-  const [parsedDetails, setParsedDetails] = useState<Partial<EventDetails> | null>(null);
+  interface ParsedDetails {
+    eventType?: string;
+    date?: string;
+    location?: string;
+    guests?: number;
+  }
+  const [parsedDetails, setParsedDetails] = useState<ParsedDetails | null>(null);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
@@ -159,16 +165,23 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     if (!aiText.trim()) return;
     try {
       const res = await parseBookingText(aiText);
-      setParsedDetails(res.data);
+      setParsedDetails({
+        eventType: res.data.event_type,
+        date: res.data.date,
+        location: res.data.location,
+        guests: res.data.guests,
+      });
     } catch (err) {
       toast.error((err as Error).message);
     }
   };
 
   const applyParsed = () => {
+    if (parsedDetails?.eventType) setValue('eventType', parsedDetails.eventType);
     if (parsedDetails?.date) setValue('date', new Date(parsedDetails.date));
     if (parsedDetails?.location) setValue('location', parsedDetails.location);
-    if (parsedDetails?.guests !== undefined) setValue('guests', String(parsedDetails.guests));
+    if (parsedDetails?.guests !== undefined)
+      setValue('guests', String(parsedDetails.guests));
     setParsedDetails(null);
   };
 
@@ -527,9 +540,16 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   <div className="mb-4 border p-2 rounded bg-gray-50">
                     <p className="mb-2">AI Suggestions:</p>
                     <ul className="mb-2 text-sm">
+                      {parsedDetails.eventType && (
+                        <li>Event Type: {parsedDetails.eventType}</li>
+                      )}
                       {parsedDetails.date && <li>Date: {parsedDetails.date}</li>}
-                      {parsedDetails.location && <li>Location: {parsedDetails.location}</li>}
-                      {parsedDetails.guests !== undefined && <li>Guests: {parsedDetails.guests}</li>}
+                      {parsedDetails.location && (
+                        <li>Location: {parsedDetails.location}</li>
+                      )}
+                      {parsedDetails.guests !== undefined && (
+                        <li>Guests: {parsedDetails.guests}</li>
+                      )}
                     </ul>
                     <div className="flex gap-2">
                       <button

@@ -5,23 +5,13 @@ import clsx from 'clsx';
 import useIsMobile from '@/hooks/useIsMobile';
 import { EventDetails } from '@/contexts/BookingContext';
 import { BottomSheet, Button, CollapsibleSection } from '../../ui';
+import eventTypes from '../../../data/eventTypes.json';
 
 interface Props {
   control: Control<EventDetails>;
   open?: boolean;
   onToggle?: () => void;
 }
-
-const options = [
-  'Corporate',
-  'Private',
-  'Wedding',
-  'Birthday',
-  'Festival',
-  'Restaurant',
-  'Celebration',
-  'Other',
-];
 
 export default function EventTypeStep({ control, open = true, onToggle = () => {} }: Props) {
   const isMobile = useIsMobile();
@@ -59,7 +49,7 @@ export default function EventTypeStep({ control, open = true, onToggle = () => {
                   initialFocus={firstRadioRef}
                 >
                   <fieldset className="p-4 space-y-2">
-                    {options.map((opt, idx) => (
+                    {eventTypes.map((opt, idx) => (
                       <div key={opt}>
                         <input
                           id={`type-${opt}-mobile`}
@@ -84,7 +74,7 @@ export default function EventTypeStep({ control, open = true, onToggle = () => {
               </>
             ) : (
               <fieldset className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {options.map((opt) => (
+                {eventTypes.map((opt) => (
                   <div key={opt}>
                     <input
                       id={`type-${opt}`}

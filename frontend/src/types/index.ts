@@ -123,6 +123,7 @@ export interface BookingRequestCreate {
 }
 
 export interface ParsedBookingDetails {
+  event_type?: string;
   date?: string;
   location?: string;
   guests?: number;
