@@ -1,5 +1,5 @@
 {
-  "extends": ["stylelint-config-standard", "stylelint-config-prettier"],
+  "extends": ["stylelint-config-standard", "stylelint-config-tailwindcss", "stylelint-config-prettier"],
   "rules": {
     "color-named": "never",
     "selector-class-pattern": "^[a-z0-9\\-]+$"
