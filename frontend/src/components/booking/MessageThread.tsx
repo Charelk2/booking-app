@@ -531,13 +531,13 @@ useEffect(() => {
     const handleAcceptQuote = useCallback(
       async (quote: QuoteV2) => {
         setAcceptingQuoteId(quote.id);
-        let confirmedBookingId: number | undefined;
         try {
-          const acceptRes = await acceptQuoteV2(quote.id, serviceId);
-          confirmedBookingId = acceptRes.data.id ?? undefined;
+          await acceptQuoteV2(quote.id, serviceId);
         } catch (err: unknown) {
           console.error('Failed to accept quote:', err);
-          setThreadError(`Failed to accept quote. ${(err as Error).message || 'Please try again.'}`);
+          setThreadError(
+            `Failed to accept quote. ${(err as Error).message || 'Please try again.'}`,
+          );
           setAcceptingQuoteId(null);
           return;
         }
@@ -546,7 +546,12 @@ useEffect(() => {
           const freshQuote = await getQuoteV2(quote.id);
           setQuotes((prev) => ({ ...prev, [quote.id]: freshQuote.data }));
 
-          const details = await getBookingDetails(confirmedBookingId ?? freshQuote.data.booking_id ?? 0);
+          const bookingId = freshQuote.data.booking_id;
+          if (!bookingId) {
+            throw new Error('Booking not found after accepting quote');
+          }
+
+          const details = await getBookingDetails(bookingId);
           setBookingConfirmed(true);
           if (onBookingConfirmedChange) {
             onBookingConfirmedChange(true, details.data);
