@@ -10,7 +10,6 @@ import {
 } from '@heroicons/react/24/outline';
 import type { User } from '@/types';
 import useNotifications from '@/hooks/useNotifications';
-import { toUnifiedFromNotification } from '@/hooks/notificationUtils';
 import type { UnifiedNotification } from '@/types';
 import useScrollDirection from '@/hooks/useScrollDirection';
 
@@ -53,7 +52,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   return (
     <nav
       className={classNames(
-        'fixed bottom-0 w-full h-[56px] py-1 bg-background border-t shadow z-50 sm:hidden transition-transform',
+        'fixed bottom-0 w-full h-[56px] py-1 bg-background border-t shadow z-50 sm:hidden transition-transform pb-safe',
         scrollDir === 'down' ? 'translate-y-full' : 'translate-y-0',
       )}
       aria-label="Mobile navigation"
