@@ -268,8 +268,6 @@ export interface QuoteCalculationResponse {
   provider_cost: number;
   accommodation_cost: number;
   total: number;
-  ai_description?: string | null;
-  ai_price_adjustment?: number | null;
 }
 export interface ArtistSoundPreference {
   id: number;
