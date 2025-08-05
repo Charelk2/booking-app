@@ -362,7 +362,6 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         navigation={clientNav}
-        drawerNavigation={clientNav}
         user={user}
         logout={logout}
         pathname={pathname}
