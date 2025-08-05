@@ -6,6 +6,7 @@ from typing import List
 import logging
 
 from .. import crud, models, schemas
+from ..services import nlp_booking
 from .dependencies import get_db, get_current_user, get_current_active_client, get_current_active_artist
 from ..utils.notifications import (
     notify_user_new_booking_request,
@@ -43,6 +44,21 @@ async def upload_booking_attachment(file: UploadFile = File(...)):
         file.file.close()
     url = f"/static/attachments/{unique_filename}"
     return {"url": url}
+
+
+@router.post("/parse", response_model=schemas.ParsedBookingDetails)
+def parse_booking_text(payload: schemas.BookingParseRequest):
+    """Parse free-form text and extract event details."""
+
+    try:
+        return nlp_booking.extract_booking_details(payload.text)
+    except Exception as exc:  # pragma: no cover - unexpected errors
+        logger.exception("NLP parsing failed: %s", exc)
+        raise error_response(
+            "Unable to parse booking details",
+            {"text": "Parsing failed"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
 
 @router.post("/", response_model=schemas.BookingRequestResponse)
 def create_booking_request(

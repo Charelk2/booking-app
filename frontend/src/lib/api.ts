@@ -24,6 +24,7 @@ import {
   QuoteTemplate,
   Notification,
   ThreadNotification,
+  ParsedBookingDetails,
 } from '@/types';
 import { useAuth as useContextAuth } from '@/contexts/AuthContext'; // Renamed to avoid conflict with default export 'api'
 
@@ -455,6 +456,9 @@ export const uploadBookingAttachment = (
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress }
   );
+
+export const parseBookingText = (text: string) =>
+  api.post<ParsedBookingDetails>(`${API_V1}/booking-requests/parse`, { text });
 
 // ─── QUOTE TEMPLATES ─────────────────────────────────────────────────────────
 export const getQuoteTemplates = async (artistId: number) => {

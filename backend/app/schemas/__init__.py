@@ -40,6 +40,7 @@ from .notification import (
     BookingDetailsSummary,
 )
 from .invoice import InvoiceRead, InvoiceMarkPaid
+from .nlp import BookingParseRequest, ParsedBookingDetails
 
 __all__ = [
     "UserBase",
@@ -95,4 +96,6 @@ __all__ = [
     "ArtistSoundPreferenceResponse",
     "InvoiceRead",
     "InvoiceMarkPaid",
+    "BookingParseRequest",
+    "ParsedBookingDetails",
 ]
