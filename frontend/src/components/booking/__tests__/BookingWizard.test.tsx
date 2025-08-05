@@ -37,7 +37,7 @@ describe('BookingWizard instructions', () => {
 
   it('shows first step instruction', () => {
     render(<Wrapper />);
-    expect(document.body.textContent).toContain('When should we perform?');
+    expect(document.body.textContent).toContain('Tell us a little bit more about your event.');
   });
 
 });
