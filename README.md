@@ -892,14 +892,14 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Booking notes are visible only on the Booking details page, appearing beneath the Venue Type line in the details box, and are hidden from chat threads and booking request screens.
 * Booking details messages appear in chat threads inside a collapsible section with a **Show details** button that toggles to **Hide details** when expanded. The details are collapsed by default so the header shows **Show details** until the section is opened. Small chevron icons indicate the state.
 * Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews. Titles and subtitles wrap up to two lines using the `line-clamp-2` utility so full names remain visible.
-* Avatars fall back to the sender's initials when no profile photo is available. If neither a picture nor initials are present, a default patterned placeholder is shown so every notification has a recognizable icon.
+* Avatars fall back to a default placeholder image when no profile photo is available so every notification displays a consistent picture.
 * The drawer slides in from the right on a simple white panel with a soft shadow. Badges disappear when the unread count is 0.
 * Notification cards keep softly rounded corners and a gentle shadow. Unread items show a thin brand-colored strip on the left.
 * Each card displays a circular avatar, bold title, one-line subtitle, relative timestamp and a small status icon on the right. Icons are color-coded (green for confirmed, indigo for reminders, amber for due alerts).
 * The header now just shows the “Notifications” title, an **Unread** toggle and a close **X** button.
 * A full-width rounded **Clear All** button stays pinned to the bottom of the panel.
 * Deposit due alerts now display "Booking confirmed – deposit R{amount} due by {date}" only the first time a booking is confirmed. Subsequent reminders omit the greeting. The drawer parses this format to show `R50.00 due by Jan 1, 2025` as the subtitle and links directly to the booking.
-* Booking confirmed and deposit due notifications now show the artist's avatar so users can immediately recognize who the alert is from.
+* Booking confirmed and deposit due notifications now show the artist's avatar so users can immediately recognize who the alert is from. When the artist hasn't uploaded a photo, the default avatar is used.
 * Quote acceptance and booking confirmation notifications now render dynamic titles such as **"Quote accepted by Jane Doe"** instead of a generic label.
 * Message notifications now include the sender name in both the stored text and the API response so the drawer can display "New message from Alice" without additional lookups.
 * Clicking a new message alert opens `/inbox?requestId={id}` with the conversation active.
