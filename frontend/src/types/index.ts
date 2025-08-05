@@ -268,9 +268,16 @@ export interface SoundProvider {
   updated_at?: string;
 }
 
+export interface TravelEstimate {
+  mode: string;
+  cost: number;
+}
+
 export interface QuoteCalculationResponse {
   base_fee: number;
   travel_cost: number;
+  travel_mode: string;
+  travel_estimates: TravelEstimate[];
   provider_cost: number;
   accommodation_cost: number;
   total: number;
