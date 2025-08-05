@@ -4,6 +4,21 @@
 import React from "react";
 import "@/tests/mocks/no-network";
 
+// Provide a basic matchMedia stub for hooks that query media features.
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(), // deprecated
+    removeListener: jest.fn(),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  }),
+});
+
 jest.mock('next/navigation', () => {
   return {
     useRouter: () => ({
