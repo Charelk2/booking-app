@@ -119,6 +119,8 @@ class QuoteCalculationResponse(BaseModel):
     provider_cost: Decimal
     accommodation_cost: Decimal
     total: Decimal
+    ai_description: str | None = None
+    ai_price_adjustment: Decimal | None = None
 
 
 class QuoteCalculationParams(BaseModel):
