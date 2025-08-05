@@ -72,6 +72,17 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     };
   }
 
+  if (n.type === 'quote_expiring' || n.type === 'quote_expired') {
+    const trimmed = content.length > 30 ? `${content.slice(0, 30)}...` : content;
+    return {
+      ...base,
+      title: n.type === 'quote_expiring' ? 'Quote Expiring' : 'Quote Expired',
+      subtitle: trimmed,
+      icon: '⏰',
+      status: 'reminder',
+    };
+  }
+
   if (n.type === 'review_request') {
     const trimmed = content.length > 30 ? `${content.slice(0, 30)}...` : content;
     return { ...base, title: 'Review Request', subtitle: trimmed, icon: '🔔', status: 'reminder' };

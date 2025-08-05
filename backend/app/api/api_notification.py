@@ -14,6 +14,42 @@ router = APIRouter(tags=["notifications"])
 logger = logging.getLogger(__name__)
 
 
+def _resolve_sender_avatar(
+    db: Session, user_id: int, client_id: int, artist_id: int
+) -> tuple[str | None, str | None]:
+    """Return sender name and avatar for the party opposite ``user_id``.
+
+    If the current user is the artist we show client details and vice versa.
+    Returning ``None`` for any field means the caller's existing value should
+    be retained. This helper centralizes participant lookups so new
+    notification types can easily reuse it.
+    """
+
+    if user_id == artist_id:
+        client = db.query(models.User).filter(models.User.id == client_id).first()
+        if client:
+            return (
+                f"{client.first_name} {client.last_name}",
+                client.profile_picture_url,
+            )
+    elif user_id == client_id:
+        artist = db.query(models.User).filter(models.User.id == artist_id).first()
+        if artist:
+            sender = f"{artist.first_name} {artist.last_name}"
+            profile = (
+                db.query(models.ArtistProfile)
+                .filter(models.ArtistProfile.user_id == artist.id)
+                .first()
+            )
+            if profile and profile.business_name:
+                sender = profile.business_name
+            avatar = None
+            if profile and profile.profile_picture_url:
+                avatar = profile.profile_picture_url
+            return sender, avatar
+    return None, None
+
+
 def _build_response(
     db: Session, n: models.Notification
 ) -> schemas.NotificationResponse:
@@ -78,13 +114,13 @@ def _build_response(
                 .first()
             )
             if br:
-                client = (
-                    db.query(models.User).filter(models.User.id == br.client_id).first()
+                tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                    db, n.user_id, br.client_id, br.artist_id
                 )
-                if client:
-                    sender = f"{client.first_name} {client.last_name}"
-                    if client.profile_picture_url:
-                        avatar_url = client.profile_picture_url
+                if tmp_sender:
+                    sender = tmp_sender
+                if tmp_avatar:
+                    avatar_url = tmp_avatar
                 if br.service_id:
                     service = (
                         db.query(models.Service)
@@ -115,34 +151,13 @@ def _build_response(
                     .first()
                 )
                 if booking:
-                    # Show the avatar of the opposite party.
-                    if n.user_id == booking.artist_id:
-                        client = (
-                            db.query(models.User)
-                            .filter(models.User.id == booking.client_id)
-                            .first()
-                        )
-                        if client:
-                            sender = f"{client.first_name} {client.last_name}"
-                            if client.profile_picture_url:
-                                avatar_url = client.profile_picture_url
-                    else:
-                        artist = (
-                            db.query(models.User)
-                            .filter(models.User.id == booking.artist_id)
-                            .first()
-                        )
-                        if artist:
-                            sender = f"{artist.first_name} {artist.last_name}"
-                            profile = (
-                                db.query(models.ArtistProfile)
-                                .filter(models.ArtistProfile.user_id == artist.id)
-                                .first()
-                            )
-                            if profile and profile.business_name:
-                                sender = profile.business_name
-                            if profile and profile.profile_picture_url:
-                                avatar_url = profile.profile_picture_url
+                    tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                        db, n.user_id, booking.client_id, booking.artist_id
+                    )
+                    if tmp_sender:
+                        sender = tmp_sender
+                    if tmp_avatar:
+                        avatar_url = tmp_avatar
         except Exception as exc:  # pragma: no cover - defensive parsing
             logger.warning(
                 "Failed to derive booking details from link %s: %s",
@@ -164,15 +179,13 @@ def _build_response(
                     .first()
                 )
                 if br:
-                    client = (
-                        db.query(models.User)
-                        .filter(models.User.id == br.client_id)
-                        .first()
+                    tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                        db, n.user_id, br.client_id, br.artist_id
                     )
-                    if client:
-                        sender = f"{client.first_name} {client.last_name}"
-                        if client.profile_picture_url:
-                            avatar_url = client.profile_picture_url
+                    if tmp_sender:
+                        sender = tmp_sender
+                    if tmp_avatar:
+                        avatar_url = tmp_avatar
         except (ValueError, IndexError) as exc:
             logger.warning(
                 "Failed to derive quote accepted details from link %s: %s",
@@ -190,34 +203,46 @@ def _build_response(
                     .first()
                 )
                 if br:
-                    client = (
-                        db.query(models.User)
-                        .filter(models.User.id == br.client_id)
-                        .first()
+                    tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                        db, n.user_id, br.client_id, br.artist_id
                     )
-                    artist = (
-                        db.query(models.User)
-                        .filter(models.User.id == br.artist_id)
-                        .first()
-                    )
-                    if n.user_id == br.artist_id and client:
-                        sender = f"{client.first_name} {client.last_name}"
-                        if client.profile_picture_url:
-                            avatar_url = client.profile_picture_url
-                    elif n.user_id == br.client_id and artist:
-                        sender = f"{artist.first_name} {artist.last_name}"
-                        profile = (
-                            db.query(models.ArtistProfile)
-                            .filter(models.ArtistProfile.user_id == artist.id)
-                            .first()
-                        )
-                        if profile and profile.business_name:
-                            sender = profile.business_name
-                        if profile and profile.profile_picture_url:
-                            avatar_url = profile.profile_picture_url
+                    if tmp_sender:
+                        sender = tmp_sender
+                    if tmp_avatar:
+                        avatar_url = tmp_avatar
         except (ValueError, IndexError) as exc:
             logger.warning(
                 "Failed to derive quote expired details from link %s: %s",
+                n.link,
+                exc,
+            )
+    elif n.type == models.NotificationType.QUOTE_EXPIRING:
+        try:
+            match = re.search(r"/quotes/(\d+)", n.link)
+            if match:
+                quote_id = int(match.group(1))
+                quote = (
+                    db.query(models.QuoteV2)
+                    .filter(models.QuoteV2.id == quote_id)
+                    .first()
+                )
+                if not quote:
+                    quote = (
+                        db.query(models.Quote)
+                        .filter(models.Quote.id == quote_id)
+                        .first()
+                    )
+                if quote:
+                    tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                        db, n.user_id, quote.client_id, quote.artist_id
+                    )
+                    if tmp_sender:
+                        sender = tmp_sender
+                    if tmp_avatar:
+                        avatar_url = tmp_avatar
+        except Exception as exc:  # pragma: no cover - defensive parsing
+            logger.warning(
+                "Failed to derive quote expiring details from link %s: %s",
                 n.link,
                 exc,
             )
@@ -232,22 +257,13 @@ def _build_response(
                     .first()
                 )
                 if booking:
-                    artist = (
-                        db.query(models.User)
-                        .filter(models.User.id == booking.artist_id)
-                        .first()
+                    tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                        db, n.user_id, booking.client_id, booking.artist_id
                     )
-                    if artist:
-                        sender = f"{artist.first_name} {artist.last_name}"
-                        profile = (
-                            db.query(models.ArtistProfile)
-                            .filter(models.ArtistProfile.user_id == artist.id)
-                            .first()
-                        )
-                        if profile and profile.business_name:
-                            sender = profile.business_name
-                        if profile and profile.profile_picture_url:
-                            avatar_url = profile.profile_picture_url
+                    if tmp_sender:
+                        sender = tmp_sender
+                    if tmp_avatar:
+                        avatar_url = tmp_avatar
         except Exception as exc:  # pragma: no cover - defensive parsing
             logger.warning(
                 "Failed to derive review request details from link %s: %s",
@@ -263,28 +279,13 @@ def _build_response(
                 .first()
             )
             if br:
-                client = (
-                    db.query(models.User).filter(models.User.id == br.client_id).first()
+                tmp_sender, tmp_avatar = _resolve_sender_avatar(
+                    db, n.user_id, br.client_id, br.artist_id
                 )
-                artist = (
-                    db.query(models.User).filter(models.User.id == br.artist_id).first()
-                )
-                if client:
-                    sender = f"{client.first_name} {client.last_name}"
-                profile = (
-                    db.query(models.ArtistProfile)
-                    .filter(models.ArtistProfile.user_id == br.artist_id)
-                    .first()
-                )
-                # Show the avatar of the opposite party
-                if n.user_id == br.artist_id and client and client.profile_picture_url:
-                    avatar_url = client.profile_picture_url
-                elif (
-                    n.user_id == br.client_id
-                    and profile
-                    and profile.profile_picture_url
-                ):
-                    avatar_url = profile.profile_picture_url
+                if tmp_sender:
+                    sender = tmp_sender
+                if tmp_avatar:
+                    avatar_url = tmp_avatar
         except (ValueError, IndexError) as exc:
             logger.warning(
                 "Failed to derive booking status update details from link %s: %s",
