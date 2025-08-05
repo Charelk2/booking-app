@@ -35,7 +35,7 @@ export default function ConversationList({
           if (!artistProfile && !artistUser) return 'Artist';
           return artistProfile?.business_name || artistUser?.first_name || 'Artist';
         })();
-        // Determine avatar URL for the other participant
+
         const avatarUrl =
           currentUser.user_type === 'artist'
             ? req.client?.profile_picture_url
@@ -43,6 +43,25 @@ export default function ConversationList({
 
         const date =
           req.last_message_timestamp || req.updated_at || req.created_at;
+
+        const previewMessage = (() => {
+          if (req.last_message_content === 'Artist sent a quote') {
+            if (currentUser.user_type === 'artist') {
+              return 'You sent a quote';
+            }
+            const businessName =
+              req.artist_profile?.business_name ||
+              req.artist?.first_name ||
+              'Artist';
+            return `${businessName} sent a quote`;
+          }
+          return (
+            req.last_message_content ??
+            req.service?.title ??
+            req.message ??
+            'New Request'
+          );
+        })();
 
         return (
           <div
@@ -98,13 +117,12 @@ export default function ConversationList({
               <div
                 className={clsx(
                   'text-xs truncate',
-                  req.is_unread_by_current_user ? 'font-semibold text-gray-800' : 'text-gray-600' // Stronger font for unread message content
+                  req.is_unread_by_current_user
+                    ? 'font-semibold text-gray-800'
+                    : 'text-gray-600' // Stronger font for unread message content
                 )}
               >
-                {req.last_message_content ??
-                  req.service?.title ??
-                  req.message ??
-                  'New Request'}
+                {previewMessage}
               </div>
             </div>
             {/* Unread Indicator */}
