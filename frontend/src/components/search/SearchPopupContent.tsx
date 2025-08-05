@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, RefObject, useCallback } from 'react';
+import Image from 'next/image';
 import ReactDatePicker from 'react-datepicker';
 import { Listbox } from '@headlessui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
@@ -121,9 +122,12 @@ export default function SearchPopupContent({
                 tabIndex={0}
               >
                 {s.image && (
-                  <img
+                  <Image
                     src={s.image}
-                    alt=""
+                    alt={s.name}
+                    width={40}
+                    height={40}
+                    sizes="40px"
                     className="h-10 w-10 rounded-lg object-cover flex-shrink-0"
                   />
                 )}
@@ -274,7 +278,16 @@ export default function SearchPopupContent({
               }}
               className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer"
             >
-              {s.image && <img src={s.image} alt="" className="h-8 w-8 rounded-lg object-cover" />}
+              {s.image && (
+                <Image
+                  src={s.image}
+                  alt={s.name}
+                  width={32}
+                  height={32}
+                  sizes="32px"
+                  className="h-8 w-8 rounded-lg object-cover"
+                />
+              )}
               <span className="text-sm">{s.name}</span>
             </li>
           ))}
