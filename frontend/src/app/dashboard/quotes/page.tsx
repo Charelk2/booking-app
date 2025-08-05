@@ -142,6 +142,7 @@ export default function ArtistQuotesPage() {
                       <button
                         type="button"
                         onClick={() => handleEdit(q)}
+                        aria-expanded={editingQuote?.id === q.id}
                         className="text-brand-dark hover:underline text-sm"
                       >
                         Edit
