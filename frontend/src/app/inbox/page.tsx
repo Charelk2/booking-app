@@ -17,6 +17,7 @@ import {
 } from '@/lib/api';
 import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BookingRequest } from '@/types';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 export default function InboxPage() {
   const { user, loading: authLoading } = useAuth();
@@ -27,6 +28,17 @@ export default function InboxPage() {
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== 'undefined' ? window.innerWidth < BREAKPOINT_MD : false,
+  );
+  const [showList, setShowList] = useState(true);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < BREAKPOINT_MD);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const fetchAllRequests = useCallback(async () => {
     setLoadingRequests(true);
@@ -47,10 +59,14 @@ export default function InboxPage() {
       );
       setAllBookingRequests(combined);
       const urlId = Number(searchParams.get('requestId'));
-      if (urlId && combined.find((r) => r.id === urlId)) {
-        setSelectedBookingRequestId(urlId);
-      } else if (combined.length > 0) {
-        setSelectedBookingRequestId(combined[0].id);
+      const isMobileScreen =
+        typeof window !== 'undefined' && window.innerWidth < BREAKPOINT_MD;
+      if (!isMobileScreen) {
+        if (urlId && combined.find((r) => r.id === urlId)) {
+          setSelectedBookingRequestId(urlId);
+        } else if (combined.length > 0) {
+          setSelectedBookingRequestId(combined[0].id);
+        }
       }
     } catch (err: unknown) {
       console.error('Failed to load booking requests:', err);
@@ -77,14 +93,16 @@ export default function InboxPage() {
       params.set('requestId', String(id));
       router.replace(`?${params.toString()}`, { scroll: false });
 
-      if (window.innerWidth < BREAKPOINT_MD) {
-        document
-          .getElementById('chat-thread')
-          ?.scrollIntoView({ behavior: 'smooth' });
+      if (isMobile) {
+        setShowList(false);
       }
     },
-    [router, searchParams]
+    [router, searchParams, isMobile]
   );
+
+  const handleBackToList = useCallback(() => {
+    setShowList(true);
+  }, []);
 
   if (authLoading || loadingRequests) {
     return (
@@ -110,53 +128,69 @@ export default function InboxPage() {
     <MainLayout fullWidthContent>
       {/* Add the padding directly to this div */}
       <div className="px-2 sm:px-4 lg:px-6 flex flex-col md:flex-row h-[calc(100vh-64px)] bg-gray-100">
-        <div className="w-full md:w-1/4 lg:w-1/4 border border-gray-200 md:border-y-0 md:border-l-0 md:border-r md:rounded-none rounded-lg md:shadow-none shadow overflow-y-auto bg-white flex-shrink-0 h-1/2 md:h-full">
-          <div className="sticky top-0 bg-white p-3 border-b border-gray-200 flex justify-between items-center z-10">
-            <h1 className="text-xl font-semibold">Messages</h1>
-            <button
-              className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
-              aria-label="Search messages"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-                className="w-6 h-6"
+        {(!isMobile || showList) && (
+          <div
+            id="conversation-list"
+            className="w-full md:w-1/4 lg:w-1/4 border border-gray-200 md:border-y-0 md:border-l-0 md:border-r md:rounded-none rounded-lg md:shadow-none shadow overflow-y-auto bg-white flex-shrink-0 h-1/2 md:h-full"
+          >
+            <div className="sticky top-0 bg-white p-3 border-b border-gray-200 flex justify-between items-center z-10">
+              <h1 className="text-xl font-semibold">Messages</h1>
+              <button
+                className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
+                aria-label="Search messages"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-                />
-              </svg>
-            </button>
-          </div>
-          {allBookingRequests.length > 0 ? (
-            <ConversationList
-              bookingRequests={allBookingRequests}
-              selectedRequestId={selectedBookingRequestId}
-              onSelectRequest={handleSelect}
-              currentUser={user}
-            />
-          ) : (
-            <p className="p-6 text-center text-gray-500">No conversations yet.</p>
-          )}
-        </div>
-        <div id="chat-thread" className="flex-1 overflow-y-auto relative">
-          {selectedBookingRequestId ? (
-            <MessageThreadWrapper
-              bookingRequestId={selectedBookingRequestId}
-              bookingRequest={selectedRequest}
-              setShowReviewModal={setShowReviewModal}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
-              <p>Select a conversation to view messages.</p>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-6 h-6"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+                  />
+                </svg>
+              </button>
             </div>
-          )}
-        </div>
+            {allBookingRequests.length > 0 ? (
+              <ConversationList
+                bookingRequests={allBookingRequests}
+                selectedRequestId={selectedBookingRequestId}
+                onSelectRequest={handleSelect}
+                currentUser={user}
+              />
+            ) : (
+              <p className="p-6 text-center text-gray-500">No conversations yet.</p>
+            )}
+          </div>
+        )}
+        {(!isMobile || !showList) && (
+          <div id="chat-thread" className="flex-1 overflow-y-auto relative">
+            {isMobile && (
+              <button
+                onClick={handleBackToList}
+                aria-label="Back to conversations"
+                className="absolute top-2 left-2 z-20 p-2 bg-white rounded-full shadow-md md:hidden"
+              >
+                <ArrowLeftIcon className="h-5 w-5 text-gray-700" />
+              </button>
+            )}
+            {selectedBookingRequestId ? (
+              <MessageThreadWrapper
+                bookingRequestId={selectedBookingRequestId}
+                bookingRequest={selectedRequest}
+                setShowReviewModal={setShowReviewModal}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
+                <p>Select a conversation to view messages.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
       {selectedRequest && (
         <ReviewFormModal

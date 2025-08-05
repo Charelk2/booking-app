@@ -32,7 +32,8 @@ jest.mock('@/hooks/useWebSocket', () => ({
   default: () => ({ onMessage: jest.fn() }),
 }));
 
-function setup(userType: 'client' | 'artist' = 'client') {
+function setup(userType: 'client' | 'artist' = 'client', width = 1024) {
+  window.innerWidth = width;
   (useRouter as jest.Mock).mockReturnValue({ replace: jest.fn() });
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: userType }, loading: false });
   (api.getMyBookingRequests as jest.Mock).mockResolvedValue({
@@ -61,7 +62,7 @@ describe('InboxPage', () => {
   });
 
   it('renders conversation list', async () => {
-    const { container, root } = setup();
+    const { container, root } = setup('client', 1024);
     await act(async () => {
       root.render(<InboxPage />);
     });
@@ -74,7 +75,7 @@ describe('InboxPage', () => {
   });
 
   it('fetches artist requests for artist users', async () => {
-    const { container, root } = setup('artist');
+    const { container, root } = setup('artist', 1024);
     await act(async () => {
       root.render(<InboxPage />);
     });
@@ -109,13 +110,31 @@ describe('InboxPage', () => {
       ],
     });
 
-    const { container, root } = setup();
+    const { container, root } = setup('client', 1024);
     await act(async () => {
       root.render(<InboxPage />);
     });
     await act(async () => {});
     const firstConv = container.querySelector('.divide-y-2 > div:nth-child(1) span');
     expect(firstConv?.textContent).toBe('Alpha');
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('shows only conversation list on mobile until a conversation is selected', async () => {
+    const { container, root } = setup('client', 375);
+    await act(async () => {
+      root.render(<InboxPage />);
+    });
+    await act(async () => {});
+    expect(container.querySelector('#chat-thread')).toBeNull();
+    const firstConv = container.querySelector('.divide-y-2 > div:nth-child(1)') as HTMLElement;
+    await act(async () => {
+      firstConv.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {});
+    expect(container.querySelector('#conversation-list')).toBeNull();
+    expect(container.querySelector('#chat-thread')).not.toBeNull();
     act(() => root.unmount());
     container.remove();
   });
