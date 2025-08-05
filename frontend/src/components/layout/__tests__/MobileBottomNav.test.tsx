@@ -71,6 +71,8 @@ describe('MobileBottomNav', () => {
     });
     expect(container.textContent).toContain('Home');
     expect(container.textContent).toContain('Artists');
+    const nav = container.querySelector('nav');
+    expect(nav?.className).toContain('pb-safe');
   });
 
   it('shows unread message count badge', () => {
