@@ -109,11 +109,11 @@ export default function LocationStep({
   return (
     <CollapsibleSection
       title="Location"
+      description="Where is the show?"
       open={open}
       onToggle={onToggle}
       className="wizard-step-container"
     >
-      <p className="text-sm text-gray-600">Where is the show?</p>
       <div ref={containerRef}>
         {shouldLoadMap ? (
           <GoogleMapsLoader>

@@ -31,11 +31,11 @@ export default function VenueStep({
   return (
     <CollapsibleSection
       title="Venue Type"
+      description="What type of venue is it?"
       open={open}
       onToggle={onToggle}
       className="wizard-step-container"
     >
-      <p className="text-sm text-gray-600">What type of venue is it?</p>
       <Controller<EventDetails, 'venueType'>
         name="venueType"
         control={control}

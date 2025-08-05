@@ -43,7 +43,7 @@ All colors and custom spacing values must be expressed as CSS variables and decl
 
 ### CollapsibleSection
 
-Use `<CollapsibleSection>` from `@/components/ui` for expandable groups. It renders a button with `aria-expanded` and toggles a region identified by `aria-controls`, providing accessible accordions for wizard steps and dashboards.
+Use `<CollapsibleSection>` from `@/components/ui` for expandable groups. It renders a button with `aria-expanded` and toggles a region identified by `aria-controls`, providing accessible accordions for wizard steps and dashboards. The component also accepts an optional `description` prop to display short instructions directly beneath the title and above the divider.
 
 ### BottomSheet
 
