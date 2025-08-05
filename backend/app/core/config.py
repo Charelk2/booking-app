@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     # Default currency code used across the application
     DEFAULT_CURRENCY: str = "ZAR"
 
+    # Recommendation fallback list size
+    RECOMMENDATION_FALLBACK_LIMIT: int = 5
+
     # Login rate limiting
     MAX_LOGIN_ATTEMPTS: int = 5
     LOGIN_ATTEMPT_WINDOW: int = 300  # seconds

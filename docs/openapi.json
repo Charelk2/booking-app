@@ -1021,7 +1021,7 @@
           "Services"
         ],
         "summary": "Create Service",
-        "description": "Create a new service for the currently authenticated artist.\nFull path \u2192 POST /api/v1/services/",
+        "description": "Create a new service for the currently authenticated artist.\nFull path → POST /api/v1/services/",
         "operationId": "create_service_api_v1_services__post",
         "requestBody": {
           "content": {
@@ -1069,7 +1069,7 @@
           "Services"
         ],
         "summary": "Update Service",
-        "description": "Update a service owned by the currently authenticated artist.\nFull path \u2192 PUT /api/v1/services/{service_id}",
+        "description": "Update a service owned by the currently authenticated artist.\nFull path → PUT /api/v1/services/{service_id}",
         "operationId": "update_service_api_v1_services__service_id__put",
         "security": [
           {
@@ -1126,7 +1126,7 @@
           "Services"
         ],
         "summary": "Read Service",
-        "description": "Get a specific service by its ID (publicly accessible).\nFull path \u2192 GET /api/v1/services/{service_id}",
+        "description": "Get a specific service by its ID (publicly accessible).\nFull path → GET /api/v1/services/{service_id}",
         "operationId": "read_service_api_v1_services__service_id__get",
         "parameters": [
           {
@@ -1168,7 +1168,7 @@
           "Services"
         ],
         "summary": "Delete Service",
-        "description": "Delete a service owned by the currently authenticated artist.\nFull path \u2192 DELETE /api/v1/services/{service_id}",
+        "description": "Delete a service owned by the currently authenticated artist.\nFull path → DELETE /api/v1/services/{service_id}",
         "operationId": "delete_service_api_v1_services__service_id__delete",
         "security": [
           {
@@ -1210,7 +1210,7 @@
           "Services"
         ],
         "summary": "Read Services By Artist",
-        "description": "Get all services offered by a specific artist (by their user_id).\nFull path \u2192 GET /api/v1/services/artist/{artist_user_id}",
+        "description": "Get all services offered by a specific artist (by their user_id).\nFull path → GET /api/v1/services/artist/{artist_user_id}",
         "operationId": "read_services_by_artist_api_v1_services_artist__artist_user_id__get",
         "parameters": [
           {
@@ -1469,7 +1469,7 @@
           "bookings"
         ],
         "summary": "Read Booking Details",
-        "description": "Return the details of a single booking.  \nAccessible if the current user is either the booking\u2019s client or the booking\u2019s artist.",
+        "description": "Return the details of a single booking.  \nAccessible if the current user is either the booking’s client or the booking’s artist.",
         "operationId": "read_booking_details_api_v1_bookings__booking_id__get",
         "security": [
           {
@@ -4335,6 +4335,44 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/artists/recommended": {
+      "get": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "Get recommended artists",
+        "description": "Return personalized artist recommendations for the current user.",
+        "operationId": "recommended_artists_api_v1_artists_recommended_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "title": "Limit",
+              "type": "integer",
+              "default": 5
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Recommended Artists",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ArtistProfileResponse"
+                  }
+                }
               }
             }
           }
