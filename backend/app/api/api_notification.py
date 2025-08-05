@@ -43,9 +43,16 @@ def _resolve_sender_avatar(
             )
             if profile and profile.business_name:
                 sender = profile.business_name
+            # Prefer the artist's profile picture from their profile, but fall
+            # back to the user record's ``profile_picture_url`` when the
+            # profile lacks one. This ensures notifications like booking
+            # confirmed or deposit due can always display the artist's avatar
+            # to clients.
             avatar = None
             if profile and profile.profile_picture_url:
                 avatar = profile.profile_picture_url
+            elif artist.profile_picture_url:
+                avatar = artist.profile_picture_url
             return sender, avatar
     return None, None
 

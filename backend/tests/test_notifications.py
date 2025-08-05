@@ -1255,6 +1255,69 @@ def test_deposit_due_notification_includes_artist_avatar_url():
     app.dependency_overrides.clear()
 
 
+def test_deposit_due_notification_falls_back_to_artist_user_avatar():
+    Session = setup_app()
+    db = Session()
+    client = User(
+        email="depavatar2@test.com",
+        password="x",
+        first_name="Dep2",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="depavatarartist2@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+        profile_picture_url="/static/profile_pics/artist_fallback.jpg",
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    # Create empty profile so ``profile_picture_url`` is missing on profile.
+    profile = models.ArtistProfile(user_id=artist.id)
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+
+    booking = models.BookingSimple(
+        quote_id=5,
+        artist_id=artist.id,
+        client_id=client.id,
+        payment_status="pending",
+        deposit_amount=75,
+        deposit_due_by=datetime(2025, 2, 1),
+        deposit_paid=False,
+    )
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+
+    notify_deposit_due(
+        db,
+        client,
+        booking.id,
+        float(booking.deposit_amount),
+        booking.deposit_due_by,
+    )
+    db.close()
+
+    token = create_access_token({"sub": client.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["avatar_url"] == "/static/profile_pics/artist_fallback.jpg"
+    app.dependency_overrides.clear()
+
+
 def test_new_booking_notification_includes_client_avatar_for_artist():
     Session = setup_app()
     db = Session()
