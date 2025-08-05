@@ -17,7 +17,11 @@ interface MobileMenuDrawerProps {
   open: boolean;
   onClose: () => void;
   navigation: NavItem[];
-  drawerNavigation?: NavItem[];
+  /**
+   * Optional additional navigation items. Any links that duplicate the main
+   * `navigation` list are filtered out to avoid confusion in the drawer.
+   */
+  secondaryNavigation?: NavItem[];
   user: User | null;
   logout: () => void;
   pathname: string;
@@ -27,11 +31,15 @@ export default function MobileMenuDrawer({
   open,
   onClose,
   navigation,
-  drawerNavigation = [],
+  secondaryNavigation = [],
   user,
   logout,
   pathname,
 }: MobileMenuDrawerProps) {
+  // Remove duplicates so the same link never appears twice
+  const extraNavigation = secondaryNavigation.filter(
+    (item) => !navigation.some((nav) => nav.href === item.href),
+  );
   return (
     <Transition.Root show={open} as={Fragment}>
       <Dialog as="div" className="relative z-40" onClose={onClose}>
@@ -71,22 +79,10 @@ export default function MobileMenuDrawer({
                   <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                 </button>
               </div>
-              <div className="mt-4 space-y-1 px-2">
-                {navigation.map((item) => (
-                  <NavLink
-                    key={item.name}
-                    href={item.href}
-                    onClick={onClose}
-                    isActive={pathname === item.href}
-                    className="block border-l-4 text-base"
-                  >
-                    {item.name}
-                  </NavLink>
-                ))}
-              </div>
-              {(drawerNavigation ?? []).length > 0 && (
-                <div className="mt-2 space-y-1 px-2">
-                  {(drawerNavigation ?? []).map((item) => (
+              <div className="mt-4 px-2">
+                <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase">Explore</h3>
+                <div className="mt-2 space-y-1">
+                  {navigation.map((item) => (
                     <NavLink
                       key={item.name}
                       href={item.href}
@@ -98,8 +94,27 @@ export default function MobileMenuDrawer({
                     </NavLink>
                   ))}
                 </div>
+              </div>
+              {extraNavigation.length > 0 && (
+                <div className="mt-4 border-t border-gray-200 pt-4 px-2">
+                  <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase">More</h3>
+                  <div className="mt-2 space-y-1">
+                    {extraNavigation.map((item) => (
+                      <NavLink
+                        key={item.name}
+                        href={item.href}
+                        onClick={onClose}
+                        isActive={pathname === item.href}
+                        className="block border-l-4 text-base"
+                      >
+                        {item.name}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
               )}
               <div className="mt-4 border-t border-gray-200 pt-4 px-2">
+                <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase">Account</h3>
                 {user ? (
                   <>
                     <NavLink
