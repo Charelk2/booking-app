@@ -3,8 +3,10 @@
 import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import Link from 'next/link';
+import clsx from 'clsx';
 import type { User } from '@/types';
+import NavLink from './NavLink';
+import { navItemClasses } from './navStyles';
 
 interface NavItem {
   name: string;
@@ -19,10 +21,6 @@ interface MobileMenuDrawerProps {
   user: User | null;
   logout: () => void;
   pathname: string;
-}
-
-function classNames(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
 }
 
 export default function MobileMenuDrawer({
@@ -64,139 +62,137 @@ export default function MobileMenuDrawer({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  aria-label="Close menu"
+                  className={clsx(
+                    navItemClasses,
+                    'rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                  )}
                 >
-                  <span className="sr-only">Close menu</span>
                   <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                 </button>
               </div>
               <div className="mt-4 space-y-1 px-2">
                 {navigation.map((item) => (
-                  <Link
+                  <NavLink
                     key={item.name}
                     href={item.href}
                     onClick={onClose}
-                    className={classNames(
-                      pathname === item.href
-                        ? 'bg-brand-light border-brand text-brand-dark'
-                        : 'border-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900',
-                      'block border-l-4 px-3 py-2 text-base font-medium no-underline hover:no-underline'
-                    )}
+                    isActive={pathname === item.href}
+                    className="block border-l-4 text-base"
                   >
                     {item.name}
-                  </Link>
+                  </NavLink>
                 ))}
               </div>
               {(drawerNavigation ?? []).length > 0 && (
                 <div className="mt-2 space-y-1 px-2">
                   {(drawerNavigation ?? []).map((item) => (
-                    <Link
+                    <NavLink
                       key={item.name}
                       href={item.href}
                       onClick={onClose}
-                      className={classNames(
-                        pathname === item.href
-                          ? "bg-brand-light border-brand text-brand-dark"
-                          : "border-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900",
-                        "block border-l-4 px-3 py-2 text-base font-medium no-underline hover:no-underline",
-                      )}
+                      isActive={pathname === item.href}
+                      className="block border-l-4 text-base"
                     >
                       {item.name}
-                    </Link>
+                    </NavLink>
                   ))}
                 </div>
               )}
               <div className="mt-4 border-t border-gray-200 pt-4 px-2">
                 {user ? (
                   <>
-                    <Link
+                    <NavLink
                       href={user.user_type === 'artist' ? '/dashboard/artist' : '/dashboard/client'}
                       onClick={onClose}
-                      className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     >
                       Dashboard
-                    </Link>
+                    </NavLink>
                     {user.user_type === 'artist' && (
-                      <Link
-                    href="/dashboard/profile/edit"
-                    onClick={onClose}
-                    className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  >
-                    Edit Profile
-                  </Link>
-                )}
-                {user.user_type === 'artist' && (
-                  <Link
-                    href="/dashboard/quotes"
-                    onClick={onClose}
-                    className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  >
-                    Quotes
-                  </Link>
-                )}
-                {user.user_type === 'artist' && (
-                  <Link
-                    href="/dashboard/profile/quote-templates"
-                    onClick={onClose}
-                    className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  >
-                    Quote Templates
-                  </Link>
-                )}
-                {user.user_type === 'client' && (
-                  <Link
-                    href="/dashboard/client/bookings"
-                    onClick={onClose}
-                    className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  >
-                    My Bookings
-                  </Link>
-                )}
-                {user.user_type === 'client' && (
-                  <Link
-                    href="/dashboard/client/quotes"
-                    onClick={onClose}
-                    className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  >
-                    My Quotes
-                  </Link>
-                )}
-                {user.user_type === 'client' && (
-                  <Link
-                    href="/account"
-                    onClick={onClose}
-                    className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  >
-                    Account
-                  </Link>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    logout();
-                    onClose();
+                      <NavLink
+                        href="/dashboard/profile/edit"
+                        onClick={onClose}
+                        className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      >
+                        Edit Profile
+                      </NavLink>
+                    )}
+                    {user.user_type === 'artist' && (
+                      <NavLink
+                        href="/dashboard/quotes"
+                        onClick={onClose}
+                        className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      >
+                        Quotes
+                      </NavLink>
+                    )}
+                    {user.user_type === 'artist' && (
+                      <NavLink
+                        href="/dashboard/profile/quote-templates"
+                        onClick={onClose}
+                        className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      >
+                        Quote Templates
+                      </NavLink>
+                    )}
+                    {user.user_type === 'client' && (
+                      <NavLink
+                        href="/dashboard/client/bookings"
+                        onClick={onClose}
+                        className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      >
+                        My Bookings
+                      </NavLink>
+                    )}
+                    {user.user_type === 'client' && (
+                      <NavLink
+                        href="/dashboard/client/quotes"
+                        onClick={onClose}
+                        className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      >
+                        My Quotes
+                      </NavLink>
+                    )}
+                    {user.user_type === 'client' && (
+                      <NavLink
+                        href="/account"
+                        onClick={onClose}
+                        className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      >
+                        Account
+                      </NavLink>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        logout();
+                        onClose();
                       }}
-                      className="block w-full text-left px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      className={clsx(
+                        navItemClasses,
+                        'block w-full text-left text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900',
+                      )}
                     >
                       Sign out
                     </button>
                   </>
                 ) : (
                   <>
-                    <Link
+                    <NavLink
                       href="/login"
                       onClick={onClose}
-                      className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     >
                       Sign in
-                    </Link>
-                    <Link
+                    </NavLink>
+                    <NavLink
                       href="/register"
                       onClick={onClose}
-                      className="block px-3 py-2 no-underline hover:no-underline text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                     >
                       Sign up
-                    </Link>
+                    </NavLink>
                   </>
                 )}
               </div>

@@ -30,7 +30,7 @@ describe('Header profile menu', () => {
 
     render(<Header headerState="initial" onForceHeaderState={jest.fn()} />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'A' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Account menu' }));
     expect(await screen.findByText('Edit Profile')).toBeTruthy();
   });
 });
