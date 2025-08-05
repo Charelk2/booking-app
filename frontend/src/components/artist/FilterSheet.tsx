@@ -2,6 +2,7 @@
 import { useRef, useEffect, useState } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import useMediaQuery from "@/hooks/useMediaQuery";
+import { BREAKPOINT_MD } from "@/lib/breakpoints";
 import { BottomSheet } from "@/components/ui";
 import PriceFilter from "@/components/ui/PriceFilter";
 import { createPortal } from "react-dom";
@@ -36,7 +37,7 @@ export default function FilterSheet({
   priceDistribution,
 }: FilterSheetProps) {
   const firstRef = useRef<HTMLInputElement>(null);
-  const isDesktop = useMediaQuery("(min-width:768px)");
+  const isDesktop = useMediaQuery(`(min-width:${BREAKPOINT_MD}px)`);
   const [mounted, setMounted] = useState(false);
   const [localSort, setLocalSort] = useState(initialSort || "");
 
