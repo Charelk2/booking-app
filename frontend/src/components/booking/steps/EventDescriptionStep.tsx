@@ -86,7 +86,11 @@ export default function EventDescriptionStep({
         control={control}
         render={({ field }) => (
           <div>
+            <label htmlFor="event-description" className="block font-medium">
+              Describe your event
+            </label>
             <textarea
+              id="event-description"
               rows={3}
               className="input-base"
               {...field}
