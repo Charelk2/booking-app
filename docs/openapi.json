@@ -6621,6 +6621,28 @@
           "total": {
             "type": "string",
             "title": "Total"
+          },
+          "ai_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Description"
+          },
+          "ai_price_adjustment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Price Adjustment"
           }
         },
         "type": "object",
