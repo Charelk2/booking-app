@@ -14,6 +14,7 @@ import api, {
   createReviewForBooking,
   getReview,
   getServiceReviews,
+  getArtists,
 } from '../api';
 import type { AxiosRequestConfig } from 'axios';
 
