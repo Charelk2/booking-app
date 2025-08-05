@@ -2,7 +2,7 @@
 // Larger touch targets and contextual help improve usability on mobile.
 import { Controller, Control } from 'react-hook-form';
 import useIsMobile from '@/hooks/useIsMobile';
-import { TextInput } from '../../ui';
+import { TextInput, CollapsibleSection } from '../../ui';
 
 // Import EventDetails if your actual WizardNav uses it for deeper checks
 import { EventDetails } from '@/contexts/BookingContext'; // Added EventDetails
@@ -10,12 +10,19 @@ import { EventDetails } from '@/contexts/BookingContext'; // Added EventDetails
 
 interface Props {
   control: Control<EventDetails>;
+  open?: boolean;
+  onToggle?: () => void;
 }
 
-export default function GuestsStep({ control }: Props) {
+export default function GuestsStep({ control, open = true, onToggle = () => {} }: Props) {
   const isMobile = useIsMobile();
   return (
-    <div className="wizard-step-container">
+    <CollapsibleSection
+      title="Guests"
+      open={open}
+      onToggle={onToggle}
+      className="wizard-step-container"
+    >
       <Controller<EventDetails, 'guests'> // Explicitly type Controller
         name="guests"
         control={control}
@@ -30,8 +37,6 @@ export default function GuestsStep({ control }: Props) {
           />
         )}
       />
-
-
-    </div>
+    </CollapsibleSection>
   );
 }

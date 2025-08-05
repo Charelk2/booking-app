@@ -15,7 +15,7 @@ const Marker = dynamic(
   { ssr: false },
 );
 import { useRef, useState, useEffect } from 'react';
-import { Button, Tooltip } from '../../ui';
+import { Button, Tooltip, CollapsibleSection } from '../../ui';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
 
 // Import EventDetails if your actual WizardNav uses it for deeper checks
@@ -26,6 +26,8 @@ interface Props {
   control: Control<EventDetails>;
   artistLocation?: string | null;
   setWarning: (w: string | null) => void;
+  open?: boolean;
+  onToggle?: () => void;
 }
 
 function GoogleMapsLoader({
@@ -54,6 +56,8 @@ export default function LocationStep({
   control,
   artistLocation,
   setWarning,
+  open = true,
+  onToggle = () => {},
 }: Props): JSX.Element {
   const [shouldLoadMap, setShouldLoadMap] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -103,7 +107,12 @@ export default function LocationStep({
   }
 
   return (
-    <div className="wizard-step-container">
+    <CollapsibleSection
+      title="Location"
+      open={open}
+      onToggle={onToggle}
+      className="wizard-step-container"
+    >
       <div ref={containerRef}>
         {shouldLoadMap ? (
           <GoogleMapsLoader>
@@ -197,7 +206,7 @@ export default function LocationStep({
         className="ml-1"
       />
       {geoError && <p className="text-red-600 text-sm">{geoError}</p>}
-      
-    </div>
+
+    </CollapsibleSection>
   );
 }
