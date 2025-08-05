@@ -36,6 +36,13 @@ Primary, secondary and outline buttons now use the brand color for borders and b
 
 See [../docs/design_guidelines.md](../docs/design_guidelines.md) for a summary of spacing, typography and component styles.
 
+### Responsive Breakpoints
+
+The `BREAKPOINT_SM` constant in `breakpoints.config.js` defines the `sm`
+screen width for both Tailwind and client-side hooks such as `useIsMobile`.
+Importing this shared value keeps style breakpoints and JavaScript logic in
+sync, ensuring responsive behavior matches the design system.
+
 ### Search Interface
 
 The global search bar and its compact pill are rendered only on the home page and artist pages. Other routes omit these elements for a cleaner layout. On the artists listing page, the header loads directly in its compact pill state, preserving any category, location, and date selections from the URL and showing the filter icon beside the pill for quick refinement. Clicking the pill now expands the full SearchBar above the filter controls, and the compact pill mirrors the collapsed SearchBar by displaying any selected category, location, and dates when the full bar is hidden. For addresses, the pill shows only the street name to keep things concise.
