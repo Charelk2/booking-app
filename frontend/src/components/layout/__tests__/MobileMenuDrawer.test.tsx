@@ -5,6 +5,11 @@ import { act } from 'react';
 import MobileMenuDrawer from '../MobileMenuDrawer';
 import type { User } from '@/types';
 
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: (props: any) => <a {...props} />,
+}));
+
 
 const nav = [
   { name: 'Home', href: '/' },
@@ -67,10 +72,28 @@ describe('MobileMenuDrawer', () => {
       );
     });
     await flushPromises();
-    const span = document.querySelector('span.sr-only');
-    const button = span?.parentElement as HTMLButtonElement | null;
+    const button = document.querySelector('button[aria-label="Close menu"]');
     expect(button?.className).toContain('focus-visible:ring-2');
     expect(button?.className).toContain('focus-visible:ring-brand');
+  });
+
+  it('navigation links have minimum touch size', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose: () => {},
+          navigation: nav,
+          user: null,
+          logout: () => {},
+          pathname: '/',
+        }),
+      );
+    });
+    await flushPromises();
+    const link = document.querySelector('a');
+    expect(link?.className).toContain('min-w-[44px]');
+    expect(link?.className).toContain('min-h-[44px]');
   });
 
   it('shows artist links for artists', async () => {
