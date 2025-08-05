@@ -32,11 +32,11 @@ export default function EventTypeStep({ control, open = true, onToggle = () => {
   return (
     <CollapsibleSection
       title="Event Type"
+      description="What type of event are you planning?"
       open={open}
       onToggle={onToggle}
       className="wizard-step-container"
     >
-      <p className="text-sm text-gray-600">What type of event are you planning?</p>
       <Controller<EventDetails, 'eventType'>
         name="eventType"
         control={control}
