@@ -65,4 +65,66 @@ describe('ConversationList', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('shows client-facing quote preview', async () => {
+    const requests: BookingRequest[] = [
+      {
+        id: 1,
+        client_id: 1,
+        artist_id: 2,
+        status: 'pending_quote',
+        last_message_content: 'Artist sent a quote',
+        last_message_timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        client: { id: 1, email: 'a', user_type: 'client', first_name: 'A', last_name: 'B', phone_number: '', is_active: true, is_verified: true },
+        artist: {
+          id: 2,
+          business_name: 'Biz',
+          user: { id: 2, email: 'b', user_type: 'artist', first_name: 'B', last_name: 'C', phone_number: '', is_active: true, is_verified: true },
+          profile_picture_url: null,
+        } as any,
+      } as BookingRequest,
+    ];
+    const { container, root, props } = renderComponent({
+      bookingRequests: requests,
+      currentUser: { id: 1, email: 'a', user_type: 'client', first_name: 'A', last_name: 'B', phone_number: '', is_active: true, is_verified: true },
+    });
+    await act(async () => {
+      root.render(<ConversationList {...props} />);
+    });
+    await flushPromises();
+    expect(container.textContent).toContain('Biz sent a quote');
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('shows artist-facing quote preview', async () => {
+    const requests: BookingRequest[] = [
+      {
+        id: 1,
+        client_id: 2,
+        artist_id: 1,
+        status: 'pending_quote',
+        last_message_content: 'Artist sent a quote',
+        last_message_timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        client: { id: 2, email: 'b', user_type: 'client', first_name: 'Client', last_name: 'X', phone_number: '', is_active: true, is_verified: true },
+        artist: { id: 1, email: 'a', user_type: 'artist', first_name: 'Art', last_name: 'Ist', phone_number: '', is_active: true, is_verified: true },
+        artist_profile: { business_name: 'Biz', profile_picture_url: null } as any,
+      } as BookingRequest,
+    ];
+    const { container, root, props } = renderComponent({
+      bookingRequests: requests,
+      currentUser: { id: 1, email: 'a', user_type: 'artist', first_name: 'Art', last_name: 'Ist', phone_number: '', is_active: true, is_verified: true },
+    });
+    await act(async () => {
+      root.render(<ConversationList {...props} />);
+    });
+    await flushPromises();
+    expect(container.textContent).toContain('You sent a quote');
+    act(() => root.unmount());
+    container.remove();
+  });
 });
