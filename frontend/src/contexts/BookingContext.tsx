@@ -115,10 +115,11 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window === 'undefined') return;
     const data = {
       step,
-      details: {
-        ...details,
-        date: new Date(details.date).toISOString(),
-      },
+        details: {
+          ...details,
+          // Guard against undefined or invalid dates when persisting progress
+          date: details.date ? new Date(details.date).toISOString() : null,
+        },
       serviceId,
       requestId,
       travelResult,
