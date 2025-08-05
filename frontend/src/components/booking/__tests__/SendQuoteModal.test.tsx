@@ -43,4 +43,30 @@ describe('SendQuoteModal', () => {
     });
     div.remove();
   });
+
+  it('renders full screen on mobile', async () => {
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(
+        <SendQuoteModal
+          open
+          onClose={() => {}}
+          onSubmit={async () => {}}
+          artistId={1}
+          clientId={2}
+          bookingRequestId={3}
+        />,
+      );
+      await flushPromises();
+    });
+
+    const sheet = div.querySelector('[data-testid="send-quote-modal"]');
+    expect(sheet?.querySelector('.h-screen')).not.toBeNull();
+
+    act(() => {
+      root.unmount();
+    });
+    div.remove();
+  });
 });
