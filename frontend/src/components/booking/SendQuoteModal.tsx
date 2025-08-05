@@ -5,7 +5,7 @@ import React, {
 } from 'react';
 import { format } from 'date-fns';
 import { ServiceItem, QuoteV2Create, QuoteTemplate } from '@/types';
-import { getQuoteTemplates, calculateQuote } from '@/lib/api';
+import { getQuoteTemplates } from '@/lib/api';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { BottomSheet } from '../ui';
 
@@ -52,7 +52,6 @@ const SendQuoteModal: React.FC<Props> = ({
   const [selectedTemplate, setSelectedTemplate] = useState<number | ''>('');
   const [quoteNumber, setQuoteNumber] = useState('');
   const [description, setDescription] = useState('');
-  const [aiSuggested, setAiSuggested] = useState(false);
 
   const firstFieldRef = useRef<HTMLInputElement>(null);
 
@@ -75,7 +74,6 @@ const SendQuoteModal: React.FC<Props> = ({
       setDiscount(0);
       setExpiresHours(null);
       setDescription('');
-      setAiSuggested(false);
       return;
     }
 
@@ -94,25 +92,6 @@ const SendQuoteModal: React.FC<Props> = ({
       }
     }
   }, [open, selectedTemplate, artistId, initialBaseFee, initialTravelCost, initialSoundNeeded]);
-
-  // Fetch AI-generated draft description and price adjustment
-  useEffect(() => {
-    if (!open) return;
-    calculateQuote({ base_fee: initialBaseFee || 0, distance_km: 0 })
-      .then((res) => {
-        if (res.data.ai_description) {
-          setDescription(res.data.ai_description);
-          setAiSuggested(true);
-        }
-        const adj = res.data.ai_price_adjustment || 0;
-        if (adj) {
-          setServiceFee((prev) => prev + adj);
-        }
-      })
-      .catch((err) => {
-        console.error('AI quote draft failed', err);
-      });
-  }, [open, initialBaseFee]);
 
   // Effect to apply template values or revert to initial props/defaults
   useEffect(() => {
@@ -209,11 +188,6 @@ const SendQuoteModal: React.FC<Props> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            {aiSuggested && (
-              <span className="absolute right-2 top-2 text-xs text-indigo-600">
-                AI suggested
-              </span>
-            )}
             <p className="absolute -bottom-5 left-0 text-xs text-gray-500">A brief, descriptive title for this quote.</p>
           </div>
 

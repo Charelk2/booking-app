@@ -16,7 +16,6 @@ from ..crud.crud_booking import (
     create_booking_from_quote,
 )  # Will be created later
 from ..services.booking_quote import calculate_quote_breakdown, calculate_quote
-from ..services.quote_ai import generate_quote_draft
 from decimal import Decimal
 from ..utils import error_response
 
@@ -484,9 +483,4 @@ def calculate_quote_endpoint(
         provider,
         params.accommodation_cost,
     )
-    ai_description, ai_adjustment = generate_quote_draft(
-        "Quick quote", breakdown["total"]
-    )
-    breakdown["ai_description"] = ai_description
-    breakdown["ai_price_adjustment"] = ai_adjustment
     return breakdown
