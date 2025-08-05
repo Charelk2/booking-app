@@ -129,4 +129,19 @@ describe('MessageThreadWrapper', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('fills width on mobile screens', async () => {
+    (global as any).innerWidth = 500;
+    const { container, root } = setup('client');
+    await act(async () => {
+      root.render(
+        <MessageThreadWrapper bookingRequestId={1} bookingRequest={bookingRequest as any} setShowReviewModal={() => {}} />,
+      );
+    });
+    await act(async () => {});
+    const thread = container.querySelector('[data-testid="thread-container"]');
+    expect(thread?.className).toContain('w-full');
+    act(() => root.unmount());
+    container.remove();
+  });
 });

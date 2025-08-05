@@ -36,6 +36,7 @@ import usePaymentModal from '@/hooks/usePaymentModal';
 import QuoteBubble from './QuoteBubble';
 import useWebSocket from '@/hooks/useWebSocket';
 import { format } from 'date-fns';
+import { FixedSizeList as List } from 'react-window';
 
 
 // Constants
@@ -590,7 +591,7 @@ useEffect(() => {
     );
 
     return (
-      <div className="flex flex-col h-full rounded-b-2xl overflow-hidden">
+      <div className="flex flex-col h-full rounded-b-2xl overflow-hidden w-full">
         {/* Messages Container */}
         <div
           ref={messagesContainerRef}
@@ -901,7 +902,7 @@ useEffect(() => {
             {/* Message Input Form */}
             <form
               onSubmit={handleSendMessage}
-              className="sticky bottom-0 bg-white border-t border-gray-100 flex items-center gap-x-2 px-3 py-2.5 shadow-lg"
+              className="sticky bottom-[56px] sm:bottom-0 bg-white border-t border-gray-100 flex items-center gap-x-2 px-3 py-2.5 shadow-lg pb-safe"
             >
               <input
                 id="file-upload"
