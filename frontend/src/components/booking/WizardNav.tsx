@@ -23,14 +23,14 @@ export default function WizardNav({
 }: Props) {
   const lastStep = step === steps.length - 1;
   return (
-    <div className="mt-8">
+    <div className="mt-8 sticky bottom-0 bg-white p-4">
       <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2">
         {onBack && step > 0 && (
           <Button
             type="button"
             variant="secondary"
             onClick={onBack}
-            className="order-3 w-full sm:order-1 sm:w-auto"
+            className="order-3 w-full sm:order-1 sm:w-auto min-h-[44px] min-w-[44px]"
           >
             Back
           </Button>
@@ -39,7 +39,7 @@ export default function WizardNav({
           type="button"
           variant="secondary"
           onClick={onSaveDraft}
-          className="order-2 w-full sm:w-auto"
+          className="order-2 w-full sm:w-auto min-h-[44px] min-w-[44px]"
         >
           Save Draft
         </Button>
@@ -47,7 +47,10 @@ export default function WizardNav({
           type="button"
           onClick={onNext}
           isLoading={submitting}
-          className={clsx('order-1 w-full sm:order-3 sm:w-auto', submitting && 'opacity-75')}
+          className={clsx(
+            'order-1 w-full sm:order-3 sm:w-auto min-h-[44px] min-w-[44px]',
+            submitting && 'opacity-75',
+          )}
         >
           {submitLabel || (lastStep ? 'Submit' : 'Next')}
         </Button>

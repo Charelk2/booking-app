@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`BookingWizard flow matches desktop snapshot: desktop 1`] = `
+<div
+  aria-hidden="true"
+>
+  <div
+    hidden=""
+    style="position: fixed; top: 1px; left: 1px; width: 1px; height: 0px; padding: 0px; margin: -1px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); white-space: nowrap; border-width: 0px; display: none;"
+  />
+</div>
+`;
+
+exports[`BookingWizard flow matches mobile snapshot: mobile 1`] = `
+<div
+  aria-hidden="true"
+>
+  <div
+    hidden=""
+    style="position: fixed; top: 1px; left: 1px; width: 1px; height: 0px; padding: 0px; margin: -1px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); white-space: nowrap; border-width: 0px; display: none;"
+  />
+</div>
+`;
