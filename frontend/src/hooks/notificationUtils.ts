@@ -52,7 +52,7 @@ export function mergeFeedItems(
 /** Convert a Notification into the unified format. */
 export function toUnifiedFromNotification(n: Notification): UnifiedNotification {
   return {
-    type: n.type,
+    type: n.type === 'new_message' ? 'message' : n.type,
     timestamp: n.timestamp,
     is_read: n.is_read,
     content: n.message,
@@ -61,6 +61,7 @@ export function toUnifiedFromNotification(n: Notification): UnifiedNotification 
     sender_name: n.sender_name,
     booking_type: n.booking_type,
     avatar_url: n.avatar_url,
+    profile_picture_url: n.profile_picture_url,
   };
 }
 
@@ -76,6 +77,7 @@ export function toUnifiedFromThread(t: ThreadNotification): UnifiedNotification 
     unread_count: t.unread_count,
     link: t.link,
     avatar_url: t.avatar_url,
+    profile_picture_url: t.profile_picture_url,
     booking_details: t.booking_details ?? undefined,
   };
 }

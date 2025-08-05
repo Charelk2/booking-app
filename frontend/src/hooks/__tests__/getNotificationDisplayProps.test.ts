@@ -92,4 +92,21 @@ describe('getNotificationDisplayProps', () => {
     const props = getNotificationDisplayProps(n);
     expect(props.avatarUrl).toBe('/static/pic.jpg');
   });
+
+  it('prefers profile_picture_url over avatar_url', () => {
+    const n: Notification = {
+      id: 4,
+      user_id: 1,
+      type: 'new_message',
+      message: 'New message from Jay: hi',
+      link: '/booking-requests/4',
+      is_read: false,
+      timestamp: '2025-01-06T00:00:00Z',
+      sender_name: 'Jay',
+      profile_picture_url: '/static/profile.jpg',
+      avatar_url: '/static/pic.jpg',
+    };
+    const props = getNotificationDisplayProps(n);
+    expect(props.avatarUrl).toBe('/static/profile.jpg');
+  });
 });

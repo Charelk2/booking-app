@@ -298,6 +298,7 @@ export interface Notification {
   sender_name?: string;
   booking_type?: string;
   avatar_url?: string | null;
+  profile_picture_url?: string | null;
 }
 
 export interface ThreadNotification {
@@ -308,6 +309,7 @@ export interface ThreadNotification {
   link: string;
   timestamp: string;
   avatar_url?: string | null;
+  profile_picture_url?: string | null;
   booking_details?: {
     timestamp: string;
     location?: string;
@@ -337,6 +339,7 @@ export interface UnifiedNotification {
   /** Unread message count for chat threads */
   unread_count?: number;
   avatar_url?: string | null;
+  profile_picture_url?: string | null;
   /** Optional sender name for booking requests */
   sender_name?: string;
   /** Booking type or service title */
