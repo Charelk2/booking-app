@@ -1,10 +1,9 @@
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import BookingWizard from '../BookingWizard';
 import { BookingProvider, useBooking } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import * as api from '@/lib/api';
-import { flushPromises } from '@/test/utils/flush';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
@@ -38,6 +37,13 @@ describe('BookingWizard instructions', () => {
   it('shows first step instruction', () => {
     render(<Wrapper />);
     expect(document.body.textContent).toContain('Tell us a little bit more about your event.');
+  });
+
+  it('renders AI text input and updates its value', () => {
+    render(<Wrapper />);
+    const textarea = screen.getByLabelText('Describe your event') as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'Birthday party' } });
+    expect(textarea.value).toBe('Birthday party');
   });
 
 });
