@@ -845,7 +845,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Booking summary is hidden by default and can be expanded with a "Show Details" toggle.
 * Steps now animate with **framer-motion** and the progress dots stay clickable for all completed steps.
 * Redesigned wizard uses animated stepper circles and spacious rounded cards for each step. Buttons have improved focus styles and align responsively.
-* The flow now begins with **Date & Time** followed by **Event Type** and **Event Details** so clients choose when first.
+* The flow now begins with **Event Details** followed by **Location** and **Date & Time** so clients describe their event before other specifics.
 * Progress and form values persist to `localStorage`. Opening the booking wizard
   again prompts you to resume or start over. Saved data clears automatically
   after submission or when you reset the wizard.
@@ -1142,7 +1142,6 @@ POST /api/v1/booking-requests/parse
 
 
 Submit free-form text describing an event and receive detected `event_type`, `date`, `location`, and `guests` values. Fields are omitted if not found. Explicit years in the text are honored; otherwise the current year is assumed.
-
 
 Example request:
 
