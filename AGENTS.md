@@ -127,7 +127,6 @@ For setup instructions see [README.md](README.md).
 
 ### 16. NLP Booking Agent
 
-
 * **Purpose:** Parses natural language descriptions to pre-fill booking details like event type, date, location, and guest count.
 * **Frontend:** A text/voice input in `BookingWizard.tsx` sends the prompt and lets users apply or edit the AI-suggested values.
 * **Backend:** `nlp_booking.py` performs lightweight extraction and `/api/v1/booking-requests/parse` exposes the service.

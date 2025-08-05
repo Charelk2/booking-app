@@ -1140,7 +1140,6 @@ Validation errors are now logged server-side and returned as structured JSON so 
 POST /api/v1/booking-requests/parse
 ```
 
-
 Submit free-form text describing an event and receive detected `event_type`, `date`, `location`, and `guests` values. Fields are omitted if not found. Explicit years in the text are honored; otherwise the current year is assumed.
 
 Example request:

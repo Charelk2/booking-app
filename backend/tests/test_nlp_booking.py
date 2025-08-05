@@ -13,7 +13,6 @@ def test_extract_booking_details_basic():
     assert result.event_type is None
 
 
-
 def test_extract_handles_lowercase_location_and_no_year():
     text = "birthday celebration in pretoria 6 august"
     result = nlp_booking.extract_booking_details(text)

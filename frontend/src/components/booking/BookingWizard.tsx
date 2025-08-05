@@ -134,10 +134,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
-  const [aiText, setAiText] = useState(''); // Raw event description entered or transcribed
-  const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(null); // AI-extracted details
-  const [listening, setListening] = useState(false); // Whether speech recognition is active
-  const recognitionRef = useRef<SpeechRecognition | null>(null); // SpeechRecognition instance
 
   const isMobile = useIsMobile();
   const hasLoaded = useRef(false);
