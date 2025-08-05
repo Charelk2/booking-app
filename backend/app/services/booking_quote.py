@@ -1,17 +1,10 @@
 """Utilities to calculate comprehensive booking quotes."""
 
 from decimal import Decimal
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
-from ..models import SoundProvider, ArtistProfile
-
-
-DEFAULT_TRAVEL_RATE_PER_KM = Decimal("0.5")
-
-
-def calculate_travel_cost(distance_km: float) -> Decimal:
-    """Return simple travel cost based on distance."""
-    return Decimal(distance_km) * DEFAULT_TRAVEL_RATE_PER_KM
+from ..models import SoundProvider
+from .travel_estimator import estimate_travel
 
 
 def calculate_quote(
@@ -33,10 +26,20 @@ def calculate_quote_breakdown(
     distance_km: float,
     provider: Optional[SoundProvider] = None,
     accommodation_cost: Optional[Decimal] = None,
-) -> Dict[str, Decimal]:
-    """Return a detailed cost breakdown including the grand total."""
+) -> Dict[str, Any]:
+    """Return a detailed cost breakdown including the grand total.
 
-    travel_cost = calculate_travel_cost(distance_km)
+    Travel costs are predicted via :mod:`travel_estimator` rather than a flat
+    rate so the quote reflects likely real-world expenses. The cheapest travel
+    mode is chosen for the total, while all mode estimates are returned for
+    display on the frontend.
+    """
+
+    estimates = estimate_travel(distance_km)
+    best = min(estimates, key=lambda e: e["cost"]) if estimates else {"mode": "unknown", "cost": Decimal("0")}
+    travel_cost = best["cost"]
+    travel_mode = best["mode"]
+
     provider_cost = (
         provider.price_per_event if provider and provider.price_per_event else Decimal("0.00")
     )
@@ -47,6 +50,11 @@ def calculate_quote_breakdown(
     return {
         "base_fee": base_fee.quantize(Decimal("0.01")),
         "travel_cost": travel_cost.quantize(Decimal("0.01")),
+        "travel_mode": travel_mode,
+        "travel_estimates": [
+            {"mode": e["mode"], "cost": e["cost"].quantize(Decimal("0.01"))}
+            for e in estimates
+        ],
         "provider_cost": provider_cost.quantize(Decimal("0.01")),
         "accommodation_cost": accommodation.quantize(Decimal("0.01")),
         "total": total.quantize(Decimal("0.01")),

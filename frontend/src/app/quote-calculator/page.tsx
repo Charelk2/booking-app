@@ -99,9 +99,21 @@ export default function QuoteCalculatorPage() {
           </button>
         </form>
         {result && (
-          <div className="bg-white p-4 rounded border">
+          <div className="bg-white p-4 rounded border space-y-1">
             <p>Base Fee: {formatCurrency(Number(result.base_fee))}</p>
-            <p>Travel Cost: {formatCurrency(Number(result.travel_cost))}</p>
+            <p>
+              Travel Cost ({result.travel_mode}):{' '}
+              {formatCurrency(Number(result.travel_cost))}
+            </p>
+            {result.travel_estimates.length > 0 && (
+              <ul className="list-disc list-inside">
+                {result.travel_estimates.map((t) => (
+                  <li key={t.mode}>
+                    {t.mode}: {formatCurrency(Number(t.cost))}
+                  </li>
+                ))}
+              </ul>
+            )}
             <p>Provider Cost: {formatCurrency(Number(result.provider_cost))}</p>
             <p>Accommodation: {formatCurrency(Number(result.accommodation_cost))}</p>
             <p className="font-semibold">Total: {formatCurrency(Number(result.total))}</p>

@@ -111,11 +111,20 @@ class QuoteResponse(QuoteBase):
 BookingRequestResponse.model_rebuild()
 
 
+class TravelEstimate(BaseModel):
+    """Individual travel mode cost estimate."""
+
+    mode: str
+    cost: Decimal
+
+
 class QuoteCalculationResponse(BaseModel):
     """Schema for detailed quote calculations used by the quick quote API."""
 
     base_fee: Decimal
     travel_cost: Decimal
+    travel_mode: str
+    travel_estimates: List[TravelEstimate]
     provider_cost: Decimal
     accommodation_cost: Decimal
     total: Decimal
