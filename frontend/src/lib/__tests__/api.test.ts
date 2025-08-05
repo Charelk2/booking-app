@@ -1,6 +1,7 @@
 import api, {
   updateBookingRequestArtist,
   createPayment,
+  parseBookingText,
   updateBookingStatus,
   downloadBookingIcs,
   downloadQuotePdf,
@@ -13,6 +14,7 @@ import api, {
   createReviewForBooking,
   getReview,
   getServiceReviews,
+  getArtists,
 } from '../api';
 import type { AxiosRequestConfig } from 'axios';
 
@@ -116,6 +118,20 @@ describe('createPayment', () => {
     const spy = jest.spyOn(api, 'post').mockResolvedValue({ data: {} } as unknown as { data: unknown });
     await createPayment({ booking_request_id: 3, amount: 50 });
     expect(spy).toHaveBeenCalledWith('/api/v1/payments', { booking_request_id: 3, amount: 50 });
+    spy.mockRestore();
+  });
+});
+
+describe('parseBookingText', () => {
+  it('posts text to the parse endpoint', async () => {
+    const spy = jest
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await parseBookingText('party for 20 people on Friday in Paris');
+    expect(spy).toHaveBeenCalledWith(
+      '/api/v1/booking-requests/parse',
+      { text: 'party for 20 people on Friday in Paris' },
+    );
     spy.mockRestore();
   });
 });
