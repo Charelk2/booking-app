@@ -9,7 +9,9 @@ For setup instructions see [README.md](README.md).
 | Agent | Purpose | Key files | Trigger |
 |-------|---------|-----------|---------|
 | **Booking Request** | Orchestrates the booking wizard and business rules | `backend/app/api/api_booking_request.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | When a client submits or updates a booking |
+
 | **NLP Booking** | Extracts event details and event type from natural language descriptions | `backend/app/services/nlp_booking.py`<br>`backend/app/api/api_booking_request.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | When a client provides a free-form event description |
+
 | **Provider Matching** | Selects sound and accommodation providers | `backend/app/crud/crud_service.py`<br>`backend/app/api/api_service.py` | During booking and quote steps |
 | **Travel & Accommodation** | Calculates travel distance, lodging costs, and now weather forecasts | `backend/app/services/booking_quote.py`<br>`backend/app/api/api_weather.py`<br>`frontend/src/app/quote-calculator/page.tsx` | When estimating travel or lodging expenses |
 | **Quote Generator** | Gathers performance, provider, travel, and accommodation costs | `backend/app/api/api_quote.py`<br>`frontend/src/components/booking/MessageThread.tsx` | After all booking info is entered |
@@ -125,12 +127,13 @@ For setup instructions see [README.md](README.md).
 
 ### 16. NLP Booking Agent
 
+
 * **Purpose:** Parses natural language descriptions to pre-fill booking details like event type, date, location, and guest count.
 * **Frontend:** A text/voice input in `BookingWizard.tsx` sends the prompt and lets users apply or edit the AI-suggested values.
 * **Backend:** `nlp_booking.py` performs lightweight extraction and `/api/v1/booking-requests/parse` exposes the service.
 
 
----
+
 
 ## How to Add or Modify an Agent
 

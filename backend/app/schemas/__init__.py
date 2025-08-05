@@ -22,6 +22,7 @@ from .request_quote import (
     QuoteUpdateByArtist,
     QuoteUpdateByClient,
     QuoteResponse,
+    TravelEstimate,
     QuoteCalculationResponse,
     QuoteCalculationParams,
 )
@@ -73,6 +74,7 @@ __all__ = [
     "QuoteUpdateByArtist",
     "QuoteUpdateByClient",
     "QuoteResponse",
+    "TravelEstimate",
     "QuoteCalculationResponse",
     "QuoteCalculationParams",
     "QuoteV2Create",
