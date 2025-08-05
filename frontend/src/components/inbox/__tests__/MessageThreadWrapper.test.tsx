@@ -88,4 +88,20 @@ describe('MessageThreadWrapper', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('starts with booking details hidden', async () => {
+    const { container, root } = setup('client');
+    await act(async () => {
+      root.render(
+        <MessageThreadWrapper bookingRequestId={1} bookingRequest={bookingRequest as any} setShowReviewModal={() => {}} />,
+      );
+    });
+    await act(async () => {});
+    const showButton = container.querySelector('button[aria-label="Show booking details"]');
+    const hideButton = container.querySelector('button[aria-label="Hide details panel"]');
+    expect(showButton).not.toBeNull();
+    expect(hideButton).toBeNull();
+    act(() => root.unmount());
+    container.remove();
+  });
 });
