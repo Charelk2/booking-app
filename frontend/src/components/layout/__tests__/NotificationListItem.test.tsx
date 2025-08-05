@@ -174,6 +174,19 @@ describe('NotificationListItem', () => {
     expect(parsed.status).toBe('confirmed');
   });
 
+  it('parses quote expiring notification', () => {
+    const n: UnifiedNotification = {
+      type: 'quote_expiring',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Quote #10 expiring soon',
+    } as UnifiedNotification;
+    const parsed = parseItem(n);
+    expect(parsed.title).toBe('Quote Expiring');
+    expect(parsed.icon).toBe('⏰');
+    expect(parsed.status).toBe('reminder');
+  });
+
   it('uses initials fallback for deposit due', () => {
     const n: UnifiedNotification = {
       type: 'deposit_due',

@@ -9,6 +9,9 @@ from app.models import (
     BookingRequestStatus,
     MessageType,
     NotificationType,
+    ArtistProfile,
+    QuoteV2,
+    BookingSimple,
 )
 from app.models.service import ServiceType
 from app import models
@@ -1357,6 +1360,7 @@ def test_quote_expiring_notification():
         first_name="C",
         last_name="Client",
         user_type=UserType.CLIENT,
+        profile_picture_url="/static/profile_pics/client.jpg",
     )
     db.add_all([artist, client_user])
     db.commit()
@@ -1372,8 +1376,22 @@ def test_quote_expiring_notification():
     db.commit()
     db.refresh(br)
 
+    quote = QuoteV2(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=client_user.id,
+        services=[],
+        sound_fee=0,
+        travel_fee=0,
+        subtotal=0,
+        total=0,
+    )
+    db.add(quote)
+    db.commit()
+    db.refresh(quote)
+
     expires_at = datetime.utcnow() + timedelta(hours=23, minutes=30)
-    notify_quote_expiring(db, artist, 1, expires_at, br.id)
+    notify_quote_expiring(db, artist, quote.id, expires_at, br.id)
     db.close()
 
     token = create_access_token({"sub": artist.email})
@@ -1385,4 +1403,6 @@ def test_quote_expiring_notification():
     assert res.status_code == 200
     data = res.json()
     assert data[0]["type"] == "quote_expiring"
+    assert data[0]["sender_name"] == "C Client"
+    assert data[0]["avatar_url"] == "/static/profile_pics/client.jpg"
     app.dependency_overrides.clear()
