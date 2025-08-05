@@ -53,11 +53,11 @@ export default function NotesStep({
   return (
     <CollapsibleSection
       title="Notes"
+      description="Anything else we should know?"
       open={open}
       onToggle={onToggle}
       className="wizard-step-container"
     >
-      <p className="text-sm text-gray-600">Anything else we should know?</p>
       <Controller<EventDetails, 'notes'>
         name="notes"
         control={control}

@@ -19,11 +19,11 @@ export default function GuestsStep({ control, open = true, onToggle = () => {} }
   return (
     <CollapsibleSection
       title="Guests"
+      description="How many people?"
       open={open}
       onToggle={onToggle}
       className="wizard-step-container"
     >
-      <p className="text-sm text-gray-600">How many people?</p>
       <Controller<EventDetails, 'guests'> // Explicitly type Controller
         name="guests"
         control={control}
