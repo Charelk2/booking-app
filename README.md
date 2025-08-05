@@ -899,6 +899,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * The header now just shows the “Notifications” title, an **Unread** toggle and a close **X** button.
 * A full-width rounded **Clear All** button stays pinned to the bottom of the panel.
 * Deposit due alerts now display "Booking confirmed – deposit R{amount} due by {date}" only the first time a booking is confirmed. Subsequent reminders omit the greeting. The drawer parses this format to show `R50.00 due by Jan 1, 2025` as the subtitle and links directly to the booking.
+* Booking confirmed and deposit due notifications now show the artist's avatar so users can immediately recognize who the alert is from.
 * Quote acceptance and booking confirmation notifications now render dynamic titles such as **"Quote accepted by Jane Doe"** instead of a generic label.
 * Message notifications now include the sender name in both the stored text and the API response so the drawer can display "New message from Alice" without additional lookups.
 * Clicking a new message alert opens `/inbox?requestId={id}` with the conversation active.

@@ -218,6 +218,7 @@ describe('NotificationListItem', () => {
       is_read: false,
       content: 'Quote accepted by Jill',
       sender_name: 'Jill',
+      avatar_url: '/static/avatar.jpg',
     } as UnifiedNotification;
 
     act(() => {
@@ -230,7 +231,7 @@ describe('NotificationListItem', () => {
     });
 
     const img = container.querySelector('img');
-    expect(img).not.toBeNull();
+    expect(img?.getAttribute('src')).toContain('avatar.jpg');
   });
 
   it('renders a profile image for reminder status', () => {
@@ -241,6 +242,7 @@ describe('NotificationListItem', () => {
       content: 'Location: Test',
       sender_name: 'Jane',
       booking_type: 'Performance',
+      avatar_url: '/static/avatar.jpg',
     } as UnifiedNotification;
 
     act(() => {
@@ -253,7 +255,7 @@ describe('NotificationListItem', () => {
     });
 
     const img = container.querySelector('img');
-    expect(img).not.toBeNull();
+    expect(img?.getAttribute('src')).toContain('avatar.jpg');
   });
 
   it('renders a profile image for due status', () => {
@@ -262,6 +264,7 @@ describe('NotificationListItem', () => {
       timestamp: new Date().toISOString(),
       is_read: false,
       content: 'Deposit R50 due by 2025-06-30',
+      avatar_url: '/static/avatar.jpg',
     } as UnifiedNotification;
 
     act(() => {
@@ -274,7 +277,29 @@ describe('NotificationListItem', () => {
     });
 
     const img = container.querySelector('img');
-    expect(img).not.toBeNull();
+    expect(img?.getAttribute('src')).toContain('avatar.jpg');
+  });
+
+  it('falls back to the icon when no avatar URL is provided', () => {
+    const n: UnifiedNotification = {
+      type: 'deposit_due',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Deposit R75 due by 2025-06-30',
+    } as UnifiedNotification;
+
+    act(() => {
+      root.render(
+        React.createElement(NotificationListItem, {
+          n,
+          onClick: () => {},
+        }),
+      );
+    });
+
+    const img = container.querySelector('img');
+    expect(img).toBeNull();
+    expect(container.textContent).toContain('💰');
   });
 
   it('passes avatarUrl to Avatar component', () => {

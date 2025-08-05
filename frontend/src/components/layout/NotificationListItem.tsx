@@ -156,9 +156,11 @@ export default function NotificationListItem({
   className = '',
 }: NotificationListItemProps) {
   const p = parseItem(n);
-  // Use a fallback avatar image when the notification does not include one so
-  // all notifications show a consistent profile picture.
-  const avatarSrc = p.avatarUrl || '/static/default-avatar.svg';
+  // Display the provided avatar when available. If the notification lacks an
+  // avatar URL, the Avatar component will fall back to initials or an icon so
+  // deposit due and booking confirmed alerts can show the artist's photo while
+  // other notifications still render a meaningful placeholder.
+  const avatarSrc = p.avatarUrl || undefined;
 
   return (
     <div

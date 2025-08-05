@@ -81,6 +81,7 @@ For setup instructions see [README.md](README.md).
   - `booking_status_updated` — the request status changed.
   - `deposit_due` — deposit payment reminder when a booking is accepted.
   - `review_request` — triggered after an event is completed to solicit feedback.
+* **UI:** Booking confirmed and deposit due alerts show the artist's avatar so recipients can instantly recognize who the notification is from.
 
 ### 9. Chat Agent
 
