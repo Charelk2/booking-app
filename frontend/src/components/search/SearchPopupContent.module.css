@@ -3,7 +3,7 @@
 /* Target the custom calendar class */
 .customCalendar {
     padding: 0.5rem; /* Adjust as needed */
-    border: 1px solid #e5e7eb; /* Optional: adds a subtle border */
+    border: 1px solid var(--color-gray-200); /* Optional: adds a subtle border */
     border-radius: 0.75rem; /* Optional: rounds corners */
     font-family: inherit; /* Inherit font from your app */
   }
@@ -26,7 +26,7 @@
       width: 2.2rem;
       margin: 0.166rem;
       font-size: 0.85rem; /* Slightly smaller font */
-      color: #6b7280; /* Gray text for day names */
+      color: var(--color-gray-600); /* Gray text for day names */
       height: 2.2rem;
       line-height: 2.2rem;
       display: inline-flex;
@@ -48,19 +48,23 @@
   }
   
   /* Hover state for days */
-  .customCalendar .react-datepicker__day:not(.react-datepicker__day--selected):not(.react-datepicker__day--disabled):hover {
-    background-color: #e0e7ff; /* A light blue/gray for hover */
+  .customCalendar
+    .react-datepicker__day:not(
+      .react-datepicker__day--selected,
+      .react-datepicker__day--disabled
+    ):hover {
+    background-color: var(--color-indigo-100); /* A light blue/gray for hover */
     cursor: pointer;
   }
   
   /* Days not in current month (often faded) */
   .customCalendar .react-datepicker__day--outside-month {
-    color: #9ca3af; /* Faded color */
+    color: var(--color-gray-500); /* Faded color */
   }
   
   /* Disabled days */
   .customCalendar .react-datepicker__day--disabled {
-      color: #d1d5db; /* Lighter color for disabled days */
+      color: var(--color-gray-300); /* Lighter color for disabled days */
       cursor: default;
   }
   
@@ -77,8 +81,8 @@
     padding-bottom: 0.5em;
   }
   
-  /* Specific styling for the react-datepicker wrapper itself if needed */
-  /* This ensures the calendar doesn't take full width if inline */
+  /* Specific styling for the react-datepicker wrapper itself if needed.
+     This ensures the calendar doesn't take full width if inline */
   .customCalendar.react-datepicker {
     width: auto; /* Allow content to dictate width */
     display: inline-block; /* Helps with centering if needed */

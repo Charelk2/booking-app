@@ -35,9 +35,15 @@
 
   /* neutral grays used across components */
   --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
   --color-gray-400: #cbd5e1;
   --color-gray-500: #9ca3af;
+  --color-gray-600: #6b7280;
   --color-gray-700: #374151;
+
+  /* additional utility colors */
+  --color-indigo-100: #e0e7ff;
 }
 
 @layer base {
