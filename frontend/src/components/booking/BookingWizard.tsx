@@ -18,6 +18,7 @@ import {
   getArtist,
   getService,
   calculateQuote,
+  parseBookingText,
 } from '@/lib/api';
 import { geocodeAddress } from '@/lib/geo';
 import { calculateTravelMode, getDrivingMetrics } from '@/lib/travel';
@@ -66,6 +67,14 @@ const schema = yup.object<EventDetails>().shape({
   notes: yup.string().optional(),
   attachment_url: yup.string().optional(),
 });
+
+// Details returned by the AI parser
+interface ParsedBookingDetails {
+  eventType?: string;
+  date?: string;
+  location?: string;
+  guests?: number;
+}
 
 // --- Wizard Steps & Instructions ---
 const steps = [
@@ -125,8 +134,53 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
+
   const isMobile = useIsMobile();
   const hasLoaded = useRef(false);
+
+  const startListening = () => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error('Voice input not supported');
+      return;
+    }
+    const rec: SpeechRecognition = new SR();
+    recognitionRef.current = rec;
+    rec.onresult = (e: SpeechRecognitionEvent) => {
+      const txt = e.results[0][0].transcript;
+      setAiText((prev) => `${prev} ${txt}`.trim());
+    };
+    rec.onend = () => setListening(false);
+    rec.start();
+    setListening(true);
+  };
+
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+  };
+
+  const handleParse = async () => {
+    if (!aiText.trim()) return;
+    try {
+      const res = await parseBookingText(aiText);
+
+      const { event_type, ...rest } = res.data;
+      setParsedDetails({ ...rest, eventType: event_type });
+
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  };
+
+  const applyParsed = () => {
+    if (parsedDetails?.date) setValue('date', new Date(parsedDetails.date));
+    if (parsedDetails?.location) setValue('location', parsedDetails.location);
+    if (parsedDetails?.guests !== undefined) setValue('guests', String(parsedDetails.guests));
+
+    if (parsedDetails?.eventType) setValue('eventType', parsedDetails.eventType);
+
+    setParsedDetails(null);
+  };
 
   // --- Form Hook (React Hook Form + Yup) ---
   const {
@@ -467,6 +521,63 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 onKeyDown={handleKeyDown}
                 className="flex-1 overflow-y-scroll p-6 space-y-6"
               >
+                <div className="mb-4">
+                  <label htmlFor="ai-text" className="block font-medium">
+                    Describe your event
+                  </label>
+                  <textarea
+                    id="ai-text"
+                    value={aiText}
+                    onChange={(e) => setAiText(e.target.value)}
+                    className="w-full border rounded p-2"
+                    rows={2}
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={handleParse}
+                      className="bg-blue-600 text-white px-3 py-1 rounded"
+                    >
+                      Fill with AI
+                    </button>
+                    <button
+                      type="button"
+                      onClick={listening ? stopListening : startListening}
+                      className="bg-gray-200 px-3 py-1 rounded"
+                    >
+                      {listening ? 'Stop' : '🎤'}
+                    </button>
+                  </div>
+                </div>
+                {parsedDetails && (
+                  <div className="mb-4 border p-2 rounded bg-gray-50">
+                    <p className="mb-2">AI Suggestions:</p>
+                    <ul className="mb-2 text-sm">
+
+                      {parsedDetails.eventType && <li>Event Type: {parsedDetails.eventType}</li>}
+
+                      {parsedDetails.date && <li>Date: {parsedDetails.date}</li>}
+                      {parsedDetails.location && <li>Location: {parsedDetails.location}</li>}
+                      {parsedDetails.guests !== undefined && <li>Guests: {parsedDetails.guests}</li>}
+                    </ul>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={applyParsed}
+                        className="bg-green-600 text-white px-2 py-1 rounded"
+                      >
+                        Apply
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setParsedDetails(null)}
+                        className="bg-gray-200 px-2 py-1 rounded"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={step}
