@@ -1,12 +1,14 @@
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import useIsMobile from '../useIsMobile';
 import React from 'react';
+import useIsMobile from '../useIsMobile';
+import { BREAKPOINT_SM } from '@/lib/breakpoints';
 
 describe('useIsMobile', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
   let result = false;
+  const query = `(max-width: ${BREAKPOINT_SM - 1}px)`;
 
   function Test() {
     result = useIsMobile();
@@ -26,21 +28,37 @@ describe('useIsMobile', () => {
     container.remove();
   });
 
-  it('returns true when window width is below 640', async () => {
-    Object.defineProperty(window, 'innerWidth', { value: 500, writable: true });
+  it('returns true when screen width is below sm breakpoint', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      value: jest.fn().mockImplementation((q) => ({
+        matches: q === query,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      })),
+      writable: true,
+    });
     await act(async () => {
       root.render(React.createElement(Test));
     });
     await act(async () => {}); // flush useEffect
+    expect(window.matchMedia).toHaveBeenCalledWith(query);
     expect(result).toBe(true);
   });
 
-  it('returns false when window width is 640 or more', async () => {
-    Object.defineProperty(window, 'innerWidth', { value: 800, writable: true });
+  it('returns false when screen width is sm breakpoint or wider', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      value: jest.fn().mockImplementation(() => ({
+        matches: false,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      })),
+      writable: true,
+    });
     await act(async () => {
       root.render(React.createElement(Test));
     });
     await act(async () => {});
+    expect(window.matchMedia).toHaveBeenCalledWith(query);
     expect(result).toBe(false);
   });
 });
