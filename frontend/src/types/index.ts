@@ -144,7 +144,9 @@ export interface BookingRequest {
   updated_at: string;
   // Optional expanded relations returned by the API
   client?: User;
-  artist?: ArtistProfile;
+  artist?: User;
+  /** Additional artist details including business name */
+  artist_profile?: ArtistProfile;
   service?: Service;
   quotes?: Quote[];
   accepted_quote_id?: number | null;

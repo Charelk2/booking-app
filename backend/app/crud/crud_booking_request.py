@@ -24,34 +24,77 @@ def create_booking_request(
     return db_booking_request
 
 def get_booking_request(db: Session, request_id: int) -> Optional[models.BookingRequest]:
-    return (
+    db_request = (
         db.query(models.BookingRequest)
-        .options(joinedload(models.BookingRequest.quotes))
+        .options(
+            joinedload(models.BookingRequest.client),
+            joinedload(models.BookingRequest.artist).joinedload(models.User.artist_profile),
+            joinedload(models.BookingRequest.service).joinedload(models.Service.artist),
+            joinedload(models.BookingRequest.quotes)
+            .joinedload(models.Quote.artist)
+            .joinedload(models.User.artist_profile),
+        )
         .filter(models.BookingRequest.id == request_id)
         .first()
     )
 
+    if db_request and db_request.artist and db_request.artist.artist_profile:
+        setattr(db_request, "artist_profile", db_request.artist.artist_profile)
+    if db_request:
+        for q in db_request.quotes:
+            if q.artist and q.artist.artist_profile:
+                setattr(q, "artist_profile", q.artist.artist_profile)
+    return db_request
+
 def get_booking_requests_by_client(db: Session, client_id: int, skip: int = 0, limit: int = 100) -> List[models.BookingRequest]:
-    return (
+    rows = (
         db.query(models.BookingRequest)
-        .options(joinedload(models.BookingRequest.quotes))
+        .options(
+            joinedload(models.BookingRequest.client),
+            joinedload(models.BookingRequest.artist).joinedload(models.User.artist_profile),
+            joinedload(models.BookingRequest.service).joinedload(models.Service.artist),
+            joinedload(models.BookingRequest.quotes)
+            .joinedload(models.Quote.artist)
+            .joinedload(models.User.artist_profile),
+        )
         .filter(models.BookingRequest.client_id == client_id)
         .order_by(models.BookingRequest.created_at.desc())
         .offset(skip)
         .limit(limit)
         .all()
     )
+    for br in rows:
+        if br.artist and br.artist.artist_profile:
+            setattr(br, "artist_profile", br.artist.artist_profile)
+        for q in br.quotes:
+            if q.artist and q.artist.artist_profile:
+                setattr(q, "artist_profile", q.artist.artist_profile)
+    return rows
 
 def get_booking_requests_by_artist(db: Session, artist_id: int, skip: int = 0, limit: int = 100) -> List[models.BookingRequest]:
-    return (
+    rows = (
         db.query(models.BookingRequest)
-        .options(joinedload(models.BookingRequest.quotes))
+        .options(
+            joinedload(models.BookingRequest.client),
+            joinedload(models.BookingRequest.artist).joinedload(models.User.artist_profile),
+            joinedload(models.BookingRequest.service).joinedload(models.Service.artist),
+            joinedload(models.BookingRequest.quotes)
+            .joinedload(models.Quote.artist)
+            .joinedload(models.User.artist_profile),
+        )
         .filter(models.BookingRequest.artist_id == artist_id)
         .order_by(models.BookingRequest.created_at.desc())
         .offset(skip)
         .limit(limit)
         .all()
     )
+    for br in rows:
+        if br.artist and br.artist.artist_profile:
+            setattr(br, "artist_profile", br.artist.artist_profile)
+        for q in br.quotes:
+            if q.artist and q.artist.artist_profile:
+                setattr(q, "artist_profile", q.artist.artist_profile)
+    return rows
 
 def update_booking_request(
     db: Session, 
@@ -120,9 +163,11 @@ def get_booking_requests_with_last_message(
         db.query(models.BookingRequest)
         .options(
             joinedload(models.BookingRequest.client),
-            joinedload(models.BookingRequest.artist),
-            joinedload(models.BookingRequest.service),
-            joinedload(models.BookingRequest.quotes),
+            joinedload(models.BookingRequest.artist).joinedload(models.User.artist_profile),
+            joinedload(models.BookingRequest.service).joinedload(models.Service.artist),
+            joinedload(models.BookingRequest.quotes)
+            .joinedload(models.Quote.artist)
+            .joinedload(models.User.artist_profile),
         )
         .outerjoin(latest_msg, models.BookingRequest.id == latest_msg.c.br_id)
         .add_columns(
@@ -152,6 +197,8 @@ def get_booking_requests_with_last_message(
     for br, content, timestamp in rows:
         setattr(br, "last_message_content", content)
         setattr(br, "last_message_timestamp", timestamp)
+        if br.artist and br.artist.artist_profile:
+            setattr(br, "artist_profile", br.artist.artist_profile)
         accepted = next(
             (
                 q
@@ -166,6 +213,9 @@ def get_booking_requests_with_last_message(
         )
         if accepted:
             setattr(br, "accepted_quote_id", accepted.id)
+        for q in br.quotes:
+            if q.artist and q.artist.artist_profile:
+                setattr(q, "artist_profile", q.artist.artist_profile)
         results.append(br)
 
     return results

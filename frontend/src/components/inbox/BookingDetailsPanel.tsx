@@ -61,7 +61,7 @@ export default function BookingDetailsPanel({
                   ? bookingRequest.client
                     ? `${bookingRequest.client.first_name} ${bookingRequest.client.last_name}`
                     : 'N/A'
-                  : bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name || 'N/A'}
+                  : bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'N/A'}
               </dd>
             </div>
             <div className="flex justify-between">
@@ -69,7 +69,7 @@ export default function BookingDetailsPanel({
               <dd>
                 {isUserArtist
                   ? bookingRequest.client?.email || 'N/A'
-                  : bookingRequest.artist?.user?.email || 'N/A'}
+                  : bookingRequest.artist?.email || 'N/A'}
               </dd>
             </div>
             <div className="flex justify-between">

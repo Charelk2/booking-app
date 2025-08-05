@@ -5492,6 +5492,16 @@
               }
             ]
           },
+          "artist_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArtistProfileResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "service": {
             "anyOf": [
               {
@@ -6766,6 +6776,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/UserResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "artist_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArtistProfileResponse"
               },
               {
                 "type": "null"

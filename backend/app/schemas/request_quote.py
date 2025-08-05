@@ -4,8 +4,9 @@ from datetime import datetime
 from decimal import Decimal
 
 from ..models.request_quote import BookingRequestStatus, QuoteStatus # Enums from models
-from .user import UserResponse # For nesting user details
-from .service import ServiceResponse # For nesting service details
+from .user import UserResponse  # For nesting user details
+from .artist import ArtistProfileResponse  # Include artist business name
+from .service import ServiceResponse  # For nesting service details
 # from .booking import BookingResponse # For nesting booking if created from quote
 
 # --- BookingRequest Schemas ---
@@ -50,7 +51,9 @@ class BookingRequestResponse(BookingRequestBase):
     travel_breakdown: Optional[dict] = None
     
     client: Optional[UserResponse] = None
-    artist: Optional[UserResponse] = None # Artist's UserResponse
+    artist: Optional[UserResponse] = None  # Original artist user details
+    # Added artist_profile so responses include business name
+    artist_profile: Optional[ArtistProfileResponse] = None
     service: Optional[ServiceResponse] = None
     quotes: List['QuoteResponse'] = []
     accepted_quote_id: Optional[int] = None
@@ -90,7 +93,9 @@ class QuoteResponse(QuoteBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     
-    artist: Optional[UserResponse] = None  # Artist details
+    artist: Optional[UserResponse] = None  # Artist user details
+    # Include artist profile so quotes also expose the business name
+    artist_profile: Optional[ArtistProfileResponse] = None
     # Exclude booking_request to avoid recursion when nested under
     # BookingRequestResponse -> QuoteResponse -> BookingRequestResponse
     booking_request: Optional[BookingRequestResponse] = Field(
