@@ -24,7 +24,7 @@ Run all tests with:
 ## Components
 
 - **PriceFilter** uses a keyboard focus trap and returns focus to the triggering element.
-- **BookingWizard** moves focus to the step heading when advancing steps.
+- **BookingWizard** displays each step's instructions within its section; focus stays on the step's inputs when advancing.
 - **MobileMenuDrawer** relies on `@headlessui/dialog` for accessible focus handling.
 - **AddServiceModal** opens with `@headlessui/dialog`, trapping focus and closing on Escape.
 

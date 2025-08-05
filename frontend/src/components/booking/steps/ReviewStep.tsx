@@ -82,7 +82,7 @@ export default function ReviewStep({
         transition={{ duration: 0.3 }}
         className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-200/80 max-w-2xl mx-auto"
       >
-        <p className="text-sm text-gray-500 mb-6">
+        <p className="text-sm text-gray-600 mb-6">
           This is an estimated cost. The artist will review your request and send a formal quote.
         </p>
 

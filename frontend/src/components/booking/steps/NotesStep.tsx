@@ -57,6 +57,7 @@ export default function NotesStep({
       onToggle={onToggle}
       className="wizard-step-container"
     >
+      <p className="text-sm text-gray-600">Anything else we should know?</p>
       <Controller<EventDetails, 'notes'>
         name="notes"
         control={control}

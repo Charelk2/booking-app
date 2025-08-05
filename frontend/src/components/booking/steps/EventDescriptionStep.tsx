@@ -19,6 +19,7 @@ export default function EventDescriptionStep({ control, open = true, onToggle = 
       onToggle={onToggle}
       className="wizard-step-container"
     >
+      <p className="text-sm text-gray-600">Tell us a little bit more about your event.</p>
       <Controller<EventDetails, 'eventDescription'>
         name="eventDescription"
         control={control}
