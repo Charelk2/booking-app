@@ -3,7 +3,9 @@ from ..models import User, NotificationType
 from sqlalchemy.orm import Session
 from .. import models
 from ..models import User, NotificationType
+from ..crud import crud_notification
 from ..schemas.notification import NotificationResponse
+from ..api.api_ws import notifications_manager
 from typing import Optional
 import asyncio
 from datetime import datetime
@@ -391,8 +393,6 @@ def _create_and_broadcast(
     **extra: str | int | None,
 ) -> None:
     """Persist a notification then broadcast it via WebSocket."""
-    from ..crud import crud_notification
-
     notif = crud_notification.create_notification(
         db,
         user_id=user_id,
@@ -509,8 +509,6 @@ def notify_deposit_due(
 
     prefix = ""
     if not booking.deposit_paid:
-        from ..crud import crud_notification
-
         existing = crud_notification.get_notifications_for_user(db, user.id)
         has_prior = any(
             n.type == NotificationType.DEPOSIT_DUE
@@ -625,7 +623,6 @@ def notify_quote_expiring(
             quote_id,
         )
         return
-    from ..crud import crud_notification
 
     existing = crud_notification.get_notifications_for_user(db, user.id)
     already_sent = any(
@@ -774,14 +771,3 @@ def notify_review_request(db: Session, user: Optional[User], booking_id: int) ->
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
-
-
-try:  # pragma: no cover - module import side effect
-    from ..api.api_ws import notifications_manager  # type: ignore
-except Exception:  # pragma: no cover - fallback for circular import during tests
-    class _DummyManager:
-        async def broadcast(self, *args, **kwargs):  # noqa: D401
-            """Placeholder broadcast method used during tests."""
-            return None
-
-    notifications_manager = _DummyManager()
