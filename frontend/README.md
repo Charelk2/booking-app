@@ -124,6 +124,8 @@ The `/inbox` page accepts a `requestId` to open a specific conversation and an o
 /inbox?requestId=42&sendQuote=1
 ```
 
+On small screens the conversation list is rendered inside a scrollable card, and selecting a conversation smoothly focuses the chat thread.
+
 ## Dashboard
 
 The artist dashboard includes a quotes page for managing offers. The `EditQuoteModal` allows artists to modify quote details and price inline without leaving the list. It opens when clicking the "Edit" button next to a pending quote and mirrors the style of `SendQuoteModal`. Both modals now use the shared `BottomSheet` component so they display full screen on mobile and center on larger screens. Trigger buttons expose `aria-expanded` and focus returns after closing. Sound, travel, discount, accommodation, and expiry fields remain wrapped in accessible labels so screen readers announce each input.
