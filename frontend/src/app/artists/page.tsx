@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { getArtists, type PriceBucket } from '@/lib/api';
+import { getArtists, getRecommendedArtists, type PriceBucket } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCard from '@/components/artist/ArtistCard';
@@ -20,8 +20,10 @@ export default function ArtistsPage() {
   const pathname = usePathname();
 
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
+  const [recommended, setRecommended] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [recError, setRecError] = useState<string | null>(null);
 
   const [category, setCategory] = useState<string | undefined>(undefined);
   const [location, setLocation] = useState('');
@@ -37,6 +39,19 @@ export default function ArtistsPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const LIMIT = 20;
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const recs = await getRecommendedArtists();
+        setRecommended(recs);
+      } catch (err) {
+        console.error(err);
+        setRecError('Failed to load recommendations.');
+      }
+    };
+    load();
+  }, []);
 
   useEffect(() => {
     const serviceCat = searchParams.get('category') || undefined;
@@ -148,6 +163,46 @@ export default function ArtistsPage() {
   return (
     <MainLayout headerFilter={filterControl}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {recommended.length > 0 && (
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Recommended for you</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+              {recommended.map((a, i) => {
+                const user = a.user;
+                const name = a.business_name || `${user.first_name} ${user.last_name}`;
+                return (
+                  <ArtistCard
+                    key={`rec-${a.id}`}
+                    artistId={a.id}
+                    priority={i === 0}
+                    name={name}
+                    subtitle={a.custom_subtitle || undefined}
+                    imageUrl={
+                      getFullImageUrl(a.profile_picture_url || a.portfolio_urls?.[0]) ||
+                      undefined
+                    }
+                    price={
+                      category && a.service_price != null
+                        ? Number(a.service_price)
+                        : a.hourly_rate && a.price_visible
+                          ? Number(a.hourly_rate)
+                          : undefined
+                    }
+                    location={a.location}
+                    specialties={a.specialties}
+                    rating={a.rating ?? undefined}
+                    ratingCount={a.rating_count ?? undefined}
+                    verified={user?.is_verified}
+                    isAvailable={a.is_available}
+                    href={qs ? `/artists/${a.id}?${qs}` : `/artists/${a.id}`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {recError && <p className="text-red-600">{recError}</p>}
+
         {/* Artists grid */}
         {loading && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}
