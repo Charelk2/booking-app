@@ -190,6 +190,7 @@ export default function MessageThreadWrapper({
               type="button"
               onClick={() => handleSetShowQuoteModal(true)}
               aria-label="Send Quote"
+              aria-expanded={showQuoteModal}
               className="ml-2 p-1 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
               <BanknotesIcon className="h-6 w-6 text-white" aria-hidden="true" />

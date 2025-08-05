@@ -1,8 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+} from 'react';
 import { format } from 'date-fns';
 import { ServiceItem, QuoteV2Create, QuoteTemplate } from '@/types';
 import { getQuoteTemplates } from '@/lib/api';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
+import { BottomSheet } from '../ui';
 
 interface Props {
   open: boolean;
@@ -47,6 +52,8 @@ const SendQuoteModal: React.FC<Props> = ({
   const [selectedTemplate, setSelectedTemplate] = useState<number | ''>('');
   const [quoteNumber, setQuoteNumber] = useState('');
   const [description, setDescription] = useState('');
+
+  const firstFieldRef = useRef<HTMLInputElement>(null);
 
   const currentDate = format(new Date(), 'PPP');
 
@@ -141,11 +148,16 @@ const SendQuoteModal: React.FC<Props> = ({
     });
   };
 
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4 py-16 sm:p-8 font-sans"> {/* Increased py-16 for mobile, sm:p-8 for larger screens */}
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden border border-gray-100"> {/* Removed my-auto, my-4, sm:my-8 as py-16 on parent handles spacing */}
-
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      initialFocus={firstFieldRef}
+      testId="send-quote-modal"
+      desktopCenter
+      panelClassName="md:max-w-3xl md:mx-auto border border-gray-100 overflow-hidden"
+    >
+      <div className="flex h-screen sm:h-auto flex-col font-sans">
         {/* Modal Header with Gradient */}
         <div className="bg-gradient-to-br from-purple-700 to-indigo-800 text-white p-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
           <div className="flex flex-col">
@@ -155,15 +167,21 @@ const SendQuoteModal: React.FC<Props> = ({
               <span className="block">Date: {currentDate}</span>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-white text-3xl font-light opacity-80 hover:opacity-100 transition-opacity leading-none self-start sm:self-center">&times;</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-white text-3xl font-light opacity-80 hover:opacity-100 transition-opacity leading-none self-start sm:self-center"
+          >
+            &times;
+          </button>
         </div>
 
         {/* Modal Content Area */}
-        <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
-          
+        <div className="p-6 space-y-6 overflow-y-auto flex-1">
           {/* Quote Description Input */}
           <div className="relative">
             <input
+              ref={firstFieldRef}
               type="text"
               placeholder="Quote Description (e.g., 'Wedding Performance')"
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 text-base shadow-sm"
@@ -229,7 +247,7 @@ const SendQuoteModal: React.FC<Props> = ({
                 onChange={(e) => setSoundFee(Number(e.target.value))}
               />
             </div>
-            
+
             {/* Dynamic Custom Service Items */}
             {services.map((s, i) => (
               <div key={i} className="flex justify-between items-center py-2">
@@ -260,7 +278,11 @@ const SendQuoteModal: React.FC<Props> = ({
             ))}
 
             {/* Add Custom Item Button */}
-            <button type="button" onClick={addService} className="w-full bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors mt-2">
+            <button
+              type="button"
+              onClick={addService}
+              className="w-full bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors mt-2"
+            >
               + Add Custom Item
             </button>
 
@@ -327,7 +349,11 @@ const SendQuoteModal: React.FC<Props> = ({
 
           {/* Terms of Service Checkbox */}
           <div className="flex items-start space-x-3 mt-6">
-            <input type="checkbox" id="terms" className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+            <input
+              type="checkbox"
+              id="terms"
+              className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
             <label htmlFor="terms" className="text-sm text-gray-600">
               I have reviewed the quote and agree to the{' '}
               <a href="#" className="text-blue-600 hover:underline">
@@ -340,15 +366,24 @@ const SendQuoteModal: React.FC<Props> = ({
 
         {/* Modal Footer Buttons */}
         <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end space-x-3">
-          <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors">
+          <button
+            type="button"
+            onClick={onClose}
+            className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+          >
             Cancel
           </button>
-          <button type="button" onClick={handleSubmit} title="This quote will be sent to the client" className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            title="This quote will be sent to the client"
+            className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+          >
             Send Quote
           </button>
         </div>
       </div>
-    </div>
+    </BottomSheet>
   );
 };
 
