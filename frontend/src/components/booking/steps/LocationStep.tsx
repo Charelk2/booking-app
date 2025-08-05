@@ -113,6 +113,7 @@ export default function LocationStep({
       onToggle={onToggle}
       className="wizard-step-container"
     >
+      <p className="text-sm text-gray-600">Where is the show?</p>
       <div ref={containerRef}>
         {shouldLoadMap ? (
           <GoogleMapsLoader>

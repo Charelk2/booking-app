@@ -36,6 +36,7 @@ export default function EventTypeStep({ control, open = true, onToggle = () => {
       onToggle={onToggle}
       className="wizard-step-container"
     >
+      <p className="text-sm text-gray-600">What type of event are you planning?</p>
       <Controller<EventDetails, 'eventType'>
         name="eventType"
         control={control}

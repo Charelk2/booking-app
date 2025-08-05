@@ -49,6 +49,7 @@ export default function DateTimeStep({
       onToggle={onToggle}
       className="wizard-step-container"
     >
+      <p className="text-sm text-gray-600">When should we perform?</p>
       {loading || (!isMobile && !showPicker) ? (
         <div
           data-testid="calendar-skeleton"
