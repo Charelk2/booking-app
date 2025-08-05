@@ -789,13 +789,13 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * `POST /api/v1/quotes` returns **404 Not Found** when the
   `booking_request_id` does not match an existing request.
 * Accepting a Quote V2 now also creates a formal booking visible on the artist dashboard.
-  * Accepted quotes now include a `booking_id` referencing the formal booking when
-    retrieved via `GET /api/v1/quotes/{id}` so clients can load booking details.
-  * `GET /api/v1/quotes/{id}/pdf` downloads a PDF version of the quote.
-  * `POST /api/v1/quotes/{id}/accept` accepts an optional `service_id` query
-    parameter when the related booking request was created without one.
-  The response now returns the newly created `BookingSimple` so the frontend
-  can immediately fetch full booking details using the returned `id`.
+* Accepted quotes now include a `booking_id` referencing the formal booking when
+  retrieved via `GET /api/v1/quotes/{id}` so clients can load booking details.
+* `GET /api/v1/quotes/{id}/pdf` downloads a PDF version of the quote.
+* `POST /api/v1/quotes/{id}/accept` accepts an optional `service_id` query
+  parameter when the related booking request was created without one.
+  The response returns a `BookingSimple` summary. To load full booking details,
+  refetch the quote for its `booking_id` and then query `/api/v1/bookings/{id}`.
 * If the booking request is for a **Live Performance** and lacks a
   `proposed_datetime_1`, the accept endpoint returns `422` with the message
   "Booking request is missing a proposed date/time." Other service types can be
