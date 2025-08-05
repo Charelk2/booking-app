@@ -306,7 +306,7 @@ describe('NotificationListItem', () => {
     expect(img?.getAttribute('src')).toContain('profile.jpg');
   });
 
-  it('falls back to the icon when no avatar URL is provided', () => {
+  it('falls back to a default avatar when no avatar URL is provided', () => {
     const n: UnifiedNotification = {
       type: 'deposit_due',
       timestamp: new Date().toISOString(),
@@ -324,8 +324,8 @@ describe('NotificationListItem', () => {
     });
 
     const img = container.querySelector('img');
-    expect(img).toBeNull();
-    expect(container.textContent).toContain('💰');
+    expect(img?.getAttribute('src')).toContain('default-avatar.svg');
+    expect(container.textContent).not.toContain('💰');
   });
 
   it('passes avatarUrl to Avatar component', () => {
