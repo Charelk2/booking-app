@@ -11,7 +11,7 @@ For setup instructions see [README.md](README.md).
 | **Booking Request** | Orchestrates the booking wizard and business rules | `backend/app/api/api_booking_request.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | When a client submits or updates a booking |
 | **Provider Matching** | Selects sound and accommodation providers | `backend/app/crud/crud_service.py`<br>`backend/app/api/api_service.py` | During booking and quote steps |
 | **Travel & Accommodation** | Calculates travel distance, lodging costs, and now weather forecasts | `backend/app/services/booking_quote.py`<br>`backend/app/api/api_weather.py`<br>`frontend/src/app/quote-calculator/page.tsx` | When estimating travel or lodging expenses |
-| **Quote Generator** | Gathers performance, provider, travel, and accommodation costs | `backend/app/api/api_quote.py`<br>`frontend/src/components/booking/MessageThread.tsx` | After all booking info is entered |
+| **Quote Generator** | Gathers performance, provider, travel, and accommodation costs and seeds quotes with AI draft text | `backend/app/api/api_quote.py`<br>`backend/app/services/quote_ai.py`<br>`frontend/src/components/booking/SendQuoteModal.tsx` | After all booking info is entered |
 | **Quote Preview** | Shows an estimated total during the review step | `frontend/src/components/booking/steps/ReviewStep.tsx` | Right before submitting a booking request |
 | **Review** | Manages star ratings and comments for completed bookings | `backend/app/api/api_review.py`<br>`frontend/src/app/artists/[id]/page.tsx` | After a booking is marked completed |
 | **Payment** | Handles deposit or full payments via `/api/v1/payments` | `backend/app/api/api_payment.py` | After quote acceptance |
@@ -49,9 +49,9 @@ For setup instructions see [README.md](README.md).
 
 ### 4. Quote Generator
 
-* **Purpose:** Calculates and presents full, itemized quote: performance fee, provider, travel, accommodation, service fees.
-* **Frontend:** Quote forms in `MessageThread.tsx` show running totals.
-* **Backend:** `api_quote.py` aggregates, formats, and returns structured JSON to frontend.
+* **Purpose:** Calculates and presents full, itemized quote: performance fee, provider, travel, accommodation, service fees. An LLM now drafts an initial description and suggests price tweaks.
+* **Frontend:** `SendQuoteModal.tsx` and quote forms in `MessageThread.tsx` show running totals and AI drafts.
+* **Backend:** `api_quote.py` aggregates, formats, and returns structured JSON to frontend while `services/quote_ai.py` handles LLM interaction.
 
 ### 5. Quote Preview Agent
 
