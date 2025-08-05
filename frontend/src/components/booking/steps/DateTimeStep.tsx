@@ -1,7 +1,9 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { Controller, Control } from 'react-hook-form'; // REMOVED FieldValues
 // WizardNav is REMOVED from here, as navigation is global now.
-import ReactDatePicker, { type ReactDatePickerCustomHeaderProps } from 'react-datepicker';
+import dynamic from 'next/dynamic';
+import { type ReactDatePickerCustomHeaderProps } from 'react-datepicker';
 import '../../../styles/datepicker.css';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { format, parseISO, isBefore, startOfDay } from 'date-fns';
@@ -11,6 +13,8 @@ import { DateInput, CollapsibleSection } from '../../ui';
 
 // Import EventDetails for correct Control typing
 import { EventDetails } from '@/contexts/BookingContext';
+
+const ReactDatePicker = dynamic(() => import('react-datepicker'), { ssr: false });
 
 // Props interface SIMPLIFIED: No navigation props here.
 interface Props {
@@ -29,6 +33,10 @@ export default function DateTimeStep({
   onToggle = () => {},
 }: Props) {
   const isMobile = useIsMobile();
+  const [showPicker, setShowPicker] = useState(false);
+  useEffect(() => {
+    if (open && !isMobile) setShowPicker(true);
+  }, [open, isMobile]);
   const filterDate = (date: Date) => {
     const day = format(date, 'yyyy-MM-dd');
     const today = startOfDay(new Date());
@@ -41,7 +49,7 @@ export default function DateTimeStep({
       onToggle={onToggle}
       className="wizard-step-container"
     >
-      {loading ? (
+      {loading || (!isMobile && !showPicker) ? (
         <div
           data-testid="calendar-skeleton"
           className="h-72 bg-gray-200 rounded animate-pulse"

@@ -366,4 +366,23 @@ describe("BookingWizard flow", () => {
       container.querySelector('[data-testid="step-heading"]')?.textContent,
     ).toContain("Date & Time");
   });
+
+  it("matches mobile snapshot", async () => {
+    await flushPromises();
+    expect(container).toMatchSnapshot('mobile');
+  });
+
+  it("matches desktop snapshot", async () => {
+    act(() => {
+      root.unmount();
+    });
+    container.innerHTML = "";
+    Object.defineProperty(window, "innerWidth", { value: 1024, writable: true });
+    root = createRoot(container);
+    await act(async () => {
+      root.render(React.createElement(Wrapper));
+    });
+    await flushPromises();
+    expect(container).toMatchSnapshot('desktop');
+  });
 });
