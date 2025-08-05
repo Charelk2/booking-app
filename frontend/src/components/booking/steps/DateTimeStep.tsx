@@ -45,11 +45,11 @@ export default function DateTimeStep({
   return (
     <CollapsibleSection
       title="Date & Time"
+      description="When should we perform?"
       open={open}
       onToggle={onToggle}
       className="wizard-step-container"
     >
-      <p className="text-sm text-gray-600">When should we perform?</p>
       {loading || (!isMobile && !showPicker) ? (
         <div
           data-testid="calendar-skeleton"

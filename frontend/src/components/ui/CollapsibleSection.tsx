@@ -4,6 +4,7 @@ import clsx from 'clsx';
 
 interface CollapsibleSectionProps {
   title: React.ReactNode;
+  description?: React.ReactNode;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -13,6 +14,7 @@ interface CollapsibleSectionProps {
 
 export default function CollapsibleSection({
   title,
+  description,
   open,
   onToggle,
   children,
@@ -29,9 +31,16 @@ export default function CollapsibleSection({
           aria-expanded={open}
           aria-controls={contentId}
           onClick={onToggle}
-          className="w-full p-4 min-h-[44px] text-left font-bold border-b flex justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="w-full p-4 min-h-[44px] text-left border-b flex justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
         >
-          <span>{title}</span>
+          <span className="flex flex-col">
+            <span className="font-bold">{title}</span>
+            {description && (
+              <span className="text-sm font-normal text-gray-600 pt-1">
+                {description}
+              </span>
+            )}
+          </span>
           <span
             aria-hidden="true"
             className={clsx('ml-2 transition-transform', open ? 'rotate-180' : 'rotate-0')}
