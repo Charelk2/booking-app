@@ -84,6 +84,9 @@ export default function DateTimeStep({
                   filterDate={filterDate}
                   minDate={startOfDay(new Date())}
                   onChange={(date: Date | null) => field.onChange(date)}
+                  // react-datepicker expects a function for onClickOutside; provide
+                  // a no-op handler to prevent runtime errors when clicking elsewhere.
+                  onClickOutside={() => {}}
                   renderCustomHeader={(
                     {
                       date,
