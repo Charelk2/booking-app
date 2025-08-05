@@ -41,6 +41,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Booking request detail pages now display a step-by-step timeline from submission to quote acceptance.
 - Booking wizard includes a required **Guests** step.
 - Date picker and quote calculator show skeleton loaders while data fetches.
+- Quote calculator now predicts travel modes and costs using a regression-based estimator.
 - Google Maps and large images load lazily once in view to reduce first paint time.
 - Client dashboards now include a bookings list with upcoming and past filters via `/api/v1/bookings/my-bookings?status=`.
 - Each booking item in this list now includes a `deposit_due_by` field when the booking was created from a quote. This due date is calculated one week from the moment the quote is accepted.
@@ -175,6 +176,10 @@ The SQLite database path is automatically resolved to the project root, so you c
 `uvicorn` loads environment variables from `backend/.env` because the `Settings` class uses that file by default. Copy `.env.example` to both `.env` and `backend/.env` so the API and tests share the same configuration, or set `ENV_FILE` to point to another path if needed. Missing SMTP fields cause the application to exit on startup so the email confirmation feature cannot be misconfigured.
 
 `backend/main.py` also calls `load_dotenv()` so these variables are available when running the script directly. This ensures features such as the travel distance API work with your configured credentials.
+
+### Travel estimator
+
+The `/api/v1/quotes/calculate` endpoint now uses a regression-based travel estimator. Pass `distance_km` in the request body and the response will include a `travel_estimates` array of `{mode, cost}` pairs along with the chosen `travel_mode` used for totals.
 
 ### Database migrations
 
@@ -1140,6 +1145,7 @@ Submit free-form text describing an event and receive detected `event_type`, `da
 Example request:
 
 ```json
+
 { "text": "Corporate gala for 40 people on 1 Jan 2026 in Durban" }
 ```
 
@@ -1152,6 +1158,7 @@ Example response:
   "location": "Durban",
   "guests": 40
 }
+
 ```
 
 ```json
