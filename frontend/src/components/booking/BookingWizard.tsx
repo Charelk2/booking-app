@@ -68,6 +68,14 @@ const schema = yup.object<EventDetails>().shape({
   attachment_url: yup.string().optional(),
 });
 
+// Details returned by the AI parser
+interface ParsedBookingDetails {
+  eventType?: string;
+  date?: string;
+  location?: string;
+  guests?: number;
+}
+
 // --- Wizard Steps & Instructions ---
 const steps = [
   'Event Details',
@@ -126,6 +134,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
+  const [aiText, setAiText] = useState(''); // Raw event description entered or transcribed
+  const [parsedDetails, setParsedDetails] = useState<ParsedBookingDetails | null>(null); // AI-extracted details
+  const [listening, setListening] = useState(false); // Whether speech recognition is active
+  const recognitionRef = useRef<SpeechRecognition | null>(null); // SpeechRecognition instance
 
   const isMobile = useIsMobile();
   const hasLoaded = useRef(false);
