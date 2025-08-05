@@ -1134,6 +1134,26 @@ POST /api/v1/booking-requests/
 422 responses indicate schema mismatches—ensure numeric fields are numbers and datetimes are valid ISO-8601 strings. Omit empty strings entirely.
 Validation errors are now logged server-side and returned as structured JSON so you can quickly debug bad requests. When a specific field causes a problem the API includes a `field_errors` object mapping field names to messages.
 
+### Booking Request Parsing
+
+```
+POST /api/v1/booking-requests/parse
+```
+
+Submit free-form text describing an event and receive detected `date`, `location`, and `guests` values. Fields are omitted if not found.
+
+Example request:
+
+```json
+{ "text": "Band for 40 people on 1 Jan 2026 in Durban" }
+```
+
+```json
+{ "date": "2026-01-01", "location": "Durban", "guests": 40 }
+```
+
+422 responses include helpful messages when the text cannot be parsed. Server logs capture exceptions for debugging.
+
 ### Quote Confirmation
 
 ```
