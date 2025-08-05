@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/solid';
 import clsx from 'clsx';
 import { getFullImageUrl } from '@/lib/utils';
+import { BREAKPOINT_MD } from '@/lib/breakpoints';
 
 export interface ArtistCardCompactProps
   extends LinkProps,
@@ -56,7 +57,7 @@ export default function ArtistCardCompact({
             src={imageUrl}
             alt={name}
             fill
-            sizes="(max-width:768px) 50vw, 33vw"
+            sizes={`(max-width:${BREAKPOINT_MD}px) 50vw, 33vw`}
             className="object-cover w-full h-full group-hover:scale-105 transition-transform"
             onLoad={() => setLoaded(true)}
             onError={(e) => {
@@ -68,7 +69,7 @@ export default function ArtistCardCompact({
             src={getFullImageUrl('/static/default-avatar.svg') as string}
             alt={name}
             fill
-            sizes="(max-width:768px) 0vw, 33vw"
+            sizes={`(max-width:${BREAKPOINT_MD}px) 0vw, 33vw`}
             className="object-cover w-full h-full"
             onLoad={() => setLoaded(true)}
           />

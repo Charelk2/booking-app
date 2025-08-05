@@ -44,6 +44,15 @@
 
   /* additional utility colors */
   --color-indigo-100: #e0e7ff;
+
+  /* spacing tokens */
+  --space-px: 1px;
+  --space-1: 0.25rem;
+
+  /* shadow colors using foreground rgb */
+  --color-foreground-rgb: 17 24 39;
+  --shadow-sm: 0 6px 20px rgb(var(--color-foreground-rgb) / 8%);
+  --shadow-md: 0 8px 24px rgb(var(--color-foreground-rgb) / 15%);
 }
 
 @layer base {
