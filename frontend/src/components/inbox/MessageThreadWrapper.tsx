@@ -124,7 +124,7 @@ export default function MessageThreadWrapper({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white shadow-xl border border-gray-100 relative">
+    <div className="flex flex-col h-full w-full bg-white shadow-xl border border-gray-100 relative">
       {/* Unified Header */}
       <header className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-indigo-700 text-white px-4 py-2 flex items-center  md:min-h-[64px]">
         <div className="flex items-center transition-all duration-300 ease-in-out">
@@ -290,10 +290,13 @@ export default function MessageThreadWrapper({
       )}
 
       {/* Main Content Area */}
-      <div className="flex flex-1 min-h-0 flex-col md:flex-row relative">
-        <div className={`flex-1 min-w-0 p-4 transition-[width] duration-300 ease-in-out ${
-          showSidePanel ? 'md:w-[calc(100%-300px)] lg:w-[calc(100%-360px)]' : 'md:w-full'
-        }`}>         
+      <div className="flex flex-1 min-h-0 flex-col md:flex-row relative w-full">
+        <div
+          data-testid="thread-container"
+          className={`flex-1 min-w-0 w-full p-4 transition-[width] duration-300 ease-in-out ${
+            showSidePanel ? 'md:w-[calc(100%-300px)] lg:w-[calc(100%-360px)]' : 'md:w-full'
+          }`}
+        >
           <MessageThread
             bookingRequestId={bookingRequestId}
             serviceId={bookingRequest.service_id ?? undefined}
