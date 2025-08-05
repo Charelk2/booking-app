@@ -280,6 +280,32 @@ describe('NotificationListItem', () => {
     expect(img?.getAttribute('src')).toContain('avatar.jpg');
   });
 
+  it('prefers profile picture over avatar url', () => {
+    const n: UnifiedNotification = {
+      type: 'deposit_due',
+      timestamp: new Date().toISOString(),
+      is_read: false,
+      content: 'Deposit R60 due by 2025-06-30',
+      profile_picture_url: '/static/profile.jpg',
+      avatar_url: '/static/avatar.jpg',
+    } as UnifiedNotification;
+
+    const parsed = parseItem(n);
+    expect(parsed.avatarUrl).toBe('/static/profile.jpg');
+
+    act(() => {
+      root.render(
+        React.createElement(NotificationListItem, {
+          n,
+          onClick: () => {},
+        }),
+      );
+    });
+
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src')).toContain('profile.jpg');
+  });
+
   it('falls back to the icon when no avatar URL is provided', () => {
     const n: UnifiedNotification = {
       type: 'deposit_due',
