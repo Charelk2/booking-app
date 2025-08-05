@@ -836,7 +836,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
   included in the booking summary.
 * Booking summary fonts now match the step cards for a more polished look.
 * Input fields no longer auto-focus on mobile so the on-screen keyboard stays hidden until tapped.
-* Summary sidebar collapses into a `<details>` section on phones so you can hide the order overview.
+* Booking summary is hidden by default and can be expanded with a "Show Details" toggle.
 * Steps now animate with **framer-motion** and the progress dots stay clickable for all completed steps.
 * Redesigned wizard uses animated stepper circles and spacious rounded cards for each step. Buttons have improved focus styles and align responsively.
 * The flow now begins with **Date & Time** followed by **Event Type** and **Event Details** so clients choose when first.
