@@ -535,8 +535,12 @@ def test_format_notification_message_new_types():
         NotificationType.REVIEW_REQUEST, booking_id=42
     )
     msg_quote = format_notification_message(NotificationType.QUOTE_ACCEPTED, quote_id=7)
-    msg_expired = format_notification_message(NotificationType.QUOTE_EXPIRED, quote_id=9)
-    msg_expiring = format_notification_message(NotificationType.QUOTE_EXPIRING, quote_id=5)
+    msg_expired = format_notification_message(
+        NotificationType.QUOTE_EXPIRED, quote_id=9
+    )
+    msg_expiring = format_notification_message(
+        NotificationType.QUOTE_EXPIRING, quote_id=5
+    )
     msg_booking = format_notification_message(
         NotificationType.NEW_BOOKING, booking_id=8
     )
@@ -1192,6 +1196,54 @@ def test_deposit_due_notification_includes_artist_avatar_url():
     assert res.status_code == 200
     data = res.json()
     assert data[0]["avatar_url"] == "/static/profile_pics/artist.jpg"
+    app.dependency_overrides.clear()
+
+
+def test_new_booking_notification_includes_client_avatar_for_artist():
+    Session = setup_app()
+    db = Session()
+    client = User(
+        email="nbclient@test.com",
+        password="x",
+        first_name="NB",
+        last_name="Client",
+        user_type=UserType.CLIENT,
+        profile_picture_url="/static/profile_pics/client.jpg",
+    )
+    artist = User(
+        email="nbar@test.com",
+        password="x",
+        first_name="NB",
+        last_name="Artist",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    booking = models.BookingSimple(
+        quote_id=5,
+        artist_id=artist.id,
+        client_id=client.id,
+        payment_status="pending",
+    )
+    db.add(booking)
+    db.commit()
+    db.refresh(booking)
+
+    notify_new_booking(db, artist, booking.id)
+    db.close()
+
+    token = create_access_token({"sub": artist.email})
+    client_api = TestClient(app)
+    res = client_api.get(
+        "/api/v1/notifications",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data[0]["avatar_url"] == "/static/profile_pics/client.jpg"
     app.dependency_overrides.clear()
 
 

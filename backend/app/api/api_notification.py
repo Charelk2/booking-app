@@ -115,22 +115,34 @@ def _build_response(
                     .first()
                 )
                 if booking:
-                    artist = (
-                        db.query(models.User)
-                        .filter(models.User.id == booking.artist_id)
-                        .first()
-                    )
-                    if artist:
-                        sender = f"{artist.first_name} {artist.last_name}"
-                        profile = (
-                            db.query(models.ArtistProfile)
-                            .filter(models.ArtistProfile.user_id == artist.id)
+                    # Show the avatar of the opposite party.
+                    if n.user_id == booking.artist_id:
+                        client = (
+                            db.query(models.User)
+                            .filter(models.User.id == booking.client_id)
                             .first()
                         )
-                        if profile and profile.business_name:
-                            sender = profile.business_name
-                        if profile and profile.profile_picture_url:
-                            avatar_url = profile.profile_picture_url
+                        if client:
+                            sender = f"{client.first_name} {client.last_name}"
+                            if client.profile_picture_url:
+                                avatar_url = client.profile_picture_url
+                    else:
+                        artist = (
+                            db.query(models.User)
+                            .filter(models.User.id == booking.artist_id)
+                            .first()
+                        )
+                        if artist:
+                            sender = f"{artist.first_name} {artist.last_name}"
+                            profile = (
+                                db.query(models.ArtistProfile)
+                                .filter(models.ArtistProfile.user_id == artist.id)
+                                .first()
+                            )
+                            if profile and profile.business_name:
+                                sender = profile.business_name
+                            if profile and profile.profile_picture_url:
+                                avatar_url = profile.profile_picture_url
         except Exception as exc:  # pragma: no cover - defensive parsing
             logger.warning(
                 "Failed to derive booking details from link %s: %s",
