@@ -45,12 +45,12 @@ export default function BookingRequestCard({ req }: BookingRequestCardProps) {
   const isUserArtist = user?.user_type === 'artist';
   const avatarSrc = isUserArtist
     ? req.client?.profile_picture_url || null
-    : req.artist?.profile_picture_url || null;
+    : req.artist_profile?.profile_picture_url || null;
   const displayName = isUserArtist
     ? req.client
       ? `${req.client.first_name} ${req.client.last_name}`
       : 'Unknown Client'
-    : req.artist?.business_name || req.artist?.user?.first_name || 'Unknown Artist';
+    : req.artist_profile?.business_name || req.artist?.first_name || 'Unknown Artist';
   const ServiceIcon =
     req.service?.title === 'Live Musiek' ? MicrophoneIcon : MusicalNoteIcon;
   const formattedDate = format(new Date(req.created_at), 'dd MMM yyyy');
