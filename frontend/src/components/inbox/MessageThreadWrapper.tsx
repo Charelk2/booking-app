@@ -56,15 +56,6 @@ export default function MessageThreadWrapper({
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
 
-  useEffect(() => {
-    const handleInitialPanelState = () => {
-      setShowSidePanel(window.innerWidth >= 768);
-    };
-    handleInitialPanelState();
-    window.addEventListener('resize', handleInitialPanelState);
-    return () => window.removeEventListener('resize', handleInitialPanelState);
-  }, []);
-
   const { openPaymentModal, paymentModal } = usePaymentModal(
     useCallback(({ status, amount, receiptUrl: url }) => {
       setPaymentStatus(status);
