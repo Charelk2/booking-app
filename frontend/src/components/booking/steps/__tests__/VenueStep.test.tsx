@@ -8,30 +8,12 @@ import VenueStep from '../VenueStep';
 
 function MobileWrapper() {
   const { control } = useForm({ defaultValues: { venueType: 'indoor' } });
-  return (
-    <VenueStep
-      control={control as unknown as Control<FieldValues>}
-      step={2}
-      steps={['one', 'two', 'three']}
-      onBack={() => {}}
-      onSaveDraft={() => {}}
-      onNext={() => {}}
-    />
-  );
+  return <VenueStep control={control as unknown as Control<FieldValues>} />;
 }
 
 function Wrapper() {
   const { control } = useForm({ defaultValues: { venueType: 'indoor' } });
-  return (
-    <VenueStep
-      control={control as unknown as Control<FieldValues>}
-      step={2}
-      steps={['one', 'two', 'three']}
-      onBack={() => {}}
-      onSaveDraft={() => {}}
-      onNext={() => {}}
-    />
-  );
+  return <VenueStep control={control as unknown as Control<FieldValues>} />;
 }
 
 describe('VenueStep radio buttons', () => {
@@ -90,7 +72,8 @@ describe('VenueStep bottom sheet mobile', () => {
     await act(async () => {
       root.render(React.createElement(MobileWrapper));
     });
-    const openButton = container.querySelector('button') as HTMLButtonElement;
+    const buttons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[];
+    const openButton = buttons.find((b) => b.textContent?.includes('Venue')) as HTMLButtonElement;
     act(() => {
       openButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });

@@ -26,6 +26,9 @@ This document outlines key friction points in the current booking wizard and pro
   - Trap focus inside the sheet and close it with Escape or by tapping the
     overlay.
 
+## Event Type & Sound
+* **Improvements:** Both steps now use the same bottom sheet selector pattern on mobile for a consistent touch-friendly experience.
+
 ## Notes
 * **Pain Points:** Large textarea forces users to scroll.
 * **Improvements:**
