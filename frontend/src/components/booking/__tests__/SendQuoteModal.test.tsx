@@ -10,6 +10,17 @@ jest.mock('@/lib/api');
 describe('SendQuoteModal', () => {
   beforeEach(() => {
     (api.getQuoteTemplates as jest.Mock).mockResolvedValue({ data: [] });
+    (api.calculateQuote as jest.Mock).mockResolvedValue({
+      data: {
+        base_fee: 500,
+        travel_cost: 0,
+        provider_cost: 0,
+        accommodation_cost: 0,
+        total: 500,
+        ai_description: 'AI draft',
+        ai_price_adjustment: 0,
+      },
+    });
   });
 
   it('prefills travel and sound fees', async () => {
@@ -35,8 +46,10 @@ describe('SendQuoteModal', () => {
 
     const travelInput = div.querySelector('#travel-fee') as HTMLInputElement;
     const soundInput = div.querySelector('#sound-fee') as HTMLInputElement;
+    const descInput = div.querySelector('input[type="text"]') as HTMLInputElement;
     expect(travelInput.value).toBe('150');
     expect(soundInput.value).toBe('250');
+    expect(descInput.value).toBe('AI draft');
 
     act(() => {
       root.unmount();
