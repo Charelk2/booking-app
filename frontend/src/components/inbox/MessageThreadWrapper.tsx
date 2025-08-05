@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Booking, BookingRequest } from '@/types';
 import MessageThread from '../booking/MessageThread';
 import BookingDetailsPanel from './BookingDetailsPanel';
@@ -44,6 +45,8 @@ export default function MessageThreadWrapper({
 
   const [isUserArtist, setIsUserArtist] = useState(false);
   const { user } = api.useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     if (user && user.user_type === 'artist') {
@@ -55,6 +58,27 @@ export default function MessageThreadWrapper({
 
   const [showSidePanel, setShowSidePanel] = useState(false);
   const [showQuoteModal, setShowQuoteModal] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('sendQuote') === '1') {
+      setShowQuoteModal(true);
+    }
+  }, [searchParams]);
+
+  const handleSetShowQuoteModal = useCallback(
+    (show: boolean) => {
+      setShowQuoteModal(show);
+      const params = new URLSearchParams(searchParams.toString());
+      if (show) {
+        params.set('sendQuote', '1');
+      } else {
+        params.delete('sendQuote');
+      }
+      const queryString = params.toString();
+      router.replace(queryString ? `?${queryString}` : '', { scroll: false });
+    },
+    [searchParams, router],
+  );
 
   const { openPaymentModal, paymentModal } = usePaymentModal(
     useCallback(({ status, amount, receiptUrl: url }) => {
@@ -164,7 +188,7 @@ export default function MessageThreadWrapper({
           {isUserArtist && !bookingConfirmed && (
             <button
               type="button"
-              onClick={() => setShowQuoteModal(true)}
+              onClick={() => handleSetShowQuoteModal(true)}
               aria-label="Send Quote"
               className="ml-2 p-1 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
@@ -297,7 +321,7 @@ export default function MessageThreadWrapper({
             }}
             onShowReviewModal={setShowReviewModal}
             showQuoteModal={showQuoteModal}
-            setShowQuoteModal={setShowQuoteModal}
+            setShowQuoteModal={handleSetShowQuoteModal}
           />
         </div>
 

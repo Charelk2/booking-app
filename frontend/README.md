@@ -107,6 +107,14 @@ The `/booking` page requires an `artist_id` query parameter and accepts an optio
 
 Passing `service_id` skips the service selection step when a user clicks "Request Booking" on a service card.
 
+### Inbox URL Parameters
+
+The `/inbox` page accepts a `requestId` to open a specific conversation and an optional `sendQuote=1` flag. When present, the Send Quote modal opens automatically for artist users.
+
+```
+/inbox?requestId=42&sendQuote=1
+```
+
 ## Dashboard
 
 The artist dashboard includes a quotes page for managing offers. The `EditQuoteModal` allows artists to modify quote details and price inline without leaving the list. It opens when clicking the "Edit" button next to a pending quote and mirrors the style of `SendQuoteModal`. Both modals now wrap the sound fee, travel fee, discount, accommodation, and expiry fields in accessible labels so screen readers announce each input.
