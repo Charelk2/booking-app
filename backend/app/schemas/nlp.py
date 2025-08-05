@@ -18,8 +18,10 @@ class ParsedBookingDetails(BaseModel):
     date: Optional[date_type] = Field(None, description="Event date if detected")
     location: Optional[str] = Field(None, description="Event location if detected")
     guests: Optional[int] = Field(None, description="Guest count if detected")
+
     event_type: Optional[str] = Field(
         None, description="Event type if detected"
     )
+
 
     model_config = {"from_attributes": True}
