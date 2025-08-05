@@ -2,12 +2,13 @@ import { flushPromises } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
+import type { ComponentPropsWithoutRef } from 'react';
 import MobileMenuDrawer from '../MobileMenuDrawer';
 import type { User } from '@/types';
 
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: (props: any) => <a {...props} />,
+  default: (props: ComponentPropsWithoutRef<'a'>) => <a {...props} />,
 }));
 
 
@@ -135,5 +136,26 @@ describe('MobileMenuDrawer', () => {
     const body = document.body.textContent || '';
     expect(body).toContain('My Bookings');
     expect(body).toContain('Account');
+  });
+
+  it('deduplicates items across navigation sections', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose: () => {},
+          navigation: nav,
+          secondaryNavigation: nav,
+          user: null,
+          logout: () => {},
+          pathname: '/',
+        }),
+      );
+    });
+    await flushPromises();
+    const links = Array.from(document.querySelectorAll('a')).filter(
+      (a) => a.textContent === 'Home',
+    );
+    expect(links).toHaveLength(1);
   });
 });
