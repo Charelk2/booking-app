@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import useIsMobile from '@/hooks/useIsMobile';
 import { EventDetails } from '@/contexts/BookingContext';
 import { BottomSheet, Button, CollapsibleSection } from '../../ui';
+import eventTypes from '@/data/eventTypes.json';
 
 interface Props {
   control: Control<EventDetails>;
@@ -12,16 +13,7 @@ interface Props {
   onToggle?: () => void;
 }
 
-const options = [
-  'Corporate',
-  'Private',
-  'Wedding',
-  'Birthday',
-  'Festival',
-  'Restaurant',
-  'Celebration',
-  'Other',
-];
+const options = eventTypes as string[];
 
 export default function EventTypeStep({ control, open = true, onToggle = () => {} }: Props) {
   const isMobile = useIsMobile();

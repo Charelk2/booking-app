@@ -11,10 +11,10 @@ This snippet demonstrates the HTML structure and Tailwind CSS classes for the bo
         class="sticky top-16 flex flex-col items-start space-y-6"
         aria-label="Progress"
       >
-        <button type="button" class="font-semibold text-red-600" aria-current="step">Date &amp; Time</button>
-        <button type="button" class="text-gray-500">Event Type</button>
         <button type="button" class="text-gray-500">Event Details</button>
-        <button type="button" class="text-gray-500">Location</button>
+        <button type="button" class="font-semibold text-red-600" aria-current="step">Location</button>
+        <button type="button" class="text-gray-500">Date &amp; Time</button>
+        <button type="button" class="text-gray-500">Event Type</button>
         <button type="button" class="text-gray-500">Guests</button>
         <button type="button" class="text-gray-500">Venue Type</button>
         <button type="button" class="text-gray-500">Sound</button>

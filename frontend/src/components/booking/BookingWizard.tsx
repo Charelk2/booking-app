@@ -27,10 +27,10 @@ import Stepper from '../ui/Stepper';
 import toast from '../ui/Toast';
 
 // --- Step Components ---
-import EventTypeStep from './steps/EventTypeStep';
 import EventDescriptionStep from './steps/EventDescriptionStep';
-import DateTimeStep from './steps/DateTimeStep';
 import LocationStep from './steps/LocationStep';
+import DateTimeStep from './steps/DateTimeStep';
+import EventTypeStep from './steps/EventTypeStep';
 import GuestsStep from './steps/GuestsStep';
 import VenueStep from './steps/VenueStep';
 import SoundStep from './steps/SoundStep';
@@ -69,10 +69,10 @@ const schema = yup.object<EventDetails>().shape({
 
 // --- Wizard Steps & Instructions ---
 const steps = [
-  'Date & Time',
-  'Event Type',
   'Event Details',
   'Location',
+  'Date & Time',
+  'Event Type',
   'Guests',
   'Venue Type',
   'Sound',
@@ -125,7 +125,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
-
   const isMobile = useIsMobile();
   const hasLoaded = useRef(false);
 
@@ -135,6 +134,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     trigger,
     handleSubmit,
     setValue,
+    watch,
     errors, // Directly destructure errors, assuming useBookingForm returns it at top level
   } = useBookingForm(schema, details, setDetails);
 
@@ -267,10 +267,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   // Navigates to the next step after validation
   const next = async () => {
     const stepFields: (keyof EventDetails)[][] = [
-      ['date'],
-      ['eventType'],
       ['eventDescription'],
       ['location'],
+      ['date'],
+      ['eventType'],
       ['guests'],
       ['venueType'],
       ['sound'],
@@ -378,26 +378,41 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   // --- Render Step Logic ---
   const renderStep = () => {
     switch (step) {
-      case 0: return <DateTimeStep control={control} unavailable={unavailable} />;
-      case 1: return <EventTypeStep control={control} />;
-      case 2: return <EventDescriptionStep control={control} />;
-      case 3: return (
-        <LocationStep
-          control={control}
-          artistLocation={artistLocation}
-          setWarning={setWarning}
-        />
-      );
-      case 4: return <GuestsStep control={control} />;
-      case 5: return <VenueStep control={control} />;
-      case 6: return <SoundStep control={control} />;
-      case 7: return <NotesStep control={control} setValue={setValue} />;
-      case 8: return (
-        <ReviewStep
-          step={step}
-          steps={steps}
-          onBack={prev}
-          onSaveDraft={saveDraft}
+      case 0:
+        return (
+          <EventDescriptionStep
+            control={control}
+            setValue={setValue}
+            watch={watch}
+          />
+        );
+      case 1:
+        return (
+          <LocationStep
+            control={control}
+            artistLocation={artistLocation}
+            setWarning={setWarning}
+          />
+        );
+      case 2:
+        return <DateTimeStep control={control} unavailable={unavailable} />;
+      case 3:
+        return <EventTypeStep control={control} />;
+      case 4:
+        return <GuestsStep control={control} />;
+      case 5:
+        return <VenueStep control={control} />;
+      case 6:
+        return <SoundStep control={control} />;
+      case 7:
+        return <NotesStep control={control} setValue={setValue} />;
+      case 8:
+        return (
+          <ReviewStep
+            step={step}
+            steps={steps}
+            onBack={prev}
+            onSaveDraft={saveDraft}
           onNext={submitRequest}
           submitting={submitting}
           isLoadingReviewData={isLoadingReviewData}
