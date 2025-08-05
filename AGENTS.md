@@ -130,8 +130,6 @@ For setup instructions see [README.md](README.md).
 * **Backend:** `nlp_booking.py` performs lightweight extraction and `/api/v1/booking-requests/parse` exposes the service.
 
 
----
-
 ## How to Add or Modify an Agent
 
 * Place new logic in an appropriate backend API/service or frontend component/hook/context.
