@@ -124,7 +124,7 @@ The `/inbox` page accepts a `requestId` to open a specific conversation and an o
 /inbox?requestId=42&sendQuote=1
 ```
 
-On small screens the conversation list is rendered inside a scrollable card, and selecting a conversation smoothly focuses the chat thread.
+On small screens the inbox initially displays only the conversation list. Tapping a conversation opens the chat thread and hides the list, and a back button returns to the conversation list.
 
 ## Dashboard
 
