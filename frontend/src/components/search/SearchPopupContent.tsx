@@ -191,6 +191,8 @@ export default function SearchPopupContent({
         <ReactDatePicker
           selected={when}
           onChange={handleDateSelect}
+          // Provide handler so react-datepicker's outside click logic always has a function to call
+          onClickOutside={closeAllPopups}
           dateFormat="MMM d, yyyy"
           inline
           calendarClassName="react-datepicker-custom-calendar"
