@@ -29,7 +29,7 @@ export default function CollapsibleSection({
           aria-expanded={open}
           aria-controls={contentId}
           onClick={onToggle}
-          className="w-full p-4 text-left font-bold border-b flex justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="w-full p-4 min-h-[44px] text-left font-bold border-b flex justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
         >
           <span>{title}</span>
           <span

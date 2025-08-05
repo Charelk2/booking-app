@@ -6,16 +6,7 @@ import SoundStep from '../SoundStep';
 
 function Wrapper() {
   const { control } = useForm({ defaultValues: { sound: 'yes' } });
-  return (
-    <SoundStep
-      control={control as unknown as Control<FieldValues>}
-      step={1}
-      steps={['one', 'two']}
-      onBack={() => {}}
-      onSaveDraft={() => {}}
-      onNext={() => {}}
-    />
-  );
+  return <SoundStep control={control as unknown as Control<FieldValues>} />;
 }
 
 describe('SoundStep radio buttons', () => {

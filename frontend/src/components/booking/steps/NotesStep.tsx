@@ -5,6 +5,7 @@ import useIsMobile from '@/hooks/useIsMobile';
 import { uploadBookingAttachment } from '@/lib/api';
 import toast from '../../ui/Toast';
 import { useState } from 'react';
+import { CollapsibleSection } from '../../ui';
 // WizardNav is REMOVED from here.
 
 import { EventDetails } from '@/contexts/BookingContext'; // For correct Control and setValue typing
@@ -13,11 +14,15 @@ import { EventDetails } from '@/contexts/BookingContext'; // For correct Control
 interface Props {
   control: Control<EventDetails>;
   setValue: UseFormSetValue<EventDetails>;
+  open?: boolean;
+  onToggle?: () => void;
 }
 
 export default function NotesStep({
   control,
   setValue,
+  open = true,
+  onToggle = () => {},
 }: Props) {
   const isMobile = useIsMobile();
   const [uploading, setUploading] = useState(false);
@@ -46,7 +51,12 @@ export default function NotesStep({
     }
   }
   return (
-    <div className="wizard-step-container">
+    <CollapsibleSection
+      title="Notes"
+      open={open}
+      onToggle={onToggle}
+      className="wizard-step-container"
+    >
       <Controller<EventDetails, 'notes'>
         name="notes"
         control={control}
@@ -96,6 +106,6 @@ export default function NotesStep({
         </div>
       )}
       {/* WizardNav is REMOVED from here. Buttons are now in the parent BookingWizard's fixed footer. */}
-    </div>
+    </CollapsibleSection>
   );
 }

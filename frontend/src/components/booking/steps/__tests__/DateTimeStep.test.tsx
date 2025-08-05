@@ -13,11 +13,6 @@ function Wrapper() {
     <DateTimeStep
       control={control as Control<EventDetails>}
       unavailable={[]}
-      step={0}
-      steps={['one']}
-      onBack={() => {}}
-      onSaveDraft={() => {}}
-      onNext={() => {}}
     />
   );
 }
@@ -29,11 +24,6 @@ function LoadingWrapper() {
       control={control as Control<EventDetails>}
       unavailable={[]}
       loading
-      step={0}
-      steps={['one']}
-      onBack={() => {}}
-      onSaveDraft={() => {}}
-      onNext={() => {}}
     />
   );
 }

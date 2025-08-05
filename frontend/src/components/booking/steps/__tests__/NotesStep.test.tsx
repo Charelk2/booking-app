@@ -16,11 +16,6 @@ function Wrapper() {
     <NotesStep
       control={control as unknown as Control<FieldValues>}
       setValue={setValue}
-      step={0}
-      steps={['one', 'two']}
-      onBack={() => {}}
-      onSaveDraft={() => {}}
-      onNext={() => {}}
     />
   );
 }
@@ -70,18 +65,12 @@ describe('NotesStep attachment upload', () => {
 
     await flushPromises();
 
-    const nextButton = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Next'),
-    ) as HTMLButtonElement;
-
     expect(container.querySelector('[role="progressbar"]')).not.toBeNull();
-    expect(nextButton.disabled).toBe(true);
 
     await act(async () => {
       resolveUpload();
     });
 
     expect(container.querySelector('[role="progressbar"]')).toBeNull();
-    expect(nextButton.disabled).toBe(false);
   });
 });

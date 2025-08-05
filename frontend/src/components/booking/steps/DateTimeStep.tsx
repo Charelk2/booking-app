@@ -7,7 +7,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { format, parseISO, isBefore, startOfDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import useIsMobile from '@/hooks/useIsMobile';
-import { DateInput } from '../../ui'; // Assuming DateInput is imported
+import { DateInput, CollapsibleSection } from '../../ui';
 
 // Import EventDetails for correct Control typing
 import { EventDetails } from '@/contexts/BookingContext';
@@ -17,13 +17,16 @@ interface Props {
   control: Control<EventDetails>; // Type control with EventDetails
   unavailable: string[];
   loading?: boolean;
-  // No step, steps, onBack, onSaveDraft, onNext props here.
+  open?: boolean;
+  onToggle?: () => void;
 }
 
 export default function DateTimeStep({
   control,
   unavailable,
   loading = false,
+  open = true,
+  onToggle = () => {},
 }: Props) {
   const isMobile = useIsMobile();
   const filterDate = (date: Date) => {
@@ -32,7 +35,12 @@ export default function DateTimeStep({
     return !unavailable.includes(day) && !isBefore(date, today);
   };
   return (
-    <div className="wizard-step-container">
+    <CollapsibleSection
+      title="Date & Time"
+      open={open}
+      onToggle={onToggle}
+      className="wizard-step-container"
+    >
       {loading ? (
         <div
           data-testid="calendar-skeleton"
@@ -111,6 +119,6 @@ export default function DateTimeStep({
         />
       )}
       {/* No WizardNav here. Its buttons are now in the parent BookingWizard. */}
-    </div>
+    </CollapsibleSection>
   );
 }
