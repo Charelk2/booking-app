@@ -31,7 +31,7 @@ function toInitials(name?: string): string | undefined {
 export function parseItem(n: UnifiedNotification): ParsedNotification {
   const content = typeof n.content === 'string' ? n.content : '';
   const base: Omit<ParsedNotification, 'title' | 'subtitle' | 'icon'> = {
-    avatarUrl: n.avatar_url || undefined,
+    avatarUrl: n.profile_picture_url || n.avatar_url || undefined,
     initials: toInitials(n.sender_name || n.name),
     unreadCount: Number(n.unread_count) || 0,
   };
@@ -156,10 +156,10 @@ export default function NotificationListItem({
   className = '',
 }: NotificationListItemProps) {
   const p = parseItem(n);
-  // Display the provided avatar when available. If the notification lacks an
-  // avatar URL, the Avatar component will fall back to initials or an icon so
-  // deposit due and booking confirmed alerts can show the artist's photo while
-  // other notifications still render a meaningful placeholder.
+  // Display the profile picture when available, falling back to the avatar URL.
+  // If neither exists, the Avatar component uses initials or an icon so deposit
+  // due and booking confirmed alerts can show the artist's image while other
+  // notifications still render a meaningful placeholder.
   const avatarSrc = p.avatarUrl || undefined;
 
   return (
