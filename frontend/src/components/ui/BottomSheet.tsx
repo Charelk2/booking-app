@@ -1,6 +1,7 @@
-'use client';
+"use client";
 import { Fragment, useEffect, useRef } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
+import clsx from 'clsx';
 
 interface BottomSheetProps {
   open: boolean;
@@ -8,6 +9,8 @@ interface BottomSheetProps {
   initialFocus?: React.RefObject<HTMLElement>;
   children: React.ReactNode;
   testId?: string;
+  desktopCenter?: boolean;
+  panelClassName?: string;
 }
 
 export default function BottomSheet({
@@ -16,6 +19,8 @@ export default function BottomSheet({
   initialFocus,
   children,
   testId,
+  desktopCenter = false,
+  panelClassName,
 }: BottomSheetProps) {
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
@@ -51,7 +56,12 @@ export default function BottomSheet({
           >
             <div className="absolute inset-0 bg-gray-600 bg-opacity-75 transition-opacity" />
           </Transition.Child>
-          <div className="pointer-events-none fixed inset-x-0 bottom-0 flex max-h-full">
+          <div
+            className={clsx(
+              "pointer-events-none fixed inset-x-0 bottom-0 flex max-h-full",
+              desktopCenter && "md:inset-0 md:items-center md:justify-center",
+            )}
+          >
             <Transition.Child
               as={Fragment}
               enter="transform transition ease-in-out duration-300"
@@ -61,7 +71,13 @@ export default function BottomSheet({
               leaveFrom="translate-y-0"
               leaveTo="translate-y-full"
             >
-              <Dialog.Panel className="pointer-events-auto w-full rounded-t-lg bg-white shadow-xl">
+              <Dialog.Panel
+                className={clsx(
+                  "pointer-events-auto w-full rounded-t-lg bg-white shadow-xl",
+                  desktopCenter && "md:rounded-lg",
+                  panelClassName,
+                )}
+              >
                 {children}
               </Dialog.Panel>
             </Transition.Child>
