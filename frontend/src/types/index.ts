@@ -129,7 +129,6 @@ export interface ParsedBookingDetails {
 
   event_type?: string;
 
-}
 
 // This is what the backend returns when you GET a booking request:
 export interface BookingRequest {

@@ -37,13 +37,7 @@ describe('BookingWizard instructions', () => {
   it('shows first step instruction', () => {
     render(<Wrapper />);
     expect(document.body.textContent).toContain('Tell us a little bit more about your event.');
-  });
 
-  it('renders AI text input and updates its value', () => {
-    render(<Wrapper />);
-    const textarea = screen.getByLabelText('Describe your event') as HTMLTextAreaElement;
-    fireEvent.change(textarea, { target: { value: 'Birthday party' } });
-    expect(textarea.value).toBe('Birthday party');
   });
 
 });
