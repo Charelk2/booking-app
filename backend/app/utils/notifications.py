@@ -156,7 +156,7 @@ def notify_user_new_message(
             sender_name = profile.business_name
         if profile and profile.profile_picture_url:
             avatar_url = profile.profile_picture_url
-    
+
     elif sender.profile_picture_url:
         avatar_url = sender.profile_picture_url
 
@@ -193,10 +193,47 @@ def notify_deposit_due(
         )
         return
 
-    booking = db.query(models.BookingSimple).filter(models.BookingSimple.id == booking_id).first()
+    booking = (
+        db.query(models.BookingSimple)
+        .filter(models.BookingSimple.id == booking_id)
+        .first()
+    )
     if booking is None:
-        logger.error("Failed to send deposit due notification: booking %s missing", booking_id)
+        logger.error(
+            "Failed to send deposit due notification: booking %s missing",
+            booking_id,
+        )
         return
+
+    # Resolve the opposite party so the frontend can display the correct
+    # avatar and sender name. Clients should see the artist's avatar while
+    # artists (if ever notified) would see the client's details.
+    sender_name: str | None = None
+    avatar_url: str | None = None
+    if user.id == booking.client_id:
+        artist = (
+            db.query(models.User).filter(models.User.id == booking.artist_id).first()
+        )
+        if artist:
+            sender_name = f"{artist.first_name} {artist.last_name}"
+            profile = (
+                db.query(models.ArtistProfile)
+                .filter(models.ArtistProfile.user_id == artist.id)
+                .first()
+            )
+            if profile and profile.business_name:
+                sender_name = profile.business_name
+            if profile and profile.profile_picture_url:
+                avatar_url = profile.profile_picture_url
+            elif artist.profile_picture_url:
+                avatar_url = artist.profile_picture_url
+    elif user.id == booking.artist_id:
+        client = (
+            db.query(models.User).filter(models.User.id == booking.client_id).first()
+        )
+        if client:
+            sender_name = f"{client.first_name} {client.last_name}"
+            avatar_url = client.profile_picture_url
 
     prefix = ""
     if not booking.deposit_paid:
@@ -221,6 +258,8 @@ def notify_deposit_due(
         NotificationType.DEPOSIT_DUE,
         message,
         f"/dashboard/client/bookings/{booking_id}?pay=1",
+        sender_name=sender_name,
+        avatar_url=avatar_url,
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
@@ -379,6 +418,46 @@ def notify_new_booking(db: Session, user: Optional[User], booking_id: int) -> No
         )
         return
 
+    booking = (
+        db.query(models.BookingSimple)
+        .filter(models.BookingSimple.id == booking_id)
+        .first()
+    )
+    if booking is None:
+        logger.error(
+            "Failed to send booking notification: booking %s missing",
+            booking_id,
+        )
+        return
+
+    # Determine the opposite party for avatar/sender info.
+    sender_name: str | None = None
+    avatar_url: str | None = None
+    if user.id == booking.client_id:
+        artist = (
+            db.query(models.User).filter(models.User.id == booking.artist_id).first()
+        )
+        if artist:
+            sender_name = f"{artist.first_name} {artist.last_name}"
+            profile = (
+                db.query(models.ArtistProfile)
+                .filter(models.ArtistProfile.user_id == artist.id)
+                .first()
+            )
+            if profile and profile.business_name:
+                sender_name = profile.business_name
+            if profile and profile.profile_picture_url:
+                avatar_url = profile.profile_picture_url
+            elif artist.profile_picture_url:
+                avatar_url = artist.profile_picture_url
+    elif user.id == booking.artist_id:
+        client = (
+            db.query(models.User).filter(models.User.id == booking.client_id).first()
+        )
+        if client:
+            sender_name = f"{client.first_name} {client.last_name}"
+            avatar_url = client.profile_picture_url
+
     message = format_notification_message(
         NotificationType.NEW_BOOKING,
         booking_id=booking_id,
@@ -390,6 +469,8 @@ def notify_new_booking(db: Session, user: Optional[User], booking_id: int) -> No
         message,
         f"/dashboard/client/bookings/{booking_id}",
         booking_id=booking_id,
+        sender_name=sender_name,
+        avatar_url=avatar_url,
     )
     logger.info("Notify %s: %s", user.email, message)
     _send_sms(user.phone_number, message)
