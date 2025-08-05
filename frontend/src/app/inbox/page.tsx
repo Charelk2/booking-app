@@ -15,6 +15,7 @@ import {
   getMyBookingRequests,
   getBookingRequestsForArtist,
 } from '@/lib/api';
+import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BookingRequest } from '@/types';
 
 export default function InboxPage() {
@@ -75,6 +76,12 @@ export default function InboxPage() {
       const params = new URLSearchParams(searchParams.toString());
       params.set('requestId', String(id));
       router.replace(`?${params.toString()}`, { scroll: false });
+
+      if (window.innerWidth < BREAKPOINT_MD) {
+        document
+          .getElementById('chat-thread')
+          ?.scrollIntoView({ behavior: 'smooth' });
+      }
     },
     [router, searchParams]
   );
@@ -103,7 +110,7 @@ export default function InboxPage() {
     <MainLayout fullWidthContent>
       {/* Add the padding directly to this div */}
       <div className="px-2 sm:px-4 lg:px-6 flex flex-col md:flex-row h-[calc(100vh-64px)] bg-gray-100">
-        <div className="w-full md:w-1/4 lg:w-1/4 border-r border-gray-200 overflow-y-auto bg-white flex-shrink-0">
+        <div className="w-full md:w-1/4 lg:w-1/4 border border-gray-200 md:border-y-0 md:border-l-0 md:border-r md:rounded-none rounded-lg md:shadow-none shadow overflow-y-auto bg-white flex-shrink-0 h-1/2 md:h-full">
           <div className="sticky top-0 bg-white p-3 border-b border-gray-200 flex justify-between items-center z-10">
             <h1 className="text-xl font-semibold">Messages</h1>
             <button
@@ -137,7 +144,7 @@ export default function InboxPage() {
             <p className="p-6 text-center text-gray-500">No conversations yet.</p>
           )}
         </div>
-        <div className="flex-1 overflow-y-auto relative">
+        <div id="chat-thread" className="flex-1 overflow-y-auto relative">
           {selectedBookingRequestId ? (
             <MessageThreadWrapper
               bookingRequestId={selectedBookingRequestId}
