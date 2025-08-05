@@ -11,8 +11,15 @@ from ..schemas.nlp import ParsedBookingDetails
 
 logger = logging.getLogger(__name__)
 
-DATE_RE = re.compile(r"(\d{1,2}\s+[A-Za-z]+\s+\d{4})")
-LOCATION_RE = re.compile(r"\b(?:in|at)\s+([A-Z][A-Za-z ]{2,40})")
+MONTH_PATTERN = (
+    "jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|"
+    "january|february|march|april|june|july|august|september|october|november|december"
+)
+DATE_RE = re.compile(
+    rf"(\d{{1,2}}\s+(?:{MONTH_PATTERN})(?:\s+\d{{4}})?)",
+    re.IGNORECASE,
+)
+LOCATION_RE = re.compile(r"\b(?:in|at)\s+([A-Za-z][A-Za-z ]{2,40})", re.IGNORECASE)
 GUEST_RE = re.compile(r"(\d+)\s*(?:guests?|people|attendees)", re.IGNORECASE)
 
 
@@ -37,7 +44,7 @@ def extract_booking_details(text: str) -> ParsedBookingDetails:
     # Location heuristic
     loc_match = LOCATION_RE.search(cleaned)
     if loc_match:
-        result.location = loc_match.group(1).strip()
+        result.location = loc_match.group(1).strip().title()
 
     # Guest count heuristic
     guest_match = GUEST_RE.search(cleaned)
