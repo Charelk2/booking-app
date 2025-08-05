@@ -126,6 +126,9 @@ export interface ParsedBookingDetails {
   date?: string;
   location?: string;
   guests?: number;
+
+  event_type?: string;
+
 }
 
 // This is what the backend returns when you GET a booking request:

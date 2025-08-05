@@ -159,7 +159,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     if (!aiText.trim()) return;
     try {
       const res = await parseBookingText(aiText);
-      setParsedDetails(res.data);
+
+      const { event_type, ...rest } = res.data;
+      setParsedDetails({ ...rest, eventType: event_type });
+
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -169,6 +172,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     if (parsedDetails?.date) setValue('date', new Date(parsedDetails.date));
     if (parsedDetails?.location) setValue('location', parsedDetails.location);
     if (parsedDetails?.guests !== undefined) setValue('guests', String(parsedDetails.guests));
+
+    if (parsedDetails?.eventType) setValue('eventType', parsedDetails.eventType);
+
     setParsedDetails(null);
   };
 
@@ -527,6 +533,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                   <div className="mb-4 border p-2 rounded bg-gray-50">
                     <p className="mb-2">AI Suggestions:</p>
                     <ul className="mb-2 text-sm">
+
+                      {parsedDetails.eventType && <li>Event Type: {parsedDetails.eventType}</li>}
+
                       {parsedDetails.date && <li>Date: {parsedDetails.date}</li>}
                       {parsedDetails.location && <li>Location: {parsedDetails.location}</li>}
                       {parsedDetails.guests !== undefined && <li>Guests: {parsedDetails.guests}</li>}
