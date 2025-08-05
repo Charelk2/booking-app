@@ -29,6 +29,7 @@ export default function SoundStep({
       onToggle={onToggle}
       className="wizard-step-container"
     >
+      <p className="text-sm text-gray-600">Will sound equipment be needed?</p>
       <Controller<EventDetails, 'sound'>
         name="sound"
         control={control}

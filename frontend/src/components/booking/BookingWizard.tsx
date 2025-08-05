@@ -80,17 +80,6 @@ const steps = [
   'Review',
 ];
 
-const instructions = [
-  'When should we perform?',
-  'What type of event are you planning?',
-  'Tell us a little bit more about your event.',
-  'Where is the show?',
-  'How many people?',
-  'What type of venue is it?',
-  'Will sound equipment be needed?',
-  'Anything else we should know?',
-  'This is an estimated cost. The artist will review your request and send a formal quote.'
-];
 
 // --- Animation Variants ---
 const stepVariants = {
@@ -137,7 +126,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
 
-  const headingRef = useRef<HTMLHeadingElement>(null);
   const isMobile = useIsMobile();
   const hasLoaded = useRef(false);
 
@@ -155,7 +143,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   // Effect to manage step completion and focus heading on step change
   useEffect(() => {
     setMaxStepCompleted((prev) => Math.max(prev, step));
-    headingRef.current?.focus();
     setValidationError(null);
   }, [step]);
 
@@ -474,14 +461,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                     variants={stepVariants}
                     transition={stepVariants.transition}
                   >
-                    <h2
-                      className="text-2xl font-bold mb-1"
-                      ref={headingRef}
-                      data-testid="step-heading"
-                    >
-                      {steps[step]}
-                    </h2>
-                    <p className="text-gray-600 mb-1">{instructions[step]}</p>
                     {renderStep()}
 
                     {warning && <p className="text-orange-600 text-sm mt-4">{warning}</p>}

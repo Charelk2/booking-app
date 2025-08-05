@@ -23,6 +23,7 @@ export default function GuestsStep({ control, open = true, onToggle = () => {} }
       onToggle={onToggle}
       className="wizard-step-container"
     >
+      <p className="text-sm text-gray-600">How many people?</p>
       <Controller<EventDetails, 'guests'> // Explicitly type Controller
         name="guests"
         control={control}
