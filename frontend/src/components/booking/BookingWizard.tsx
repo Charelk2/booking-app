@@ -390,8 +390,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   // --- Render Step Logic ---
   const renderStep = () => {
-    const commonProps = { step, steps, onBack: prev, onSaveDraft: saveDraft, onNext: next };
-
     switch (step) {
       case 0: return <DateTimeStep control={control} unavailable={unavailable} />;
       case 1: return <EventTypeStep control={control} />;
@@ -401,24 +399,26 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           control={control}
           artistLocation={artistLocation}
           setWarning={setWarning}
-          {...commonProps}
         />
       );
-      case 4: return <GuestsStep control={control} {...commonProps} />;
-      case 5: return <VenueStep control={control} {...commonProps} />;
-      case 6: return <SoundStep control={control} {...commonProps} />;
+      case 4: return <GuestsStep control={control} />;
+      case 5: return <VenueStep control={control} />;
+      case 6: return <SoundStep control={control} />;
       case 7: return <NotesStep control={control} setValue={setValue} />;
       case 8: return (
         <ReviewStep
-          {...commonProps}
+          step={step}
+          steps={steps}
+          onBack={prev}
+          onSaveDraft={saveDraft}
+          onNext={submitRequest}
+          submitting={submitting}
           isLoadingReviewData={isLoadingReviewData}
           reviewDataError={reviewDataError}
           calculatedPrice={calculatedPrice}
-          travelResult={travelResult} // Pass travelResult
-          onNext={submitRequest} // Pass submitRequest as onNext for the ReviewStep's button
-          submitting={submitting}
+          travelResult={travelResult}
           submitLabel="Submit Request"
-          baseServicePrice={baseServicePrice} // Pass baseServicePrice
+          baseServicePrice={baseServicePrice}
         />
       );
       default: return null;

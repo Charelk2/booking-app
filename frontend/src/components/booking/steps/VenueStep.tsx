@@ -2,16 +2,20 @@
 import { Controller, Control } from 'react-hook-form'; // Removed FieldValues
 import { useState, useRef } from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
-import { BottomSheet, Button } from '../../ui';
+import { BottomSheet, Button, CollapsibleSection } from '../../ui';
 
 import { EventDetails } from '@/contexts/BookingContext'; // For correct Control typing
 
 interface Props {
   control: Control<EventDetails>;
+  open?: boolean;
+  onToggle?: () => void;
 }
 
 export default function VenueStep({
   control,
+  open = true,
+  onToggle = () => {},
 }: Props) {
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -25,7 +29,12 @@ export default function VenueStep({
   ];
 
   return (
-    <div className="wizard-step-container">
+    <CollapsibleSection
+      title="Venue Type"
+      open={open}
+      onToggle={onToggle}
+      className="wizard-step-container"
+    >
       <Controller<EventDetails, 'venueType'>
         name="venueType"
         control={control}
@@ -101,6 +110,6 @@ export default function VenueStep({
         )}
       />
 
-    </div>
+    </CollapsibleSection>
   );
 }

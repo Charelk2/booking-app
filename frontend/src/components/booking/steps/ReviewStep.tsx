@@ -6,6 +6,7 @@ import SummarySidebar from '../SummarySidebar';
 import { formatCurrency } from '@/lib/utils';
 import { TravelResult } from '@/lib/travel';
 import { useBooking } from '@/contexts/BookingContext';
+import { CollapsibleSection } from '../../ui';
 
 interface ReviewStepProps {
   step: number;
@@ -23,6 +24,8 @@ interface ReviewStepProps {
   calculatedPrice: number | null; // This prop will still be passed but its value for display will be overridden
   travelResult: TravelResult | null;
   baseServicePrice: number;
+  open?: boolean;
+  onToggle?: () => void;
 }
 
 export default function ReviewStep({
@@ -34,6 +37,8 @@ export default function ReviewStep({
   onNext,
   submitLabel = 'Submit Request',
   baseServicePrice,
+  open = true,
+  onToggle = () => {},
 }: ReviewStepProps) {
   const { details } = useBooking();
 
@@ -69,14 +74,14 @@ export default function ReviewStep({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-6"
-    >
-      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-200/80 max-w-2xl mx-auto"> {/* Reverted card styling */}
+    <CollapsibleSection title="Review" open={open} onToggle={onToggle} className="space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.3 }}
+        className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-200/80 max-w-2xl mx-auto"
+      >
         <p className="text-sm text-gray-500 mb-6">
           This is an estimated cost. The artist will review your request and send a formal quote.
         </p>
@@ -173,7 +178,7 @@ export default function ReviewStep({
             )}
           </button>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </CollapsibleSection>
   );
 }

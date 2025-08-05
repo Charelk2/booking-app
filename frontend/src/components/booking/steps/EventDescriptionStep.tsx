@@ -2,15 +2,23 @@
 import { Control, Controller } from 'react-hook-form';
 import useIsMobile from '@/hooks/useIsMobile';
 import { EventDetails } from '@/contexts/BookingContext';
+import { CollapsibleSection } from '../../ui';
 
 interface Props {
   control: Control<EventDetails>;
+  open?: boolean;
+  onToggle?: () => void;
 }
 
-export default function EventDescriptionStep({ control }: Props) {
+export default function EventDescriptionStep({ control, open = true, onToggle = () => {} }: Props) {
   const isMobile = useIsMobile();
   return (
-    <div className="wizard-step-container">
+    <CollapsibleSection
+      title="Event Details"
+      open={open}
+      onToggle={onToggle}
+      className="wizard-step-container"
+    >
       <Controller<EventDetails, 'eventDescription'>
         name="eventDescription"
         control={control}
@@ -24,6 +32,6 @@ export default function EventDescriptionStep({ control }: Props) {
           />
         )}
       />
-    </div>
+    </CollapsibleSection>
   );
 }
