@@ -133,14 +133,14 @@ export default function MessageThreadWrapper({
                 {bookingRequest.client?.first_name?.charAt(0) || 'U'}
               </div>
             )
-          ) : bookingRequest.artist?.profile_picture_url ? (
+          ) : bookingRequest.artist_profile?.profile_picture_url ? (
             <Link
-              href={`/artists/${bookingRequest.artist.id}`}
+              href={`/artists/${bookingRequest.artist?.id}`}
               aria-label="Artist profile"
               className="flex-shrink-0"
             >
               <Image
-                src={getFullImageUrl(bookingRequest.artist.profile_picture_url) as string}
+                src={getFullImageUrl(bookingRequest.artist_profile.profile_picture_url) as string}
                 alt="Artist avatar"
                 width={40}
                 height={40}
@@ -154,7 +154,7 @@ export default function MessageThreadWrapper({
             </Link>
           ) : (
             <div className="h-10 w-10 rounded-full bg-red-400 flex items-center justify-center text-base font-medium border-2 border-white shadow-sm flex-shrink-0">
-              {(bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name || 'U').charAt(0)}
+              {(bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'U').charAt(0)}
             </div>
           )}
 
@@ -163,8 +163,8 @@ export default function MessageThreadWrapper({
             Chat with {
               isUserArtist
                 ? bookingRequest.client?.first_name || 'User'
-                : bookingRequest.artist?.business_name ||
-                  bookingRequest.artist?.user?.first_name ||
+                : bookingRequest.artist_profile?.business_name ||
+                  bookingRequest.artist?.first_name ||
                   'User'
             }
           </span>
@@ -235,7 +235,7 @@ export default function MessageThreadWrapper({
       {/* Alert Banners */}
       {bookingConfirmed && confirmedBookingDetails && (
         <AlertBanner variant="success" className="mx-4 mt-4 rounded-lg z-10">
-          🎉 Booking confirmed for {bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name || 'Artist'}! {confirmedBookingDetails.service?.title} on {new Date(confirmedBookingDetails.start_time).toLocaleString()}. {formatDepositReminder(confirmedBookingDetails.deposit_amount ?? 0, confirmedBookingDetails.deposit_due_by ?? undefined)}.
+          🎉 Booking confirmed for {bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'Artist'}! {confirmedBookingDetails.service?.title} on {new Date(confirmedBookingDetails.start_time).toLocaleString()}. {formatDepositReminder(confirmedBookingDetails.deposit_amount ?? 0, confirmedBookingDetails.deposit_due_by ?? undefined)}.
           <div className="flex flex-wrap gap-3 mt-2">
             <Link href={`/dashboard/client/bookings/${confirmedBookingDetails.id}`} className="inline-block text-indigo-600 hover:underline text-sm font-medium">
               View booking
@@ -282,8 +282,8 @@ export default function MessageThreadWrapper({
             bookingRequestId={bookingRequestId}
             serviceId={bookingRequest.service_id ?? undefined}
             clientName={bookingRequest.client?.first_name}
-            artistName={bookingRequest.artist?.business_name || bookingRequest.artist?.user?.first_name}
-            artistAvatarUrl={bookingRequest.artist?.profile_picture_url ?? null}
+            artistName={bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name}
+            artistAvatarUrl={bookingRequest.artist_profile?.profile_picture_url ?? null}
             clientAvatarUrl={bookingRequest.client?.profile_picture_url ?? null}
             serviceName={bookingRequest.service?.title}
             initialNotes={bookingRequest.message ?? null}

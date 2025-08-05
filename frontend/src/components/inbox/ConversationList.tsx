@@ -30,15 +30,16 @@ export default function ConversationList({
           if (currentUser.user_type === 'artist') {
             return req.client?.first_name || 'Client';
           }
-          const artist = req.artist;
-          if (!artist) return 'Artist';
-          return artist.business_name || artist.user?.first_name || 'Artist';
+          const artistProfile = req.artist_profile;
+          const artistUser = req.artist;
+          if (!artistProfile && !artistUser) return 'Artist';
+          return artistProfile?.business_name || artistUser?.first_name || 'Artist';
         })();
         // Determine avatar URL for the other participant
         const avatarUrl =
           currentUser.user_type === 'artist'
             ? req.client?.profile_picture_url
-            : req.artist?.profile_picture_url;
+            : req.artist_profile?.profile_picture_url;
 
         const date =
           req.last_message_timestamp || req.updated_at || req.created_at;

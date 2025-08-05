@@ -27,7 +27,20 @@ const baseReq: BookingRequest = {
   } as any,
   artist: {
     id: 3,
+    email: 'a@band.com',
+    user_type: 'artist',
+    first_name: 'Band',
+    last_name: 'Leader',
+    phone_number: '',
+    is_active: true,
+    is_verified: true,
+    profile_picture_url: null,
+  } as any,
+  artist_profile: {
+    id: 3,
+    user_id: 3,
     business_name: 'The Band',
+    profile_picture_url: null,
     user: {
       id: 3,
       email: 'a@band.com',
@@ -39,7 +52,6 @@ const baseReq: BookingRequest = {
       is_verified: true,
       profile_picture_url: null,
     },
-    profile_picture_url: null,
   } as any,
   service: { id: 9, artist_id: 3, title: 'Live Musiek' } as Service,
 } as BookingRequest;

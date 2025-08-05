@@ -77,8 +77,8 @@ export default function BookingRequestsPage() {
           ? r.client
             ? `${r.client.first_name} ${r.client.last_name}`.toLowerCase()
             : ''
-          : r.artist
-            ? (r.artist.business_name || r.artist.user?.first_name || '').toLowerCase()
+          : r.artist_profile
+            ? (r.artist_profile.business_name || r.artist?.first_name || '').toLowerCase()
             : '';
         const matchesSearch = name.includes(lowerSearch);
         const matchesStatus =
