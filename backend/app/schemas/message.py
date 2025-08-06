@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 from ..models.message import SenderType, MessageType, VisibleTo, MessageAction
@@ -10,7 +11,7 @@ class MessageCreate(BaseModel):
     quote_id: int | None = None
     attachment_url: str | None = None
     action: MessageAction | None = None
-    expires_at: datetime | None = None
+    expires_at: Optional[datetime] = None
 
 
 class MessageResponse(BaseModel):
@@ -27,7 +28,7 @@ class MessageResponse(BaseModel):
     is_read: bool = False
     timestamp: datetime
     avatar_url: str | None = None
-    expires_at: datetime | None = None
+    expires_at: Optional[datetime] = None
 
     model_config = {
         "from_attributes": True
