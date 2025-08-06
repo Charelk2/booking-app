@@ -19,9 +19,19 @@ class SenderType(str, enum.Enum):
     ARTIST = "artist"
 
 class MessageType(str, enum.Enum):
-    TEXT = "text"
-    QUOTE = "quote"
-    SYSTEM = "system"
+    """Type of message being stored."""
+
+    USER = "USER"
+    QUOTE = "QUOTE"
+    SYSTEM = "SYSTEM"
+
+
+class VisibleTo(str, enum.Enum):
+    """Specify who can view a given message."""
+
+    ARTIST = "artist"
+    CLIENT = "client"
+    BOTH = "both"
 
 
 class Message(BaseModel):
@@ -31,7 +41,12 @@ class Message(BaseModel):
     booking_request_id = Column(Integer, ForeignKey("booking_requests.id"), nullable=False)
     sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     sender_type = Column(Enum(SenderType), nullable=False)
-    message_type = Column(Enum(MessageType), nullable=False, default=MessageType.TEXT)
+    message_type = Column(
+        Enum(MessageType), nullable=False, default=MessageType.USER
+    )
+    visible_to = Column(
+        Enum(VisibleTo), nullable=False, default=VisibleTo.BOTH
+    )
     content = Column(Text, nullable=False)
     # Link to the newer quotes_v2 table so quote messages render properly
     quote_id = Column(Integer, ForeignKey("quotes_v2.id"), nullable=True)

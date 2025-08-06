@@ -52,7 +52,7 @@ def test_get_dashboard_stats():
         booking_request_id=req2.id,
         sender_id=artist.id,
         sender_type=SenderType.ARTIST,
-        message_type=MessageType.TEXT,
+        message_type=MessageType.USER,
         content="hello",
     )
     db.add(msg)

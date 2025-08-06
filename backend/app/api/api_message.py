@@ -54,7 +54,14 @@ def read_messages(
             {},
             status.HTTP_403_FORBIDDEN,
         )
-    db_messages = crud.crud_message.get_messages_for_request(db, request_id)
+    viewer = (
+        models.VisibleTo.CLIENT
+        if current_user.id == booking_request.client_id
+        else models.VisibleTo.ARTIST
+    )
+    db_messages = crud.crud_message.get_messages_for_request(
+        db, request_id, viewer
+    )
     result = []
     for m in db_messages:
         avatar_url = None
@@ -145,6 +152,7 @@ def create_message(
         sender_type=sender_type,
         content=message_in.content,
         message_type=message_in.message_type,
+        visible_to=message_in.visible_to,
         quote_id=message_in.quote_id,
         attachment_url=message_in.attachment_url,
     )
