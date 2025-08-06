@@ -70,6 +70,21 @@ export interface Service {
   artist: ArtistProfile;
 }
 
+export type BookingStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'completed'
+  | 'cancelled'
+  | 'draft'
+  | 'pending_quote'
+  | 'quote_provided'
+  | 'pending_artist_confirmation'
+  | 'request_confirmed'
+  | 'request_completed'
+  | 'request_declined'
+  | 'request_withdrawn'
+  | 'quote_rejected';
+
 export interface Booking {
   id: number;
   artist_id: number;
@@ -77,7 +92,7 @@ export interface Booking {
   service_id: number;
   start_time: string;
   end_time: string;
-  status: "pending" | "confirmed" | "completed" | "cancelled";
+  status: BookingStatus;
   total_price: number;
   notes: string;
   /** Amount paid as a deposit toward this booking */
@@ -116,7 +131,7 @@ export interface BookingRequestCreate {
   attachment_url?: string;
   proposed_datetime_1?: string; // ISO‐formatted date‐time string
   proposed_datetime_2?: string;
-  status?: string;
+  status?: BookingStatus;
   travel_mode?: 'fly' | 'drive';
   travel_cost?: number;
   travel_breakdown?: Record<string, unknown>;
@@ -128,7 +143,7 @@ export interface ParsedBookingDetails {
   guests?: number;
 
   event_type?: string;
-
+}
 
 // This is what the backend returns when you GET a booking request:
 export interface BookingRequest {
@@ -147,7 +162,7 @@ export interface BookingRequest {
   travel_mode?: 'fly' | 'drive' | null;
   travel_cost?: number | null;
   travel_breakdown?: Record<string, unknown> | null;
-  status: string; // e.g. "pending_quote", "quote_provided", etc.
+  status: BookingStatus;
   created_at: string;
   updated_at: string;
   // Optional expanded relations returned by the API
