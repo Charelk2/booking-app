@@ -75,7 +75,7 @@ export default function NotificationBell(): JSX.Element {
 
 
   return (
-    <div className="relative ml-3" aria-live="polite">
+    <div className="relative" aria-live="polite">
       <button
         type="button"
         onClick={() => setOpen(true)}
