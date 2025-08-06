@@ -8,7 +8,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
-from ..models.request_quote import BookingRequest, BookingRequestStatus
+from ..models.request_quote import BookingRequest
+from ..models.booking_status import BookingStatus
 from ..models.service import Service
 from ..models.review import Review
 from ..core.config import settings
@@ -48,7 +49,7 @@ class RecommendationService:
             db.query(Service.service_type)
             .join(BookingRequest, BookingRequest.service_id == Service.id)
             .filter(BookingRequest.client_id == user_id)
-            .filter(BookingRequest.status == BookingRequestStatus.REQUEST_COMPLETED)
+            .filter(BookingRequest.status == BookingStatus.REQUEST_COMPLETED)
             .all()
         )
 

@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models.base import BaseModel
 from app.api import api_quote_template, api_quote_v2
-from app.models import User, UserType, BookingRequest, BookingRequestStatus
+from app.models import User, UserType, BookingRequest, BookingStatus
 from app.schemas import quote_template as schemas, QuoteV2Create
 from fastapi import HTTPException
 
@@ -38,7 +38,7 @@ def test_create_and_apply_template():
         artist_id=artist.id,
         service_id=None,
         proposed_datetime_1=None,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()

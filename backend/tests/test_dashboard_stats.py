@@ -8,7 +8,7 @@ from app.models import (
     UserType,
     ArtistProfile,
     BookingRequest,
-    BookingRequestStatus,
+    BookingStatus,
     Message,
     SenderType,
     MessageType,
@@ -42,8 +42,8 @@ def test_get_dashboard_stats():
     db.commit()
 
     now = datetime.utcnow()
-    req1 = BookingRequest(client_id=client.id, artist_id=artist.id, status=BookingRequestStatus.PENDING_QUOTE, created_at=now)
-    req2 = BookingRequest(client_id=client.id, artist_id=artist.id, status=BookingRequestStatus.QUOTE_PROVIDED, created_at=now)
+    req1 = BookingRequest(client_id=client.id, artist_id=artist.id, status=BookingStatus.PENDING_QUOTE, created_at=now)
+    req2 = BookingRequest(client_id=client.id, artist_id=artist.id, status=BookingStatus.QUOTE_PROVIDED, created_at=now)
     db.add_all([req1, req2])
     db.commit()
     db.refresh(req2)

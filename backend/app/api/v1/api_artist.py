@@ -19,8 +19,9 @@ from app.services import calendar_service
 from app.database import get_db
 from app.models.user import User
 from app.models.artist_profile_v2 import ArtistProfileV2 as Artist
-from app.models.booking import Booking, BookingStatus
-from app.models.request_quote import BookingRequest, BookingRequestStatus
+from app.models.booking import Booking
+from app.models.booking_status import BookingStatus
+from app.models.request_quote import BookingRequest
 from app.models.service import Service, ServiceType
 from app.models.review import Review
 from app.schemas.artist import (
@@ -628,7 +629,7 @@ def read_artist_availability(
         db.query(BookingRequest)
         .filter(
             BookingRequest.artist_id == artist_id,
-            BookingRequest.status != BookingRequestStatus.REQUEST_DECLINED,
+            BookingRequest.status != BookingStatus.REQUEST_DECLINED,
         )
     )
     if when:

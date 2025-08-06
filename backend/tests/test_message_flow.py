@@ -6,7 +6,7 @@ from app.models import (
     User,
     UserType,
     BookingRequest,
-    BookingRequestStatus,
+    BookingStatus,
     MessageType,
     SenderType,
     ArtistProfile,
@@ -36,7 +36,7 @@ def test_system_message_from_client_marked_as_artist():
 
     # Create booking request
     br = BookingRequest(client_id=client.id, artist_id=artist.id,
-                        status=BookingRequestStatus.PENDING_QUOTE)
+                        status=BookingStatus.PENDING_QUOTE)
     db.add(br)
     db.commit()
     db.refresh(br)
@@ -79,7 +79,7 @@ def test_message_response_includes_avatar_url_for_artist():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -115,7 +115,7 @@ def test_message_response_includes_avatar_url_for_client():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -150,7 +150,7 @@ def test_mark_messages_read_updates_flag():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()

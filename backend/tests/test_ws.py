@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from app.main import app
 from app.models.base import BaseModel
 from app.api.dependencies import get_db
-from app.models import User, UserType, BookingRequest, BookingRequestStatus
+from app.models import User, UserType, BookingRequest, BookingStatus
 from starlette.websockets import WebSocketDisconnect
 
 
@@ -54,7 +54,7 @@ def create_data(Session):
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()

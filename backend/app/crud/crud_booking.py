@@ -4,7 +4,7 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 
 from .. import models, schemas
-from ..models.booking import BookingStatus  # For BookingStatus enum
+from ..models.booking_status import BookingStatus  # For BookingStatus enum
 from ..models.service import ServiceType
 
 

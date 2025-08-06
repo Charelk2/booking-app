@@ -7,7 +7,7 @@ from app.models import (
     UserType,
     Service,
     BookingRequest,
-    BookingRequestStatus,
+    BookingStatus,
     Message,
     MessageType,
     SenderType,
@@ -53,7 +53,7 @@ def test_delete_service_cascades_messages():
         client_id=client_user.id,
         artist_id=artist_user.id,
         service_id=service.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
