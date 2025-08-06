@@ -87,6 +87,7 @@ def test_notifications_ws_broadcasts(patch_notifications_broadcast):
     args, _ = patch_notifications_broadcast.call_args
     assert args[0] == user.id
     assert args[1]["message"] == "hello"
+    assert isinstance(args[1]["timestamp"], str)
 
     app.dependency_overrides.clear()
 
