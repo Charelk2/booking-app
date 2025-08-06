@@ -4,6 +4,7 @@ import { ServiceItem, QuoteV2Create, QuoteTemplate } from '@/types';
 import { getQuoteTemplates } from '@/lib/api';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
+import type { EventDetails } from './QuoteBubble';
 
 interface Props {
   onSubmit: (data: QuoteV2Create) => Promise<void> | void;
@@ -15,6 +16,7 @@ interface Props {
   initialTravelCost?: number;
   initialSoundNeeded?: boolean;
   onDecline?: () => void;
+  eventDetails?: EventDetails;
 }
 
 const expiryOptions = [
@@ -33,6 +35,7 @@ const InlineQuoteForm: React.FC<Props> = ({
   initialTravelCost,
   initialSoundNeeded,
   onDecline,
+  eventDetails,
 }) => {
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [serviceFee, setServiceFee] = useState(initialBaseFee ?? 0);
@@ -123,10 +126,29 @@ const InlineQuoteForm: React.FC<Props> = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow w-full border border-gray-100 p-6 space-y-6">
+    <div className="w-full bg-brand/10 dark:bg-brand-dark/30 rounded-xl p-6 space-y-6">
+      {eventDetails && (
+        <div>
+          <h4 className="mb-2 text-sm font-semibold">New Booking Request</h4>
+          <p className="mb-2 text-xs">
+            From: {eventDetails.from ?? 'N/A'} | Received: {eventDetails.receivedAt ?? 'N/A'}
+          </p>
+          <div className="text-xs">
+            <p className="mb-1 font-semibold">Event Details</p>
+            <ul className="space-y-1">
+              {eventDetails.event && <li>Event: {eventDetails.event}</li>}
+              {eventDetails.date && <li>Date: {eventDetails.date}</li>}
+              {eventDetails.guests && <li>Guests: {eventDetails.guests}</li>}
+              {eventDetails.venue && <li>Venue: {eventDetails.venue}</li>}
+              {eventDetails.notes && <li>Notes: "{eventDetails.notes}"</li>}
+            </ul>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center flex-wrap gap-2">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">Send Quote</h2>
+          <h2 className="text-xl font-bold tracking-tight">Review &amp; Adjust Quote</h2>
           <div className="text-sm font-medium opacity-90 mt-1">
             <span>Quote No: {quoteNumber}</span>
             <span className="ml-4">Date: {currentDate}</span>
