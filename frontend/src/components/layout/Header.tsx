@@ -92,6 +92,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const searchParams = useSearchParams();
   const isArtistsPage = pathname.startsWith('/artists');
   const [menuOpen, setMenuOpen] = useState(false); // Mobile menu drawer state
+  const isArtistView = user?.user_type === 'artist' && artistViewActive;
 
   // Search parameters for the search bars (managed locally by Header and passed to SearchBar)
   const [category, setCategory] = useState<Category | null>(null);
@@ -209,7 +210,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             </div>
 
             {/* Compact Search Pill (Visible when scrolled/compacted) */}
-            {showSearchBar && (
+            {isArtistView ? (
               <div
                 className={clsx(
                   "compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex items-center justify-center gap-2",
@@ -220,30 +221,50 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   },
                 )}
               >
-                <button
-                  id="compact-search-trigger"
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onForceHeaderState('expanded-from-compact');
-                  }}
-                  className="flex-1 w-full max-w-xl flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
+                <Link
+                  href={`/artists/${user!.id}`}
+                  className="flex-1 w-full max-w-xl flex items-center justify-center px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
                 >
-                  <div className="flex flex-1 divide-x divide-gray-300">
-                    <div className="flex-1 px-2 truncate">
-                      {category ? category.label : 'Add artist'}
-                    </div>
-                    <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
-                      {location ? getStreetFromAddress(location) : 'Add location'}
-                    </div>
-                    <div className="flex-1 px-2 truncate">
-                      {when ? dateFormatter.format(when) : 'Add dates'}
-                    </div>
-                  </div>
-                  <MagnifyingGlassIcon className="ml-2 h-5 w-5 text-gray-500 flex-shrink-0" />
-                </button>
-                {filterControl && <div className="shrink-0">{filterControl}</div>}
+                  View Profile
+                </Link>
               </div>
+            ) : (
+              showSearchBar && (
+                <div
+                  className={clsx(
+                    "compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex items-center justify-center gap-2",
+                    {
+                      "opacity-0 pointer-events-none": headerState !== 'compacted',
+                      "opacity-100 pointer-events-auto transition-opacity duration-300 delay-100":
+                        headerState === 'compacted',
+                    },
+                  )}
+                >
+                  <button
+                    id="compact-search-trigger"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onForceHeaderState('expanded-from-compact');
+                    }}
+                    className="flex-1 w-full max-w-xl flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
+                  >
+                    <div className="flex flex-1 divide-x divide-gray-300">
+                      <div className="flex-1 px-2 truncate">
+                        {category ? category.label : 'Add artist'}
+                      </div>
+                      <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
+                        {location ? getStreetFromAddress(location) : 'Add location'}
+                      </div>
+                      <div className="flex-1 px-2 truncate">
+                        {when ? dateFormatter.format(when) : 'Add dates'}
+                      </div>
+                    </div>
+                    <MagnifyingGlassIcon className="ml-2 h-5 w-5 text-gray-500 flex-shrink-0" />
+                  </button>
+                  {filterControl && <div className="shrink-0">{filterControl}</div>}
+                </div>
+              )
             )}
           </div>
 
@@ -324,28 +345,41 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
         {/* Full Search Bar (Visible initially, and when expanded from compact). */}
         {/* Always render even when extraBar is present so compact mode can expand. */}
-        {showSearchBar && (
+        {isArtistView ? (
           <div
-            className={clsx(
-              "content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto relative",
-              {
-                "opacity-0 scale-y-0 h-0 pointer-events-none": headerState === 'compacted',
-                "opacity-100 scale-y-100 pointer-events-auto": headerState !== 'compacted',
-              },
-            )}
+            className="content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto relative"
           >
-            <SearchBar
-              category={category}
-              setCategory={setCategory}
-              location={location}
-              setLocation={setLocation}
-              when={when}
-              setWhen={setWhen}
-              onSearch={handleSearch}
-              onCancel={handleSearchBarCancel} // Pass handler for closing from SearchBar's internal popups
-              compact={false} // This SearchBar is always the "full" one for visuals
-            />
+            <Link
+              href={`/artists/${user!.id}`}
+              className="block w-full text-center px-4 py-3 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
+            >
+              View Profile
+            </Link>
           </div>
+        ) : (
+          showSearchBar && (
+            <div
+              className={clsx(
+                "content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto relative",
+                {
+                  "opacity-0 scale-y-0 h-0 pointer-events-none": headerState === 'compacted',
+                  "opacity-100 scale-y-100 pointer-events-auto": headerState !== 'compacted',
+                },
+              )}
+            >
+              <SearchBar
+                category={category}
+                setCategory={setCategory}
+                location={location}
+                setLocation={setLocation}
+                when={when}
+                setWhen={setWhen}
+                onSearch={handleSearch}
+                onCancel={handleSearchBarCancel} // Pass handler for closing from SearchBar's internal popups
+                compact={false} // This SearchBar is always the "full" one for visuals
+              />
+            </div>
+          )
         )}
 
         {/* Extra content bar (if needed, its visibility logic might need to align with headerState) */}
