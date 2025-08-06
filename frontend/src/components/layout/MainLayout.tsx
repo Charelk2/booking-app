@@ -306,7 +306,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
 
       <Footer />
 
-      {user && <MobileBottomNav user={user} />}
+      <MobileBottomNav user={user} />
     </div>
   );
 }

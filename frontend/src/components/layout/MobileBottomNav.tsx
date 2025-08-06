@@ -42,9 +42,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
       auth: true,
     },
   ];
-  if (!user) {
-    return null;
-  }
+  const visibleItems = navItems.filter((item) => !item.auth || user);
   // Next.js App Router doesn’t expose pathname in its types, so we use a type assertion
   const pathname = (router as unknown as { pathname?: string }).pathname || '';
   const unreadMessages = notificationItems
@@ -61,7 +59,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
       aria-label="Mobile navigation"
     >
       <ul className="flex justify-around h-full">
-        {navItems.map((item) => {
+        {visibleItems.map((item) => {
           const active = pathname === item.href;
           const showBadge = item.name === 'Messages' && unreadMessages > 0;
 

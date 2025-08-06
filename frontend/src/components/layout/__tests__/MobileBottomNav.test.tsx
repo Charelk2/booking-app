@@ -52,14 +52,17 @@ describe('MobileBottomNav', () => {
     container.remove();
   });
 
-  it('does not render when not logged in', () => {
+  it('renders only public links when not logged in', () => {
     mockUseRouter.mockReturnValue({ pathname: '/' });
     act(() => {
-      root.render(
-        React.createElement(MobileBottomNav, { user: null })
-      );
+      root.render(React.createElement(MobileBottomNav, { user: null }));
     });
-    expect(container.innerHTML).toBe('');
+    const nav = container.querySelector('nav');
+    expect(nav).not.toBeNull();
+    expect(container.textContent).toContain('Home');
+    expect(container.textContent).toContain('Artists');
+    expect(container.textContent).not.toContain('Messages');
+    expect(container.textContent).not.toContain('Dashboard');
   });
 
   it('renders navigation links when logged in', () => {
