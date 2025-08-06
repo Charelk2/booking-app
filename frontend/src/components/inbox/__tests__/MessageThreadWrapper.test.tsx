@@ -57,11 +57,12 @@ const bookingRequest = {
 function setup(userType: 'client' | 'artist', params = '') {
   (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 99, user_type: userType }, loading: false });
   (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams(params));
-  (useRouter as jest.Mock).mockReturnValue({ replace: jest.fn() });
+  const router = { replace: jest.fn(), back: jest.fn() };
+  (useRouter as jest.Mock).mockReturnValue(router);
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
-  return { container, root };
+  return { container, root, router };
 }
 
 describe('MessageThreadWrapper', () => {
@@ -141,6 +142,36 @@ describe('MessageThreadWrapper', () => {
     await act(async () => {});
     const thread = container.querySelector('[data-testid="thread-container"]');
     expect(thread?.className).toContain('w-full');
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('closes details panel on browser back before leaving thread', async () => {
+    (global as any).innerWidth = 500;
+    const { container, root, router } = setup('client');
+    await act(async () => {
+      root.render(
+        <MessageThreadWrapper bookingRequestId={1} bookingRequest={bookingRequest as any} setShowReviewModal={() => {}} />,
+      );
+    });
+    await act(async () => {});
+    const toggle = container.querySelector('button[aria-label="Show details"]');
+    expect(toggle).not.toBeNull();
+    await act(async () => {
+      (toggle as HTMLButtonElement).click();
+    });
+    await act(async () => {});
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await act(async () => {});
+    const closedToggle = container.querySelector('button[aria-label="Show details"]');
+    expect(closedToggle).not.toBeNull();
+    expect(router.back).not.toHaveBeenCalled();
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(router.back).toHaveBeenCalled();
     act(() => root.unmount());
     container.remove();
   });
