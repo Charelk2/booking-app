@@ -12,6 +12,7 @@ from app.db_utils import (
     ensure_calendar_account_email_column,
     ensure_booking_request_travel_columns,
     ensure_message_is_read_column,
+    ensure_message_expires_at_column,
 )
 
 
@@ -234,4 +235,12 @@ def test_message_is_read_column():
     inspector = inspect(engine)
     cols = [c["name"] for c in inspector.get_columns("messages")]
     assert "is_read" in cols
+
+
+def test_message_expires_at_column():
+    engine = setup_message_engine()
+    ensure_message_expires_at_column(engine)
+    inspector = inspect(engine)
+    cols = [c["name"] for c in inspector.get_columns("messages")]
+    assert "expires_at" in cols
 
