@@ -125,6 +125,26 @@ def create_booking_request(
         notify_user_new_booking_request(
             db, artist_user, new_request.id, sender_name, booking_type
         )
+    # Create a system message in the chat thread so the artist sees a clear
+    # prompt to review the request and prepare a quote. This keeps the chat
+    # history in sync with booking status changes.
+    date_str = (
+        request_in.proposed_datetime_1.strftime("%Y-%m-%d")
+        if request_in.proposed_datetime_1
+        else "unspecified date"
+    )
+    content = (
+        f"New booking request from {sender_name} for a {booking_type} on {date_str}. "
+        "Review details and send a formal quote."
+    )
+    crud.crud_message.create_message(
+        db=db,
+        booking_request_id=new_request.id,
+        sender_id=artist_user.id,
+        sender_type=models.SenderType.ARTIST,
+        content=content,
+        message_type=models.MessageType.SYSTEM,
+    )
     return new_request
 
 @router.get("/me/client", response_model=List[schemas.BookingRequestResponse])

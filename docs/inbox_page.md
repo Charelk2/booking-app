@@ -8,6 +8,8 @@ Clients and artists communicate through the dedicated **Inbox** page. The layout
 
 Notifications for new messages link directly to the relevant conversation in the Inbox. When the artist sends a final quote the client can open it here, accept it and proceed with payment without leaving the page.
 
+System messages are automatically posted when key events occur. Creating a booking request generates a message prompting the artist to review details and send a formal quote. When the artist sends that quote another system message informs the client that the formal quote is ready.
+
 The conversation list merges booking requests created by the user with those where they are the artist. If the logged-in user is not an artist the page only fetches their client requests to avoid API errors.
 
 For an overview of the API fields used for sorting and previews, see the bullet about `last_message_content` and `last_message_timestamp` in the [README](../README.md).
