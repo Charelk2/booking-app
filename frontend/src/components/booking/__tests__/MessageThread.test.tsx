@@ -23,9 +23,12 @@ function flushPromises() {
 }
 
 describe('MessageThread quote actions', () => {
-  it('lets clients open quote review from the quote bubble', async () => {
+
+  it('opens review modal from system message and renders no quote bubble', async () => {
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 7, user_type: 'client' } });
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    // @ts-ignore: mock API functions
+
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
       data: [
         {
@@ -33,6 +36,21 @@ describe('MessageThread quote actions', () => {
           booking_request_id: 1,
           sender_id: 9,
           sender_type: 'artist',
+
+          content: 'Review & Accept Quote',
+          message_type: 'system',
+          visible_to: 'client',
+          action: 'review_quote',
+          quote_id: 42,
+          is_read: true,
+          timestamp: '2025-01-01T00:00:00Z',
+        },
+        {
+          id: 2,
+          booking_request_id: 1,
+          sender_id: 9,
+          sender_type: 'artist',
+
           content: 'Quote message',
           message_type: 'quote',
           quote_id: 42,
@@ -41,19 +59,7 @@ describe('MessageThread quote actions', () => {
         },
       ],
     });
-    (api.getQuoteV2 as jest.Mock).mockResolvedValue({
-      data: {
-        id: 42,
-        services: [{ description: 'Performance', price: 100 }],
-        sound_fee: 0,
-        travel_fee: 0,
-        subtotal: 100,
-        total: 100,
-        status: 'pending',
-      },
-    });
-    (api.acceptQuoteV2 as jest.Mock).mockResolvedValue({ data: { id: 1 } });
-    (api.getBookingDetails as jest.Mock).mockResolvedValue({ data: { id: 99, deposit_amount: 50 } });
+
 
     const container = document.createElement('div');
     const root = createRoot(container);
@@ -69,33 +75,15 @@ describe('MessageThread quote actions', () => {
     await act(async () => { await flushPromises(); });
     await act(async () => { await flushPromises(); });
 
-    const bubbleButton = container.querySelector('#quote-42 button');
-    expect(bubbleButton?.textContent).toBe('Review & Accept Quote');
 
-    (api.getQuoteV2 as jest.Mock).mockResolvedValue({
-      data: {
-        id: 42,
-        booking_request_id: 1,
-        artist_id: 9,
-        client_id: 7,
-        services: [{ description: 'Performance', price: 100 }],
-        sound_fee: 0,
-        travel_fee: 0,
-        subtotal: 100,
-        total: 100,
-        status: 'pending',
-        created_at: '',
-        updated_at: '',
-      },
-    });
+    // quote messages should render as plain text, no bubble container
+    expect(container.querySelector('#quote-42')).toBeNull();
+    expect(container.textContent).toContain('Quote message');
 
-    act(() => {
-      bubbleButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    await act(async () => { await flushPromises(); });
-
-    expect(api.getQuoteV2).toHaveBeenCalledWith(42);
-    expect(container.textContent).toContain('Quote Review');
+    const button = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Review & Accept Quote',
+    );
+    expect(button).not.toBeNull();
 
     act(() => root.unmount());
     container.remove();
