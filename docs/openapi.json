@@ -2442,7 +2442,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuoteV2Read"
+                  "$ref": "#/components/schemas/QuoteRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -6357,6 +6367,15 @@
         ],
         "title": "MFAVerify"
       },
+      "MessageAction": {
+        "type": "string",
+        "enum": [
+          "review_quote",
+          "view_booking_details"
+        ],
+        "title": "MessageAction",
+        "description": "Actions that a system message can trigger on the frontend."
+      },
       "MessageCreate": {
         "properties": {
           "content": {
@@ -6392,6 +6411,16 @@
               }
             ],
             "title": "Attachment Url"
+          },
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MessageAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "expires_at": {
             "anyOf": [
@@ -6463,10 +6492,13 @@
           },
           "action": {
             "anyOf": [
-              {"type": "string"},
-              {"type": "null"}
-            ],
-            "title": "Action"
+              {
+                "$ref": "#/components/schemas/MessageAction"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "is_read": {
             "type": "boolean",
