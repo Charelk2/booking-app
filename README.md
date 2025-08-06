@@ -36,6 +36,8 @@ The July 2025 update bumps key dependencies and Docker base images:
   `deposit_due_by`.
 - A new `deposit_due_by` field records when the deposit is due, one week after a quote is accepted.
 - Payment receipts are stored with a `payment_id` so clients can view them from the dashboard.
+- Successful payments now automatically confirm the booking and send a system
+  "View Booking Details" message to both client and artist chats.
 - Users can download all account data via `/api/v1/users/me/export` and permanently delete their account with `DELETE /api/v1/users/me`.
 - Booking cards now show deposit and payment status with a simple progress timeline.
 - Booking request detail pages now display a step-by-step timeline from submission to quote acceptance.
