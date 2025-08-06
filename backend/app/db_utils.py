@@ -70,6 +70,17 @@ def ensure_visible_to_column(engine: Engine) -> None:
     )
 
 
+def ensure_message_action_column(engine: Engine) -> None:
+    """Add the ``action`` column to ``messages`` if missing."""
+
+    add_column_if_missing(
+        engine,
+        "messages",
+        "action",
+        "action VARCHAR",
+    )
+
+
 def ensure_request_attachment_column(engine: Engine) -> None:
     """Add the ``attachment_url`` column to ``booking_requests`` if missing."""
 
