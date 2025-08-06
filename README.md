@@ -77,6 +77,31 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Backend now fetches these fields using a single optimized query for improved performance.
 - Booking request endpoints now embed the artist's business name so clients no longer see placeholder `user/unknown` names.
 
+### Inbox & Message API
+
+The chat service exposes REST endpoints for each booking request:
+
+| Method | Route | Description |
+| ------ | ----- | ----------- |
+| `GET` | `/api/v1/booking-requests/{id}/messages` | List all messages in a thread |
+| `PUT` | `/api/v1/booking-requests/{id}/messages/read` | Mark thread messages as read |
+| `POST` | `/api/v1/booking-requests/{id}/messages` | Send a new message |
+| `POST` | `/api/v1/booking-requests/{id}/attachments` | Upload a file attachment |
+
+Example message payload:
+
+```json
+{
+  "content": "See you at 8pm",
+  "message_type": "USER",
+  "visible_to": "both"
+}
+```
+
+Message state transitions:
+
+![Message state diagram](docs/message_state_diagram.svg)
+
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
 ### Logging & Monitoring
