@@ -34,6 +34,12 @@ class VisibleTo(str, enum.Enum):
     BOTH = "both"
 
 
+class MessageAction(str, enum.Enum):
+    """Actions that a system message can trigger on the frontend."""
+
+    REVIEW_QUOTE = "review_quote"
+
+
 class Message(BaseModel):
     __tablename__ = "messages"
 
@@ -51,6 +57,7 @@ class Message(BaseModel):
     # Link to the newer quotes_v2 table so quote messages render properly
     quote_id = Column(Integer, ForeignKey("quotes_v2.id"), nullable=True)
     attachment_url = Column(String, nullable=True)
+    action = Column(Enum(MessageAction), nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
     is_read = Column(Boolean, default=False)
 

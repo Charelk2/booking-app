@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from ..models.message import SenderType, MessageType, VisibleTo
+from ..models.message import SenderType, MessageType, VisibleTo, MessageAction
 
 
 class MessageCreate(BaseModel):
@@ -9,6 +9,7 @@ class MessageCreate(BaseModel):
     visible_to: VisibleTo = VisibleTo.BOTH
     quote_id: int | None = None
     attachment_url: str | None = None
+    action: MessageAction | None = None
 
 
 class MessageResponse(BaseModel):
@@ -21,6 +22,7 @@ class MessageResponse(BaseModel):
     content: str
     quote_id: int | None = None
     attachment_url: str | None = None
+    action: MessageAction | None = None
     is_read: bool = False
     timestamp: datetime
     avatar_url: str | None = None
