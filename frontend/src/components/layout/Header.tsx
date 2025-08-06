@@ -196,10 +196,14 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
           {/* Center Section: Dynamically switches between Nav Links and Compact Pill */}
           <div className="hidden md:flex justify-center flex-grow relative">
             {/* Nav Links (Visible initially, and when compact search expands) */}
-            <div className={clsx("content-area-wrapper header-nav-links", {
-              "opacity-0 pointer-events-none": headerState === 'compacted',
-              "opacity-100 pointer-events-auto transition-opacity duration-300 delay-100": headerState !== 'compacted'
-            })}>
+            <div
+              className={clsx('content-area-wrapper header-nav-links', {
+                'opacity-0 pointer-events-none':
+                  headerState === 'compacted' && !isArtistView && showSearchBar,
+                'opacity-100 pointer-events-auto transition-opacity duration-300 delay-100':
+                  headerState !== 'compacted' || isArtistView || !showSearchBar,
+              })}
+            >
               <nav className="flex gap-6">
                 {user?.user_type === 'artist' && artistViewActive ? (
                   <ArtistNav user={user} pathname={pathname} />
@@ -210,32 +214,14 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             </div>
 
             {/* Compact Search Pill (Visible when scrolled/compacted) */}
-            {isArtistView ? (
-              <div
-                className={clsx(
-                  "compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex items-center justify-center gap-2",
-                  {
-                    "opacity-0 pointer-events-none": headerState !== 'compacted',
-                    "opacity-100 pointer-events-auto transition-opacity duration-300 delay-100":
-                      headerState === 'compacted',
-                  },
-                )}
-              >
-                <Link
-                  href={`/artists/${user!.id}`}
-                  className="flex-1 w-full max-w-xl flex items-center justify-center px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
-                >
-                  View Profile
-                </Link>
-              </div>
-            ) : (
+            {!isArtistView &&
               showSearchBar && (
                 <div
                   className={clsx(
-                    "compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex items-center justify-center gap-2",
+                    'compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex items-center justify-center gap-2',
                     {
-                      "opacity-0 pointer-events-none": headerState !== 'compacted',
-                      "opacity-100 pointer-events-auto transition-opacity duration-300 delay-100":
+                      'opacity-0 pointer-events-none': headerState !== 'compacted',
+                      'opacity-100 pointer-events-auto transition-opacity duration-300 delay-100':
                         headerState === 'compacted',
                     },
                   )}
@@ -264,8 +250,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   </button>
                   {filterControl && <div className="shrink-0">{filterControl}</div>}
                 </div>
-              )
-            )}
+              )}
           </div>
 
             {/* Icons */}
@@ -345,25 +330,14 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
         {/* Full Search Bar (Visible initially, and when expanded from compact). */}
         {/* Always render even when extraBar is present so compact mode can expand. */}
-        {isArtistView ? (
-          <div
-            className="content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto relative"
-          >
-            <Link
-              href={`/artists/${user!.id}`}
-              className="block w-full text-center px-4 py-3 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
-            >
-              View Profile
-            </Link>
-          </div>
-        ) : (
+        {!isArtistView &&
           showSearchBar && (
             <div
               className={clsx(
-                "content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto relative",
+                'content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto relative',
                 {
-                  "opacity-0 scale-y-0 h-0 pointer-events-none": headerState === 'compacted',
-                  "opacity-100 scale-y-100 pointer-events-auto": headerState !== 'compacted',
+                  'opacity-0 scale-y-0 h-0 pointer-events-none': headerState === 'compacted',
+                  'opacity-100 scale-y-100 pointer-events-auto': headerState !== 'compacted',
                 },
               )}
             >
@@ -379,8 +353,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 compact={false} // This SearchBar is always the "full" one for visuals
               />
             </div>
-          )
-        )}
+          )}
 
         {/* Extra content bar (if needed, its visibility logic might need to align with headerState) */}
         {extraBar && (headerState === 'initial' || headerState === 'expanded-from-compact') && (

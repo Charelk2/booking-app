@@ -1,6 +1,5 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import Header from '../components/layout/Header';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -14,7 +13,7 @@ jest.mock('@/contexts/AuthContext');
 const mockUseAuth = useAuth as jest.Mock;
 
 describe('Header artist view', () => {
-  it('shows artist links and profile pill when artistViewActive', () => {
+  it('shows artist links without search when artistViewActive', () => {
     const toggleArtistView = jest.fn();
     mockUseAuth.mockReturnValue({
       user: { id: 1, user_type: 'artist', email: 'a', first_name: 'A', last_name: 'B' },
@@ -26,8 +25,10 @@ describe('Header artist view', () => {
     expect(screen.getByText('Today')).toBeTruthy();
     expect(screen.getByText('Services')).toBeTruthy();
     expect(screen.getByText('Messages')).toBeTruthy();
-    expect(screen.getAllByText('View Profile').length).toBeGreaterThan(1);
+    expect(screen.getAllByText('View Profile')).toHaveLength(1);
     expect(screen.queryByText('Add artist')).toBeNull();
+    expect(screen.queryByText('Add location')).toBeNull();
+    expect(document.querySelector('#compact-search-trigger')).toBeNull();
     expect(mockUseAuth).toHaveBeenCalled();
   });
 
@@ -42,5 +43,18 @@ describe('Header artist view', () => {
     expect(screen.getByText('Artists')).toBeTruthy();
     expect(screen.queryByText('Today')).toBeNull();
     expect(mockUseAuth).toHaveBeenCalled();
+  });
+
+  it('keeps nav links visible when search bar is hidden in compact mode', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 1, user_type: 'artist', email: 'a', first_name: 'A', last_name: 'B' },
+      logout: jest.fn(),
+      artistViewActive: false,
+      toggleArtistView: jest.fn(),
+    });
+    render(<Header headerState="compacted" onForceHeaderState={jest.fn()} showSearchBar={false} />);
+    expect(screen.getByText('Artists')).toBeTruthy();
+    const wrapper = document.querySelector('.header-nav-links');
+    expect(wrapper?.className).not.toContain('opacity-0');
   });
 });
