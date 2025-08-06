@@ -100,7 +100,7 @@ describe('MessageThread quote actions', () => {
           message_type: 'SYSTEM',
           action: 'review_quote',
           visible_to: 'client',
-          quote_id: 55,
+          quote_id: '55',
           is_read: true,
           timestamp: '2025-01-01T00:00:00Z',
         },
