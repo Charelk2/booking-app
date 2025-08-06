@@ -5,7 +5,8 @@ const baseMessage = {
   id: 1,
   booking_request_id: 1,
   sender_id: 1,
-  message_type: 'system' as const,
+  // Use uppercase message type to match backend payloads.
+  message_type: 'SYSTEM' as const,
   sender_type: 'client' as const,
   content: '',
   quote_id: null,
@@ -14,11 +15,11 @@ const baseMessage = {
 };
 
 function q(content: string): Message {
-  return { ...baseMessage, content, message_type: 'system' } as Message;
+  return { ...baseMessage, content, message_type: 'SYSTEM' } as Message;
 }
 
 function a(): Message {
-  return { ...baseMessage, sender_type: 'client', message_type: 'text', content: 'ans' } as Message;
+  return { ...baseMessage, sender_type: 'client', message_type: 'USER', content: 'ans' } as Message;
 }
 
 describe('computeVideoProgress', () => {

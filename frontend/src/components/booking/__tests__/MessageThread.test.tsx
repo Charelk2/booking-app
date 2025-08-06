@@ -34,7 +34,8 @@ describe('MessageThread quote actions', () => {
           sender_id: 9,
           sender_type: 'artist',
           content: 'Quote message',
-          message_type: 'quote',
+          // Simulate backend response with uppercase message type.
+          message_type: 'QUOTE',
           quote_id: 42,
           is_read: true,
           timestamp: '2025-01-01T00:00:00Z',

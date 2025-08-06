@@ -17,7 +17,7 @@ export function computeVideoProgress(messages: Message[]): number {
     const qIndex = messages.findIndex(
       (m, i) =>
         i >= cursor &&
-        m.message_type === 'system' &&
+        m.message_type.toUpperCase() === 'SYSTEM' &&
         m.content === question,
     );
     if (qIndex === -1) break;
