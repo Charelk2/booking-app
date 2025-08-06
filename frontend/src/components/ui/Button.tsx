@@ -2,6 +2,7 @@
 import React, { forwardRef, type ButtonHTMLAttributes } from 'react';
 import clsx from 'clsx';
 import { buttonVariants, type ButtonVariant } from '@/styles/buttonVariants';
+import { trackEvent } from '@/lib/analytics';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -11,6 +12,10 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading?: boolean;
   /** Stretch button to full width (useful on mobile) */
   fullWidth?: boolean;
+  /** Optional analytics event name */
+  analyticsEvent?: string;
+  /** Optional analytics payload */
+  analyticsProps?: Record<string, unknown>;
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -22,6 +27,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       fullWidth = false,
       className,
       children,
+      analyticsEvent,
+      analyticsProps,
+      onClick,
       ...props
     }: ButtonProps,
     ref,
@@ -33,6 +41,11 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const base =
       'inline-flex items-center justify-center rounded-lg font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform transition-colors active:scale-95 min-h-12 min-w-12';
     const variantClass = buttonVariants[variant];
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (analyticsEvent) trackEvent(analyticsEvent, analyticsProps);
+      onClick?.(e);
+    };
+
     return (
       <button
         type={props.type ?? 'button'}
@@ -40,6 +53,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={isLoading || props.disabled}
         ref={ref}
         {...props}
+        onClick={handleClick}
         className={clsx(base, sizeClass, variantClass, fullWidth && 'w-full', className)}
       >
         {isLoading && (
