@@ -13,6 +13,11 @@ from app.models import (
     QuoteV2,
     QuoteStatusV2,
     BookingSimple,
+    Message,
+    MessageType,
+    VisibleTo,
+    MessageAction,
+    BookingStatus,
 )
 from app.models.base import BaseModel
 from app.api.dependencies import get_db, get_current_active_client
@@ -413,6 +418,57 @@ def test_payment_gateway_error(monkeypatch):
     db = Session()
     booking = db.query(BookingSimple).first()
     assert booking.deposit_paid is False
+    db.close()
+
+    if prev_db is not None:
+        app.dependency_overrides[get_db] = prev_db
+    else:
+        app.dependency_overrides.pop(get_db, None)
+    if prev_client is not None:
+        app.dependency_overrides[get_current_active_client] = prev_client
+    else:
+        app.dependency_overrides.pop(get_current_active_client, None)
+
+
+def test_payment_confirms_booking_and_creates_messages(monkeypatch):
+    """Successful payment confirms booking and posts system messages."""
+    Session = setup_app()
+    client_user, br_id, Session = create_records(Session)
+    prev_db = app.dependency_overrides.get(get_db)
+    prev_client = app.dependency_overrides.get(get_current_active_client)
+    app.dependency_overrides[get_current_active_client] = override_client(client_user)
+
+    def fake_post(url, json, timeout=10):
+        class Resp:
+            status_code = 201
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"id": "ch_test", "status": "succeeded"}
+
+        return Resp()
+
+    monkeypatch.setattr(api_payment.httpx, "post", fake_post)
+    client = TestClient(app)
+    res = client.post(
+        "/api/v1/payments/",
+        json={"booking_request_id": br_id, "amount": 50},
+    )
+    assert res.status_code == 201
+
+    db = Session()
+    booking = db.query(BookingSimple).first()
+    br = db.query(BookingRequest).first()
+    assert booking.confirmed is True
+    assert br.status == BookingStatus.REQUEST_CONFIRMED
+    msgs = db.query(Message).all()
+    assert len(msgs) == 2
+    assert {m.visible_to for m in msgs} == {VisibleTo.CLIENT, VisibleTo.ARTIST}
+    for m in msgs:
+        assert m.message_type == MessageType.SYSTEM
+        assert m.action == MessageAction.VIEW_BOOKING_DETAILS
     db.close()
 
     if prev_db is not None:
