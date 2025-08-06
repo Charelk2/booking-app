@@ -33,7 +33,6 @@ import {
 import Button from '../ui/Button';
 import SendQuoteModal from './SendQuoteModal';
 import usePaymentModal from '@/hooks/usePaymentModal';
-import QuoteBubble from './QuoteBubble';
 import useWebSocket from '@/hooks/useWebSocket';
 import { format } from 'date-fns';
 import { FixedSizeList as List } from 'react-window';
@@ -142,7 +141,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
 
     // State variables
     const [messages, setMessages] = useState<Message[]>([]);
-    const [quotes, setQuotes] = useState<Record<number, QuoteV2>>({});
     const [loading, setLoading] = useState(true);
     const [newMessageContent, setNewMessageContent] = useState('');
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
@@ -157,7 +155,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [uploadingProgress, setUploadingProgress] = useState(0);
     const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
     const [announceNewMessage, setAnnounceNewMessage] = useState('');
-    const [acceptingQuoteId, setAcceptingQuoteId] = useState<number | null>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
     const [textareaLineHeight, setTextareaLineHeight] = useState(0);
@@ -237,31 +234,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       [messages, user?.id],
     );
 
-    const ensureQuoteLoaded = useCallback(
-      async (quoteId: number) => {
-        if (quotes[quoteId]) return;
-        try {
-          const res = await getQuoteV2(quoteId);
-          setQuotes((prev) => ({ ...prev, [quoteId]: res.data }));
-
-          if (res.data.status === 'accepted' && res.data.booking_id) {
-            setBookingConfirmed(true);
-            if (!bookingDetails || bookingDetails.id !== res.data.booking_id) {
-              try {
-                const detailsRes = await getBookingDetails(res.data.booking_id);
-                setBookingDetails(detailsRes.data);
-              } catch (err: unknown) {
-                console.error('Failed to fetch booking details for accepted quote:', err);
-              }
-            }
-          }
-        } catch (err: unknown) {
-          console.error(`Failed to fetch quote ${quoteId}:`, err);
-        }
-      },
-      [quotes, bookingDetails, setQuotes, setBookingConfirmed, setBookingDetails],
-    );
-
     const fetchMessages = useCallback(async () => {
       setLoading(true);
       try {
@@ -295,12 +267,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           }
         }
 
-        filteredMessages.forEach((msg) => {
-          if (msg.message_type === 'quote' && typeof msg.quote_id === 'number') {
-            void ensureQuoteLoaded(msg.quote_id);
-          }
-        });
-
         if (parsedDetails && onBookingDetailsParsed) {
           onBookingDetailsParsed(parsedDetails);
         }
@@ -312,7 +278,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       } finally {
         setLoading(false);
       }
-    }, [bookingRequestId, user?.id, initialNotes, onBookingDetailsParsed, ensureQuoteLoaded, setMessages, setThreadError, setLoading]);
+    }, [bookingRequestId, user?.id, initialNotes, onBookingDetailsParsed, setMessages, setThreadError, setLoading]);
 
     useImperativeHandle(ref, () => ({
       refreshMessages: fetchMessages,
@@ -356,11 +322,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             return [...prevMessages.slice(-199), incomingMsg];
           });
 
-          if (incomingMsg.message_type === 'quote' && typeof incomingMsg.quote_id === 'number') {
-            void ensureQuoteLoaded(incomingMsg.quote_id);
-          }
         }),
-      [onSocketMessage, ensureQuoteLoaded, initialNotes, onBookingDetailsParsed, setMessages],
+      [onSocketMessage, initialNotes, onBookingDetailsParsed, setMessages],
     );
 
     useEffect(() => {
@@ -555,7 +518,6 @@ useEffect(() => {
 
     const handleAcceptQuote = useCallback(
       async (quote: QuoteV2) => {
-        setAcceptingQuoteId(quote.id);
         try {
           await acceptQuoteV2(quote.id, serviceId);
         } catch (err: unknown) {
@@ -563,13 +525,11 @@ useEffect(() => {
           setThreadError(
             `Failed to accept quote. ${(err as Error).message || 'Please try again.'}`,
           );
-          setAcceptingQuoteId(null);
           return;
         }
 
         try {
           const freshQuote = await getQuoteV2(quote.id);
-          setQuotes((prev) => ({ ...prev, [quote.id]: freshQuote.data }));
 
           const bookingId = freshQuote.data.booking_id;
           if (!bookingId) {
@@ -593,25 +553,22 @@ useEffect(() => {
         } catch (err: unknown) {
           console.error('Failed to finalize quote acceptance process:', err);
           setThreadError(`Quote accepted, but there was an issue setting up payment. ${(err as Error).message || 'Please try again.'}`);
-        } finally {
-          setAcceptingQuoteId(null);
         }
       },
-      [bookingRequestId, fetchMessages, openPaymentModal, serviceId, setQuotes, setBookingConfirmed, setBookingDetails, setThreadError, setAcceptingQuoteId, onBookingConfirmedChange],
+      [bookingRequestId, fetchMessages, openPaymentModal, serviceId, setBookingConfirmed, setBookingDetails, setThreadError, onBookingConfirmedChange],
     );
 
     const handleDeclineQuote = useCallback(
       async (quote: QuoteV2) => {
         try {
           await declineQuoteV2(quote.id);
-          const updatedQuote = await getQuoteV2(quote.id);
-          setQuotes((prev) => ({ ...prev, [quote.id]: updatedQuote.data }));
+          void fetchMessages();
         } catch (err: unknown) {
           console.error('Failed to decline quote:', err);
           setThreadError('Failed to decline quote. Please refresh and try again.');
         }
       },
-      [setQuotes, setThreadError],
+      [fetchMessages, setThreadError],
     );
 
     const openReviewModal = useCallback(
@@ -745,60 +702,7 @@ useEffect(() => {
                           {msg.sender_id !== user?.id && !msg.is_read && (
                             <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" aria-label="Unread message" />
                           )}
-                          {msg.message_type === 'quote' && typeof msg.quote_id === 'number' ? (
-                            (() => {
-                              const quoteData = quotes[msg.quote_id];
-                              if (!quoteData) return null;
-
-                              return (
-                                <div id={`quote-${msg.quote_id}`}>
-                                  <QuoteBubble
-                                    description={quoteData.services[0]?.description || ''}
-                                    price={Number(quoteData.services[0]?.price || 0)}
-                                    soundFee={Number(quoteData.sound_fee)}
-                                    travelFee={Number(quoteData.travel_fee)}
-                                    accommodation={quoteData.accommodation || undefined}
-                                    discount={Number(quoteData.discount) || undefined}
-                                    subtotal={Number(quoteData.subtotal)}
-                                    total={Number(quoteData.total)}
-                                    status={
-                                      quoteData.status === 'pending'
-                                        ? 'Pending'
-                                        : quoteData.status === 'accepted'
-                                          ? 'Accepted'
-                                          : quoteData.status === 'rejected' || quoteData.status === 'expired'
-                                            ? 'Rejected'
-                                            : 'Pending'
-                                    }
-                                  />
-                                  {user?.user_type === 'client' &&
-                                    quoteData.status === 'pending' &&
-                                    !bookingConfirmed && (
-                                      <div className="mt-2 flex gap-1.5">
-                                        <Button
-                                          type="button"
-                                          isLoading={acceptingQuoteId === msg.quote_id}
-                                          onClick={() => handleAcceptQuote(quoteData)}
-                                          className="bg-green-500 hover:bg-green-600 text-white rounded-full px-3 py-1.5 text-xs font-semibold shadow-md"
-                                          disabled={acceptingQuoteId === msg.quote_id}
-                                        >
-                                          Accept
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          variant="secondary"
-                                          onClick={() => handleDeclineQuote(quoteData)}
-                                          className="bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-full px-3 py-1.5 text-xs font-semibold shadow-md"
-                                          disabled={acceptingQuoteId === msg.quote_id}
-                                        >
-                                          Decline
-                                        </Button>
-                                      </div>
-                                    )}
-                                </div>
-                              );
-                            })()
-                          ) : msg.message_type === 'system' && msg.action ? (
+                          {msg.message_type === 'system' && msg.action ? (
                             msg.action === 'review_quote' ? (
                               <>
                                 <Button
