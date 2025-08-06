@@ -155,6 +155,8 @@ def create_message(
         visible_to=message_in.visible_to,
         quote_id=message_in.quote_id,
         attachment_url=message_in.attachment_url,
+        action=message_in.action,
+        expires_at=message_in.expires_at,
     )
     other_user_id = (
         booking_request.artist_id

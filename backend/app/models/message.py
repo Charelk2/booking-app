@@ -58,6 +58,7 @@ class Message(BaseModel):
     quote_id = Column(Integer, ForeignKey("quotes_v2.id"), nullable=True)
     attachment_url = Column(String, nullable=True)
     action = Column(Enum(MessageAction), nullable=True)
+    expires_at = Column(DateTime, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
     is_read = Column(Boolean, default=False)
 
