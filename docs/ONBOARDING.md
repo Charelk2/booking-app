@@ -46,6 +46,9 @@ These sample commands demonstrate the basic booking flow using the API. Replace 
      -H 'Content-Type: application/json' \
      -d '{"booking_request_id":REQUEST_ID,"amount":500}'
    ```
+   This updates the booking request status to `quote_provided` and creates a
+   `SYSTEM` message in the client's chat prompting them to review and accept
+   the quote. The message expires in 7 days.
 
 5. **Client accepts the quote**
    ```bash

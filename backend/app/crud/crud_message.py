@@ -1,4 +1,5 @@
 from typing import List
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -16,6 +17,7 @@ def create_message(
     quote_id: int | None = None,
     attachment_url: str | None = None,
     action: models.MessageAction | None = None,
+    expires_at: datetime | None = None,
 ) -> models.Message:
     db_msg = models.Message(
         booking_request_id=booking_request_id,
@@ -27,6 +29,7 @@ def create_message(
         quote_id=quote_id,
         attachment_url=attachment_url,
         action=action,
+        expires_at=expires_at,
     )
     db.add(db_msg)
     db.commit()
