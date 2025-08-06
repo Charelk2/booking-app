@@ -3,7 +3,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import MessageThreadWrapper from '../MessageThreadWrapper';
 import * as api from '@/lib/api';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 jest.mock('@/lib/api');
 
@@ -35,7 +35,6 @@ jest.mock('next/image', () => ({
 }));
 
 jest.mock('next/navigation', () => ({
-  useSearchParams: jest.fn(),
   useRouter: jest.fn(),
 }));
 
@@ -54,9 +53,8 @@ const bookingRequest = {
   },
 };
 
-function setup(userType: 'client' | 'artist', params = '') {
+function setup(userType: 'client' | 'artist') {
   (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 99, user_type: userType }, loading: false });
-  (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams(params));
   const router = { replace: jest.fn(), back: jest.fn() };
   (useRouter as jest.Mock).mockReturnValue(router);
   const container = document.createElement('div');
@@ -110,23 +108,6 @@ describe('MessageThreadWrapper', () => {
     const hideButton = container.querySelector('button[aria-label="Hide details panel"]');
     expect(showButton).not.toBeNull();
     expect(hideButton).toBeNull();
-    act(() => root.unmount());
-    container.remove();
-  });
-
-  it('opens quote modal when sendQuote param is present', async () => {
-    const { container, root } = setup('artist', 'sendQuote=1');
-    const MessageThreadMock = require('../MessageThread').default as jest.Mock;
-    await act(async () => {
-      root.render(
-        <MessageThreadWrapper bookingRequestId={1} bookingRequest={bookingRequest as any} setShowReviewModal={() => {}} />,
-      );
-    });
-    await act(async () => {});
-    expect(MessageThreadMock).toHaveBeenCalledWith(
-      expect.objectContaining({ showQuoteModal: true }),
-      expect.anything(),
-    );
     act(() => root.unmount());
     container.remove();
   });

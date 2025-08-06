@@ -62,11 +62,7 @@ describe('MessageThread quote actions', () => {
     const root = createRoot(container);
     await act(async () => {
       root.render(
-        <MessageThread
-          bookingRequestId={1}
-          showQuoteModal={false}
-          setShowQuoteModal={jest.fn()}
-        />,
+        <MessageThread bookingRequestId={1} />, 
       );
     });
     await act(async () => { await flushPromises(); });
@@ -126,11 +122,7 @@ describe('MessageThread quote actions', () => {
     const root = createRoot(container);
     await act(async () => {
       root.render(
-        <MessageThread
-          bookingRequestId={1}
-          showQuoteModal={false}
-          setShowQuoteModal={jest.fn()}
-        />,
+        <MessageThread bookingRequestId={1} />, 
       );
     });
     await act(async () => { await flushPromises(); });
@@ -166,11 +158,7 @@ describe('MessageThread quote actions', () => {
     const root = createRoot(container);
     await act(async () => {
       root.render(
-        <MessageThread
-          bookingRequestId={1}
-          showQuoteModal={false}
-          setShowQuoteModal={jest.fn()}
-        />,
+        <MessageThread bookingRequestId={1} />, 
       );
     });
     await act(async () => { await flushPromises(); });
@@ -178,6 +166,34 @@ describe('MessageThread quote actions', () => {
 
     expect(api.getQuoteV2).not.toHaveBeenCalled();
     expect(container.textContent).toContain('Invalid quote message');
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('shows quote bubble to artists when no quote exists', async () => {
+    (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
+    (api.getQuoteV2 as jest.Mock).mockResolvedValue({ data: null });
+    (api.getBookingDetails as jest.Mock).mockResolvedValue({ data: { id: 1, service: { title: 'Gig' } } });
+
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        <MessageThread
+          bookingRequestId={1}
+          initialBaseFee={100}
+          initialTravelCost={50}
+          initialSoundNeeded
+        />,
+      );
+    });
+    await act(async () => { await flushPromises(); });
+
+    const bubble = container.querySelector('[data-testid="artist-quote-bubble"]');
+    expect(bubble).not.toBeNull();
 
     act(() => root.unmount());
     container.remove();
