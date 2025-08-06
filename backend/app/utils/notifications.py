@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 VIDEO_FLOW_READY_MESSAGE = "All details collected! The artist has been notified."
 
 
+def alert_scheduler_failure(exc: Exception) -> None:
+    """Emit an error log when a background scheduler run fails."""
+    logger.exception("Scheduler run failed: %s", exc)
+
+
 def format_notification_message(
     ntype: NotificationType, **kwargs: str | int | None
 ) -> str:
