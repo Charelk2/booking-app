@@ -229,7 +229,7 @@ The `/api/v1/quotes/calculate` endpoint now uses a regression-based travel estim
 
 ### Database migrations
 
-Run `alembic upgrade head` whenever you pull changes that modify the database schema. The API will attempt to add missing columns such as `artist_profiles.price_visible`, `services.currency`, `bookings_simple.date`/`location`, `bookings_simple.payment_status`, `users.mfa_secret`/`mfa_enabled`, `calendar_accounts.email`, `messages.is_read` (added in revision `1e5c92e1a7de`), and `booking_requests.travel_mode`/`travel_cost`/`travel_breakdown` automatically for SQLite setups. Non-SQLite deployments should run the new Alembic migration after pulling this update. Simply starting the API will also add the new `calendar_accounts.email` column if it is missing.
+Run `alembic upgrade head` whenever you pull changes that modify the database schema. The API will attempt to add missing columns such as `artist_profiles.price_visible`, `services.currency`, `bookings_simple.date`/`location`, `bookings_simple.payment_status`, `users.mfa_secret`/`mfa_enabled`, `calendar_accounts.email`, `messages.is_read` (added in revision `1e5c92e1a7de`), `messages.action` (added in revision `e0069045b94f`), and `booking_requests.travel_mode`/`travel_cost`/`travel_breakdown` automatically for SQLite setups. Non-SQLite deployments should run the new Alembic migration after pulling this update. Simply starting the API will also add the new `calendar_accounts.email` column if it is missing.
 
 ### Service type enum
 
