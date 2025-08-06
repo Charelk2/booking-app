@@ -34,7 +34,6 @@ import {
 import Button from '../ui/Button';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import QuoteBubble from './QuoteBubble';
-import InlineQuoteForm from './InlineQuoteForm';
 import useWebSocket from '@/hooks/useWebSocket';
 import { format, isValid } from 'date-fns';
 import Countdown from './Countdown';
@@ -177,7 +176,36 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const currentArtistId = propArtistId || bookingDetails?.artist_id || user?.id || 0;
 
     const baseFee = initialBaseFee ?? 0;
+    const soundFee = initialSoundNeeded ? 250 : 0;
     const travelFee = initialTravelCost ?? 0;
+    const discount = 0;
+    const subtotal = baseFee + soundFee + travelFee;
+    const total = (subtotal - discount) * 1.15;
+
+    const initialQuoteData = useMemo(
+      () => ({
+        booking_request_id: bookingRequestId,
+        artist_id: currentArtistId,
+        client_id: currentClientId,
+        services: [
+          { description: computedServiceName ?? 'Service fee', price: baseFee },
+        ],
+        sound_fee: soundFee,
+        travel_fee: travelFee,
+        accommodation: null,
+        discount: null,
+        expires_at: null,
+      }),
+      [
+        bookingRequestId,
+        currentArtistId,
+        currentClientId,
+        computedServiceName,
+        baseFee,
+        soundFee,
+        travelFee,
+      ],
+    );
 
     const eventDetails = useMemo(
       () => ({
@@ -707,16 +735,18 @@ useEffect(() => {
           )}
 
           {user?.user_type === 'artist' && !bookingConfirmed && !hasSentQuote && (
-            <div className="mb-4" data-testid="artist-inline-quote">
-              <InlineQuoteForm
-                artistId={currentArtistId}
-                clientId={currentClientId}
-                bookingRequestId={bookingRequestId}
-                serviceName={computedServiceName}
-                initialBaseFee={baseFee}
-                initialTravelCost={travelFee}
-                initialSoundNeeded={initialSoundNeeded}
-                onSubmit={handleSendQuote}
+            <div className="mb-4" data-testid="artist-quote-bubble">
+              <QuoteBubble
+                description={computedServiceName || 'Service fee'}
+                price={baseFee}
+                soundFee={soundFee}
+                travelFee={travelFee}
+                discount={discount}
+                subtotal={subtotal}
+                total={total}
+                status="Pending"
+                eventDetails={eventDetails}
+                onAccept={() => handleSendQuote(initialQuoteData)}
                 onDecline={handleDeclineRequest}
               />
             </div>
