@@ -90,8 +90,8 @@ def test_create_and_accept_quote():
     assert quote.subtotal == Decimal("150")
     assert quote.total == Decimal("150")
     msgs = db.query(Message).all()
-    assert len(msgs) == 1
-    assert msgs[0].quote_id == quote.id
+    assert len(msgs) == 2
+    assert any(m.quote_id == quote.id for m in msgs)
 
     before = datetime.utcnow()
     booking = api_quote_v2.accept_quote(quote.id, db)
@@ -413,6 +413,9 @@ def test_accept_quote_missing_client(caplog):
     quote = api_quote_v2.create_quote(quote_in, db)
 
     # Remove the client but keep the booking request intact
+    from app.models import Notification
+    for n in db.query(Notification).filter(Notification.user_id == client.id).all():
+        db.delete(n)
     client.booking_requests_as_client.remove(br)
     db.delete(client)
     db.commit()
@@ -528,8 +531,8 @@ def test_accept_quote_creates_deposit_notification():
     from app.models import NotificationType
 
     notifs = crud_notification.get_notifications_for_user(db, client.id)
-    assert len(notifs) == 1
-    assert notifs[0].type == NotificationType.DEPOSIT_DUE
+    assert len(notifs) == 2
+    assert any(n.type == NotificationType.DEPOSIT_DUE for n in notifs)
 
 
 def test_accept_quote_deposit_notification_link():

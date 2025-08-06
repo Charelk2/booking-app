@@ -7,6 +7,7 @@ import os
 
 from .. import models, schemas
 from ..utils import error_response
+from ..utils.notifications import notify_booking_status_update
 from ..crud import crud_quote_v2, crud_message
 from .dependencies import get_db, get_current_user
 from ..services import quote_pdf
@@ -39,6 +40,23 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
             quote_id=quote.id,
             attachment_url=None,
         )
+        # Provide additional context and notify the client that the quote is
+        # ready to review. The system message keeps both parties in sync.
+        detail_content = f"Quote sent with total {quote.total}"
+        crud_message.create_message(
+            db=db,
+            booking_request_id=quote_in.booking_request_id,
+            sender_id=quote_in.artist_id,
+            sender_type=models.SenderType.ARTIST,
+            content=detail_content,
+            message_type=models.MessageType.SYSTEM,
+            attachment_url=None,
+        )
+        client = db.query(models.User).filter(models.User.id == quote_in.client_id).first()
+        if client:
+            notify_booking_status_update(
+                db, client, quote_in.booking_request_id, "quote_sent"
+            )
         return quote
     except HTTPException:
         raise
