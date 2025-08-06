@@ -822,6 +822,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Frontend helper `acceptQuoteV2(quoteId, serviceId?)` automatically appends
   `?service_id={serviceId}` to this request when a service ID is provided.
 * The client quote detail page now uses this endpoint when clients click **Accept**.
+* React hooks `useSendQuote`, `useAcceptQuote`, and `useDeclineQuote` wrap these quote endpoints and return typed `Message` data with the shared `BookingStatus` enum.
 * Quote V2 error handling logs the acting user and quote details and returns structured responses for easier debugging.
 * Backend helper `error_response` now logs its message and field errors before raising an exception.
 * Many endpoints previously raising `HTTPException` directly now return this structured error format for consistency.
