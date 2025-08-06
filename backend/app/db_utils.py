@@ -81,6 +81,17 @@ def ensure_message_action_column(engine: Engine) -> None:
     )
 
 
+def ensure_message_expires_at_column(engine: Engine) -> None:
+    """Add the ``expires_at`` column to ``messages`` if missing."""
+
+    add_column_if_missing(
+        engine,
+        "messages",
+        "expires_at",
+        "expires_at DATETIME",
+    )
+
+
 def ensure_request_attachment_column(engine: Engine) -> None:
     """Add the ``attachment_url`` column to ``booking_requests`` if missing."""
 
