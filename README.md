@@ -1443,7 +1443,7 @@ When logged in as an artist, the navigation bar shows **Today**, **View Profile*
 client view, returning the standard navigation links and redirecting to the
 homepage. When switching back to artist view you are taken to the artist
 dashboard. In artist view the header search bar and compact search pill are
-replaced by a **View Profile** link. The toggle appears left of the booking
+removed entirely so only the navigation links remain, including a single **View Profile** link. The toggle appears left of the booking
 request icon for quick access. On mobile the drawer lists both sets of links so
 switching views is always possible. All other artist options are available from
 the mobile menu or profile dropdown.
