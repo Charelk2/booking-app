@@ -77,10 +77,17 @@ from .api import api_artist as api_artist_recommendation
 from .core.config import settings
 from .utils.redis_cache import close_redis_client
 from .crud import crud_quote_v2
-from .utils.notifications import notify_quote_expired
-from .utils.notifications import notify_quote_expiring
+from .utils.notifications import (
+    notify_quote_expired,
+    notify_quote_expiring,
+    alert_scheduler_failure,
+)
+from .utils.status_logger import register_status_listeners
 
 logger = logging.getLogger(__name__)
+
+# Register SQLAlchemy listeners that log status transitions
+register_status_listeners()
 
 # ─── Ensure database schema is up-to-date ──────────────────────────────────
 ensure_message_type_column(engine)
@@ -395,8 +402,8 @@ async def expire_quotes_loop() -> None:
         try:
             with SessionLocal() as db:
                 process_quote_expiration(db)
-        except Exception as exc:  # pragma: no cover - log and continue
-            logger.exception("Error expiring quotes: %s", exc)
+        except Exception as exc:  # pragma: no cover - log and alert then continue
+            alert_scheduler_failure(exc)
 
 
 @app.on_event("startup")
