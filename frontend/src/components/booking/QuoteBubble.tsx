@@ -14,6 +14,16 @@ export interface QuoteBubbleProps {
   total: number;
   status: 'Pending' | 'Accepted' | 'Rejected';
   className?: string;
+  /**
+   * Optional label for a call-to-action link inside the bubble.
+   * When provided along with `onAction`, a small link-styled
+   * button appears below the quote details.
+   */
+  actionLabel?: string;
+  /**
+   * Callback fired when the action link is clicked.
+   */
+  onAction?: () => void;
 }
 
 export default function QuoteBubble({
@@ -27,6 +37,8 @@ export default function QuoteBubble({
   total,
   status,
   className,
+  actionLabel,
+  onAction,
 }: QuoteBubbleProps) {
   return (
     <div
@@ -90,6 +102,15 @@ export default function QuoteBubble({
       <div className="mt-2">
         <StatusBadge status={status} />
       </div>
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-2 text-xs text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }
