@@ -6,7 +6,11 @@ import * as api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
 jest.mock('@/lib/api');
-jest.mock('next/navigation', () => ({ useRouter: jest.fn() }));
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(),
+  useSearchParams: jest.fn(() => new URLSearchParams()),
+  usePathname: jest.fn(() => '/'),
+}));
 jest.mock('@/hooks/useWebSocket', () => ({
   __esModule: true,
   default: () => ({ send: jest.fn(), onMessage: jest.fn() }),
@@ -134,6 +138,46 @@ describe('MessageThread quote actions', () => {
 
     const bubble = container.querySelector('#quote-55');
     expect(bubble).not.toBeNull();
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('ignores messages with quote_id 0', async () => {
+    (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 7, user_type: 'client' } });
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 9,
+          sender_type: 'artist',
+          content: 'Invalid quote message',
+          message_type: 'QUOTE',
+          quote_id: 0,
+          is_read: true,
+          timestamp: '2025-01-01T00:00:00Z',
+        },
+      ],
+    });
+
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        <MessageThread
+          bookingRequestId={1}
+          showQuoteModal={false}
+          setShowQuoteModal={jest.fn()}
+        />,
+      );
+    });
+    await act(async () => { await flushPromises(); });
+    await act(async () => { await flushPromises(); });
+
+    expect(api.getQuoteV2).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Invalid quote message');
 
     act(() => root.unmount());
     container.remove();

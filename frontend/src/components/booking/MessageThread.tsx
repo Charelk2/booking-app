@@ -302,10 +302,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         filteredMessages.forEach((msg) => {
           const quoteId = Number(msg.quote_id);
           const isQuote =
+            quoteId > 0 &&
             (normalizeType(msg.message_type) === 'QUOTE' ||
               (normalizeType(msg.message_type) === 'SYSTEM' &&
-                msg.action === 'review_quote')) &&
-            !Number.isNaN(quoteId);
+                msg.action === 'review_quote'));
           if (isQuote) {
             void ensureQuoteLoaded(quoteId);
           }
@@ -368,10 +368,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
 
           const incomingQuoteId = Number(incomingMsg.quote_id);
           const isQuoteMsg =
+            incomingQuoteId > 0 &&
             (normalizeType(incomingMsg.message_type) === 'QUOTE' ||
               (normalizeType(incomingMsg.message_type) === 'SYSTEM' &&
-                incomingMsg.action === 'review_quote')) &&
-            !Number.isNaN(incomingQuoteId);
+                incomingMsg.action === 'review_quote'));
           if (isQuoteMsg) {
             void ensureQuoteLoaded(incomingQuoteId);
           }
@@ -752,10 +752,10 @@ useEffect(() => {
 
                     const quoteId = Number(msg.quote_id);
                     const isQuoteMessage =
+                      quoteId > 0 &&
                       (normalizeType(msg.message_type) === 'QUOTE' ||
                         (normalizeType(msg.message_type) === 'SYSTEM' &&
-                          msg.action === 'review_quote')) &&
-                      !Number.isNaN(quoteId);
+                          msg.action === 'review_quote'));
                     const bubbleBase = isMsgFromSelf
                       ? 'bg-blue-100 text-gray-900'
                       : 'bg-white text-gray-800';
