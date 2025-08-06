@@ -300,13 +300,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         }
 
         filteredMessages.forEach((msg) => {
+          const quoteId = Number(msg.quote_id);
           const isQuote =
             (normalizeType(msg.message_type) === 'QUOTE' ||
               (normalizeType(msg.message_type) === 'SYSTEM' &&
                 msg.action === 'review_quote')) &&
-            typeof msg.quote_id === 'number';
+            !Number.isNaN(quoteId);
           if (isQuote) {
-            void ensureQuoteLoaded(msg.quote_id);
+            void ensureQuoteLoaded(quoteId);
           }
         });
 
@@ -365,13 +366,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             return [...prevMessages.slice(-199), incomingMsg];
           });
 
+          const incomingQuoteId = Number(incomingMsg.quote_id);
           const isQuoteMsg =
             (normalizeType(incomingMsg.message_type) === 'QUOTE' ||
               (normalizeType(incomingMsg.message_type) === 'SYSTEM' &&
                 incomingMsg.action === 'review_quote')) &&
-            typeof incomingMsg.quote_id === 'number';
+            !Number.isNaN(incomingQuoteId);
           if (isQuoteMsg) {
-            void ensureQuoteLoaded(incomingMsg.quote_id);
+            void ensureQuoteLoaded(incomingQuoteId);
           }
         }),
       [onSocketMessage, ensureQuoteLoaded, initialNotes, onBookingDetailsParsed, setMessages],
@@ -434,11 +436,12 @@ useEffect(() => {
     const visibleMessages = useMemo(() => {
       const quoteIds = new Set<number>();
       messages.forEach((m) => {
+        const qid = Number(m.quote_id);
         if (
           normalizeType(m.message_type) === 'QUOTE' &&
-          typeof m.quote_id === 'number'
+          !Number.isNaN(qid)
         ) {
-          quoteIds.add(m.quote_id);
+          quoteIds.add(qid);
         }
       });
 
@@ -449,6 +452,7 @@ useEffect(() => {
           (user?.user_type === 'artist' && msg.visible_to === 'artist') ||
           (user?.user_type === 'client' && msg.visible_to === 'client');
 
+        const qid = Number(msg.quote_id);
         return (
           visibleToCurrentUser &&
           msg.content &&
@@ -458,8 +462,8 @@ useEffect(() => {
           !(
             normalizeType(msg.message_type) === 'SYSTEM' &&
             msg.action === 'review_quote' &&
-            typeof msg.quote_id === 'number' &&
-            quoteIds.has(msg.quote_id)
+            !Number.isNaN(qid) &&
+            quoteIds.has(qid)
           )
         );
       });
@@ -746,11 +750,12 @@ useEffect(() => {
                       bubbleShape = isLastInGroup ? 'rounded-bl-none rounded-xl' : 'rounded-xl';
                     }
 
+                    const quoteId = Number(msg.quote_id);
                     const isQuoteMessage =
                       (normalizeType(msg.message_type) === 'QUOTE' ||
                         (normalizeType(msg.message_type) === 'SYSTEM' &&
                           msg.action === 'review_quote')) &&
-                      typeof msg.quote_id === 'number';
+                      !Number.isNaN(quoteId);
                     const bubbleBase = isMsgFromSelf
                       ? 'bg-blue-100 text-gray-900'
                       : 'bg-white text-gray-800';
@@ -759,12 +764,12 @@ useEffect(() => {
                     const messageTime = format(new Date(msg.timestamp), 'HH:mm');
 
                     if (isQuoteMessage) {
-                      const quoteData = quotes[msg.quote_id];
+                      const quoteData = quotes[quoteId];
                       if (!quoteData) return null;
                       return (
                         <div
                           key={msg.id}
-                          id={`quote-${msg.quote_id}`}
+                          id={`quote-${quoteId}`}
                           className={`mb-0.5 w-full`}
                           ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                         >
