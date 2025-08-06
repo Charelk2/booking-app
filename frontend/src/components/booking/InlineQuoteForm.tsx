@@ -126,7 +126,7 @@ const InlineQuoteForm: React.FC<Props> = ({
   };
 
   return (
-    <div className="w-full bg-brand/10 dark:bg-brand-dark/30 rounded-xl p-6">
+    <div className="w-full bg-brand/10 dark:bg-brand-dark/30 rounded-xl p-4">
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div>
           <h4 className="mb-2 text-sm font-semibold">New Booking Request</h4>
@@ -146,65 +146,62 @@ const InlineQuoteForm: React.FC<Props> = ({
         </div>
 
         <div className="flex flex-col space-y-6">
-          <div className="flex justify-between items-center flex-wrap gap-2">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight">Review &amp; Adjust Quote</h2>
-          <div className="text-sm font-medium opacity-90 mt-1">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h4 className="text-sm font-semibold">Review &amp; Adjust Quote</h4>
+            {onDecline && (
+              <button
+                type="button"
+                onClick={onDecline}
+                className="text-sm text-red-600 hover:underline"
+              >
+                Decline request
+              </button>
+            )}
+          </div>
+          <div className="text-xs font-medium opacity-90">
             <span>Quote No: {quoteNumber}</span>
             <span className="ml-4">Date: {currentDate}</span>
           </div>
-        </div>
-        {onDecline && (
-          <button
-            type="button"
-            onClick={onDecline}
-            className="text-red-600 hover:underline text-sm"
-          >
-            Decline request
-          </button>
-        )}
-      </div>
+          <div className="space-y-6">
+            <div>
+              <label htmlFor="template-select" className="block text-sm font-medium text-gray-700 mb-1">
+                Choose a template
+              </label>
+              <select
+                id="template-select"
+                className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                value={selectedTemplate}
+                onChange={(e) => setSelectedTemplate(e.target.value ? Number(e.target.value) : '')}
+              >
+                <option value="">No template</option>
+                {templates.map((tmpl) => (
+                  <option key={tmpl.id} value={tmpl.id}>
+                    {tmpl.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-      <div className="space-y-6">
-        <div>
-          <label htmlFor="template-select" className="block text-sm font-medium text-gray-700 mb-1">
-            Choose a template
-          </label>
-          <select
-            id="template-select"
-            className="w-full p-2 border border-gray-300 rounded-lg text-sm"
-            value={selectedTemplate}
-            onChange={(e) => setSelectedTemplate(e.target.value ? Number(e.target.value) : '')}
-          >
-            <option value="">No template</option>
-            {templates.map((tmpl) => (
-              <option key={tmpl.id} value={tmpl.id}>
-                {tmpl.name}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div className="relative">
+              <label htmlFor="quote-description" className="sr-only">
+                Quote Description
+              </label>
+              <input
+                ref={firstFieldRef}
+                id="quote-description"
+                type="text"
+                placeholder="Quote Description (e.g., 'Wedding Performance')"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 text-base shadow-sm"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+              <p className="absolute -bottom-5 left-0 text-xs text-gray-500">
+                A brief, descriptive title for this quote.
+              </p>
+            </div>
 
-        <div className="relative">
-          <label htmlFor="quote-description" className="sr-only">
-            Quote Description
-          </label>
-          <input
-            ref={firstFieldRef}
-            id="quote-description"
-            type="text"
-            placeholder="Quote Description (e.g., 'Wedding Performance')"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 text-base shadow-sm"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-          <p className="absolute -bottom-5 left-0 text-xs text-gray-500">
-            A brief, descriptive title for this quote.
-          </p>
-        </div>
-
-        <h3 className="text-xl font-bold text-gray-900">Estimated Cost</h3>
-        <div className="space-y-2 text-gray-700">
+            <h3 className="text-xl font-bold text-gray-900">Estimated Cost</h3>
+            <div className="space-y-2 text-gray-700">
           <div className="flex justify-between items-center py-2">
             <span className="font-medium">Artist Base Fee</span>
             <input
@@ -347,33 +344,30 @@ const InlineQuoteForm: React.FC<Props> = ({
             />
           </div>
         </div>
+        <div className="flex items-start space-x-3">
+          <input
+            type="checkbox"
+            id="terms"
+            className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <label htmlFor="terms" className="text-sm text-gray-600">
+            I have reviewed the quote and agree to the{' '}
+            <a href="#" className="text-blue-600 hover:underline">
+              terms of service
+            </a>
+            .
+          </label>
+        </div>
 
-            <div className="flex items-start space-x-3">
-              <input
-                type="checkbox"
-                id="terms"
-                className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="terms" className="text-sm text-gray-600">
-                I have reviewed the quote and agree to the{' '}
-                <a href="#" className="text-blue-600 hover:underline">
-                  terms of service
-                </a>
-                .
-              </label>
-            </div>
-          </div>
-
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              title="This quote will be sent to the client"
-              className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Send Quote
-            </button>
-          </div>
+        <div className="flex justify-end space-x-3 pt-6 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            title="This quote will be sent to the client"
+            className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Send Quote
+          </button>
         </div>
       </div>
     </div>
