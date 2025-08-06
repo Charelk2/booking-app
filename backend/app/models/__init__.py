@@ -10,7 +10,7 @@ from .quote_template import QuoteTemplate
 from .booking_simple import BookingSimple
 from .sound_provider import SoundProvider
 from .artist_sound_preference import ArtistSoundPreference
-from .message import Message, SenderType, MessageType
+from .message import Message, SenderType, MessageType, VisibleTo
 from .notification import Notification, NotificationType
 from .calendar_account import CalendarAccount, CalendarProvider
 from .email_token import EmailToken
@@ -37,6 +37,7 @@ __all__ = [
     "QuoteStatusV2",
     "SenderType",
     "MessageType",
+    "VisibleTo",
     "Notification",
     "NotificationType",
     "CalendarAccount",

@@ -63,6 +63,9 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Backend now defines a unified `BookingStatus` enum in `backend/app/models/booking_status.py` shared by bookings and booking requests.
 - Error fallback messages now detect authentication failures and prompt users to log in.
 - Booking request API responses now include `last_message_content` and `last_message_timestamp` so inbox conversations sort by recent chats.
+- Messages now include a `message_type` (`USER`, `QUOTE`, `SYSTEM`) and `visible_to`
+  (`artist`, `client`, `both`) field so threads render and filter correctly for
+  each participant.
 - Backend now fetches these fields using a single optimized query for improved performance.
 - Booking request endpoints now embed the artist's business name so clients no longer see placeholder `user/unknown` names.
 
