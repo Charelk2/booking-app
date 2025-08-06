@@ -140,7 +140,7 @@ const InlineQuoteForm: React.FC<Props> = ({
               {eventDetails?.date && <li>Date: {eventDetails.date}</li>}
               {eventDetails?.guests && <li>Guests: {eventDetails.guests}</li>}
               {eventDetails?.venue && <li>Venue: {eventDetails.venue}</li>}
-              {eventDetails?.notes && <li>Notes: "{eventDetails.notes}"</li>}
+              {eventDetails?.notes && <li>Notes: &quot;{eventDetails.notes}&quot;</li>}
             </ul>
           </div>
         </div>
@@ -220,7 +220,7 @@ const InlineQuoteForm: React.FC<Props> = ({
               <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
                 ⓘ
                 <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
-                  Calculated based on artist's location and event venue distance.
+                  Calculated based on artist&apos;s location and event venue distance.
                 </div>
               </span>
             </span>
@@ -371,6 +371,8 @@ const InlineQuoteForm: React.FC<Props> = ({
         </div>
       </div>
     </div>
+  </div>
+</div>
   );
 };
 
