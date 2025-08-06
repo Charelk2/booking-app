@@ -260,7 +260,9 @@ export interface Message {
   sender_id: number;
   sender_type: "client" | "artist";
   content: string;
-  message_type: "text" | "quote" | "system";
+  // message_type values are provided by the backend in uppercase.
+  // Support both legacy lowercase and new uppercase forms for robustness.
+  message_type: "text" | "quote" | "system" | "USER" | "QUOTE" | "SYSTEM";
   quote_id?: number | null;
   attachment_url?: string | null;
   visible_to?: "artist" | "client" | "both";
@@ -275,7 +277,8 @@ export interface Message {
 
 export interface MessageCreate {
   content: string;
-  message_type?: "text" | "quote" | "system";
+  // Allow either lowercase or uppercase message types when creating messages.
+  message_type?: "text" | "quote" | "system" | "USER" | "QUOTE" | "SYSTEM";
   quote_id?: number;
   attachment_url?: string;
   visible_to?: "artist" | "client" | "both";

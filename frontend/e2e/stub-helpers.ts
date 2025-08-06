@@ -102,7 +102,8 @@ export async function stubMessages(page: Page, requestId = 42, quoteId = 1) {
             sender_id: 1,
             sender_type: 'artist',
             content: 'Quote',
-            message_type: 'quote',
+            // Backend emits message types in uppercase.
+            message_type: 'QUOTE',
             quote_id: quoteId,
             timestamp: new Date().toISOString(),
           },
