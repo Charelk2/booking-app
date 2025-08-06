@@ -11,6 +11,22 @@ import { EventDetails } from '@/contexts/BookingContext';
 import { CollapsibleSection } from '../../ui';
 import toast from '../../ui/Toast';
 import { parseBookingText } from '@/lib/api';
+import type { ParsedBookingDetails } from '@/types';
+
+interface WebSpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+interface WebSpeechRecognition extends EventTarget {
+  start(): void;
+  stop(): void;
+  onresult: (event: WebSpeechRecognitionEvent) => void;
+  onend: () => void;
+}
+
+interface SpeechRecognitionConstructor {
+  new (): WebSpeechRecognition;
+}
 
 interface Props {
   control: Control<EventDetails>;
@@ -28,19 +44,26 @@ export default function EventDescriptionStep({
   onToggle = () => {},
 }: Props) {
   const isMobile = useIsMobile();
-  const [parsed, setParsed] = useState<Partial<EventDetails> | null>(null);
+  type ParsedDetails = Omit<ParsedBookingDetails, 'event_type'> & {
+    eventType?: string;
+  };
+  const [parsed, setParsed] = useState<ParsedDetails | null>(null);
   const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<WebSpeechRecognition | null>(null);
 
   const startListening = () => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const win = window as typeof window & {
+      SpeechRecognition?: SpeechRecognitionConstructor;
+      webkitSpeechRecognition?: SpeechRecognitionConstructor;
+    };
+    const SR = win.SpeechRecognition || win.webkitSpeechRecognition;
     if (!SR) {
       toast.error('Voice input not supported');
       return;
     }
-    const rec: SpeechRecognition = new SR();
+    const rec: WebSpeechRecognition = new SR();
     recognitionRef.current = rec;
-    rec.onresult = (e: SpeechRecognitionEvent) => {
+    rec.onresult = (e: WebSpeechRecognitionEvent) => {
       const txt = e.results[0][0].transcript;
       const current = watch('eventDescription') || '';
       setValue('eventDescription', `${current} ${txt}`.trim());
