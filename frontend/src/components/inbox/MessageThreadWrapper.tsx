@@ -106,6 +106,26 @@ export default function MessageThreadWrapper({
       console.error('Calendar download error:', err);
     }
   }, [confirmedBookingDetails]);
+  // Close the details panel before navigating away on mobile.
+  // When the panel is open, we push a history state so pressing the back
+  // button closes the panel instead of leaving the message thread.
+  useEffect(() => {
+    const handlePopState = () => {
+      if (showSidePanel) {
+        setShowSidePanel(false);
+      } else {
+        router.back();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    if (showSidePanel) {
+      window.history.pushState(null, '');
+    }
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [showSidePanel, router]);
 
   if (!bookingRequestId) {
     return (
@@ -349,7 +369,7 @@ export default function MessageThreadWrapper({
         <section
           id="reservation-panel-mobile"
           role="complementary"
-          className={`md:hidden fixed inset-y-0 right-0 z-10 w-full bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
+          className={`md:hidden fixed inset-0 z-20 w-full bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
             showSidePanel ? 'translate-x-0' : 'translate-x-full'
           } p-4`}
         >
