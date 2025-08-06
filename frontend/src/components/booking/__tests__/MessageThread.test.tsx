@@ -3,11 +3,9 @@ import React from 'react';
 import { act } from 'react';
 import MessageThread from '../MessageThread';
 import * as api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
 jest.mock('@/lib/api');
-jest.mock('@/contexts/AuthContext');
 jest.mock('next/navigation', () => ({ useRouter: jest.fn() }));
 jest.mock('@/hooks/useWebSocket', () => ({
   __esModule: true,
@@ -24,7 +22,7 @@ function flushPromises() {
 
 describe('MessageThread quote actions', () => {
   it('lets clients open quote review from the quote bubble', async () => {
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 7, user_type: 'client' } });
+    (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 7, user_type: 'client' } });
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
       data: [
@@ -69,34 +67,20 @@ describe('MessageThread quote actions', () => {
     });
     await act(async () => { await flushPromises(); });
     await act(async () => { await flushPromises(); });
+    await act(async () => { await flushPromises(); });
+    await act(async () => { await flushPromises(); });
+    await act(async () => { await flushPromises(); });
 
-    const bubbleButton = container.querySelector('#quote-42 button');
-    expect(bubbleButton?.textContent).toBe('Review & Accept Quote');
 
-    (api.getQuoteV2 as jest.Mock).mockResolvedValue({
-      data: {
-        id: 42,
-        booking_request_id: 1,
-        artist_id: 9,
-        client_id: 7,
-        services: [{ description: 'Performance', price: 100 }],
-        sound_fee: 0,
-        travel_fee: 0,
-        subtotal: 100,
-        total: 100,
-        status: 'pending',
-        created_at: '',
-        updated_at: '',
-      },
-    });
+    const acceptButton = container.querySelector('#quote-42 button');
+    expect(acceptButton?.textContent).toBe('Accept Quote');
 
     act(() => {
-      bubbleButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      acceptButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
     await act(async () => { await flushPromises(); });
 
-    expect(api.getQuoteV2).toHaveBeenCalledWith(42);
-    expect(container.textContent).toContain('Quote Review');
+    expect(api.acceptQuoteV2).toHaveBeenCalledWith(42, undefined);
 
     act(() => root.unmount());
     container.remove();

@@ -15,12 +15,24 @@ describe('QuoteBubble', () => {
           price={100}
           soundFee={10}
           travelFee={20}
-          accommodation="Hotel"
+          accommodation="0.00"
           discount={5}
           subtotal={125}
           total={130}
           status="Pending"
-        />,
+          eventDetails={{
+            from: 'Client Name',
+            receivedAt: 'Jul 30, 2025',
+            event: 'Wedding Reception',
+            date: 'Oct 26, 2025',
+            guests: '~120',
+            venue: 'Molenvliet',
+            notes: 'Client requests a specific song for the first dance.',
+          }}
+          expiresAt="2025-08-01T00:00:00Z"
+          onAccept={() => {}}
+          onDecline={() => {}}
+        />, 
       );
     });
 
