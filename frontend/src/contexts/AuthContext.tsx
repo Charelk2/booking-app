@@ -216,6 +216,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('artistViewActive', String(next));
       }
+      if (user?.user_type === 'artist') {
+        router.push(next ? '/dashboard/artist' : '/');
+      }
       return next;
     });
   };

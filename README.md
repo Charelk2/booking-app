@@ -1440,10 +1440,13 @@ For the booking wizard HTML structure reference, see [docs/booking_wizard_layout
 Artists can switch between managing their profile and acting as a client.
 When logged in as an artist, the navigation bar shows **Today**, **View Profile**,
 **Services**, and **Messages**. A **Switch to Booking** button toggles to the
-client view, returning the standard navigation links. The toggle appears left of
-the booking request icon for quick access. On mobile the drawer lists both sets
-of links so switching views is always possible. All other artist options are
-available from the mobile menu or profile dropdown.
+client view, returning the standard navigation links and redirecting to the
+homepage. When switching back to artist view you are taken to the artist
+dashboard. In artist view the header search bar and compact search pill are
+replaced by a **View Profile** link. The toggle appears left of the booking
+request icon for quick access. On mobile the drawer lists both sets of links so
+switching views is always possible. All other artist options are available from
+the mobile menu or profile dropdown.
 
 ## Contributing
 
