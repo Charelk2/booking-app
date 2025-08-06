@@ -15,7 +15,10 @@ import {
   getFullImageUrl,
 } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
-import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
+import {
+  parseBookingDetailsFromMessage,
+  type ParsedBookingDetails,
+} from '@/lib/bookingDetails';
 import { DocumentIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import { Booking, Review, Message, MessageCreate, QuoteV2, QuoteV2Create } from '@/types';
 import {
@@ -34,6 +37,7 @@ import Button from '../ui/Button';
 import SendQuoteModal from './SendQuoteModal';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import QuoteBubble from './QuoteBubble';
+import BookingDetailsBubble from './BookingDetailsBubble';
 import useWebSocket from '@/hooks/useWebSocket';
 import { format } from 'date-fns';
 import { FixedSizeList as List } from 'react-window';
@@ -53,18 +57,6 @@ const MAX_TEXTAREA_LINES = 10;
 // Interface for component handle
 export interface MessageThreadHandle {
   refreshMessages: () => void;
-}
-
-// Interface for parsed booking details (used for clarity)
-interface ParsedBookingDetails {
-  eventType?: string;
-  description?: string;
-  date?: string;
-  location?: string;
-  guests?: string;
-  venueType?: string;
-  soundNeeded?: string;
-  notes?: string;
 }
 
 // Interface for MessageThreadProps
@@ -271,7 +263,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         const filteredMessages = res.data.filter((msg) => {
           if (msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX)) {
             parsedDetails = parseBookingDetailsFromMessage(msg.content);
-            return false;
+            return true;
           }
           if (msg.message_type === 'text' && msg.content.startsWith('Requesting ')) {
             return false;
@@ -343,7 +335,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             if (onBookingDetailsParsed) {
               onBookingDetailsParsed(parseBookingDetailsFromMessage(incomingMsg.content));
             }
-            return;
           }
 
           setMessages((prevMessages) => {
@@ -436,8 +427,7 @@ useEffect(() => {
           return (
             visibleToCurrentUser &&
             msg.content &&
-            msg.content.trim().length > 0 &&
-            !(msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX))
+            msg.content.trim().length > 0
           );
         }),
       [messages, user?.user_type],
@@ -798,6 +788,10 @@ useEffect(() => {
                                 </div>
                               );
                             })()
+                          ) : msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX) ? (
+                            <BookingDetailsBubble
+                              details={parseBookingDetailsFromMessage(msg.content)}
+                            />
                           ) : msg.message_type === 'system' && msg.action ? (
                             msg.action === 'review_quote' ? (
                               <>
