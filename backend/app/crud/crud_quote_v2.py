@@ -259,6 +259,30 @@ def accept_quote(
     return booking
 
 
+def decline_quote(db: Session, quote_id: int) -> models.QuoteV2:
+    """Decline a pending quote without creating a booking."""
+    db_quote = get_quote(db, quote_id)
+    if not db_quote:
+        raise ValueError("Quote not found")
+    if db_quote.status != models.QuoteStatusV2.PENDING:
+        raise ValueError("Quote cannot be declined")
+
+    db_quote.status = models.QuoteStatusV2.REJECTED
+    db.commit()
+    db.refresh(db_quote)
+
+    crud_message.create_message(
+        db=db,
+        booking_request_id=db_quote.booking_request_id,
+        sender_id=db_quote.client_id,
+        sender_type=models.SenderType.CLIENT,
+        content="Quote declined.",
+        message_type=models.MessageType.SYSTEM,
+    )
+
+    return db_quote
+
+
 def expire_pending_quotes(db: Session) -> list[models.QuoteV2]:
     """Mark all pending quotes past their expiry as expired and post messages."""
     now = datetime.utcnow()

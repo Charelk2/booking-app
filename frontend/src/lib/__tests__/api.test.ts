@@ -11,6 +11,7 @@ import api, {
   updateQuoteAsClient,
   confirmQuoteBooking,
   acceptQuoteV2,
+  declineQuoteV2,
   createReviewForBooking,
   getReview,
   getServiceReviews,
@@ -265,6 +266,17 @@ describe('acceptQuoteV2', () => {
       '/api/v1/quotes/2/accept?service_id=5',
       {},
     );
+    spy.mockRestore();
+  });
+});
+
+describe('declineQuoteV2', () => {
+  it('posts to decline endpoint', async () => {
+    const spy = jest
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await declineQuoteV2(9);
+    expect(spy).toHaveBeenCalledWith('/api/v1/quotes/9/decline', {});
     spy.mockRestore();
   });
 });

@@ -127,6 +127,39 @@ def accept_quote(
         )
 
 
+@router.post("/quotes/{quote_id}/decline", response_model=schemas.QuoteV2Read)
+def decline_quote(quote_id: int, db: Session = Depends(get_db)):
+    try:
+        quote = crud_quote_v2.decline_quote(db, quote_id)
+        logger.info("Quote %s declined", quote_id)
+        return quote
+    except ValueError as exc:
+        quote = crud_quote_v2.get_quote(db, quote_id)
+        logger.warning(
+            "Declining quote failed; quote_id=%s artist_id=%s client_id=%s error=%s",
+            quote_id,
+            getattr(quote, "artist_id", None),
+            getattr(quote, "client_id", None),
+            exc,
+        )
+        raise error_response(
+            str(exc), {"quote_id": "invalid"}, status.HTTP_400_BAD_REQUEST
+        )
+    except SQLAlchemyError as exc:  # pragma: no cover - generic failure path
+        quote = crud_quote_v2.get_quote(db, quote_id)
+        logger.exception(
+            "Database error declining quote %s; artist_id=%s client_id=%s",
+            quote_id,
+            getattr(quote, "artist_id", None),
+            getattr(quote, "client_id", None),
+        )
+        raise error_response(
+            "Internal Server Error",
+            {"quote_id": "db_error"},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
 @router.get("/quotes/{quote_id}/pdf")
 def get_quote_pdf(
     quote_id: int,

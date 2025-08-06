@@ -397,6 +397,9 @@ export const acceptQuoteV2 = (quoteId: number, serviceId?: number) => {
   return api.post<BookingSimple>(url, {});
 };
 
+export const declineQuoteV2 = (quoteId: number) =>
+  api.post<QuoteV2>(`${API_V1}/quotes/${quoteId}/decline`, {});
+
 export const getMyArtistQuotes = (params: { skip?: number; limit?: number } = {}) =>
   api.get<Quote[]>(`${API_V1}/quotes/me/artist`, { params });
 
