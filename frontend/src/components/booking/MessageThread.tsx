@@ -300,7 +300,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         }
 
         filteredMessages.forEach((msg) => {
-          if (normalizeType(msg.message_type) === 'QUOTE' && typeof msg.quote_id === 'number') {
+          const isQuote =
+            (normalizeType(msg.message_type) === 'QUOTE' ||
+              (normalizeType(msg.message_type) === 'SYSTEM' &&
+                msg.action === 'review_quote')) &&
+            typeof msg.quote_id === 'number';
+          if (isQuote) {
             void ensureQuoteLoaded(msg.quote_id);
           }
         });
@@ -360,7 +365,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             return [...prevMessages.slice(-199), incomingMsg];
           });
 
-          if (normalizeType(incomingMsg.message_type) === 'QUOTE' && typeof incomingMsg.quote_id === 'number') {
+          const isQuoteMsg =
+            (normalizeType(incomingMsg.message_type) === 'QUOTE' ||
+              (normalizeType(incomingMsg.message_type) === 'SYSTEM' &&
+                incomingMsg.action === 'review_quote')) &&
+            typeof incomingMsg.quote_id === 'number';
+          if (isQuoteMsg) {
             void ensureQuoteLoaded(incomingMsg.quote_id);
           }
         }),
@@ -421,24 +431,39 @@ useEffect(() => {
       prevMessageCountRef.current = messages.length;
     }, [messages, showScrollButton]);
 
-    const visibleMessages = useMemo(
-      () =>
-        messages.filter((msg) => {
-          const visibleToCurrentUser =
-            !msg.visible_to ||
-            msg.visible_to === 'both' ||
-            (user?.user_type === 'artist' && msg.visible_to === 'artist') ||
-            (user?.user_type === 'client' && msg.visible_to === 'client');
+    const visibleMessages = useMemo(() => {
+      const quoteIds = new Set<number>();
+      messages.forEach((m) => {
+        if (
+          normalizeType(m.message_type) === 'QUOTE' &&
+          typeof m.quote_id === 'number'
+        ) {
+          quoteIds.add(m.quote_id);
+        }
+      });
 
-          return (
-            visibleToCurrentUser &&
-            msg.content &&
-            msg.content.trim().length > 0 &&
-            !(normalizeType(msg.message_type) === 'SYSTEM' && msg.content.startsWith(BOOKING_DETAILS_PREFIX))
-          );
-        }),
-      [messages, user?.user_type],
-    );
+      return messages.filter((msg) => {
+        const visibleToCurrentUser =
+          !msg.visible_to ||
+          msg.visible_to === 'both' ||
+          (user?.user_type === 'artist' && msg.visible_to === 'artist') ||
+          (user?.user_type === 'client' && msg.visible_to === 'client');
+
+        return (
+          visibleToCurrentUser &&
+          msg.content &&
+          msg.content.trim().length > 0 &&
+          !(normalizeType(msg.message_type) === 'SYSTEM' &&
+            msg.content.startsWith(BOOKING_DETAILS_PREFIX)) &&
+          !(
+            normalizeType(msg.message_type) === 'SYSTEM' &&
+            msg.action === 'review_quote' &&
+            typeof msg.quote_id === 'number' &&
+            quoteIds.has(msg.quote_id)
+          )
+        );
+      });
+    }, [messages, user?.user_type]);
 
     const shouldShowTimestampGroup = useCallback(
       (msg: Message, index: number, list: Message[]) => {
@@ -722,7 +747,9 @@ useEffect(() => {
                     }
 
                     const isQuoteMessage =
-                      normalizeType(msg.message_type) === 'QUOTE' &&
+                      (normalizeType(msg.message_type) === 'QUOTE' ||
+                        (normalizeType(msg.message_type) === 'SYSTEM' &&
+                          msg.action === 'review_quote')) &&
                       typeof msg.quote_id === 'number';
                     const bubbleBase = isMsgFromSelf
                       ? 'bg-blue-100 text-gray-900'
