@@ -21,6 +21,7 @@ import {
 } from '@/lib/api';
 import { geocodeAddress } from '@/lib/geo';
 import { calculateTravelMode, getDrivingMetrics } from '@/lib/travel';
+import { trackEvent } from '@/lib/analytics';
 
 import { BookingRequestCreate } from '@/types';
 import Stepper from '../ui/Stepper';
@@ -287,6 +288,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       setStep(newStep);
       setMaxStepCompleted(Math.max(maxStepCompleted, newStep));
       setValidationError(null);
+      trackEvent('booking_wizard_next', { step: newStep });
     } else {
       setValidationError('Please fix the errors above to continue.');
     }
@@ -296,6 +298,14 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const prev = () => {
     setStep(step - 1);
     setValidationError(null);
+  };
+
+  const handleBack = () => {
+    trackEvent(step === 0 ? 'booking_wizard_cancel' : 'booking_wizard_back', {
+      step,
+    });
+    if (step === 0) onClose();
+    else prev();
   };
 
   // Handles saving the booking request as a draft
@@ -495,7 +505,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 {/* Back/Cancel Button */}
                 <button
                   type="button" // Ensure it's a button, not a submit
-                  onClick={step === 0 ? onClose : prev}
+                  onClick={handleBack}
                   className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 w-32 min-h-[44px] min-w-[44px]"
                 >
                   {step === 0 ? 'Cancel' : 'Back'}

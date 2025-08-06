@@ -79,6 +79,15 @@ The July 2025 update bumps key dependencies and Docker base images:
 
 For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
+### Logging & Monitoring
+
+- SQLAlchemy listeners in [`backend/app/utils/status_logger.py`](backend/app/utils/status_logger.py)
+  emit INFO logs whenever a booking, booking request, or quote changes status.
+- Background scheduler failures invoke
+  [`alert_scheduler_failure`](backend/app/utils/notifications.py) which logs an
+  error so alerts surface in monitoring systems.
+- The booking wizard records CTA clicks using `trackEvent` for centralized analytics.
+
 ### Home Page Carousels
 
 The homepage now showcases musicians in horizontally scrollable carousels. Sections such as **Popular**, **Top Rated**, **New on Booka**, and **Recently Booked** let visitors swipe or drag to browse profiles. Each musician card links to `/artists/[id]`.
