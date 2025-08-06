@@ -22,6 +22,14 @@ describe('InlineQuoteForm', () => {
           serviceName="Test Service"
           initialBaseFee={100}
           initialTravelCost={50}
+          eventDetails={{
+            from: 'Chris',
+            receivedAt: 'Aug 6, 2025',
+            event: 'Birthday',
+            guests: '100',
+            venue: 'indoor',
+            notes: 'N/A',
+          }}
           onSubmit={onSubmit}
         />,
       );
@@ -37,6 +45,8 @@ describe('InlineQuoteForm', () => {
     expect(data.services[0]).toEqual({ description: 'Test Service', price: 100 });
     expect(data.travel_fee).toBe(50);
     expect(data.sound_fee).toBe(0);
+    expect(div.textContent).toContain('Event Details');
+    expect(div.textContent).toContain('Birthday');
 
     root.unmount();
     div.remove();

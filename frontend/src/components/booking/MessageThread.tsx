@@ -718,6 +718,7 @@ useEffect(() => {
                 initialSoundNeeded={initialSoundNeeded}
                 onSubmit={handleSendQuote}
                 onDecline={handleDeclineRequest}
+                eventDetails={eventDetails}
               />
             </div>
           )}
