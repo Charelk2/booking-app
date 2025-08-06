@@ -126,6 +126,8 @@ The `/inbox` page accepts a `requestId` to open a specific conversation and an o
 
 On small screens the inbox initially displays only the conversation list. Tapping a conversation opens the chat thread and hides the list, and a back button returns to the conversation list.
 
+Quote messages within the thread now render as full-width cards showing booking details alongside an itemized quote summary. Clients can accept or reject the quote directly from this bubble without opening a separate modal.
+
 ## Dashboard
 
 The artist dashboard includes a quotes page for managing offers. The `EditQuoteModal` allows artists to modify quote details and price inline without leaving the list. It opens when clicking the "Edit" button next to a pending quote and mirrors the style of `SendQuoteModal`. Both modals now use the shared `BottomSheet` component so they display full screen on mobile and center on larger screens. Trigger buttons expose `aria-expanded` and focus returns after closing. Sound, travel, discount, accommodation, and expiry fields remain wrapped in accessible labels so screen readers announce each input.
