@@ -5,16 +5,6 @@ import { getQuoteTemplates } from '@/lib/api';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 
-interface EventDetails {
-  from: string;
-  receivedAt: string;
-  event?: string;
-  date?: string;
-  guests?: number;
-  venue?: string;
-  notes?: string;
-}
-
 interface Props {
   onSubmit: (data: QuoteV2Create) => Promise<void> | void;
   artistId: number;
@@ -25,7 +15,6 @@ interface Props {
   initialTravelCost?: number;
   initialSoundNeeded?: boolean;
   onDecline?: () => void;
-  eventDetails: EventDetails;
 }
 
 const expiryOptions = [
@@ -44,7 +33,6 @@ const InlineQuoteForm: React.FC<Props> = ({
   initialTravelCost,
   initialSoundNeeded,
   onDecline,
-  eventDetails,
 }) => {
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [serviceFee, setServiceFee] = useState(initialBaseFee ?? 0);
@@ -138,10 +126,10 @@ const InlineQuoteForm: React.FC<Props> = ({
     <div className="bg-white rounded-2xl shadow w-full border border-gray-100 p-6 space-y-6">
       <div className="flex justify-between items-center flex-wrap gap-2">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">New Booking Request</h2>
+          <h2 className="text-xl font-bold tracking-tight">Send Quote</h2>
           <div className="text-sm font-medium opacity-90 mt-1">
-            <span>From: {eventDetails.from}</span>
-            <span className="ml-4">Received: {eventDetails.receivedAt}</span>
+            <span>Quote No: {quoteNumber}</span>
+            <span className="ml-4">Date: {currentDate}</span>
           </div>
         </div>
         {onDecline && (
@@ -155,51 +143,7 @@ const InlineQuoteForm: React.FC<Props> = ({
         )}
       </div>
 
-      <div>
-        <h3 className="font-medium text-gray-900">Event Details</h3>
-        <dl className="mt-2 text-sm text-gray-700 space-y-1">
-          {eventDetails.event && (
-            <div className="flex justify-between">
-              <dt>Event</dt>
-              <dd>{eventDetails.event}</dd>
-            </div>
-          )}
-          {eventDetails.date && (
-            <div className="flex justify-between">
-              <dt>Date</dt>
-              <dd>{eventDetails.date}</dd>
-            </div>
-          )}
-          {eventDetails.guests !== undefined && (
-            <div className="flex justify-between">
-              <dt>Guests</dt>
-              <dd>{eventDetails.guests}</dd>
-            </div>
-          )}
-          {eventDetails.venue && (
-            <div className="flex justify-between">
-              <dt>Venue</dt>
-              <dd>{eventDetails.venue}</dd>
-            </div>
-          )}
-          {eventDetails.notes && (
-            <div className="flex justify-between">
-              <dt>Notes</dt>
-              <dd>{eventDetails.notes}</dd>
-            </div>
-          )}
-        </dl>
-      </div>
-
       <div className="space-y-6">
-        <div className="flex justify-between items-end">
-          <h3 className="text-xl font-bold text-gray-900">Review & Adjust Quote</h3>
-          <div className="text-sm font-medium opacity-90">
-            <span>Quote No: {quoteNumber}</span>
-            <span className="ml-4">Date: {currentDate}</span>
-          </div>
-        </div>
-
         <div>
           <label htmlFor="template-select" className="block text-sm font-medium text-gray-700 mb-1">
             Choose a template
@@ -237,6 +181,7 @@ const InlineQuoteForm: React.FC<Props> = ({
           </p>
         </div>
 
+        <h3 className="text-xl font-bold text-gray-900">Estimated Cost</h3>
         <div className="space-y-2 text-gray-700">
           <div className="flex justify-between items-center py-2">
             <span className="font-medium">Artist Base Fee</span>
@@ -256,7 +201,7 @@ const InlineQuoteForm: React.FC<Props> = ({
               <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
                 ⓘ
                 <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
-                    Calculated based on artist&apos;s location and event venue distance.
+                  Calculated based on artist's location and event venue distance.
                 </div>
               </span>
             </span>
