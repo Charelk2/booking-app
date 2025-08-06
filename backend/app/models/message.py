@@ -38,6 +38,7 @@ class MessageAction(str, enum.Enum):
     """Actions that a system message can trigger on the frontend."""
 
     REVIEW_QUOTE = "review_quote"
+    VIEW_BOOKING_DETAILS = "view_booking_details"
 
 
 class Message(BaseModel):

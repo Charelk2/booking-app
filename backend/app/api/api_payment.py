@@ -9,7 +9,18 @@ from decimal import Decimal
 import httpx
 import uuid
 
-from ..models import User, BookingSimple, QuoteV2
+from .. import crud
+from ..models import (
+    User,
+    BookingSimple,
+    QuoteV2,
+    Booking,
+    BookingStatus,
+    MessageAction,
+    MessageType,
+    SenderType,
+    VisibleTo,
+)
 from .dependencies import get_db, get_current_active_client
 from ..core.config import settings
 from ..utils import error_response
@@ -108,11 +119,51 @@ def create_payment(
 
     if not payment_in.full:
         booking.deposit_amount = charge_amount
+
     booking.deposit_paid = True
     booking.payment_status = "paid" if payment_in.full else "deposit_paid"
     booking.payment_id = charge.get("id")
+
+    # Ensure booking and related request are marked confirmed
+    booking.confirmed = True
+    br = None
+    if booking.quote and booking.quote.booking_request:
+        br = booking.quote.booking_request
+        if br.status != BookingStatus.REQUEST_CONFIRMED:
+            br.status = BookingStatus.REQUEST_CONFIRMED
+    formal_booking = (
+        db.query(Booking)
+        .filter(Booking.quote_id == booking.quote_id)
+        .first()
+    )
+    if formal_booking and formal_booking.status != BookingStatus.CONFIRMED:
+        formal_booking.status = BookingStatus.CONFIRMED
+
     db.commit()
     db.refresh(booking)
+
+    if br:
+        # Notify both client and artist to view booking details
+        crud.crud_message.create_message(
+            db=db,
+            booking_request_id=br.id,
+            sender_id=booking.artist_id,
+            sender_type=SenderType.ARTIST,
+            content="View Booking Details",
+            message_type=MessageType.SYSTEM,
+            visible_to=VisibleTo.CLIENT,
+            action=MessageAction.VIEW_BOOKING_DETAILS,
+        )
+        crud.crud_message.create_message(
+            db=db,
+            booking_request_id=br.id,
+            sender_id=booking.client_id,
+            sender_type=SenderType.CLIENT,
+            content="View Booking Details",
+            message_type=MessageType.SYSTEM,
+            visible_to=VisibleTo.ARTIST,
+            action=MessageAction.VIEW_BOOKING_DETAILS,
+        )
 
     return {"status": "ok", "payment_id": charge.get("id")}
 
