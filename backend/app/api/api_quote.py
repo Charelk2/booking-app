@@ -18,6 +18,7 @@ from ..crud.crud_booking import (
 from ..services.booking_quote import calculate_quote_breakdown, calculate_quote
 from decimal import Decimal
 from ..utils import error_response
+from ..utils.notifications import notify_booking_status_update
 
 router = APIRouter(
     tags=["Quotes"],
@@ -94,6 +95,21 @@ def create_quote_for_request(
             quote_id=new_quote.id,
             attachment_url=None,
         )
+        # Add a follow-up system message summarizing the quote total and notify
+        # the client that the formal quote is ready for review.
+        detail_content = f"Quote sent with total {new_quote.price}"
+        crud.crud_message.create_message(
+            db=db,
+            booking_request_id=request_id,
+            sender_id=current_artist.id,
+            sender_type=models.SenderType.ARTIST,
+            content=detail_content,
+            message_type=models.MessageType.SYSTEM,
+            attachment_url=None,
+        )
+        client = db.query(models.User).filter(models.User.id == db_booking_request.client_id).first()
+        if client:
+            notify_booking_status_update(db, client, request_id, "quote_sent")
         # Avoid circular references when serialized by Pydantic models
         new_quote.booking_request = None
         return new_quote
