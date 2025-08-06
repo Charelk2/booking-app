@@ -950,7 +950,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Personalized video flows suppress chat alerts until all prompts are answered. A single notification is sent with the booking type once complete.
 * System-generated booking details messages do not create extra chat alerts; a single booking request notification is sent after the form is submitted.
 * Booking notes are visible only on the Booking details page, appearing beneath the Venue Type line in the details box, and are hidden from chat threads and booking request screens.
-* Booking details messages appear in chat threads as a styled summary card, outlining event type, date, location, and notes for quick reference.
+* Booking details messages appear in chat threads inside a collapsible section with a **Show details** button that toggles to **Hide details** when expanded. The details are collapsed by default so the header shows **Show details** until the section is opened. Small chevron icons indicate the state.
 * Notification drawer cards use a two-line layout with subtle shadows and collapse/expand previews. Titles and subtitles wrap up to two lines using the `line-clamp-2` utility so full names remain visible.
 * Avatars fall back to a default placeholder image when no profile photo is available so every notification displays a consistent picture.
 * The drawer slides in from the right on a simple white panel with a soft shadow. Badges disappear when the unread count is 0.

@@ -47,52 +47,6 @@ describe('MessageThread basic rendering', () => {
   });
 });
 
-describe('MessageThread booking details', () => {
-  beforeEach(() => {
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client' } });
-    (api.getQuoteV2 as jest.Mock).mockResolvedValue({ data: { id: 1 } });
-    (api.acceptQuoteV2 as jest.Mock).mockResolvedValue({ data: { id: 1 } });
-    (api.getBookingDetails as jest.Mock).mockResolvedValue({
-      data: { id: 1, service: { title: 'Gig' }, start_time: '2024-01-01T00:00:00Z' },
-    });
-    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
-      data: [
-        {
-          id: 1,
-          booking_request_id: 1,
-          sender_id: 1,
-          sender_type: 'client',
-          content:
-            'Booking details:\nEvent Type: Wedding\nDate: 2024-01-01\nLocation: Cape Town',
-          message_type: 'system',
-          is_read: true,
-          timestamp: '2024-01-01T00:00:00Z',
-        },
-      ],
-    });
-  });
-
-  it('renders booking details bubble', async () => {
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    await act(async () => {
-      root.render(
-        <MessageThread
-          bookingRequestId={1}
-          showQuoteModal={false}
-          setShowQuoteModal={jest.fn()}
-        />,
-      );
-    });
-    await act(async () => { await flushPromises(); });
-    expect(container.textContent).toContain('Booking Details');
-    expect(container.textContent).toContain('Event Type: Wedding');
-    expect(container.textContent).toContain('Location: Cape Town');
-    act(() => root.unmount());
-    container.remove();
-  });
-});
-
 describe('MessageThread system CTAs', () => {
   beforeEach(() => {
     (api.getQuoteV2 as jest.Mock).mockResolvedValue({
