@@ -126,27 +126,27 @@ const InlineQuoteForm: React.FC<Props> = ({
   };
 
   return (
-    <div className="w-full bg-brand/10 dark:bg-brand-dark/30 rounded-xl p-6 space-y-6">
-      {eventDetails && (
+    <div className="w-full bg-brand/10 dark:bg-brand-dark/30 rounded-xl p-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <div>
           <h4 className="mb-2 text-sm font-semibold">New Booking Request</h4>
           <p className="mb-2 text-xs">
-            From: {eventDetails.from ?? 'N/A'} | Received: {eventDetails.receivedAt ?? 'N/A'}
+            From: {eventDetails?.from ?? 'N/A'} | Received: {eventDetails?.receivedAt ?? 'N/A'}
           </p>
           <div className="text-xs">
             <p className="mb-1 font-semibold">Event Details</p>
             <ul className="space-y-1">
-              {eventDetails.event && <li>Event: {eventDetails.event}</li>}
-              {eventDetails.date && <li>Date: {eventDetails.date}</li>}
-              {eventDetails.guests && <li>Guests: {eventDetails.guests}</li>}
-              {eventDetails.venue && <li>Venue: {eventDetails.venue}</li>}
-              {eventDetails.notes && <li>Notes: "{eventDetails.notes}"</li>}
+              {eventDetails?.event && <li>Event: {eventDetails.event}</li>}
+              {eventDetails?.date && <li>Date: {eventDetails.date}</li>}
+              {eventDetails?.guests && <li>Guests: {eventDetails.guests}</li>}
+              {eventDetails?.venue && <li>Venue: {eventDetails.venue}</li>}
+              {eventDetails?.notes && <li>Notes: "{eventDetails.notes}"</li>}
             </ul>
           </div>
         </div>
-      )}
 
-      <div className="flex justify-between items-center flex-wrap gap-2">
+        <div className="flex flex-col space-y-6">
+          <div className="flex justify-between items-center flex-wrap gap-2">
         <div>
           <h2 className="text-xl font-bold tracking-tight">Review &amp; Adjust Quote</h2>
           <div className="text-sm font-medium opacity-90 mt-1">
@@ -348,31 +348,33 @@ const InlineQuoteForm: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="flex items-start space-x-3">
-          <input
-            type="checkbox"
-            id="terms"
-            className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-          />
-          <label htmlFor="terms" className="text-sm text-gray-600">
-            I have reviewed the quote and agree to the{' '}
-            <a href="#" className="text-blue-600 hover:underline">
-              terms of service
-            </a>
-            .
-          </label>
-        </div>
-      </div>
+            <div className="flex items-start space-x-3">
+              <input
+                type="checkbox"
+                id="terms"
+                className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="terms" className="text-sm text-gray-600">
+                I have reviewed the quote and agree to the{' '}
+                <a href="#" className="text-blue-600 hover:underline">
+                  terms of service
+                </a>
+                .
+              </label>
+            </div>
+          </div>
 
-      <div className="flex justify-end space-x-3 pt-6 border-t border-gray-100">
-        <button
-          type="button"
-          onClick={handleSubmit}
-          title="This quote will be sent to the client"
-          className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Send Quote
-        </button>
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              title="This quote will be sent to the client"
+              className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Send Quote
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
