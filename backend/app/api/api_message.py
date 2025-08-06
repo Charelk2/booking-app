@@ -59,22 +59,22 @@ def read_messages(
         if current_user.id == booking_request.client_id
         else models.VisibleTo.ARTIST
     )
-    db_messages = crud.crud_message.get_messages_for_request(
-        db, request_id, viewer
-    )
+    db_messages = crud.crud_message.get_messages_for_request(db, request_id, viewer)
     result = []
     for m in db_messages:
         avatar_url = None
-        if m.sender.user_type == models.UserType.ARTIST:
-            profile = (
-                db.query(models.ArtistProfile)
-                .filter(models.ArtistProfile.user_id == m.sender_id)
-                .first()
-            )
-            if profile and profile.profile_picture_url:
-                avatar_url = profile.profile_picture_url
-        elif m.sender.profile_picture_url:
-            avatar_url = m.sender.profile_picture_url
+        sender = m.sender  # sender may be None if the user was deleted
+        if sender:
+            if sender.user_type == models.UserType.ARTIST:
+                profile = (
+                    db.query(models.ArtistProfile)
+                    .filter(models.ArtistProfile.user_id == m.sender_id)
+                    .first()
+                )
+                if profile and profile.profile_picture_url:
+                    avatar_url = profile.profile_picture_url
+            elif sender.profile_picture_url:
+                avatar_url = sender.profile_picture_url
         data = schemas.MessageResponse.model_validate(m).model_dump()
         data["avatar_url"] = avatar_url
         result.append(data)
@@ -209,16 +209,18 @@ def create_message(
         )
 
     avatar_url = None
-    if msg.sender.user_type == models.UserType.ARTIST:
-        profile = (
-            db.query(models.ArtistProfile)
-            .filter(models.ArtistProfile.user_id == msg.sender_id)
-            .first()
-        )
-        if profile and profile.profile_picture_url:
-            avatar_url = profile.profile_picture_url
-    elif msg.sender.profile_picture_url:
-        avatar_url = msg.sender.profile_picture_url
+    sender = msg.sender  # sender should exist, but guard against missing relation
+    if sender:
+        if sender.user_type == models.UserType.ARTIST:
+            profile = (
+                db.query(models.ArtistProfile)
+                .filter(models.ArtistProfile.user_id == msg.sender_id)
+                .first()
+            )
+            if profile and profile.profile_picture_url:
+                avatar_url = profile.profile_picture_url
+        elif sender.profile_picture_url:
+            avatar_url = sender.profile_picture_url
 
     data = schemas.MessageResponse.model_validate(msg).model_dump()
     data["avatar_url"] = avatar_url
