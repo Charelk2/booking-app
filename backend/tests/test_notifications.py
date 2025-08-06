@@ -103,7 +103,7 @@ def test_message_creates_notification():
     db.commit()
     db.refresh(br)
 
-    msg_in = MessageCreate(content="hello", message_type=MessageType.TEXT)
+    msg_in = MessageCreate(content="hello", message_type=MessageType.USER)
     api_message.create_message(br.id, msg_in, db, current_user=client)
 
     notifs = crud_notification.get_notifications_for_user(db, artist.id)
@@ -259,7 +259,7 @@ def test_thread_notification_summary():
 
     # send multiple messages from client -> artist
     for _ in range(5):
-        msg_in = MessageCreate(content="hi", message_type=MessageType.TEXT)
+        msg_in = MessageCreate(content="hi", message_type=MessageType.USER)
         api_message.create_message(br.id, msg_in, db, current_user=client)
 
     threads = crud_notification.get_message_thread_notifications(db, artist.id)
@@ -310,7 +310,7 @@ def test_thread_notification_shows_client_avatar():
 
     api_message.create_message(
         br.id,
-        MessageCreate(content="hi", message_type=MessageType.TEXT),
+        MessageCreate(content="hi", message_type=MessageType.USER),
         db,
         current_user=client,
     )
@@ -358,7 +358,7 @@ def test_thread_notification_uses_business_name_for_artist():
     db.commit()
     db.refresh(br)
 
-    msg_in = MessageCreate(content="hello", message_type=MessageType.TEXT)
+    msg_in = MessageCreate(content="hello", message_type=MessageType.USER)
     api_message.create_message(br.id, msg_in, db, current_user=artist)
 
     threads = crud_notification.get_message_thread_notifications(db, client.id)
@@ -406,7 +406,7 @@ def test_thread_notification_includes_booking_details():
     # create a normal message to generate a notification
     api_message.create_message(
         br.id,
-        MessageCreate(content="hello", message_type=MessageType.TEXT),
+        MessageCreate(content="hello", message_type=MessageType.USER),
         db,
         current_user=client,
     )
@@ -742,7 +742,7 @@ def test_notifications_endpoint_returns_sender_name():
         sender=client_user,
         booking_request_id=br.id,
         content="hello",
-        message_type=MessageType.TEXT,
+        message_type=MessageType.USER,
     )
     db.close()
 

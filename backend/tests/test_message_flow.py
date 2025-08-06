@@ -84,7 +84,7 @@ def test_message_response_includes_avatar_url_for_artist():
     db.add(br)
     db.commit()
 
-    msg_in = MessageCreate(content="hello", message_type=MessageType.TEXT)
+    msg_in = MessageCreate(content="hello", message_type=MessageType.USER)
     result = api_message.create_message(br.id, msg_in, db, current_user=artist)
 
     assert result["avatar_url"] == "/static/profile_pics/pic.jpg"
@@ -120,7 +120,7 @@ def test_message_response_includes_avatar_url_for_client():
     db.add(br)
     db.commit()
 
-    msg_in = MessageCreate(content="hi", message_type=MessageType.TEXT)
+    msg_in = MessageCreate(content="hi", message_type=MessageType.USER)
     result = api_message.create_message(br.id, msg_in, db, current_user=client)
 
     assert result["avatar_url"] == "/static/profile_pics/client.jpg"
@@ -155,7 +155,7 @@ def test_mark_messages_read_updates_flag():
     db.add(br)
     db.commit()
 
-    msg_in = MessageCreate(content="hello", message_type=MessageType.TEXT)
+    msg_in = MessageCreate(content="hello", message_type=MessageType.USER)
     api_message.create_message(br.id, msg_in, db, current_user=artist)
 
     # Ensure message unread initially
