@@ -130,6 +130,8 @@ On small screens the inbox initially displays only the conversation list. Tappin
 
 The artist dashboard includes a quotes page for managing offers. The `EditQuoteModal` allows artists to modify quote details and price inline without leaving the list. It opens when clicking the "Edit" button next to a pending quote and mirrors the style of `SendQuoteModal`. Both modals now use the shared `BottomSheet` component so they display full screen on mobile and center on larger screens. Trigger buttons expose `aria-expanded` and focus returns after closing. Sound, travel, discount, accommodation, and expiry fields remain wrapped in accessible labels so screen readers announce each input.
 
+Helper hooks `useSendQuote`, `useAcceptQuote`, and `useDeclineQuote` are available for interacting with quote endpoints in components and pages.
+
 The View Quote modal also generates a quote number automatically, shows today's date and a description box, and positions a compact **Choose template** dropdown next to the title. The **Add Item** button sits beneath the travel fee input. Service, sound, travel, and discount fees use the same horizontal pair layout as custom items, and newly added rows inherit the bordered styling so they visually match the preset fees. The bottom now mirrors the booking Review step, listing base fee, travel and sound costs, taxes and an estimated total above a **Submit Request** button. Future enhancements will include a PDF preview option, currency symbols within each field, and a signature/terms section.
 
 ### Artist Listing
