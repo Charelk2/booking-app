@@ -192,8 +192,8 @@ describe('MessageThread quote actions', () => {
     });
     await act(async () => { await flushPromises(); });
 
-    const inlineQuote = container.querySelector('[data-testid="artist-inline-quote"]');
-    expect(inlineQuote).not.toBeNull();
+    const bubble = container.querySelector('[data-testid="artist-quote-bubble"]');
+    expect(bubble).not.toBeNull();
 
     act(() => root.unmount());
     container.remove();
