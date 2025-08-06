@@ -25,7 +25,7 @@ import {
   createQuoteV2,
   getQuoteV2,
   acceptQuoteV2,
-  updateQuoteAsClient,
+  declineQuoteV2,
   getBookingDetails,
   markMessagesRead,
   useAuth,
@@ -38,6 +38,7 @@ import useWebSocket from '@/hooks/useWebSocket';
 import { format } from 'date-fns';
 import { FixedSizeList as List } from 'react-window';
 import Countdown from './Countdown';
+import QuoteReviewModal from './QuoteReviewModal';
 import { useRouter } from 'next/navigation';
 
 
@@ -149,6 +150,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     // REMOVED: const [showQuoteModal, setShowQuoteModal] = useState(false); // No longer managed internally
     const [bookingDetails, setBookingDetails] = useState<Booking | null>(null);
     const [threadError, setThreadError] = useState<string | null>(null);
+    const [reviewQuote, setReviewQuote] = useState<QuoteV2 | null>(null);
+    const [showReviewModal, setShowReviewModal] = useState(false);
     const [wsFailed, setWsFailed] = useState(false);
     const [bookingConfirmed, setBookingConfirmed] = useState(false);
     const [uploadingProgress, setUploadingProgress] = useState(0);
@@ -600,7 +603,7 @@ useEffect(() => {
     const handleDeclineQuote = useCallback(
       async (quote: QuoteV2) => {
         try {
-          await updateQuoteAsClient(quote.id, { status: 'rejected_by_client' });
+          await declineQuoteV2(quote.id);
           const updatedQuote = await getQuoteV2(quote.id);
           setQuotes((prev) => ({ ...prev, [quote.id]: updatedQuote.data }));
         } catch (err: unknown) {
@@ -609,6 +612,21 @@ useEffect(() => {
         }
       },
       [setQuotes, setThreadError],
+    );
+
+    const openReviewModal = useCallback(
+      async (quoteId: number | undefined) => {
+        if (!quoteId) return;
+        try {
+          const res = await getQuoteV2(quoteId);
+          setReviewQuote(res.data);
+          setShowReviewModal(true);
+        } catch (err: unknown) {
+          console.error('Failed to load quote for review:', err);
+          setThreadError('Failed to load quote. Please try again.');
+        }
+      },
+      [setShowReviewModal, setReviewQuote, setThreadError],
     );
 
     return (
@@ -788,7 +806,7 @@ useEffect(() => {
                                   onClick={() =>
                                     msg.visible_to === 'artist'
                                       ? setShowQuoteModal(true)
-                                      : scrollToQuote(msg.quote_id)
+                                      : openReviewModal(msg.quote_id)
                                   }
                                   className="text-xs text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
                                 >
@@ -1050,6 +1068,13 @@ useEffect(() => {
               initialBaseFee={initialBaseFee}
               initialTravelCost={initialTravelCost}
               initialSoundNeeded={initialSoundNeeded}
+            />
+            <QuoteReviewModal
+              open={showReviewModal}
+              quote={reviewQuote}
+              onClose={() => setShowReviewModal(false)}
+              onAccept={handleAcceptQuote}
+              onDecline={handleDeclineQuote}
             />
             {paymentModal}
           </>

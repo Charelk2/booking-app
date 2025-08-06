@@ -2417,6 +2417,39 @@
         }
       }
     },
+    "/api/v1/quotes/{quote_id}/decline": {
+      "post": {
+        "tags": [
+          "quotes-v2",
+          "QuotesV2"
+        ],
+        "summary": "Decline Quote",
+        "operationId": "decline_quote_api_v1_quotes__quote_id__decline_post",
+        "parameters": [
+          {
+            "name": "quote_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Quote Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteV2Read"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/quotes/{quote_id}/pdf": {
       "get": {
         "tags": [
