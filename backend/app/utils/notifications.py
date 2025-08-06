@@ -411,10 +411,11 @@ def _create_and_broadcast(
         if v is not None and data.get(k) in [None, ""]:
             data[k] = v
     try:
-        asyncio.create_task(notifications_manager.broadcast(user_id, data))
+        loop = asyncio.get_running_loop()
+        loop.create_task(notifications_manager.broadcast(user_id, data))
     except RuntimeError:
-        # If no event loop is running (e.g., in tests), send synchronously
-        notifications_manager.broadcast(user_id, data)
+        # If no event loop is running (e.g., in tests), run synchronously
+        asyncio.run(notifications_manager.broadcast(user_id, data))
 
 
 BOOKING_DETAILS_PREFIX = "Booking details:"

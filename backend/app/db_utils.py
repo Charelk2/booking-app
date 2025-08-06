@@ -59,6 +59,17 @@ def ensure_message_is_read_column(engine: Engine) -> None:
     )
 
 
+def ensure_visible_to_column(engine: Engine) -> None:
+    """Add the ``visible_to`` column to ``messages`` if missing."""
+
+    add_column_if_missing(
+        engine,
+        "messages",
+        "visible_to",
+        "visible_to VARCHAR NOT NULL DEFAULT 'both'",
+    )
+
+
 def ensure_request_attachment_column(engine: Engine) -> None:
     """Add the ``attachment_url`` column to ``booking_requests`` if missing."""
 
