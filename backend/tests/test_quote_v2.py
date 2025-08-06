@@ -4,6 +4,7 @@ from sqlalchemy.exc import SQLAlchemyError
 import logging
 import pytest
 from decimal import Decimal
+from freezegun import freeze_time
 
 from app.models import (
     User,
@@ -11,6 +12,7 @@ from app.models import (
     BookingRequest,
     BookingStatus,
     Message,
+    MessageType,
     Service,
     Booking,
 )
@@ -838,3 +840,78 @@ def test_expire_pending_quotes():
     assert len(expired) == 1
     db.refresh(quote)
     assert quote.status == models.QuoteStatusV2.EXPIRED
+
+
+def test_scheduler_posts_system_message():
+    db = setup_db()
+    artist = User(
+        email="artist2@test.com",
+        password="x",
+        first_name="A",
+        last_name="R",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="client2@test.com",
+        password="x",
+        first_name="C",
+        last_name="L",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    service = Service(
+        artist_id=artist.id,
+        title="Gig",
+        description="",
+        price=Decimal("100"),
+        currency="ZAR",
+        duration_minutes=60,
+        service_type="Live Performance",
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    with freeze_time("2024-01-01"):
+        from datetime import datetime, timedelta
+
+        br = BookingRequest(
+            client_id=client.id,
+            artist_id=artist.id,
+            service_id=service.id,
+            status=BookingStatus.PENDING_QUOTE,
+        )
+        db.add(br)
+        db.commit()
+        db.refresh(br)
+
+        quote_in = QuoteCreate(
+            booking_request_id=br.id,
+            artist_id=artist.id,
+            client_id=client.id,
+            services=[ServiceItem(description="Performance", price=Decimal("100"))],
+            sound_fee=Decimal("0"),
+            travel_fee=Decimal("0"),
+            expires_at=datetime.utcnow() + timedelta(days=7),
+        )
+        api_quote_v2.create_quote(quote_in, db)
+
+    from app.crud import crud_quote_v2
+
+    with freeze_time("2024-01-09"):
+        expired = crud_quote_v2.expire_pending_quotes(db)
+
+    assert len(expired) == 1
+    msgs = (
+        db.query(Message)
+        .filter(
+            Message.booking_request_id == br.id,
+            Message.message_type == MessageType.SYSTEM,
+        )
+        .all()
+    )
+    assert any(m.content == "Quote expired." for m in msgs)
