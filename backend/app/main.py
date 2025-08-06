@@ -354,9 +354,13 @@ def check_payment_gateway_url() -> None:
 
 
 async def expire_quotes_loop() -> None:
-    """Periodically expire pending quotes and send notifications."""
+    """Periodically expire pending quotes and send notifications.
+
+    This lightweight scheduler runs once per hour to handle quote
+    expirations and reminders.
+    """
     while True:
-        await asyncio.sleep(300)
+        await asyncio.sleep(3600)
         try:
             with SessionLocal() as db:
                 now = datetime.utcnow()
