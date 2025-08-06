@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/utils';
 import StatusBadge from '../ui/StatusBadge';
 
-interface EventDetails {
+export interface EventDetails {
   from?: string;
   receivedAt?: string;
   event?: string;
