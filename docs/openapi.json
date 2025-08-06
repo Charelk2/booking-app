@@ -989,6 +989,61 @@
         }
       }
     },
+    "/api/v1/artists/recommended": {
+      "get": {
+        "tags": [
+          "artists"
+        ],
+        "summary": "Get recommended artists",
+        "description": "Return personalized artist suggestions for the current user.",
+        "operationId": "recommended_artists_api_v1_artists_recommended_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 5,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ArtistProfileResponse"
+                  },
+                  "title": "Response Recommended Artists Api V1 Artists Recommended Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/services/": {
       "get": {
         "tags": [
@@ -1021,7 +1076,7 @@
           "Services"
         ],
         "summary": "Create Service",
-        "description": "Create a new service for the currently authenticated artist.\nFull path → POST /api/v1/services/",
+        "description": "Create a new service for the currently authenticated artist.\nFull path \u2192 POST /api/v1/services/",
         "operationId": "create_service_api_v1_services__post",
         "requestBody": {
           "content": {
@@ -1069,7 +1124,7 @@
           "Services"
         ],
         "summary": "Update Service",
-        "description": "Update a service owned by the currently authenticated artist.\nFull path → PUT /api/v1/services/{service_id}",
+        "description": "Update a service owned by the currently authenticated artist.\nFull path \u2192 PUT /api/v1/services/{service_id}",
         "operationId": "update_service_api_v1_services__service_id__put",
         "security": [
           {
@@ -1126,7 +1181,7 @@
           "Services"
         ],
         "summary": "Read Service",
-        "description": "Get a specific service by its ID (publicly accessible).\nFull path → GET /api/v1/services/{service_id}",
+        "description": "Get a specific service by its ID (publicly accessible).\nFull path \u2192 GET /api/v1/services/{service_id}",
         "operationId": "read_service_api_v1_services__service_id__get",
         "parameters": [
           {
@@ -1168,7 +1223,7 @@
           "Services"
         ],
         "summary": "Delete Service",
-        "description": "Delete a service owned by the currently authenticated artist.\nFull path → DELETE /api/v1/services/{service_id}",
+        "description": "Delete a service owned by the currently authenticated artist.\nFull path \u2192 DELETE /api/v1/services/{service_id}",
         "operationId": "delete_service_api_v1_services__service_id__delete",
         "security": [
           {
@@ -1210,7 +1265,7 @@
           "Services"
         ],
         "summary": "Read Services By Artist",
-        "description": "Get all services offered by a specific artist (by their user_id).\nFull path → GET /api/v1/services/artist/{artist_user_id}",
+        "description": "Get all services offered by a specific artist (by their user_id).\nFull path \u2192 GET /api/v1/services/artist/{artist_user_id}",
         "operationId": "read_services_by_artist_api_v1_services_artist__artist_user_id__get",
         "parameters": [
           {
@@ -1469,7 +1524,7 @@
           "bookings"
         ],
         "summary": "Read Booking Details",
-        "description": "Return the details of a single booking.  \nAccessible if the current user is either the booking’s client or the booking’s artist.",
+        "description": "Return the details of a single booking.  \nAccessible if the current user is either the booking\u2019s client or the booking\u2019s artist.",
         "operationId": "read_booking_details_api_v1_bookings__booking_id__get",
         "security": [
           {
@@ -1784,6 +1839,49 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/booking-requests/parse": {
+      "post": {
+        "tags": [
+          "booking-requests",
+          "Booking Requests"
+        ],
+        "summary": "Parse Booking Text",
+        "description": "Parse free-form text and extract event details.",
+        "operationId": "parse_booking_text_api_v1_booking_requests_parse_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingParseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParsedBookingDetails"
+                }
               }
             }
           },
@@ -4340,44 +4438,6 @@
           }
         }
       }
-    },
-    "/api/v1/artists/recommended": {
-      "get": {
-        "tags": [
-          "artists"
-        ],
-        "summary": "Get recommended artists",
-        "description": "Return personalized artist recommendations for the current user.",
-        "operationId": "recommended_artists_api_v1_artists_recommended_get",
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "title": "Limit",
-              "type": "integer",
-              "default": 5
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "title": "Response Recommended Artists",
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ArtistProfileResponse"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
@@ -5267,6 +5327,22 @@
         ],
         "title": "BookingDetailsSummary"
       },
+      "BookingParseRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Text",
+            "description": "Free-form event description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "BookingParseRequest",
+        "description": "Request body containing raw event description."
+      },
       "BookingRequestCreate": {
         "properties": {
           "service_id": {
@@ -5602,25 +5678,6 @@
           "created_at"
         ],
         "title": "BookingRequestResponse"
-      },
-      "BookingStatus": {
-        "type": "string",
-        "enum": [
-          "pending",
-          "confirmed",
-          "completed",
-          "cancelled",
-          "draft",
-          "pending_quote",
-          "quote_provided",
-          "pending_artist_confirmation",
-          "request_confirmed",
-          "request_completed",
-          "request_declined",
-          "request_withdrawn",
-          "quote_rejected"
-        ],
-        "title": "BookingStatus"
       },
       "BookingRequestUpdateByArtist": {
         "properties": {
@@ -6018,6 +6075,26 @@
         ],
         "title": "BookingSimpleRead"
       },
+      "BookingStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "confirmed",
+          "completed",
+          "cancelled",
+          "draft",
+          "pending_quote",
+          "quote_provided",
+          "pending_artist_confirmation",
+          "request_confirmed",
+          "request_completed",
+          "request_declined",
+          "request_withdrawn",
+          "quote_rejected"
+        ],
+        "title": "BookingStatus",
+        "description": "Central booking status enumeration used across the application."
+      },
       "BookingUpdate": {
         "properties": {
           "status": {
@@ -6255,7 +6332,11 @@
           },
           "message_type": {
             "$ref": "#/components/schemas/MessageType",
-            "default": "text"
+            "default": "USER"
+          },
+          "visible_to": {
+            "$ref": "#/components/schemas/VisibleTo",
+            "default": "both"
           },
           "quote_id": {
             "anyOf": [
@@ -6305,6 +6386,9 @@
           },
           "message_type": {
             "$ref": "#/components/schemas/MessageType"
+          },
+          "visible_to": {
+            "$ref": "#/components/schemas/VisibleTo"
           },
           "content": {
             "type": "string",
@@ -6361,6 +6445,7 @@
           "sender_id",
           "sender_type",
           "message_type",
+          "visible_to",
           "content",
           "timestamp"
         ],
@@ -6369,11 +6454,12 @@
       "MessageType": {
         "type": "string",
         "enum": [
-          "text",
-          "quote",
-          "system"
+          "USER",
+          "QUOTE",
+          "SYSTEM"
         ],
-        "title": "MessageType"
+        "title": "MessageType",
+        "description": "Type of message being stored."
       },
       "NotificationResponse": {
         "properties": {
@@ -6465,6 +6551,62 @@
           "review_request"
         ],
         "title": "NotificationType"
+      },
+      "ParsedBookingDetails": {
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date",
+            "description": "Event date if detected"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location",
+            "description": "Event location if detected"
+          },
+          "guests": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guests",
+            "description": "Guest count if detected"
+          },
+          "event_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Type",
+            "description": "Event type if detected"
+          }
+        },
+        "type": "object",
+        "title": "ParsedBookingDetails",
+        "description": "Structured details extracted from text."
       },
       "PaymentCreate": {
         "properties": {
@@ -6604,6 +6746,17 @@
             "type": "string",
             "title": "Travel Cost"
           },
+          "travel_mode": {
+            "type": "string",
+            "title": "Travel Mode"
+          },
+          "travel_estimates": {
+            "items": {
+              "$ref": "#/components/schemas/TravelEstimate"
+            },
+            "type": "array",
+            "title": "Travel Estimates"
+          },
           "provider_cost": {
             "type": "string",
             "title": "Provider Cost"
@@ -6621,6 +6774,8 @@
         "required": [
           "base_fee",
           "travel_cost",
+          "travel_mode",
+          "travel_estimates",
           "provider_cost",
           "accommodation_cost",
           "total"
@@ -7880,6 +8035,25 @@
         "title": "ThreadNotificationResponse",
         "description": "Aggregated message notifications for a chat thread."
       },
+      "TravelEstimate": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "cost": {
+            "type": "string",
+            "title": "Cost"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode",
+          "cost"
+        ],
+        "title": "TravelEstimate",
+        "description": "Individual travel mode cost estimate."
+      },
       "UserCreate": {
         "properties": {
           "email": {
@@ -8036,6 +8210,16 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VisibleTo": {
+        "type": "string",
+        "enum": [
+          "artist",
+          "client",
+          "both"
+        ],
+        "title": "VisibleTo",
+        "description": "Specify who can view a given message."
       },
       "app__schemas__quote_v2__QuoteCreate": {
         "properties": {

@@ -71,7 +71,7 @@ def test_read_my_client_booking_requests_last_message_ordering():
         client.id,
         SenderType.CLIENT,
         "hi",
-        MessageType.TEXT,
+        MessageType.USER,
     )
     m1.timestamp = earlier
     db.add(m1)
@@ -81,7 +81,7 @@ def test_read_my_client_booking_requests_last_message_ordering():
         artist.id,
         SenderType.ARTIST,
         "reply",
-        MessageType.TEXT,
+        MessageType.USER,
     )
     m2.timestamp = later
     db.add(m2)
@@ -91,7 +91,7 @@ def test_read_my_client_booking_requests_last_message_ordering():
         client.id,
         SenderType.CLIENT,
         "ping",
-        MessageType.TEXT,
+        MessageType.USER,
     )
     m3.timestamp = later2
     db.add(m3)

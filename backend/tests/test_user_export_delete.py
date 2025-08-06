@@ -129,7 +129,7 @@ def create_data(Session):
         booking_request_id=br.id,
         sender_id=client.id,
         sender_type=SenderType.CLIENT,
-        message_type=MessageType.TEXT,
+        message_type=MessageType.USER,
         content='Hello',
     )
     db.add(msg)

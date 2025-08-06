@@ -64,7 +64,7 @@ def test_delete_service_cascades_messages():
         sender_id=client_user.id,
         sender_type=SenderType.CLIENT,
         content='hi',
-        message_type=MessageType.TEXT,
+        message_type=MessageType.USER,
     )
     db.add(msg)
     db.commit()
