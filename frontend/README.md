@@ -118,10 +118,10 @@ Passing `service_id` skips the service selection step when a user clicks "Reques
 
 ### Inbox URL Parameters
 
-The `/inbox` page accepts a `requestId` to open a specific conversation and an optional `sendQuote=1` flag. When present, the Send Quote modal opens automatically for artist users.
+The `/inbox` page accepts a `requestId` to open a specific conversation. Artists now receive a quote summary bubble directly in the thread, so the former `sendQuote=1` flag is no longer supported.
 
 ```
-/inbox?requestId=42&sendQuote=1
+/inbox?requestId=42
 ```
 
 On small screens the inbox initially displays only the conversation list. Tapping a conversation opens the chat thread and hides the list, and a back button returns to the conversation list.
@@ -130,7 +130,7 @@ Quote messages within the thread now render as full-width cards showing booking 
 
 ## Dashboard
 
-The artist dashboard includes a quotes page for managing offers. The `EditQuoteModal` allows artists to modify quote details and price inline without leaving the list. It opens when clicking the "Edit" button next to a pending quote and mirrors the style of `SendQuoteModal`. Both modals now use the shared `BottomSheet` component so they display full screen on mobile and center on larger screens. Trigger buttons expose `aria-expanded` and focus returns after closing. Sound, travel, discount, accommodation, and expiry fields remain wrapped in accessible labels so screen readers announce each input.
+The artist dashboard includes a quotes page for managing offers. The `EditQuoteModal` allows artists to modify quote details and price inline without leaving the list. It opens when clicking the "Edit" button next to a pending quote and uses the shared `BottomSheet` component so it displays full screen on mobile and centered on larger screens. Trigger buttons expose `aria-expanded` and focus returns after closing. Sound, travel, discount, accommodation, and expiry fields remain wrapped in accessible labels so screen readers announce each input.
 
 Helper hooks `useSendQuote`, `useAcceptQuote`, and `useDeclineQuote` are available for interacting with quote endpoints in components and pages.
 

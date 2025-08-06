@@ -28,10 +28,10 @@ import {
   declineQuoteV2,
   getBookingDetails,
   markMessagesRead,
+  updateBookingRequestArtist,
   useAuth,
 } from '@/lib/api';
 import Button from '../ui/Button';
-import SendQuoteModal from './SendQuoteModal';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import QuoteBubble from './QuoteBubble';
 import useWebSocket from '@/hooks/useWebSocket';
@@ -91,9 +91,6 @@ interface MessageThreadProps {
   onBookingConfirmedChange?: (isConfirmed: boolean, booking: Booking | null) => void;
   onPaymentStatusChange?: (status: string | null, amount: number | null, receiptUrl: string | null) => void;
   onShowReviewModal?: (show: boolean) => void;
-  // ADD THESE TWO NEW PROPS:
-  showQuoteModal: boolean; // Controls the modal visibility
-  setShowQuoteModal: (show: boolean) => void; // Allows parent to control the modal
 }
 
 // SVG Checkmark Icons (refined sizes and stroke)
@@ -134,8 +131,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       onBookingConfirmedChange,
       onPaymentStatusChange,
       onShowReviewModal,
-      showQuoteModal, // Destructured from props
-      setShowQuoteModal, // Destructured from props
     }: MessageThreadProps,
     ref,
   ) {
@@ -149,7 +144,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [newMessageContent, setNewMessageContent] = useState('');
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
-    // REMOVED: const [showQuoteModal, setShowQuoteModal] = useState(false); // No longer managed internally
     const [bookingDetails, setBookingDetails] = useState<Booking | null>(null);
     const [parsedBookingDetails, setParsedBookingDetails] = useState<ParsedBookingDetails | undefined>();
     const [threadError, setThreadError] = useState<string | null>(null);
@@ -174,8 +168,65 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     // Derived values
     const computedServiceName = serviceName ?? bookingDetails?.service?.title;
 
-    const currentClientId = propClientId || bookingDetails?.client_id || messages.find((m) => m.sender_type === 'client')?.sender_id || 0;
+    const currentClientId =
+      propClientId ||
+      bookingDetails?.client_id ||
+      messages.find((m) => m.sender_type === 'client')?.sender_id ||
+      0;
     const currentArtistId = propArtistId || bookingDetails?.artist_id || user?.id || 0;
+
+    const baseFee = initialBaseFee ?? 0;
+    const soundFee = initialSoundNeeded ? 250 : 0;
+    const travelFee = initialTravelCost ?? 0;
+    const discount = 0;
+    const subtotal = baseFee + soundFee + travelFee;
+    const total = (subtotal - discount) * 1.15;
+
+    const initialQuoteData = useMemo(
+      () => ({
+        booking_request_id: bookingRequestId,
+        artist_id: currentArtistId,
+        client_id: currentClientId,
+        services: [
+          { description: computedServiceName ?? 'Service fee', price: baseFee },
+        ],
+        sound_fee: soundFee,
+        travel_fee: travelFee,
+        accommodation: null,
+        discount: null,
+        expires_at: null,
+      }),
+      [
+        bookingRequestId,
+        currentArtistId,
+        currentClientId,
+        computedServiceName,
+        baseFee,
+        soundFee,
+        travelFee,
+      ],
+    );
+
+    const eventDetails = useMemo(
+      () => ({
+        from: clientName || 'Client',
+        receivedAt: format(new Date(), 'PPP'),
+        event: parsedBookingDetails?.eventType,
+        date: parsedBookingDetails?.date &&
+          isValid(new Date(parsedBookingDetails.date))
+          ? format(new Date(parsedBookingDetails.date), 'PPP')
+          : undefined,
+        guests: parsedBookingDetails?.guests,
+        venue: parsedBookingDetails?.venueType,
+        notes: parsedBookingDetails?.notes,
+      }),
+      [clientName, parsedBookingDetails],
+    );
+
+    const hasSentQuote = useMemo(
+      () => messages.some((m) => Number(m.quote_id) > 0),
+      [messages],
+    );
 
 
     // Payment Modal Hook
@@ -567,7 +618,6 @@ useEffect(() => {
       async (quoteData: QuoteV2Create) => {
         try {
           await createQuoteV2(quoteData);
-          setShowQuoteModal(false); // Use the prop's setter
           void fetchMessages();
           if (onMessageSent) onMessageSent();
           if (onQuoteSent) onQuoteSent();
@@ -576,8 +626,23 @@ useEffect(() => {
           setThreadError(`Failed to send quote. ${(err as Error).message || 'Please try again.'}`);
         }
       },
-      [fetchMessages, onMessageSent, onQuoteSent, setShowQuoteModal, setThreadError], // Dependency added for setter
+      [fetchMessages, onMessageSent, onQuoteSent, setThreadError],
     );
+
+    const handleDeclineRequest = useCallback(async () => {
+      try {
+        await updateBookingRequestArtist(bookingRequestId, {
+          status: 'request_declined',
+        });
+        void fetchMessages();
+        if (onMessageSent) onMessageSent();
+      } catch (err: unknown) {
+        console.error('Failed to decline request:', err);
+        setThreadError(
+          `Failed to decline request. ${(err as Error).message || 'Please try again.'}`,
+        );
+      }
+    }, [bookingRequestId, fetchMessages, onMessageSent, setThreadError]);
 
     const handleAcceptQuote = useCallback(
       async (quote: QuoteV2) => {
@@ -667,6 +732,24 @@ useEffect(() => {
             visibleMessages.length === 0 && !isSystemTyping && (
               <p className="text-xs text-gray-500 text-center py-4">No messages yet. Start the conversation below.</p>
             )
+          )}
+
+          {user?.user_type === 'artist' && !bookingConfirmed && !hasSentQuote && (
+            <div className="mb-4" data-testid="artist-quote-bubble">
+              <QuoteBubble
+                description={computedServiceName || 'Service fee'}
+                price={baseFee}
+                soundFee={soundFee}
+                travelFee={travelFee}
+                discount={discount}
+                subtotal={subtotal}
+                total={total}
+                status="Pending"
+                eventDetails={eventDetails}
+                onAccept={() => handleSendQuote(initialQuoteData)}
+                onDecline={handleDeclineRequest}
+              />
+            </div>
           )}
 
           {/* Render Grouped Messages */}
@@ -1095,18 +1178,6 @@ useEffect(() => {
               )}
 
             {/* Modals */}
-            <SendQuoteModal
-              open={showQuoteModal} // Uses the prop value
-              onClose={() => setShowQuoteModal(false)} // Uses the prop setter
-              onSubmit={handleSendQuote}
-              artistId={currentArtistId}
-              clientId={currentClientId}
-              bookingRequestId={bookingRequestId}
-              serviceName={computedServiceName}
-              initialBaseFee={initialBaseFee}
-              initialTravelCost={initialTravelCost}
-              initialSoundNeeded={initialSoundNeeded}
-            />
             <QuoteReviewModal
               open={showReviewModal}
               quote={reviewQuote}

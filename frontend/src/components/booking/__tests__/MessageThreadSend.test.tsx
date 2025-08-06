@@ -20,7 +20,7 @@ describe('MessageThread send flow', () => {
   it('sends a message and clears the input', async () => {
     (api.postMessageToBookingRequest as jest.Mock).mockResolvedValue({ data: { id: 1 } });
     const { getByPlaceholderText, getByLabelText } = render(
-      <MessageThread bookingRequestId={1} showQuoteModal={false} setShowQuoteModal={jest.fn()} />,
+      <MessageThread bookingRequestId={1} />,
     );
     const textarea = getByPlaceholderText('Type your message...') as HTMLTextAreaElement;
     const button = getByLabelText('Send message') as HTMLButtonElement;
@@ -41,7 +41,7 @@ describe('MessageThread send flow', () => {
 
   it('does not send empty messages', async () => {
     const { getByPlaceholderText, getByLabelText } = render(
-      <MessageThread bookingRequestId={1} showQuoteModal={false} setShowQuoteModal={jest.fn()} />,
+      <MessageThread bookingRequestId={1} />,
     );
     const textarea = getByPlaceholderText('Type your message...');
     const button = getByLabelText('Send message');
