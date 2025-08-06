@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/utils';
 import { TravelResult } from '@/lib/travel';
 import { useBooking } from '@/contexts/BookingContext';
 import { CollapsibleSection } from '../../ui';
+import { trackEvent } from '@/lib/analytics';
 
 interface ReviewStepProps {
   step: number;
@@ -163,7 +164,10 @@ export default function ReviewStep({
             </label>
           </div>
           <button
-            onClick={onNext}
+            onClick={(e) => {
+              trackEvent('booking_submit');
+              void onNext(e);
+            }}
             disabled={isButtonDisabled}
             className={`w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
               ${isButtonDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
