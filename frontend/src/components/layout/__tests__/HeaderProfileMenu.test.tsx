@@ -10,12 +10,6 @@ jest.mock('../NotificationBell', () => {
   return MockNotificationBell;
 });
 
-jest.mock('../BookingRequestIcon', () => {
-  const MockBookingRequestIcon: React.FC = () => <div />;
-  MockBookingRequestIcon.displayName = 'MockBookingRequestIcon';
-  return MockBookingRequestIcon;
-});
-
 jest.mock('@/contexts/AuthContext');
 const mockUseAuth = useAuth as jest.Mock;
 
