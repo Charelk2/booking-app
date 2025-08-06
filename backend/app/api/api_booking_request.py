@@ -144,6 +144,8 @@ def create_booking_request(
         sender_type=models.SenderType.ARTIST,
         content=content,
         message_type=models.MessageType.SYSTEM,
+        visible_to=models.VisibleTo.ARTIST,
+        action=models.MessageAction.REVIEW_QUOTE,
     )
     return new_request
 

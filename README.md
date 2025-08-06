@@ -1138,6 +1138,8 @@ POST /api/v1/booking-requests/
 422 responses indicate schema mismatches—ensure numeric fields are numbers and datetimes are valid ISO-8601 strings. Omit empty strings entirely.
 Validation errors are now logged server-side and returned as structured JSON so you can quickly debug bad requests. When a specific field causes a problem the API includes a `field_errors` object mapping field names to messages.
 
+Upon successful creation, the API saves the booking request with a `pending_quote` status and immediately posts a system message visible only to the artist with `action="review_quote"` so they can review details and send a quote.
+
 ### Booking Request Parsing
 
 ```

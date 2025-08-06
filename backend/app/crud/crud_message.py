@@ -15,6 +15,7 @@ def create_message(
     visible_to: models.VisibleTo = models.VisibleTo.BOTH,
     quote_id: int | None = None,
     attachment_url: str | None = None,
+    action: models.MessageAction | None = None,
 ) -> models.Message:
     db_msg = models.Message(
         booking_request_id=booking_request_id,
@@ -25,6 +26,7 @@ def create_message(
         visible_to=visible_to,
         quote_id=quote_id,
         attachment_url=attachment_url,
+        action=action,
     )
     db.add(db_msg)
     db.commit()

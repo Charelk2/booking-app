@@ -6416,6 +6416,13 @@
             ],
             "title": "Attachment Url"
           },
+          "action": {
+            "anyOf": [
+              {"type": "string"},
+              {"type": "null"}
+            ],
+            "title": "Action"
+          },
           "is_read": {
             "type": "boolean",
             "title": "Is Read",
