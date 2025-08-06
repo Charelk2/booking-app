@@ -6,7 +6,18 @@ from sqlalchemy.orm import sessionmaker
 from app.main import app
 from app.models.base import BaseModel
 from app.api.dependencies import get_db, get_current_active_artist
-from app.models import User, UserType, BookingRequest, BookingStatus
+from datetime import datetime, timedelta
+
+from app.models import (
+    User,
+    UserType,
+    BookingRequest,
+    BookingStatus,
+    MessageType,
+    MessageAction,
+    VisibleTo,
+)
+from app.crud import crud_message
 
 
 def setup_app():
@@ -85,6 +96,25 @@ def test_create_quote_endpoint_returns_201():
     data = res.json()
     assert data["booking_request_id"] == br.id
     assert "booking_request" not in data
+
+    # Verify booking request status
+    db = Session()
+    db_br = db.query(BookingRequest).get(br.id)
+    assert db_br.status == BookingStatus.QUOTE_PROVIDED
+
+    # Verify messages
+    msgs = crud_message.get_messages_for_request(db, br.id)
+    assert len(msgs) == 2
+    msg_types = {m.message_type for m in msgs}
+    assert MessageType.QUOTE in msg_types
+    assert MessageType.SYSTEM in msg_types
+    system_msg = next(m for m in msgs if m.message_type == MessageType.SYSTEM)
+    assert system_msg.action == MessageAction.REVIEW_QUOTE
+    assert system_msg.visible_to == VisibleTo.CLIENT
+    assert system_msg.expires_at is not None
+    expected = datetime.utcnow() + timedelta(days=7)
+    assert abs((system_msg.expires_at - expected).total_seconds()) < 5
+    db.close()
 
     if prev is not None:
         app.dependency_overrides[get_current_active_artist] = prev

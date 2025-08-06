@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from typing import List
 import logging
+from datetime import datetime, timedelta
 
 from .. import crud, models, schemas
 from .dependencies import (
@@ -95,17 +96,22 @@ def create_quote_for_request(
             quote_id=new_quote.id,
             attachment_url=None,
         )
-        # Add a follow-up system message summarizing the quote total and notify
-        # the client that the formal quote is ready for review.
-        detail_content = f"Quote sent with total {new_quote.price}"
+        # Prompt the client to review and accept the quote. The system message
+        # is visible only to the client and includes an expiration timestamp so
+        # the frontend can display a countdown.
+        expires_at = datetime.utcnow() + timedelta(days=7)
         crud.crud_message.create_message(
             db=db,
             booking_request_id=request_id,
             sender_id=current_artist.id,
             sender_type=models.SenderType.ARTIST,
-            content=detail_content,
+            content="Review & Accept Quote",
             message_type=models.MessageType.SYSTEM,
+            visible_to=models.VisibleTo.CLIENT,
+            action=models.MessageAction.REVIEW_QUOTE,
+            quote_id=new_quote.id,
             attachment_url=None,
+            expires_at=expires_at,
         )
         client = db.query(models.User).filter(models.User.id == db_booking_request.client_id).first()
         if client:
