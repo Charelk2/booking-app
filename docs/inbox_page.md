@@ -17,7 +17,9 @@ Clients and artists communicate through the **Inbox** page.
 
 Notifications for new messages link directly to the relevant conversation.
 System messages guide users when a booking request is created or a quote
-is ready.
+is ready. These messages can include an `action` field such as
+`review_quote` that tells the frontend to display a matching
+call-to-action button in the thread.
 
 The conversation list merges booking requests created by the user with
 those where they are the artist. Non-artist users only fetch their client

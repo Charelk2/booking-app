@@ -6420,7 +6420,9 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Action",
+            "description": "Optional call-to-action token such as 'review_quote' that the frontend uses to display contextual buttons."
           },
           "expires_at": {
             "anyOf": [
@@ -6498,7 +6500,9 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Action",
+            "description": "Optional call-to-action token such as 'review_quote' that the frontend uses to display contextual buttons."
           },
           "is_read": {
             "type": "boolean",
