@@ -406,7 +406,7 @@ def _create_and_broadcast(
         link=link,
     )
     response = _build_response(db, notif)
-    data = response.model_dump()
+    data = response.model_dump(mode="json")
     for k, v in extra.items():
         if v is not None and data.get(k) in [None, ""]:
             data[k] = v
