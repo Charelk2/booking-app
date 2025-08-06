@@ -152,6 +152,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
     // REMOVED: const [showQuoteModal, setShowQuoteModal] = useState(false); // No longer managed internally
     const [bookingDetails, setBookingDetails] = useState<Booking | null>(null);
+    const [parsedBookingDetails, setParsedBookingDetails] = useState<ParsedBookingDetails | undefined>();
     const [threadError, setThreadError] = useState<string | null>(null);
     const [reviewQuote, setReviewQuote] = useState<QuoteV2 | null>(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
@@ -286,6 +287,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         });
 
         setMessages(filteredMessages);
+        setParsedBookingDetails(parsedDetails);
 
         const hasUnread = filteredMessages.some(
           (msg) => msg.sender_id !== user?.id && !msg.is_read
@@ -727,12 +729,74 @@ useEffect(() => {
                       bubbleShape = isLastInGroup ? 'rounded-bl-none rounded-xl' : 'rounded-xl';
                     }
 
+                    const isQuoteMessage =
+                      normalizeType(msg.message_type) === 'QUOTE' &&
+                      typeof msg.quote_id === 'number';
                     const bubbleBase = isMsgFromSelf
                       ? 'bg-blue-100 text-gray-900'
                       : 'bg-white text-gray-800';
 
                     const bubbleClasses = `${bubbleBase} ${bubbleShape}`;
                     const messageTime = format(new Date(msg.timestamp), 'HH:mm');
+
+                    if (isQuoteMessage) {
+                      const quoteData = quotes[msg.quote_id];
+                      if (!quoteData) return null;
+                      return (
+                        <div
+                          key={msg.id}
+                          id={`quote-${msg.quote_id}`}
+                          className={`mb-0.5 w-full`}
+                          ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
+                        >
+                          <QuoteBubble
+                            description={quoteData.services[0]?.description || ''}
+                            price={Number(quoteData.services[0]?.price || 0)}
+                            soundFee={Number(quoteData.sound_fee)}
+                            travelFee={Number(quoteData.travel_fee)}
+                            accommodation={quoteData.accommodation || undefined}
+                            discount={Number(quoteData.discount) || undefined}
+                            subtotal={Number(quoteData.subtotal)}
+                            total={Number(quoteData.total)}
+                            status={
+                              quoteData.status === 'pending'
+                                ? 'Pending'
+                                : quoteData.status === 'accepted'
+                                  ? 'Accepted'
+                                  : quoteData.status === 'rejected' || quoteData.status === 'expired'
+                                    ? 'Rejected'
+                                    : 'Pending'
+                            }
+                            expiresAt={quoteData.expires_at || undefined}
+                            eventDetails={{
+                              from: clientName || 'Client',
+                              receivedAt: format(new Date(msg.timestamp), 'PPP'),
+                              event: parsedBookingDetails?.eventType,
+                              date: parsedBookingDetails?.date
+                                ? format(new Date(parsedBookingDetails.date), 'PPP')
+                                : undefined,
+                              guests: parsedBookingDetails?.guests,
+                              venue: parsedBookingDetails?.venueType,
+                              notes: parsedBookingDetails?.notes,
+                            }}
+                            onAccept={
+                              user?.user_type === 'client' &&
+                              quoteData.status === 'pending' &&
+                              !bookingConfirmed
+                                ? () => handleAcceptQuote(quoteData)
+                                : undefined
+                            }
+                            onDecline={
+                              user?.user_type === 'client' &&
+                              quoteData.status === 'pending' &&
+                              !bookingConfirmed
+                                ? () => handleDeclineQuote(quoteData)
+                                : undefined
+                            }
+                          />
+                        </div>
+                      );
+                    }
 
                     return (
                       <div
@@ -744,48 +808,7 @@ useEffect(() => {
                           {msg.sender_id !== user?.id && !msg.is_read && (
                             <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" aria-label="Unread message" />
                           )}
-                          {normalizeType(msg.message_type) === 'QUOTE' && typeof msg.quote_id === 'number' ? (
-                            (() => {
-                              const quoteData = quotes[msg.quote_id];
-                              if (!quoteData) return null;
-
-                              return (
-                                <div id={`quote-${msg.quote_id}`}>
-                                  <QuoteBubble
-                                    description={quoteData.services[0]?.description || ''}
-                                    price={Number(quoteData.services[0]?.price || 0)}
-                                    soundFee={Number(quoteData.sound_fee)}
-                                    travelFee={Number(quoteData.travel_fee)}
-                                    accommodation={quoteData.accommodation || undefined}
-                                    discount={Number(quoteData.discount) || undefined}
-                                    subtotal={Number(quoteData.subtotal)}
-                                    total={Number(quoteData.total)}
-                                    status={
-                                      quoteData.status === 'pending'
-                                        ? 'Pending'
-                                        : quoteData.status === 'accepted'
-                                          ? 'Accepted'
-                                          : quoteData.status === 'rejected' || quoteData.status === 'expired'
-                                            ? 'Rejected'
-                                            : 'Pending'
-                                    }
-                                    actionLabel={
-                                      user?.user_type === 'client' &&
-                                      quoteData.status === 'pending' &&
-                                      !bookingConfirmed
-                                        ? 'Review & Accept Quote'
-                                        : undefined
-                                    }
-                                    onAction={
-                                      user?.user_type === 'client'
-                                        ? () => openReviewModal(msg.quote_id)
-                                        : undefined
-                                    }
-                                  />
-                                </div>
-                              );
-                            })()
-                          ) : normalizeType(msg.message_type) === 'SYSTEM' && msg.action ? (
+                          {normalizeType(msg.message_type) === 'SYSTEM' && msg.action ? (
                             msg.action === 'review_quote' ? (
                               <>
                                 <Button
