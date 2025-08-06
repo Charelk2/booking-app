@@ -278,9 +278,9 @@ def update_booking_request_by_client(
     
     # Prevent updating if artist has already provided a quote or declined
     if db_request.status not in [
-        models.BookingRequestStatus.DRAFT,
-        models.BookingRequestStatus.PENDING_QUOTE,
-        models.BookingRequestStatus.REQUEST_WITHDRAWN,
+        models.BookingStatus.DRAFT,
+        models.BookingStatus.PENDING_QUOTE,
+        models.BookingStatus.REQUEST_WITHDRAWN,
     ]:
         logger.warning(
             "Invalid status %s for update by client; user_id=%s request_id=%s",
@@ -296,9 +296,9 @@ def update_booking_request_by_client(
 
     # Validate status change if present
     if request_update.status and request_update.status not in [
-        models.BookingRequestStatus.REQUEST_WITHDRAWN,
-        models.BookingRequestStatus.PENDING_QUOTE,
-        models.BookingRequestStatus.DRAFT,
+        models.BookingStatus.REQUEST_WITHDRAWN,
+        models.BookingStatus.PENDING_QUOTE,
+        models.BookingStatus.DRAFT,
     ]:
         logger.warning(
             "Client attempted invalid status update; user_id=%s request_id=%s payload=%s",
@@ -384,9 +384,9 @@ def update_booking_request_by_artist(
 
     # Artist can only update DRAFT, PENDING_QUOTE or QUOTE_PROVIDED (to decline, after quote)
     if db_request.status not in [
-        models.BookingRequestStatus.DRAFT,
-        models.BookingRequestStatus.PENDING_QUOTE,
-        models.BookingRequestStatus.QUOTE_PROVIDED,
+        models.BookingStatus.DRAFT,
+        models.BookingStatus.PENDING_QUOTE,
+        models.BookingStatus.QUOTE_PROVIDED,
     ]:
         logger.warning(
             "Invalid status %s for update by artist; user_id=%s request_id=%s",
@@ -401,7 +401,7 @@ def update_booking_request_by_artist(
         )
 
     # Validate status change by artist (e.g., only to REQUEST_DECLINED)
-    if request_update.status and request_update.status != models.BookingRequestStatus.REQUEST_DECLINED:
+    if request_update.status and request_update.status != models.BookingStatus.REQUEST_DECLINED:
         logger.warning(
             "Artist attempted invalid status update; user_id=%s request_id=%s payload=%s",
             current_artist.id,
@@ -446,7 +446,7 @@ def get_dashboard_stats(
         .filter(
             models.BookingRequest.artist_id == current_user.id,
             models.BookingRequest.created_at >= month_start,
-            models.BookingRequest.status != models.BookingRequestStatus.DRAFT,
+            models.BookingRequest.status != models.BookingStatus.DRAFT,
         )
         .count()
     )
@@ -468,9 +468,9 @@ def get_dashboard_stats(
         .filter(
             models.BookingRequest.artist_id == current_user.id,
             models.BookingRequest.status
-            != models.BookingRequestStatus.PENDING_QUOTE,
+            != models.BookingStatus.PENDING_QUOTE,
             models.BookingRequest.status
-            != models.BookingRequestStatus.DRAFT,
+            != models.BookingStatus.DRAFT,
         )
         .count()
     )

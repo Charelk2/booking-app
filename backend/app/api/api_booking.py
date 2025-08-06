@@ -12,7 +12,7 @@ from ..database import get_db
 from ..models.user import User, UserType
 from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
 from ..models.service import Service
-from ..models.booking import Booking, BookingStatus
+from ..models import Booking, BookingStatus
 from ..models.booking_simple import BookingSimple
 from ..models.quote_v2 import QuoteV2
 from ..schemas.booking import BookingCreate, BookingUpdate, BookingResponse

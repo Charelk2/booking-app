@@ -4,7 +4,7 @@ from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 
 from app.main import app
-from app.models import User, UserType, Service, BookingRequest, BookingRequestStatus
+from app.models import User, UserType, Service, BookingRequest, BookingStatus
 from app.api.dependencies import get_db, get_current_active_client, get_current_active_artist
 from app.models.base import BaseModel
 
@@ -41,7 +41,7 @@ def create_users(Session):
     db.add(svc)
     db.commit()
     db.refresh(svc)
-    br = BookingRequest(client_id=client.id, artist_id=artist.id, status=BookingRequestStatus.PENDING_QUOTE)
+    br = BookingRequest(client_id=client.id, artist_id=artist.id, status=BookingStatus.PENDING_QUOTE)
     db.add(br)
     db.commit()
     db.refresh(br)

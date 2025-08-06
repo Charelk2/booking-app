@@ -2,14 +2,9 @@
 
 from sqlalchemy import Column, Integer, DateTime, Numeric, ForeignKey, Enum, String
 from sqlalchemy.orm import relationship
-import enum
-from .base import BaseModel
 
-class BookingStatus(enum.Enum):
-    PENDING   = "pending"
-    CONFIRMED = "confirmed"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
+from .base import BaseModel
+from .booking_status import BookingStatus
 
 class Booking(BaseModel):
     __tablename__ = "bookings"

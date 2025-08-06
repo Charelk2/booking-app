@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models import User, UserType, Service, BookingRequestStatus
+from app.models import User, UserType, Service, BookingStatus
 from app.models.artist_profile_v2 import ArtistProfileV2
 from app.models.service import ServiceType
 from app.models.base import BaseModel
@@ -35,7 +35,7 @@ def test_client_can_update_service_id():
     db.refresh(svc1)
     db.refresh(svc2)
 
-    req_in = BookingRequestCreate(artist_id=artist.id, service_id=svc1.id, status=BookingRequestStatus.PENDING_QUOTE)
+    req_in = BookingRequestCreate(artist_id=artist.id, service_id=svc1.id, status=BookingStatus.PENDING_QUOTE)
     br = api_booking_request.create_booking_request(req_in, db, current_user=client)
 
     update = BookingRequestUpdateByClient(service_id=svc2.id)

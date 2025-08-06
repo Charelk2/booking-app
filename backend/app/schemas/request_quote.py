@@ -3,7 +3,8 @@ from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
 
-from ..models.request_quote import BookingRequestStatus, QuoteStatus # Enums from models
+from ..models.booking_status import BookingStatus
+from ..models.request_quote import QuoteStatus # Enums from models
 from .user import UserResponse  # For nesting user details
 from .artist import ArtistProfileResponse  # Include artist business name
 from .service import ServiceResponse  # For nesting service details
@@ -23,7 +24,7 @@ class BookingRequestBase(BaseModel):
 
 class BookingRequestCreate(BookingRequestBase):
     artist_id: int # Client must specify the artist they are requesting
-    status: Optional[BookingRequestStatus] = BookingRequestStatus.PENDING_QUOTE
+    status: Optional[BookingStatus] = BookingStatus.PENDING_QUOTE
 
 class BookingRequestUpdateByClient(BaseModel): # Client can withdraw or update message/times
     service_id: Optional[int] = None
@@ -34,16 +35,16 @@ class BookingRequestUpdateByClient(BaseModel): # Client can withdraw or update m
     travel_mode: Optional[str] = None
     travel_cost: Optional[Decimal] = None
     travel_breakdown: Optional[dict] = None
-    status: Optional[BookingRequestStatus] = None # e.g. REQUEST_WITHDRAWN
+    status: Optional[BookingStatus] = None # e.g. REQUEST_WITHDRAWN
 
 class BookingRequestUpdateByArtist(BaseModel): # Artist can decline
-    status: Optional[BookingRequestStatus] = None # e.g. REQUEST_DECLINED
+    status: Optional[BookingStatus] = None # e.g. REQUEST_DECLINED
 
 class BookingRequestResponse(BookingRequestBase):
     id: int
     client_id: int
     artist_id: int
-    status: BookingRequestStatus
+    status: BookingStatus
     created_at: datetime
     updated_at: Optional[datetime] = None
     travel_mode: Optional[str] = None

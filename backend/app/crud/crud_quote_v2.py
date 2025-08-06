@@ -61,7 +61,7 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
     )
     db.add(db_quote)
     if booking_request:
-        booking_request.status = models.BookingRequestStatus.QUOTE_PROVIDED
+        booking_request.status = models.BookingStatus.QUOTE_PROVIDED
     db.commit()
     db.refresh(db_quote)
     return db_quote

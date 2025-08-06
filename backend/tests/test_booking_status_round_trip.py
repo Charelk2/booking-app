@@ -1,12 +1,8 @@
-import json
-from decimal import Decimal
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.models import User, UserType, BookingStatus
+from app.models import User, UserType, BookingRequest, BookingStatus
 from app.models.base import BaseModel
-from app.api import api_booking_request
-from app.schemas import BookingRequestCreate
 
 
 def setup_db():
@@ -16,7 +12,7 @@ def setup_db():
     return Session()
 
 
-def test_create_request_with_travel():
+def test_booking_status_round_trip():
     db = setup_db()
     client = User(email='c@test.com', password='x', first_name='C', last_name='Client', user_type=UserType.CLIENT)
     artist = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.ARTIST)
@@ -25,16 +21,11 @@ def test_create_request_with_travel():
     db.refresh(client)
     db.refresh(artist)
 
-    req_in = BookingRequestCreate(
-        artist_id=artist.id,
-        status=BookingStatus.PENDING_QUOTE,
-        travel_mode='fly',
-        travel_cost=Decimal('123.45'),
-        travel_breakdown={'mode': 'fly'}
-    )
-
-    br = api_booking_request.create_booking_request(req_in, db, current_user=client)
-
-    assert br.travel_mode == 'fly'
-    assert br.travel_cost == Decimal('123.45')
-    assert br.travel_breakdown == {'mode': 'fly'}
+    for status in BookingStatus:
+        br = BookingRequest(client_id=client.id, artist_id=artist.id, status=status)
+        db.add(br)
+        db.commit()
+        fetched = db.get(BookingRequest, br.id)
+        assert fetched.status == status
+        db.delete(fetched)
+        db.commit()
