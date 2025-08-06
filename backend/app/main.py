@@ -353,6 +353,37 @@ def check_payment_gateway_url() -> None:
         )
 
 
+def process_quote_expiration(db):
+    """Expire pending quotes and notify about upcoming expirations.
+
+    Separated from the scheduler loop so the logic can be unit tested.
+    """
+    now = datetime.utcnow()
+    soon = now + timedelta(hours=24)
+    expiring = (
+        db.query(models.QuoteV2)
+        .filter(
+            models.QuoteV2.status == models.QuoteStatusV2.PENDING,
+            models.QuoteV2.expires_at != None,
+            models.QuoteV2.expires_at > now,
+            models.QuoteV2.expires_at <= soon,
+        )
+        .all()
+    )
+    for q in expiring:
+        artist = q.artist
+        client = q.client or db.query(models.User).get(q.client_id)
+        notify_quote_expiring(db, artist, q.id, q.expires_at, q.booking_request_id)
+        notify_quote_expiring(db, client, q.id, q.expires_at, q.booking_request_id)
+
+    expired = crud_quote_v2.expire_pending_quotes(db)
+    for q in expired:
+        artist = q.artist
+        client = q.client or db.query(models.User).get(q.client_id)
+        notify_quote_expired(db, artist, q.id, q.booking_request_id)
+        notify_quote_expired(db, client, q.id, q.booking_request_id)
+
+
 async def expire_quotes_loop() -> None:
     """Periodically expire pending quotes and send notifications.
 
@@ -363,34 +394,7 @@ async def expire_quotes_loop() -> None:
         await asyncio.sleep(3600)
         try:
             with SessionLocal() as db:
-                now = datetime.utcnow()
-                soon = now + timedelta(hours=24)
-                expiring = (
-                    db.query(models.QuoteV2)
-                    .filter(
-                        models.QuoteV2.status == models.QuoteStatusV2.PENDING,
-                        models.QuoteV2.expires_at != None,
-                        models.QuoteV2.expires_at > now,
-                        models.QuoteV2.expires_at <= soon,
-                    )
-                    .all()
-                )
-                for q in expiring:
-                    artist = q.artist
-                    client = q.client or db.query(models.User).get(q.client_id)
-                    notify_quote_expiring(
-                        db, artist, q.id, q.expires_at, q.booking_request_id
-                    )
-                    notify_quote_expiring(
-                        db, client, q.id, q.expires_at, q.booking_request_id
-                    )
-
-                expired = crud_quote_v2.expire_pending_quotes(db)
-                for q in expired:
-                    artist = q.artist
-                    client = q.client or db.query(models.User).get(q.client_id)
-                    notify_quote_expired(db, artist, q.id, q.booking_request_id)
-                    notify_quote_expired(db, client, q.id, q.booking_request_id)
+                process_quote_expiration(db)
         except Exception as exc:  # pragma: no cover - log and continue
             logger.exception("Error expiring quotes: %s", exc)
 
