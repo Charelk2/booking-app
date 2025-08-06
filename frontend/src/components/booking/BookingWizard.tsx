@@ -372,7 +372,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
       await postMessageToBookingRequest(id, {
         content: `Booking details:\nEvent Type: ${vals.eventType || 'N/A'}\nDescription: ${vals.eventDescription || 'N/A'}\nDate: ${vals.date?.toLocaleDateString() || 'N/A'}\nLocation: ${vals.location || 'N/A'}\nGuests: ${vals.guests || 'N/A'}\nVenue: ${vals.venueType || 'N/A'}\nSound: ${vals.sound || 'N/A'}\nNotes: ${vals.notes || 'N/A'}`,
-        message_type: 'system',
+        // Backend expects uppercase message types.
+        message_type: 'SYSTEM',
       });
 
       toast.success('Your booking request has been submitted successfully!');

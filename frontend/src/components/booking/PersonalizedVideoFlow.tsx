@@ -36,7 +36,8 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
       await new Promise((r) => setTimeout(r, 1000));
       await postMessageToBookingRequest(bookingRequestId, {
         content: text,
-        message_type: 'system',
+        // Align with backend's uppercase message types.
+        message_type: 'SYSTEM',
       });
       setSystemTyping(false);
       threadRef.current?.refreshMessages();
@@ -55,19 +56,19 @@ export default function PersonalizedVideoFlow({ bookingRequestId, clientName, ar
         if (progressCount < videoQuestions.length) {
           const next = videoQuestions[progressCount];
           const alreadyAsked = msgs.some(
-            (m) => m.message_type === 'system' && m.content === next,
+            (m) => m.message_type.toUpperCase() === 'SYSTEM' && m.content === next,
           );
           const last = msgs[msgs.length - 1];
           const waitingForAnswer =
             last &&
-            last.message_type === 'system' &&
+            last.message_type.toUpperCase() === 'SYSTEM' &&
             last.content === next;
           if (!alreadyAsked && !systemTypingRef.current && !waitingForAnswer) {
             await sendSystemMessage(next);
           }
         } else {
           const done = msgs.some(
-            (m) => m.message_type === 'system' && m.content === READY_MESSAGE,
+            (m) => m.message_type.toUpperCase() === 'SYSTEM' && m.content === READY_MESSAGE,
           );
           if (!done && !systemTypingRef.current) {
             await sendSystemMessage(READY_MESSAGE);

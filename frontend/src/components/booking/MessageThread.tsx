@@ -50,6 +50,9 @@ const TEN_MINUTES_MS = 10 * 60 * 1000;
 const MIN_SCROLL_OFFSET = 20;
 const MAX_TEXTAREA_LINES = 10;
 
+// Normalize backend-provided message types for case-insensitive comparisons.
+const normalizeType = (t?: string | null) => (t ?? '').toUpperCase();
+
 // Interface for component handle
 export interface MessageThreadHandle {
   refreshMessages: () => void;
@@ -268,14 +271,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         let parsedDetails: ParsedBookingDetails | undefined;
 
         const filteredMessages = res.data.filter((msg) => {
-          if (msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX)) {
+          const type = normalizeType(msg.message_type);
+          if (type === 'SYSTEM' && msg.content.startsWith(BOOKING_DETAILS_PREFIX)) {
             parsedDetails = parseBookingDetailsFromMessage(msg.content);
             return false;
           }
-          if (msg.message_type === 'text' && msg.content.startsWith('Requesting ')) {
+          if (type === 'USER' && msg.content.startsWith('Requesting ')) {
             return false;
           }
-          if (initialNotes && msg.message_type === 'text' && msg.content.trim() === initialNotes.trim()) {
+          if (initialNotes && type === 'USER' && msg.content.trim() === initialNotes.trim()) {
             return false;
           }
           return true;
@@ -295,7 +299,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         }
 
         filteredMessages.forEach((msg) => {
-          if (msg.message_type === 'quote' && typeof msg.quote_id === 'number') {
+          if (normalizeType(msg.message_type) === 'QUOTE' && typeof msg.quote_id === 'number') {
             void ensureQuoteLoaded(msg.quote_id);
           }
         });
@@ -338,7 +342,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         onSocketMessage((event) => {
           const incomingMsg = JSON.parse(event.data) as Message;
 
-          if (incomingMsg.message_type === 'system' && incomingMsg.content.startsWith(BOOKING_DETAILS_PREFIX)) {
+          if (normalizeType(incomingMsg.message_type) === 'SYSTEM' && incomingMsg.content.startsWith(BOOKING_DETAILS_PREFIX)) {
             if (onBookingDetailsParsed) {
               onBookingDetailsParsed(parseBookingDetailsFromMessage(incomingMsg.content));
             }
@@ -348,14 +352,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           setMessages((prevMessages) => {
             if (
               prevMessages.some((prevMsg) => prevMsg.id === incomingMsg.id) ||
-              (initialNotes && incomingMsg.message_type === 'text' && incomingMsg.content.trim() === initialNotes.trim())
+              (initialNotes && normalizeType(incomingMsg.message_type) === 'USER' && incomingMsg.content.trim() === initialNotes.trim())
             ) {
               return prevMessages;
             }
             return [...prevMessages.slice(-199), incomingMsg];
           });
 
-          if (incomingMsg.message_type === 'quote' && typeof incomingMsg.quote_id === 'number') {
+          if (normalizeType(incomingMsg.message_type) === 'QUOTE' && typeof incomingMsg.quote_id === 'number') {
             void ensureQuoteLoaded(incomingMsg.quote_id);
           }
         }),
@@ -436,7 +440,7 @@ useEffect(() => {
             visibleToCurrentUser &&
             msg.content &&
             msg.content.trim().length > 0 &&
-            !(msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX))
+            !(normalizeType(msg.message_type) === 'SYSTEM' && msg.content.startsWith(BOOKING_DETAILS_PREFIX))
           );
         }),
       [messages, user?.user_type],
@@ -645,7 +649,7 @@ useEffect(() => {
           {/* Render Grouped Messages */}
           {groupedMessages.map((group, idx) => {
             const firstMsgInGroup = group.messages[0];
-            const isSystemMessage = firstMsgInGroup.message_type === 'system';
+            const isSystemMessage = normalizeType(firstMsgInGroup.message_type) === 'SYSTEM';
             const isSenderSelf = firstMsgInGroup.sender_id === user?.id;
 
             return (
@@ -740,7 +744,7 @@ useEffect(() => {
                           {msg.sender_id !== user?.id && !msg.is_read && (
                             <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" aria-label="Unread message" />
                           )}
-                          {msg.message_type === 'quote' && typeof msg.quote_id === 'number' ? (
+                          {normalizeType(msg.message_type) === 'QUOTE' && typeof msg.quote_id === 'number' ? (
                             (() => {
                               const quoteData = quotes[msg.quote_id];
                               if (!quoteData) return null;
@@ -781,7 +785,7 @@ useEffect(() => {
                                 </div>
                               );
                             })()
-                          ) : msg.message_type === 'system' && msg.action ? (
+                          ) : normalizeType(msg.message_type) === 'SYSTEM' && msg.action ? (
                             msg.action === 'review_quote' ? (
                               <>
                                 <Button
