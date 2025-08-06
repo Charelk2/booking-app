@@ -10,6 +10,7 @@ class MessageCreate(BaseModel):
     quote_id: int | None = None
     attachment_url: str | None = None
     action: MessageAction | None = None
+    expires_at: datetime | None = None
 
 
 class MessageResponse(BaseModel):
@@ -26,6 +27,7 @@ class MessageResponse(BaseModel):
     is_read: bool = False
     timestamp: datetime
     avatar_url: str | None = None
+    expires_at: datetime | None = None
 
     model_config = {
         "from_attributes": True

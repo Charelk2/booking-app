@@ -796,6 +796,9 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
   circular references.
 * POST `/api/v1/booking-requests/{id}/quotes` now returns a Quote with
   `booking_request` set to `null` to prevent serialization cycles.
+* Sending a quote automatically transitions the booking request to
+  `quote_provided` status and posts a `SYSTEM` chat message visible to the
+  client prompting **Review & Accept Quote** with a 7-day expiration.
 * `POST /api/v1/quotes` returns **404 Not Found** when the
   `booking_request_id` does not match an existing request.
 * Accepting a Quote V2 now also creates a formal booking visible on the artist dashboard.
