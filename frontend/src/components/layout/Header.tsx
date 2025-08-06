@@ -198,10 +198,12 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             {/* Nav Links (Visible initially, and when compact search expands) */}
             <div
               className={clsx('content-area-wrapper header-nav-links', {
+
                 'opacity-0 pointer-events-none':
                   headerState === 'compacted' && !isArtistView && showSearchBar,
                 'opacity-100 pointer-events-auto transition-opacity duration-300 delay-100':
                   headerState !== 'compacted' || isArtistView || !showSearchBar,
+
               })}
             >
               <nav className="flex gap-6">
