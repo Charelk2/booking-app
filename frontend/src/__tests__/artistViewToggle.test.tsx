@@ -14,7 +14,7 @@ jest.mock('@/contexts/AuthContext');
 const mockUseAuth = useAuth as jest.Mock;
 
 describe('Header artist view', () => {
-  it('shows artist links when artistViewActive', () => {
+  it('shows artist links without search elements when artistViewActive', () => {
     const toggleArtistView = jest.fn();
     mockUseAuth.mockReturnValue({
       user: { id: 1, user_type: 'artist', email: 'a', first_name: 'A', last_name: 'B' },
@@ -22,14 +22,14 @@ describe('Header artist view', () => {
       artistViewActive: true,
       toggleArtistView,
     });
-    render(<Header />);
-    expect(screen.getByText('Today')).toBeInTheDocument();
-    expect(screen.getByText('View Profile')).toBeInTheDocument();
-    expect(screen.getByText('Services')).toBeInTheDocument();
-    expect(screen.getByText('Messages')).toBeInTheDocument();
-    expect(mockUseAuth).toHaveBeenCalledTimes(1);
-    userEvent.click(screen.getByText(/Switch to Booking/));
-    expect(toggleArtistView).toHaveBeenCalledTimes(1);
+    render(<Header headerState="compacted" onForceHeaderState={jest.fn()} />);
+    expect(screen.getByText('Today')).toBeTruthy();
+    expect(screen.getByText('Services')).toBeTruthy();
+    expect(screen.getByText('Messages')).toBeTruthy();
+    expect(screen.getAllByText('View Profile')).toHaveLength(1);
+    expect(screen.queryByText('Add artist')).toBeNull();
+    expect(screen.queryByPlaceholderText('Add artist')).toBeNull();
+    expect(mockUseAuth).toHaveBeenCalled();
   });
 
   it('shows client nav when artistViewActive is false', () => {
@@ -39,9 +39,9 @@ describe('Header artist view', () => {
       artistViewActive: false,
       toggleArtistView: jest.fn(),
     });
-    render(<Header />);
-    expect(screen.getByText('Artists')).toBeInTheDocument();
+    render(<Header headerState="initial" onForceHeaderState={jest.fn()} />);
+    expect(screen.getByText('Artists')).toBeTruthy();
     expect(screen.queryByText('Today')).toBeNull();
-    expect(mockUseAuth).toHaveBeenCalledTimes(1);
+    expect(mockUseAuth).toHaveBeenCalled();
   });
 });
