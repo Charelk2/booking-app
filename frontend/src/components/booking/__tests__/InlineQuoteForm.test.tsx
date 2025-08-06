@@ -35,7 +35,9 @@ describe('InlineQuoteForm', () => {
       );
     });
 
-    const btn = div.querySelector('button');
+    const btn = Array.from(div.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Send Quote',
+    ) as HTMLButtonElement | undefined;
     await act(async () => {
       btn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
