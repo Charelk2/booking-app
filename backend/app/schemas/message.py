@@ -1,6 +1,7 @@
 from typing import Optional
-from pydantic import BaseModel
 from datetime import datetime
+from pydantic import BaseModel, field_validator
+
 from ..models.message import SenderType, MessageType, VisibleTo, MessageAction
 
 
@@ -12,6 +13,22 @@ class MessageCreate(BaseModel):
     attachment_url: str | None = None
     action: MessageAction | None = None
     expires_at: Optional[datetime] = None
+
+    @field_validator("message_type", mode="before")
+    @classmethod
+    def normalize_message_type(cls, v: str):
+        """Allow legacy or lowercase message types by normalizing input."""
+        if isinstance(v, str):
+            mapping = {
+                "TEXT": MessageType.USER,
+                "USER": MessageType.USER,
+                "QUOTE": MessageType.QUOTE,
+                "SYSTEM": MessageType.SYSTEM,
+            }
+            key = v.upper()
+            if key in mapping:
+                return mapping[key]
+        raise ValueError("message_type must be USER, QUOTE, or SYSTEM")
 
 
 class MessageResponse(BaseModel):
@@ -30,6 +47,4 @@ class MessageResponse(BaseModel):
     avatar_url: str | None = None
     expires_at: Optional[datetime] = None
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = {"from_attributes": True}

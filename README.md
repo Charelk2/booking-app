@@ -73,7 +73,9 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Booking request API responses now include `last_message_content` and `last_message_timestamp` so inbox conversations sort by recent chats.
 - Messages now include a `message_type` (`USER`, `QUOTE`, `SYSTEM`) and `visible_to`
   (`artist`, `client`, `both`) field so threads render and filter correctly for
-  each participant.
+  each participant. The API also accepts the legacy values `text`, `quote`, and
+  `system` (in any case) and automatically normalizes them to the uppercase
+  values above for backward compatibility.
 - Backend now fetches these fields using a single optimized query for improved performance.
 - Booking request endpoints now embed the artist's business name so clients no longer see placeholder `user/unknown` names.
 
