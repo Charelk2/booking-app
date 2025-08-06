@@ -8,8 +8,9 @@ Clients and artists communicate through the **Inbox** page.
 
 1. Conversation list shows all booking requests.  
    Unread threads display a red dot and are sorted by `last_message_timestamp`.
-2. Selecting a conversation opens the chat area.  
-   Quotes appear as special bubbles with **Accept** and **Decline** buttons.
+2. Selecting a conversation opens the chat area.
+   Quotes now render as full-width cards showing booking details,
+   an itemized cost breakdown, and **Accept**/**Decline** actions.
 3. **Show Details** toggles a side panel with booking information and quick
    links for deposit payments and calendar events.
 

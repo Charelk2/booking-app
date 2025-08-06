@@ -85,4 +85,57 @@ describe('MessageThread quote actions', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('renders quote bubble for system review_quote messages', async () => {
+    (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 7, user_type: 'client' } });
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
+      data: [
+        {
+          id: 1,
+          booking_request_id: 1,
+          sender_id: 9,
+          sender_type: 'artist',
+          content: 'Review & Accept Quote',
+          message_type: 'SYSTEM',
+          action: 'review_quote',
+          visible_to: 'client',
+          quote_id: 55,
+          is_read: true,
+          timestamp: '2025-01-01T00:00:00Z',
+        },
+      ],
+    });
+    (api.getQuoteV2 as jest.Mock).mockResolvedValue({
+      data: {
+        id: 55,
+        services: [{ description: 'Performance', price: 100 }],
+        sound_fee: 0,
+        travel_fee: 0,
+        subtotal: 100,
+        total: 100,
+        status: 'pending',
+      },
+    });
+
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        <MessageThread
+          bookingRequestId={1}
+          showQuoteModal={false}
+          setShowQuoteModal={jest.fn()}
+        />,
+      );
+    });
+    await act(async () => { await flushPromises(); });
+    await act(async () => { await flushPromises(); });
+
+    const bubble = container.querySelector('#quote-55');
+    expect(bubble).not.toBeNull();
+
+    act(() => root.unmount());
+    container.remove();
+  });
 });
