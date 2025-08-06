@@ -943,6 +943,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * The card layout was revamped: the photo stacks above the details on mobile and sits left on larger screens. Taglines clamp to two lines using the new Tailwind `line-clamp` plugin. Pricing appears beneath the artist name when `priceVisible` is true or shows **Contact for pricing** otherwise.
 * Final polish aligns `<ArtistCard />` with the global design system. The image now stretches edge to edge with only the top corners rounded. Specialty tags truncate to a single row and use pill badges with `text-[10px] px-1.5 py-0.5` styling. Ratings show a yellow star or "No ratings yet". Prices display as `from R{price}` with no decimals. A divider separates meta info from the location and **View Profile** button.
 * Specialty badges now always show at most two tags using `flex-nowrap` and `overflow-hidden` so the row stays visible on small screens without truncation.
+* The **Explore Other Artists** section now uses `<ArtistCardCompact />`, aligning artist profiles with the homepage style.
 
 ### Service Management (Artist Dashboard)
 
