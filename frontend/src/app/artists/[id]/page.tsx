@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Head from 'next/head';
 import Image from 'next/image';
 import MainLayout from '@/components/layout/MainLayout';
@@ -35,6 +34,7 @@ import {
 } from '@/lib/utils';
 import ArtistServiceCard from '@/components/artist/ArtistServiceCard';
 import { Button, Tag, Toast, Spinner, SkeletonList } from '@/components/ui';
+import ArtistCardCompact from '@/components/artist/ArtistCardCompact';
 import BookingWizard from '@/components/booking/BookingWizard';
 import { BookingProvider } from '@/contexts/BookingContext';
 
@@ -434,63 +434,40 @@ export default function ArtistProfilePage() {
                   <ListBulletIcon className="h-5 w-5" />
                 </Button>
               </div>
-              <div className={otherView === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8' : 'space-y-4'}>
+              <div
+                className={
+                  otherView === 'grid'
+                    ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4'
+                    : 'space-y-4'
+                }
+              >
                 {otherArtists.map((otherArtist) => {
-                  const otherProfilePicUrl = getFullImageUrl(otherArtist.profile_picture_url);
+                  const name =
+                    otherArtist.business_name ||
+                    `${otherArtist.user.first_name} ${otherArtist.user.last_name}`;
                   return (
-                    <Link
-                      href={`/artists/${otherArtist.user_id}`}
-                      key={`otherArtist-${otherArtist.user_id}`}
-                      className="block group"
-                    >
-                      <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl">
-                        <div className="h-48 bg-gray-200 flex items-center justify-center overflow-hidden">
-                          {otherProfilePicUrl ? (
-                            <Image
-                              src={otherProfilePicUrl}
-                              alt={
-                                otherArtist.business_name ||
-                                `${otherArtist.user.first_name} ${otherArtist.user.last_name}`
-                              }
-                              width={300}
-                              height={300}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                              sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                            />
-                          ) : (
-                            <UserIcon className="h-16 w-16 text-gray-400" />
-                          )}
-                        </div>
-                        <div className="p-4">
-                          <h3 className="text-lg font-semibold text-gray-800 truncate group-hover:text-brand-dark">
-                            {otherArtist.business_name ||
-                              `${otherArtist.user.first_name} ${otherArtist.user.last_name}`}
-                          </h3>
-                          {otherArtist.location && (
-                            <p className="text-sm text-gray-500 flex items-center mt-1">
-                              <MapPinIcon className="h-4 w-4 mr-1.5 text-gray-400" />{' '}
-                              {otherArtist.location}
-                            </p>
-                          )}
-                          {otherArtist.specialties &&
-                            otherArtist.specialties.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-1">
-                                {otherArtist.specialties.slice(0, 2).map((spec) => (
-                                  <Tag key={`other-${otherArtist.user_id}-spec-${spec}`} className="px-2 py-0.5 text-xs">
-                                    {spec}
-                                  </Tag>
-                                ))}
-                                {otherArtist.specialties.length > 2 && (
-                                  <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600 font-medium">
-                                    + {otherArtist.specialties.length - 2} more
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                        </div>
-                      </div>
-                    </Link>
+                    <ArtistCardCompact
+                      key={`otherArtist-${otherArtist.id}`}
+                      artistId={otherArtist.id}
+                      name={name}
+                      subtitle={otherArtist.custom_subtitle || undefined}
+                      imageUrl={
+                        getFullImageUrl(
+                          otherArtist.profile_picture_url ||
+                            otherArtist.portfolio_urls?.[0]
+                        ) || undefined
+                      }
+                      price={
+                        otherArtist.hourly_rate && otherArtist.price_visible
+                          ? Number(otherArtist.hourly_rate)
+                          : undefined
+                      }
+                      rating={otherArtist.rating ?? undefined}
+                      ratingCount={otherArtist.rating_count ?? undefined}
+                      location={otherArtist.location}
+                      href={`/artists/${otherArtist.id}`}
+                      className={otherView === 'grid' ? undefined : 'w-full'}
+                    />
                   );
                 })}
               </div>
