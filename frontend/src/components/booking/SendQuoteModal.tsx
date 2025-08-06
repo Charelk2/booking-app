@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { ServiceItem, QuoteV2Create, QuoteTemplate } from '@/types';
 import { getQuoteTemplates } from '@/lib/api';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
+import { trackEvent } from '@/lib/analytics';
 // You mentioned `BottomSheet` in your previous code. Assuming it's a separate component.
 // If not, the modal structure below replaces its functionality.
 
@@ -122,6 +123,11 @@ const SendQuoteModal: React.FC<Props> = ({
   };
 
   const handleSubmit = async () => {
+    trackEvent('cta_send_quote', {
+      bookingRequestId,
+      artistId,
+      clientId,
+    });
     const expires_at = expiresHours
       ? new Date(Date.now() + expiresHours * 3600000).toISOString()
       : null;

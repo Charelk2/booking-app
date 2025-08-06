@@ -151,7 +151,12 @@ export default function LoginPage() {
             )}
 
             <div>
-              <Button type="submit" disabled={isSubmitting} className="w-full">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full"
+                analyticsEvent="login_submit"
+              >
                 {isSubmitting ? 'Signing in...' : 'Sign in'}
               </Button>
             </div>
@@ -180,7 +185,12 @@ export default function LoginPage() {
                 </div>
               )}
               <div>
-                <Button type="submit" disabled={mfaSubmitting} className="w-full">
+                <Button
+                  type="submit"
+                  disabled={mfaSubmitting}
+                  className="w-full"
+                  analyticsEvent="mfa_verify_submit"
+                >
                   {mfaSubmitting ? 'Verifying...' : 'Verify'}
                 </Button>
               </div>

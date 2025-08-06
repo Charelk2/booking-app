@@ -38,7 +38,10 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Payment receipts are stored with a `payment_id` so clients can view them from the dashboard.
 - Successful payments now automatically confirm the booking and send a system
   "View Booking Details" message to both client and artist chats.
-- Chat threads now surface contextual action buttons—**Review & Send Quote**,
+- All booking and quote status changes now emit INFO logs, and scheduler failures
+  trigger error alerts so issues surface in monitoring tools. CTA clicks on the
+  frontend fire analytics events for centralized tracking.
+- Chat threads now surface contextual action buttons—**Review & Send Quote**, 
   **Review & Accept Quote**, and **View Booking Details**—with countdown timers
   when quotes expire, so users never miss a deadline.
 - Users can download all account data via `/api/v1/users/me/export` and permanently delete their account with `DELETE /api/v1/users/me`.
