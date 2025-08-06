@@ -555,7 +555,9 @@ useEffect(() => {
           setThreadError(`Quote accepted, but there was an issue setting up payment. ${(err as Error).message || 'Please try again.'}`);
         }
       },
+
       [bookingRequestId, fetchMessages, openPaymentModal, serviceId, setBookingConfirmed, setBookingDetails, setThreadError, onBookingConfirmedChange],
+
     );
 
     const handleDeclineQuote = useCallback(
@@ -702,7 +704,9 @@ useEffect(() => {
                           {msg.sender_id !== user?.id && !msg.is_read && (
                             <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" aria-label="Unread message" />
                           )}
+
                           {msg.message_type === 'system' && msg.action ? (
+
                             msg.action === 'review_quote' ? (
                               <>
                                 <Button

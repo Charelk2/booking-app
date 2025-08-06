@@ -23,10 +23,12 @@ function flushPromises() {
 }
 
 describe('MessageThread quote actions', () => {
+
   it('opens review modal from system message and renders no quote bubble', async () => {
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 7, user_type: 'client' } });
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
     // @ts-ignore: mock API functions
+
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({
       data: [
         {
@@ -34,6 +36,7 @@ describe('MessageThread quote actions', () => {
           booking_request_id: 1,
           sender_id: 9,
           sender_type: 'artist',
+
           content: 'Review & Accept Quote',
           message_type: 'system',
           visible_to: 'client',
@@ -47,6 +50,7 @@ describe('MessageThread quote actions', () => {
           booking_request_id: 1,
           sender_id: 9,
           sender_type: 'artist',
+
           content: 'Quote message',
           message_type: 'quote',
           quote_id: 42,
@@ -55,6 +59,8 @@ describe('MessageThread quote actions', () => {
         },
       ],
     });
+
+
     const container = document.createElement('div');
     const root = createRoot(container);
     await act(async () => {
@@ -68,6 +74,7 @@ describe('MessageThread quote actions', () => {
     });
     await act(async () => { await flushPromises(); });
     await act(async () => { await flushPromises(); });
+
 
     // quote messages should render as plain text, no bubble container
     expect(container.querySelector('#quote-42')).toBeNull();
