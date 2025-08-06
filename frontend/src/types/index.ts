@@ -251,6 +251,8 @@ export interface Message {
   visible_to?: "artist" | "client" | "both";
   action?: string | null;
   avatar_url?: string | null;
+  /** Optional expiration timestamp for system CTAs */
+  expires_at?: string | null;
   /** Whether the message has been read by the current user */
   unread?: boolean;
   timestamp: string;
@@ -263,6 +265,7 @@ export interface MessageCreate {
   attachment_url?: string;
   visible_to?: "artist" | "client" | "both";
   action?: string;
+  expires_at?: string;
 }
 
 export interface SoundProvider {
