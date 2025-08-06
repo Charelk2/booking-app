@@ -157,7 +157,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [uploadingProgress, setUploadingProgress] = useState(0);
     const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
     const [announceNewMessage, setAnnounceNewMessage] = useState('');
-    const [acceptingQuoteId, setAcceptingQuoteId] = useState<number | null>(null);
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
     const [textareaLineHeight, setTextareaLineHeight] = useState(0);
@@ -555,7 +554,6 @@ useEffect(() => {
 
     const handleAcceptQuote = useCallback(
       async (quote: QuoteV2) => {
-        setAcceptingQuoteId(quote.id);
         try {
           await acceptQuoteV2(quote.id, serviceId);
         } catch (err: unknown) {
@@ -563,7 +561,6 @@ useEffect(() => {
           setThreadError(
             `Failed to accept quote. ${(err as Error).message || 'Please try again.'}`,
           );
-          setAcceptingQuoteId(null);
           return;
         }
 
@@ -593,11 +590,9 @@ useEffect(() => {
         } catch (err: unknown) {
           console.error('Failed to finalize quote acceptance process:', err);
           setThreadError(`Quote accepted, but there was an issue setting up payment. ${(err as Error).message || 'Please try again.'}`);
-        } finally {
-          setAcceptingQuoteId(null);
         }
       },
-      [bookingRequestId, fetchMessages, openPaymentModal, serviceId, setQuotes, setBookingConfirmed, setBookingDetails, setThreadError, setAcceptingQuoteId, onBookingConfirmedChange],
+      [bookingRequestId, fetchMessages, openPaymentModal, serviceId, setQuotes, setBookingConfirmed, setBookingDetails, setThreadError, onBookingConfirmedChange],
     );
 
     const handleDeclineQuote = useCallback(
@@ -770,31 +765,19 @@ useEffect(() => {
                                             ? 'Rejected'
                                             : 'Pending'
                                     }
+                                    actionLabel={
+                                      user?.user_type === 'client' &&
+                                      quoteData.status === 'pending' &&
+                                      !bookingConfirmed
+                                        ? 'Review & Accept Quote'
+                                        : undefined
+                                    }
+                                    onAction={
+                                      user?.user_type === 'client'
+                                        ? () => openReviewModal(msg.quote_id)
+                                        : undefined
+                                    }
                                   />
-                                  {user?.user_type === 'client' &&
-                                    quoteData.status === 'pending' &&
-                                    !bookingConfirmed && (
-                                      <div className="mt-2 flex gap-1.5">
-                                        <Button
-                                          type="button"
-                                          isLoading={acceptingQuoteId === msg.quote_id}
-                                          onClick={() => handleAcceptQuote(quoteData)}
-                                          className="bg-green-500 hover:bg-green-600 text-white rounded-full px-3 py-1.5 text-xs font-semibold shadow-md"
-                                          disabled={acceptingQuoteId === msg.quote_id}
-                                        >
-                                          Accept
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          variant="secondary"
-                                          onClick={() => handleDeclineQuote(quoteData)}
-                                          className="bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-full px-3 py-1.5 text-xs font-semibold shadow-md"
-                                          disabled={acceptingQuoteId === msg.quote_id}
-                                        >
-                                          Decline
-                                        </Button>
-                                      </div>
-                                    )}
                                 </div>
                               );
                             })()
