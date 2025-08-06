@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Booking, BookingRequest } from '@/types';
 import MessageThread from '../booking/MessageThread';
 import BookingDetailsPanel from './BookingDetailsPanel';
@@ -11,7 +11,7 @@ import AlertBanner from '../ui/AlertBanner';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import * as api from '@/lib/api';
 import { formatCurrency, formatDepositReminder, getFullImageUrl } from '@/lib/utils';
-import { InformationCircleIcon, BanknotesIcon } from '@heroicons/react/24/outline';
+import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 
 interface ParsedBookingDetails {
@@ -45,7 +45,6 @@ export default function MessageThreadWrapper({
 
   const [isUserArtist, setIsUserArtist] = useState(false);
   const { user } = api.useAuth();
-  const searchParams = useSearchParams();
   const router = useRouter();
 
   useEffect(() => {
@@ -57,28 +56,6 @@ export default function MessageThreadWrapper({
   }, [user]);
 
   const [showSidePanel, setShowSidePanel] = useState(false);
-  const [showQuoteModal, setShowQuoteModal] = useState(false);
-
-  useEffect(() => {
-    if (searchParams.get('sendQuote') === '1') {
-      setShowQuoteModal(true);
-    }
-  }, [searchParams]);
-
-  const handleSetShowQuoteModal = useCallback(
-    (show: boolean) => {
-      setShowQuoteModal(show);
-      const params = new URLSearchParams(searchParams.toString());
-      if (show) {
-        params.set('sendQuote', '1');
-      } else {
-        params.delete('sendQuote');
-      }
-      const queryString = params.toString();
-      router.replace(queryString ? `?${queryString}` : '', { scroll: false });
-    },
-    [searchParams, router],
-  );
 
   const { openPaymentModal, paymentModal } = usePaymentModal(
     useCallback(({ status, amount, receiptUrl: url }) => {
@@ -203,19 +180,6 @@ export default function MessageThreadWrapper({
                   'User'
             }
           </span>
-
-          {/* Send Quote button next */}
-          {isUserArtist && !bookingConfirmed && (
-            <button
-              type="button"
-              onClick={() => handleSetShowQuoteModal(true)}
-              aria-label="Send Quote"
-              aria-expanded={showQuoteModal}
-              className="ml-2 p-1 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            >
-              <BanknotesIcon className="h-6 w-6 text-white" aria-hidden="true" />
-            </button>
-          )}
 
           {/* Separator for desktop when panel is visible */}
         </div>
@@ -344,8 +308,6 @@ export default function MessageThreadWrapper({
               setReceiptUrl(url);
             }}
             onShowReviewModal={setShowReviewModal}
-            showQuoteModal={showQuoteModal}
-            setShowQuoteModal={handleSetShowQuoteModal}
           />
         </div>
 

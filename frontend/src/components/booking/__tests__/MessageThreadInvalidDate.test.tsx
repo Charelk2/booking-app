@@ -80,9 +80,7 @@ describe('MessageThread booking details with invalid date', () => {
     const root = createRoot(container);
 
     await act(async () => {
-      root.render(
-        <MessageThread bookingRequestId={1} showQuoteModal={false} setShowQuoteModal={jest.fn()} />,
-      );
+      root.render(<MessageThread bookingRequestId={1} />);
     });
     await act(async () => { await flushPromises(); });
     await act(async () => { await flushPromises(); });
