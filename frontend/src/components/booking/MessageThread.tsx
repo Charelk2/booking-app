@@ -35,8 +35,7 @@ import SendQuoteModal from './SendQuoteModal';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import QuoteBubble from './QuoteBubble';
 import useWebSocket from '@/hooks/useWebSocket';
-import { format } from 'date-fns';
-import { FixedSizeList as List } from 'react-window';
+import { format, isValid } from 'date-fns';
 import Countdown from './Countdown';
 import QuoteReviewModal from './QuoteReviewModal';
 import { useRouter } from 'next/navigation';
@@ -422,13 +421,6 @@ useEffect(() => {
       prevMessageCountRef.current = messages.length;
     }, [messages, showScrollButton]);
 
-    // Scroll to the quote bubble corresponding to the provided ID
-    const scrollToQuote = useCallback((id?: number | null) => {
-      if (!id) return;
-      const el = document.getElementById(`quote-${id}`);
-      el?.scrollIntoView({ behavior: 'smooth' });
-    }, []);
-
     const visibleMessages = useMemo(
       () =>
         messages.filter((msg) => {
@@ -772,9 +764,13 @@ useEffect(() => {
                               from: clientName || 'Client',
                               receivedAt: format(new Date(msg.timestamp), 'PPP'),
                               event: parsedBookingDetails?.eventType,
-                              date: parsedBookingDetails?.date
-                                ? format(new Date(parsedBookingDetails.date), 'PPP')
-                                : undefined,
+                              date: (() => {
+                                if (!parsedBookingDetails?.date) return undefined;
+                                const eventDate = new Date(parsedBookingDetails.date);
+                                return isValid(eventDate)
+                                  ? format(eventDate, 'PPP')
+                                  : undefined;
+                              })(),
                               guests: parsedBookingDetails?.guests,
                               venue: parsedBookingDetails?.venueType,
                               notes: parsedBookingDetails?.notes,
