@@ -44,4 +44,17 @@ describe('Header artist view', () => {
     expect(screen.queryByText('Today')).toBeNull();
     expect(mockUseAuth).toHaveBeenCalled();
   });
+
+  it('keeps nav links visible when search bar is hidden in compact mode', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 1, user_type: 'artist', email: 'a', first_name: 'A', last_name: 'B' },
+      logout: jest.fn(),
+      artistViewActive: false,
+      toggleArtistView: jest.fn(),
+    });
+    render(<Header headerState="compacted" onForceHeaderState={jest.fn()} showSearchBar={false} />);
+    expect(screen.getByText('Artists')).toBeTruthy();
+    const wrapper = document.querySelector('.header-nav-links');
+    expect(wrapper?.className).not.toContain('opacity-0');
+  });
 });
