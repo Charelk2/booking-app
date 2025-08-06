@@ -37,6 +37,8 @@ import QuoteBubble from './QuoteBubble';
 import useWebSocket from '@/hooks/useWebSocket';
 import { format } from 'date-fns';
 import { FixedSizeList as List } from 'react-window';
+import Countdown from './Countdown';
+import { useRouter } from 'next/navigation';
 
 
 // Constants
@@ -135,6 +137,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     ref,
   ) {
     const { user } = useAuth();
+    const router = useRouter();
 
     // State variables
     const [messages, setMessages] = useState<Message[]>([]);
@@ -411,12 +414,30 @@ useEffect(() => {
       prevMessageCountRef.current = messages.length;
     }, [messages, showScrollButton]);
 
+    // Scroll to the quote bubble corresponding to the provided ID
+    const scrollToQuote = useCallback((id?: number | null) => {
+      if (!id) return;
+      const el = document.getElementById(`quote-${id}`);
+      el?.scrollIntoView({ behavior: 'smooth' });
+    }, []);
+
     const visibleMessages = useMemo(
-      () => messages.filter((msg) =>
-        msg.content && msg.content.trim().length > 0 &&
-        !(msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX))
-      ),
-      [messages],
+      () =>
+        messages.filter((msg) => {
+          const visibleToCurrentUser =
+            !msg.visible_to ||
+            msg.visible_to === 'both' ||
+            (user?.user_type === 'artist' && msg.visible_to === 'artist') ||
+            (user?.user_type === 'client' && msg.visible_to === 'client');
+
+          return (
+            visibleToCurrentUser &&
+            msg.content &&
+            msg.content.trim().length > 0 &&
+            !(msg.message_type === 'system' && msg.content.startsWith(BOOKING_DETAILS_PREFIX))
+          );
+        }),
+      [messages, user?.user_type],
     );
 
     const shouldShowTimestampGroup = useCallback(
@@ -712,7 +733,7 @@ useEffect(() => {
                               if (!quoteData) return null;
 
                               return (
-                                <>
+                                <div id={`quote-${msg.quote_id}`}>
                                   <QuoteBubble
                                     description={quoteData.services[0]?.description || ''}
                                     price={Number(quoteData.services[0]?.price || 0)}
@@ -756,9 +777,49 @@ useEffect(() => {
                                         </Button>
                                       </div>
                                     )}
-                                </>
+                                </div>
                               );
                             })()
+                          ) : msg.message_type === 'system' && msg.action ? (
+                            msg.action === 'review_quote' ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  onClick={() =>
+                                    msg.visible_to === 'artist'
+                                      ? setShowQuoteModal(true)
+                                      : scrollToQuote(msg.quote_id)
+                                  }
+                                  className="text-xs text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
+                                >
+                                  {msg.visible_to === 'artist'
+                                    ? 'Review & Send Quote'
+                                    : 'Review & Accept Quote'}
+                                </Button>
+                                {msg.expires_at && (
+                                  <div className="mt-1 text-[10px] text-gray-500">
+                                    <Countdown expiresAt={msg.expires_at} />
+                                  </div>
+                                )}
+                              </>
+                            ) : msg.action === 'view_booking_details' ? (
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  if (!bookingDetails?.id) return;
+                                  const base =
+                                    user?.user_type === 'artist'
+                                      ? '/dashboard/bookings'
+                                      : '/dashboard/client/bookings';
+                                  router.push(`${base}/${bookingDetails.id}`);
+                                }}
+                                className="text-xs text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
+                              >
+                                View Booking Details
+                              </Button>
+                            ) : (
+                              msg.content
+                            )
                           ) : (
                             msg.content
                           )}
