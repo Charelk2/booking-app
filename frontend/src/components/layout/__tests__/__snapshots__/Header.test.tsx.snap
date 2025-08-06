@@ -14,8 +14,30 @@ exports[`Header hides search bar when disabled 1`] = `
     >
        
       <div
-        class="flex flex-col"
+        class="flex items-center gap-2"
       >
+        <button
+          aria-label="Open menu"
+          class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline md:hidden"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="h-6 w-6"
+            data-slot="icon"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
         <a
           class="text-xl font-bold text-brand-dark no-underline"
           href="/"
@@ -33,25 +55,25 @@ exports[`Header hides search bar when disabled 1`] = `
             class="flex gap-6"
           >
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/artists"
             >
               Artists
             </a>
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/services"
             >
               Services
             </a>
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/faq"
             >
               FAQ
             </a>
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/contact"
             >
               Contact
@@ -60,19 +82,19 @@ exports[`Header hides search bar when disabled 1`] = `
         </div>
       </div>
       <div
-        class="hidden sm:flex items-center gap-4"
+        class="hidden sm:flex items-center gap-2"
       >
         <div
-          class="space-x-4"
+          class="flex gap-2"
         >
           <a
-            class="text-sm text-gray-600"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline text-gray-600"
             href="/login"
           >
             Sign in
           </a>
           <a
-            class="text-sm text-white bg-brand-dark px-3 py-1 rounded"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline bg-brand-dark text-white rounded"
             href="/register"
           >
             Sign up
@@ -98,8 +120,30 @@ exports[`Header matches compact snapshot with filter control 1`] = `
     >
        
       <div
-        class="flex flex-col"
+        class="flex items-center gap-2"
       >
+        <button
+          aria-label="Open menu"
+          class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline md:hidden"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="h-6 w-6"
+            data-slot="icon"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
         <a
           class="text-xl font-bold text-brand-dark no-underline"
           href="/"
@@ -117,25 +161,25 @@ exports[`Header matches compact snapshot with filter control 1`] = `
             class="flex gap-6"
           >
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/artists"
             >
               Artists
             </a>
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/services"
             >
               Services
             </a>
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/faq"
             >
               FAQ
             </a>
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/contact"
             >
               Contact
@@ -196,19 +240,19 @@ exports[`Header matches compact snapshot with filter control 1`] = `
         </div>
       </div>
       <div
-        class="hidden sm:flex items-center gap-4"
+        class="hidden sm:flex items-center gap-2"
       >
         <div
-          class="space-x-4"
+          class="flex gap-2"
         >
           <a
-            class="text-sm text-gray-600"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline text-gray-600"
             href="/login"
           >
             Sign in
           </a>
           <a
-            class="text-sm text-white bg-brand-dark px-3 py-1 rounded"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline bg-brand-dark text-white rounded"
             href="/register"
           >
             Sign up
@@ -229,26 +273,27 @@ exports[`Header matches compact snapshot with filter control 1`] = `
           class="flex flex-1 divide-x divide-gray-200"
         >
           <div
-            class="relative flex-1 min-w-0"
+            class="relative flex-1 min-w-0 transition-all duration-200 ease-out px-6 py-3 hover:bg-gray-50 focus-within:bg-gray-50"
           >
-            <button
-              aria-controls="location-popup"
-              aria-expanded="false"
-              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-6 py-3 hover:bg-gray-50 focus:bg-gray-50"
-              id="location-search-button"
-              type="button"
+            <span
+              class="text-sm text-gray-700 font-semibold pointer-events-none select-none"
             >
-              <span
-                class="text-sm text-gray-700 font-semibold  pointer-events-none select-none"
-              >
-                Where
-              </span>
-              <span
-                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
-              >
-                Add location
-              </span>
-            </button>
+              Where
+            </span>
+            <div
+              class="relative w-full w-full"
+            >
+              <input
+                aria-autocomplete="list"
+                aria-controls="autocomplete-options"
+                aria-expanded="false"
+                class="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none block truncate p-0 bg-transparent text-gray-500 text-base text-xs"
+                placeholder="Add location"
+                role="combobox"
+                type="text"
+                value=""
+              />
+            </div>
           </div>
           <div
             class="border-l border-gray-200"
@@ -348,8 +393,30 @@ exports[`Header renders extraBar when provided 1`] = `
     >
        
       <div
-        class="flex flex-col"
+        class="flex items-center gap-2"
       >
+        <button
+          aria-label="Open menu"
+          class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline md:hidden"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="h-6 w-6"
+            data-slot="icon"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
         <a
           class="text-xl font-bold text-brand-dark no-underline"
           href="/"
@@ -367,25 +434,25 @@ exports[`Header renders extraBar when provided 1`] = `
             class="flex gap-6"
           >
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/artists"
             >
               Artists
             </a>
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/services"
             >
               Services
             </a>
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/faq"
             >
               FAQ
             </a>
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/contact"
             >
               Contact
@@ -394,19 +461,19 @@ exports[`Header renders extraBar when provided 1`] = `
         </div>
       </div>
       <div
-        class="hidden sm:flex items-center gap-4"
+        class="hidden sm:flex items-center gap-2"
       >
         <div
-          class="space-x-4"
+          class="flex gap-2"
         >
           <a
-            class="text-sm text-gray-600"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline text-gray-600"
             href="/login"
           >
             Sign in
           </a>
           <a
-            class="text-sm text-white bg-brand-dark px-3 py-1 rounded"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline bg-brand-dark text-white rounded"
             href="/register"
           >
             Sign up
@@ -439,8 +506,30 @@ exports[`Header renders search bar when enabled 1`] = `
     >
        
       <div
-        class="flex flex-col"
+        class="flex items-center gap-2"
       >
+        <button
+          aria-label="Open menu"
+          class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline md:hidden"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="h-6 w-6"
+            data-slot="icon"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
         <a
           class="text-xl font-bold text-brand-dark no-underline"
           href="/"
@@ -458,25 +547,25 @@ exports[`Header renders search bar when enabled 1`] = `
             class="flex gap-6"
           >
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/artists"
             >
               Artists
             </a>
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/services"
             >
               Services
             </a>
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/faq"
             >
               FAQ
             </a>
             <a
-              class="inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium transition-colors no-underline hover:no-underline border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               href="/contact"
             >
               Contact
@@ -530,19 +619,19 @@ exports[`Header renders search bar when enabled 1`] = `
         </div>
       </div>
       <div
-        class="hidden sm:flex items-center gap-4"
+        class="hidden sm:flex items-center gap-2"
       >
         <div
-          class="space-x-4"
+          class="flex gap-2"
         >
           <a
-            class="text-sm text-gray-600"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline text-gray-600"
             href="/login"
           >
             Sign in
           </a>
           <a
-            class="text-sm text-white bg-brand-dark px-3 py-1 rounded"
+            class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline bg-brand-dark text-white rounded"
             href="/register"
           >
             Sign up
@@ -563,26 +652,27 @@ exports[`Header renders search bar when enabled 1`] = `
           class="flex flex-1 divide-x divide-gray-200"
         >
           <div
-            class="relative flex-1 min-w-0"
+            class="relative flex-1 min-w-0 transition-all duration-200 ease-out px-6 py-3 hover:bg-gray-50 focus-within:bg-gray-50"
           >
-            <button
-              aria-controls="location-popup"
-              aria-expanded="false"
-              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-6 py-3 hover:bg-gray-50 focus:bg-gray-50"
-              id="location-search-button"
-              type="button"
+            <span
+              class="text-sm text-gray-700 font-semibold pointer-events-none select-none"
             >
-              <span
-                class="text-sm text-gray-700 font-semibold  pointer-events-none select-none"
-              >
-                Where
-              </span>
-              <span
-                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
-              >
-                Add location
-              </span>
-            </button>
+              Where
+            </span>
+            <div
+              class="relative w-full w-full"
+            >
+              <input
+                aria-autocomplete="list"
+                aria-controls="autocomplete-options"
+                aria-expanded="false"
+                class="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none block truncate p-0 bg-transparent text-gray-500 text-base text-xs"
+                placeholder="Add location"
+                role="combobox"
+                type="text"
+                value=""
+              />
+            </div>
           </div>
           <div
             class="border-l border-gray-200"

@@ -9,7 +9,6 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext'; // Assuming AuthContext is set up
 import NavLink from './NavLink'; // Assuming NavLink is set up
 import NotificationBell from './NotificationBell'; // Assuming NotificationBell is set up
-import BookingRequestIcon from './BookingRequestIcon'; // Assuming BookingRequestIcon is set up
 import MobileMenuDrawer from './MobileMenuDrawer'; // Assuming MobileMenuDrawer is set up
 import SearchBar from '../search/SearchBar'; // The full search bar component
 import { navItemClasses } from './navStyles';
@@ -248,25 +247,22 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             )}
           </div>
 
-          {/* Icons */}
-          <div className="hidden sm:flex items-center gap-4">
-            {user ? (
-              <>
-                {user.user_type === 'artist' && (
-                  <button
-                    onClick={toggleArtistView}
-                    className={clsx(navItemClasses, 'text-gray-700')}
-                  >
-                    {artistViewActive ? 'Switch to Booking' : 'Switch to Artist View'}
-                  </button>
-                )}
-                <div className={navItemClasses}>
-                  <BookingRequestIcon />
-                </div>
-                <div className={navItemClasses}>
-                  <NotificationBell />
-                </div>
-                <Menu as="div" className="relative">
+            {/* Icons */}
+            <div className="hidden sm:flex items-center gap-2">
+              {user ? (
+                <>
+                  {user.user_type === 'artist' && (
+                    <button
+                      onClick={toggleArtistView}
+                      className={clsx(navItemClasses, 'text-gray-700')}
+                    >
+                      {artistViewActive ? 'Switch to Booking' : 'Switch to Artist View'}
+                    </button>
+                  )}
+                  <div className={navItemClasses}>
+                    <NotificationBell />
+                  </div>
+                  <Menu as="div" className="relative">
                   <Menu.Button
                     aria-label="Account menu"
                     className={clsx(navItemClasses, 'rounded-full bg-gray-100 text-sm focus:outline-none')}
