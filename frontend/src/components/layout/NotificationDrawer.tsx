@@ -10,7 +10,6 @@ import {
   type ListChildComponentProps,
   type FixedSizeList as FixedSizeListType,
 } from 'react-window';
-import type { FixedSizeList as FixedSizeListType } from 'react-window';
 import NotificationCard from '../ui/NotificationCard';
 import getNotificationDisplayProps from '@/hooks/getNotificationDisplayProps';
 import { ToggleSwitch, IconButton } from '../ui';
