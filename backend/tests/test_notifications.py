@@ -6,7 +6,7 @@ from app.models import (
     User,
     UserType,
     BookingRequest,
-    BookingRequestStatus,
+    BookingStatus,
     MessageType,
     NotificationType,
     ArtistProfile,
@@ -97,7 +97,7 @@ def test_message_creates_notification():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -136,7 +136,7 @@ def test_system_booking_summary_message_suppressed():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -174,7 +174,7 @@ def test_booking_request_creates_notification():
     db.refresh(artist)
 
     req_in = BookingRequestCreate(
-        artist_id=artist.id, message="hi", status=BookingRequestStatus.PENDING_QUOTE
+        artist_id=artist.id, message="hi", status=BookingStatus.PENDING_QUOTE
     )
     api_booking_request.create_booking_request(req_in, db, current_user=client)
 
@@ -251,7 +251,7 @@ def test_thread_notification_summary():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -302,7 +302,7 @@ def test_thread_notification_shows_client_avatar():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -352,7 +352,7 @@ def test_thread_notification_uses_business_name_for_artist():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -391,7 +391,7 @@ def test_thread_notification_includes_booking_details():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -471,13 +471,13 @@ def test_status_update_creates_notification_for_client():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
     db.refresh(br)
 
-    update = BookingRequestUpdateByArtist(status=BookingRequestStatus.REQUEST_DECLINED)
+    update = BookingRequestUpdateByArtist(status=BookingStatus.REQUEST_DECLINED)
     api_booking_request.update_booking_request_by_artist(
         br.id, update, db, current_artist=artist
     )
@@ -511,13 +511,13 @@ def test_status_update_creates_notification_for_artist():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
     db.refresh(br)
 
-    update = BookingRequestUpdateByClient(status=BookingRequestStatus.REQUEST_WITHDRAWN)
+    update = BookingRequestUpdateByClient(status=BookingStatus.REQUEST_WITHDRAWN)
     api_booking_request.update_booking_request_by_client(
         br.id, update, db, current_user=client
     )
@@ -619,7 +619,7 @@ def test_personalized_video_notifications_suppressed_until_final():
         client_id=client.id,
         artist_id=artist.id,
         service_id=service.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -730,7 +730,7 @@ def test_notifications_endpoint_returns_sender_name():
     br = BookingRequest(
         client_id=client_user.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -785,7 +785,7 @@ def test_new_message_notification_fallback_client_name():
     br = BookingRequest(
         client_id=client_user.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -842,7 +842,7 @@ def test_new_message_notification_fallback_business_name():
     br = BookingRequest(
         client_id=client_user.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -1075,7 +1075,7 @@ def test_booking_request_api_parses_sender_and_type():
         client_id=client.id,
         artist_id=artist.id,
         service_id=service.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -1233,7 +1233,7 @@ def test_booking_status_update_notification_includes_client_name():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -1455,7 +1455,7 @@ def test_quote_accepted_notification_includes_client_avatar_url():
     br = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -1502,7 +1502,7 @@ def test_quote_expired_notification():
     br = BookingRequest(
         client_id=client_user.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -1549,7 +1549,7 @@ def test_quote_expiring_notification():
     br = BookingRequest(
         client_id=client_user.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()

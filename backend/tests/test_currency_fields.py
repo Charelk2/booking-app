@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models import User, UserType, BookingRequest, BookingRequestStatus
+from app.models import User, UserType, BookingRequest, BookingStatus
 from app.models.artist_profile_v2 import ArtistProfileV2
 from app.models.base import BaseModel
 from app.models.service import ServiceType

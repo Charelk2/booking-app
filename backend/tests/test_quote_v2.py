@@ -9,11 +9,10 @@ from app.models import (
     User,
     UserType,
     BookingRequest,
-    BookingRequestStatus,
+    BookingStatus,
     Message,
     Service,
     Booking,
-    BookingStatus,
 )
 from app.models.base import BaseModel
 from fastapi import HTTPException
@@ -72,7 +71,7 @@ def test_create_and_accept_quote():
         artist_id=artist.id,
         service_id=service.id,
         proposed_datetime_1=datetime(2030, 1, 1, 20, 0, 0),
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -158,7 +157,7 @@ def test_create_quote_updates_request_status():
         artist_id=artist.id,
         service_id=service.id,
         proposed_datetime_1=datetime(2035, 1, 1, 20, 0, 0),
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -174,7 +173,7 @@ def test_create_quote_updates_request_status():
     )
     api_quote_v2.create_quote(quote_in, db)
     db.refresh(br)
-    assert br.status == BookingRequestStatus.QUOTE_PROVIDED
+    assert br.status == BookingStatus.QUOTE_PROVIDED
 
 def test_read_accepted_quote_has_booking_id():
     """GET /quotes/{id} returns booking_id for accepted quotes."""
@@ -218,7 +217,7 @@ def test_read_accepted_quote_has_booking_id():
         artist_id=artist.id,
         service_id=service.id,
         proposed_datetime_1=datetime(2040, 1, 1, 20, 0, 0),
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -317,7 +316,7 @@ def test_accept_quote_booking_failure(monkeypatch, caplog):
         artist_id=artist.id,
         service_id=service.id,
         proposed_datetime_1=datetime(2033, 1, 1, 20, 0, 0),
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -396,7 +395,7 @@ def test_accept_quote_missing_client(caplog):
         artist_id=artist.id,
         service_id=service.id,
         proposed_datetime_1=datetime(2030, 2, 1, 21, 0, 0),
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -510,7 +509,7 @@ def test_accept_quote_creates_deposit_notification():
         artist_id=artist.id,
         service_id=service.id,
         proposed_datetime_1=datetime(2031, 1, 1, 20, 0, 0),
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -576,7 +575,7 @@ def test_accept_quote_deposit_notification_link():
         artist_id=artist.id,
         service_id=service.id,
         proposed_datetime_1=datetime(2032, 1, 1, 20, 0, 0),
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -643,7 +642,7 @@ def test_accept_quote_supplies_missing_service_id():
         client_id=client.id,
         artist_id=artist.id,
         proposed_datetime_1=datetime(2034, 1, 1, 20, 0, 0),
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -750,7 +749,7 @@ def test_accept_quote_without_date_for_video_service():
         client_id=client.id,
         artist_id=artist.id,
         service_id=service.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()
@@ -816,7 +815,7 @@ def test_expire_pending_quotes():
         client_id=client.id,
         artist_id=artist.id,
         service_id=service.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add(br)
     db.commit()

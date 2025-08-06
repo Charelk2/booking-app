@@ -5370,7 +5370,7 @@
           "status": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/BookingRequestStatus"
+                "$ref": "#/components/schemas/BookingStatus"
               },
               {
                 "type": "null"
@@ -5491,7 +5491,7 @@
             "title": "Artist Id"
           },
           "status": {
-            "$ref": "#/components/schemas/BookingRequestStatus"
+            "$ref": "#/components/schemas/BookingStatus"
           },
           "created_at": {
             "type": "string",
@@ -5603,9 +5603,13 @@
         ],
         "title": "BookingRequestResponse"
       },
-      "BookingRequestStatus": {
+      "BookingStatus": {
         "type": "string",
         "enum": [
+          "pending",
+          "confirmed",
+          "completed",
+          "cancelled",
           "draft",
           "pending_quote",
           "quote_provided",
@@ -5616,14 +5620,14 @@
           "request_withdrawn",
           "quote_rejected"
         ],
-        "title": "BookingRequestStatus"
+        "title": "BookingStatus"
       },
       "BookingRequestUpdateByArtist": {
         "properties": {
           "status": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/BookingRequestStatus"
+                "$ref": "#/components/schemas/BookingStatus"
               },
               {
                 "type": "null"
@@ -5733,7 +5737,7 @@
           "status": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/BookingRequestStatus"
+                "$ref": "#/components/schemas/BookingStatus"
               },
               {
                 "type": "null"
@@ -6013,16 +6017,6 @@
           "updated_at"
         ],
         "title": "BookingSimpleRead"
-      },
-      "BookingStatus": {
-        "type": "string",
-        "enum": [
-          "pending",
-          "confirmed",
-          "completed",
-          "cancelled"
-        ],
-        "title": "BookingStatus"
       },
       "BookingUpdate": {
         "properties": {

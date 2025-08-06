@@ -5,7 +5,7 @@ from typing import List, Any
 from ..database import get_db
 from ..models.user import User
 from ..models import ArtistProfile
-from ..models.booking import Booking, BookingStatus
+from ..models import Booking, BookingStatus
 from ..models.review import Review
 from ..models.service import Service
 from ..schemas.review import ReviewCreate, ReviewResponse, ReviewDetails

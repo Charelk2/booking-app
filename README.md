@@ -60,6 +60,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Artist profile picture uploads now update the account avatar so the image persists after logout and page refreshes. When logged in as an artist, the profile picture from **Edit Profile** is shown across the site, including the top navigation menu.
 - Booking request cards now show the client's profile picture when available so requests are easier to identify.
 - Status badges on booking request cards now use classes like `status-badge-quote-provided` for consistent colors.
+- Backend now defines a unified `BookingStatus` enum in `backend/app/models/booking_status.py` shared by bookings and booking requests.
 - Error fallback messages now detect authentication failures and prompt users to log in.
 - Booking request API responses now include `last_message_content` and `last_message_timestamp` so inbox conversations sort by recent chats.
 - Backend now fetches these fields using a single optimized query for improved performance.
