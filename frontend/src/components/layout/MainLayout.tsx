@@ -81,7 +81,7 @@ interface Props {
 }
 
 export default function MainLayout({ children, headerAddon, headerFilter, fullWidthContent = false }: Props) {
-  const { user } = useAuth();
+  const { user, artistViewActive } = useAuth();
   const pathname = usePathname();
   const isArtistDetail = /^\/artists\//.test(pathname) && pathname.split('/').length > 2;
   const isArtistsRoot = pathname === '/artists';
@@ -262,7 +262,9 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
   const contentWrapperClasses = 'w-full px-4 sm:px-6 lg:px-8';
 
 
-  const showSearchBar = pathname === '/' || pathname.startsWith('/artists');
+  const showSearchBar =
+    (!artistViewActive || user?.user_type !== 'artist') &&
+    (pathname === '/' || pathname.startsWith('/artists'));
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 bg-gradient-to-b from-brand-light/50 to-gray-50">
