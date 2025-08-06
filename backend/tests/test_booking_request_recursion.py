@@ -6,7 +6,7 @@ from app.models import (
     User,
     UserType,
     BookingRequest,
-    BookingRequestStatus,
+    BookingStatus,
     Quote,
 )
 from app.models.base import BaseModel
@@ -30,7 +30,7 @@ def test_artist_booking_requests_no_recursion():
     db.refresh(artist)
     db.refresh(client)
 
-    br = BookingRequest(client_id=client.id, artist_id=artist.id, status=BookingRequestStatus.PENDING_QUOTE)
+    br = BookingRequest(client_id=client.id, artist_id=artist.id, status=BookingStatus.PENDING_QUOTE)
     db.add(br)
     db.commit()
     db.refresh(br)

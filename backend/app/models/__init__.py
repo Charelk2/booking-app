@@ -1,9 +1,10 @@
 from .user import User, UserType
 from .artist_profile_v2 import ArtistProfileV2 as ArtistProfile
 from .service import Service
-from .booking import Booking, BookingStatus
+from .booking import Booking
+from .booking_status import BookingStatus
 from .review import Review
-from .request_quote import BookingRequest, Quote, BookingRequestStatus, QuoteStatus
+from .request_quote import BookingRequest, Quote, QuoteStatus
 from .quote_v2 import QuoteV2, QuoteStatusV2
 from .quote_template import QuoteTemplate
 from .booking_simple import BookingSimple
@@ -32,7 +33,6 @@ __all__ = [
     "ArtistSoundPreference",
     "UserType",
     "BookingStatus",
-    "BookingRequestStatus",
     "QuoteStatus",
     "QuoteStatusV2",
     "SenderType",

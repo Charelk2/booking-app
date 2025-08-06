@@ -8,7 +8,7 @@ from app.main import app
 from app.models.base import BaseModel
 from app.api.auth import create_access_token
 from app.api.dependencies import get_db
-from app.models import User, UserType, BookingRequest, BookingRequestStatus
+from app.models import User, UserType, BookingRequest, BookingStatus
 
 
 def setup_app():
@@ -39,7 +39,7 @@ def create_data(Session):
     db.commit()
     db.refresh(artist)
     db.refresh(client)
-    br = BookingRequest(client_id=client.id, artist_id=artist.id, status=BookingRequestStatus.PENDING_QUOTE)
+    br = BookingRequest(client_id=client.id, artist_id=artist.id, status=BookingStatus.PENDING_QUOTE)
     db.add(br)
     db.commit()
     db.refresh(br)

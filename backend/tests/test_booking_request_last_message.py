@@ -6,7 +6,7 @@ from app.models import (
     User,
     UserType,
     BookingRequest,
-    BookingRequestStatus,
+    BookingStatus,
     SenderType,
     MessageType,
 )
@@ -49,12 +49,12 @@ def test_read_my_client_booking_requests_last_message_ordering():
     br1 = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     br2 = BookingRequest(
         client_id=client.id,
         artist_id=artist.id,
-        status=BookingRequestStatus.PENDING_QUOTE,
+        status=BookingStatus.PENDING_QUOTE,
     )
     db.add_all([br1, br2])
     db.commit()

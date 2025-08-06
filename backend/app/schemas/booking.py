@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Annotated
 from datetime import datetime
 from decimal import Decimal
-from ..models.booking import BookingStatus # Enum for booking status
+from ..models.booking_status import BookingStatus # Enum for booking status
 from .user import UserResponse # For nesting client details
 from .artist import ArtistProfileNested # For nesting artist details (partial)
 from .service import ServiceResponse # For nesting service details

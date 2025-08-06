@@ -21,8 +21,8 @@ def create_quote(
     
     # Artist can provide a quote if request is pending their quote, or if client rejected a previous quote.
     if booking_request.status not in [
-        models.BookingRequestStatus.PENDING_QUOTE, 
-        models.BookingRequestStatus.QUOTE_REJECTED
+        models.BookingStatus.PENDING_QUOTE,
+        models.BookingStatus.QUOTE_REJECTED
     ]:
         raise ValueError(f"Booking request is not in a quotable state (current status: {booking_request.status.value})")
 
@@ -33,7 +33,7 @@ def create_quote(
     )
     db.add(db_quote)
     
-    booking_request.status = models.BookingRequestStatus.QUOTE_PROVIDED
+    booking_request.status = models.BookingStatus.QUOTE_PROVIDED
     db.add(booking_request)
     
     db.commit()
@@ -99,19 +99,19 @@ def update_quote(
     if original_quote_status != new_quote_status:
         if not actor_is_artist: # Client is acting
             if new_quote_status == models.QuoteStatus.ACCEPTED_BY_CLIENT:
-                booking_request.status = models.BookingRequestStatus.PENDING_ARTIST_CONFIRMATION
+                booking_request.status = models.BookingStatus.PENDING_ARTIST_CONFIRMATION
             elif new_quote_status == models.QuoteStatus.REJECTED_BY_CLIENT:
-                booking_request.status = models.BookingRequestStatus.QUOTE_REJECTED
+                booking_request.status = models.BookingStatus.QUOTE_REJECTED
         else: # Artist is acting
             if new_quote_status == models.QuoteStatus.WITHDRAWN_BY_ARTIST:
                 # Artist withdraws quote, request goes back to awaiting quote, 
                 # unless client already accepted/rejected it or artist already confirmed it.
-                if booking_request.status in [models.BookingRequestStatus.QUOTE_PROVIDED, models.BookingRequestStatus.PENDING_ARTIST_CONFIRMATION]:
-                    booking_request.status = models.BookingRequestStatus.PENDING_QUOTE
+                if booking_request.status in [models.BookingStatus.QUOTE_PROVIDED, models.BookingStatus.PENDING_ARTIST_CONFIRMATION]:
+                    booking_request.status = models.BookingStatus.PENDING_QUOTE
             elif new_quote_status == models.QuoteStatus.CONFIRMED_BY_ARTIST:
                 # Artist confirms a quote that client has ALREADY accepted.
                 if original_quote_status == models.QuoteStatus.ACCEPTED_BY_CLIENT:
-                    booking_request.status = models.BookingRequestStatus.REQUEST_CONFIRMED
+                    booking_request.status = models.BookingStatus.REQUEST_CONFIRMED
                     # Placeholder for creating the actual Booking object
                     # create_actual_booking_from_quote(db, db_quote, booking_request)
                 else:

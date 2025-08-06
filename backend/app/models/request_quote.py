@@ -4,17 +4,7 @@ from sqlalchemy.sql import func
 import enum
 
 from ..database import Base # Assuming Base is in database.py
-
-class BookingRequestStatus(str, enum.Enum):
-    DRAFT = "draft"
-    PENDING_QUOTE = "pending_quote"
-    QUOTE_PROVIDED = "quote_provided"
-    PENDING_ARTIST_CONFIRMATION = "pending_artist_confirmation"
-    REQUEST_CONFIRMED = "request_confirmed"
-    REQUEST_COMPLETED = "request_completed"
-    REQUEST_DECLINED = "request_declined"
-    REQUEST_WITHDRAWN = "request_withdrawn"
-    QUOTE_REJECTED = "quote_rejected"
+from .booking_status import BookingStatus
 
 class QuoteStatus(str, enum.Enum):
     PENDING_CLIENT_ACTION = "pending_client_action"
@@ -41,7 +31,7 @@ class BookingRequest(Base):
     travel_cost = Column(Numeric(10, 2), nullable=True)
     travel_breakdown = Column(JSON, nullable=True)
     
-    status = Column(SQLAlchemyEnum(BookingRequestStatus), nullable=False, default=BookingRequestStatus.PENDING_QUOTE)
+    status = Column(SQLAlchemyEnum(BookingStatus), nullable=False, default=BookingStatus.PENDING_QUOTE)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
