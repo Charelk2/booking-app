@@ -248,6 +248,8 @@ export interface Message {
   message_type: "text" | "quote" | "system";
   quote_id?: number | null;
   attachment_url?: string | null;
+  visible_to?: "artist" | "client" | "both";
+  action?: string | null;
   avatar_url?: string | null;
   /** Whether the message has been read by the current user */
   unread?: boolean;
@@ -259,6 +261,8 @@ export interface MessageCreate {
   message_type?: "text" | "quote" | "system";
   quote_id?: number;
   attachment_url?: string;
+  visible_to?: "artist" | "client" | "both";
+  action?: string;
 }
 
 export interface SoundProvider {
