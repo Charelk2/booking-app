@@ -21,6 +21,10 @@ is ready. These messages can include an `action` field such as
 `review_quote` that tells the frontend to display a matching
 call-to-action button in the thread.
 
+> **Note:** The backend automatically adds the `action` column to the
+> `messages` table if it's missing, ensuring upgrades from older
+> deployments don't fail with missing-column errors.
+
 The conversation list merges booking requests created by the user with
 those where they are the artist. Non-artist users only fetch their client
 requests to avoid API errors.

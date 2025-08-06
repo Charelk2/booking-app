@@ -22,6 +22,7 @@ from .db_utils import (
     ensure_attachment_url_column,
     ensure_message_is_read_column,
     ensure_visible_to_column,
+    ensure_message_action_column,
     ensure_service_type_column,
     ensure_display_order_column,
     ensure_notification_link_column,
@@ -95,6 +96,7 @@ ensure_message_type_column(engine)
 ensure_attachment_url_column(engine)
 ensure_message_is_read_column(engine)
 ensure_visible_to_column(engine)
+ensure_message_action_column(engine)
 ensure_request_attachment_column(engine)
 ensure_service_type_column(engine)
 ensure_display_order_column(engine)
