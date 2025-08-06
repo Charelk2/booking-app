@@ -16,7 +16,7 @@ from ..utils.notifications import (
 )
 from ..utils import error_response
 from .crud_booking import create_booking_from_quote_v2
-from . import crud_invoice
+from . import crud_invoice, crud_message
 
 logger = logging.getLogger(__name__)
 
@@ -260,7 +260,7 @@ def accept_quote(
 
 
 def expire_pending_quotes(db: Session) -> list[models.QuoteV2]:
-    """Mark all pending quotes past their expiry as expired."""
+    """Mark all pending quotes past their expiry as expired and post messages."""
     now = datetime.utcnow()
     expired = (
         db.query(models.QuoteV2)
@@ -277,4 +277,12 @@ def expire_pending_quotes(db: Session) -> list[models.QuoteV2]:
         db.commit()
         for q in expired:
             db.refresh(q)
+            crud_message.create_message(
+                db=db,
+                booking_request_id=q.booking_request_id,
+                sender_id=q.artist_id,
+                sender_type=models.SenderType.ARTIST,
+                content="Quote expired.",
+                message_type=models.MessageType.SYSTEM,
+            )
     return expired

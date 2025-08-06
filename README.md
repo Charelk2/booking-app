@@ -241,13 +241,14 @@ curl http://localhost:8000/openapi.json -o docs/openapi.json
 
 ### Quote expiry scheduler
 
-`backend/main.py` launches a background task that runs every five minutes.
-It sends a reminder 24 hours before a quote's `expires_at` timestamp and
-marks pending quotes as expired once that time passes. The helper functions
-`notify_quote_expiring` and `notify_quote_expired` alert both the artist and
-client when these events occur. If you deploy multiple workers, ensure only
-one instance runs the scheduler or replace it with a system cron job that
-calls `expire_pending_quotes()`.
+`backend/main.py` launches a background task that runs every hour. It sends a
+reminder 24 hours before a quote's `expires_at` timestamp and marks pending
+quotes as expired once that time passes. When a quote expires, a `SYSTEM`
+message reading **Quote expired.** is added to the related chat thread.
+The helper functions `notify_quote_expiring` and `notify_quote_expired` alert
+both the artist and client when these events occur. If you deploy multiple
+workers, ensure only one instance runs the scheduler or replace it with a
+system cron job that calls `expire_pending_quotes()`.
 
 ### Google Calendar OAuth
 
