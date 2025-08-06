@@ -112,7 +112,7 @@ describe('MessageThread system CTAs', () => {
     container.remove();
   });
 
-  it('shows Review & Accept Quote for clients with countdown and scrolls to quote', async () => {
+  it('shows Review & Accept Quote for clients with countdown and opens modal', async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2025-01-01T00:00:00Z'));
 
@@ -168,13 +168,27 @@ describe('MessageThread system CTAs', () => {
     );
     expect(button).not.toBeNull();
 
-    const scrollSpy = jest.fn();
-    Object.defineProperty(global.HTMLElement.prototype, 'scrollIntoView', {
-      value: scrollSpy,
-      configurable: true,
+    (api.getQuoteV2 as jest.Mock).mockResolvedValue({
+      data: {
+        id: 42,
+        booking_request_id: 1,
+        artist_id: 9,
+        client_id: 7,
+        services: [{ description: 'Performance', price: 100 }],
+        sound_fee: 0,
+        travel_fee: 0,
+        subtotal: 100,
+        total: 100,
+        status: 'pending',
+        created_at: '',
+        updated_at: '',
+      },
     });
+
     act(() => { button?.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
-    expect(scrollSpy).toHaveBeenCalled();
+    await act(async () => { await flushPromises(); });
+    expect(api.getQuoteV2).toHaveBeenCalledWith(42);
+    expect(container.textContent).toContain('Quote Review');
 
     act(() => root.unmount());
     container.remove();
