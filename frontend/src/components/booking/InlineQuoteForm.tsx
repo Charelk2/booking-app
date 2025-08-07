@@ -122,15 +122,6 @@ const InlineQuoteForm: React.FC<Props> = ({
         <div className="flex flex-col text-xs">
           <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
             <h4 className="text-sm font-semibold">Review &amp; Adjust Quote</h4>
-            {onDecline && (
-              <button
-                type="button"
-                onClick={onDecline}
-                className="text-sm text-red-600 hover:underline"
-              >
-                Decline request
-              </button>
-            )}
           </div>
           <div className="mb-4 text-xs font-medium opacity-90">
             <span>Quote No: {quoteNumber}</span>
@@ -298,6 +289,15 @@ const InlineQuoteForm: React.FC<Props> = ({
         </div>
 
         <div className="flex justify-end space-x-3 pt-6 border-t border-gray-100">
+          {onDecline && (
+            <button
+              type="button"
+              onClick={onDecline}
+              className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Decline Request
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSubmit}
