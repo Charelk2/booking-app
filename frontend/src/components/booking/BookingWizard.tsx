@@ -205,13 +205,24 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         throw new Error(`Could not find geographic coordinates for event location: "${details.location}".`);
       }
 
-      const basePrice = Number(svcRes.data.price);
+      // Helper to safely parse numeric fields that may arrive as formatted strings
+      const parseNumber = (val: unknown, fallback = 0): number => {
+        if (typeof val === 'number') return val;
+        if (typeof val === 'string') {
+          const cleaned = val.replace(/[^0-9.-]/g, '');
+          const parsed = parseFloat(cleaned);
+          return Number.isNaN(parsed) ? fallback : parsed;
+        }
+        return fallback;
+      };
+
+      const basePrice = parseNumber(svcRes.data.price);
       setBaseServicePrice(basePrice); // Set the base service price
 
-      const travelRate = svcRes.data.travel_rate || 2.5;
-      const numTravelMembers = svcRes.data.travel_members || 1;
-      const carRentalPrice = svcRes.data.car_rental_price;
-      const flightPrice = svcRes.data.flight_price;
+      const travelRate = parseNumber(svcRes.data.travel_rate, 2.5) || 2.5;
+      const numTravelMembers = parseNumber(svcRes.data.travel_members, 1) || 1;
+      const carRentalPrice = parseNumber(svcRes.data.car_rental_price);
+      const flightPrice = parseNumber(svcRes.data.flight_price);
 
       const metrics = await getDrivingMetrics(artistLocation, details.location);
       if (!metrics.distanceKm) {
