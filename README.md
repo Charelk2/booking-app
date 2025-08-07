@@ -41,9 +41,8 @@ The July 2025 update bumps key dependencies and Docker base images:
 - All booking and quote status changes now emit INFO logs, and scheduler failures
   trigger error alerts so issues surface in monitoring tools. CTA clicks on the
   frontend fire analytics events for centralized tracking.
-- Chat threads now surface contextual action buttons—**Review & Send Quote**, 
-  **Review & Accept Quote**, and **View Booking Details**—with countdown timers
-  when quotes expire, so users never miss a deadline.
+  - Chat threads now surface contextual action buttons—**View Booking Details**—with countdown timers
+    when quotes expire, so users never miss a deadline.
 - Users can download all account data via `/api/v1/users/me/export` and permanently delete their account with `DELETE /api/v1/users/me`.
 - Booking cards now show deposit and payment status with a simple progress timeline.
 - Booking request detail pages now display a step-by-step timeline from submission to quote acceptance.
@@ -842,8 +841,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * POST `/api/v1/booking-requests/{id}/quotes` now returns a Quote with
   `booking_request` set to `null` to prevent serialization cycles.
 * Sending a quote automatically transitions the booking request to
-  `quote_provided` status and posts a `SYSTEM` chat message visible to the
-  client prompting **Review & Accept Quote** with a 7-day expiration.
+  `quote_provided` status and displays the quote in the chat with a 7-day expiration.
 * `POST /api/v1/quotes` returns **404 Not Found** when the
   `booking_request_id` does not match an existing request.
 * Accepting a Quote V2 now also creates a formal booking visible on the artist dashboard.
