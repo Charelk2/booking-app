@@ -25,3 +25,10 @@ The filter control is typically an icon button that opens a filtering UI, such a
 
 `Footer` renders grouped navigation links and social icons using brand colors. On large screens the navigation links are laid out
 in two rows and three columns, maintaining a compact grid for easier scanning. It appears on every page wrapped by `MainLayout`.
+
+## NotificationDrawer
+
+`NotificationDrawer` lists recent alerts using `react-window` for virtualization so large
+sets render efficiently. The optional "Load more" control meets mobile
+accessibility guidelines by providing a minimum touch area of 44×44px and
+centering its label within that space.
