@@ -49,5 +49,34 @@ describe('InlineQuoteForm', () => {
     root.unmount();
     div.remove();
   });
+
+  it('triggers onDecline when decline button is clicked', async () => {
+    const onDecline = jest.fn();
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(
+        <InlineQuoteForm
+          artistId={1}
+          clientId={2}
+          bookingRequestId={3}
+          onSubmit={jest.fn()}
+          onDecline={onDecline}
+        />,
+      );
+    });
+
+    const declineBtn = Array.from(div.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Decline Request',
+    ) as HTMLButtonElement | undefined;
+    await act(async () => {
+      declineBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(onDecline).toHaveBeenCalledTimes(1);
+
+    root.unmount();
+    div.remove();
+  });
 });
 
