@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment } from 'react';
+import { Fragment, type ComponentType, type SVGProps } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
@@ -11,6 +11,7 @@ import { navItemClasses } from './navStyles';
 interface NavItem {
   name: string;
   href: string;
+  icon?: ComponentType<SVGProps<SVGSVGElement>>;
 }
 
 interface MobileMenuDrawerProps {
@@ -94,9 +95,12 @@ export default function MobileMenuDrawer({
                         href={item.href}
                         onClick={onClose}
                         isActive={pathname === item.href}
-                        className="block border-l-4 text-base"
+                        className="w-full border-l-4 text-base justify-start gap-3"
                       >
-                        {item.name}
+                        {item.icon && (
+                          <item.icon className="h-5 w-5" aria-hidden="true" />
+                        )}
+                        <span>{item.name}</span>
                       </NavLink>
                     </li>
                   ))}
@@ -115,9 +119,12 @@ export default function MobileMenuDrawer({
                           href={item.href}
                           onClick={onClose}
                           isActive={pathname === item.href}
-                          className="block border-l-4 text-base"
+                          className="w-full border-l-4 text-base justify-start gap-3"
                         >
-                          {item.name}
+                          {item.icon && (
+                            <item.icon className="h-5 w-5" aria-hidden="true" />
+                          )}
+                          <span>{item.name}</span>
                         </NavLink>
                       </li>
                     ))}

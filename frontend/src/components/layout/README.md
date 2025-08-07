@@ -47,3 +47,7 @@ Headless UI's `<Dialog.Title>` to supply an accessible name for the dialog.
 Each navigation group is wrapped in a `<nav>` with an `aria-label` and links
 are rendered inside `<ul>`/`<li>` lists to expose proper semantics to assistive
 technologies.
+
+Navigation items accept an optional `icon` component from
+`@heroicons/react`. When provided, the icon is rendered next to the link text
+and spaced consistently via the shared `navItemClasses` utility.
