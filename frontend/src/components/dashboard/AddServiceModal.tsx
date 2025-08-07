@@ -17,7 +17,6 @@ import Image from "next/image";
 import type { Service } from "@/types";
 import {
   createService as apiCreateService,
-  getDashboardStats,
 } from "@/lib/api";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import Button from "../ui/Button";
@@ -67,17 +66,13 @@ interface AddServiceModalProps {
   onServiceAdded: (newService: Service) => void;
 }
 
-interface PackageData {
-  name: string;
-  price: string;
-}
-
 interface ServiceFormData {
   service_type: Service["service_type"] | undefined;
   title: string;
   description: string;
   duration_minutes: number | "";
   is_remote: boolean;
+  price: number | "";
   travel_rate?: number | "";
   travel_members?: number | "";
   car_rental_price?: number | "";
@@ -89,7 +84,6 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
     "Type",
     "Details",
     "Media",
-    "Packages",
     "Review",
   ];
   const [step, setStep] = useState(0);
@@ -113,6 +107,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
       description: "",
       duration_minutes: 60,
       is_remote: false,
+      price: 0,
       travel_rate: 2.5,
       travel_members: 1,
       car_rental_price: 1000,
@@ -123,11 +118,8 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mediaFiles, setMediaFiles] = useState<File[]>([]),
     [mediaError, setMediaError] = useState<string | null>(null);
-  const [packages, setPackages] = useState<PackageData[]>([{ name: "", price: "" }]);
-  const [packageErrors, setPackageErrors] = useState<{ name?: string; price?: string }[]>([{}]);
   const [publishing, setPublishing] = useState(false);
   const [, setServerError] = useState<string | null>(null);
-  const [stats, setStats] = useState<{ monthly_new_inquiries: number }>();
 
   const watchTitle = watch("title");
   const watchDescription = watch("description");
@@ -140,34 +132,16 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
     setMaxStep((prev) => Math.max(prev, step));
   }, [step]);
 
-  useEffect(() => {
-    if (step === 3 && !stats) {
-      getDashboardStats()
-        .then((res) => setStats(res.data))
-        .catch(() => {});
-    }
-  }, [step, stats]);
-
   const nextDisabled = () => {
     if (step === 0) return !watch("service_type");
     if (step === 1) return !isValid;
     if (step === 2) return !mediaFiles.some((f) => f.type.startsWith("image/")) || !!mediaError;
-    if (step === 3) return packages.some((p) => !p.name.trim() || Number(p.price) <= 0);
     return false;
-  };
-
-  const validatePackages = () => {
-    const errs = packages.map((p) => ({
-      name: p.name.trim() ? undefined : "Name is required",
-      price: Number(p.price) > 0 ? undefined : "Price must be positive",
-    }));
-    setPackageErrors(errs);
-    return errs.every((e) => !e.name && !e.price);
   };
 
   const next = async () => {
     if (step === 1) {
-      const valid = await trigger(["title", "description", "duration_minutes"]);
+      const valid = await trigger(["title", "description", "duration_minutes", "price"]);
       if (!valid) return;
     }
     if (step === 2) {
@@ -176,7 +150,6 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
         return;
       }
     }
-    if (step === 3 && !validatePackages()) return;
     setStep((s) => Math.min(s + 1, steps.length - 1));
     setMaxStep((m) => Math.max(m, step + 1));
   };
@@ -210,46 +183,14 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
     });
   };
 
-  const addPackage = () => {
-    setPackages((prev) => [...prev, { name: "", price: "" }].slice(0, 3));
-    setPackageErrors((prev) => [...prev, {}].slice(0, 3));
-  };
-
-  const updatePackage = (
-    i: number,
-    field: keyof PackageData,
-    value: string,
-  ) => {
-    setPackages((prev) =>
-      prev.map((p, idx) => (idx === i ? { ...p, [field]: value } : p)),
-    );
-    setPackageErrors((prev) => {
-      const newErrs = [...prev];
-      if (field === "name") {
-        newErrs[i] = {
-          ...newErrs[i],
-          name: value.trim() ? undefined : "Name is required",
-        };
-      } else {
-        const num = Number(value);
-        newErrs[i] = {
-          ...newErrs[i],
-          price: num > 0 ? undefined : "Price must be positive",
-        };
-      }
-      return newErrs;
-    });
-  };
 
   const onSubmit: SubmitHandler<ServiceFormData> = async (data) => {
     setServerError(null);
     setPublishing(true);
     try {
-      const price = packages.length > 0 ? parseFloat(packages[0].price || "0") : 0;
-      
       const serviceData = {
         ...data,
-        price,
+        price: Number(data.price || 0),
         duration_minutes: Number(data.duration_minutes || 0),
         travel_rate: data.travel_rate ? Number(data.travel_rate) : undefined,
         travel_members: data.travel_members
@@ -266,8 +207,6 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
       onServiceAdded(res.data);
       reset();
       setMediaFiles([]);
-      setPackages([{ name: "", price: "" }]);
-      setPackageErrors([{}]);
       setStep(0);
       onClose();
     } catch (err: unknown) {
@@ -285,8 +224,6 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
   const handleCancel = () => {
     reset();
     setMediaFiles([]);
-    setPackages([{ name: "", price: "" }]);
-    setPackageErrors([{}]);
     setStep(0);
     onClose();
   };
@@ -300,11 +237,6 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
     { value: "Custom Song", label: "Custom Song" },
     { value: "Other", label: "Other" },
   ];
-
-  const earnings =
-    stats && packages[0].price
-      ? stats.monthly_new_inquiries * parseFloat(packages[0].price)
-      : null;
 
   return (
     <Transition show={isOpen} as={Fragment}>
@@ -345,7 +277,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
               {/* Stepper (horizontal for all screen sizes in this context) */}
               {/* flex-shrink-0 to keep it at top, not scroll */}
               <Stepper
-                  steps={steps.slice(0, 4)} // Stepper only goes up to 'Packages' (step 0-3)
+                  steps={steps.slice(0, 3)} // Stepper excludes final review step
                   currentStep={step}
                   maxStepCompleted={maxStep}
                   onStepClick={setStep}
@@ -447,6 +379,17 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                           })}
                           error={errors.duration_minutes?.message}
                         />
+                        <TextInput
+                          label={`Price (${DEFAULT_CURRENCY})`}
+                          type="number"
+                          step="0.01"
+                          {...register("price", {
+                            required: "Price is required",
+                            valueAsNumber: true,
+                            min: { value: 0.01, message: "Price must be positive" },
+                          })}
+                          error={errors.price?.message}
+                        />
                         {watchServiceType === "Live Performance" && (
                           <>
                             <TextInput
@@ -546,49 +489,8 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                       </div>
                     )}
 
-                    {/* Step 3: Packages & Pricing */}
+                    {/* Step 3: Review Your Service */}
                     {step === 3 && (
-                      <div className="space-y-6"> {/* Using space-y-6 directly */}
-                        <h2 className="text-xl font-semibold">Packages & Pricing</h2>
-                        {packages.map((pkg, i) => (
-                          <div key={i} className="border rounded-md p-4 space-y-2">
-                            <TextInput
-                              label="Name"
-                              value={pkg.name}
-                              onChange={(e) => updatePackage(i, "name", e.target.value)}
-                              name={`packages.${i}.name`}
-                              error={packageErrors?.[i]?.name}
-                            />
-                            <TextInput
-                              label={`Price (${DEFAULT_CURRENCY})`}
-                              type="number"
-                              step="0.01"
-                              value={pkg.price}
-                              onChange={(e) => updatePackage(i, "price", e.target.value)}
-                              name={`packages.${i}.price`}
-                              error={packageErrors?.[i]?.price}
-                            />
-                          </div>
-                        ))}
-                        {packages.length < 3 && (
-                          <Button type="button" variant="secondary" onClick={addPackage}>
-                            + Add Another Package
-                          </Button>
-                        )}
-                        {earnings !== null && (
-                          <p className="text-sm text-gray-600">
-                            Estimated monthly earnings{" "}
-                            {Intl.NumberFormat("en-ZA", {
-                              style: "currency",
-                              currency: DEFAULT_CURRENCY,
-                            }).format(earnings)}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Step 4: Review Your Service */}
-                    {step === 4 && (
                       <div className="space-y-6"> {/* Using space-y-6 directly */}
                         <h2 className="text-xl font-semibold">Review Your Service</h2>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -607,6 +509,10 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                           <div className="border rounded-md p-4">
                             <h3 className="font-medium">Duration</h3>
                             <p>{watch("duration_minutes") || 0} minutes</p>
+                          </div>
+                          <div className="border rounded-md p-4">
+                            <h3 className="font-medium">Price</h3>
+                            <p>{watch("price") || 0}</p>
                           </div>
                           {watchServiceType === "Live Performance" && (
                             <>
@@ -628,12 +534,6 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                               </div>
                             </>
                           )}
-                          <div className="border rounded-md p-4 col-span-full">
-                            <h3 className="font-medium">Packages</h3>
-                            {packages.map((p, idx) => (
-                              <p key={idx}>{p.name}: {p.price}</p>
-                            ))}
-                          </div>
                           {mediaFiles.length > 0 && ( // Simplified condition
                             <div className="border rounded-md p-4 col-span-full">
                               <h3 className="font-medium">Images</h3>
