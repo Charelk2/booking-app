@@ -89,7 +89,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
 
   // State to manage the header's visual and functional state
   const [headerState, setHeaderState] = useState<HeaderState>(
-    isArtistsPage ? 'compacted' : 'initial',
+    isArtistsRoot ? 'compacted' : 'initial',
   );
 
   // Refs for scroll logic
@@ -225,12 +225,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
     };
   }, [isArtistDetail, optimizedScrollHandler, handleScroll]); // Dependencies
 
-  // Ensure artist detail pages start compact but allow expansion when clicked
-  useEffect(() => {
-    if (isArtistDetail) {
-      setHeaderState('compacted');
-    }
-  }, [isArtistDetail]);
+  // Artist detail pages show the full header and do not attach scroll listeners
 
   // Effect to manage body scroll based on showSearchOverlay
   useEffect(() => {
@@ -292,7 +287,6 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
             isArtistsRoot ? <div className="mx-auto w-full px-4">{headerAddon}</div> : undefined
           }
           showSearchBar={showSearchBar}
-          alwaysCompact={isArtistDetail}
           filterControl={headerFilter}
         />
 
