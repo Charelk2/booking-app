@@ -1,25 +1,9 @@
 // src/components/layout/Header.tsx
 'use client';
 
-import {
-  Fragment,
-  ReactNode,
-  forwardRef,
-  useCallback,
-  useState,
-  useEffect,
-  useRef,
-  type MutableRefObject,
-} from 'react';
+import { Fragment, ReactNode, forwardRef, useCallback, useState, useEffect } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import {
-  MagnifyingGlassIcon,
-  Bars3Icon,
-  UsersIcon,
-  WrenchScrewdriverIcon,
-  QuestionMarkCircleIcon,
-  EnvelopeIcon,
-} from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, Bars3Icon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext'; // Assuming AuthContext is set up
@@ -45,17 +29,12 @@ type SearchParams = {
   when?: Date | null;
 };
 
-const navigation = [
-  { name: 'Artists', href: '/artists', icon: UsersIcon },
-  { name: 'Services', href: '/services', icon: WrenchScrewdriverIcon },
+const clientNav = [
+  { name: 'Artists', href: '/artists' },
+  { name: 'Services', href: '/services' },
+  { name: 'FAQ', href: '/faq' },
+  { name: 'Contact', href: '/contact' },
 ];
-
-const secondaryNavigation = [
-  { name: 'FAQ', href: '/faq', icon: QuestionMarkCircleIcon },
-  { name: 'Contact', href: '/contact', icon: EnvelopeIcon },
-];
-
-const clientNav = [...navigation, ...secondaryNavigation];
 
 function ClientNav({ pathname }: { pathname: string }) {
   return (
@@ -113,25 +92,6 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const isArtistsPage = pathname.startsWith('/artists');
   const [menuOpen, setMenuOpen] = useState(false); // Mobile menu drawer state
   const isArtistView = user?.user_type === 'artist' && artistViewActive;
-
-  // Local ref to always access the header element even if parent does not pass one
-  const internalRef = useRef<HTMLElement | null>(null);
-
-  // Expose the header's height (including safe-area inset) as a CSS variable
-  useEffect(() => {
-    const updateHeight = () => {
-      if (internalRef.current) {
-        const height = internalRef.current.offsetHeight;
-        document.documentElement.style.setProperty('--header-height', `${height}px`);
-      }
-    };
-    updateHeight();
-    window.addEventListener('resize', updateHeight);
-    return () => {
-      window.removeEventListener('resize', updateHeight);
-      document.documentElement.style.removeProperty('--header-height');
-    };
-  }, [headerState, showSearchBar, extraBar]);
 
   // Search parameters for the search bars (managed locally by Header and passed to SearchBar)
   const [category, setCategory] = useState<Category | null>(null);
@@ -204,28 +164,16 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   // Main header classes reacting to headerState
   const headerClasses = clsx(
-    "app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out pt-safe",
+    "app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out",
     {
       "compacted": headerState === 'compacted',
       "expanded-from-compact": headerState === 'expanded-from-compact',
       // 'initial' state has no additional class, relies on default styling
-    },
+    }
   );
 
   return (
-    <header
-      ref={(node) => {
-        internalRef.current = node;
-        if (typeof ref === 'function') {
-          ref(node);
-        } else if (ref) {
-          (ref as MutableRefObject<HTMLElement | null>).current = node;
-        }
-      }}
-      id="app-header"
-      className={headerClasses}
-      data-header-state={headerState}
-    >
+    <header ref={ref} id="app-header" className={headerClasses} data-header-state={headerState}>
       <div className="mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Row: Logo - Center - Icons */}
         <div className="grid grid-cols-[auto,1fr,auto] items-center py-2"> {/* Added py-2 back for consistency */}
@@ -235,7 +183,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-label="Open menu"
-              className={clsx(navItemClasses, 'md:hidden justify-center')}
+              className={clsx(navItemClasses, 'md:hidden')}
             >
               <Bars3Icon className="h-6 w-6" />
             </button>
@@ -310,18 +258,18 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   {user.user_type === 'artist' && (
                     <button
                       onClick={toggleArtistView}
-                      className={clsx(navItemClasses, 'text-gray-700 justify-center')}
+                      className={clsx(navItemClasses, 'text-gray-700')}
                     >
                       {artistViewActive ? 'Switch to Booking' : 'Switch to Artist View'}
                     </button>
                   )}
-                  <div className={clsx(navItemClasses, 'justify-center')}>
+                  <div className={navItemClasses}>
                     <NotificationBell />
                   </div>
                   <Menu as="div" className="relative">
                   <Menu.Button
                     aria-label="Account menu"
-                    className={clsx(navItemClasses, 'rounded-full bg-gray-100 text-sm focus:outline-none justify-center')}
+                    className={clsx(navItemClasses, 'rounded-full bg-gray-100 text-sm focus:outline-none')}
                   >
                     <Avatar
                       src={user.profile_picture_url || null}
@@ -364,12 +312,12 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               </>
             ) : (
               <div className="flex gap-2">
-                <Link href="/login" className={clsx(navItemClasses, 'text-gray-600 justify-center')}>
+                <Link href="/login" className={clsx(navItemClasses, 'text-gray-600')}>
                   Sign in
                 </Link>
                 <Link
                   href="/register"
-                  className={clsx(navItemClasses, 'bg-brand-dark text-white rounded justify-center')}
+                  className={clsx(navItemClasses, 'bg-brand-dark text-white rounded')}
                 >
                   Sign up
                 </Link>
@@ -414,8 +362,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       <MobileMenuDrawer
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        navigation={navigation}
-        secondaryNavigation={secondaryNavigation}
+        navigation={clientNav}
         user={user}
         logout={logout}
         pathname={pathname}
