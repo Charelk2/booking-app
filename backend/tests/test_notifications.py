@@ -16,13 +16,16 @@ from app.models import (
 from app.models.service import ServiceType
 from app import models
 from app.models.base import BaseModel
-from app.api import api_message, api_booking_request
+from app.api import api_message, api_booking_request, api_quote_v2
 from app.schemas import (
     MessageCreate,
     BookingRequestCreate,
     BookingRequestUpdateByArtist,
     BookingRequestUpdateByClient,
+    QuoteV2Create,
 )
+from app.schemas.quote_v2 import ServiceItem
+from decimal import Decimal
 from app.crud import crud_notification
 from app.utils.notifications import (
     format_notification_message,
@@ -1585,3 +1588,94 @@ def test_quote_expiring_notification():
     assert data[0]["sender_name"] == "C Client"
     assert data[0]["avatar_url"] == "/static/profile_pics/client.jpg"
     app.dependency_overrides.clear()
+
+
+def test_client_notification_on_quote_sent():
+    Session = setup_app()
+    db = Session()
+    client_user = User(
+        email="client_notify@test.com",
+        password="x",
+        first_name="Client",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="artist_notify@test.com",
+        password="x",
+        first_name="Artist",
+        last_name="User",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client_user, artist])
+    db.commit()
+    db.refresh(client_user)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client_user.id,
+        artist_id=artist.id,
+        status=BookingStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    quote_in = QuoteV2Create(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=client_user.id,
+        services=[ServiceItem(description="Performance", price=Decimal("100"))],
+    )
+    api_quote_v2.create_quote(quote_in, db)
+
+    notifs = crud_notification.get_notifications_for_user(db, client_user.id)
+    assert len(notifs) == 1
+    n = notifs[0]
+    assert n.type == NotificationType.NEW_MESSAGE
+    assert n.link == f"/inbox?requestId={br.id}"
+    assert "sent a quote" in n.message.lower()
+
+
+def test_client_notified_when_artist_declines_request():
+    Session = setup_app()
+    db = Session()
+    client_user = User(
+        email="client_decline@test.com",
+        password="x",
+        first_name="Client",
+        last_name="User",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="artist_decline@test.com",
+        password="x",
+        first_name="Artist",
+        last_name="User",
+        user_type=UserType.ARTIST,
+    )
+    db.add_all([client_user, artist])
+    db.commit()
+    db.refresh(client_user)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client_user.id,
+        artist_id=artist.id,
+        status=BookingStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    update = BookingRequestUpdateByArtist(status=BookingStatus.REQUEST_DECLINED)
+    api_booking_request.update_booking_request_by_artist(
+        br.id, update, db, current_artist=artist
+    )
+
+    notifs = crud_notification.get_notifications_for_user(db, client_user.id)
+    assert len(notifs) == 1
+    n = notifs[0]
+    assert n.type == NotificationType.NEW_MESSAGE
+    assert n.link == f"/inbox?requestId={br.id}"
+    assert "declined" in n.message.lower()
