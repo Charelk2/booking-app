@@ -186,6 +186,8 @@ def test_service_travel_columns():
     cols = [c["name"] for c in inspector.get_columns("services")]
     assert "travel_rate" in cols
     assert "travel_members" in cols
+    assert "car_rental_price" in cols
+    assert "flight_price" in cols
 
 
 def test_booking_simple_columns():

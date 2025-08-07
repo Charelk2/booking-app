@@ -116,6 +116,8 @@ describe("AddServiceModal wizard", () => {
     // Review step should show travel details before publishing
     expect(container.textContent).toContain("Travelling (Rand per km)");
     expect(container.textContent).toContain("Members travelling");
+    expect(container.textContent).toContain("Car rental price");
+    expect(container.textContent).toContain("Flight price (per person)");
 
     const publish = container.querySelector(
       'button[type="submit"]',
@@ -134,6 +136,8 @@ describe("AddServiceModal wizard", () => {
         price: 100,
         travel_rate: 2.5,
         travel_members: 1,
+        car_rental_price: 1000,
+        flight_price: 2780,
       }),
     );
   });

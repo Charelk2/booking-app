@@ -17,6 +17,8 @@ class ServiceBase(BaseModel):
     service_type: Optional[ServiceType] = None
     travel_rate: Optional[Decimal] = None
     travel_members: Optional[int] = None
+    car_rental_price: Optional[Decimal] = None
+    flight_price: Optional[Decimal] = None
 
 
 # Properties to receive on item creation
