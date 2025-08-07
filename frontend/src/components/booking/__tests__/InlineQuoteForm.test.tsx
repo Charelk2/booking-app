@@ -4,10 +4,6 @@ import { act } from 'react-dom/test-utils';
 import InlineQuoteForm from '../InlineQuoteForm';
 import type { QuoteV2Create } from '@/types';
 
-jest.mock('@/lib/api', () => ({
-  getQuoteTemplates: jest.fn(() => Promise.resolve({ data: [] })),
-}));
-
 describe('InlineQuoteForm', () => {
   it('submits quote data with defaults', async () => {
     const onSubmit = jest.fn();
