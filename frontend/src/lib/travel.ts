@@ -9,6 +9,10 @@ export interface TravelInput {
   travelRate?: number;
   /** Date of travel used for flight price lookups */
   travelDate: Date;
+  /** Override default car rental cost */
+  carRentalPrice?: number;
+  /** Override flight price per traveller */
+  flightPricePerPerson?: number;
 }
 
 export interface FlyBreakdown {
@@ -32,7 +36,7 @@ export interface TravelResult {
 }
 
 const DEFAULT_FLIGHT_COST_PER_PERSON = 2780;
-const CAR_RENTAL_COST = 1000;
+const DEFAULT_CAR_RENTAL_COST = 1000;
 const RATE_PER_KM = 2.5;
 
 /** Maximum one-way transfer drive time to/from any airport */
@@ -264,21 +268,23 @@ export async function calculateTravelMode(
       totalCost: input.drivingEstimate,
       breakdown: {
         drive: { estimate: input.drivingEstimate },
-        fly: makeEmptyFlyBreakdown(input, DEFAULT_FLIGHT_COST_PER_PERSON),
+        fly: makeEmptyFlyBreakdown(input, input.flightPricePerPerson ?? DEFAULT_FLIGHT_COST_PER_PERSON),
       },
     };
   }
 
-  let flightPrice = DEFAULT_FLIGHT_COST_PER_PERSON;
-  try {
-    flightPrice = await fetchFlightCost(
-      depCode,
-      arrCode,
-      input.travelDate,
-    );
-  } catch (err) {
-    // eslint-disable-next-line no-console -- log and fall back to default price
-    console.error('Flight price lookup failed:', err);
+  let flightPrice = input.flightPricePerPerson ?? DEFAULT_FLIGHT_COST_PER_PERSON;
+  if (input.flightPricePerPerson == null) {
+    try {
+      flightPrice = await fetchFlightCost(
+        depCode,
+        arrCode,
+        input.travelDate,
+      );
+    } catch (err) {
+      // eslint-disable-next-line no-console -- log and fall back to default price
+      console.error('Flight price lookup failed:', err);
+    }
   }
   if (!FLIGHT_ROUTES[depCode]?.includes(arrCode)) {
     return {
@@ -365,11 +371,12 @@ function makeEmptyFlyBreakdown(
   input: TravelInput,
   pricePerPerson: number,
 ): FlyBreakdown {
+  const carRental = input.carRentalPrice ?? DEFAULT_CAR_RENTAL_COST;
   return {
     perPerson: pricePerPerson,
     travellers: input.numTravellers,
     flightSubtotal: 0,
-    carRental: CAR_RENTAL_COST,
+    carRental: carRental,
     localTransferKm: 0,
     departureTransferKm: 0,
     transferCost: 0,
@@ -386,16 +393,17 @@ function computeFlyBreakdown(
   const flightSubtotal = input.numTravellers * pricePerPerson;
   const rate = input.travelRate ?? RATE_PER_KM;
   const transferCost = (depXfer.distanceKm + arrXfer.distanceKm) * rate * 2;
+  const carRental = input.carRentalPrice ?? DEFAULT_CAR_RENTAL_COST;
 
   return {
     perPerson: pricePerPerson,
     travellers: input.numTravellers,
     flightSubtotal,
-    carRental: CAR_RENTAL_COST,
+    carRental,
     localTransferKm: arrXfer.distanceKm,
     departureTransferKm: depXfer.distanceKm,
     transferCost,
-    total: flightSubtotal + CAR_RENTAL_COST + transferCost,
+    total: flightSubtotal + carRental + transferCost,
   };
 }
 

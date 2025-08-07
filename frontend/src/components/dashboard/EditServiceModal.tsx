@@ -23,6 +23,8 @@ type ServiceFormData = Pick<
   | "service_type"
   | "travel_rate"
   | "travel_members"
+  | "car_rental_price"
+  | "flight_price"
 >;
 
 export default function EditServiceModal({
@@ -47,6 +49,8 @@ export default function EditServiceModal({
       service_type: service.service_type,
       travel_rate: service.travel_rate ?? 2.5,
       travel_members: service.travel_members ?? 1,
+      car_rental_price: service.car_rental_price ?? 1000,
+      flight_price: service.flight_price ?? 2780,
     },
   });
   const watchServiceType = watch('service_type');
@@ -66,6 +70,14 @@ export default function EditServiceModal({
         travel_members:
           data.travel_members !== undefined
             ? parseInt(String(data.travel_members), 10)
+            : undefined,
+        car_rental_price:
+          data.car_rental_price !== undefined
+            ? parseFloat(String(data.car_rental_price))
+            : undefined,
+        flight_price:
+          data.flight_price !== undefined
+            ? parseFloat(String(data.flight_price))
             : undefined,
       };
       const response = await apiUpdateService(service.id, serviceData);
@@ -250,6 +262,36 @@ export default function EditServiceModal({
                     id="travel_members"
                     step="1"
                     {...register('travel_members', { valueAsNumber: true })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="car_rental_price"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Car rental price
+                  </label>
+                  <input
+                    type="number"
+                    id="car_rental_price"
+                    step="0.01"
+                    {...register('car_rental_price', { valueAsNumber: true })}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand sm:text-sm"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="flight_price"
+                    className="block text-sm font-medium text-gray-700"
+                  >
+                    Flight price (per person)
+                  </label>
+                  <input
+                    type="number"
+                    id="flight_price"
+                    step="0.01"
+                    {...register('flight_price', { valueAsNumber: true })}
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand sm:text-sm"
                   />
                 </div>

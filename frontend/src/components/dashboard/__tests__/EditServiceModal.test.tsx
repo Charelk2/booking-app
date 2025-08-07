@@ -19,6 +19,8 @@ describe('EditServiceModal', () => {
     service_type: 'Live Performance',
     travel_rate: 3,
     travel_members: 2,
+    car_rental_price: 1000,
+    flight_price: 2780,
     display_order: 0,
     artist: {} as any,
   };
@@ -53,6 +55,8 @@ describe('EditServiceModal', () => {
     const titleInput = container.querySelector('#title') as HTMLInputElement;
     const travelRateInput = container.querySelector('#travel_rate') as HTMLInputElement;
     const membersInput = container.querySelector('#travel_members') as HTMLInputElement;
+    const carRentalInput = container.querySelector('#car_rental_price') as HTMLInputElement;
+    const flightInput = container.querySelector('#flight_price') as HTMLInputElement;
 
     act(() => {
       titleInput.value = 'New Title';
@@ -61,6 +65,10 @@ describe('EditServiceModal', () => {
       travelRateInput.dispatchEvent(new Event('input', { bubbles: true }));
       membersInput.value = '3';
       membersInput.dispatchEvent(new Event('input', { bubbles: true }));
+      carRentalInput.value = '1500';
+      carRentalInput.dispatchEvent(new Event('input', { bubbles: true }));
+      flightInput.value = '3000';
+      flightInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
     const saveBtn = container.querySelector('button[type="submit"]') as HTMLButtonElement;
@@ -75,6 +83,8 @@ describe('EditServiceModal', () => {
         title: 'New Title',
         travel_rate: 4,
         travel_members: 3,
+        car_rental_price: 1500,
+        flight_price: 3000,
       }),
     );
   });

@@ -184,6 +184,18 @@ def ensure_service_travel_columns(engine: Engine) -> None:
         "travel_members",
         "travel_members INTEGER",
     )
+    add_column_if_missing(
+        engine,
+        "services",
+        "car_rental_price",
+        "car_rental_price NUMERIC(10, 2)",
+    )
+    add_column_if_missing(
+        engine,
+        "services",
+        "flight_price",
+        "flight_price NUMERIC(10, 2)",
+    )
 
 
 def ensure_booking_simple_columns(engine: Engine) -> None:
