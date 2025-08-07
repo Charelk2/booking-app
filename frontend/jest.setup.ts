@@ -41,6 +41,13 @@ jest.mock('next/link', () => ({
   },
 }));
 
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: (props: any) => {
+    return require('react').createElement('img', props);
+  },
+}));
+
 jest.mock('@/contexts/AuthContext', () => {
   const mock = jest.fn(() => ({
     user: null,
