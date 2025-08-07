@@ -64,7 +64,13 @@ export default function MobileMenuDrawer({
             leaveFrom="translate-x-0"
             leaveTo="-translate-x-full"
           >
-            <Dialog.Panel className="relative flex w-full max-w-xs flex-col bg-background pb-4 shadow-xl">
+            <Dialog.Panel
+              className="relative flex w-full max-w-xs flex-col overflow-y-auto bg-background pt-safe pb-safe shadow-xl"
+              style={{
+                paddingBottom:
+                  'calc(var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom))',
+              }}
+            >
               <div className="flex items-center justify-between px-4 pt-4">
                 <Dialog.Title className="text-lg font-medium">Menu</Dialog.Title>
                 <button
