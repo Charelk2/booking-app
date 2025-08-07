@@ -258,7 +258,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   {user.user_type === 'artist' && (
                     <button
                       onClick={toggleArtistView}
-                      className={clsx(navItemClasses, 'text-gray-700')}
+                      className={clsx(navItemClasses, 'text-gray-800')}
                     >
                       {artistViewActive ? 'Switch to Booking' : 'Switch to Artist View'}
                     </button>
@@ -332,7 +332,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
           showSearchBar && (
             <div
               className={clsx(
-                'content-area-wrapper header-full-search-bar mt-3 max-w-4xl mx-auto relative',
+                'content-area-wrapper header-full-search-bar mt-3 mb-4 max-w-2xl mx-auto relative',
                 {
                   'opacity-0 scale-y-0 h-0 pointer-events-none': headerState === 'compacted',
                   'opacity-100 scale-y-100 pointer-events-auto': headerState !== 'compacted',

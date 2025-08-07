@@ -167,7 +167,7 @@ export default function SearchBar({
         onSubmit={handleSubmit}
         autoComplete="off"
         className={clsx(
-          'relative z-[45] flex items-stretch bg-white rounded-r-full shadow-lg transition-all duration-200 ease-out',
+          'relative z-[45] flex items-stretch bg-white rounded-full shadow-lg transition-all duration-200 ease-out',
           compact ? 'text-sm' : 'text-base',
           showInternalPopup ? 'shadow-xl' : 'shadow-md hover:shadow-lg'
         )}
