@@ -1,5 +1,5 @@
 // src/components/search/SearchBar.tsx
-'use client';
+"use client";
 
 import {
   Fragment,
@@ -10,16 +10,18 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-} from 'react';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { MagnifyingGlassIcon, MusicalNoteIcon, CalendarIcon, MapPinIcon } from '@heroicons/react/24/outline';
-import clsx from 'clsx';
-import { SearchFields, type Category, type SearchFieldId } from './SearchFields';
-import useClickOutside from '@/hooks/useClickOutside';
-import { Transition } from '@headlessui/react';
-import dynamic from 'next/dynamic';
-import { createPortal } from 'react-dom'; // NEW: Import createPortal
-
+} from "react";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import clsx from "clsx";
+import {
+  SearchFields,
+  type Category,
+  type SearchFieldId,
+} from "./SearchFields";
+import useClickOutside from "@/hooks/useClickOutside";
+import { Transition } from "@headlessui/react";
+import dynamic from "next/dynamic";
+import { createPortal } from "react-dom"; // NEW: Import createPortal
 
 export type ActivePopup = SearchFieldId | null;
 
@@ -30,15 +32,26 @@ export interface SearchBarProps {
   setLocation: (l: string) => void;
   when: Date | null;
   setWhen: (d: Date | null) => void;
-  onSearch: (params: { category?: string; location?: string; when?: Date | null }) => void | Promise<void>;
+  onSearch: (params: {
+    category?: string;
+    location?: string;
+    when?: Date | null;
+  }) => void | Promise<void>;
   onCancel?: () => void; // This prop is for the Header to tell THIS SearchBar to cancel/dismiss itself
   compact?: boolean; // This should always be 'false' when used in the Header for the 'full' search bar
 }
 
-const DynamicSearchPopupContent = dynamic(() => import('./SearchPopupContent'), {
-  ssr: false,
-  loading: () => <div className="p-4 text-center text-gray-500">Loading search options...</div>,
-});
+const DynamicSearchPopupContent = dynamic(
+  () => import("./SearchPopupContent"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="p-4 text-center text-gray-500">
+        Loading search options...
+      </div>
+    ),
+  },
+);
 
 export default function SearchBar({
   category,
@@ -56,12 +69,17 @@ export default function SearchBar({
   const [isSubmitting, setSubmitting] = useState(false);
   const [activeField, setActiveField] = useState<ActivePopup>(null);
   const [showInternalPopup, setShowInternalPopup] = useState(false);
-  const [locationPredictions, setLocationPredictions] =
-    useState<google.maps.places.AutocompletePrediction[]>([]);
+  const [locationPredictions, setLocationPredictions] = useState<
+    google.maps.places.AutocompletePrediction[]
+  >([]);
 
   // NEW: State to store the position and size of the popup
-  const [popupPosition, setPopupPosition] =
-    useState<{ top: number; left: number; width: number; height?: number } | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height?: number;
+  } | null>(null);
 
   const lastActiveButtonRef = useRef<HTMLElement | null>(null);
 
@@ -79,9 +97,9 @@ export default function SearchBar({
       let width = formRect.width; // Default popup width equals SearchBar width
       let height: number | undefined;
 
-      if (activeField === 'category') {
+      if (activeField === "category") {
         width = formRect.width / 2; // Half width anchored left
-      } else if (activeField === 'location') {
+      } else if (activeField === "location") {
         width = formRect.width / 2; // Half width anchored right
         left = formRect.left + window.scrollX + formRect.width / 2;
       }
@@ -98,7 +116,7 @@ export default function SearchBar({
     setTimeout(() => {
       setActiveField(null);
       if (lastActiveButtonRef.current) {
-        if (activeField === 'location' && locationInputRef.current) {
+        if (activeField === "location" && locationInputRef.current) {
           locationInputRef.current.focus();
         } else {
           lastActiveButtonRef.current.focus();
@@ -137,7 +155,7 @@ export default function SearchBar({
   );
 
   const handleKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       e.preventDefault();
       closeThisSearchBarsInternalPopups();
     }
@@ -167,9 +185,9 @@ export default function SearchBar({
         onSubmit={handleSubmit}
         autoComplete="off"
         className={clsx(
-          'relative z-[45] flex items-stretch bg-white rounded-full shadow-lg transition-all duration-200 ease-out',
-          compact ? 'text-sm' : 'text-base',
-          showInternalPopup ? 'shadow-xl' : 'shadow-md hover:shadow-lg'
+          "relative z-[45] flex items-stretch rounded-full bg-white shadow-lg transition-all duration-200 ease-out",
+          compact ? "text-sm" : "text-base",
+          showInternalPopup ? "shadow-xl" : "shadow-md hover:shadow-lg",
         )}
         role="search"
         aria-label="Artist booking search"
@@ -190,17 +208,33 @@ export default function SearchBar({
         <button
           type="submit"
           className={clsx(
-            'bg-[var(--color-accent)] hover:bg-[var(--color-accent)]/90 px-5 py-3 flex items-center justify-center text-white rounded-r-full transition-all duration-200 ease-out',
-            isSubmitting && 'opacity-70 cursor-not-allowed',
-            !isSubmitting && 'active:scale-95'
+            "hover:bg-[var(--color-accent)]/90 flex items-center justify-center rounded-r-full bg-[var(--color-accent)] px-5 py-3 text-white transition-all duration-200 ease-out",
+            isSubmitting && "cursor-not-allowed opacity-70",
+            !isSubmitting && "active:scale-95",
           )}
           aria-label="Search now"
           disabled={isSubmitting}
         >
           {isSubmitting ? (
-            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <svg
+              className="h-5 w-5 animate-spin text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
             </svg>
           ) : (
             <MagnifyingGlassIcon className="h-5 w-5" />
@@ -210,65 +244,69 @@ export default function SearchBar({
       </form>
 
       {/* NEW: Render the internal popup content using a portal */}
-      {showInternalPopup && popupPosition && createPortal(
-        <>
-          {/* Overlay for SearchBar's internal popups (dims the page area around the popup)
+      {showInternalPopup &&
+        popupPosition &&
+        createPortal(
+          <>
+            {/* Overlay for SearchBar's internal popups (dims the page area around the popup)
              Use a z-index lower than the header (z-50) so the active search field
              remains visible above the overlay while the rest of the page is dimmed. */}
-          <div
-            className="fixed inset-0 bg-black bg-opacity-30 z-40 cursor-pointer animate-fadeIn"
-            aria-hidden="true"
-            onClick={closeThisSearchBarsInternalPopups}
-          />
-
-          <Transition
-            show={showInternalPopup}
-            as={Fragment}
-            key={activeField} // Forces re-animation when the active field changes
-            enter="transition ease-out duration-300"
-            enterFrom="opacity-0 -translate-y-2"
-            enterTo="opacity-100 translate-y-0"
-            leave="transition ease-in duration-200"
-            leaveFrom="opacity-100 translate-y-0"
-            leaveTo="opacity-0 -translate-y-2"
-          >
             <div
-              ref={popupContainerRef}
-              className={clsx(
-                // z-50 is reserved for the header; raise above it and the overlay (z-40)
-                "absolute rounded-xl bg-white p-4 shadow-xl ring-1 ring-black ring-opacity-5 z-[60]",
-                "origin-top-left"
-              )}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby={activeField ? `search-popup-label-${activeField}` : undefined}
-              style={{
-                top: popupPosition.top,
-                left: popupPosition.left,
-                width: popupPosition.width,
-                height: popupPosition.height,
-              }}
+              className="animate-fadeIn fixed inset-0 z-40 cursor-pointer bg-black bg-opacity-30"
+              aria-hidden="true"
+              onClick={closeThisSearchBarsInternalPopups}
+            />
+
+            <Transition
+              show={showInternalPopup}
+              as={Fragment}
+              key={activeField} // Forces re-animation when the active field changes
+              enter="transition ease-out duration-300"
+              enterFrom="opacity-0 -translate-y-2"
+              enterTo="opacity-100 translate-y-0"
+              leave="transition ease-in duration-200"
+              leaveFrom="opacity-100 translate-y-0"
+              leaveTo="opacity-0 -translate-y-2"
             >
-              {activeField && ( // Ensure activeField is set before rendering content
-                <DynamicSearchPopupContent
-                  activeField={activeField}
-                  category={category}
-                  setCategory={setCategory}
-                  location={location}
-                  setLocation={setLocation}
-                  when={when}
-                  setWhen={setWhen}
-                  closeAllPopups={closeThisSearchBarsInternalPopups}
-                  locationInputRef={locationInputRef}
-                  categoryListboxOptionsRef={categoryListboxOptionsRef}
-                  locationPredictions={locationPredictions}
-                />
-              )}
-            </div>
-          </Transition>
-        </>,
-        document.body // Render into document.body
-      )}
+              <div
+                ref={popupContainerRef}
+                className={clsx(
+                  // z-50 is reserved for the header; raise above it and the overlay (z-40)
+                  "absolute z-[60] rounded-xl bg-white p-4 shadow-xl",
+                  "origin-top-left",
+                )}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={
+                  activeField ? `search-popup-label-${activeField}` : undefined
+                }
+                style={{
+                  top: popupPosition.top,
+                  left: popupPosition.left,
+                  width: popupPosition.width,
+                  height: popupPosition.height,
+                }}
+              >
+                {activeField && ( // Ensure activeField is set before rendering content
+                  <DynamicSearchPopupContent
+                    activeField={activeField}
+                    category={category}
+                    setCategory={setCategory}
+                    location={location}
+                    setLocation={setLocation}
+                    when={when}
+                    setWhen={setWhen}
+                    closeAllPopups={closeThisSearchBarsInternalPopups}
+                    locationInputRef={locationInputRef}
+                    categoryListboxOptionsRef={categoryListboxOptionsRef}
+                    locationPredictions={locationPredictions}
+                  />
+                )}
+              </div>
+            </Transition>
+          </>,
+          document.body, // Render into document.body
+        )}
     </>
   );
 }
