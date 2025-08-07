@@ -32,6 +32,8 @@ interface LocationInputProps {
 }
 
 // Use forwardRef to allow parent components to pass a ref to the internal input element
+export const AUTOCOMPLETE_LISTBOX_ID = 'autocomplete-options';
+
 const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
   (
     {
@@ -46,14 +48,16 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
     },
     ref,
   ) => {
-    const [predictions, setPredictions] = useState<
-      google.maps.places.AutocompletePrediction[]
-    >([]);
+
+    const [predictions, setPredictions] =
+      useState<google.maps.places.AutocompletePrediction[]>([]);
+
     const [isDropdownVisible, setDropdownVisible] = useState(false);
     const [userLocation, setUserLocation] =
       useState<google.maps.LatLngLiteral | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
     const [isPlacesReady, setIsPlacesReady] = useState(false);
+    const [liveMessage, setLiveMessage] = useState('');
     const containerRef = useRef<HTMLDivElement>(null); // For detecting outside clicks for the entire component
     const inputInternalRef = useRef<HTMLInputElement>(null); // Internal ref for the input element
 
@@ -64,7 +68,8 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       [],
     );
 
-    const listboxId = "autocomplete-options";
+    const listboxId = AUTOCOMPLETE_LISTBOX_ID;
+
 
     const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -258,6 +263,15 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
                 placeDetails.formatted_address ||
                   placeDetails.name ||
                   prediction.description,
+
+              );
+              setLiveMessage(
+                `Location selected: ${
+                  placeDetails.formatted_address ||
+                  placeDetails.name ||
+                  prediction.description
+                }`,
+
               );
             } else {
               console.error("PlacesService.getDetails failed:", status);
@@ -266,6 +280,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
                 formatted_address: prediction.description,
               } as PlaceResult);
               onValueChange(prediction.description);
+              setLiveMessage(`Location selected: ${prediction.description}`);
             }
           },
         );
@@ -275,6 +290,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
           formatted_address: prediction.description,
         } as PlaceResult);
         onValueChange(prediction.description);
+        setLiveMessage(`Location selected: ${prediction.description}`);
       }
     };
 
@@ -347,6 +363,11 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
                 </div>
               );
             })}
+          </div>
+        )}
+        {liveMessage && (
+          <div aria-live="polite" className="sr-only">
+            {liveMessage}
           </div>
         )}
       </div>
