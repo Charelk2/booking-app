@@ -210,6 +210,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
       const travelRate = svcRes.data.travel_rate || 2.5;
       const numTravelMembers = svcRes.data.travel_members || 1;
+      const carRentalPrice = svcRes.data.car_rental_price;
+      const flightPrice = svcRes.data.flight_price;
 
       const metrics = await getDrivingMetrics(artistLocation, details.location);
       if (!metrics.distanceKm) {
@@ -232,6 +234,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         drivingEstimate: drivingEstimateCost,
         travelRate,
         travelDate: details.date,
+        carRentalPrice,
+        flightPricePerPerson: flightPrice,
       });
       setTravelResult(travelModeResult);
 

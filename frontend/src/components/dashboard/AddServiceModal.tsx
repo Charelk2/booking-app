@@ -80,6 +80,8 @@ interface ServiceFormData {
   is_remote: boolean;
   travel_rate?: number | "";
   travel_members?: number | "";
+  car_rental_price?: number | "";
+  flight_price?: number | "";
 }
 
 export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: AddServiceModalProps) {
@@ -113,6 +115,8 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
       is_remote: false,
       travel_rate: 2.5,
       travel_members: 1,
+      car_rental_price: 1000,
+      flight_price: 2780,
     },
   });
 
@@ -250,6 +254,12 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
         travel_rate: data.travel_rate ? Number(data.travel_rate) : undefined,
         travel_members: data.travel_members
           ? Number(data.travel_members)
+          : undefined,
+        car_rental_price: data.car_rental_price
+          ? Number(data.car_rental_price)
+          : undefined,
+        flight_price: data.flight_price
+          ? Number(data.flight_price)
           : undefined,
       };
       const res = await apiCreateService(serviceData);
@@ -456,6 +466,22 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                                 valueAsNumber: true,
                               })}
                             />
+                            <TextInput
+                              label="Car rental price"
+                              type="number"
+                              step="0.01"
+                              {...register("car_rental_price", {
+                                valueAsNumber: true,
+                              })}
+                            />
+                            <TextInput
+                              label="Flight price (per person)"
+                              type="number"
+                              step="0.01"
+                              {...register("flight_price", {
+                                valueAsNumber: true,
+                              })}
+                            />
                           </>
                         )}
                         <div className="flex items-center gap-2">
@@ -591,6 +617,14 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                               <div className="border rounded-md p-4">
                                 <h3 className="font-medium">Members travelling</h3>
                                 <p>{watch("travel_members") || 1}</p>
+                              </div>
+                              <div className="border rounded-md p-4">
+                                <h3 className="font-medium">Car rental price</h3>
+                                <p>{watch("car_rental_price") || 0}</p>
+                              </div>
+                              <div className="border rounded-md p-4">
+                                <h3 className="font-medium">Flight price (per person)</h3>
+                                <p>{watch("flight_price") || 0}</p>
                               </div>
                             </>
                           )}
