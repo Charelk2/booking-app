@@ -97,6 +97,33 @@ describe('MobileMenuDrawer', () => {
     expect(link?.className).toContain('min-h-[44px]');
   });
 
+  it('uses Dialog.Title and nav lists for structure', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose: () => {},
+          navigation: nav,
+          secondaryNavigation: [{ name: 'Help', href: '/help' }],
+          user: null,
+          logout: () => {},
+          pathname: '/',
+        }),
+      );
+    });
+    await flushPromises();
+    const title = document.querySelector(
+      'h2[id^="headlessui-dialog-title"]',
+    );
+    expect(title?.textContent).toBe('Menu');
+    const exploreNav = document.querySelector('nav[aria-label="Explore"]');
+    expect(exploreNav?.querySelectorAll('ul > li').length).toBe(nav.length);
+    const moreNav = document.querySelector('nav[aria-label="More"]');
+    expect(moreNav?.querySelectorAll('ul > li').length).toBe(1);
+    const accountNav = document.querySelector('nav[aria-label="Account"]');
+    expect(accountNav?.querySelectorAll('ul > li').length).toBe(2);
+  });
+
   it('shows artist links for artists', async () => {
     await act(async () => {
       root.render(
@@ -116,7 +143,6 @@ describe('MobileMenuDrawer', () => {
     expect(body).toContain('Sound Providers');
     expect(body).toContain('Quote Calculator');
     expect(body).toContain('Quote Templates');
-    expect(body).not.toContain('Account');
   });
 
   it('shows My Bookings link for clients', async () => {
