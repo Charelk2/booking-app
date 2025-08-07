@@ -5,6 +5,14 @@ import { act } from 'react';
 import type { ComponentPropsWithoutRef } from 'react';
 import MobileMenuDrawer from '../MobileMenuDrawer';
 import type { User } from '@/types';
+import {
+  HomeIcon,
+  UsersIcon,
+  SpeakerWaveIcon,
+  CalculatorIcon,
+  DocumentDuplicateIcon,
+  QuestionMarkCircleIcon,
+} from '@heroicons/react/24/outline';
 
 jest.mock('next/link', () => ({
   __esModule: true,
@@ -13,11 +21,15 @@ jest.mock('next/link', () => ({
 
 
 const nav = [
-  { name: 'Home', href: '/' },
-  { name: 'Artists', href: '/artists' },
-  { name: 'Sound Providers', href: '/sound-providers' },
-  { name: 'Quote Calculator', href: '/quote-calculator' },
-  { name: 'Quote Templates', href: '/dashboard/profile/quote-templates' },
+  { name: 'Home', href: '/', icon: HomeIcon },
+  { name: 'Artists', href: '/artists', icon: UsersIcon },
+  { name: 'Sound Providers', href: '/sound-providers', icon: SpeakerWaveIcon },
+  { name: 'Quote Calculator', href: '/quote-calculator', icon: CalculatorIcon },
+  {
+    name: 'Quote Templates',
+    href: '/dashboard/profile/quote-templates',
+    icon: DocumentDuplicateIcon,
+  },
 ];
 
 describe('MobileMenuDrawer', () => {
@@ -57,6 +69,27 @@ describe('MobileMenuDrawer', () => {
     expect(bodyText).toContain('Sound Providers');
     expect(bodyText).toContain('Quote Calculator');
     expect(bodyText).toContain('Quote Templates');
+  });
+
+  it('renders an icon for each navigation link', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose: () => {},
+          navigation: nav,
+          secondaryNavigation: [{ name: 'Help', href: '/help', icon: QuestionMarkCircleIcon }],
+          user: null,
+          logout: () => {},
+          pathname: '/',
+        }),
+      );
+    });
+    await flushPromises();
+    const exploreIcons = document.querySelectorAll('nav[aria-label="Explore"] svg');
+    expect(exploreIcons.length).toBe(nav.length);
+    const moreIcons = document.querySelectorAll('nav[aria-label="More"] svg');
+    expect(moreIcons.length).toBe(1);
   });
 
   it('close button has focus ring classes', async () => {
