@@ -957,7 +957,6 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Notification cards keep softly rounded corners and a gentle shadow. Unread items show a thin brand-colored strip on the left.
 * Each card displays a circular avatar, bold title, one-line subtitle, relative timestamp and a small status icon on the right. Icons are color-coded (green for confirmed, indigo for reminders, amber for due alerts).
 * The header now just shows the “Notifications” title, an **Unread** toggle and a close **X** button.
-* A full-width rounded **Clear All** button stays pinned to the bottom of the panel.
 * Deposit due alerts now display "Booking confirmed – deposit R{amount} due by {date}" only the first time a booking is confirmed. Subsequent reminders omit the greeting. The drawer parses this format to show `R50.00 due by Jan 1, 2025` as the subtitle and links directly to the booking.
 * Booking confirmed and deposit due notifications now show the artist's avatar so users can immediately recognize who the alert is from. When the artist hasn't uploaded a photo, the default avatar is used.
 * Quote acceptance and booking confirmation notifications now render dynamic titles such as **"Quote accepted by Jane Doe"** instead of a generic label.
@@ -978,7 +977,6 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * `NotificationCard` in `components/ui/` displays a single alert with the same soft shadowed style used in the drawer.
 * `getNotificationDisplayProps` converts a `Notification` or unified feed item into the props required by `NotificationCard`.
 * API responses include `sender_name` and `link` fields used by the UI for titles and navigation. See [docs/notifications.md](docs/notifications.md).
-* A rounded **Clear All** button is fixed at the bottom so users can dismiss everything at once.
 
 ### Artist Profile Enhancements
 
