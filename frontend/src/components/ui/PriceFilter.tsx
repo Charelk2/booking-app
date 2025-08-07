@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import 'rheostat/initialize';
-import 'rheostat/css/rheostat.css';
-import Rheostat from 'rheostat';
-import type { PublicState } from 'rheostat';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import clsx from 'clsx';
-import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
+import { useState, useEffect, useCallback, useRef } from "react";
+import "rheostat/initialize";
+import "rheostat/css/rheostat.css";
+import Rheostat from "rheostat";
+import type { PublicState } from "rheostat";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import clsx from "clsx";
+import { SLIDER_MIN, SLIDER_MAX } from "@/lib/filter-constants";
 
 interface SortOption {
   value: string;
@@ -77,18 +77,21 @@ export default function PriceFilter({
   const maxCount = priceDistribution.reduce((m, b) => Math.max(m, b.count), 0);
 
   // Function to update URL parameters (price and sort)
-  const updateUrl = useCallback((min: number, max: number, sort?: string) => {
-    const search = new URLSearchParams(searchParams.toString());
-    if (min > SLIDER_MIN) search.set('price_min', String(min));
-    else search.delete('price_min');
-    if (max < SLIDER_MAX) search.set('price_max', String(max));
-    else search.delete('price_max');
+  const updateUrl = useCallback(
+    (min: number, max: number, sort?: string) => {
+      const search = new URLSearchParams(searchParams.toString());
+      if (min > SLIDER_MIN) search.set("price_min", String(min));
+      else search.delete("price_min");
+      if (max < SLIDER_MAX) search.set("price_max", String(max));
+      else search.delete("price_max");
 
-    if (sort) search.set('sort', sort);
-    else search.delete('sort');
+      if (sort) search.set("sort", sort);
+      else search.delete("sort");
 
-    router.push(`${pathname}?${search.toString()}`);
-  }, [pathname, router, searchParams]);
+      router.push(`${pathname}?${search.toString()}`);
+    },
+    [pathname, router, searchParams],
+  );
 
   // Handle Apply button click
   const handleApplyClick = useCallback(() => {
@@ -96,7 +99,15 @@ export default function PriceFilter({
     onSortChange(localSortValue);
     updateUrl(localMinPrice, localMaxPrice, localSortValue);
     onClose();
-  }, [localMinPrice, localMaxPrice, localSortValue, onApply, onSortChange, onClose, updateUrl]);
+  }, [
+    localMinPrice,
+    localMaxPrice,
+    localSortValue,
+    onApply,
+    onSortChange,
+    onClose,
+    updateUrl,
+  ]);
 
   // Handle Clear all button click
   const handleClearClick = useCallback(() => {
@@ -110,29 +121,38 @@ export default function PriceFilter({
   }, [onClear, onSortChange, onClose, updateUrl]);
 
   // Handle input change for min price field
-  const handleMinPriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value.replace(/[^0-9]/g, '')); // Remove non-numeric characters
-    if (isNaN(value)) {
-      setLocalMinPrice(SLIDER_MIN);
-    } else {
-      setLocalMinPrice(Math.max(SLIDER_MIN, Math.min(value, localMaxPrice)));
-    }
-  }, [localMaxPrice]);
+  const handleMinPriceChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = parseInt(e.target.value.replace(/[^0-9]/g, "")); // Remove non-numeric characters
+      if (isNaN(value)) {
+        setLocalMinPrice(SLIDER_MIN);
+      } else {
+        setLocalMinPrice(Math.max(SLIDER_MIN, Math.min(value, localMaxPrice)));
+      }
+    },
+    [localMaxPrice],
+  );
 
   // Handle input change for max price field
-  const handleMaxPriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value.replace(/[^0-9]/g, '')); // Remove non-numeric characters
-    if (isNaN(value)) {
-      setLocalMaxPrice(SLIDER_MAX);
-    } else {
-      setLocalMaxPrice(Math.min(SLIDER_MAX, Math.max(value, localMinPrice)));
-    }
-  }, [localMinPrice]);
+  const handleMaxPriceChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = parseInt(e.target.value.replace(/[^0-9]/g, "")); // Remove non-numeric characters
+      if (isNaN(value)) {
+        setLocalMaxPrice(SLIDER_MAX);
+      } else {
+        setLocalMaxPrice(Math.min(SLIDER_MAX, Math.max(value, localMinPrice)));
+      }
+    },
+    [localMinPrice],
+  );
 
   // Click outside to close the dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+      if (
+        sortDropdownRef.current &&
+        !sortDropdownRef.current.contains(event.target as Node)
+      ) {
         setIsSortDropdownOpen(false);
       }
     };
@@ -146,7 +166,7 @@ export default function PriceFilter({
     if (!open) return;
     const container = containerRef.current;
     const handleTrap = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
+      if (e.key !== "Tab") return;
       const focusable = Array.from(
         container?.querySelectorAll<HTMLElement>(
           'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
@@ -165,64 +185,82 @@ export default function PriceFilter({
         first.focus();
       }
     };
-    container?.addEventListener('keydown', handleTrap);
+    container?.addEventListener("keydown", handleTrap);
     return () => {
-      container?.removeEventListener('keydown', handleTrap);
+      container?.removeEventListener("keydown", handleTrap);
     };
   }, [open]);
 
   // Handle keyboard navigation for the custom dropdown
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if (!isSortDropdownOpen) return;
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (!isSortDropdownOpen) return;
 
-    const options = Array.from(sortDropdownRef.current?.querySelectorAll('[role="option"]') || []);
-    const focusedIndex = options.findIndex(option => option === document.activeElement);
+      const options = Array.from(
+        sortDropdownRef.current?.querySelectorAll('[role="option"]') || [],
+      );
+      const focusedIndex = options.findIndex(
+        (option) => option === document.activeElement,
+      );
 
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      const nextIndex = (focusedIndex + 1) % options.length;
-      (options[nextIndex] as HTMLElement)?.focus();
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      const prevIndex = (focusedIndex - 1 + options.length) % options.length;
-      (options[prevIndex] as HTMLElement)?.focus();
-    } else if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      if (document.activeElement && document.activeElement.getAttribute('role') === 'option') {
-        (document.activeElement as HTMLElement)?.click();
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const nextIndex = (focusedIndex + 1) % options.length;
+        (options[nextIndex] as HTMLElement)?.focus();
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const prevIndex = (focusedIndex - 1 + options.length) % options.length;
+        (options[prevIndex] as HTMLElement)?.focus();
+      } else if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        if (
+          document.activeElement &&
+          document.activeElement.getAttribute("role") === "option"
+        ) {
+          (document.activeElement as HTMLElement)?.click();
+        }
+      } else if (event.key === "Escape") {
+        setIsSortDropdownOpen(false);
+        sortDropdownRef.current?.querySelector("button")?.focus();
       }
-    } else if (event.key === 'Escape') {
-      setIsSortDropdownOpen(false);
-      sortDropdownRef.current?.querySelector('button')?.focus();
-    }
-  }, [isSortDropdownOpen]);
+    },
+    [isSortDropdownOpen],
+  );
 
   useEffect(() => {
     if (isSortDropdownOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      const selectedOption = sortDropdownRef.current?.querySelector(`[aria-selected="true"]`);
+      document.addEventListener("keydown", handleKeyDown);
+      const selectedOption = sortDropdownRef.current?.querySelector(
+        `[aria-selected="true"]`,
+      );
       if (selectedOption) {
         (selectedOption as HTMLElement)?.focus();
-      } else if (sortOptions.filter(opt => opt.value !== "").length > 0) {
-        (sortDropdownRef.current?.querySelector('[role="option"]') as HTMLElement)?.focus();
+      } else if (sortOptions.filter((opt) => opt.value !== "").length > 0) {
+        (
+          sortDropdownRef.current?.querySelector(
+            '[role="option"]',
+          ) as HTMLElement
+        )?.focus();
       }
     } else {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     }
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isSortDropdownOpen, handleKeyDown, sortOptions]);
 
   // Rheostat Custom Components
   const Handle = (
-    props: React.HTMLAttributes<HTMLButtonElement> & { 'data-handle-key': string }
+    props: React.HTMLAttributes<HTMLButtonElement> & {
+      "data-handle-key": string;
+    },
   ) => {
-    const idx = Number(props['data-handle-key']);
+    const idx = Number(props["data-handle-key"]);
     return (
       <button
         type="button"
-        aria-label={idx === 0 ? 'Minimum price handle' : 'Maximum price handle'}
+        aria-label={idx === 0 ? "Minimum price handle" : "Maximum price handle"}
         {...props}
         onMouseDown={(e) => {
           setActiveHandle(idx);
@@ -237,9 +275,12 @@ export default function PriceFilter({
           props.onBlur?.(e);
         }}
         className={clsx(
-          'absolute -top-2.5 w-5 h-5 rounded-full border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] transition-shadow duration-200 ease-in-out',
+          "absolute -top-2.5 h-5 w-5 rounded-full border border-gray-300 bg-white transition-shadow duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]",
           props.className,
-          { 'shadow-lg ring-4 ring-[var(--color-accent)]/50': activeHandle === idx }
+          {
+            "ring-[var(--color-accent)]/50 shadow-lg ring-4":
+              activeHandle === idx,
+          },
         )}
         style={{
           ...props.style,
@@ -257,11 +298,14 @@ export default function PriceFilter({
   };
 
   const Progress = ({ style }: { style: React.CSSProperties }) => (
-    <div className="absolute bottom-0 h-2 bg-[var(--color-accent)] rounded" style={style} />
+    <div
+      className="absolute bottom-0 h-2 rounded bg-[var(--color-accent)]"
+      style={style}
+    />
   );
 
   const Background = () => (
-    <div className="absolute inset-x-0 bottom-0 h-2 bg-gray-200 rounded" />
+    <div className="absolute inset-x-0 bottom-0 h-2 rounded bg-gray-200" />
   );
 
   // IMPORTANT FIX: CONDITIONAL RENDERING AFTER ALL HOOKS ARE CALLED
@@ -269,20 +313,20 @@ export default function PriceFilter({
 
   return (
     <div
-      className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 animate-fade-in"
+      className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50"
       role="dialog"
       aria-modal="true"
       ref={containerRef}
     >
-      <div className="bg-white rounded-2xl w-full max-w-md p-6 mx-auto shadow-xl space-y-6 animate-fade-in-up">
+      <div className="animate-fade-in-up mx-auto w-full max-w-md space-y-6 rounded-2xl bg-white p-6 shadow-xl">
         {/* Header */}
-        <div className="flex justify-between items-center relative">
+        <div className="relative flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900">Filters</h2>
           <button
             type="button"
             aria-label="Close filters"
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 transition-colors"
+            className="text-gray-500 transition-colors hover:text-gray-700"
             ref={closeButtonRef}
           >
             <svg
@@ -294,14 +338,24 @@ export default function PriceFilter({
               aria-hidden="true"
               className="h-6 w-6"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12"></path>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18 18 6M6 6l12 12"
+              ></path>
             </svg>
           </button>
         </div>
 
         {/* Sort By Section */}
-        <div className="border-t border-gray-200 pt-6 relative" ref={sortDropdownRef}>
-          <label id="sort-label" className="block text-sm font-medium text-gray-700 mb-2">
+        <div
+          className="relative border-t border-gray-200 pt-6"
+          ref={sortDropdownRef}
+        >
+          <label
+            id="sort-label"
+            className="mb-2 block text-sm font-medium text-gray-700"
+          >
             Sort by
           </label>
           <div className="relative">
@@ -311,12 +365,18 @@ export default function PriceFilter({
               aria-haspopup="listbox"
               aria-expanded={isSortDropdownOpen}
               aria-labelledby="sort-label sort-dropdown-button"
-              className="w-full border border-gray-300 rounded-lg pl-4 pr-10 py-2 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)] transition-all duration-200 cursor-pointer flex justify-between items-center"
+              className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-300 bg-white py-2 pl-4 pr-10 text-gray-800 transition-all duration-200 focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
               onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
             >
-              <span>{sortOptions.find(opt => opt.value === localSortValue)?.label || "Sort"}</span>
+              <span>
+                {sortOptions.find((opt) => opt.value === localSortValue)
+                  ?.label || "Sort"}
+              </span>
               <svg
-                className={clsx("h-5 w-5 text-gray-500 transition-transform duration-200", { "rotate-180": isSortDropdownOpen })}
+                className={clsx(
+                  "h-5 w-5 text-gray-500 transition-transform duration-200",
+                  { "rotate-180": isSortDropdownOpen },
+                )}
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 20 20"
                 fill="currentColor"
@@ -335,10 +395,10 @@ export default function PriceFilter({
                 role="listbox"
                 aria-labelledby="sort-label"
                 tabIndex={-1}
-                className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto focus:outline-none ring-1 ring-black ring-opacity-5"
+                className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-gray-300 bg-white shadow-lg focus:outline-none"
               >
                 {sortOptions
-                  .filter(opt => opt.value !== "")
+                  .filter((opt) => opt.value !== "")
                   .map((opt) => (
                     <li
                       key={opt.value}
@@ -350,18 +410,18 @@ export default function PriceFilter({
                         setIsSortDropdownOpen(false);
                       }}
                       className={clsx(
-                        "px-4 py-2 cursor-pointer text-gray-900 text-sm",
+                        "cursor-pointer px-4 py-2 text-sm text-gray-900",
                         "hover:bg-gray-100 hover:text-gray-900",
-                        "focus:outline-none  focus:bg-gray-100",
+                        "focus:bg-gray-100 focus:outline-none",
                         {
-                          "bg-[var(--color-accent)]/10 text-[var(--color-accent)] font-semibold": opt.value === localSortValue,
-                        }
+                          "bg-[var(--color-accent)]/10 font-semibold text-[var(--color-accent)]":
+                            opt.value === localSortValue,
+                        },
                       )}
                       tabIndex={0}
                     >
                       {opt.label}
-                      {opt.value === localSortValue
-                      }
+                      {opt.value === localSortValue}
                     </li>
                   ))}
               </ul>
@@ -371,10 +431,14 @@ export default function PriceFilter({
 
         {/* Price Range Section */}
         <div className="border-t border-gray-200 pt-6">
-          <label className="block text-sm font-medium text-gray-700">Price range</label>
-          <p className="text-xs text-gray-500 mt-1 mb-4">Trip price, includes all fees.</p>
+          <label className="block text-sm font-medium text-gray-700">
+            Price range
+          </label>
+          <p className="mb-4 mt-1 text-xs text-gray-500">
+            Trip price, includes all fees.
+          </p>
 
-          <div className="relative h-10 w-full mb-4">
+          <div className="relative mb-4 h-10 w-full">
             <div className="absolute inset-0 flex items-end justify-between px-1">
               {priceDistribution.map((b, i) => (
                 <div
@@ -385,7 +449,7 @@ export default function PriceFilter({
               ))}
             </div>
           </div>
-          <div className="relative h-10 w-full mb-4">
+          <div className="relative mb-4 h-10 w-full">
             <Rheostat
               min={SLIDER_MIN}
               max={SLIDER_MAX}
@@ -400,35 +464,45 @@ export default function PriceFilter({
             />
           </div>
 
-          <div className="flex justify-between items-center gap-4 mt-6">
+          <div className="mt-6 flex items-center justify-between gap-4">
             <div className="flex-1">
-              <label htmlFor="min-price" className="block text-xs font-medium text-gray-500 mb-1">
+              <label
+                htmlFor="min-price"
+                className="mb-1 block text-xs font-medium text-gray-500"
+              >
                 Minimum
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-900 font-medium">R</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-medium text-gray-900">
+                  R
+                </span>
                 <input
                   type="text"
                   id="min-price"
                   value={localMinPrice.toLocaleString()}
                   onChange={handleMinPriceChange}
-                  className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-gray-900 font-medium focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"
+                  className="w-full rounded-lg border border-gray-300 py-2 pl-8 pr-3 font-medium text-gray-900 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent)]"
                 />
               </div>
             </div>
-            <div className="text-gray-400 mt-6 font-semibold">–</div>
+            <div className="mt-6 font-semibold text-gray-400">–</div>
             <div className="flex-1">
-              <label htmlFor="max-price" className="block text-xs font-medium text-gray-500 mb-1">
+              <label
+                htmlFor="max-price"
+                className="mb-1 block text-xs font-medium text-gray-500"
+              >
                 Maximum
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-900 font-medium">R</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-medium text-gray-900">
+                  R
+                </span>
                 <input
                   type="text"
                   id="max-price"
                   value={localMaxPrice.toLocaleString()}
                   onChange={handleMaxPriceChange}
-                  className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-gray-900 font-medium focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"
+                  className="w-full rounded-lg border border-gray-300 py-2 pl-8 pr-3 font-medium text-gray-900 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent)]"
                 />
               </div>
             </div>
@@ -436,17 +510,17 @@ export default function PriceFilter({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-between border-t border-gray-200 pt-6 mt-6">
+        <div className="mt-6 flex justify-between border-t border-gray-200 pt-6">
           <button
             type="button"
-            className="px-5 py-2 rounded-lg text-gray-700 font-semibold hover:bg-gray-100 transition-colors"
+            className="rounded-lg px-5 py-2 font-semibold text-gray-700 transition-colors hover:bg-gray-100"
             onClick={handleClearClick}
           >
             Clear all
           </button>
           <button
             type="button"
-            className="px-6 py-2 rounded-lg bg-[var(--color-accent)] text-white font-semibold hover:bg-[var(--color-accent)]/90 transition-colors shadow-md"
+            className="hover:bg-[var(--color-accent)]/90 rounded-lg bg-[var(--color-accent)] px-6 py-2 font-semibold text-white shadow-md transition-colors"
             onClick={handleApplyClick}
           >
             Apply
