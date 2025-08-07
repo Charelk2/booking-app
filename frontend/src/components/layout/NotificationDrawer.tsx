@@ -194,13 +194,6 @@ export default function NotificationDrawer({
                     >
                       Mark All Read
                     </button>
-                    <button
-                      type="button"
-                      onClick={markAllRead}
-                      className="w-full rounded-full bg-indigo-500 hover:bg-indigo-600 active:scale-95 transition-transform py-1 text-xs font-medium text-white shadow-lg"
-                    >
-                      Clear All
-                    </button>
                   </footer>
                 </Dialog.Panel>
               </Transition.Child>
