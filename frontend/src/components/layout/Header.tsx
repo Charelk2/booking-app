@@ -371,4 +371,6 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   );
 });
 
+Header.displayName = 'Header';
+
 export default Header;
