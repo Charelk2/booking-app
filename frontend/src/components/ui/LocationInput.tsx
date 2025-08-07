@@ -281,7 +281,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
                   aria-selected={isActive}
                   onMouseDown={() => handleSelect(prediction)}
                   className={clsx(
-                    'flex items-center px-4 py-2 text-sm cursor-pointer',
+                    'flex min-h-[44px] items-center px-4 py-2 text-sm cursor-pointer',
                     isActive ? 'bg-gray-100' : 'hover:bg-gray-50'
                   )}
                   data-testid="location-option"
