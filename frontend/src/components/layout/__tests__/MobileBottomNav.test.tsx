@@ -75,6 +75,19 @@ describe('MobileBottomNav', () => {
     expect(nav?.className).toContain('pb-safe');
   });
 
+  it('sets CSS variable with nav height on the document root', () => {
+    mockUseRouter.mockReturnValue({ pathname: '/' });
+    act(() => {
+      root.render(
+        React.createElement(MobileBottomNav, { user: {} as User })
+      );
+    });
+    const value = document.documentElement.style.getPropertyValue(
+      '--mobile-bottom-nav-height',
+    );
+    expect(value).toBe('56px');
+  });
+
   it('shows unread message count badge', () => {
     mockUseRouter.mockReturnValue({ pathname: '/' });
     act(() => {

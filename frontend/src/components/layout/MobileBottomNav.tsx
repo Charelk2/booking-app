@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   HomeIcon,
@@ -31,6 +32,26 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   const { items } = useNotifications();
   const notificationItems = items;
   const scrollDir = useScrollDirection();
+  const navRef = useRef<HTMLElement>(null);
+
+  // Expose the nav's actual height (including safe-area insets) via a CSS variable
+  useEffect(() => {
+    const updateHeight = () => {
+      if (navRef.current) {
+        const height = navRef.current.offsetHeight;
+        document.documentElement.style.setProperty(
+          '--mobile-bottom-nav-height',
+          `${height}px`,
+        );
+      }
+    };
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => {
+      window.removeEventListener('resize', updateHeight);
+      document.documentElement.style.removeProperty('--mobile-bottom-nav-height');
+    };
+  }, []);
   const navItems: Item[] = [
     { name: 'Home', href: '/', icon: HomeIcon },
     { name: 'Artists', href: '/artists', icon: UsersIcon },
@@ -54,6 +75,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
 
   return (
     <nav
+      ref={navRef}
       className={clsx(
         'fixed bottom-0 w-full h-[56px] py-1 bg-background border-t shadow z-50 sm:hidden transition-transform pb-safe',
         scrollDir === 'down' ? 'translate-y-full' : 'translate-y-0',
