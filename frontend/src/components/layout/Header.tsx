@@ -235,7 +235,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-label="Open menu"
-              className={clsx(navItemClasses, 'md:hidden')}
+              className={clsx(navItemClasses, 'md:hidden justify-center')}
             >
               <Bars3Icon className="h-6 w-6" />
             </button>
@@ -310,18 +310,18 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   {user.user_type === 'artist' && (
                     <button
                       onClick={toggleArtistView}
-                      className={clsx(navItemClasses, 'text-gray-700')}
+                      className={clsx(navItemClasses, 'text-gray-700 justify-center')}
                     >
                       {artistViewActive ? 'Switch to Booking' : 'Switch to Artist View'}
                     </button>
                   )}
-                  <div className={navItemClasses}>
+                  <div className={clsx(navItemClasses, 'justify-center')}>
                     <NotificationBell />
                   </div>
                   <Menu as="div" className="relative">
                   <Menu.Button
                     aria-label="Account menu"
-                    className={clsx(navItemClasses, 'rounded-full bg-gray-100 text-sm focus:outline-none')}
+                    className={clsx(navItemClasses, 'rounded-full bg-gray-100 text-sm focus:outline-none justify-center')}
                   >
                     <Avatar
                       src={user.profile_picture_url || null}
@@ -364,12 +364,12 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               </>
             ) : (
               <div className="flex gap-2">
-                <Link href="/login" className={clsx(navItemClasses, 'text-gray-600')}>
+                <Link href="/login" className={clsx(navItemClasses, 'text-gray-600 justify-center')}>
                   Sign in
                 </Link>
                 <Link
                   href="/register"
-                  className={clsx(navItemClasses, 'bg-brand-dark text-white rounded')}
+                  className={clsx(navItemClasses, 'bg-brand-dark text-white rounded justify-center')}
                 >
                   Sign up
                 </Link>

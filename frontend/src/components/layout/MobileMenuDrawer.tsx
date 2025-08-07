@@ -180,7 +180,7 @@ export default function MobileMenuDrawer({
                             }}
                             className={clsx(
                               navItemClasses,
-                              'w-full text-left text-base text-gray-700 hover:bg-gray-100 hover:text-red-600 px-2 py-2 rounded-md',
+                              'w-full text-left text-base text-gray-700 hover:bg-gray-100 hover:text-red-600 px-2 py-2 rounded-md justify-start',
                             )}
                           >
                             Sign out
