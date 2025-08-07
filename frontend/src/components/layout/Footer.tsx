@@ -98,8 +98,8 @@ export default function Footer() {
   return (
     <footer className="bg-gradient-to-t from-brand-light/50 to-gray-50 border-t border-gray-200">
       <div className="mx-auto max-w-7xl px-6 py-12">
-        <div className="flex flex-col md:flex-row md:gap-8">
-          <div className="space-y-4 md:flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="space-y-4">
             <Link href="/" className="block text-xl font-bold text-brand-dark">
               Booka.co.za
             </Link>
@@ -120,7 +120,7 @@ export default function Footer() {
             </div>
           </div>
 
-          <nav className="mt-8 md:mt-0 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-8 md:ml-auto">
+          <nav className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-8">
             {navigation.map((section) => (
               <div key={section.title}>
                 <h3 className="text-sm font-semibold text-brand-dark">
