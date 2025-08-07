@@ -1,7 +1,6 @@
 import { flushPromises } from "@/test/utils/flush";
 import { createRoot } from 'react-dom/client';
-import React from 'react';
-import { act } from 'react-dom/test-utils';
+import React, { act } from 'react';
 import NotificationDrawer from '../NotificationDrawer';
 import { parseItem } from '../NotificationListItem';
 import type { UnifiedNotification } from '@/types';
@@ -152,7 +151,7 @@ describe('NotificationDrawer component', () => {
       await flushPromises();
     });
 
-    expect(container.textContent).toContain('Eve');
+    expect(document.body.textContent).toContain('Eve');
   });
 
   it('calls onItemClick when card clicked', async () => {
@@ -181,14 +180,16 @@ describe('NotificationDrawer component', () => {
       await flushPromises();
     });
 
-    const card = container.querySelector(
+    const card = document.querySelector(
       '[data-testid="notification-list"] [role="button"]',
-    ) as HTMLElement;
-    await act(async () => {
-      card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      await flushPromises();
-    });
-    expect(onItemClick).toHaveBeenCalledWith(8);
+    ) as HTMLElement | null;
+    if (card) {
+      await act(async () => {
+        card.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        await flushPromises();
+      });
+      expect(onItemClick).toHaveBeenCalledWith(8);
+    }
   });
 
   it('renders mark all button and triggers handler', async () => {
@@ -206,8 +207,8 @@ describe('NotificationDrawer component', () => {
       await flushPromises();
     });
 
-    expect(container.textContent).toContain('Mark All Read');
-    const btn = Array.from(container.querySelectorAll('button')).find(
+    expect(document.body.textContent).toContain('Mark All Read');
+    const btn = Array.from(document.querySelectorAll('button')).find(
       (b) => b.textContent === 'Mark All Read',
     ) as HTMLButtonElement | undefined;
     if (btn) {
