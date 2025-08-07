@@ -7,24 +7,50 @@ const navigation = [
   {
     title: 'Company',
     links: [
-      { name: 'About', href: '/about' },
-      { name: 'Blog', href: '/blog' },
-      { name: 'Contact', href: '/contact' },
+      { name: 'About us', href: '#' },
+      { name: 'Blog', href: '#' },
+      { name: 'Partners', href: '#' },
     ],
   },
   {
-    title: 'Resources',
+    title: 'Planners',
     links: [
-      { name: 'Artists', href: '/artists' },
-      { name: 'Services', href: '/services' },
-      { name: 'FAQ', href: '/faq' },
+      { name: 'How it works', href: '#' },
+      { name: 'Party ideas', href: '#' },
+      { name: 'Request a quote', href: '#' },
     ],
   },
   {
-    title: 'Legal',
+    title: 'Entertainment',
     links: [
-      { name: 'Terms', href: '/terms' },
-      { name: 'Privacy', href: '/privacy' },
+      { name: 'Book entertainment', href: '#' },
+      { name: 'Book a speaker', href: '#' },
+      { name: 'Musicians for hire', href: '#' },
+      { name: 'Wedding entertainment', href: '#' },
+    ],
+  },
+  {
+    title: 'Support',
+    links: [
+      { name: 'Help', href: '#' },
+      { name: 'Contact us', href: '#' },
+      { name: 'Log in', href: '#' },
+    ],
+  },
+  {
+    title: 'Talent',
+    links: [
+      { name: 'Get gigs', href: '#' },
+      { name: 'Pricing', href: '#' },
+      { name: 'Testimonials', href: '#' },
+    ],
+  },
+  {
+    title: 'Services',
+    links: [
+      { name: 'Event services', href: '#' },
+      { name: 'Unique services', href: '#' },
+      { name: 'Wedding services', href: '#' },
     ],
   },
 ];
@@ -74,8 +100,11 @@ export default function Footer() {
       <div className="mx-auto max-w-7xl px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="space-y-4">
+            <Link href="/" className="block text-xl font-bold text-brand-dark">
+              Booka.co.za
+            </Link>
             <p className="text-sm text-gray-600">
-              With us, planners have the confidence to bring their events to life.
+              With us, planners have the confidence to bring their events to life, while entertainers and event professionals enjoy quality leads and more opportunities to do what they love.
             </p>
             <div className="flex space-x-4">
               {social.map(({ name, href, icon: Icon }) => (
@@ -91,7 +120,7 @@ export default function Footer() {
             </div>
           </div>
 
-          <nav className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-8">
+          <nav className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-8">
             {navigation.map((section) => (
               <div key={section.title}>
                 <h3 className="text-sm font-semibold text-brand-dark">
