@@ -4,7 +4,7 @@ import NavLink from '../NavLink';
 
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: (props: any) => <a {...props} />,
+  default: (props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} />,
 }));
 
 describe('NavLink', () => {
