@@ -13,6 +13,14 @@ jest.mock("next/navigation", () => ({
   useParams: jest.fn(),
   useSearchParams: jest.fn(),
   usePathname: jest.fn(() => "/dashboard/client/bookings/1"),
+  useRouter: jest.fn(() => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+    prefetch: jest.fn(),
+  })),
 }));
 /* eslint-disable @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any */
 jest.mock("next/link", () => {
