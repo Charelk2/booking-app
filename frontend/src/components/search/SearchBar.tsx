@@ -11,7 +11,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { MagnifyingGlassIcon, MusicalNoteIcon, CalendarIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { SearchFields, type Category, type SearchFieldId } from './SearchFields';
 import useClickOutside from '@/hooks/useClickOutside';

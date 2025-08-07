@@ -10,6 +10,7 @@ import {
 } from 'react';
 import clsx from 'clsx';
 import LocationInput, { PlaceResult } from '../ui/LocationInput';
+import { MusicalNoteIcon, CalendarIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
 // Import types for consistency
 import type { ActivePopup } from './SearchBar'; // Assuming SearchBar defines ActivePopup
@@ -65,6 +66,11 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     const whenButtonRef = useRef<HTMLButtonElement>(null);
     const locationContainerRef = useRef<HTMLDivElement>(null);
 
+    const iconMap = {
+      category: MusicalNoteIcon,
+      when: CalendarIcon,
+    } as const;
+
     // Helper to render a generic search field button
     const renderField = (
       id: SearchFieldId,
@@ -79,6 +85,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         typeof currentValue === 'string' &&
         currentValue !== '' &&
         !['Add artist', 'Add dates', 'Add location'].includes(currentValue);
+      const Icon = iconMap[id];
 
       return (
         <div className="relative flex-1 min-w-0">
@@ -98,7 +105,15 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             aria-controls={`${id}-popup`}
             id={`${id}-search-button`} // Provide a unique ID for aria-controls
           >
-            <span className="text-sm text-gray-700 font-semibold  pointer-events-none select-none">{label}</span>
+            <span
+              className={clsx(
+                'flex items-center text-sm font-semibold pointer-events-none select-none',
+                isValuePresent ? 'text-gray-800' : 'text-gray-700',
+              )}
+            >
+              <Icon className="mr-2 h-5 w-5" />
+              {label}
+            </span>
             <span
               className={clsx(
                 'block truncate pointer-events-none select-none',
@@ -170,7 +185,15 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         onFocus={() => onFieldClick('location', locationContainerRef.current!)}
         onClick={() => locationInputRef.current?.focus()}
       >
-        <span className="text-sm text-gray-700 font-semibold pointer-events-none select-none">Where</span>
+        <span
+          className={clsx(
+            'flex items-center text-sm font-semibold pointer-events-none select-none',
+            location ? 'text-gray-800' : 'text-gray-700',
+          )}
+        >
+          <MapPinIcon className="mr-2 h-5 w-5" />
+          Where
+        </span>
         <LocationInput
           ref={locationInputRef}
           value={location}
