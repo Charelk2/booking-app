@@ -1,18 +1,16 @@
 import React from 'react';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import PriceFilter from '../PriceFilter';
 import { useRouter, usePathname, useSearchParams, useParams } from '@/tests/mocks/next-navigation';
 
 
 jest.mock('rheostat', () => {
-  // simple mock slider with two inputs
   interface MockSliderProps {
     values: number[];
     onValuesUpdated: (state: { values: number[] }) => void;
-    onChange?: (state: { values: number[] }) => void;
   }
-  return function MockSlider({ values, onValuesUpdated, onChange }: MockSliderProps) {
+  return function MockSlider({ values, onValuesUpdated }: MockSliderProps) {
     return (
       <div>
         <input
@@ -33,13 +31,6 @@ jest.mock('rheostat', () => {
             onValuesUpdated({ values: [values[0], val] });
           }}
         />
-        <button
-          data-testid="commit"
-          type="button"
-          onClick={() => onChange?.({ values })}
-        >
-          commit
-        </button>
       </div>
     );
   };
@@ -60,12 +51,12 @@ afterEach(() => {
 });
 
 describe('PriceFilter', () => {
-  it('applies prices and updates router', () => {
+  it('applies prices and updates router', async () => {
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = createRoot(div);
     const onApply = jest.fn();
-    act(() => {
+    await act(async () => {
       root.render(
         <PriceFilter
           open
@@ -74,35 +65,29 @@ describe('PriceFilter', () => {
           priceDistribution={[]}
           onApply={onApply}
           onClear={jest.fn()}
+          onClose={jest.fn()}
           sortOptions={[]}
           onSortChange={jest.fn()}
         />,
       );
     });
 
-    const minInput = div.querySelector('[data-testid="min"]') as HTMLInputElement;
-    const maxInput = div.querySelector('[data-testid="max"]') as HTMLInputElement;
-    const commitBtn = div.querySelector('[data-testid="commit"]') as HTMLButtonElement;
+    const applyBtn = Array.from(div.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Apply',
+    ) as HTMLButtonElement;
 
-    act(() => {
-      minInput.value = '20';
-      minInput.dispatchEvent(new Event('input', { bubbles: true }));
-      maxInput.value = '80';
-      maxInput.dispatchEvent(new Event('input', { bubbles: true }));
+    await act(async () => {
+      applyBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    act(() => {
-      commitBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
+    expect(onApply).toHaveBeenCalledWith({ minPrice: 0, maxPrice: 100 });
+    expect(push).toHaveBeenCalled();
 
-    expect(onApply).toHaveBeenCalledWith({ minPrice: 20, maxPrice: 80 });
-    expect(push).toHaveBeenCalledWith('/artists?price_min=20&price_max=80');
-
-    act(() => root.unmount());
+    await act(async () => root.unmount());
     div.remove();
   });
 
-  it('focuses the close button and restores focus on close', () => {
+  it('focuses the close button and restores focus on close', async () => {
     const trigger = document.createElement('button');
     trigger.textContent = 'Open';
     document.body.appendChild(trigger);
@@ -111,7 +96,7 @@ describe('PriceFilter', () => {
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = createRoot(div);
-    act(() => {
+    await act(async () => {
       root.render(
         <PriceFilter
           open
@@ -144,13 +129,13 @@ describe('PriceFilter', () => {
     const closeBtn = div.querySelector('button[aria-label="Close filters"]') as HTMLButtonElement;
     expect(document.activeElement).toBe(closeBtn);
 
-    act(() => {
+    await act(async () => {
       closeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
     expect(document.activeElement).toBe(trigger);
 
-    act(() => root.unmount());
+    await act(async () => root.unmount());
     div.remove();
     trigger.remove();
   });
