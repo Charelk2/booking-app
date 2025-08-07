@@ -120,7 +120,7 @@ export default function Footer() {
             </div>
           </div>
 
-          <nav className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-8">
+          <nav className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-8">
             {navigation.map((section) => (
               <div key={section.title}>
                 <h3 className="text-sm font-semibold text-brand-dark">
