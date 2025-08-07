@@ -147,4 +147,20 @@ describe('MainLayout header behavior', () => {
     act(() => { root.unmount(); });
     div.remove();
   });
+
+  it('applies mobile nav height variable to main padding', async () => {
+    mockUsePathname.mockReturnValue('/');
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 9, email: 'h@test.com', user_type: 'client' } as User, logout: jest.fn() });
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(React.createElement(MainLayout, null, React.createElement('div')));
+    });
+    await flushPromises();
+    const main = div.querySelector('main') as HTMLElement;
+    expect(main.style.paddingBottom).toBe('var(--mobile-bottom-nav-height, 0px)');
+    act(() => { root.unmount(); });
+    div.remove();
+  });
 });
