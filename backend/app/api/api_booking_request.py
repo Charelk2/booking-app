@@ -52,6 +52,13 @@ def parse_booking_text(payload: schemas.BookingParseRequest):
 
     try:
         return nlp_booking.extract_booking_details(payload.text)
+    except nlp_booking.NLPModelError as exc:  # pragma: no cover - environment specific
+        logger.error("NLP model error: %s", exc)
+        raise error_response(
+            "NLP model unavailable",
+            {"text": "Model not loaded"},
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
     except Exception as exc:  # pragma: no cover - unexpected errors
         logger.exception("NLP parsing failed: %s", exc)
         raise error_response(

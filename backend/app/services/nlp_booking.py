@@ -2,40 +2,35 @@
 
 from __future__ import annotations
 
-
 import json
 import logging
-import re
 from pathlib import Path
+from typing import List
+import re
 
-
-from dateutil import parser
+import dateparser
+import spacy
+from spacy.matcher import PhraseMatcher
 
 from ..schemas.nlp import ParsedBookingDetails
 
 logger = logging.getLogger(__name__)
 
-MONTH_PATTERN = (
 
-    "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|"
-    "jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|"
-    "nov(?:ember)?|dec(?:ember)?"
-)
-DATE_RE = re.compile(
-    rf"(\d{{1,2}}\s+(?:{MONTH_PATTERN})\b(?:\s+\d{{4}})?)",
+class NLPModelError(RuntimeError):
+    """Raised when the NLP model cannot be loaded or used."""
 
-    re.IGNORECASE,
-)
-LOCATION_RE = re.compile(r"\b(?:in|at)\s+([A-Za-z][A-Za-z ]{2,40})", re.IGNORECASE)
-GUEST_RE = re.compile(r"(\d+)\s*(?:guests?|people|attendees)", re.IGNORECASE)
 
+# Attempt to load a spaCy model once at import time. Any failure is logged and
+# will raise :class:`NLPModelError` when parsing is attempted.
+try:  # pragma: no cover - exercised indirectly
+    _NLP = spacy.load("en_core_web_sm")
+except Exception as exc:  # pragma: no cover - model load is environment specific
+    logger.error("Unable to load spaCy model: %s", exc)
+    _NLP = None
 
 _EVENT_TYPES_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "frontend"
-    / "src"
-    / "data"
-    / "eventTypes.json"
+    Path(__file__).resolve().parents[3] / "frontend" / "src" / "data" / "eventTypes.json"
 )
 try:
     _EVENT_TYPES = json.loads(_EVENT_TYPES_PATH.read_text())
@@ -44,16 +39,35 @@ except FileNotFoundError:  # pragma: no cover - defensive
     _EVENT_TYPES = []
 
 _EVENT_LOOKUP = {e.lower(): e for e in _EVENT_TYPES}
-EVENT_RE = (
-    re.compile(r"\b(" + "|".join(map(re.escape, _EVENT_LOOKUP.keys())) + r")\b", re.IGNORECASE)
-    if _EVENT_LOOKUP
-    else None
+if _NLP and _EVENT_LOOKUP:
+    _EVENT_MATCHER = PhraseMatcher(_NLP.vocab, attr="LOWER")
+    _EVENT_MATCHER.add("EVENT_TYPE", [_NLP.make_doc(e) for e in _EVENT_LOOKUP])
+else:  # pragma: no cover - defensive
+    _EVENT_MATCHER = None
+
+LOCATION_FALLBACK_RE = re.compile(
+    r"\b(?:in|at)\s+([A-Za-z][A-Za-z ]{2,40})", re.IGNORECASE
 )
 
 
+def _ensure_model() -> spacy.language.Language:
+    """Return the loaded spaCy model or raise :class:`NLPModelError`."""
+
+    if _NLP is None:
+        raise NLPModelError("spaCy model 'en_core_web_sm' is not available")
+    return _NLP
+
+
+def _extract_first_date(date_strings: List[str]):
+    for d in date_strings:
+        parsed = dateparser.parse(d)
+        if parsed:
+            return parsed.date()
+    return None
+
 
 def extract_booking_details(text: str) -> ParsedBookingDetails:
-    """Extract basic booking details from free-form text."""
+    """Extract booking details from free-form text using spaCy."""
 
     cleaned = text.strip()
     result = ParsedBookingDetails()
@@ -62,33 +76,49 @@ def extract_booking_details(text: str) -> ParsedBookingDetails:
         logger.debug("No text provided for NLP parsing")
         return result
 
-    # Date extraction using a simple pattern to avoid number conflicts
-    date_match = DATE_RE.search(cleaned)
-    if date_match:
-        try:
-            result.date = parser.parse(date_match.group(1), dayfirst=False).date()
-        except (ValueError, OverflowError) as exc:  # pragma: no cover - debug info
-            logger.debug("Date parsing failed: %s", exc)
+    nlp = _ensure_model()
+    doc = nlp(cleaned)
 
-    # Location heuristic
-    loc_match = LOCATION_RE.search(cleaned)
-    if loc_match:
-        result.location = loc_match.group(1).strip().title()
+    # Dates
+    date_texts: List[str] = []
+    for ent in doc.ents:
+        if ent.label_ == "DATE":
+            if ent.start > 0 and doc[ent.start - 1].like_num and doc[ent.start - 1].whitespace_:
+                date_texts.append(f"{doc[ent.start - 1].text} {ent.text}")
+            else:
+                date_texts.append(ent.text)
+    parsed_date = _extract_first_date(date_texts)
+    if parsed_date:
+        result.date = parsed_date
 
-    # Guest count heuristic
-    guest_match = GUEST_RE.search(cleaned)
-    if guest_match:
-        try:
-            result.guests = int(guest_match.group(1))
-        except ValueError:  # pragma: no cover - defensive
-            logger.debug("Invalid guest count detected: %s", guest_match.group(1))
+    # Locations
+    locations = [ent.text for ent in doc.ents if ent.label_ in {"GPE", "LOC"}]
+    if len(locations) == 1:
+        result.location = locations[0].strip().title()
+    elif len(locations) > 1:
+        logger.debug("Multiple locations detected; skipping: %s", locations)
+    else:
+        fallback = LOCATION_FALLBACK_RE.search(cleaned)
+        if fallback:
+            result.location = fallback.group(1).strip().title()
 
+    # Guest count
+    for i, token in enumerate(doc):
+        if token.like_num and i + 1 < len(doc):
+            if doc[i + 1].lemma_.lower() in {"guest", "people", "attendee"}:
+                try:
+                    result.guests = int(token.text)
+                except ValueError:  # pragma: no cover - defensive
+                    logger.debug("Invalid guest count detected: %s", token.text)
+                break
 
-    # Event type heuristic
-    if EVENT_RE:
-        event_match = EVENT_RE.search(cleaned)
-        if event_match:
-            result.event_type = _EVENT_LOOKUP[event_match.group(1).lower()]
+    # Event type via phrase matcher
+    if _EVENT_MATCHER:
+        matches = _EVENT_MATCHER(doc)
+        if matches:
+            match_id, start, end = matches[0]
+            event_text = doc[start:end].text.lower()
+            result.event_type = _EVENT_LOOKUP.get(event_text)
 
     return result
 

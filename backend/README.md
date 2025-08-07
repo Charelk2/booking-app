@@ -13,3 +13,27 @@ The API adds standard security headers to every response via
 Deployment configs such as the `Dockerfile` expose matching environment
 variables so reverse proxies or additional servers can mirror these
 headers.
+
+## NLP Booking
+
+The booking request parser uses the **spaCy** `en_core_web_sm` model to
+identify dates, locations, guest counts, and event types from natural
+language descriptions. The service lives in `app/services/nlp_booking.py`
+and is accessed via `/api/v1/booking-requests/parse`.
+
+### Dependencies
+
+The following packages were added to `requirements.txt`:
+
+- `spacy` (and the `en_core_web_sm` model)
+- `dateparser`
+
+Install the model after installing dependencies:
+
+```bash
+python -m spacy download en_core_web_sm
+```
+
+If the model fails to load, the API responds with `503` and logs the
+underlying error.
+
