@@ -21,6 +21,11 @@ identify dates, locations, guest counts, and event types from natural
 language descriptions. The service lives in `app/services/nlp_booking.py`
 and is accessed via `/api/v1/booking-requests/parse`.
 
+Common booking terms like event types and guest count labels are
+normalized with Python's `difflib` before spaCy parsing. This lightweight
+correction handles typos such as "frstival" → "Festival" or "guesds" →
+"guests" so malformed requests can still be parsed.
+
 ### Dependencies
 
 The following packages were added to `requirements.txt`:
