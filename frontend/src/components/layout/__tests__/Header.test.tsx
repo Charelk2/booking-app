@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import Header from '../Header';
-import { useRouter, usePathname, useSearchParams } from '@/tests/mocks/next-navigation';
+import { useSearchParams } from '@/tests/mocks/next-navigation';
 
 jest.mock('next/link', () => ({ __esModule: true, default: (props: Record<string, unknown>) => <a {...props} /> }));
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: jest.fn(() => ({ user: null, logout: jest.fn() })) }));
@@ -125,5 +125,32 @@ describe('Header', () => {
     act(() => root.unmount());
     div.remove();
     useSearchParams.mockReturnValue(new URLSearchParams());
+  });
+
+  it('sets CSS variable with header height on the document root', async () => {
+    const original = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'offsetHeight',
+    );
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      value: 80,
+    });
+    const { div, root } = render();
+    await act(async () => {
+      root.render(
+        <Header headerState="initial" onForceHeaderState={jest.fn()} />,
+      );
+    });
+    await flushPromises();
+    const value = document.documentElement.style.getPropertyValue(
+      '--header-height',
+    );
+    expect(value).toBe('80px');
+    act(() => root.unmount());
+    div.remove();
+    if (original) {
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', original);
+    }
   });
 });
