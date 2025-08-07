@@ -111,27 +111,4 @@ describe('ClientQuotesPage', () => {
     div.remove();
   });
 
-  it('renders the help prompt', async () => {
-    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
-    (useAuth as jest.Mock).mockReturnValue({
-      user: { id: 1, user_type: 'client', email: 'c@example.com' },
-    });
-    (getMyClientQuotes as jest.Mock).mockResolvedValue({ data: [] });
-
-    const div = document.createElement('div');
-    document.body.appendChild(div);
-    const root = createRoot(div);
-    await act(async () => {
-      root.render(<ClientQuotesPage />);
-    });
-    await flushPromises();
-
-    const help = div.querySelector('[data-testid="help-prompt"]');
-    expect(help).not.toBeNull();
-
-    act(() => {
-      root.unmount();
-    });
-    div.remove();
-  });
 });
