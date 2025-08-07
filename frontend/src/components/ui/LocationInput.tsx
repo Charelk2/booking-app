@@ -32,6 +32,8 @@ interface LocationInputProps {
 }
 
 // Use forwardRef to allow parent components to pass a ref to the internal input element
+export const AUTOCOMPLETE_LISTBOX_ID = 'autocomplete-options';
+
 const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
   (
     {
@@ -46,18 +48,21 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
     },
     ref,
   ) => {
-    const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
+    const [predictions, setPredictions] =
+      useState<google.maps.places.AutocompletePrediction[]>([]);
     const [isDropdownVisible, setDropdownVisible] = useState(false);
-    const [userLocation, setUserLocation] = useState<google.maps.LatLngLiteral | null>(null);
+    const [userLocation, setUserLocation] =
+      useState<google.maps.LatLngLiteral | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
     const [isPlacesReady, setIsPlacesReady] = useState(false);
+    const [liveMessage, setLiveMessage] = useState('');
     const containerRef = useRef<HTMLDivElement>(null); // For detecting outside clicks for the entire component
     const inputInternalRef = useRef<HTMLInputElement>(null); // Internal ref for the input element
 
     // Expose the internal input ref's direct DOM element methods (like .focus()) to the outside world
     useImperativeHandle(ref, () => inputInternalRef.current as HTMLInputElement, []);
 
-    const listboxId = 'autocomplete-options';
+    const listboxId = AUTOCOMPLETE_LISTBOX_ID;
 
     const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -193,7 +198,9 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
     };
 
     // ✅ Handle selecting a place (from click or keyboard Enter)
-    const handleSelect = (prediction: google.maps.places.AutocompletePrediction) => {
+    const handleSelect = (
+      prediction: google.maps.places.AutocompletePrediction,
+    ) => {
       setPredictions([]);
       setDropdownVisible(false);
 
@@ -215,7 +222,16 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
             if (status === google.maps.places.PlacesServiceStatus.OK && placeDetails) {
               onPlaceSelect(placeDetails as PlaceResult);
               onValueChange(
-                placeDetails.formatted_address || placeDetails.name || prediction.description,
+                placeDetails.formatted_address ||
+                  placeDetails.name ||
+                  prediction.description,
+              );
+              setLiveMessage(
+                `Location selected: ${
+                  placeDetails.formatted_address ||
+                  placeDetails.name ||
+                  prediction.description
+                }`,
               );
             } else {
               console.error('PlacesService.getDetails failed:', status);
@@ -224,12 +240,14 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
                 formatted_address: prediction.description,
               } as PlaceResult);
               onValueChange(prediction.description);
+              setLiveMessage(`Location selected: ${prediction.description}`);
             }
           },
         );
       } else {
         onPlaceSelect({ name: prediction.description, formatted_address: prediction.description } as PlaceResult);
         onValueChange(prediction.description);
+        setLiveMessage(`Location selected: ${prediction.description}`);
       }
     };
 
@@ -302,9 +320,14 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
             })}
           </div>
         )}
+        {liveMessage && (
+          <div aria-live="polite" className="sr-only">
+            {liveMessage}
+          </div>
+        )}
       </div>
     );
-  }
+  },
 );
 
 LocationInput.displayName = 'LocationInput';
