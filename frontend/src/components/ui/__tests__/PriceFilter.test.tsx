@@ -2,14 +2,8 @@ import React from 'react';
 import { act } from 'react-dom/test-utils';
 import { createRoot } from 'react-dom/client';
 import PriceFilter from '../PriceFilter';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams, useParams } from '@/tests/mocks/next-navigation';
 
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-  usePathname: jest.fn(),
-  useSearchParams: jest.fn(),
-  useParams: jest.fn(),
-}));
 
 jest.mock('rheostat', () => {
   // simple mock slider with two inputs
@@ -52,11 +46,12 @@ jest.mock('rheostat', () => {
 });
 
 const push = jest.fn();
-(useRouter as jest.Mock).mockReturnValue({ push });
-(usePathname as jest.Mock).mockReturnValue('/artists');
-(useSearchParams as jest.Mock).mockReturnValue({
+useRouter.mockReturnValue({ push });
+usePathname.mockReturnValue('/artists');
+useSearchParams.mockReturnValue({
   toString: () => '',
-});
+} as any);
+useParams.mockReturnValue({});
 
 afterEach(() => {
   document.body.innerHTML = '';

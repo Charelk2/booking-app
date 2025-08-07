@@ -5,15 +5,11 @@ import DashboardPage from '../page';
 import { flushPromises } from '@/test/utils/flush';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from '@/tests/mocks/next-navigation';
 import type { BookingRequest, User } from '@/types';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-  usePathname: jest.fn(() => '/dashboard/artist'),
-}));
 
 describe('DashboardPage booking request sort and filter', () => {
   let container: HTMLDivElement;
@@ -62,7 +58,8 @@ describe('DashboardPage booking request sort and filter', () => {
   ];
 
   beforeEach(async () => {
-    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    useRouter.mockReturnValue({ push: jest.fn() });
+    usePathname.mockReturnValue('/dashboard/artist');
     (useAuth as jest.Mock).mockReturnValue({ user: baseUser });
     (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
     (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [] });
