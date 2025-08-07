@@ -147,6 +147,12 @@ export default function MobileMenuDrawer({
                               : '/dashboard/client'
                           }
                           onClick={onClose}
+                          isActive={
+                            pathname ===
+                            (user.user_type === 'artist'
+                              ? '/dashboard/artist'
+                              : '/dashboard/client')
+                          }
                           className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                         >
                           Dashboard
@@ -157,6 +163,7 @@ export default function MobileMenuDrawer({
                           <NavLink
                             href="/dashboard/profile/edit"
                             onClick={onClose}
+                            isActive={pathname === '/dashboard/profile/edit'}
                             className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                           >
                             Edit Profile
@@ -168,6 +175,7 @@ export default function MobileMenuDrawer({
                           <NavLink
                             href="/dashboard/quotes"
                             onClick={onClose}
+                            isActive={pathname === '/dashboard/quotes'}
                             className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                           >
                             Quotes
@@ -179,6 +187,9 @@ export default function MobileMenuDrawer({
                           <NavLink
                             href="/dashboard/profile/quote-templates"
                             onClick={onClose}
+                            isActive={
+                              pathname === '/dashboard/profile/quote-templates'
+                            }
                             className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                           >
                             Quote Templates
@@ -190,6 +201,7 @@ export default function MobileMenuDrawer({
                           <NavLink
                             href="/dashboard/client/bookings"
                             onClick={onClose}
+                            isActive={pathname === '/dashboard/client/bookings'}
                             className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                           >
                             My Bookings
@@ -201,6 +213,7 @@ export default function MobileMenuDrawer({
                           <NavLink
                             href="/dashboard/client/quotes"
                             onClick={onClose}
+                            isActive={pathname === '/dashboard/client/quotes'}
                             className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                           >
                             My Quotes
@@ -212,6 +225,7 @@ export default function MobileMenuDrawer({
                           <NavLink
                             href="/account"
                             onClick={onClose}
+                            isActive={pathname === '/account'}
                             className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                           >
                             Account
@@ -240,6 +254,7 @@ export default function MobileMenuDrawer({
                         <NavLink
                           href="/login"
                           onClick={onClose}
+                          isActive={pathname === '/login'}
                           className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                         >
                           Sign in
@@ -249,6 +264,7 @@ export default function MobileMenuDrawer({
                         <NavLink
                           href="/register"
                           onClick={onClose}
+                          isActive={pathname === '/register'}
                           className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                         >
                           Sign up

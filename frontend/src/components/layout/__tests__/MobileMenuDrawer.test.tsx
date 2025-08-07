@@ -240,4 +240,42 @@ describe('MobileMenuDrawer', () => {
     );
     expect(links).toHaveLength(1);
   });
+
+  it('marks active account link for authenticated users', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose: () => {},
+          navigation: nav,
+          user: { user_type: 'artist' } as User,
+          logout: () => {},
+          pathname: '/dashboard/artist',
+        }),
+      );
+    });
+    await flushPromises();
+    const dashboardLink = document.querySelector(
+      'a[href="/dashboard/artist"]',
+    );
+    expect(dashboardLink?.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('marks active account link for unauthenticated users', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose: () => {},
+          navigation: nav,
+          user: null,
+          logout: () => {},
+          pathname: '/login',
+        }),
+      );
+    });
+    await flushPromises();
+    const signInLink = document.querySelector('a[href="/login"]');
+    expect(signInLink?.getAttribute('aria-current')).toBe('page');
+  });
 });
