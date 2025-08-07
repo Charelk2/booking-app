@@ -78,9 +78,9 @@ export default function SearchBar({
       let width = formRect.width; // Default popup width equals SearchBar width
       let height: number | undefined;
 
-      if (activeField === 'location') {
+      if (activeField === 'category') {
         width = formRect.width / 2; // Half width anchored left
-      } else if (activeField === 'category') {
+      } else if (activeField === 'location') {
         width = formRect.width / 2; // Half width anchored right
         left = formRect.left + window.scrollX + formRect.width / 2;
       }

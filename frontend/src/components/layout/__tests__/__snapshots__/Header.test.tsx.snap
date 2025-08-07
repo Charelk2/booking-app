@@ -273,27 +273,26 @@ exports[`Header matches compact snapshot with filter control 1`] = `
           class="flex flex-1 divide-x divide-gray-200"
         >
           <div
-            class="relative flex-1 min-w-0 transition-all duration-200 ease-out px-6 py-3 hover:bg-gray-50 focus-within:bg-gray-50"
+            class="relative flex-1 min-w-0"
           >
-            <span
-              class="text-sm text-gray-700 font-semibold pointer-events-none select-none"
+            <button
+              aria-controls="category-popup"
+              aria-expanded="false"
+              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-6 py-3 hover:bg-gray-50 focus:bg-gray-50"
+              id="category-search-button"
+              type="button"
             >
-              Where
-            </span>
-            <div
-              class="relative w-full w-full"
-            >
-              <input
-                aria-autocomplete="list"
-                aria-controls="autocomplete-options"
-                aria-expanded="false"
-                class="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none block truncate p-0 bg-transparent text-gray-500 text-base text-xs"
-                placeholder="Add location"
-                role="combobox"
-                type="text"
-                value=""
-              />
-            </div>
+              <span
+                class="text-sm text-gray-700 font-semibold  pointer-events-none select-none"
+              >
+                Category
+              </span>
+              <span
+                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
+              >
+                Add artist
+              </span>
+            </button>
           </div>
           <div
             class="border-l border-gray-200"
@@ -324,26 +323,27 @@ exports[`Header matches compact snapshot with filter control 1`] = `
             class="border-l border-gray-200"
           />
           <div
-            class="relative flex-1 min-w-0"
+            class="relative flex-1 min-w-0 transition-all duration-200 ease-out px-6 py-3 hover:bg-gray-50 focus-within:bg-gray-50"
           >
-            <button
-              aria-controls="category-popup"
-              aria-expanded="false"
-              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-6 py-3 hover:bg-gray-50 focus:bg-gray-50"
-              id="category-search-button"
-              type="button"
+            <span
+              class="text-sm text-gray-700 font-semibold pointer-events-none select-none"
             >
-              <span
-                class="text-sm text-gray-700 font-semibold  pointer-events-none select-none"
-              >
-                Category
-              </span>
-              <span
-                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
-              >
-                Add artist
-              </span>
-            </button>
+              Where
+            </span>
+            <div
+              class="relative w-full w-full"
+            >
+              <input
+                aria-autocomplete="list"
+                aria-controls="autocomplete-options"
+                aria-expanded="false"
+                class="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none block truncate p-0 bg-transparent text-gray-500 text-base text-xs"
+                placeholder="Add location"
+                role="combobox"
+                type="text"
+                value=""
+              />
+            </div>
           </div>
         </div>
         <button
@@ -652,27 +652,26 @@ exports[`Header renders search bar when enabled 1`] = `
           class="flex flex-1 divide-x divide-gray-200"
         >
           <div
-            class="relative flex-1 min-w-0 transition-all duration-200 ease-out px-6 py-3 hover:bg-gray-50 focus-within:bg-gray-50"
+            class="relative flex-1 min-w-0"
           >
-            <span
-              class="text-sm text-gray-700 font-semibold pointer-events-none select-none"
+            <button
+              aria-controls="category-popup"
+              aria-expanded="false"
+              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-6 py-3 hover:bg-gray-50 focus:bg-gray-50"
+              id="category-search-button"
+              type="button"
             >
-              Where
-            </span>
-            <div
-              class="relative w-full w-full"
-            >
-              <input
-                aria-autocomplete="list"
-                aria-controls="autocomplete-options"
-                aria-expanded="false"
-                class="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none block truncate p-0 bg-transparent text-gray-500 text-base text-xs"
-                placeholder="Add location"
-                role="combobox"
-                type="text"
-                value=""
-              />
-            </div>
+              <span
+                class="text-sm text-gray-700 font-semibold  pointer-events-none select-none"
+              >
+                Category
+              </span>
+              <span
+                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
+              >
+                Add artist
+              </span>
+            </button>
           </div>
           <div
             class="border-l border-gray-200"
@@ -703,26 +702,27 @@ exports[`Header renders search bar when enabled 1`] = `
             class="border-l border-gray-200"
           />
           <div
-            class="relative flex-1 min-w-0"
+            class="relative flex-1 min-w-0 transition-all duration-200 ease-out px-6 py-3 hover:bg-gray-50 focus-within:bg-gray-50"
           >
-            <button
-              aria-controls="category-popup"
-              aria-expanded="false"
-              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none px-6 py-3 hover:bg-gray-50 focus:bg-gray-50"
-              id="category-search-button"
-              type="button"
+            <span
+              class="text-sm text-gray-700 font-semibold pointer-events-none select-none"
             >
-              <span
-                class="text-sm text-gray-700 font-semibold  pointer-events-none select-none"
-              >
-                Category
-              </span>
-              <span
-                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
-              >
-                Add artist
-              </span>
-            </button>
+              Where
+            </span>
+            <div
+              class="relative w-full w-full"
+            >
+              <input
+                aria-autocomplete="list"
+                aria-controls="autocomplete-options"
+                aria-expanded="false"
+                class="w-full text-sm text-gray-700 placeholder-gray-400 bg-transparent focus:outline-none block truncate p-0 bg-transparent text-gray-500 text-base text-xs"
+                placeholder="Add location"
+                role="combobox"
+                type="text"
+                value=""
+              />
+            </div>
           </div>
         </div>
         <button
