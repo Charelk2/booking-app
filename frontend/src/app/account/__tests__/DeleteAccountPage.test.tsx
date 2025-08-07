@@ -4,10 +4,9 @@ import React from 'react';
 import { act } from 'react';
 import DeleteAccountPage from '../delete';
 import { deleteMyAccount } from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/tests/mocks/next-navigation';
 
 jest.mock('@/lib/api');
-jest.mock('next/navigation', () => ({ useRouter: jest.fn() }));
 jest.mock('@/components/layout/MainLayout', () => {
   const Mock = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
   Mock.displayName = 'MainLayout';
@@ -27,7 +26,7 @@ describe('DeleteAccountPage', () => {
 
   it('submits password and redirects', async () => {
     const push = jest.fn();
-    (useRouter as jest.Mock).mockReturnValue({ push });
+    useRouter.mockReturnValue({ push });
     (deleteMyAccount as jest.Mock).mockResolvedValue({});
     const div = document.createElement('div');
     const root = createRoot(div);

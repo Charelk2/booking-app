@@ -5,12 +5,10 @@ import { act } from 'react';
 import NotificationBell from '../NotificationBell';
 import useNotifications from '@/hooks/useNotifications';
 import useIsMobile from '@/hooks/useIsMobile';
+import { useRouter } from '@/tests/mocks/next-navigation';
 
 jest.mock('@/hooks/useNotifications');
 jest.mock('@/hooks/useIsMobile');
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-}));
 
 
 function setup() {
@@ -55,8 +53,7 @@ describe('NotificationBell accessibility', () => {
   it('navigates to notification link on click', async () => {
     const push = jest.fn();
     const markItem = jest.fn();
-    const { useRouter } = jest.requireMock('next/navigation');
-    (useRouter as jest.Mock).mockReturnValue({ push });
+    useRouter.mockReturnValue({ push });
     (useNotifications as jest.Mock).mockReturnValue({
       items: [
         {

@@ -3,11 +3,10 @@ import React from 'react';
 import { act } from 'react';
 import MessageThread from '../MessageThread';
 import * as api from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/tests/mocks/next-navigation';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 
 jest.mock('@/lib/api');
-jest.mock('next/navigation', () => ({ useRouter: jest.fn() }));
 jest.mock('@/hooks/useWebSocket', () => ({
   __esModule: true,
   default: () => ({ send: jest.fn(), onMessage: jest.fn() }),

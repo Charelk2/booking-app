@@ -3,17 +3,9 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import Header from '../Header';
+import { useRouter, usePathname, useSearchParams } from '@/tests/mocks/next-navigation';
 
 jest.mock('next/link', () => ({ __esModule: true, default: (props: Record<string, unknown>) => <a {...props} /> }));
-const mockUseSearchParams = jest.fn(() => new URLSearchParams());
-const mockUsePathname = jest.fn(() => '/');
-const mockUseRouter = jest.fn(() => ({ push: jest.fn() }));
-jest.mock('next/navigation', () => ({
-  ...jest.requireActual('next/navigation'),
-  useRouter: () => mockUseRouter(),
-  usePathname: () => mockUsePathname(),
-  useSearchParams: () => mockUseSearchParams(),
-}));
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: jest.fn(() => ({ user: null, logout: jest.fn() })) }));
 
 
@@ -79,7 +71,7 @@ describe('Header', () => {
   });
 
   it('initializes from query params', async () => {
-    mockUseSearchParams.mockReturnValue(
+    useSearchParams.mockReturnValue(
       new URLSearchParams(
         'category=Live%20Performance&location=Cape%20Town&when=2025-12-31',
       ),
@@ -96,7 +88,7 @@ describe('Header', () => {
     expect(div.textContent).toContain('Dec');
     act(() => root.unmount());
     div.remove();
-    mockUseSearchParams.mockReturnValue(new URLSearchParams());
+    useSearchParams.mockReturnValue(new URLSearchParams());
   });
 
   it('matches compact snapshot with filter control', async () => {
@@ -117,7 +109,7 @@ describe('Header', () => {
   });
 
   it('shows only street name in compact pill when location contains commas', async () => {
-    mockUseSearchParams.mockReturnValue(
+    useSearchParams.mockReturnValue(
       new URLSearchParams('location=123%20Main%20St%2C%20Cape%20Town%2C%20South%20Africa'),
     );
     const { div, root } = render();
@@ -132,6 +124,6 @@ describe('Header', () => {
     expect(trigger.textContent).not.toContain('Cape Town');
     act(() => root.unmount());
     div.remove();
-    mockUseSearchParams.mockReturnValue(new URLSearchParams());
+    useSearchParams.mockReturnValue(new URLSearchParams());
   });
 });
