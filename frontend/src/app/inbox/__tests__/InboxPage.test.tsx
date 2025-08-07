@@ -3,15 +3,10 @@ import React from 'react';
 import { act } from 'react';
 import InboxPage from '../page';
 import * as api from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from '@/tests/mocks/next-navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 jest.mock('@/lib/api');
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-  usePathname: jest.fn(() => '/inbox'),
-  useSearchParams: jest.fn(() => new URLSearchParams()),
-}));
 jest.mock('@/components/layout/MainLayout', () => {
   const Mock = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
   Mock.displayName = 'MockMainLayout';
@@ -34,7 +29,9 @@ jest.mock('@/hooks/useWebSocket', () => ({
 
 function setup(userType: 'client' | 'artist' = 'client', width = 1024) {
   window.innerWidth = width;
-  (useRouter as jest.Mock).mockReturnValue({ replace: jest.fn() });
+  useRouter.mockReturnValue({ replace: jest.fn() });
+  usePathname.mockReturnValue('/inbox');
+  useSearchParams.mockReturnValue(new URLSearchParams());
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: userType }, loading: false });
   (api.getMyBookingRequests as jest.Mock).mockResolvedValue({
     data: [

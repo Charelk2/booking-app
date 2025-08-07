@@ -5,33 +5,22 @@ import { act } from 'react';
 import MainLayout from '../MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import type { User } from '@/types';
+import { usePathname, useRouter, useSearchParams, useParams } from '@/tests/mocks/next-navigation';
 
 jest.mock('@/contexts/AuthContext');
 jest.mock('next/link', () => ({ __esModule: true, default: (props: Record<string, unknown>) => <a {...props} /> }));
-const mockUsePathname = jest.fn(() => '/');
-const mockUseParams = jest.fn(() => ({}));
-const mockUseSearchParams = jest.fn(() => new URLSearchParams());
-const mockUseRouter = jest.fn(() => ({}));
-
-jest.mock('next/navigation', () => ({
-  ...jest.requireActual('next/navigation'),
-  usePathname: () => mockUsePathname(),
-  useRouter: () => mockUseRouter(),
-  useSearchParams: () => mockUseSearchParams(),
-  useParams: () => mockUseParams(),
-}));
 
 
 describe('MainLayout header behavior', () => {
   afterEach(() => {
     jest.clearAllMocks();
-    mockUsePathname.mockReturnValue('/');
-    mockUseParams.mockReturnValue({});
-    mockUseSearchParams.mockReturnValue(new URLSearchParams());
+    usePathname.mockReturnValue('/');
+    useParams.mockReturnValue({});
+    useSearchParams.mockReturnValue(new URLSearchParams());
   });
 
   it('hides search bar on artist detail pages', async () => {
-    mockUsePathname.mockReturnValue('/artists/123');
+    usePathname.mockReturnValue('/artists/123');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, email: 'a@test.com', user_type: 'artist' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -47,7 +36,7 @@ describe('MainLayout header behavior', () => {
   });
 
   it('keeps search pill available on artists listing page', async () => {
-    mockUsePathname.mockReturnValue('/artists');
+    usePathname.mockReturnValue('/artists');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 3, email: 'c@test.com', user_type: 'client' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -64,7 +53,7 @@ describe('MainLayout header behavior', () => {
   });
 
   it('expands search bar when compact pill is clicked on artists listing page', async () => {
-    mockUsePathname.mockReturnValue('/artists');
+    usePathname.mockReturnValue('/artists');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 5, email: 'e@test.com', user_type: 'client' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -87,8 +76,8 @@ describe('MainLayout header behavior', () => {
   });
 
   it('initializes compact header when search params present', async () => {
-    mockUsePathname.mockReturnValue('/artists');
-    mockUseSearchParams.mockReturnValue(new URLSearchParams('category=Live%20Performance'));
+    usePathname.mockReturnValue('/artists');
+    useSearchParams.mockReturnValue(new URLSearchParams('category=Live%20Performance'));
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 7, email: 'q@test.com', user_type: 'client' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -104,8 +93,8 @@ describe('MainLayout header behavior', () => {
   });
 
   it('displays search values and filter control in compact pill on artists page', async () => {
-    mockUsePathname.mockReturnValue('/artists');
-    mockUseSearchParams.mockReturnValue(
+    usePathname.mockReturnValue('/artists');
+    useSearchParams.mockReturnValue(
       new URLSearchParams('category=Live%20Performance&location=Cape%20Town&when=2025-07-01'),
     );
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 8, email: 't@test.com', user_type: 'client' } as User, logout: jest.fn() });
@@ -132,8 +121,8 @@ describe('MainLayout header behavior', () => {
   });
 
   it('hides search bar outside home and artists pages', async () => {
-    mockUsePathname.mockReturnValue('/contact');
-    mockUseParams.mockReturnValue({});
+    usePathname.mockReturnValue('/contact');
+    useParams.mockReturnValue({});
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 4, email: 'd@test.com', user_type: 'client' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);

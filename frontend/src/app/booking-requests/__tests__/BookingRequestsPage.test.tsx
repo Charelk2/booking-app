@@ -5,15 +5,11 @@ import { act } from 'react';
 import BookingRequestsPage from '../page';
 import * as api from '@/lib/api';
 import useNotifications from '@/hooks/useNotifications';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from '@/tests/mocks/next-navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 jest.mock('@/lib/api');
 jest.mock('@/hooks/useNotifications');
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-  usePathname: jest.fn(() => '/booking-requests'),
-}));
 jest.mock('@/contexts/AuthContext');
 jest.mock('@/components/layout/MainLayout', () => {
   const Mock = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
@@ -25,7 +21,8 @@ jest.mock('@/components/layout/MainLayout', () => {
 function setup(markItem = jest.fn()) {
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client' } });
   const push = jest.fn();
-  (useRouter as jest.Mock).mockReturnValue({ push });
+  useRouter.mockReturnValue({ push });
+  usePathname.mockReturnValue('/booking-requests');
   (useNotifications as jest.Mock).mockReturnValue({
     items: [
       {

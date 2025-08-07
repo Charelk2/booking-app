@@ -5,14 +5,10 @@ import { act } from 'react';
 import ArtistBookingsPage from '../page';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from '@/tests/mocks/next-navigation';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-  usePathname: jest.fn(() => '/dashboard/bookings'),
-}));
 
 
 describe('ArtistBookingsPage', () => {
@@ -21,7 +17,8 @@ describe('ArtistBookingsPage', () => {
   });
 
   it('renders bookings list with quote links', async () => {
-    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    useRouter.mockReturnValue({ push: jest.fn() });
+    usePathname.mockReturnValue('/dashboard/bookings');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
     (api.getMyArtistBookings as jest.Mock).mockResolvedValue({
       data: [
@@ -56,7 +53,8 @@ describe('ArtistBookingsPage', () => {
   });
 
   it('allows status updates and calendar downloads', async () => {
-    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    useRouter.mockReturnValue({ push: jest.fn() });
+    usePathname.mockReturnValue('/dashboard/bookings');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
     const booking = {
       id: 1,

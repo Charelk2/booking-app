@@ -4,13 +4,9 @@ import { act } from 'react';
 import React from 'react';
 import ServiceDetailPage from '../page';
 import { getService, getServiceReviews } from '@/lib/api';
-import { useParams, usePathname } from 'next/navigation';
+import { useParams, usePathname } from '@/tests/mocks/next-navigation';
 
 jest.mock('@/lib/api');
-jest.mock('next/navigation', () => ({
-  useParams: jest.fn(),
-  usePathname: jest.fn(),
-}));
 
 
 describe('ServiceDetailPage', () => {
@@ -19,8 +15,8 @@ describe('ServiceDetailPage', () => {
   });
 
   it('fetches service and reviews', async () => {
-    (useParams as jest.Mock).mockReturnValue({ id: '1' });
-    (usePathname as jest.Mock).mockReturnValue('/services/1');
+    useParams.mockReturnValue({ id: '1' });
+    usePathname.mockReturnValue('/services/1');
     (getService as jest.Mock).mockResolvedValue({
       data: {
         id: 1,

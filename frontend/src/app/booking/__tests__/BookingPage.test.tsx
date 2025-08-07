@@ -4,14 +4,9 @@ import React from 'react';
 import { act } from 'react';
 import BookingPage from '../page';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from '@/tests/mocks/next-navigation';
 
 jest.mock('@/contexts/AuthContext');
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-  useSearchParams: jest.fn(),
-  usePathname: jest.fn(() => '/booking'),
-}));
 
 
 interface AuthValue {
@@ -21,8 +16,9 @@ interface AuthValue {
 
 function setup(authValue: AuthValue, searchParams: Record<string, string> = {}) {
   (useAuth as jest.Mock).mockReturnValue(authValue);
-  (useRouter as jest.Mock).mockReturnValue({ push: jest.fn(), pathname: '/booking' });
-  (useSearchParams as jest.Mock).mockReturnValue({
+  useRouter.mockReturnValue({ push: jest.fn(), pathname: '/booking' });
+  usePathname.mockReturnValue('/booking');
+  useSearchParams.mockReturnValue({
     get: (key: string) => searchParams[key] || null,
   });
   const container = document.createElement('div');
