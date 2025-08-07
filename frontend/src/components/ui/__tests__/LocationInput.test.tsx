@@ -59,7 +59,7 @@ describe('LocationInput', () => {
   });
 
   it('fetches predictions when typing before Places API loads', async () => {
-    let resolveLoader: (v: any) => void = () => {};
+    let resolveLoader: (v: unknown) => void = () => {};
     mockLoadPlaces.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
@@ -104,5 +104,62 @@ describe('LocationInput', () => {
       expect(mockGetPlacePredictions).toHaveBeenCalledTimes(1);
     });
     jest.useRealTimers();
+  });
+
+  it('supports keyboard navigation and retains hover styling', async () => {
+    mockGetPlacePredictions.mockImplementationOnce((_, cb) => {
+      cb([
+        {
+          description: 'Cape Town, South Africa',
+          structured_formatting: {
+            main_text: 'Cape Town',
+            secondary_text: 'South Africa',
+          },
+          place_id: '1',
+        },
+        {
+          description: 'Johannesburg, South Africa',
+          structured_formatting: {
+            main_text: 'Johannesburg',
+            secondary_text: 'South Africa',
+          },
+          place_id: '2',
+        },
+      ]);
+    });
+
+    const { default: LocationInput } = await import('../LocationInput');
+
+    const Wrapper = () => {
+      const [value, setValue] = React.useState('');
+      return (
+        <LocationInput
+          value={value}
+          onValueChange={setValue}
+          onPlaceSelect={jest.fn()}
+        />
+      );
+    };
+
+    const { getByRole, getAllByTestId } = render(<Wrapper />);
+    const input = getByRole('combobox');
+
+    jest.useFakeTimers();
+    fireEvent.change(input, { target: { value: 'South' } });
+    act(() => {
+      jest.advanceTimersByTime(350);
+    });
+    jest.useRealTimers();
+
+    await waitFor(() => {
+      expect(getAllByTestId('location-option').length).toBe(2);
+    });
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+
+    const options = getAllByTestId('location-option');
+    expect(options[0].getAttribute('aria-selected')).toBe('true');
+    expect(options[1].className).toContain('hover:bg-gray-50');
+    expect(options[0].className).toContain('min-h-[44px]');
   });
 });
