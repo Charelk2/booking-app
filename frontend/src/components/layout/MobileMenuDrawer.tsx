@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, type ComponentType, type SVGProps } from 'react';
+import { Fragment, type ComponentType, type SVGProps, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
@@ -18,15 +18,75 @@ interface MobileMenuDrawerProps {
   open: boolean;
   onClose: () => void;
   navigation: NavItem[];
-  /**
-   * Optional additional navigation items. Any links that duplicate the main
-   * `navigation` list are filtered out to avoid confusion in the drawer.
-   */
   secondaryNavigation?: NavItem[];
   user: User | null;
   logout: () => void;
   pathname: string;
 }
+
+const useMobileNavItems = (user: User | null): NavItem[] => {
+  return useMemo(() => {
+    if (!user) {
+      return [
+        { name: 'Sign in', href: '/login' },
+        { name: 'Sign up', href: '/register' },
+      ];
+    }
+    const accountLinks: NavItem[] = [
+      {
+        name: 'Dashboard',
+        href: user.user_type === 'artist' ? '/dashboard/artist' : '/dashboard/client',
+      },
+      { name: 'Sign out', href: '#' },
+    ];
+    if (user.user_type === 'artist') {
+      accountLinks.splice(1, 0,
+        { name: 'Edit Profile', href: '/dashboard/profile/edit' },
+        { name: 'Quotes', href: '/dashboard/quotes' },
+        { name: 'Quote Templates', href: '/dashboard/profile/quote-templates' }
+      );
+    } else if (user.user_type === 'client') {
+      accountLinks.splice(1, 0,
+        { name: 'My Bookings', href: '/dashboard/client/bookings' },
+        { name: 'My Quotes', href: '/dashboard/client/quotes' },
+        { name: 'Account', href: '/account' }
+      );
+    }
+    return accountLinks;
+  }, [user]);
+};
+
+interface NavigationSectionProps {
+  title: string;
+  items: NavItem[];
+  onClose: () => void;
+  pathname: string;
+}
+
+const NavigationSection = ({ title, items, onClose, pathname }: NavigationSectionProps) => (
+  <nav aria-label={title} className="mt-4 px-2">
+    <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase sr-only">
+      {title}
+    </h3>
+    <ul className="space-y-1">
+      {items.map((item) => (
+        <li key={item.name}>
+          <NavLink
+            href={item.href}
+            onClick={onClose}
+            isActive={pathname === item.href}
+            className="w-full border-l-4 text-base justify-start gap-3 px-2 py-2 rounded-md hover:bg-gray-100 transition-colors"
+          >
+            {item.icon && (
+              <item.icon className="h-5 w-5 text-gray-500" aria-hidden="true" />
+            )}
+            <span>{item.name}</span>
+          </NavLink>
+        </li>
+      ))}
+    </ul>
+  </nav>
+);
 
 export default function MobileMenuDrawer({
   open,
@@ -37,13 +97,13 @@ export default function MobileMenuDrawer({
   logout,
   pathname,
 }: MobileMenuDrawerProps) {
-  // Remove duplicates so the same link never appears twice
+  const accountLinks = useMobileNavItems(user);
   const extraNavigation = secondaryNavigation.filter(
     (item) => !navigation.some((nav) => nav.href === item.href),
   );
   return (
     <Transition.Root show={open} as={Fragment}>
-      <Dialog as="div" className="relative z-40" onClose={onClose}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -53,7 +113,7 @@ export default function MobileMenuDrawer({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" />
+          <div className="fixed inset-0 bg-gray-900/80 transition-opacity" />
         </Transition.Child>
         <div className="fixed inset-0 flex">
           <Transition.Child
@@ -66,214 +126,80 @@ export default function MobileMenuDrawer({
             leaveTo="-translate-x-full"
           >
             <Dialog.Panel
-              className="relative flex w-full max-w-xs flex-col overflow-y-auto bg-background pt-safe pb-safe shadow-xl"
+              className="relative flex w-full max-w-xs flex-1 flex-col bg-white overflow-y-auto pt-safe pb-safe shadow-xl"
               style={{
                 paddingBottom:
                   'calc(var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom))',
               }}
             >
-              <div className="flex items-center justify-between px-4 pt-4">
-                <Dialog.Title className="text-lg font-medium">Menu</Dialog.Title>
+              <div className="flex items-center px-4 py-4 border-b border-gray-200 sticky top-0 bg-white z-10">
                 <button
                   type="button"
                   onClick={onClose}
                   aria-label="Close menu"
                   className={clsx(
                     navItemClasses,
-                    'rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                    'p-2 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
                   )}
                 >
                   <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                 </button>
+                <Dialog.Title className="ml-2 text-xl font-bold text-gray-900">
+                  Menu
+                </Dialog.Title>
               </div>
-              <nav aria-label="Explore" className="mt-4 px-2">
-                <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase">Explore</h3>
-                <ul className="mt-2 space-y-1">
-                  {navigation.map((item) => (
-                    <li key={item.name}>
-                      <NavLink
-                        href={item.href}
-                        onClick={onClose}
-                        isActive={pathname === item.href}
-                        className="w-full border-l-4 text-base justify-start gap-3"
-                      >
-                        {item.icon && (
-                          <item.icon className="h-5 w-5" aria-hidden="true" />
-                        )}
-                        <span>{item.name}</span>
-                      </NavLink>
-                    </li>
-                  ))}
-                </ul>
-              </nav>
-              {extraNavigation.length > 0 && (
-                <nav
-                  aria-label="More"
-                  className="mt-4 border-t border-gray-200 pt-4 px-2"
-                >
-                  <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase">More</h3>
-                  <ul className="mt-2 space-y-1">
-                    {extraNavigation.map((item) => (
+              <div className="flex-1 px-2">
+                <NavigationSection
+                  title="Explore"
+                  items={navigation}
+                  onClose={onClose}
+                  pathname={pathname}
+                />
+                {extraNavigation.length > 0 && (
+                  <div className="mt-4 border-t border-gray-200 pt-4">
+                    <NavigationSection
+                      title="More"
+                      items={extraNavigation}
+                      onClose={onClose}
+                      pathname={pathname}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="mt-auto border-t border-gray-200 pt-4 px-2">
+                <nav aria-label="Account" className="pb-safe">
+                  <ul className="space-y-1">
+                    {accountLinks.map((item) => (
                       <li key={item.name}>
-                        <NavLink
-                          href={item.href}
-                          onClick={onClose}
-                          isActive={pathname === item.href}
-                          className="w-full border-l-4 text-base justify-start gap-3"
-                        >
-                          {item.icon && (
-                            <item.icon className="h-5 w-5" aria-hidden="true" />
-                          )}
-                          <span>{item.name}</span>
-                        </NavLink>
+                        {item.name === 'Sign out' ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              logout();
+                              onClose();
+                            }}
+                            className={clsx(
+                              navItemClasses,
+                              'w-full text-left text-base text-gray-700 hover:bg-gray-100 hover:text-red-600 px-2 py-2 rounded-md',
+                            )}
+                          >
+                            Sign out
+                          </button>
+                        ) : (
+                          <NavLink
+                            href={item.href}
+                            onClick={onClose}
+                            isActive={pathname === item.href}
+                            className="w-full border-l-4 text-base justify-start gap-3 px-2 py-2 rounded-md hover:bg-gray-100 transition-colors"
+                          >
+                            <span>{item.name}</span>
+                          </NavLink>
+                        )}
                       </li>
                     ))}
                   </ul>
                 </nav>
-              )}
-              <nav
-                aria-label="Account"
-                className="mt-4 border-t border-gray-200 pt-4 px-2"
-              >
-                <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase">Account</h3>
-                <ul className="mt-2 space-y-1">
-                  {user ? (
-                    <>
-                      <li>
-                        <NavLink
-                          href={
-                            user.user_type === 'artist'
-                              ? '/dashboard/artist'
-                              : '/dashboard/client'
-                          }
-                          onClick={onClose}
-                          isActive={
-                            pathname ===
-                            (user.user_type === 'artist'
-                              ? '/dashboard/artist'
-                              : '/dashboard/client')
-                          }
-                          className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                        >
-                          Dashboard
-                        </NavLink>
-                      </li>
-                      {user.user_type === 'artist' && (
-                        <li>
-                          <NavLink
-                            href="/dashboard/profile/edit"
-                            onClick={onClose}
-                            isActive={pathname === '/dashboard/profile/edit'}
-                            className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                          >
-                            Edit Profile
-                          </NavLink>
-                        </li>
-                      )}
-                      {user.user_type === 'artist' && (
-                        <li>
-                          <NavLink
-                            href="/dashboard/quotes"
-                            onClick={onClose}
-                            isActive={pathname === '/dashboard/quotes'}
-                            className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                          >
-                            Quotes
-                          </NavLink>
-                        </li>
-                      )}
-                      {user.user_type === 'artist' && (
-                        <li>
-                          <NavLink
-                            href="/dashboard/profile/quote-templates"
-                            onClick={onClose}
-                            isActive={
-                              pathname === '/dashboard/profile/quote-templates'
-                            }
-                            className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                          >
-                            Quote Templates
-                          </NavLink>
-                        </li>
-                      )}
-                      {user.user_type === 'client' && (
-                        <li>
-                          <NavLink
-                            href="/dashboard/client/bookings"
-                            onClick={onClose}
-                            isActive={pathname === '/dashboard/client/bookings'}
-                            className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                          >
-                            My Bookings
-                          </NavLink>
-                        </li>
-                      )}
-                      {user.user_type === 'client' && (
-                        <li>
-                          <NavLink
-                            href="/dashboard/client/quotes"
-                            onClick={onClose}
-                            isActive={pathname === '/dashboard/client/quotes'}
-                            className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                          >
-                            My Quotes
-                          </NavLink>
-                        </li>
-                      )}
-                      {user.user_type === 'client' && (
-                        <li>
-                          <NavLink
-                            href="/account"
-                            onClick={onClose}
-                            isActive={pathname === '/account'}
-                            className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                          >
-                            Account
-                          </NavLink>
-                        </li>
-                      )}
-                      <li>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            logout();
-                            onClose();
-                          }}
-                          className={clsx(
-                            navItemClasses,
-                            'block w-full text-left text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900',
-                          )}
-                        >
-                          Sign out
-                        </button>
-                      </li>
-                    </>
-                  ) : (
-                    <>
-                      <li>
-                        <NavLink
-                          href="/login"
-                          onClick={onClose}
-                          isActive={pathname === '/login'}
-                          className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                        >
-                          Sign in
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink
-                          href="/register"
-                          onClick={onClose}
-                          isActive={pathname === '/register'}
-                          className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                        >
-                          Sign up
-                        </NavLink>
-                      </li>
-                    </>
-                  )}
-                </ul>
-              </nav>
+              </div>
             </Dialog.Panel>
           </Transition.Child>
         </div>

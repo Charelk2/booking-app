@@ -98,13 +98,13 @@ export default function Footer() {
   return (
     <footer className="bg-gradient-to-t from-brand-light/50 to-gray-50 border-t border-gray-200">
       <div className="mx-auto max-w-7xl px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           <div className="space-y-4">
-            <Link href="/" className="block text-xl font-bold text-brand-dark">
+            <Link href="/" className="block text-3xl font-bold text-brand-dark">
               Booka.co.za
             </Link>
-            <p className="text-sm text-gray-600">
-              With us, planners have the confidence to bring their events to life, while entertainers and event professionals enjoy quality leads and more opportunities to do what they love.
+            <p className="text-md text-gray-600">
+              With us, <b>planners have the confidence to bring their events to life</b>, while entertainers and event professionals enjoy quality leads and more opportunities to do what they love.
             </p>
             <div className="flex space-x-4">
               {social.map(({ name, href, icon: Icon }) => (
@@ -120,7 +120,7 @@ export default function Footer() {
             </div>
           </div>
 
-          <nav className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-8">
+          <nav className="md:col-span-2 md:ml-auto md:w-fit grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-8">
             {navigation.map((section) => (
               <div key={section.title}>
                 <h3 className="text-sm font-semibold text-brand-dark">
