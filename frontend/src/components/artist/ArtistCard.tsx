@@ -2,7 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type { HTMLAttributes } from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import {
@@ -69,6 +69,14 @@ export default function ArtistCard({
   const maxTags = 2;
   const limitedTags = tags.slice(0, maxTags);
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [supportsHover, setSupportsHover] = useState(true);
+
+  // Detect touch devices so the overlay can rely on tap rather than hover
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setSupportsHover(!window.matchMedia('(hover: none)').matches);
+    }
+  }, []);
 
   return (
     <motion.div
@@ -109,11 +117,17 @@ export default function ArtistCard({
             />
           )}
           <div
-            className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition"
+            className={clsx(
+              'absolute inset-0 flex items-center justify-center bg-black/60',
+              supportsHover
+                ? 'opacity-0 group-hover:opacity-100 transition'
+                : 'opacity-100 pointer-events-none',
+            )}
+            // On touch screens, show the CTA without relying on hover
           >
             <button
               type="button"
-              className="text-sm bg-brand text-white px-4 py-1.5 rounded-md focus:outline-none focus-visible:ring"
+              className="pointer-events-auto text-sm bg-brand text-white px-4 py-1.5 rounded-md focus:outline-none focus-visible:ring"
             >
               Book Now
             </button>
