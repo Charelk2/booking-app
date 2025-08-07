@@ -77,7 +77,8 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       label: string,
       currentValue: string | JSX.Element,
       buttonRef: React.RefObject<HTMLButtonElement>,
-      onClear: () => void // Function to clear the specific field
+      onClear: () => void, // Function to clear the specific field
+      additionalClasses?: string // Add an optional parameter for custom classes
     ) => {
       const isActive = activeField === id;
       // Adjusted isValuePresent logic for clarity and consistency across all placeholders
@@ -99,7 +100,8 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
               compact ? 'px-4 py-2' : 'px-6 py-3',
               isActive
                 ? 'bg-gray-100 shadow-md'
-                : 'hover:bg-gray-50 focus:bg-gray-50 rounded-l-full'
+                : 'hover:bg-gray-200 focus:bg-gray-50', // Removed rounded-l-full here
+              additionalClasses // Apply any additional classes passed in
             )}
             aria-expanded={isActive}
             aria-controls={`${id}-popup`}
@@ -151,13 +153,14 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
-    <div ref={ref} className="flex flex-1 divide-x divide-gray-200">
+    <div ref={ref} className="flex flex-1 divide-x divide-gray-200 rounded-full">
       {renderField(
         'category',
         'Category',
         category ? category.label : 'Add artist',
         categoryButtonRef,
-        () => setCategory(null)
+        () => setCategory(null),
+        'hover:rounded-l-full' // Pass rounded-l-full as an additional class
       )}
 
       <div className="border-l border-gray-200" />
@@ -176,11 +179,11 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       <div
         ref={locationContainerRef}
         className={clsx(
-          'relative min-w-0 transition-all duration-200 ease-out',
+          'relative min-w-0 transition-all duration-200 ease-out', 
           compact ? 'px-4 py-2' : 'px-6 py-3',
           activeField === 'location'
             ? 'bg-gray-100 shadow-md'
-            : 'hover:bg-gray-50 focus:bg-gray-50',
+            : 'hover:bg-gray-200 focus:bg-gray-50',
         )}
         onFocus={() => onFieldClick('location', locationContainerRef.current!)}
         onClick={() => locationInputRef.current?.focus()}
