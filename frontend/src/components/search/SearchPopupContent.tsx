@@ -108,7 +108,8 @@ export default function SearchPopupContent({
             Suggested destinations
           </h3>
           {/* Enable vertical scrolling when suggestions exceed container height */}
-          <ul className="grid grid-cols-2 gap-4 max-h-[300px] overflow-y-auto scrollbar-thin">
+          {/* Use a single column on small screens and limit height to half the viewport */}
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto scrollbar-thin">
             {MOCK_LOCATION_SUGGESTIONS.map((s) => (
               <li
                 key={s.name}
@@ -270,7 +271,8 @@ export default function SearchPopupContent({
       <p className="text-sm">Click &quot;Where&quot;, &quot;When&quot;, or &quot;Category&quot; to start.</p>
       <div className="mt-6">
         <h4 className="text-md font-semibold text-gray-700 mb-3">Popular Artist Locations</h4>
-        <ul className="grid grid-cols-2 gap-4">
+        {/* Responsive grid: stack suggestions on small screens */}
+        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {MOCK_LOCATION_SUGGESTIONS.slice(0, 4).map((s) => (
             <li
               key={`default-${s.name}`}
