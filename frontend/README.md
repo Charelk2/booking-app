@@ -37,6 +37,7 @@ Primary, secondary and outline buttons now use the brand color for borders and b
 See [../docs/design_guidelines.md](../docs/design_guidelines.md) for a summary of spacing, typography and component styles.
 
 [STYLE_GUIDE.md](STYLE_GUIDE.md) documents Tailwind breakpoints, CSS variables and UI patterns like `CollapsibleSection` and `BottomSheet`. Update it whenever major UI changes are introduced.
+`BottomSheet` accepts a `title` prop that renders an accessible heading via `Dialog.Title` and links to `aria-labelledby`.
 
 ### Responsive Breakpoints
 
