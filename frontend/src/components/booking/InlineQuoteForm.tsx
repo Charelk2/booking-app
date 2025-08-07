@@ -145,7 +145,7 @@ const InlineQuoteForm: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="flex flex-col space-y-6">
+        <div className="flex flex-col space-y-4 text-xs">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h4 className="text-sm font-semibold">Review &amp; Adjust Quote</h4>
             {onDecline && (
@@ -162,14 +162,14 @@ const InlineQuoteForm: React.FC<Props> = ({
             <span>Quote No: {quoteNumber}</span>
             <span className="ml-4">Date: {currentDate}</span>
           </div>
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div>
-              <label htmlFor="template-select" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="template-select" className="block text-xs font-medium text-gray-700 mb-1">
                 Choose a template
               </label>
               <select
                 id="template-select"
-                className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                className="w-full p-2 border border-gray-300 rounded-lg text-xs"
                 value={selectedTemplate}
                 onChange={(e) => setSelectedTemplate(e.target.value ? Number(e.target.value) : '')}
               >
@@ -191,7 +191,7 @@ const InlineQuoteForm: React.FC<Props> = ({
                 id="quote-description"
                 type="text"
                 placeholder="Quote Description (e.g., 'Wedding Performance')"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 text-base shadow-sm"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 text-sm shadow-sm"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -200,9 +200,9 @@ const InlineQuoteForm: React.FC<Props> = ({
               </p>
             </div>
 
-            <h3 className="text-xl font-bold text-gray-900">Estimated Cost</h3>
-            <div className="space-y-2 text-gray-700">
-          <div className="flex justify-between items-center py-2">
+            <h3 className="text-sm font-semibold text-gray-900">Estimated Cost</h3>
+            <div className="space-y-1 text-gray-700">
+          <div className="flex justify-between items-center py-1">
             <span className="font-medium">Artist Base Fee</span>
             <input
               type="number"
@@ -214,7 +214,7 @@ const InlineQuoteForm: React.FC<Props> = ({
             />
           </div>
 
-          <div className="flex justify-between items-center py-2">
+          <div className="flex justify-between items-center py-1">
             <span className="flex items-center group font-medium">
               Travel
               <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
@@ -234,7 +234,7 @@ const InlineQuoteForm: React.FC<Props> = ({
             />
           </div>
 
-          <div className="flex justify-between items-center py-2">
+          <div className="flex justify-between items-center py-1">
             <span className="flex items-center group font-medium">
               Sound Equipment
               <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
@@ -255,17 +255,17 @@ const InlineQuoteForm: React.FC<Props> = ({
           </div>
 
           {services.map((s, i) => (
-            <div key={i} className="flex justify-between items-center py-2 gap-2">
+            <div key={i} className="flex justify-between items-center py-1 gap-2">
               <input
                 type="text"
-                className="flex-1 p-1 rounded border border-gray-300 text-sm"
+                className="flex-1 p-1 rounded border border-gray-300 text-xs"
                 placeholder="Custom Item Description"
                 value={s.description}
                 onChange={(e) => updateService(i, 'description', e.target.value)}
               />
               <input
                 type="number"
-                className="w-28 p-1 text-right rounded border border-gray-300 text-sm"
+                className="w-28 p-1 text-right rounded border border-gray-300 text-xs"
                 inputMode="numeric"
                 placeholder="0.00"
                 value={s.price}
@@ -285,12 +285,12 @@ const InlineQuoteForm: React.FC<Props> = ({
           <button
             type="button"
             onClick={addService}
-            className="w-full bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors mt-2"
+            className="w-full bg-gray-100 text-gray-700 font-semibold py-1 px-2 rounded-lg hover:bg-gray-200 transition-colors mt-1 text-xs"
           >
             + Add Custom Item
           </button>
 
-          <div className="flex justify-between items-center py-2">
+          <div className="flex justify-between items-center py-1">
             <span className="font-medium">Discount (optional)</span>
             <input
               type="number"
@@ -311,16 +311,16 @@ const InlineQuoteForm: React.FC<Props> = ({
             <span>Taxes & Fees (Est.)</span>
             <span>{formatCurrency(taxesFees)}</span>
           </div>
-          <div className="flex justify-between text-xl font-bold text-gray-900 border-t pt-3 mt-3">
+          <div className="flex justify-between text-sm font-bold text-gray-900 border-t pt-3 mt-3">
             <span>Estimated Total</span>
             <span>{formatCurrency(estimatedTotal)}</span>
           </div>
 
-          <div className="flex justify-between items-center py-2">
+          <div className="flex justify-between items-center py-1">
             <span className="font-medium">Expires in:</span>
             <select
               id="expires-hours"
-              className="w-32 p-1 rounded border border-gray-300 text-sm"
+              className="w-32 p-1 rounded border border-gray-300 text-xs"
               value={expiresHours ?? ''}
               onChange={(e) => setExpiresHours(e.target.value ? Number(e.target.value) : null)}
             >
@@ -333,10 +333,10 @@ const InlineQuoteForm: React.FC<Props> = ({
             </select>
           </div>
 
-          <div className="flex flex-col py-2">
+          <div className="flex flex-col py-1">
             <span className="font-medium mb-1">Accommodation (optional)</span>
             <textarea
-              className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full p-1 border border-gray-300 rounded-lg text-xs"
               placeholder="E.g., '1 night hotel stay: $150'"
               value={accommodation}
               onChange={(e) => setAccommodation(e.target.value)}
@@ -350,7 +350,7 @@ const InlineQuoteForm: React.FC<Props> = ({
             id="terms"
             className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
           />
-          <label htmlFor="terms" className="text-sm text-gray-600">
+          <label htmlFor="terms" className="text-xs text-gray-600">
             I have reviewed the quote and agree to the{' '}
             <a href="#" className="text-blue-600 hover:underline">
               terms of service
