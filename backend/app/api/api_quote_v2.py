@@ -28,12 +28,12 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
         logger.info(
             "Created quote %s for booking request %s",
             quote.id,
-            quote_in.booking_request_id,
+            quote.booking_request_id,
         )
         crud_message.create_message(
             db=db,
-            booking_request_id=quote_in.booking_request_id,
-            sender_id=quote_in.artist_id,
+            booking_request_id=quote.booking_request_id,
+            sender_id=quote.artist_id,
             sender_type=models.SenderType.ARTIST,
             content="Artist sent a quote",
             message_type=models.MessageType.QUOTE,
@@ -45,24 +45,38 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
         detail_content = f"Quote sent with total {quote.total}"
         crud_message.create_message(
             db=db,
-            booking_request_id=quote_in.booking_request_id,
-            sender_id=quote_in.artist_id,
+            booking_request_id=quote.booking_request_id,
+            sender_id=quote.artist_id,
             sender_type=models.SenderType.ARTIST,
             content=detail_content,
             message_type=models.MessageType.SYSTEM,
             attachment_url=None,
         )
-        client = db.query(models.User).filter(models.User.id == quote_in.client_id).first()
-        artist = db.query(models.User).filter(models.User.id == quote_in.artist_id).first()
-        if client and artist:
-            notify_user_new_message(
-                db,
-                client,
-                artist,
-                quote_in.booking_request_id,
-                "Artist sent a quote",
-                models.MessageType.QUOTE,
+        booking_request = (
+            db.query(models.BookingRequest)
+            .filter(models.BookingRequest.id == quote.booking_request_id)
+            .first()
+        )
+        if booking_request:
+            client = (
+                db.query(models.User)
+                .filter(models.User.id == booking_request.client_id)
+                .first()
             )
+            artist = (
+                db.query(models.User)
+                .filter(models.User.id == booking_request.artist_id)
+                .first()
+            )
+            if client and artist:
+                notify_user_new_message(
+                    db,
+                    client,
+                    artist,
+                    quote.booking_request_id,
+                    "Artist sent a quote",
+                    models.MessageType.QUOTE,
+                )
         return quote
     except HTTPException:
         raise

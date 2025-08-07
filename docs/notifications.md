@@ -33,3 +33,7 @@ Artists sending a quote or declining a booking request now generate a new
 message notification for the client. These alerts also link to
 `/inbox?requestId={id}` so clients can immediately view the conversation where
 the action occurred.
+
+For quote notifications, the backend derives the artist and client from the
+associated booking request, so the alert is delivered even if the quote payload
+omits or mislabels those IDs.

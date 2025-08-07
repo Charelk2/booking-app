@@ -20,6 +20,7 @@ from app.models.base import BaseModel
 from fastapi import HTTPException
 from app.api import api_quote_v2
 from app import models
+from app.crud import crud_notification
 from app.schemas.quote_v2 import ServiceItem, QuoteCreate
 
 
@@ -974,3 +975,66 @@ def test_decline_quote():
     assert declined.status == models.QuoteStatusV2.REJECTED
     msgs = db.query(Message).all()
     assert any(m.content == "Quote declined." for m in msgs)
+
+
+def test_create_quote_notifies_client_when_ids_missing():
+    """Quote creation sends a new message notification using booking request IDs."""
+    db = setup_db()
+
+    artist = User(
+        email="nartist@test.com",
+        password="x",
+        first_name="A",
+        last_name="R",
+        user_type=UserType.ARTIST,
+    )
+    client = User(
+        email="nclient@test.com",
+        password="x",
+        first_name="C",
+        last_name="L",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist, client])
+    db.commit()
+    db.refresh(artist)
+    db.refresh(client)
+
+    service = Service(
+        artist_id=artist.id,
+        title="Show",
+        description="test",
+        price=Decimal("50"),
+        currency="ZAR",
+        duration_minutes=60,
+        service_type="Live Performance",
+    )
+    db.add(service)
+    db.commit()
+    db.refresh(service)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        service_id=service.id,
+        status=BookingStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    quote_in = QuoteCreate(
+        booking_request_id=br.id,
+        artist_id=artist.id,
+        client_id=0,  # intentionally incorrect
+        services=[ServiceItem(description="Performance", price=Decimal("50"))],
+        sound_fee=Decimal("0"),
+        travel_fee=Decimal("0"),
+    )
+    api_quote_v2.create_quote(quote_in, db)
+
+    notifs = crud_notification.get_notifications_for_user(db, client.id)
+    assert any(
+        n.type == models.NotificationType.NEW_MESSAGE and "Artist sent a quote" in n.message
+        for n in notifs
+    )
