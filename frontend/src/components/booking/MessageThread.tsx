@@ -38,7 +38,6 @@ import InlineQuoteForm from './InlineQuoteForm';
 import useWebSocket from '@/hooks/useWebSocket';
 import { format, isValid } from 'date-fns';
 import Countdown from './Countdown';
-import QuoteReviewModal from './QuoteReviewModal';
 import { useRouter } from 'next/navigation';
 
 
@@ -148,8 +147,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [bookingDetails, setBookingDetails] = useState<Booking | null>(null);
     const [parsedBookingDetails, setParsedBookingDetails] = useState<ParsedBookingDetails | undefined>();
     const [threadError, setThreadError] = useState<string | null>(null);
-    const [reviewQuote, setReviewQuote] = useState<QuoteV2 | null>(null);
-    const [showReviewModal, setShowReviewModal] = useState(false);
     const [wsFailed, setWsFailed] = useState(false);
     const [bookingConfirmed, setBookingConfirmed] = useState(false);
     const [uploadingProgress, setUploadingProgress] = useState(0);
@@ -482,6 +479,9 @@ useEffect(() => {
           msg.content.trim().length > 0 &&
           !(normalizeType(msg.message_type) === 'SYSTEM' &&
             msg.content.startsWith(BOOKING_DETAILS_PREFIX)) &&
+          !(normalizeType(msg.message_type) === 'SYSTEM' &&
+            msg.action === 'review_quote' &&
+            (Number.isNaN(qid) || qid <= 0)) &&
           !(
             normalizeType(msg.message_type) === 'SYSTEM' &&
             msg.action === 'review_quote' &&
@@ -671,21 +671,6 @@ useEffect(() => {
         }
       },
       [setQuotes, setThreadError],
-    );
-
-    const openReviewModal = useCallback(
-      async (quoteId: number | undefined) => {
-        if (!quoteId) return;
-        try {
-          const res = await getQuoteV2(quoteId);
-          setReviewQuote(res.data);
-          setShowReviewModal(true);
-        } catch (err: unknown) {
-          console.error('Failed to load quote for review:', err);
-          setThreadError('Failed to load quote. Please try again.');
-        }
-      },
-      [setShowReviewModal, setReviewQuote, setThreadError],
     );
 
     return (
@@ -880,39 +865,24 @@ useEffect(() => {
                       );
                     }
 
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`relative inline-block w-auto max-w-[75%] px-3 py-1.5 text-xs font-normal leading-snug shadow-sm ${bubbleClasses} ${msgIdx < group.messages.length - 1 ? 'mb-0.5' : ''} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'}`}
-                        ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
-                      >
-                        <div className="pr-10">
-                          {msg.sender_id !== user?.id && !msg.is_read && (
-                            <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" aria-label="Unread message" />
-                          )}
-                          {normalizeType(msg.message_type) === 'SYSTEM' && msg.action ? (
-                            msg.action === 'review_quote' ? (
-                              <>
-                                <Button
-                                  type="button"
-                                  onClick={() =>
-                                    msg.visible_to === 'artist'
-                                      ? setShowQuoteModal(true)
-                                      : openReviewModal(msg.quote_id)
-                                  }
-                                  className="text-xs text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
-                                >
-                                  {msg.visible_to === 'artist'
-                                    ? 'Review & Send Quote'
-                                    : 'Review & Accept Quote'}
-                                </Button>
-                                {msg.expires_at && (
-                                  <div className="mt-1 text-[10px] text-gray-500">
-                                    <Countdown expiresAt={msg.expires_at} />
-                                  </div>
-                                )}
-                              </>
-                            ) : msg.action === 'view_booking_details' ? (
+                      if (
+                        normalizeType(msg.message_type) === 'SYSTEM' &&
+                        msg.action === 'review_quote'
+                      ) {
+                        return null;
+                      }
+
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`relative inline-block w-auto max-w-[75%] px-3 py-1.5 text-xs font-normal leading-snug shadow-sm ${bubbleClasses} ${msgIdx < group.messages.length - 1 ? 'mb-0.5' : ''} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'}`}
+                          ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
+                        >
+                          <div className="pr-10">
+                            {msg.sender_id !== user?.id && !msg.is_read && (
+                              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" aria-label="Unread message" />
+                            )}
+                            {normalizeType(msg.message_type) === 'SYSTEM' && msg.action === 'view_booking_details' ? (
                               <Button
                                 type="button"
                                 onClick={() => {
@@ -929,39 +899,36 @@ useEffect(() => {
                               </Button>
                             ) : (
                               msg.content
-                            )
-                          ) : (
-                            msg.content
-                          )}
-                          {msg.attachment_url && (
-                            <a
-                              href={msg.attachment_url}
-                              target="_blank"
-                              className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
-                              rel="noopener noreferrer"
+                            )}
+                            {msg.attachment_url && (
+                              <a
+                                href={msg.attachment_url}
+                                target="_blank"
+                                className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
+                                rel="noopener noreferrer"
+                              >
+                                View attachment
+                              </a>
+                            )}
+                          </div>
+                          {/* Timestamp and Read Receipts - positioned absolutely within the bubble */}
+                          <div className="absolute bottom-0.5 right-1.5 flex items-center space-x-0.5 text-[9px] text-right text-gray-400">
+                            <time
+                              dateTime={msg.timestamp}
+                              title={new Date(msg.timestamp).toLocaleString()}
                             >
-                              View attachment
-                            </a>
-                          )}
-                        </div>
-                        {/* Timestamp and Read Receipts - positioned absolutely within the bubble */}
-                        <div className="absolute bottom-0.5 right-1.5 flex items-center space-x-0.5 text-[9px] text-right text-gray-400">
-                          <time
-                            dateTime={msg.timestamp}
-                            title={new Date(msg.timestamp).toLocaleString()}
-                          >
-                            {messageTime}
-                          </time>
-                          {isMsgFromSelf && (
-                            <div className="flex-shrink-0">
+                              {messageTime}
+                            </time>
+                            {isMsgFromSelf && (
+                              <div className="flex-shrink-0">
                                 <DoubleCheckmarkIcon
                                   className={`h-5 w-5 ${msg.is_read ? 'text-blue-500' : 'text-gray-400'} -ml-[8px]`}
                                 />
-                            </div>
-                          )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
+                      );
                   })}
                 </div>
               </React.Fragment>
@@ -1148,14 +1115,6 @@ useEffect(() => {
                 </Button>
               )}
 
-            {/* Modals */}
-            <QuoteReviewModal
-              open={showReviewModal}
-              quote={reviewQuote}
-              onClose={() => setShowReviewModal(false)}
-              onAccept={handleAcceptQuote}
-              onDecline={handleDeclineQuote}
-            />
             {paymentModal}
           </>
         )}
