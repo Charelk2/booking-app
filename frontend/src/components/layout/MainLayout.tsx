@@ -258,6 +258,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
 
 
   const showSearchBar =
+    !isArtistDetail &&
     (!artistViewActive || user?.user_type !== 'artist') &&
     (pathname === '/' || pathname.startsWith('/artists'));
 

@@ -30,7 +30,7 @@ describe('MainLayout header behavior', () => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams());
   });
 
-  it('shows full search bar on artist detail pages', async () => {
+  it('hides search bar on artist detail pages', async () => {
     mockUsePathname.mockReturnValue('/artists/123');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, email: 'a@test.com', user_type: 'artist' } as User, logout: jest.fn() });
     const div = document.createElement('div');
@@ -40,13 +40,8 @@ describe('MainLayout header behavior', () => {
       root.render(React.createElement(MainLayout, null, React.createElement('div')));
     });
     await flushPromises();
-    const header = div.querySelector('#app-header') as HTMLElement;
-    expect(header).toBeTruthy();
-    expect(header.getAttribute('data-header-state')).toBe('initial');
-    const pillWrapper = div.querySelector('.compact-pill-wrapper') as HTMLElement;
-    expect(pillWrapper.className).toContain('opacity-0');
-    const fullBar = div.querySelector('.header-full-search-bar') as HTMLElement;
-    expect(fullBar.className).not.toContain('opacity-0');
+    expect(div.querySelector('#compact-search-trigger')).toBeNull();
+    expect(div.querySelector('.header-full-search-bar')).toBeNull();
     act(() => { root.unmount(); });
     div.remove();
   });
