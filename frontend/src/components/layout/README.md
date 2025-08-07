@@ -15,3 +15,7 @@
 - `filterControl?: React.ReactNode` – component rendered to the right of the full search bar. It is hidden when the header is compacted.
 
 The filter control is typically an icon button that opens a filtering UI, such as `ArtistsPageHeader`.
+
+## Footer
+
+`Footer` renders grouped navigation links and social icons using brand colors. It appears on every page wrapped by `MainLayout`.
