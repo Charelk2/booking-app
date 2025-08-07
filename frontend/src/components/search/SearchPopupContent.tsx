@@ -8,6 +8,7 @@ import { Listbox } from '@headlessui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { UI_CATEGORIES } from '@/lib/categoryMap';
+import { AUTOCOMPLETE_LISTBOX_ID } from '../ui/LocationInput';
 
 import type { ActivePopup } from './SearchBar';
 import type { Category } from './SearchFields';
@@ -60,6 +61,10 @@ export default function SearchPopupContent({
   locationPredictions,
 }: SearchPopupContentProps) {
   const [isClient, setIsClient] = useState(false);
+  // Live region message used to announce selections to assistive tech.
+  // This complements the LocationInput combobox by surfacing changes
+  // from both the location and category pickers.
+  const [announcement, setAnnouncement] = useState('');
 
   useEffect(() => {
     setIsClient(true);
@@ -82,22 +87,32 @@ export default function SearchPopupContent({
     (place: { name: string; formatted_address?: string }) => {
       const displayName = place.formatted_address || place.name || '';
       setLocation(displayName);
+      setAnnouncement(`Location selected: ${displayName}`);
       closeAllPopups(); // Close popup after selection
     },
     [setLocation, closeAllPopups],
   );
 
-  const handleCategorySelect = useCallback((c: Category | null) => {
-    setCategory(c);
-    closeAllPopups(); // Close popup after selection
-  }, [setCategory, closeAllPopups]);
+  const handleCategorySelect = useCallback(
+    (c: Category | null) => {
+      setCategory(c);
+      setAnnouncement(`Category selected: ${c ? c.label : 'none'}`);
+      closeAllPopups(); // Close popup after selection
+    },
+    [setCategory, closeAllPopups],
+  );
 
   const handleDateSelect = useCallback((date: Date | null) => {
     setWhen(date);
     closeAllPopups(); // Close popup after selection
   }, [setWhen, closeAllPopups]);
 
+  // Renders the location suggestion list as an ARIA-compliant listbox.
+  // The list shares an ID with LocationInput so the input's
+  // aria-activedescendant points to these options.
   const renderLocation = () => {
+    const activeId =
+      locationInputRef.current?.getAttribute('aria-activedescendant') || undefined;
     if (location.trim().length === 0) {
       return (
         <div>
@@ -109,67 +124,92 @@ export default function SearchPopupContent({
           </h3>
           {/* Enable vertical scrolling when suggestions exceed container height */}
           {/* Use a single column on small screens and limit height to half the viewport */}
-          <ul className="grid grid-cols-1 sm:grid-cols-1 gap-4 max-h-[50vh] overflow-y-auto scrollbar-thin">
-            {MOCK_LOCATION_SUGGESTIONS.map((s) => (
-              <li
-                key={s.name}
-                role="option"
-                aria-selected="false"
-                aria-label={`${s.name}${s.description ? `, ${s.description}` : ''}`}
-                onClick={() =>
-                  handleLocationSelect({ name: s.name, formatted_address: s.description })
-                }
-                className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
-                tabIndex={0}
-              >
-                {s.image && (
-                  <Image
-                    src={s.image}
-                    alt={s.name}
-                    width={40}
-                    height={40}
-                    sizes="40px"
-                    className="h-10 w-10 rounded-lg object-cover flex-shrink-0"
-                  />
-                )}
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{s.name}</p>
-                  <p className="text-xs text-gray-500">{s.description}</p>
-                </div>
-              </li>
-            ))}
+          <ul
+            id={AUTOCOMPLETE_LISTBOX_ID}
+            role="listbox"
+            aria-labelledby="search-popup-label-location"
+            aria-activedescendant={activeId}
+            className="grid grid-cols-1 sm:grid-cols-1 gap-4 max-h-[50vh] overflow-y-auto scrollbar-thin"
+          >
+            {MOCK_LOCATION_SUGGESTIONS.map((s, index) => {
+              const optionId = `suggestion-${index}`;
+              return (
+                <li
+                  key={s.name}
+                  id={optionId}
+                  role="option"
+                  aria-selected={activeId === optionId}
+                  aria-label={`${s.name}${
+                    s.description ? `, ${s.description}` : ''
+                  }`}
+                  onClick={() =>
+                    handleLocationSelect({
+                      name: s.name,
+                      formatted_address: s.description,
+                    })
+                  }
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
+                  tabIndex={-1}
+                >
+                  {s.image && (
+                    <Image
+                      src={s.image}
+                      alt={s.name}
+                      width={40}
+                      height={40}
+                      sizes="40px"
+                      className="h-10 w-10 rounded-lg object-cover flex-shrink-0"
+                    />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{s.name}</p>
+                    <p className="text-xs text-gray-500">{s.description}</p>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
       );
     }
 
     return (
-      <ul className="max-h-[300px] overflow-y-auto scrollbar-thin" id="search-popup-label-location">
-        {locationPredictions.map((p) => (
-          <li
-            key={p.place_id || p.description}
-            onClick={() =>
-              handleLocationSelect({
-                name: p.description,
-                formatted_address: p.description,
-              })
-            }
-            className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
-            role="option"
-            aria-selected="false"
-          >
-            <div>
-              <p className="text-sm font-medium text-gray-800">
-                {p.structured_formatting.main_text}
-              </p>
-              {p.structured_formatting.secondary_text && (
-                <p className="text-xs text-gray-500">
-                  {p.structured_formatting.secondary_text}
+      <ul
+        id={AUTOCOMPLETE_LISTBOX_ID}
+        role="listbox"
+        aria-labelledby="search-popup-label-location"
+        aria-activedescendant={activeId}
+        className="max-h-[300px] overflow-y-auto scrollbar-thin"
+      >
+        {locationPredictions.map((p, index) => {
+          const optionId = p.place_id || `prediction-${index}`;
+          return (
+            <li
+              key={p.place_id || p.description}
+              id={optionId}
+              onClick={() =>
+                handleLocationSelect({
+                  name: p.description,
+                  formatted_address: p.description,
+                })
+              }
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
+              role="option"
+              aria-selected={activeId === optionId}
+            >
+              <div>
+                <p className="text-sm font-medium text-gray-800">
+                  {p.structured_formatting.main_text}
                 </p>
-              )}
-            </div>
-          </li>
-        ))}
+                {p.structured_formatting.secondary_text && (
+                  <p className="text-xs text-gray-500">
+                    {p.structured_formatting.secondary_text}
+                  </p>
+                )}
+              </div>
+            </li>
+          );
+        })}
         {locationPredictions.length === 0 && (
           <li className="text-sm text-gray-500 px-4 py-2">Loading search...</li>
         )}
@@ -239,25 +279,30 @@ export default function SearchPopupContent({
     <div>
       <h3 className="text-sm font-semibold text-gray-800 mb-2" id="search-popup-label-category">Select an artist category</h3>
       <Listbox value={category} onChange={handleCategorySelect}>
+        {/* HeadlessUI Listbox handles arrow key navigation; we expose
+            aria-selected on each option for screen reader parity. */}
         <Listbox.Options
           static // Keep options in DOM for ref access
           as="ul"
           ref={categoryListboxOptionsRef}
           className="max-h-60 overflow-auto rounded-lg bg-white py-1 focus:outline-none scrollbar-thin"
         >
-          {UI_CATEGORIES.map((c) => (
-            <Listbox.Option
-              key={c.value}
-              value={c}
-              className={({ active, selected }) =>
-                clsx(
-                  'px-4 py-2 text-sm cursor-pointer transition',
-                  active ? 'bg-indigo-100 text-indigo-900' : 'text-gray-700',
-                  selected && 'font-semibold'
-                )
-              }
-            >
-              {c.label}
+          {UI_CATEGORIES.map((c, index) => (
+            <Listbox.Option key={c.value} value={c} as={React.Fragment}>
+              {({ active, selected }) => (
+                <li
+                  id={`category-option-${index}`}
+                  role="option"
+                  aria-selected={selected}
+                  className={clsx(
+                    'px-4 py-2 text-sm cursor-pointer transition',
+                    active ? 'bg-indigo-100 text-indigo-900' : 'text-gray-700',
+                    selected && 'font-semibold',
+                  )}
+                >
+                  {c.label}
+                </li>
+              )}
             </Listbox.Option>
           ))}
         </Listbox.Options>
@@ -300,14 +345,26 @@ export default function SearchPopupContent({
     </div>
   );
 
-  switch (activeField) {
-    case 'location':
-      return renderLocation();
-    case 'when':
-      return renderDate();
-    case 'category':
-      return renderCategory();
-    default:
-      return renderDefault();
-  }
+  const content = (() => {
+    switch (activeField) {
+      case 'location':
+        return renderLocation();
+      case 'when':
+        return renderDate();
+      case 'category':
+        return renderCategory();
+      default:
+        return renderDefault();
+    }
+  })();
+
+  return (
+    <>
+      {/* Screen reader announcement area */}
+      <div aria-live="polite" className="sr-only">
+        {announcement}
+      </div>
+      {content}
+    </>
+  );
 }
