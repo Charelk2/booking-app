@@ -20,7 +20,7 @@ describe('ReviewStep summary', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
-    (getService as jest.Mock).mockResolvedValue({ data: { price: 100 } });
+    (getService as jest.Mock).mockResolvedValue({ data: { price: 100, car_rental_price: 1000, flight_price: 2780 } });
     (calculateQuote as jest.Mock).mockResolvedValue({ data: { total: 150 } });
     (geocodeAddress as jest.Mock).mockResolvedValue({ lat: 0, lng: 0 });
     (getDrivingMetrics as jest.Mock).mockResolvedValue({ distanceKm: 10, durationHrs: 1 });
@@ -75,7 +75,12 @@ describe('ReviewStep summary', () => {
     expect(container.textContent).toContain('Estimated Price');
     expect(container.textContent).toContain('Travel Mode');
     expect(calculateTravelMode).toHaveBeenCalledWith(
-      expect.objectContaining({ drivingEstimate: 50, travelRate: 2.5 })
+      expect.objectContaining({
+        drivingEstimate: 50,
+        travelRate: 2.5,
+        carRentalPrice: 1000,
+        flightPricePerPerson: 2780,
+      })
     );
   });
 });

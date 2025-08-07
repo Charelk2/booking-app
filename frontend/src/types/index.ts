@@ -65,6 +65,8 @@ export interface Service {
   duration_minutes: number;
   travel_rate?: number;
   travel_members?: number;
+  car_rental_price?: number;
+  flight_price?: number;
   display_order: number;
   price: number;
   artist: ArtistProfile;
