@@ -6,7 +6,7 @@ import SummarySidebar from '../SummarySidebar';
 import { formatCurrency } from '@/lib/utils';
 import { TravelResult } from '@/lib/travel';
 import { useBooking } from '@/contexts/BookingContext';
-import { CollapsibleSection, Button } from '@/components/ui';
+import { CollapsibleSection, Button, InfoPopover } from '@/components/ui';
 import { trackEvent } from '@/lib/analytics';
 
 interface ReviewStepProps {
@@ -54,22 +54,41 @@ export default function ReviewStep({
   const isProcessing = submitting || isLoadingReviewData;
 
 
-  const getTravelTooltipContent = () => {
-    if (!travelResult) return "Travel cost calculated based on artist's location and event venue distance.";
+  const getTravelPopoverContent = () => {
+    if (!travelResult)
+      return (
+        <>Travel cost calculated based on artist's location and event venue distance.</>
+      );
 
     const { mode, breakdown } = travelResult;
-    let content = `Travel Mode: ${mode === 'fly' ? '✈️ Fly' : '🚗 Drive'}<br/>`;
 
     if (mode === 'fly' && breakdown.fly) {
       const fly = breakdown.fly;
-      content += `Flights (${fly.travellers}): ${formatCurrency(fly.flightSubtotal)} (avg price)<br/>`;
-      content += `Car Rental: ${formatCurrency(fly.carRental)}<br/>`;
-      content += `Fuel: ${formatCurrency(fly.transferCost)}`;
-    } else if (mode === 'drive' && breakdown.drive) {
-      const drive = breakdown.drive;
-      content += `Drive Estimate: ${formatCurrency(drive.estimate)}`;
+      return (
+        <>
+          Travel Mode: ✈️ Fly
+          <br />
+          Flights ({fly.travellers}): {formatCurrency(fly.flightSubtotal)} (avg price)
+          <br />
+          Car Rental: {formatCurrency(fly.carRental)}
+          <br />
+          Fuel: {formatCurrency(fly.transferCost)}
+        </>
+      );
     }
-    return content;
+
+    if (mode === 'drive' && breakdown.drive) {
+      const drive = breakdown.drive;
+      return (
+        <>
+          Travel Mode: 🚗 Drive
+          <br />
+          Drive Estimate: {formatCurrency(drive.estimate)}
+        </>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -110,28 +129,21 @@ export default function ReviewStep({
             <span>{formatCurrency(baseServicePrice)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="flex items-center group">
+            <span className="flex items-center">
               Travel
-              <span className="has-tooltip relative ml-1.5">
-                <span className="cursor-pointer text-black-600">ⓘ</span>
-                <div
-                  className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block"
-                  dangerouslySetInnerHTML={{ __html: getTravelTooltipContent() }}
-                ></div>
-              </span>
+              <InfoPopover label="Travel cost details" className="ml-1.5">
+                {getTravelPopoverContent()}
+              </InfoPopover>
             </span>
             <span>{formatCurrency(travelResult?.totalCost || 0)}</span>
           </div>
           {details.sound === 'yes' && (
             <div className="flex items-center justify-between">
-              <span className="flex items-center group">
+              <span className="flex items-center">
                 Sound Equipment
-                <span className="has-tooltip relative ml-1.5">
-                  <span className="cursor-pointer text-black-600">ⓘ</span>
-                  <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
-                    Standard package for events up to 150 guests.
-                  </div>
-                </span>
+                <InfoPopover label="Sound equipment details" className="ml-1.5">
+                  Standard package for events up to 150 guests.
+                </InfoPopover>
               </span>
               <span>{formatCurrency(soundCost)}</span>
             </div>
