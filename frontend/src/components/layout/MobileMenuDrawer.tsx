@@ -66,7 +66,7 @@ export default function MobileMenuDrawer({
           >
             <Dialog.Panel className="relative flex w-full max-w-xs flex-col bg-background pb-4 shadow-xl">
               <div className="flex items-center justify-between px-4 pt-4">
-                <h2 className="text-lg font-medium">Menu</h2>
+                <Dialog.Title className="text-lg font-medium">Menu</Dialog.Title>
                 <button
                   type="button"
                   onClick={onClose}
@@ -79,29 +79,12 @@ export default function MobileMenuDrawer({
                   <XMarkIcon className="h-6 w-6" aria-hidden="true" />
                 </button>
               </div>
-              <div className="mt-4 px-2">
+              <nav aria-label="Explore" className="mt-4 px-2">
                 <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase">Explore</h3>
-                <div className="mt-2 space-y-1">
+                <ul className="mt-2 space-y-1">
                   {navigation.map((item) => (
-                    <NavLink
-                      key={item.name}
-                      href={item.href}
-                      onClick={onClose}
-                      isActive={pathname === item.href}
-                      className="block border-l-4 text-base"
-                    >
-                      {item.name}
-                    </NavLink>
-                  ))}
-                </div>
-              </div>
-              {extraNavigation.length > 0 && (
-                <div className="mt-4 border-t border-gray-200 pt-4 px-2">
-                  <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase">More</h3>
-                  <div className="mt-2 space-y-1">
-                    {extraNavigation.map((item) => (
+                    <li key={item.name}>
                       <NavLink
-                        key={item.name}
                         href={item.href}
                         onClick={onClose}
                         isActive={pathname === item.href}
@@ -109,108 +92,159 @@ export default function MobileMenuDrawer({
                       >
                         {item.name}
                       </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+              {extraNavigation.length > 0 && (
+                <nav
+                  aria-label="More"
+                  className="mt-4 border-t border-gray-200 pt-4 px-2"
+                >
+                  <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase">More</h3>
+                  <ul className="mt-2 space-y-1">
+                    {extraNavigation.map((item) => (
+                      <li key={item.name}>
+                        <NavLink
+                          href={item.href}
+                          onClick={onClose}
+                          isActive={pathname === item.href}
+                          className="block border-l-4 text-base"
+                        >
+                          {item.name}
+                        </NavLink>
+                      </li>
                     ))}
-                  </div>
-                </div>
+                  </ul>
+                </nav>
               )}
-              <div className="mt-4 border-t border-gray-200 pt-4 px-2">
+              <nav
+                aria-label="Account"
+                className="mt-4 border-t border-gray-200 pt-4 px-2"
+              >
                 <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase">Account</h3>
-                {user ? (
-                  <>
-                    <NavLink
-                      href={user.user_type === 'artist' ? '/dashboard/artist' : '/dashboard/client'}
-                      onClick={onClose}
-                      className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                    >
-                      Dashboard
-                    </NavLink>
-                    {user.user_type === 'artist' && (
-                      <NavLink
-                        href="/dashboard/profile/edit"
-                        onClick={onClose}
-                        className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                      >
-                        Edit Profile
-                      </NavLink>
-                    )}
-                    {user.user_type === 'artist' && (
-                      <NavLink
-                        href="/dashboard/quotes"
-                        onClick={onClose}
-                        className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                      >
-                        Quotes
-                      </NavLink>
-                    )}
-                    {user.user_type === 'artist' && (
-                      <NavLink
-                        href="/dashboard/profile/quote-templates"
-                        onClick={onClose}
-                        className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                      >
-                        Quote Templates
-                      </NavLink>
-                    )}
-                    {user.user_type === 'client' && (
-                      <NavLink
-                        href="/dashboard/client/bookings"
-                        onClick={onClose}
-                        className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                      >
-                        My Bookings
-                      </NavLink>
-                    )}
-                    {user.user_type === 'client' && (
-                      <NavLink
-                        href="/dashboard/client/quotes"
-                        onClick={onClose}
-                        className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                      >
-                        My Quotes
-                      </NavLink>
-                    )}
-                    {user.user_type === 'client' && (
-                      <NavLink
-                        href="/account"
-                        onClick={onClose}
-                        className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                      >
-                        Account
-                      </NavLink>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        logout();
-                        onClose();
-                      }}
-                      className={clsx(
-                        navItemClasses,
-                        'block w-full text-left text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900',
+                <ul className="mt-2 space-y-1">
+                  {user ? (
+                    <>
+                      <li>
+                        <NavLink
+                          href={
+                            user.user_type === 'artist'
+                              ? '/dashboard/artist'
+                              : '/dashboard/client'
+                          }
+                          onClick={onClose}
+                          className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                        >
+                          Dashboard
+                        </NavLink>
+                      </li>
+                      {user.user_type === 'artist' && (
+                        <li>
+                          <NavLink
+                            href="/dashboard/profile/edit"
+                            onClick={onClose}
+                            className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                          >
+                            Edit Profile
+                          </NavLink>
+                        </li>
                       )}
-                    >
-                      Sign out
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <NavLink
-                      href="/login"
-                      onClick={onClose}
-                      className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                    >
-                      Sign in
-                    </NavLink>
-                    <NavLink
-                      href="/register"
-                      onClick={onClose}
-                      className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                    >
-                      Sign up
-                    </NavLink>
-                  </>
-                )}
-              </div>
+                      {user.user_type === 'artist' && (
+                        <li>
+                          <NavLink
+                            href="/dashboard/quotes"
+                            onClick={onClose}
+                            className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                          >
+                            Quotes
+                          </NavLink>
+                        </li>
+                      )}
+                      {user.user_type === 'artist' && (
+                        <li>
+                          <NavLink
+                            href="/dashboard/profile/quote-templates"
+                            onClick={onClose}
+                            className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                          >
+                            Quote Templates
+                          </NavLink>
+                        </li>
+                      )}
+                      {user.user_type === 'client' && (
+                        <li>
+                          <NavLink
+                            href="/dashboard/client/bookings"
+                            onClick={onClose}
+                            className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                          >
+                            My Bookings
+                          </NavLink>
+                        </li>
+                      )}
+                      {user.user_type === 'client' && (
+                        <li>
+                          <NavLink
+                            href="/dashboard/client/quotes"
+                            onClick={onClose}
+                            className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                          >
+                            My Quotes
+                          </NavLink>
+                        </li>
+                      )}
+                      {user.user_type === 'client' && (
+                        <li>
+                          <NavLink
+                            href="/account"
+                            onClick={onClose}
+                            className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                          >
+                            Account
+                          </NavLink>
+                        </li>
+                      )}
+                      <li>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            logout();
+                            onClose();
+                          }}
+                          className={clsx(
+                            navItemClasses,
+                            'block w-full text-left text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900',
+                          )}
+                        >
+                          Sign out
+                        </button>
+                      </li>
+                    </>
+                  ) : (
+                    <>
+                      <li>
+                        <NavLink
+                          href="/login"
+                          onClick={onClose}
+                          className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                        >
+                          Sign in
+                        </NavLink>
+                      </li>
+                      <li>
+                        <NavLink
+                          href="/register"
+                          onClick={onClose}
+                          className="block text-base text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                        >
+                          Sign up
+                        </NavLink>
+                      </li>
+                    </>
+                  )}
+                </ul>
+              </nav>
             </Dialog.Panel>
           </Transition.Child>
         </div>
