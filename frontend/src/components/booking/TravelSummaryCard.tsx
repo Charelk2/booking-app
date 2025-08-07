@@ -38,7 +38,7 @@ export default function TravelSummaryCard({ result }: Props) {
             <span className="text-xs text-gray-500">(avg price)</span>
           </li>
           <li>Car Rental: {formatCurrency(fly.carRental)}</li>
-          <li>Transfers: {formatCurrency(fly.transferCost)}</li>
+          <li>Fuel: {formatCurrency(fly.transferCost)}</li>
         </ul>
       ) : (
         <p className="text-sm">Drive Estimate: {formatCurrency(drive.estimate)}</p>
