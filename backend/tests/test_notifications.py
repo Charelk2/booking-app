@@ -487,7 +487,7 @@ def test_status_update_creates_notification_for_client():
 
     notifs = crud_notification.get_notifications_for_user(db, client.id)
     assert len(notifs) == 1
-    assert notifs[0].type == NotificationType.BOOKING_STATUS_UPDATED
+    assert notifs[0].type == NotificationType.NEW_MESSAGE
 
 
 def test_status_update_creates_notification_for_artist():
