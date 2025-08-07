@@ -20,6 +20,23 @@ function setup(props = {}) {
 }
 
 describe('ArtistCard optional fields', () => {
+  beforeAll(() => {
+    Object.defineProperty(window, 'matchMedia', {
+    // Polyfill for matchMedia used in ArtistCard
+      writable: true,
+      value: jest.fn().mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+        addListener: jest.fn(),
+        removeListener: jest.fn(),
+        dispatchEvent: jest.fn(),
+      })),
+    });
+  });
+
   afterEach(() => {
     document.body.innerHTML = '';
   });
@@ -105,6 +122,34 @@ describe('ArtistCard optional fields', () => {
     expect(anchor?.getAttribute('href')).toBe('/artists/9');
     act(() => root.unmount());
     container.remove();
+  });
+
+  it('shows Book Now button by default on touch devices', () => {
+    (window.matchMedia as jest.Mock).mockImplementation((query) => ({
+      matches: query === '(hover: none)',
+      media: query,
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    }));
+    const { container, root } = setup();
+    const overlay = container.querySelector('div.absolute.flex');
+    expect(overlay?.className).toContain('opacity-100');
+    act(() => root.unmount());
+    container.remove();
+    (window.matchMedia as jest.Mock).mockImplementation((query) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    }));
   });
 
 
