@@ -31,15 +31,21 @@ export default function ConversationList({
             return req.client?.first_name || 'Client';
           }
           const artistProfile = req.artist_profile;
-          const artistUser = req.artist;
-          if (!artistProfile && !artistUser) return 'Artist';
-          return artistProfile?.business_name || artistUser?.first_name || 'Artist';
+          const artist = req.artist;
+          if (!artistProfile && !artist) return 'Artist';
+          return (
+            artistProfile?.business_name ||
+            artist?.business_name ||
+            artist?.user?.first_name ||
+            artist?.first_name ||
+            'Artist'
+          );
         })();
 
         const avatarUrl =
           currentUser.user_type === 'artist'
             ? req.client?.profile_picture_url
-            : req.artist_profile?.profile_picture_url;
+            : req.artist_profile?.profile_picture_url || req.artist?.profile_picture_url;
 
         const date =
           req.last_message_timestamp || req.updated_at || req.created_at;
@@ -51,6 +57,8 @@ export default function ConversationList({
             }
             const businessName =
               req.artist_profile?.business_name ||
+              req.artist?.business_name ||
+              req.artist?.user?.first_name ||
               req.artist?.first_name ||
               'Artist';
             return `${businessName} sent a quote`;
