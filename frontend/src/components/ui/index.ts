@@ -14,6 +14,7 @@ export { default as AlertBanner } from './AlertBanner';
 export { default as StatusBadge } from './StatusBadge';
 export { default as QuoteBubble } from '../booking/QuoteBubble';
 export { default as Tooltip } from './Tooltip';
+export { default as InfoPopover } from './InfoPopover';
 export { default as PillButton } from './PillButton';
 export { default as Avatar } from './Avatar';
 export { default as IconButton } from './IconButton';
