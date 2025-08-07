@@ -49,6 +49,7 @@ export default function EventTypeStep({ control, open = true, onToggle = () => {
                   open={sheetOpen}
                   onClose={() => setSheetOpen(false)}
                   initialFocus={firstRadioRef}
+                  title="Select event type"
                 >
                   <fieldset className="p-4 space-y-2">
                     {options.map((opt, idx) => (

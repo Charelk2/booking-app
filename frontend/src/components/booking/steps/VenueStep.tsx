@@ -59,6 +59,7 @@ export default function VenueStep({
                   onClose={() => setSheetOpen(false)}
                   initialFocus={firstRadioRef}
                   testId="bottom-sheet"
+                  title="Select venue type"
                 >
                   <fieldset className="p-4 space-y-2">
                     {options.map((opt, idx) => (
