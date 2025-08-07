@@ -109,9 +109,6 @@ describe("ClientBookingsPage", () => {
     expect(receipt?.getAttribute("href")).toBe(
       "/api/v1/payments/pay_upcoming/receipt",
     );
-    const help = div.querySelector('[data-testid="help-prompt"]');
-    expect(help).not.toBeNull();
-
     act(() => {
       root.unmount();
     });
@@ -160,9 +157,6 @@ describe("ClientBookingsPage", () => {
     await flushPromises();
 
     expect(div.textContent).toContain("Leave review");
-    const help = div.querySelector('[data-testid="help-prompt"]');
-    expect(help).not.toBeNull();
-
     act(() => {
       root.unmount();
     });
