@@ -1006,7 +1006,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Reordering keeps the first card below the **Your Services** heading by constraining drag movement to the list area.
 * The grid now transitions smoothly to a single column during drag and shows a "Drag up or down" hint.
 * Service deletion now requires confirmation to prevent mistakes.
-* **Add Service** button now opens a full-screen wizard. Steps appear in a coral-accented stepper with keyboard focus trapping. The final review mirrors earlier steps with image thumbnails before publishing.
+* **Add Service** button now opens a full-screen wizard. Steps appear in a coral-accented stepper with keyboard focus trapping. Pricing is captured directly on the **Details** step, removing the previous **Packages** step. The final review mirrors earlier steps with image thumbnails before publishing.
 * Add Service wizard validates fields on each keystroke with dynamic hints like "Need 3 more characters" and the **Next** button enables automatically once inputs are valid.
 * Selecting **Live Performance** now reveals travel-related fields beneath the duration input. Artists can specify a travel rate in Rand per km (default R2.5) and the number of members travelling.
 * This travel rate now also factors into airport transfer costs when flying so estimates remain consistent.
