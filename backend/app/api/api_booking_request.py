@@ -11,6 +11,7 @@ from .dependencies import get_db, get_current_user, get_current_active_client, g
 from ..utils.notifications import (
     notify_user_new_booking_request,
     notify_booking_status_update,
+    notify_user_new_message,
 )
 from ..utils import error_response
 import os
@@ -434,9 +435,27 @@ def update_booking_request_by_artist(
     if request_update.status and request_update.status != prev_status:
         client_user = db.query(models.User).filter(models.User.id == db_request.client_id).first()
         if client_user:
-            notify_booking_status_update(
-                db, client_user, updated.id, updated.status.value
-            )
+            if request_update.status == models.BookingStatus.REQUEST_DECLINED:
+                crud.crud_message.create_message(
+                    db=db,
+                    booking_request_id=updated.id,
+                    sender_id=current_artist.id,
+                    sender_type=models.SenderType.ARTIST,
+                    content="Artist declined the request.",
+                    message_type=models.MessageType.SYSTEM,
+                )
+                notify_user_new_message(
+                    db,
+                    client_user,
+                    current_artist,
+                    updated.id,
+                    "Artist declined the request.",
+                    models.MessageType.SYSTEM,
+                )
+            else:
+                notify_booking_status_update(
+                    db, client_user, updated.id, updated.status.value
+                )
 
     return updated
 

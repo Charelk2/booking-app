@@ -19,7 +19,7 @@ from ..crud.crud_booking import (
 from ..services.booking_quote import calculate_quote_breakdown, calculate_quote
 from decimal import Decimal
 from ..utils import error_response
-from ..utils.notifications import notify_booking_status_update
+from ..utils.notifications import notify_user_new_message
 
 router = APIRouter(
     tags=["Quotes"],
@@ -114,8 +114,16 @@ def create_quote_for_request(
             expires_at=expires_at,
         )
         client = db.query(models.User).filter(models.User.id == db_booking_request.client_id).first()
-        if client:
-            notify_booking_status_update(db, client, request_id, "quote_sent")
+        artist = db.query(models.User).filter(models.User.id == current_artist.id).first()
+        if client and artist:
+            notify_user_new_message(
+                db,
+                client,
+                artist,
+                request_id,
+                "Artist sent a quote",
+                models.MessageType.QUOTE,
+            )
         # Avoid circular references when serialized by Pydantic models
         new_quote.booking_request = None
         return new_quote
