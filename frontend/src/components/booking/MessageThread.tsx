@@ -1040,7 +1040,8 @@ useEffect(() => {
             {/* Message Input Form */}
             <form
               onSubmit={handleSendMessage}
-              className="sticky bottom-[56px] sm:bottom-0 bg-white border-t border-gray-100 flex items-center gap-x-2 px-3 py-1.5 shadow-lg pb-safe"
+              className="sticky sm:bottom-0 bg-white border-t border-gray-100 flex items-center gap-x-2 px-3 py-1.5 shadow-lg pb-safe"
+              style={{ bottom: 'var(--mobile-bottom-nav-height,56px)' }}
             >
               <input
                 id="file-upload"
