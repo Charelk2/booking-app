@@ -109,7 +109,7 @@ describe("AddServiceModal wizard", () => {
     expect(document.body.textContent).toContain("Travelling (Rand per km)");
     expect(document.body.textContent).toContain("Members travelling");
     expect(document.body.textContent).toContain("Car rental price");
-    expect(document.body.textContent).toContain("Flight price (per person)");
+    expect(document.body.textContent).toContain("Return flight price (per person)");
 
     const publish = document.querySelector(
       'button[type="submit"]',
