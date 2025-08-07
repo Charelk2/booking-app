@@ -28,3 +28,8 @@ For message notifications the `link` points directly to
 `/inbox?requestId={id}`, opening the Inbox with that conversation active.
 This lets users jump from the notification drawer straight to the chat thread
 without any intermediate redirect.
+
+Artists sending a quote or declining a booking request now generate a new
+message notification for the client. These alerts also link to
+`/inbox?requestId={id}` so clients can immediately view the conversation where
+the action occurred.

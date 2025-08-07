@@ -962,6 +962,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Quote acceptance and booking confirmation notifications now render dynamic titles such as **"Quote accepted by Jane Doe"** instead of a generic label.
 * Message notifications now include the sender name in both the stored text and the API response so the drawer can display "New message from Alice" without additional lookups.
 * Clicking a new message alert opens `/inbox?requestId={id}` with the conversation active.
+* When an artist sends or declines a quote, the client is alerted with a new message notification that links straight to that conversation.
 * Legacy `/messages/{id}` and `/messages/thread/{id}` URLs now redirect to the Inbox so older links remain valid.
 * All notifications now include the sender's profile picture when available so avatars render consistently for artists and clients.
 * Artists marking a booking **completed** now trigger a **REVIEW_REQUEST** notification. The alert links to `/dashboard/client/bookings/{booking_id}?review=1` so clients can immediately leave feedback.
