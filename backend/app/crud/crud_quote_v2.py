@@ -45,10 +45,13 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
             {"booking_request_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
+    # Always rely on the booking request for the artist and client IDs. This
+    # avoids situations where the payload omits or mislabels these values,
+    # ensuring downstream notifications target the correct recipient.
     db_quote = models.QuoteV2(
-        booking_request_id=quote_in.booking_request_id,
-        artist_id=quote_in.artist_id,
-        client_id=quote_in.client_id,
+        booking_request_id=booking_request.id,
+        artist_id=booking_request.artist_id,
+        client_id=booking_request.client_id,
         services=services,
         sound_fee=quote_in.sound_fee,
         travel_fee=quote_in.travel_fee,
@@ -60,8 +63,7 @@ def create_quote(db: Session, quote_in: schemas.QuoteV2Create) -> models.QuoteV2
         expires_at=quote_in.expires_at,
     )
     db.add(db_quote)
-    if booking_request:
-        booking_request.status = models.BookingStatus.QUOTE_PROVIDED
+    booking_request.status = models.BookingStatus.QUOTE_PROVIDED
     db.commit()
     db.refresh(db_quote)
     return db_quote
