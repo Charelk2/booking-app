@@ -44,3 +44,10 @@ def test_ambiguous_location_returns_none():
     result = nlp_booking.extract_booking_details(text)
     assert result.location is None
 
+
+def test_typos_are_normalized():
+    text = "Planning a frstival for 100 guesds on 25 December 2025 in Cape Town"
+    result = nlp_booking.extract_booking_details(text)
+    assert result.event_type == "Festival"
+    assert result.guests == 100
+
