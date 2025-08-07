@@ -54,7 +54,9 @@ describe('PaymentModal', () => {
       receiptUrl: '/api/v1/payments/pay_1/receipt',
       paymentId: 'pay_1',
     });
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
   });
 
   it('submits payment when pressing Enter in amount field', async () => {
@@ -92,7 +94,9 @@ describe('PaymentModal', () => {
       receiptUrl: '/api/v1/payments/pay_2/receipt',
       paymentId: 'pay_2',
     });
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
   });
 
   it('prefills amount from prop when reopened', async () => {
@@ -146,7 +150,9 @@ describe('PaymentModal', () => {
     expect(reopenedLabel).not.toBeNull();
     expect(reopenedLabel?.textContent).toContain('Amount');
     expect(reopened.value).toBe(formatCurrency(40));
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
   });
 
   it('shows deposit due date when provided', async () => {
@@ -178,7 +184,9 @@ describe('PaymentModal', () => {
     );
     const help = notes[1];
     expect(help.textContent).toContain('deposit');
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
   });
 
   it('updates helper text when paying full amount', async () => {
@@ -204,7 +212,9 @@ describe('PaymentModal', () => {
     const help = notes[1];
     expect(help).not.toBeNull();
     expect(help.textContent).toContain('full amount');
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
   });
 
   it('bypasses API when NEXT_PUBLIC_FAKE_PAYMENTS=1', async () => {
@@ -230,6 +240,8 @@ describe('PaymentModal', () => {
     });
     expect(api.createPayment).not.toHaveBeenCalled();
     expect(onSuccess).toHaveBeenCalledWith({ status: 'deposit_paid', amount: 20 });
-    root.unmount();
+    act(() => {
+      root.unmount();
+    });
   });
 });
