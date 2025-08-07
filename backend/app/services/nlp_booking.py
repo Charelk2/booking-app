@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import List
 import re
+import difflib
 
 import dateparser
 import spacy
@@ -45,6 +46,10 @@ if _NLP and _EVENT_LOOKUP:
 else:  # pragma: no cover - defensive
     _EVENT_MATCHER = None
 
+_GUEST_TERMS = {"guest", "guests", "people", "attendee", "attendees"}
+_VOCABULARY = set(_EVENT_LOOKUP.keys()) | _GUEST_TERMS
+_WORD_RE = re.compile(r"\b\w+\b")
+
 LOCATION_FALLBACK_RE = re.compile(
     r"\b(?:in|at)\s+([A-Za-z][A-Za-z ]{2,40})", re.IGNORECASE
 )
@@ -66,6 +71,26 @@ def _extract_first_date(date_strings: List[str]):
     return None
 
 
+def _normalize_text(text: str) -> str:
+    """Correct common booking term typos using a small vocabulary."""
+
+    def replace(match: re.Match[str]) -> str:
+        word = match.group(0)
+        lower = word.lower()
+        if lower in _VOCABULARY:
+            return word
+        candidates = difflib.get_close_matches(lower, _VOCABULARY, n=1, cutoff=0.8)
+        if candidates:
+            corrected = candidates[0]
+            if word[0].isupper():
+                corrected = corrected.title()
+            logger.debug("Corrected '%s' to '%s'", word, corrected)
+            return corrected
+        return word
+
+    return _WORD_RE.sub(replace, text)
+
+
 def extract_booking_details(text: str) -> ParsedBookingDetails:
     """Extract booking details from free-form text using spaCy."""
 
@@ -77,7 +102,8 @@ def extract_booking_details(text: str) -> ParsedBookingDetails:
         return result
 
     nlp = _ensure_model()
-    doc = nlp(cleaned)
+    normalized = _normalize_text(cleaned)
+    doc = nlp(normalized)
 
     # Dates
     date_texts: List[str] = []
@@ -98,7 +124,7 @@ def extract_booking_details(text: str) -> ParsedBookingDetails:
     elif len(locations) > 1:
         logger.debug("Multiple locations detected; skipping: %s", locations)
     else:
-        fallback = LOCATION_FALLBACK_RE.search(cleaned)
+        fallback = LOCATION_FALLBACK_RE.search(normalized)
         if fallback:
             result.location = fallback.group(1).strip().title()
 
