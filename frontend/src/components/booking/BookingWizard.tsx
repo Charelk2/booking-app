@@ -216,13 +216,26 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         return fallback;
       };
 
+      const parseOptionalNumber = (val: unknown): number | undefined => {
+        if (val === null || val === undefined || val === '') return undefined;
+        if (typeof val === 'number') {
+          return Number.isNaN(val) ? undefined : val;
+        }
+        if (typeof val === 'string') {
+          const cleaned = val.replace(/[^0-9.-]/g, '');
+          const parsed = parseFloat(cleaned);
+          return Number.isNaN(parsed) ? undefined : parsed;
+        }
+        return undefined;
+      };
+
       const basePrice = parseNumber(svcRes.data.price);
       setBaseServicePrice(basePrice); // Set the base service price
 
       const travelRate = parseNumber(svcRes.data.travel_rate, 2.5) || 2.5;
       const numTravelMembers = parseNumber(svcRes.data.travel_members, 1) || 1;
-      const carRentalPrice = parseNumber(svcRes.data.car_rental_price);
-      const flightPrice = parseNumber(svcRes.data.flight_price);
+      const carRentalPrice = parseOptionalNumber(svcRes.data.car_rental_price);
+      const flightPrice = parseOptionalNumber(svcRes.data.flight_price);
 
       const metrics = await getDrivingMetrics(artistLocation, details.location);
       if (!metrics.distanceKm) {
