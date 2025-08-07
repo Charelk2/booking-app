@@ -20,6 +20,7 @@ export default function NavLink({
   return (
     <Link
       {...props}
+      aria-current={isActive ? 'page' : undefined}
       className={clsx(navLinkClasses(isActive), className)}
     >
       {children}
