@@ -97,6 +97,29 @@ describe('MobileMenuDrawer', () => {
     expect(link?.className).toContain('min-h-[44px]');
   });
 
+  it('Dialog.Panel includes overflow and safe-area classes', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(MobileMenuDrawer, {
+          open: true,
+          onClose: () => {},
+          navigation: nav,
+          user: null,
+          logout: () => {},
+          pathname: '/',
+        }),
+      );
+    });
+    await flushPromises();
+    const panel = document.querySelector(
+      'div[class*="overflow-y-auto"][class*="pt-safe"][class*="pb-safe"]',
+    ) as HTMLDivElement | null;
+    expect(panel).not.toBeNull();
+    expect(panel?.style.paddingBottom).toContain(
+      'var(--mobile-bottom-nav-height',
+    );
+  });
+
   it('uses Dialog.Title and nav lists for structure', async () => {
     await act(async () => {
       root.render(

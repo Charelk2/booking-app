@@ -54,6 +54,22 @@ Provide a `title` prop to render an accessible heading inside `Dialog.Title`. Th
 
 Mobile navigation uses the `MobileBottomNav` component. It appears only below the `sm` breakpoint, hides on downward scroll, and supports unread message badges. Keep route names and icons consistent across the app.
 
+### Safe-area Utilities
+
+Use the `pt-safe` and `pb-safe` Tailwind classes to apply `env(safe-area-inset-*)` padding so content avoids notches and other device insets. When an element also needs space for the mobile navigation bar, combine these utilities with the `--mobile-bottom-nav-height` variable:
+
+```jsx
+<div
+  className="pt-safe pb-safe"
+  style={{
+    paddingBottom:
+      'calc(var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom))',
+  }}
+>
+  ...
+</div>
+```
+
 ### Navigation Guidelines
 
 - All navigation links and buttons should use the shared `NavLink` component or the `navItemClasses` utility to ensure consistent typography and spacing.
