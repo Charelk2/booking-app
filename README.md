@@ -1473,12 +1473,6 @@ These values are exposed as CSS variables in `globals.css` and referenced via
 utility classes such as `bg-brand` and `bg-brand-dark`.
 
 
-### Help Prompt
-
-The `HelpPrompt` component renders quick links to the FAQ and contact page. It
-is included once on every page via `MainLayout` so users always know where to
-get assistance.
-
 ### Support Pages
 
 Dedicated **FAQ** and **Contact** pages provide self-service help. They are

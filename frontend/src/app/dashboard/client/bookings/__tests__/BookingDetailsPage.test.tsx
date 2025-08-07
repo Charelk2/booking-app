@@ -147,9 +147,6 @@ describe("BookingDetailsPage", () => {
     });
     await flushPromises();
 
-    const help = div.querySelector('[data-testid="help-prompt"]');
-    expect(help).not.toBeNull();
-
     act(() => {
       root.unmount();
     });

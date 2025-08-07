@@ -5,7 +5,6 @@ import { useState, useEffect, useCallback, useRef } from 'react'; // Import useR
 import { useAuth } from '@/contexts/AuthContext';
 import Header, { HeaderState } from './Header'; // Import HeaderState
 import MobileBottomNav from './MobileBottomNav';
-import { HelpPrompt } from '../ui';
 import clsx from 'clsx';
 import { usePathname } from 'next/navigation';
 import Footer from './Footer';
@@ -240,7 +239,6 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
           // With max-height transitions, it should typically flow well.
         })}>
           <div className={contentWrapperClasses}>{children}</div>
-          <HelpPrompt className="mx-auto mt-10 sm:px-6 lg:px-8" />
         </main>
       </div>
 
