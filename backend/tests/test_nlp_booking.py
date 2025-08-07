@@ -32,3 +32,15 @@ def test_extracts_explicit_year_and_event_type():
     assert result.event_type == "Birthday"
     assert result.guests == 20
 
+
+def test_multiple_dates_uses_first():
+    text = "Considering 5 May 2025 or 7 May 2025 in Johannesburg"
+    result = nlp_booking.extract_booking_details(text)
+    assert result.date.isoformat() == "2025-05-05"
+
+
+def test_ambiguous_location_returns_none():
+    text = "Party in Paris or London for 10 guests on 3 June 2025"
+    result = nlp_booking.extract_booking_details(text)
+    assert result.location is None
+
