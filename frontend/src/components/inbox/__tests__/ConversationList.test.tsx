@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { act } from 'react';
 import ConversationList from '../ConversationList';
 import { flushPromises } from '@/test/utils/flush';
-import type { BookingRequest } from '@/types';
+import type { ArtistProfile, BookingRequest } from '@/types';
 
 function renderComponent(props: Partial<React.ComponentProps<typeof ConversationList>> = {}) {
   const container = document.createElement('div');
@@ -47,10 +47,10 @@ describe('ConversationList', () => {
         client: { id: 1, email: 'a', user_type: 'client', first_name: 'A', last_name: 'B', phone_number: '', is_active: true, is_verified: true },
         artist: {
           id: 2,
-          business_name: 'Biz',
           user: { id: 2, email: 'b', user_type: 'artist', first_name: 'B', last_name: 'C', phone_number: '', is_active: true, is_verified: true },
           profile_picture_url: null,
-        } as any,
+        } as unknown as BookingRequest['artist'],
+        artist_profile: { business_name: 'Biz', profile_picture_url: null } as ArtistProfile,
       } as BookingRequest,
     ];
     const { container, root, props } = renderComponent({
@@ -87,6 +87,7 @@ describe('ConversationList', () => {
         },
         artist: {
           id: 2,
+          business_name: undefined,
           user: {
             id: 2,
             email: 'b',
@@ -97,7 +98,8 @@ describe('ConversationList', () => {
             is_active: true,
             is_verified: true,
           },
-        } as any,
+        } as unknown as BookingRequest['artist'],
+        artist_profile: { business_name: undefined } as ArtistProfile,
       } as BookingRequest,
     ];
     const { container, root, props } = renderComponent({
@@ -136,10 +138,10 @@ describe('ConversationList', () => {
         client: { id: 1, email: 'a', user_type: 'client', first_name: 'A', last_name: 'B', phone_number: '', is_active: true, is_verified: true },
         artist: {
           id: 2,
-          business_name: 'Biz',
           user: { id: 2, email: 'b', user_type: 'artist', first_name: 'B', last_name: 'C', phone_number: '', is_active: true, is_verified: true },
           profile_picture_url: null,
-        } as any,
+        } as unknown as BookingRequest['artist'],
+        artist_profile: { business_name: 'Biz', profile_picture_url: null } as ArtistProfile,
       } as BookingRequest,
     ];
     const { container, root, props } = renderComponent({
@@ -168,7 +170,7 @@ describe('ConversationList', () => {
         updated_at: new Date().toISOString(),
         client: { id: 2, email: 'b', user_type: 'client', first_name: 'Client', last_name: 'X', phone_number: '', is_active: true, is_verified: true },
         artist: { id: 1, email: 'a', user_type: 'artist', first_name: 'Art', last_name: 'Ist', phone_number: '', is_active: true, is_verified: true },
-        artist_profile: { business_name: 'Biz', profile_picture_url: null } as any,
+        artist_profile: { business_name: 'Biz', profile_picture_url: null } as ArtistProfile,
       } as BookingRequest,
     ];
     const { container, root, props } = renderComponent({
@@ -217,7 +219,7 @@ describe('ConversationList', () => {
             is_active: true,
             is_verified: true,
           },
-        } as any,
+        } as unknown as BookingRequest['artist'],
       } as BookingRequest,
     ];
     const { container, root, props } = renderComponent({
