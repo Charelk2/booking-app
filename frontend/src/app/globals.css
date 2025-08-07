@@ -179,7 +179,8 @@
   }
 
   .map-container-expanded {
-    @apply h-[250px];
+    /* Use viewport height for responsiveness but cap size for consistency */
+    @apply h-[40vh] max-h-64;
   }
 
   /* Slide-out reservation side panel */

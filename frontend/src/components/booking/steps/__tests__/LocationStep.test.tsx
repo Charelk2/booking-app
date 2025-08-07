@@ -83,6 +83,29 @@ describe('LocationStep selection', () => {
     jest.useRealTimers();
   });
 
+  it('toggles map container classes without layout jumps', async () => {
+    await act(async () => {
+      root.render(React.createElement(Wrapper));
+      await Promise.resolve();
+    });
+    const mapDiv = container.querySelector('[data-testid="map-container"]') as HTMLDivElement;
+    expect(mapDiv.className).toContain('map-container-collapsed');
+    const input = container.querySelector('input') as HTMLInputElement;
+    jest.useFakeTimers();
+    await act(async () => {
+      input.value = 'Test';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      jest.advanceTimersByTime(350);
+    });
+    const option = container.querySelector('[data-testid="location-option"]') as HTMLDivElement;
+    await act(async () => {
+      option.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(mapDiv.className).toContain('map-container-expanded');
+    expect(mapDiv.className).not.toContain('map-container-collapsed');
+    jest.useRealTimers();
+  });
+
   it('reveals tooltip on focus', async () => {
     await act(async () => {
       root.render(React.createElement(Wrapper));
