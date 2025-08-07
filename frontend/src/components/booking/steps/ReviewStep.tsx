@@ -66,7 +66,7 @@ export default function ReviewStep({
       const fly = breakdown.fly;
       content += `Flights (${fly.travellers}): ${formatCurrency(fly.flightSubtotal)} (avg price)<br/>`;
       content += `Car Rental: ${formatCurrency(fly.carRental)}<br/>`;
-      content += `Transfers: ${formatCurrency(fly.transferCost)}`;
+      content += `Fuel: ${formatCurrency(fly.transferCost)}`;
     } else if (mode === 'drive' && breakdown.drive) {
       const drive = breakdown.drive;
       content += `Drive Estimate: ${formatCurrency(drive.estimate)}`;
