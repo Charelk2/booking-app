@@ -18,5 +18,5 @@ The filter control is typically an icon button that opens a filtering UI, such a
 
 ## Footer
 
-`Footer` renders grouped navigation links and social icons using brand colors. On large screens the navigation links are laid out
-in two rows and three columns, maintaining a compact grid for easier scanning. It appears on every page wrapped by `MainLayout`.
+`Footer` renders grouped navigation links and social icons using brand colors. On large screens the navigation links sit on the
+right side of the page in a two-row, three-column grid for easier scanning. It appears on every page wrapped by `MainLayout`.
