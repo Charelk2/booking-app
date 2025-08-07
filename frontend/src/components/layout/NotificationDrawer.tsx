@@ -169,11 +169,14 @@ export default function NotificationDrawer({
                           );
                         }
                         return (
-                          <div style={style} className="flex items-center justify-center hover:bg-gray-50 transition-colors duration-150">
+                          <div
+                            style={style}
+                            className="flex items-center justify-center hover:bg-gray-50 transition-colors duration-150"
+                          >
                             <button
                               type="button"
                               onClick={() => setVisibleCount(c => c + pageSize)}
-                              className="text-indigo-600 text-xs font-medium"
+                              className="flex items-center justify-center min-h-[44px] min-w-[44px] text-indigo-600 text-sm font-medium"
                             >
                               Load more
                             </button>
