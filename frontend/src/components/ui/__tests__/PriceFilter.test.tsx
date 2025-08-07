@@ -10,7 +10,7 @@ jest.mock('rheostat', () => {
   interface MockSliderProps {
     values: number[];
     onValuesUpdated: (state: { values: number[] }) => void;
-    onChange: (state: { values: number[] }) => void;
+    onChange?: (state: { values: number[] }) => void;
   }
   return function MockSlider({ values, onValuesUpdated, onChange }: MockSliderProps) {
     return (
@@ -36,7 +36,7 @@ jest.mock('rheostat', () => {
         <button
           data-testid="commit"
           type="button"
-          onClick={() => onChange({ values })}
+          onClick={() => onChange?.({ values })}
         >
           commit
         </button>
@@ -48,9 +48,10 @@ jest.mock('rheostat', () => {
 const push = jest.fn();
 useRouter.mockReturnValue({ push });
 usePathname.mockReturnValue('/artists');
-useSearchParams.mockReturnValue({
+const searchParamsMock: Pick<URLSearchParams, 'toString'> = {
   toString: () => '',
-} as any);
+};
+useSearchParams.mockReturnValue(searchParamsMock);
 useParams.mockReturnValue({});
 
 afterEach(() => {
@@ -73,6 +74,8 @@ describe('PriceFilter', () => {
           priceDistribution={[]}
           onApply={onApply}
           onClear={jest.fn()}
+          sortOptions={[]}
+          onSortChange={jest.fn()}
         />,
       );
     });

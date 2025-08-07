@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import MessageThreadWrapper from '../MessageThreadWrapper';
 import * as api from '@/lib/api';
 import { useRouter } from '@/tests/mocks/next-navigation';
+import type { BookingRequest, ArtistProfile } from '@/types';
 
 jest.mock('@/lib/api');
 
@@ -26,14 +27,17 @@ jest.mock('@/hooks/usePaymentModal', () => ({
 
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+  default: ({ children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a {...props}>{children}</a>
+  ),
 }));
 
 
-const bookingRequest = {
+const bookingRequest: Partial<BookingRequest> = {
   id: 1,
   artist: {
     id: 2,
+    first_name: 'Art',
     business_name: 'ArtistBiz',
     user: { first_name: 'Art' },
     profile_picture_url: null,
@@ -43,6 +47,7 @@ const bookingRequest = {
     first_name: 'Client',
     profile_picture_url: null,
   },
+  artist_profile: { business_name: 'ArtistBiz' } as Partial<ArtistProfile>,
 };
 
 function setup(userType: 'client' | 'artist') {
@@ -64,7 +69,11 @@ describe('MessageThreadWrapper', () => {
     const { container, root } = setup('client');
     await act(async () => {
       root.render(
-        <MessageThreadWrapper bookingRequestId={1} bookingRequest={bookingRequest as any} setShowReviewModal={() => {}} />,
+        <MessageThreadWrapper
+          bookingRequestId={1}
+          bookingRequest={bookingRequest as BookingRequest}
+          setShowReviewModal={() => {}}
+        />,
       );
     });
     await act(async () => {});
@@ -78,7 +87,11 @@ describe('MessageThreadWrapper', () => {
     const { container, root } = setup('artist');
     await act(async () => {
       root.render(
-        <MessageThreadWrapper bookingRequestId={1} bookingRequest={bookingRequest as any} setShowReviewModal={() => {}} />,
+        <MessageThreadWrapper
+          bookingRequestId={1}
+          bookingRequest={bookingRequest as BookingRequest}
+          setShowReviewModal={() => {}}
+        />,
       );
     });
     await act(async () => {});
@@ -92,7 +105,11 @@ describe('MessageThreadWrapper', () => {
     const { container, root } = setup('client');
     await act(async () => {
       root.render(
-        <MessageThreadWrapper bookingRequestId={1} bookingRequest={bookingRequest as any} setShowReviewModal={() => {}} />,
+        <MessageThreadWrapper
+          bookingRequestId={1}
+          bookingRequest={bookingRequest as BookingRequest}
+          setShowReviewModal={() => {}}
+        />,
       );
     });
     await act(async () => {});
@@ -105,11 +122,15 @@ describe('MessageThreadWrapper', () => {
   });
 
   it('fills width on mobile screens', async () => {
-    (global as any).innerWidth = 500;
+    (globalThis as { innerWidth: number }).innerWidth = 500;
     const { container, root } = setup('client');
     await act(async () => {
       root.render(
-        <MessageThreadWrapper bookingRequestId={1} bookingRequest={bookingRequest as any} setShowReviewModal={() => {}} />,
+        <MessageThreadWrapper
+          bookingRequestId={1}
+          bookingRequest={bookingRequest as BookingRequest}
+          setShowReviewModal={() => {}}
+        />,
       );
     });
     await act(async () => {});
@@ -120,11 +141,15 @@ describe('MessageThreadWrapper', () => {
   });
 
   it('closes details panel on browser back before leaving thread', async () => {
-    (global as any).innerWidth = 500;
+    (globalThis as { innerWidth: number }).innerWidth = 500;
     const { container, root, router } = setup('client');
     await act(async () => {
       root.render(
-        <MessageThreadWrapper bookingRequestId={1} bookingRequest={bookingRequest as any} setShowReviewModal={() => {}} />,
+        <MessageThreadWrapper
+          bookingRequestId={1}
+          bookingRequest={bookingRequest as BookingRequest}
+          setShowReviewModal={() => {}}
+        />,
       );
     });
     await act(async () => {});
