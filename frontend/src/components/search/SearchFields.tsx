@@ -99,7 +99,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
               compact ? 'px-4 py-2' : 'px-6 py-3',
               isActive
                 ? 'bg-gray-100 shadow-md'
-                : 'hover:bg-gray-50 focus:bg-gray-50'
+                : 'hover:bg-gray-50 focus:bg-gray-50 rounded-l-full'
             )}
             aria-expanded={isActive}
             aria-controls={`${id}-popup`}
@@ -176,11 +176,11 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       <div
         ref={locationContainerRef}
         className={clsx(
-          'relative flex-1 min-w-0 transition-all duration-200 ease-out',
+          'relative min-w-0 transition-all duration-200 ease-out',
           compact ? 'px-4 py-2' : 'px-6 py-3',
           activeField === 'location'
             ? 'bg-gray-100 shadow-md'
-            : 'hover:bg-gray-50 focus-within:bg-gray-50',
+            : 'hover:bg-gray-50 focus:bg-gray-50',
         )}
         onFocus={() => onFieldClick('location', locationContainerRef.current!)}
         onClick={() => locationInputRef.current?.focus()}
