@@ -8,12 +8,8 @@ exports[`Avatar component matches snapshot for default placeholder 1`] = `
   <img
     alt="avatar"
     class="object-cover rounded-full"
-    data-nimg="1"
-    decoding="async"
     height="40"
-    loading="lazy"
     src="http://localhost:8000/static/default-avatar.svg"
-    style="color: transparent;"
     width="40"
   />
 </div>
