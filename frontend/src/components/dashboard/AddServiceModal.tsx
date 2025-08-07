@@ -336,38 +336,42 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
 
                     {/* Step 1: Service Details */}
                     {step === 1 && (
-                      <div className="space-y-6"> {/* Using space-y-6 directly */}
+                      <div className="space-y-4">
                         <h2 className="text-xl font-semibold">Service Details</h2>
-                        <TextInput
-                          label="Service Title"
-                          {...register("title", {
-                            required: "Service title is required",
-                            validate: (value) => {
-                              const len = value.trim().length;
-                              if (len < 5) return `Need ${5 - len} more characters`;
-                              if (len > 60) return `Remove ${len - 60} characters`;
-                              return true;
-                            },
-                          })}
-                          error={errors.title?.message}
-                        />
-                        <p className="text-xs text-right text-gray-500">{(watchTitle || "").length}/60</p>
+                        <div>
+                          <TextInput
+                            label="Service Title"
+                            {...register("title", {
+                              required: "Service title is required",
+                              validate: (value) => {
+                                const len = value.trim().length;
+                                if (len < 5) return `Need ${5 - len} more characters`;
+                                if (len > 60) return `Remove ${len - 60} characters`;
+                                return true;
+                              },
+                            })}
+                            error={errors.title?.message}
+                          />
+                          <p className="mt-1 text-xs text-right text-gray-500">{(watchTitle || "").length}/60</p>
+                        </div>
 
-                        <TextArea
-                          label="Description"
-                          rows={4}
-                          {...register("description", {
-                            required: "Description is required",
-                            validate: (value) => {
-                              const len = value.trim().length;
-                              if (len < 20) return `Need ${20 - len} more characters`;
-                              if (len > 500) return `Remove ${len - 500} characters`;
-                              return true;
-                            },
-                          })}
-                          error={errors.description?.message}
-                        />
-                        <p className="text-xs text-right text-gray-500">{(watchDescription || "").length}/500</p>
+                        <div>
+                          <TextArea
+                            label="Description"
+                            rows={4}
+                            {...register("description", {
+                              required: "Description is required",
+                              validate: (value) => {
+                                const len = value.trim().length;
+                                if (len < 20) return `Need ${20 - len} more characters`;
+                                if (len > 500) return `Remove ${len - 500} characters`;
+                                return true;
+                              },
+                            })}
+                            error={errors.description?.message}
+                          />
+                          <p className="mt-1 text-xs text-right text-gray-500">{(watchDescription || "").length}/500</p>
+                        </div>
 
                         <TextInput
                           label="Duration (minutes)"
