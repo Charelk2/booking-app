@@ -8,14 +8,21 @@
 - `headerFilter?: React.ReactNode` – optional filter control rendered to the right of the full search bar.
 - `fullWidthContent?: boolean` – allow content to span the full width.
 
-`MainLayout` uses the CSS custom property `--mobile-bottom-nav-height` to
-automatically pad the bottom of the page so content is never hidden behind the
-mobile navigation bar. This variable is set by `MobileBottomNav` and includes
-any safe‑area inset.
+`MainLayout` uses CSS custom properties to ensure content isn't obscured by
+fixed navigation elements:
+
+- `--mobile-bottom-nav-height` pads the bottom of the page so content is never
+  hidden behind the mobile navigation bar. This variable is set by
+  `MobileBottomNav` and includes any safe‑area inset.
+- `--header-height` exposes the sticky header's height (including safe‑area
+  inset) so pages can offset anchored content or scroll targets. It is set by
+  `Header`.
 
 ## Header
 
-`Header` powers the sticky top navigation and search experience.
+`Header` powers the sticky top navigation and search experience. It applies
+`pt-safe` to account for device notches and sets the `--header-height` variable
+on the document root for layout offsetting.
 
 - `filterControl?: React.ReactNode` – component rendered to the right of the full search bar. It is hidden when the header is compacted.
 
