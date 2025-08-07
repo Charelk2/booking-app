@@ -219,4 +219,24 @@ describe('NotificationDrawer component', () => {
       expect(markAllRead).toHaveBeenCalled();
     }
   });
+
+  it('does not render Clear All button', async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(NotificationDrawer, {
+          open: true,
+          onClose: () => {},
+          items: [],
+          onItemClick: jest.fn(),
+          markAllRead: jest.fn(),
+        }),
+      );
+      await flushPromises();
+    });
+
+    const clearBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Clear All',
+    );
+    expect(clearBtn).toBeUndefined();
+  });
 });
