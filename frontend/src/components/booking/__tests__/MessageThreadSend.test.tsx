@@ -1,15 +1,16 @@
+jest.mock('@/hooks/useWebSocket', () => () => ({ send: jest.fn(), onMessage: jest.fn() }));
+jest.mock('@/lib/api');
+jest.mock('@/contexts/AuthContext');
+
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react';
 import MessageThread from '../MessageThread';
 import * as api from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
-
-jest.mock('@/lib/api');
-jest.mock('@/contexts/AuthContext');
 
 describe('MessageThread send flow', () => {
   beforeEach(() => {
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client', email: 'c@example.com' } });
+    jest.clearAllMocks();
+    (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'client', email: 'c@example.com' } });
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
     (api.getQuoteV2 as jest.Mock).mockResolvedValue({ data: null });
     (api.getBookingDetails as jest.Mock).mockResolvedValue({
@@ -19,11 +20,11 @@ describe('MessageThread send flow', () => {
 
   it('sends a message and clears the input', async () => {
     (api.postMessageToBookingRequest as jest.Mock).mockResolvedValue({ data: { id: 1 } });
-    const { getByPlaceholderText, getByLabelText } = render(
+    const { findByPlaceholderText, findByLabelText } = render(
       <MessageThread bookingRequestId={1} />,
     );
-    const textarea = getByPlaceholderText('Type your message...') as HTMLTextAreaElement;
-    const button = getByLabelText('Send message') as HTMLButtonElement;
+    const textarea = (await findByPlaceholderText('Type your message...')) as HTMLTextAreaElement;
+    const button = (await findByLabelText('Send message')) as HTMLButtonElement;
 
     expect(button.disabled).toBe(true);
     fireEvent.change(textarea, { target: { value: ' Hello ' } });
@@ -40,14 +41,14 @@ describe('MessageThread send flow', () => {
   });
 
   it('does not send empty messages', async () => {
-    const { getByPlaceholderText, getByLabelText } = render(
+    const { findByPlaceholderText, findByLabelText } = render(
       <MessageThread bookingRequestId={1} />,
     );
-    const textarea = getByPlaceholderText('Type your message...');
-    const button = getByLabelText('Send message');
+    const textarea = await findByPlaceholderText('Type your message...');
+    const button = await findByLabelText('Send message');
 
     fireEvent.change(textarea, { target: { value: '   ' } });
-    expect(button).toBeDisabled();
+    expect((button as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(button);
     await new Promise((res) => setTimeout(res, 0));
     expect(api.postMessageToBookingRequest).not.toHaveBeenCalled();
