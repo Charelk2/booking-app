@@ -1040,7 +1040,7 @@ useEffect(() => {
             {/* Message Input Form */}
             <form
               onSubmit={handleSendMessage}
-              className="sticky bottom-[56px] sm:bottom-0 bg-white border-t border-gray-100 flex items-center gap-x-2 px-3 py-2.5 shadow-lg pb-safe"
+              className="sticky bottom-[56px] sm:bottom-0 bg-white border-t border-gray-100 flex items-center gap-x-2 px-3 py-1.5 shadow-lg pb-safe"
             >
               <input
                 id="file-upload"
@@ -1052,9 +1052,9 @@ useEffect(() => {
               <label
                 htmlFor="file-upload"
                 aria-label="Upload attachment"
-                className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+                className="flex-shrink-0 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
               </label>
@@ -1092,10 +1092,10 @@ useEffect(() => {
               <Button
                 type="submit"
                 aria-label="Send message"
-                className="flex-shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md min-h-0 !min-w-0 !w-9 h-9 p-1"
+                className="flex-shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md w-11 h-11 min-w-[44px] min-h-[44px] p-2"
                 disabled={isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile)}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                 </svg>
               </Button>
