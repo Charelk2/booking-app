@@ -5,14 +5,16 @@ import { act } from 'react';
 import BookingPage from '../page';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSearchParams, useRouter, usePathname } from '@/tests/mocks/next-navigation';
-
 jest.mock('@/contexts/AuthContext');
+jest.mock('@/components/booking/BookingWizard', () => () => <div>Date & Time</div>);
 
 
 interface AuthValue {
   user: unknown;
   loading: boolean;
 }
+
+const mockFetch = jest.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
 
 function setup(authValue: AuthValue, searchParams: Record<string, string> = {}) {
   (useAuth as jest.Mock).mockReturnValue(authValue);
@@ -28,6 +30,10 @@ function setup(authValue: AuthValue, searchParams: Record<string, string> = {}) 
 }
 
 describe('BookingPage auth flow', () => {
+  beforeEach(() => {
+    (global as any).fetch = mockFetch;
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -47,7 +53,10 @@ describe('BookingPage auth flow', () => {
   });
 
   it('renders booking wizard when authenticated', async () => {
-    const { container, root } = setup({ user: { id: 1, email: 't@example.com' }, loading: false }, { artist_id: '1' });
+    const { container, root } = setup(
+      { user: { id: 1, email: 't@example.com' }, loading: false },
+      { artist_id: '1' }
+    );
     await act(async () => {
       root.render(<BookingPage />);
     });
