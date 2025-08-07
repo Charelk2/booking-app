@@ -66,6 +66,62 @@ describe('ConversationList', () => {
     container.remove();
   });
 
+  it('falls back to nested user first name when business name missing', async () => {
+    const requests: BookingRequest[] = [
+      {
+        id: 1,
+        client_id: 1,
+        artist_id: 2,
+        status: 'pending_quote',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        client: {
+          id: 1,
+          email: 'a',
+          user_type: 'client',
+          first_name: 'A',
+          last_name: 'B',
+          phone_number: '',
+          is_active: true,
+          is_verified: true,
+        },
+        artist: {
+          id: 2,
+          user: {
+            id: 2,
+            email: 'b',
+            user_type: 'artist',
+            first_name: 'Nested',
+            last_name: 'User',
+            phone_number: '',
+            is_active: true,
+            is_verified: true,
+          },
+        } as any,
+      } as BookingRequest,
+    ];
+    const { container, root, props } = renderComponent({
+      bookingRequests: requests,
+      currentUser: {
+        id: 1,
+        email: 'a',
+        user_type: 'client',
+        first_name: 'A',
+        last_name: 'B',
+        phone_number: '',
+        is_active: true,
+        is_verified: true,
+      },
+    });
+    await act(async () => {
+      root.render(<ConversationList {...props} />);
+    });
+    await flushPromises();
+    expect(container.textContent).toContain('Nested');
+    act(() => root.unmount());
+    container.remove();
+  });
+
   it('shows client-facing quote preview', async () => {
     const requests: BookingRequest[] = [
       {
@@ -124,6 +180,66 @@ describe('ConversationList', () => {
     });
     await flushPromises();
     expect(container.textContent).toContain('You sent a quote');
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('uses artist profile picture when artist_profile missing', async () => {
+    const requests: BookingRequest[] = [
+      {
+        id: 1,
+        client_id: 1,
+        artist_id: 2,
+        status: 'pending_quote',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        client: {
+          id: 1,
+          email: 'a',
+          user_type: 'client',
+          first_name: 'A',
+          last_name: 'B',
+          phone_number: '',
+          is_active: true,
+          is_verified: true,
+        },
+        artist: {
+          id: 2,
+          business_name: 'Biz',
+          profile_picture_url: '/pic.jpg',
+          user: {
+            id: 2,
+            email: 'b',
+            user_type: 'artist',
+            first_name: 'B',
+            last_name: 'C',
+            phone_number: '',
+            is_active: true,
+            is_verified: true,
+          },
+        } as any,
+      } as BookingRequest,
+    ];
+    const { container, root, props } = renderComponent({
+      bookingRequests: requests,
+      currentUser: {
+        id: 1,
+        email: 'a',
+        user_type: 'client',
+        first_name: 'A',
+        last_name: 'B',
+        phone_number: '',
+        is_active: true,
+        is_verified: true,
+      },
+    });
+    await act(async () => {
+      root.render(<ConversationList {...props} />);
+    });
+    await flushPromises();
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    expect(img?.getAttribute('src') ?? '').toContain('pic.jpg');
     act(() => root.unmount());
     container.remove();
   });

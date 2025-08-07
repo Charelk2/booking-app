@@ -169,7 +169,14 @@ export interface BookingRequest {
   updated_at: string;
   // Optional expanded relations returned by the API
   client?: User;
-  artist?: User;
+  artist?: User & {
+    /** Optional business name directly on the artist record */
+    business_name?: string | null;
+    /** Optional profile picture when artist_profile is absent */
+    profile_picture_url?: string | null;
+    /** Some API responses nest the user inside the artist */
+    user?: User | null;
+  };
   /** Additional artist details including business name */
   artist_profile?: ArtistProfile;
   service?: Service;
