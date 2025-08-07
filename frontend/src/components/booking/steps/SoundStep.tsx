@@ -50,6 +50,7 @@ export default function SoundStep({
                   open={sheetOpen}
                   onClose={() => setSheetOpen(false)}
                   initialFocus={firstRadioRef}
+                  title="Select sound preference"
                 >
                   <fieldset className="p-4 space-y-2">
                     {['yes', 'no'].map((opt, idx) => (

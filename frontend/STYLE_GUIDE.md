@@ -48,6 +48,7 @@ Use `<CollapsibleSection>` from `@/components/ui` for expandable groups. It rend
 ### BottomSheet
 
 `<BottomSheet>` displays a sliding panel anchored to the viewport bottom. It wraps Headless UI's `Dialog` to trap focus, animates with Tailwind transitions, and returns focus to the trigger on close. Apply it for mobile pickers, filter sheets, and modal forms.
+Provide a `title` prop to render an accessible heading inside `Dialog.Title`. The component wires this title to `aria-labelledby` on the dialog so screen readers announce the sheet context.
 
 ### Mobile Navigation
 

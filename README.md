@@ -888,8 +888,9 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Each step appears in a white card with rounded corners and a subtle shadow.
 * The progress bar now stays pinned just below the header on phones so progress remains visible while scrolling through each step.
 * Venue picker uses a reusable `<BottomSheet>` component on small screens to
-  avoid keyboard overlap. The sheet traps focus for accessibility and closes when
-  you press `Escape` or tap outside.
+  avoid keyboard overlap. The sheet traps focus for accessibility, exposes a
+  `title` via `Dialog.Title` and `aria-labelledby`, and closes when you press
+  `Escape` or tap outside.
 * Sound and venue type buttons now correctly reflect the selected option and are
   included in the booking summary.
 * Booking summary fonts now match the step cards for a more polished look.

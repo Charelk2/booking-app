@@ -1,5 +1,5 @@
 "use client";
-import { Fragment, useEffect, useRef } from 'react';
+import { Fragment, useEffect, useRef, useId } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import clsx from 'clsx';
 
@@ -11,6 +11,11 @@ interface BottomSheetProps {
   testId?: string;
   desktopCenter?: boolean;
   panelClassName?: string;
+  /**
+   * Accessible title for the sheet. Rendered inside `Dialog.Title` and
+   * referenced by `aria-labelledby` on the dialog.
+   */
+  title?: string;
 }
 
 export default function BottomSheet({
@@ -21,8 +26,10 @@ export default function BottomSheet({
   testId,
   desktopCenter = false,
   panelClassName,
+  title,
 }: BottomSheetProps) {
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const titleId = useId();
 
   useEffect(() => {
     if (open) {
@@ -43,6 +50,7 @@ export default function BottomSheet({
         onClose={handleClose}
         initialFocus={initialFocus}
         data-testid={testId}
+        aria-labelledby={title ? titleId : undefined}
       >
         <div className="absolute inset-0 overflow-hidden">
           <Transition.Child
@@ -78,6 +86,11 @@ export default function BottomSheet({
                   panelClassName,
                 )}
               >
+                {title && (
+                  <Dialog.Title id={titleId} className="sr-only">
+                    {title}
+                  </Dialog.Title>
+                )}
                 {children}
               </Dialog.Panel>
             </Transition.Child>
