@@ -119,8 +119,8 @@ const InlineQuoteForm: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="flex flex-col space-y-4 text-xs">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex flex-col text-xs">
+          <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
             <h4 className="text-sm font-semibold">Review &amp; Adjust Quote</h4>
             {onDecline && (
               <button
@@ -132,7 +132,7 @@ const InlineQuoteForm: React.FC<Props> = ({
               </button>
             )}
           </div>
-          <div className="text-xs font-medium opacity-90">
+          <div className="mb-4 text-xs font-medium opacity-90">
             <span>Quote No: {quoteNumber}</span>
             <span className="ml-4">Date: {currentDate}</span>
           </div>
