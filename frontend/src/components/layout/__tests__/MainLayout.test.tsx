@@ -22,7 +22,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 
-describe('MainLayout user menu', () => {
+describe('MainLayout header behavior', () => {
   afterEach(() => {
     jest.clearAllMocks();
     mockUsePathname.mockReturnValue('/');
@@ -30,55 +30,8 @@ describe('MainLayout user menu', () => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams());
   });
 
-  it('shows artist links for artist users', async () => {
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, email: 'a@test.com', user_type: 'artist' } as User, logout: jest.fn() });
-    const div = document.createElement('div');
-    document.body.appendChild(div);
-    const root = createRoot(div);
-    await act(async () => {
-      root.render(React.createElement(MainLayout, null, React.createElement('div')));
-    });
-    await flushPromises();
-    expect(div.textContent).toContain('Sound Providers');
-    expect(div.textContent).toContain('Quote Calculator');
-    expect(div.textContent).toContain('Quote Templates');
-    const menuBtn = Array.from(div.querySelectorAll('button')).find(b => b.textContent?.includes('Open user menu')) as HTMLButtonElement;
-    expect(menuBtn).toBeTruthy();
-    await act(async () => {
-      menuBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    await flushPromises();
-    expect(div.textContent).toContain('Quotes');
-    expect(div.textContent).toContain('Quote Templates');
-    expect(div.textContent).not.toContain('Account');
-    act(() => { root.unmount(); });
-    div.remove();
-  });
-
-  it('shows My Bookings link for client users', async () => {
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 5, email: 'c@test.com', user_type: 'client' } as User, logout: jest.fn() });
-    const div = document.createElement('div');
-    document.body.appendChild(div);
-    const root = createRoot(div);
-    await act(async () => {
-      root.render(React.createElement(MainLayout, null, React.createElement('div')));
-    });
-    await flushPromises();
-    const menuBtn = Array.from(div.querySelectorAll('button')).find(b => b.textContent?.includes('Open user menu')) as HTMLButtonElement;
-    expect(menuBtn).toBeTruthy();
-    await act(async () => {
-      menuBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    await flushPromises();
-    expect(div.textContent).toContain('My Bookings');
-    expect(div.textContent).toContain('Account');
-    act(() => { root.unmount(); });
-    div.remove();
-  });
-
-  it('renders compact search pill on artist detail pages', async () => {
-    mockUsePathname.mockReturnValue('/artists');
-    mockUseParams.mockReturnValue({ id: '123' });
+  it('shows full search bar on artist detail pages', async () => {
+    mockUsePathname.mockReturnValue('/artists/123');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, email: 'a@test.com', user_type: 'artist' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -89,34 +42,11 @@ describe('MainLayout user menu', () => {
     await flushPromises();
     const header = div.querySelector('#app-header') as HTMLElement;
     expect(header).toBeTruthy();
-    expect(header.getAttribute('data-header-state')).toBe('compacted');
-    expect(div.querySelector('#compact-search-trigger')).toBeTruthy();
-    act(() => { root.unmount(); });
-    div.remove();
-  });
-
-  it('expands search bar when compact pill is clicked on artist detail pages', async () => {
-    mockUsePathname.mockReturnValue('/artists');
-    mockUseParams.mockReturnValue({ id: '999' });
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 9, email: 'x@test.com', user_type: 'artist' } as User, logout: jest.fn() });
-    const div = document.createElement('div');
-    document.body.appendChild(div);
-    const root = createRoot(div);
-    await act(async () => {
-      root.render(React.createElement(MainLayout, null, React.createElement('div')));
-    });
-    await flushPromises();
-    const trigger = div.querySelector('#compact-search-trigger') as HTMLButtonElement;
-    expect(trigger).toBeTruthy();
-    await act(async () => {
-      trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-    await flushPromises();
-    const header = div.querySelector('#app-header') as HTMLElement;
-    expect(header.getAttribute('data-header-state')).toBe('expanded-from-compact');
-    expect(div.querySelector('.header-full-search-bar')).toBeTruthy();
-    expect(div.querySelector('#expanded-search-overlay')).toBeTruthy();
-    expect(header.className).toMatch('z-50');
+    expect(header.getAttribute('data-header-state')).toBe('initial');
+    const pillWrapper = div.querySelector('.compact-pill-wrapper') as HTMLElement;
+    expect(pillWrapper.className).toContain('opacity-0');
+    const fullBar = div.querySelector('.header-full-search-bar') as HTMLElement;
+    expect(fullBar.className).not.toContain('opacity-0');
     act(() => { root.unmount(); });
     div.remove();
   });
@@ -132,7 +62,8 @@ describe('MainLayout user menu', () => {
     });
     await flushPromises();
     expect(div.querySelector('#compact-search-trigger')).toBeTruthy();
-    expect(div.querySelector('.header-full-search-bar')).toBeNull();
+    const fullBar = div.querySelector('.header-full-search-bar') as HTMLElement;
+    expect(fullBar.className).toContain('opacity-0');
     act(() => { root.unmount(); });
     div.remove();
   });

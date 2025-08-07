@@ -71,7 +71,6 @@ interface HeaderProps {
   headerState: HeaderState; // New prop for header state
   onForceHeaderState: (state: HeaderState, scrollTarget?: number) => void; // MODIFIED: Added scrollTarget
   showSearchBar?: boolean; // Controls visibility of built-in search bar
-  alwaysCompact?: boolean; // Keeps pill visible regardless of scroll
   filterControl?: ReactNode;
 }
 
