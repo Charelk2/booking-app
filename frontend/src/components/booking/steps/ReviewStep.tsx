@@ -6,7 +6,7 @@ import SummarySidebar from '../SummarySidebar';
 import { formatCurrency } from '@/lib/utils';
 import { TravelResult } from '@/lib/travel';
 import { useBooking } from '@/contexts/BookingContext';
-import { CollapsibleSection } from '../../ui';
+import { CollapsibleSection, Button } from '@/components/ui';
 import { trackEvent } from '@/lib/analytics';
 
 interface ReviewStepProps {
@@ -51,9 +51,7 @@ export default function ReviewStep({
   // Calculate the estimated total based on the visible amounts
   const estimatedTotal = subtotalBeforeTaxes + estimatedTaxesFees;
 
-  // Adjust disabled logic: if calculatedPrice is no longer API-dependent, remove its check
-  // Keep checks for isLoadingReviewData, reviewDataError, and travelResult
-  const isButtonDisabled = submitting || isLoadingReviewData || reviewDataError !== null || travelResult === null;
+  const isProcessing = submitting || isLoadingReviewData;
 
 
   const getTravelTooltipContent = () => {
@@ -163,24 +161,22 @@ export default function ReviewStep({
               .
             </label>
           </div>
-          <button
+          <Button
+            variant="primary"
+            fullWidth
+            isLoading={isProcessing}
+            disabled={reviewDataError !== null || travelResult === null}
             onClick={(e) => {
               trackEvent('booking_submit');
               void onNext(e);
             }}
-            disabled={isButtonDisabled}
-            className={`w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-              ${isButtonDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
           >
-            {(submitting || isLoadingReviewData) ? (
-              <span className="flex items-center justify-center">
-                <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
-                {submitLabel === 'Submit Request' ? 'Submitting...' : 'Loading...'}
-              </span>
-            ) : (
-              submitLabel
-            )}
-          </button>
+            {isProcessing
+              ? submitLabel === 'Submit Request'
+                ? 'Submitting...'
+                : 'Loading...'
+              : submitLabel}
+          </Button>
         </div>
       </motion.div>
     </CollapsibleSection>
