@@ -196,7 +196,9 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
   }, [adjustScrollAfterHeaderChange]);
 
 
-  const contentWrapperClasses = 'w-full px-4 sm:px-6 lg:px-8';
+  const contentWrapperClasses = fullWidthContent
+    ? 'w-full'
+    : 'w-full px-4 sm:px-6 lg:px-8';
 
 
   const showSearchBar =
@@ -234,10 +236,13 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
         />
 
         {/* CONTENT */}
-        <main className={clsx("py-1 pb-24", {
-          // Adjust padding if content jumps due to header height changes.
-          // With max-height transitions, it should typically flow well.
-        })}>
+        <main
+          className={clsx('py-1', {
+            // Adjust padding if content jumps due to header height changes.
+            // With max-height transitions, it should typically flow well.
+          })}
+          style={{ paddingBottom: 'var(--mobile-bottom-nav-height, 0px)' }}
+        >
           <div className={contentWrapperClasses}>{children}</div>
         </main>
       </div>
