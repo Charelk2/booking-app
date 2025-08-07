@@ -25,6 +25,7 @@ import { trackEvent } from '@/lib/analytics';
 
 import { BookingRequestCreate } from '@/types';
 import Stepper from '../ui/Stepper';
+import ProgressBar from '../ui/ProgressBar';
 import toast from '../ui/Toast';
 
 // --- Step Components ---
@@ -128,6 +129,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
 
   const isMobile = useIsMobile();
+  // Convert zero-based step index to progress percentage for the mobile progress bar.
+  const progressValue = ((step + 1) / steps.length) * 100;
   const hasLoaded = useRef(false);
 
   // --- Form Hook (React Hook Form + Yup) ---
@@ -487,16 +490,24 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95"
           >
             <Dialog.Panel className="pointer-events-auto w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl bg-white flex flex-col overflow-hidden">
-              <Stepper
-                steps={steps}
-                currentStep={step}
-                maxStepCompleted={maxStepCompleted}
-                onStepClick={setStep}
-                ariaLabel="Booking progress"
-                orientation="horizontal"
-                className="px-6 py-4 border-b border-gray-100"
-                noCircles
-              />
+              {isMobile ? (
+                // On mobile, use a simple progress bar to avoid step label overflow.
+                <ProgressBar
+                  value={progressValue}
+                  className="px-6 py-4 border-b border-gray-100"
+                />
+              ) : (
+                <Stepper
+                  steps={steps}
+                  currentStep={step}
+                  maxStepCompleted={maxStepCompleted}
+                  onStepClick={setStep}
+                  ariaLabel="Booking progress"
+                  orientation="horizontal"
+                  className="px-6 py-4 border-b border-gray-100"
+                  noCircles
+                />
+              )}
 
               <form
                 onSubmit={(e) => {
