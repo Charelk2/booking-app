@@ -2,7 +2,7 @@
 
 exports[`Header hides search bar when disabled 1`] = `
 <header
-  class="app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out"
+  class="app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out pt-safe"
   data-header-state="initial"
   id="app-header"
 >
@@ -108,7 +108,7 @@ exports[`Header hides search bar when disabled 1`] = `
 
 exports[`Header matches compact snapshot with filter control 1`] = `
 <header
-  class="app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out compacted"
+  class="app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out pt-safe compacted"
   data-header-state="compacted"
   id="app-header"
 >
@@ -381,7 +381,7 @@ exports[`Header matches compact snapshot with filter control 1`] = `
 
 exports[`Header renders extraBar when provided 1`] = `
 <header
-  class="app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out"
+  class="app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out pt-safe"
   data-header-state="initial"
   id="app-header"
 >
@@ -494,7 +494,7 @@ exports[`Header renders extraBar when provided 1`] = `
 
 exports[`Header renders search bar when enabled 1`] = `
 <header
-  class="app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out"
+  class="app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out pt-safe"
   data-header-state="initial"
   id="app-header"
 >
