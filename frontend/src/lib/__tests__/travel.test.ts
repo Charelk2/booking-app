@@ -1,7 +1,18 @@
 import * as travel from '../travel';
 
 describe('travel.calculateTravelMode', () => {
+  let fetchFlightCostSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    fetchFlightCostSpy = jest.spyOn(travel, 'fetchFlightCost').mockResolvedValue(9999);
+  });
+
+  afterEach(() => {
+    fetchFlightCostSpy.mockRestore();
+  });
+
   it('returns drive when no direct flight route exists', async () => {
+    fetchFlightCostSpy.mockResolvedValue(3000);
     const airportStub = jest.fn(async (city: string) => {
       if (city.startsWith('George')) return 'GRJ';
       if (city.startsWith('Durban')) return 'DUR';
@@ -39,7 +50,7 @@ describe('travel.calculateTravelMode', () => {
       }
       return { distanceKm: 50, durationHrs: 3 };
     });
-    jest.spyOn(travel, 'fetchFlightCost').mockResolvedValue(1200);
+    fetchFlightCostSpy.mockResolvedValue(1200);
     const result = await travel.calculateTravelMode(
       {
         artistLocation: 'Cape Town, South Africa',
@@ -48,6 +59,7 @@ describe('travel.calculateTravelMode', () => {
         drivingEstimate: 5000,
         travelRate: 2.5,
         travelDate: new Date('2025-01-01'),
+        flightPricePerPerson: 1200,
       },
       metricsStub,
       airportStub,
@@ -59,6 +71,7 @@ describe('travel.calculateTravelMode', () => {
   });
 
   it('defaults to drive when driving is cheaper', async () => {
+    fetchFlightCostSpy.mockResolvedValue(3000);
     const airportStub = jest.fn(async () => 'CPT');
     const result = await travel.calculateTravelMode(
       {
@@ -98,6 +111,7 @@ describe('travel.calculateTravelMode', () => {
   });
 
   it('returns drive when transfer time exceeds limit', async () => {
+    fetchFlightCostSpy.mockResolvedValue(3000);
     const airportStub = jest.fn(async () => 'CPT');
     const metricsStub = jest.fn(async (from: string, to: string) => {
       if (to.includes('Cape Town International Airport')) {
@@ -124,9 +138,17 @@ describe('travel.calculateTravelMode', () => {
   });
 
   it('forces fly when direct drive is very long', async () => {
-    const airportStub = jest.fn(async () => 'CPT');
+    fetchFlightCostSpy.mockResolvedValue(400);
+    const airportStub = jest.fn(async (city: string) => {
+      if (city.startsWith('Cape Town')) return 'CPT';
+      if (city.startsWith('Windhoek')) return 'JNB';
+      return null;
+    });
     const metricsStub = jest.fn(async (from: string, to: string) => {
       if (from.includes('Cape Town International Airport') || to.includes('Cape Town International Airport')) {
+        return { distanceKm: 10, durationHrs: 1 };
+      }
+      if (from.includes('O. R. Tambo International Airport') || to.includes('O. R. Tambo International Airport')) {
         return { distanceKm: 10, durationHrs: 1 };
       }
       return { distanceKm: 900, durationHrs: 9 };
