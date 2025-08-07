@@ -52,16 +52,9 @@ export default function ConversationList({
 
         const previewMessage = (() => {
           if (req.last_message_content === 'Artist sent a quote') {
-            if (currentUser.user_type === 'artist') {
-              return 'You sent a quote';
-            }
-            const businessName =
-              req.artist_profile?.business_name ||
-              req.artist?.business_name ||
-              req.artist?.user?.first_name ||
-              req.artist?.first_name ||
-              'Artist';
-            return `${businessName} sent a quote`;
+            return currentUser.user_type === 'artist'
+              ? 'You sent a quote'
+              : `${otherName} sent a quote`;
           }
           return (
             req.last_message_content ??
