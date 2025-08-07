@@ -194,3 +194,25 @@ describe('MessageThread quote actions', () => {
     container.remove();
   });
 });
+
+describe('MessageThread composer positioning', () => {
+  it('uses CSS variable to offset the composer from the bottom nav', async () => {
+    (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 7, user_type: 'client' } });
+    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
+
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(<MessageThread bookingRequestId={1} />);
+    });
+    await act(async () => { await flushPromises(); });
+
+    const form = container.querySelector('form');
+    expect(form).not.toBeNull();
+    expect((form as HTMLFormElement).style.bottom).toBe('var(--mobile-bottom-nav-height,56px)');
+
+    act(() => root.unmount());
+    container.remove();
+  });
+});
