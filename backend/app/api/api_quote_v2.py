@@ -7,7 +7,7 @@ import os
 
 from .. import models, schemas
 from ..utils import error_response
-from ..utils.notifications import notify_booking_status_update
+from ..utils.notifications import notify_user_new_message
 from ..crud import crud_quote_v2, crud_message
 from .dependencies import get_db, get_current_user
 from ..services import quote_pdf
@@ -53,9 +53,15 @@ def create_quote(quote_in: schemas.QuoteV2Create, db: Session = Depends(get_db))
             attachment_url=None,
         )
         client = db.query(models.User).filter(models.User.id == quote_in.client_id).first()
-        if client:
-            notify_booking_status_update(
-                db, client, quote_in.booking_request_id, "quote_sent"
+        artist = db.query(models.User).filter(models.User.id == quote_in.artist_id).first()
+        if client and artist:
+            notify_user_new_message(
+                db,
+                client,
+                artist,
+                quote_in.booking_request_id,
+                "Artist sent a quote",
+                models.MessageType.QUOTE,
             )
         return quote
     except HTTPException:
