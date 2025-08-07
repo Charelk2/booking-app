@@ -17,7 +17,7 @@ import { Category as CategoryType } from '@/lib/categoryMap'; // Correctly impor
 
 // Re-exporting for external use, if needed
 export type Category = CategoryType;
-export type SearchFieldId = 'location' | 'when' | 'category';
+export type SearchFieldId = 'category' | 'when' | 'location';
 
 
 export interface SearchFieldsProps {
@@ -60,10 +60,10 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     },
     ref
   ) => {
-    // Individual refs for each field's button element to store and return focus
+    // Individual refs for each field's element to store and return focus
     const categoryButtonRef = useRef<HTMLButtonElement>(null);
-    const locationContainerRef = useRef<HTMLDivElement>(null);
     const whenButtonRef = useRef<HTMLButtonElement>(null);
+    const locationContainerRef = useRef<HTMLDivElement>(null);
 
     // Helper to render a generic search field button
     const renderField = (
@@ -78,7 +78,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       const isValuePresent =
         typeof currentValue === 'string' &&
         currentValue !== '' &&
-        !['Add dates', 'Add artist', 'Add location'].includes(currentValue);
+        !['Add artist', 'Add dates', 'Add location'].includes(currentValue);
 
       return (
         <div className="relative flex-1 min-w-0">
@@ -137,6 +137,26 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
 
   return (
     <div ref={ref} className="flex flex-1 divide-x divide-gray-200">
+      {renderField(
+        'category',
+        'Category',
+        category ? category.label : 'Add artist',
+        categoryButtonRef,
+        () => setCategory(null)
+      )}
+
+      <div className="border-l border-gray-200" />
+
+      {renderField(
+        'when',
+        'When',
+        when ? dateFormatter.format(when) : 'Add dates',
+        whenButtonRef,
+        () => setWhen(null)
+      )}
+
+      <div className="border-l border-gray-200" />
+
       {/* Location field now uses a direct input instead of a button */}
       <div
         ref={locationContainerRef}
@@ -183,26 +203,6 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           </button>
         )}
       </div>
-
-      <div className="border-l border-gray-200" />
-
-      {renderField(
-        'when',
-        'When',
-        when ? dateFormatter.format(when) : 'Add dates',
-        whenButtonRef,
-        () => setWhen(null)
-      )}
-
-        <div className="border-l border-gray-200" />
-
-        {renderField(
-          'category',
-          'Category',
-          category ? category.label : 'Add artist',
-          categoryButtonRef,
-          () => setCategory(null)
-      )}
     </div>
   );
 }
