@@ -14,13 +14,12 @@ const inter = Inter({
 export const metadata = {
   title: 'Artist Booking App',
   description: 'Book your favorite artists for services',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
+  viewport: 'width=device-width, initial-scale=1',
 };
 
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
 };
 
 export default function RootLayout({
