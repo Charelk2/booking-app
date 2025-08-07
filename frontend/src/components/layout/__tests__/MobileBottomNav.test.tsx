@@ -3,13 +3,7 @@ import React from 'react';
 import { act } from 'react';
 import MobileBottomNav from '../MobileBottomNav';
 import type { User } from '@/types';
-
-const mockUseRouter = jest.fn();
-
-jest.mock('next/navigation', () => ({
-  useRouter: () => mockUseRouter(),
-  usePathname: () => '/',
-}));
+import { useRouter } from '@/tests/mocks/next-navigation';
 
 import type { AnchorHTMLAttributes } from 'react';
 
@@ -53,7 +47,7 @@ describe('MobileBottomNav', () => {
   });
 
   it('does not render when not logged in', () => {
-    mockUseRouter.mockReturnValue({ pathname: '/' });
+    useRouter.mockReturnValue({ pathname: '/' });
     act(() => {
       root.render(
         React.createElement(MobileBottomNav, { user: null })
@@ -63,7 +57,7 @@ describe('MobileBottomNav', () => {
   });
 
   it('renders navigation links when logged in', () => {
-    mockUseRouter.mockReturnValue({ pathname: '/' });
+    useRouter.mockReturnValue({ pathname: '/' });
     act(() => {
       root.render(
         React.createElement(MobileBottomNav, { user: {} as User })
@@ -89,7 +83,7 @@ describe('MobileBottomNav', () => {
   });
 
   it('shows unread message count badge', () => {
-    mockUseRouter.mockReturnValue({ pathname: '/' });
+    useRouter.mockReturnValue({ pathname: '/' });
     act(() => {
       root.render(
         React.createElement(MobileBottomNav, { user: {} as User })
@@ -100,7 +94,7 @@ describe('MobileBottomNav', () => {
   });
 
   it('highlights the active tab icon', () => {
-    mockUseRouter.mockReturnValue({ pathname: '/' });
+    useRouter.mockReturnValue({ pathname: '/' });
     act(() => {
       root.render(
         React.createElement(MobileBottomNav, { user: {} as User })
@@ -111,7 +105,7 @@ describe('MobileBottomNav', () => {
   });
 
   it('nav links meet touch target size', () => {
-    mockUseRouter.mockReturnValue({ pathname: '/' });
+    useRouter.mockReturnValue({ pathname: '/' });
     act(() => {
       root.render(
         React.createElement(MobileBottomNav, { user: {} as User })
@@ -123,7 +117,7 @@ describe('MobileBottomNav', () => {
   });
 
   it('hides on scroll down and shows on scroll up', () => {
-    mockUseRouter.mockReturnValue({ pathname: '/' });
+    useRouter.mockReturnValue({ pathname: '/' });
     Object.defineProperty(window, 'scrollY', { value: 0, writable: true });
     act(() => {
       root.render(React.createElement(MobileBottomNav, { user: {} as User }));
@@ -145,7 +139,7 @@ describe('MobileBottomNav', () => {
   });
 
   it('remains visible once scrolled to the top', () => {
-    mockUseRouter.mockReturnValue({ pathname: '/' });
+    useRouter.mockReturnValue({ pathname: '/' });
     Object.defineProperty(window, 'scrollY', { value: 100, writable: true });
     act(() => {
       root.render(React.createElement(MobileBottomNav, { user: {} as User }));

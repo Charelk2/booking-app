@@ -3,14 +3,9 @@ import React from 'react';
 import { act } from 'react';
 import LoginPage from '../page';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from '@/tests/mocks/next-navigation';
 
 jest.mock('@/contexts/AuthContext');
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-  useSearchParams: jest.fn(),
-  usePathname: jest.fn(() => '/login'),
-}));
 jest.mock('@/components/layout/MainLayout', () => {
   const Mock = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
   Mock.displayName = 'MockMainLayout';
@@ -24,8 +19,9 @@ describe('LoginPage redirect', () => {
 
   it('redirects when already authenticated', async () => {
     const replace = jest.fn();
-    (useRouter as jest.Mock).mockReturnValue({ replace });
-    (useSearchParams as jest.Mock).mockReturnValue({ get: () => '/profile' });
+    useRouter.mockReturnValue({ replace });
+    useSearchParams.mockReturnValue({ get: () => '/profile' });
+    usePathname.mockReturnValue('/login');
     (useAuth as jest.Mock).mockReturnValue({
       login: jest.fn(),
       verifyMfa: jest.fn(),

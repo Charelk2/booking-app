@@ -3,6 +3,12 @@
 
 import React from "react";
 import "@/tests/mocks/no-network";
+import {
+  useRouter as mockUseRouter,
+  usePathname as mockUsePathname,
+  useParams as mockUseParams,
+  useSearchParams as mockUseSearchParams,
+} from "@/tests/mocks/next-navigation";
 
 // Provide a basic matchMedia stub for hooks that query media features.
 Object.defineProperty(window, 'matchMedia', {
@@ -19,19 +25,13 @@ Object.defineProperty(window, 'matchMedia', {
   }),
 });
 
-jest.mock('next/navigation', () => {
-  return {
-    useRouter: () => ({
-      push: jest.fn(),
-      replace: jest.fn(),
-      refresh: jest.fn(),
-      pathname: '/',
-    }),
-    usePathname: () => '/',
-    useParams: jest.fn(() => ({})),
-    useSearchParams: () => new URLSearchParams(),
-  };
-});
+jest.mock('next/navigation', () => ({
+  __esModule: true,
+  useRouter: mockUseRouter,
+  usePathname: mockUsePathname,
+  useParams: mockUseParams,
+  useSearchParams: mockUseSearchParams,
+}));
 
 // Simplified <Link> component for tests
 jest.mock('next/link', () => ({

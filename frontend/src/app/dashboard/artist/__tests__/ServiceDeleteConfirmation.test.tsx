@@ -4,20 +4,15 @@ import { act } from 'react';
 import DashboardPage from '../page';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from '@/tests/mocks/next-navigation';
 import { Service } from '@/types';
 import { flushPromises } from '@/test/utils/flush';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-  usePathname: jest.fn(() => '/dashboard/artist'),
-  useSearchParams: jest.fn(),
-}));
 
 beforeEach(() => {
-  (useSearchParams as jest.Mock).mockReturnValue({ get: () => null });
+  useSearchParams.mockReturnValue({ get: () => null });
 });
 
 describe('Service deletion confirmation', () => {
@@ -36,7 +31,8 @@ describe('Service deletion confirmation', () => {
   };
 
   beforeEach(async () => {
-    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    useRouter.mockReturnValue({ push: jest.fn() });
+    usePathname.mockReturnValue('/dashboard/artist');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
     (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
     (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [service] });

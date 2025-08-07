@@ -5,14 +5,10 @@ import { act } from 'react';
 import ClientQuotesPage from '../page';
 import { getMyClientQuotes } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from '@/tests/mocks/next-navigation';
 
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-  usePathname: jest.fn(() => '/dashboard/client/quotes'),
-}));
 
 
 describe('ClientQuotesPage', () => {
@@ -21,7 +17,8 @@ describe('ClientQuotesPage', () => {
   });
 
   it('renders client quotes list', async () => {
-    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    useRouter.mockReturnValue({ push: jest.fn() });
+    usePathname.mockReturnValue('/dashboard/client/quotes');
     (useAuth as jest.Mock).mockReturnValue({
       user: { id: 1, user_type: 'client', email: 'c@example.com' },
     });
@@ -53,7 +50,8 @@ describe('ClientQuotesPage', () => {
   });
 
   it('filters quotes by status', async () => {
-    (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
+    useRouter.mockReturnValue({ push: jest.fn() });
+    usePathname.mockReturnValue('/dashboard/client/quotes');
     (useAuth as jest.Mock).mockReturnValue({
       user: { id: 1, user_type: 'client', email: 'c@example.com' },
     });

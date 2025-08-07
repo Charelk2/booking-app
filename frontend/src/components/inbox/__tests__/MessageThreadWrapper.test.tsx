@@ -3,7 +3,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import MessageThreadWrapper from '../MessageThreadWrapper';
 import * as api from '@/lib/api';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/tests/mocks/next-navigation';
 
 jest.mock('@/lib/api');
 
@@ -34,9 +34,6 @@ jest.mock('next/image', () => ({
   default: (props: any) => <img {...props} />,
 }));
 
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-}));
 
 const bookingRequest = {
   id: 1,
