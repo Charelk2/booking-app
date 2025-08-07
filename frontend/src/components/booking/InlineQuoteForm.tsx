@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
-import { ServiceItem, QuoteV2Create, QuoteTemplate } from '@/types';
-import { getQuoteTemplates } from '@/lib/api';
+import { ServiceItem, QuoteV2Create } from '@/types';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 import type { EventDetails } from './QuoteBubble';
@@ -44,39 +43,14 @@ const InlineQuoteForm: React.FC<Props> = ({
   const [accommodation, setAccommodation] = useState('');
   const [discount, setDiscount] = useState(0);
   const [expiresHours, setExpiresHours] = useState<number | null>(null);
-  const [templates, setTemplates] = useState<QuoteTemplate[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<number | ''>('');
   const [quoteNumber] = useState(generateQuoteNumber());
-  const [description, setDescription] = useState('');
 
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const currentDate = format(new Date(), 'PPP');
 
   useEffect(() => {
     firstFieldRef.current?.focus();
-    getQuoteTemplates(artistId)
-      .then((res) => setTemplates(res.data))
-      .catch(() => setTemplates([]));
-  }, [artistId]);
-
-  useEffect(() => {
-    const tmpl = templates.find((t) => t.id === selectedTemplate);
-    if (tmpl) {
-      setServiceFee(Number(tmpl.services[0]?.price || 0));
-      setServices(tmpl.services.slice(1));
-      setSoundFee(tmpl.sound_fee);
-      setTravelFee(tmpl.travel_fee);
-      setAccommodation(tmpl.accommodation || '');
-      setDiscount(tmpl.discount || 0);
-    } else {
-      setServiceFee(initialBaseFee ?? 0);
-      setTravelFee(initialTravelCost ?? 0);
-      setSoundFee(initialSoundNeeded ? 250 : 0);
-      setAccommodation('');
-      setDiscount(0);
-      setServices([]);
-    }
-  }, [selectedTemplate, templates, initialBaseFee, initialTravelCost, initialSoundNeeded]);
+  }, []);
 
   const { subtotal, taxesFees, estimatedTotal } = useMemo(() => {
     const calcSubtotal =
@@ -163,96 +137,60 @@ const InlineQuoteForm: React.FC<Props> = ({
             <span className="ml-4">Date: {currentDate}</span>
           </div>
           <div className="space-y-4">
-            <div>
-              <label htmlFor="template-select" className="block text-xs font-medium text-gray-700 mb-1">
-                Choose a template
-              </label>
-              <select
-                id="template-select"
-                className="w-full p-2 border border-gray-300 rounded-lg text-xs"
-                value={selectedTemplate}
-                onChange={(e) => setSelectedTemplate(e.target.value ? Number(e.target.value) : '')}
-              >
-                <option value="">No template</option>
-                {templates.map((tmpl) => (
-                  <option key={tmpl.id} value={tmpl.id}>
-                    {tmpl.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="relative">
-              <label htmlFor="quote-description" className="sr-only">
-                Quote Description
-              </label>
-              <input
-                ref={firstFieldRef}
-                id="quote-description"
-                type="text"
-                placeholder="Quote Description (e.g., 'Wedding Performance')"
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-gray-800 text-sm shadow-sm"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-              <p className="absolute -bottom-5 left-0 text-xs text-gray-500">
-                A brief, descriptive title for this quote.
-              </p>
-            </div>
-
             <h3 className="text-sm font-semibold text-gray-900">Estimated Cost</h3>
             <div className="space-y-1 text-gray-700">
-          <div className="flex justify-between items-center py-1">
-            <span className="font-medium">Artist Base Fee</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              className="w-28 text-right p-1 rounded border border-gray-300"
-              placeholder="0.00"
-              value={serviceFee}
-              onChange={(e) => setServiceFee(Number(e.target.value))}
-            />
-          </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="font-medium">Artist Base Fee</span>
+                <input
+                  ref={firstFieldRef}
+                  type="number"
+                  inputMode="numeric"
+                  className="w-28 text-right p-1 rounded border border-gray-300"
+                  placeholder="0.00"
+                  value={serviceFee}
+                  onChange={(e) => setServiceFee(Number(e.target.value))}
+                />
+              </div>
 
-          <div className="flex justify-between items-center py-1">
-            <span className="flex items-center group font-medium">
-              Travel
-              <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
-                ⓘ
-                <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
-                  Calculated based on artist&apos;s location and event venue distance.
-                </div>
-              </span>
-            </span>
-            <input
-              type="number"
-              inputMode="numeric"
-              className="w-28 text-right p-1 rounded border border-gray-300"
-              placeholder="0.00"
-              value={travelFee}
-              onChange={(e) => setTravelFee(Number(e.target.value))}
-            />
-          </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="flex items-center group font-medium">
+                  Travel
+                  <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
+                    ⓘ
+                    <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
+                      Calculated based on artist&apos;s location and event venue distance.
+                    </div>
+                  </span>
+                </span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  className="w-28 text-right p-1 rounded border border-gray-300"
+                  placeholder="0.00"
+                  value={travelFee}
+                  onChange={(e) => setTravelFee(Number(e.target.value))}
+                />
+              </div>
 
-          <div className="flex justify-between items-center py-1">
-            <span className="flex items-center group font-medium">
-              Sound Equipment
-              <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
-                ⓘ
-                <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
-                  Standard package for events up to 150 guests.
-                </div>
-              </span>
-            </span>
-            <input
-              type="number"
-              inputMode="numeric"
-              className="w-28 text-right p-1 rounded border border-gray-300"
-              placeholder="0.00"
-              value={soundFee}
-              onChange={(e) => setSoundFee(Number(e.target.value))}
-            />
-          </div>
+              <div className="flex justify-between items-center py-1">
+                <span className="flex items-center group font-medium">
+                  Sound Equipment
+                  <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
+                    ⓘ
+                    <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
+                      Standard package for events up to 150 guests.
+                    </div>
+                  </span>
+                </span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  className="w-28 text-right p-1 rounded border border-gray-300"
+                  placeholder="0.00"
+                  value={soundFee}
+                  onChange={(e) => setSoundFee(Number(e.target.value))}
+                />
+              </div>
 
           {services.map((s, i) => (
             <div key={i} className="flex justify-between items-center py-1 gap-2">
