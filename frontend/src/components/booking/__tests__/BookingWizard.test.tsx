@@ -3,6 +3,7 @@ import React from 'react';
 import BookingWizard from '../BookingWizard';
 import { BookingProvider, useBooking } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
+import useIsMobile from '@/hooks/useIsMobile';
 import * as api from '@/lib/api';
 import * as geo from '@/lib/geo';
 import * as travel from '@/lib/travel';
@@ -12,11 +13,13 @@ jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
 jest.mock('@/lib/geo');
 jest.mock('@/lib/travel');
+jest.mock('@/hooks/useIsMobile');
 
 function ExposeSetter() {
   const { setStep, setDetails } = useBooking();
   (window as unknown as { __setStep: (s: number) => void }).__setStep = setStep;
-  (window as unknown as { __setDetails: (d: any) => void }).__setDetails = setDetails as (d: any) => void;
+  (window as unknown as { __setDetails: (d: any) => void }).__setDetails =
+    setDetails as (d: any) => void;
   return null;
 }
 
@@ -32,6 +35,7 @@ function Wrapper() {
 describe('BookingWizard instructions', () => {
   beforeEach(() => {
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 1 } });
+    (useIsMobile as jest.Mock).mockReturnValue(false);
     (api.getArtistAvailability as jest.Mock).mockResolvedValue({
       data: { unavailable_dates: [] },
     });
@@ -49,7 +53,10 @@ describe('BookingWizard instructions', () => {
     });
     (api.calculateQuote as jest.Mock).mockResolvedValue({ data: { total: 100 } });
     (geo.geocodeAddress as jest.Mock).mockResolvedValue({ lat: 0, lng: 0 });
-    (travel.getDrivingMetrics as jest.Mock).mockResolvedValue({ distanceKm: 10, durationHrs: 1 });
+    (travel.getDrivingMetrics as jest.Mock).mockResolvedValue({
+      distanceKm: 10,
+      durationHrs: 1,
+    });
     (travel.calculateTravelMode as jest.Mock).mockResolvedValue({
       mode: 'drive',
       totalCost: 0,
@@ -59,8 +66,9 @@ describe('BookingWizard instructions', () => {
 
   it('shows first step instruction', () => {
     render(<Wrapper />);
-    expect(document.body.textContent).toContain('Tell us a little bit more about your event.');
-
+    expect(document.body.textContent).toContain(
+      'Tell us a little bit more about your event.',
+    );
   });
 
   it('displays service base price in review step', async () => {
@@ -85,8 +93,17 @@ describe('BookingWizard instructions', () => {
       (window as unknown as { __setStep: (s: number) => void }).__setStep(8);
     });
 
-      expect(await screen.findByText('Artist Base Fee')).toBeTruthy();
-      expect(document.body.textContent).toContain(formatCurrency(100));
-    });
-
+    expect(await screen.findByText('Artist Base Fee')).toBeTruthy();
+    expect(document.body.textContent).toContain(formatCurrency(100));
   });
+
+  it('shows a progress bar and hides the stepper on mobile', () => {
+    (useIsMobile as jest.Mock).mockReturnValue(true);
+    render(<Wrapper />);
+    const progress = screen.getByRole('progressbar');
+    expect(progress).toBeInTheDocument();
+    expect(screen.queryByText('Location')).toBeNull();
+    expect(Number(progress.getAttribute('aria-valuenow'))).toBeCloseTo(11.11, 2);
+  });
+});
+
