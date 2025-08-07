@@ -50,4 +50,5 @@ technologies.
 
 Navigation items accept an optional `icon` component from
 `@heroicons/react`. When provided, the icon is rendered next to the link text
-and spaced consistently via the shared `navItemClasses` utility.
+and spaced consistently via the shared `navItemClasses` utility. Items are
+left-aligned within the drawer for faster scanning.
