@@ -39,3 +39,11 @@ in two rows and three columns, maintaining a compact grid for easier scanning. I
 sets render efficiently. The optional "Load more" control meets mobile
 accessibility guidelines by providing a minimum touch area of 44×44px and
 centering its label within that space.
+
+## MobileMenuDrawer
+
+`MobileMenuDrawer` powers the slide‑in menu on small screens. It uses
+Headless UI's `<Dialog.Title>` to supply an accessible name for the dialog.
+Each navigation group is wrapped in a `<nav>` with an `aria-label` and links
+are rendered inside `<ul>`/`<li>` lists to expose proper semantics to assistive
+technologies.
