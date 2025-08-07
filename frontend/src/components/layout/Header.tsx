@@ -12,7 +12,14 @@ import {
   type MutableRefObject,
 } from 'react';
 import { Menu, Transition } from '@headlessui/react';
-import { MagnifyingGlassIcon, Bars3Icon } from '@heroicons/react/24/outline';
+import {
+  MagnifyingGlassIcon,
+  Bars3Icon,
+  UsersIcon,
+  WrenchScrewdriverIcon,
+  QuestionMarkCircleIcon,
+  EnvelopeIcon,
+} from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext'; // Assuming AuthContext is set up
@@ -38,12 +45,17 @@ type SearchParams = {
   when?: Date | null;
 };
 
-const clientNav = [
-  { name: 'Artists', href: '/artists' },
-  { name: 'Services', href: '/services' },
-  { name: 'FAQ', href: '/faq' },
-  { name: 'Contact', href: '/contact' },
+const navigation = [
+  { name: 'Artists', href: '/artists', icon: UsersIcon },
+  { name: 'Services', href: '/services', icon: WrenchScrewdriverIcon },
 ];
+
+const secondaryNavigation = [
+  { name: 'FAQ', href: '/faq', icon: QuestionMarkCircleIcon },
+  { name: 'Contact', href: '/contact', icon: EnvelopeIcon },
+];
+
+const clientNav = [...navigation, ...secondaryNavigation];
 
 function ClientNav({ pathname }: { pathname: string }) {
   return (
@@ -402,7 +414,8 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       <MobileMenuDrawer
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        navigation={clientNav}
+        navigation={navigation}
+        secondaryNavigation={secondaryNavigation}
         user={user}
         logout={logout}
         pathname={pathname}
