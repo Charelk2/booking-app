@@ -422,7 +422,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                               })}
                             />
                             <TextInput
-                              label="Flight price (per person)"
+                              label="Return flight price (per person)"
                               type="number"
                               step="0.01"
                               {...register("flight_price", {
@@ -533,7 +533,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                                 <p>{watch("car_rental_price") || 0}</p>
                               </div>
                               <div className="border rounded-md p-4">
-                                <h3 className="font-medium">Flight price (per person)</h3>
+                                <h3 className="font-medium">Return flight price (per person)</h3>
                                 <p>{watch("flight_price") || 0}</p>
                               </div>
                             </>
