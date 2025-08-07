@@ -70,7 +70,17 @@ describe('MobileBottomNav', () => {
   });
 
   it('sets CSS variable with nav height on the document root', () => {
-    mockUseRouter.mockReturnValue({ pathname: '/' });
+    // JSDOM does not compute layout, so mock the nav height for this test.
+    const original = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'offsetHeight',
+    );
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      value: 56,
+    });
+
+    useRouter.mockReturnValue({ pathname: '/' });
     act(() => {
       root.render(
         React.createElement(MobileBottomNav, { user: {} as User })
@@ -80,6 +90,10 @@ describe('MobileBottomNav', () => {
       '--mobile-bottom-nav-height',
     );
     expect(value).toBe('56px');
+
+    if (original) {
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', original);
+    }
   });
 
   it('shows unread message count badge', () => {
