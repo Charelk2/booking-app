@@ -25,7 +25,13 @@ def test_calendar_download_returns_ics():
     db.refresh(artist_user)
 
     profile = ArtistProfileV2(user_id=artist_user.id)
-    service = Service(artist_id=artist_user.id, title='Gig', price=100, duration_minutes=60)
+    service = Service(
+        artist_id=artist_user.id,
+        title='Gig',
+        price=100,
+        duration_minutes=60,
+        media_url='x',
+    )
     db.add_all([profile, service])
     db.commit()
     db.refresh(service)

@@ -4,12 +4,13 @@ from app.schemas.service import ServiceCreate, ServiceUpdate, ServiceType
 
 def test_service_create_requires_type():
     with pytest.raises(Exception):
-        ServiceCreate(title="Test", duration_minutes=10, price=5.0)
+        ServiceCreate(title="Test", duration_minutes=10, price=5.0, media_url="x")
     s = ServiceCreate(
         title="Test",
         duration_minutes=10,
         price=5.0,
         service_type=ServiceType.OTHER,
+        media_url="x",
     )
     assert s.service_type == ServiceType.OTHER
     assert s.display_order is None

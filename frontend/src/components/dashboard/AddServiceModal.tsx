@@ -203,7 +203,16 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
           ? Number(data.flight_price)
           : undefined,
       };
-      const res = await apiCreateService(serviceData);
+      let media_url = '';
+      if (mediaFiles[0]) {
+        media_url = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsDataURL(mediaFiles[0]);
+        });
+      }
+      const res = await apiCreateService({ ...serviceData, media_url });
       onServiceAdded(res.data);
       reset();
       setMediaFiles([]);

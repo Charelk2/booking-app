@@ -37,7 +37,14 @@ def create_users(Session):
     db.commit()
     db.refresh(artist)
     db.refresh(client)
-    svc = Service(artist_id=artist.id, title='One', price=10, duration_minutes=30, service_type='Other')
+    svc = Service(
+        artist_id=artist.id,
+        title='One',
+        price=10,
+        duration_minutes=30,
+        service_type='Other',
+        media_url='x',
+    )
     db.add(svc)
     db.commit()
     db.refresh(svc)

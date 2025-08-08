@@ -25,7 +25,7 @@ def test_service_response_includes_currency():
     db.add(profile)
     db.commit()
 
-    svc_in = ServiceCreate(title='Gig', duration_minutes=60, price=100, service_type=ServiceType.OTHER)
+    svc_in = ServiceCreate(title='Gig', duration_minutes=60, price=100, service_type=ServiceType.OTHER, media_url='x')
     svc = api_service.create_service(db=db, service_in=svc_in, current_artist=artist)
     schema = ServiceResponse.model_validate(svc)
     assert schema.currency == 'ZAR'
