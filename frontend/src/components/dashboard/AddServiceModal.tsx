@@ -310,8 +310,8 @@ export default function AddServiceModal({
           <div className="fixed inset-0 bg-gray-500/75 z-40" aria-hidden="true" />
         </Transition.Child>
 
-        {/* Modal content container: this must be on top of the overlay */}
-        <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
+        {/* Modal content container: occupy full screen without padding */}
+        <div className="fixed inset-0 flex p-0 z-50">
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -323,15 +323,15 @@ export default function AddServiceModal({
           >
             <Dialog.Panel
               as="div"
-              className="pointer-events-auto relative w-full max-w-5xl h-full md:h-auto rounded-2xl shadow-2xl bg-white flex flex-col md:flex-row overflow-hidden"
+              className="pointer-events-auto relative w-full h-full max-w-none rounded-none shadow-none bg-white flex flex-col md:flex-row overflow-hidden"
             >
               {/* Close button for web and mobile */}
               <button
                 type="button"
                 onClick={handleCancel}
-                className="absolute top-4 right-4 z-50 text-gray-500 hover:text-gray-700 transition"
+                className="absolute top-4 right-4 z-10 p-2 rounded-md text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
               >
-                <XMarkIcon className="h-6 w-6" />
+                <XMarkIcon className="h-5 w-5 pointer-events-none" />
               </button>
 
               {/* Left Pane (Steps) */}
