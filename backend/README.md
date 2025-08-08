@@ -42,3 +42,10 @@ python -m spacy download en_core_web_sm
 If the model fails to load, the API responds with `503` and logs the
 underlying error.
 
+## Database schema helpers
+
+Startup checks in `app/db_utils.py` backfill missing database columns. This includes
+an automatic migration that adds the `media_url` column to the `services` table when
+running against older databases, preventing runtime errors when querying services
+without this field.
+

@@ -169,6 +169,17 @@ def ensure_currency_column(engine: Engine) -> None:
     )
 
 
+def ensure_media_url_column(engine: Engine) -> None:
+    """Add the ``media_url`` column to ``services`` if it's missing."""
+
+    add_column_if_missing(
+        engine,
+        "services",
+        "media_url",
+        "media_url VARCHAR NOT NULL DEFAULT ''",
+    )
+
+
 def ensure_service_travel_columns(engine: Engine) -> None:
     """Add travel-related columns to ``services`` if missing."""
 
