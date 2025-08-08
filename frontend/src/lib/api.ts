@@ -164,6 +164,7 @@ export const getArtists = async (params?: {
   maxPrice?: number;
   page?: number;
   limit?: number;
+  artist?: string;
   includePriceDistribution?: boolean;
 }): Promise<GetArtistsResponse> => {
   const { includePriceDistribution, ...rest } = params || {};
