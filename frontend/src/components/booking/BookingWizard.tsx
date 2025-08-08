@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useRef, Fragment, useCallback } from 'react';
+import React, { useEffect, useState, useRef, Fragment, useCallback, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
 
-import { useBooking } from '@/contexts/BookingContext';
+import { useBooking, EventDetails } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import useIsMobile from '@/hooks/useIsMobile';
 import useBookingForm from '@/hooks/useBookingForm';
@@ -28,59 +28,7 @@ import Stepper from '../ui/Stepper';
 import ProgressBar from '../ui/ProgressBar';
 import toast from '../ui/Toast';
 
-// --- Step Components ---
-import EventDescriptionStep from './steps/EventDescriptionStep';
-import LocationStep from './steps/LocationStep';
-import DateTimeStep from './steps/DateTimeStep';
-import EventTypeStep from './steps/EventTypeStep';
-import GuestsStep from './steps/GuestsStep';
-import VenueStep from './steps/VenueStep';
-import SoundStep from './steps/SoundStep';
-import NotesStep from './steps/NotesStep';
-import ReviewStep from './steps/ReviewStep'; // Ensure this is the modified one
-
-// --- EventDetails Type & Schema ---
-type EventDetails = {
-  eventType?: string;
-  eventDescription?: string;
-  date?: Date;
-  time?: string;
-  location?: string;
-  guests?: string;
-  venueType?: 'indoor' | 'outdoor' | 'hybrid';
-  sound?: 'yes' | 'no';
-  notes?: string;
-  attachment_url?: string;
-};
-
-const schema = yup.object<EventDetails>().shape({
-  eventType: yup.string().required('Event type is required.'),
-  eventDescription: yup.string().required('Event description is required.').min(5, 'Description must be at least 5 characters.'),
-  date: yup.date().required('Date is required.').min(new Date(), 'Date cannot be in the past.'),
-  time: yup.string().optional(),
-  location: yup.string().required('Location is required.'),
-  guests: yup.string().required('Number of guests is required.').matches(/^\d+$/, 'Guests must be a number.'),
-  venueType: yup
-    .mixed<'indoor' | 'outdoor' | 'hybrid'>()
-    .oneOf(['indoor', 'outdoor', 'hybrid'], 'Venue type is required.')
-    .required(),
-  sound: yup.string().oneOf(['yes', 'no'], 'Sound equipment preference is required.').required(),
-  notes: yup.string().optional(),
-  attachment_url: yup.string().optional(),
-});
-
-// --- Wizard Steps & Instructions ---
-const steps = [
-  'Event Details',
-  'Location',
-  'Date & Time',
-  'Event Type',
-  'Guests',
-  'Venue Type',
-  'Sound',
-  'Notes',
-  'Review',
-];
+import { bookingFlowRegistry } from './flows';
 
 
 // --- Animation Variants ---
@@ -127,6 +75,17 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
+  const [flowKey, setFlowKey] = useState<string>('musician');
+  const stepModules =
+    bookingFlowRegistry[flowKey] || bookingFlowRegistry.musician;
+  const steps = useMemo(() => stepModules.map((m) => m.name), [stepModules]);
+  const schema = useMemo(
+    () =>
+      yup.object<EventDetails>().shape(
+        stepModules.reduce((acc, m) => ({ ...acc, ...m.validation }), {}),
+      ),
+    [stepModules],
+  );
 
   const isMobile = useIsMobile();
   // Convert zero-based step index to progress percentage for the mobile progress bar.
@@ -162,6 +121,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         ]);
         setUnavailable(availabilityRes.data.unavailable_dates);
         setArtistLocation(artistRes.data.location || null);
+        const category =
+          artistRes.data.service_category?.name?.toLowerCase() || 'musician';
+        setFlowKey(category);
       } catch (err) {
         console.error('Failed to fetch artist data:', err);
       }
@@ -299,20 +261,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   // Navigates to the next step after validation
   const next = async () => {
-    const stepFields: (keyof EventDetails)[][] = [
-      ['eventDescription'],
-      ['location'],
-      ['date'],
-      ['eventType'],
-      ['guests'],
-      ['venueType'],
-      ['sound'],
-      [],
-      [], // Review step has no fields to validate for "next"
-    ];
-    const fieldsToValidate = stepFields[step] as (keyof EventDetails)[];
-
-    const valid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
+    const fieldsToValidate = stepModules[step].fieldsToValidate;
+    const valid =
+      fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
 
     if (valid) {
       const newStep = step + 1;
@@ -341,6 +292,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   // Handles saving the booking request as a draft
   const saveDraft = handleSubmit(async (vals: EventDetails) => {
+    const detailsPayload = stepModules.reduce(
+      (acc, m) => ({ ...acc, ...m.buildSummary(vals) }),
+      {},
+    );
     const payload: BookingRequestCreate = {
       artist_id: artistId,
       service_id: serviceId,
@@ -351,6 +306,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_mode: travelResult?.mode,
       travel_cost: travelResult?.totalCost,
       travel_breakdown: travelResult?.breakdown,
+      details: detailsPayload,
     };
     try {
       if (requestId) {
@@ -381,6 +337,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     }
 
     setSubmitting(true);
+    const detailsPayload = stepModules.reduce(
+      (acc, m) => ({ ...acc, ...m.buildSummary(vals) }),
+      {},
+    );
     const payload: BookingRequestCreate = {
       artist_id: artistId,
       service_id: serviceId,
@@ -391,6 +351,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_mode: travelResult.mode,
       travel_cost: travelResult.totalCost,
       travel_breakdown: travelResult.breakdown,
+      details: detailsPayload,
     };
 
     try {
@@ -419,56 +380,26 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   });
 
   // --- Render Step Logic ---
-  const renderStep = () => {
-    switch (step) {
-      case 0:
-        return (
-          <EventDescriptionStep
-            control={control}
-            setValue={setValue}
-            watch={watch}
-          />
-        );
-      case 1:
-        return (
-          <LocationStep
-            control={control}
-            artistLocation={artistLocation}
-            setWarning={setWarning}
-          />
-        );
-      case 2:
-        return <DateTimeStep control={control} unavailable={unavailable} />;
-      case 3:
-        return <EventTypeStep control={control} />;
-      case 4:
-        return <GuestsStep control={control} />;
-      case 5:
-        return <VenueStep control={control} />;
-      case 6:
-        return <SoundStep control={control} />;
-      case 7:
-        return <NotesStep control={control} setValue={setValue} />;
-      case 8:
-        return (
-          <ReviewStep
-            step={step}
-            steps={steps}
-            onBack={prev}
-            onSaveDraft={saveDraft}
-          onNext={submitRequest}
-          submitting={submitting}
-          isLoadingReviewData={isLoadingReviewData}
-          reviewDataError={reviewDataError}
-          calculatedPrice={calculatedPrice}
-          travelResult={travelResult}
-          submitLabel="Submit Request"
-          baseServicePrice={baseServicePrice}
-        />
-      );
-      default: return null;
-    }
-  };
+  const renderStep = () =>
+    stepModules[step].render({
+      control,
+      setValue,
+      watch,
+      artistLocation,
+      setWarning,
+      unavailable,
+      step,
+      steps,
+      onBack: prev,
+      onSaveDraft: saveDraft,
+      onNext: submitRequest,
+      submitting,
+      isLoadingReviewData,
+      reviewDataError,
+      calculatedPrice,
+      travelResult,
+      baseServicePrice,
+    });
 
   if (!isOpen) return null;
 
