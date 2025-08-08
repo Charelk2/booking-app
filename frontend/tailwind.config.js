@@ -22,6 +22,9 @@ module.exports = {
       borderRadius: {
         xxl: "1.25rem",
       },
+      spacing: {
+        35: "8.75rem",
+      },
       colors: {
         brand: {
           DEFAULT: "var(--brand-color)",
