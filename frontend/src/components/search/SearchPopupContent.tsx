@@ -7,7 +7,10 @@ import ReactDatePicker from 'react-datepicker';
 import { Listbox } from '@headlessui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
+import { useRouter } from 'next/navigation';
 import { UI_CATEGORIES } from '@/lib/categoryMap';
+import { getArtists } from '@/lib/api';
+import type { ArtistProfile } from '@/types';
 import { AUTOCOMPLETE_LISTBOX_ID } from '../ui/LocationInput';
 
 import type { ActivePopup } from './SearchBar';
@@ -65,6 +68,9 @@ export default function SearchPopupContent({
   // This complements the LocationInput combobox by surfacing changes
   // from both the location and category pickers.
   const [announcement, setAnnouncement] = useState('');
+  const [artistQuery, setArtistQuery] = useState('');
+  const [artistResults, setArtistResults] = useState<ArtistProfile[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     setIsClient(true);
@@ -83,6 +89,23 @@ export default function SearchPopupContent({
     return () => clearTimeout(timer);
   }, [activeField, locationInputRef, categoryListboxOptionsRef]);
 
+  useEffect(() => {
+    if (!artistQuery.trim()) {
+      setArtistResults([]);
+      return;
+    }
+    const handler = setTimeout(async () => {
+      try {
+        const res = await getArtists({ artist: artistQuery, limit: 5 });
+        setArtistResults(res.data);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err);
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [artistQuery]);
+
   const handleLocationSelect = useCallback(
     (place: { name: string; formatted_address?: string }) => {
       const displayName = place.formatted_address || place.name || '';
@@ -100,6 +123,18 @@ export default function SearchPopupContent({
       closeAllPopups(); // Close popup after selection
     },
     [setCategory, closeAllPopups],
+  );
+
+  const handleArtistSelect = useCallback(
+    (a: ArtistProfile) => {
+      const name = a.business_name || `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`.trim();
+      setAnnouncement(`Artist selected: ${name}`);
+      closeAllPopups();
+      setArtistQuery('');
+      setArtistResults([]);
+      router.push(`/artists/${a.user_id}`);
+    },
+    [closeAllPopups, router],
   );
 
   const handleDateSelect = useCallback((date: Date | null) => {
@@ -277,7 +312,40 @@ export default function SearchPopupContent({
 
   const renderCategory = () => (
     <div>
-      <h3 className="text-sm font-semibold text-gray-800 mb-2" id="search-popup-label-category">Select an artist category</h3>
+      <input
+        type="text"
+        value={artistQuery}
+        onChange={(e) => setArtistQuery(e.target.value)}
+        placeholder="Search artists"
+        className="mb-3 w-full rounded-md border px-3 py-2 text-sm"
+        aria-label="Search artists"
+      />
+      {artistResults.length > 0 && (
+        <ul className="mb-4 max-h-40 overflow-auto rounded-md border border-gray-200">
+          {artistResults.map((a) => {
+            const name =
+              a.business_name ||
+              `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`.trim();
+            return (
+              <li key={a.user_id}>
+                <button
+                  type="button"
+                  onClick={() => handleArtistSelect(a)}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                >
+                  {name}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <h3
+        className="text-sm font-semibold text-gray-800 mb-2"
+        id="search-popup-label-category"
+      >
+        Select an artist category
+      </h3>
       <Listbox value={category} onChange={handleCategorySelect}>
         {/* HeadlessUI Listbox handles arrow key navigation; we expose
             aria-selected on each option for screen reader parity. */}

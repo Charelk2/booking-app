@@ -28,6 +28,8 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Dashboard now casts `user.id` to a number when fetching services to avoid 422 errors if the ID is stored as a string.
 - Search categories now map **Musician / Band** to the `Live Performance` service
   type so searching musicians shows available artists.
+- Category popup now includes an artist name search input for quick navigation to
+  individual profiles.
 - An unobtrusive marketing strip replaces the old Hero section.
 - The homepage now highlights popular, top rated, and new artists using a compact card grid similar to Airbnb.
 - Bookings now track `payment_status`, `deposit_amount`, and `deposit_paid` in
