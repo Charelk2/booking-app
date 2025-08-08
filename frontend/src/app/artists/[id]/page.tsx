@@ -135,6 +135,9 @@ export default function ArtistProfilePage() {
 
   // Scroll the right panel when the user scrolls over the left section
   const handleLeftScroll = (e: WheelEvent) => {
+    // Prevent default scrolling on the left panel to avoid page jumps
+    e.preventDefault();
+    e.stopPropagation();
     if (rightPanelRef.current) {
       rightPanelRef.current.scrollBy({ top: e.deltaY });
     }
@@ -180,7 +183,7 @@ export default function ArtistProfilePage() {
       <MainLayout hideFooter>
         <div className="md:flex md:h-[calc(100vh-4rem)] md:overflow-hidden bg-white">
           {/* Left Panel: image and host details */}
-          <aside className="md:w-2/5 md:flex md:flex-col bg-white md:pt-6" onWheel={handleLeftScroll}>
+          <aside className="md:w-2/5 md:flex md:flex-col bg-white md:pt-6 md:overflow-hidden" onWheel={handleLeftScroll}>
             <div
               className="relative h-32 md:h-48 overflow-hidden rounded-3xl mx-6"
               role="img"
