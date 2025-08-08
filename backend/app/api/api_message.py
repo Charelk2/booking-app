@@ -65,7 +65,7 @@ def read_messages(
         avatar_url = None
         sender = m.sender  # sender may be None if the user was deleted
         if sender:
-            if sender.user_type == models.UserType.ARTIST:
+            if sender.user_type == models.UserType.SERVICE_PROVIDER:
                 profile = (
                     db.query(models.ArtistProfile)
                     .filter(models.ArtistProfile.user_id == m.sender_id)
@@ -211,7 +211,7 @@ def create_message(
     avatar_url = None
     sender = msg.sender  # sender should exist, but guard against missing relation
     if sender:
-        if sender.user_type == models.UserType.ARTIST:
+        if sender.user_type == models.UserType.SERVICE_PROVIDER:
             profile = (
                 db.query(models.ArtistProfile)
                 .filter(models.ArtistProfile.user_id == msg.sender_id)

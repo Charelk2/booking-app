@@ -161,7 +161,7 @@ def _build_response(db: Session, n: models.Notification) -> NotificationResponse
                     if other:
                         if not sender:
                             sender = f"{other.first_name} {other.last_name}"
-                        if other.user_type == models.UserType.ARTIST:
+                        if other.user_type == models.UserType.SERVICE_PROVIDER:
                             profile = (
                                 db.query(models.ArtistProfile)
                                 .filter(models.ArtistProfile.user_id == other.id)
@@ -447,7 +447,7 @@ def notify_user_new_message(
 
     sender_name = f"{sender.first_name} {sender.last_name}"
     avatar_url = None
-    if sender.user_type == models.UserType.ARTIST:
+    if sender.user_type == models.UserType.SERVICE_PROVIDER:
         profile = (
             db.query(models.ArtistProfile)
             .filter(models.ArtistProfile.user_id == sender.id)

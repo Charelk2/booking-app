@@ -17,7 +17,7 @@ describe('DashboardPage booking request sort and filter', () => {
   const baseUser: User = {
     id: 1,
     email: 'a@example.com',
-    user_type: 'artist',
+    user_type: 'service_provider',
     first_name: 'A',
     last_name: 'B',
     phone_number: '',

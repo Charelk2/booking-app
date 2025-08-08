@@ -29,7 +29,7 @@ describe('MessageThread quote actions', () => {
           id: 1,
           booking_request_id: 1,
           sender_id: 9,
-          sender_type: 'artist',
+          sender_type: 'service_provider',
           content: 'Quote message',
           // Simulate backend response with uppercase message type.
           message_type: 'QUOTE',
@@ -90,7 +90,7 @@ describe('MessageThread quote actions', () => {
           id: 1,
           booking_request_id: 1,
           sender_id: 9,
-          sender_type: 'artist',
+          sender_type: 'service_provider',
           content: 'Review & Accept Quote',
           message_type: 'SYSTEM',
           action: 'review_quote',
@@ -139,7 +139,7 @@ describe('MessageThread quote actions', () => {
           id: 1,
           booking_request_id: 1,
           sender_id: 9,
-          sender_type: 'artist',
+          sender_type: 'service_provider',
           content: 'Invalid quote message',
           message_type: 'QUOTE',
           quote_id: 0,
@@ -167,7 +167,7 @@ describe('MessageThread quote actions', () => {
   });
 
   it('shows quote bubble to artists when no quote exists', async () => {
-    (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });
+    (api.useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'service_provider' } });
     (useRouter as jest.Mock).mockReturnValue({ push: jest.fn() });
     (api.getMessagesForBookingRequest as jest.Mock).mockResolvedValue({ data: [] });
     (api.getQuoteV2 as jest.Mock).mockResolvedValue({ data: null });

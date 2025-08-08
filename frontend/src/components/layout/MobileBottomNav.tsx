@@ -58,7 +58,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
     { name: 'Messages', href: '/inbox', icon: ChatBubbleLeftRightIcon, auth: true },
     {
       name: 'Dashboard',
-      href: user?.user_type === 'artist' ? '/dashboard/artist' : '/dashboard/client',
+      href: user?.user_type === 'service_provider' ? '/dashboard/artist' : '/dashboard/client',
       icon: UserCircleIcon,
       auth: true,
     },

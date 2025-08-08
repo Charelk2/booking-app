@@ -469,7 +469,7 @@ useEffect(() => {
         const visibleToCurrentUser =
           !msg.visible_to ||
           msg.visible_to === 'both' ||
-          (user?.user_type === 'artist' && msg.visible_to === 'artist') ||
+          (user?.user_type === 'service_provider' && msg.visible_to === 'service_provider') ||
           (user?.user_type === 'client' && msg.visible_to === 'client');
 
         const qid = Number(msg.quote_id);
@@ -691,7 +691,7 @@ useEffect(() => {
             )
           )}
 
-          {user?.user_type === 'artist' && !bookingConfirmed && !hasSentQuote && (
+          {user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && (
             <div className="mb-4" data-testid="artist-inline-quote">
               <InlineQuoteForm
                 artistId={currentArtistId}
@@ -732,7 +732,7 @@ useEffect(() => {
                   {/* Sender Name/Avatar for received messages (not system or self) */}
                   {!isSenderSelf && !isSystemMessage && (
                     <div className="flex items-center mb-1">
-                      {user?.user_type === 'artist'
+                      {user?.user_type === 'service_provider'
                         ? clientAvatarUrl
                           ? (
                               <Image
@@ -770,7 +770,7 @@ useEffect(() => {
                               </div>
                             )}
                       <span className="text-xs font-semibold text-gray-700">
-                        {user?.user_type === 'artist' ? clientName : artistName}
+                        {user?.user_type === 'service_provider' ? clientName : artistName}
                       </span>
                     </div>
                   )}
@@ -888,7 +888,7 @@ useEffect(() => {
                                 onClick={() => {
                                   if (!bookingDetails?.id) return;
                                   const base =
-                                    user?.user_type === 'artist'
+                                    user?.user_type === 'service_provider'
                                       ? '/dashboard/bookings'
                                       : '/dashboard/client/bookings';
                                   router.push(`${base}/${bookingDetails.id}`);
@@ -939,7 +939,7 @@ useEffect(() => {
           {isSystemTyping && (
             <div className="flex items-end gap-2 self-start">
               <div className="h-7 w-7 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium shadow-sm">
-                {user?.user_type === 'artist' ? clientName?.charAt(0) : artistName?.charAt(0)}
+                {user?.user_type === 'service_provider' ? clientName?.charAt(0) : artistName?.charAt(0)}
               </div>
               <div className="bg-gray-200 rounded-2xl px-3 py-1.5 shadow-sm">
                 <div className="flex space-x-0.5 animate-pulse">

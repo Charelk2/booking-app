@@ -22,7 +22,7 @@ export default function ArtistQuotesPage() {
 
   useEffect(() => {
     if (!user) return;
-    if (user.user_type !== 'artist') {
+    if (user.user_type !== 'service_provider') {
       setError('Access denied');
       setLoading(false);
       return;

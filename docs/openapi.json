@@ -8273,7 +8273,7 @@
       "UserType": {
         "type": "string",
         "enum": [
-          "artist",
+          "service_provider",
           "client"
         ],
         "title": "UserType"

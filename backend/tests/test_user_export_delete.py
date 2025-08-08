@@ -61,7 +61,7 @@ def create_data(Session):
         password='x',
         first_name='A',
         last_name='R',
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()

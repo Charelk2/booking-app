@@ -313,7 +313,7 @@ def read_booking_details(
     if not (
         booking.client_id == current_user.id
         or (
-            current_user.user_type == UserType.ARTIST
+            current_user.user_type == UserType.SERVICE_PROVIDER
             and booking.artist_id == current_user.id
         )
     ):
@@ -360,7 +360,7 @@ def download_booking_calendar(
     if not (
         booking.client_id == current_user.id
         or (
-            current_user.user_type == UserType.ARTIST and booking.artist_id == current_user.id
+            current_user.user_type == UserType.SERVICE_PROVIDER and booking.artist_id == current_user.id
         )
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")

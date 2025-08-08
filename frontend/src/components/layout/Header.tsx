@@ -91,7 +91,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const searchParams = useSearchParams();
   const isArtistsPage = pathname.startsWith('/artists');
   const [menuOpen, setMenuOpen] = useState(false); // Mobile menu drawer state
-  const isArtistView = user?.user_type === 'artist' && artistViewActive;
+  const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
 
   // Search parameters for the search bars (managed locally by Header and passed to SearchBar)
   const [category, setCategory] = useState<Category | null>(null);
@@ -203,7 +203,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               })}
             >
               <nav className="flex gap-6">
-                {user?.user_type === 'artist' && artistViewActive ? (
+                {user?.user_type === 'service_provider' && artistViewActive ? (
                   <ArtistNav user={user} pathname={pathname} />
                 ) : (
                   <ClientNav pathname={pathname} />
@@ -255,7 +255,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             <div className="hidden sm:flex items-center gap-2">
               {user ? (
                 <>
-                  {user.user_type === 'artist' && (
+                  {user.user_type === 'service_provider' && (
                     <button
                       onClick={toggleArtistView}
                       className={clsx(navItemClasses, 'text-gray-800')}
@@ -282,7 +282,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       <Menu.Item>
                         {({ active }) => (
                       <Link
-                        href={user.user_type === 'artist' ? '/dashboard/artist' : '/dashboard/client'}
+                        href={user.user_type === 'service_provider' ? '/dashboard/artist' : '/dashboard/client'}
                         className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
                       >
                         Dashboard
@@ -292,7 +292,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       <Menu.Item>
                         {({ active }) => (
                           <Link
-                            href={user.user_type === 'artist' ? '/dashboard/profile/edit' : '/account'}
+                            href={user.user_type === 'service_provider' ? '/dashboard/profile/edit' : '/account'}
                             className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
                           >
                             Edit Profile

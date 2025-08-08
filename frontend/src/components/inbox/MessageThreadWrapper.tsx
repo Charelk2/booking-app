@@ -48,7 +48,7 @@ export default function MessageThreadWrapper({
   const router = useRouter();
 
   useEffect(() => {
-    if (user && user.user_type === 'artist') {
+    if (user && user.user_type === 'service_provider') {
       setIsUserArtist(true);
     } else {
       setIsUserArtist(false);

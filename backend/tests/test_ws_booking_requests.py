@@ -33,7 +33,7 @@ def setup_app():
 
 def create_data(Session):
     db = Session()
-    artist = User(email='artist@test.com', password='x', first_name='A', last_name='R', user_type=UserType.ARTIST)
+    artist = User(email='artist@test.com', password='x', first_name='A', last_name='R', user_type=UserType.SERVICE_PROVIDER)
     client = User(email='client@test.com', password='x', first_name='C', last_name='L', user_type=UserType.CLIENT)
     db.add_all([artist, client])
     db.commit()

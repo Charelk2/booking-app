@@ -27,7 +27,7 @@ def test_read_messages_handles_missing_sender():
         password='x',
         first_name='A',
         last_name='Artist',
-        user_type=models.UserType.ARTIST,
+        user_type=models.UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit(); db.refresh(client); db.refresh(artist)

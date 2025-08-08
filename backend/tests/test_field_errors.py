@@ -31,7 +31,7 @@ def setup_app():
 
 def create_users(Session):
     db = Session()
-    artist = User(email='artist@test.com', password='x', first_name='A', last_name='R', user_type=UserType.ARTIST, is_active=True)
+    artist = User(email='artist@test.com', password='x', first_name='A', last_name='R', user_type=UserType.SERVICE_PROVIDER, is_active=True)
     client = User(email='client@test.com', password='x', first_name='C', last_name='L', user_type=UserType.CLIENT, is_active=True)
     db.add_all([artist, client])
     db.commit()
