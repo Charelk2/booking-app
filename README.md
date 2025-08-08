@@ -2,7 +2,9 @@
 
 This repository contains a FastAPI backend and a Next.js frontend.
 
-User roles include `service_provider` (formerly `artist`) and `client`.
+User roles include `service_provider` (formerly `artist`) and `client`. The API
+also accepts the legacy `ARTIST` user type and maps it to `service_provider`
+for backward compatibility.
 
 The July 2025 update bumps key dependencies and Docker base images:
 
