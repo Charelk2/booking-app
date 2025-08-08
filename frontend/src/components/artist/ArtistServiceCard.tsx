@@ -42,14 +42,20 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
     <Card role="listitem" className="p-4 border-none shadow-sm hover:shadow-sm">
       <div className="flex gap-4">
         {currentService.media_url && (
-          <div className="relative w-24 h-24 flex-shrink-0">
+          <div className="relative w-30 h-30 flex-shrink-0">
             <Image
               src={
                 getFullImageUrl(currentService.media_url) || currentService.media_url
               }
               alt={currentService.title}
               fill
+              unoptimized
               className="object-cover rounded-md"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = getFullImageUrl(
+                  '/static/default-avatar.svg',
+                ) as string;
+              }}
             />
           </div>
         )}
