@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Head from 'next/head';
 import Image from 'next/image';
 import MainLayout from '@/components/layout/MainLayout';
@@ -14,7 +13,6 @@ import {
 } from '@/types';
 import {
   getArtist,
-  getArtists,
   getArtistServices,
   getArtistReviews,
   createBookingRequest,
@@ -24,8 +22,6 @@ import {
   StarIcon,
   MapPinIcon,
   UserIcon,
-  ListBulletIcon,
-  Squares2X2Icon,
   PencilIcon,
 } from '@heroicons/react/24/outline';
 import {
@@ -33,12 +29,12 @@ import {
   normalizeService,
 } from '@/lib/utils';
 import ArtistServiceCard from '@/components/artist/ArtistServiceCard';
-import { Button, Tag, Toast, Spinner, SkeletonList } from '@/components/ui';
+import { Toast, Spinner, SkeletonList } from '@/components/ui';
 import BookingWizard from '@/components/booking/BookingWizard';
 import { BookingProvider } from '@/contexts/BookingContext';
 
-// This profile page now lazy loads each section (services, reviews, other
-// artists) separately so the main artist info appears faster. Images use the
+// This profile page now lazy loads services and reviews separately so the main
+// artist info appears faster. Images use the
 // Next.js `<Image>` component for optimized loading.
 
 export default function ArtistProfilePage() {
@@ -50,13 +46,10 @@ export default function ArtistProfilePage() {
   const [artist, setArtist] = useState<ArtistProfile | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [reviews, setReviews] = useState<ReviewType[]>([]);
-  const [otherArtists, setOtherArtists] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [reviewsLoading, setReviewsLoading] = useState(false);
-  const [othersLoading, setOthersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [otherView, setOtherView] = useState<'grid' | 'list'>('grid');
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
 
@@ -106,23 +99,6 @@ export default function ArtistProfilePage() {
         console.error('Error fetching reviews:', err);
       })
       .finally(() => setReviewsLoading(false));
-  }, [artistId]);
-
-  // load other artists separately
-  useEffect(() => {
-    if (!artistId) return;
-    setOthersLoading(true);
-    getArtists()
-      .then((res) => {
-        const filtered = res.data
-          .filter((a) => a.user_id && a.user_id !== artistId)
-          .slice(0, 3);
-        setOtherArtists(filtered);
-      })
-      .catch((err) => {
-        console.error('Error fetching other artists:', err);
-      })
-      .finally(() => setOthersLoading(false));
   }, [artistId]);
 
   const averageRating =
@@ -362,121 +338,6 @@ export default function ArtistProfilePage() {
                 </p>
               )}
             </section>
-
-            {/* Explore Other Artists Section */}
-            {othersLoading ? (
-              <SkeletonList className="mt-16 max-w-md mx-auto" />
-            ) : otherArtists.length > 0 ? (
-              <section
-                className="mt-16 pt-8 border-t border-gray-200"
-                aria-labelledby="other-artists-heading"
-                role="region"
-              >
-                <h2
-                  id="other-artists-heading"
-                  className="text-2xl font-bold text-gray-800 mb-8 text-center"
-                >
-                  Explore Other Artists
-                </h2>
-                <div className="flex justify-end mb-4">
-                  <Button
-                    type="button"
-                    onClick={() => setOtherView('grid')}
-                    variant={otherView === 'grid' ? 'primary' : 'secondary'}
-                    className="mr-2 p-2"
-                    aria-label="Grid view"
-                  >
-                    <Squares2X2Icon className="h-5 w-5" />
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => setOtherView('list')}
-                    variant={otherView === 'list' ? 'primary' : 'secondary'}
-                    className="p-2"
-                    aria-label="List view"
-                  >
-                    <ListBulletIcon className="h-5 w-5" />
-                  </Button>
-                </div>
-                <div
-                  className={
-                    otherView === 'grid'
-                      ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8'
-                      : 'space-y-4'
-                  }
-                >
-                  {otherArtists.map((otherArtist) => {
-                    const otherProfilePicUrl = getFullImageUrl(
-                      otherArtist.profile_picture_url
-                    );
-                    return (
-                      <Link
-                        href={`/artists/${otherArtist.user_id}`}
-                        key={`otherArtist-${otherArtist.user_id}`}
-                        className="block group"
-                      >
-                        <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-all duration-300 group-hover:scale-105 group-hover:shadow-xl">
-                          <div className="h-48 bg-gray-200 flex items-center justify-center overflow-hidden">
-                            {otherProfilePicUrl ? (
-                              <Image
-                                src={otherProfilePicUrl}
-                                alt={
-                                  otherArtist.business_name ||
-                                  `${otherArtist.user.first_name} ${otherArtist.user.last_name}`
-                                }
-                                width={300}
-                                height={300}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                                sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                              />
-                            ) : (
-                              <UserIcon className="h-16 w-16 text-gray-400" />
-                            )}
-                          </div>
-                          <div className="p-4">
-                            <h3 className="text-lg font-semibold text-gray-800 truncate group-hover:text-brand-dark">
-                              {otherArtist.business_name ||
-                                `${otherArtist.user.first_name} ${otherArtist.user.last_name}`}
-                            </h3>
-                            {otherArtist.location && (
-                              <p className="text-sm text-gray-500 flex items-center mt-1">
-                                <MapPinIcon className="h-4 w-4 mr-1.5 text-gray-400" />{' '}
-                                {otherArtist.location}
-                              </p>
-                            )}
-                            {otherArtist.specialties &&
-                              otherArtist.specialties.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                  {otherArtist.specialties
-                                    .slice(0, 2)
-                                    .map((spec) => (
-                                      <Tag
-                                        key={`other-${otherArtist.user_id}-spec-${spec}`}
-                                        className="px-2 py-0.5 text-xs"
-                                      >
-                                        {spec}
-                                      </Tag>
-                                    ))}
-                                  {otherArtist.specialties.length > 2 && (
-                                    <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600 font-medium">
-                                      + {otherArtist.specialties.length - 2} more
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : (
-              <p className="mt-16 text-center text-gray-600" role="status">
-                No other artists to explore at the moment.
-              </p>
-            )}
           </section>
         </div>
       </MainLayout>
