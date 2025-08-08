@@ -30,7 +30,6 @@ class BookingRequest(Base):
     travel_mode = Column(String, nullable=True)
     travel_cost = Column(Numeric(10, 2), nullable=True)
     travel_breakdown = Column(JSON, nullable=True)
-    details = Column(JSON, nullable=True)
     
     status = Column(SQLAlchemyEnum(BookingStatus), nullable=False, default=BookingStatus.PENDING_QUOTE)
 

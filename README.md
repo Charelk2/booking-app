@@ -892,13 +892,9 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Travel estimates now include artist-specified car rental and flight prices when provided.
 * Success toasts when saving a draft or submitting a request.
 * Simplified buttons sit below each step in a responsive button group. On phones
-  the order is **Next**, **Save Draft**, **Back** but remains **Back**, **Save Draft**, 
+  the order is **Next**, **Save Draft**, **Back** but remains **Back**, **Save Draft**,
   **Next** on larger screens.
 * Guests step now matches the others with Back, Save Draft, and Next buttons.
-* Step lists now come from a category-based `bookingFlowRegistry`, so musicians,
-  photographers, and videographers follow tailored flows.
-* Booking requests persist category-specific fields in a new `details` JSON
-  payload.
 * Attachment uploads in the notes step display a progress bar and disable the Next button until finished.
 * Collapsible sections ensure only the active step is expanded on phones.
 * Mobile devices use native date and time pickers for faster input.
