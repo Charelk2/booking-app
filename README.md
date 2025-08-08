@@ -32,6 +32,7 @@ The July 2025 update bumps key dependencies and Docker base images:
   individual profiles.
 - An unobtrusive marketing strip replaces the old Hero section.
 - The homepage now highlights popular, top rated, and new artists using a compact card grid similar to Airbnb.
+- The "Services Near You" category carousel adds previous/next buttons so desktop users can page through service types.
 - Bookings now track `payment_status`, `deposit_amount`, and `deposit_paid` in
   `bookings_simple`. The deposit amount defaults to half of the accepted quote
   total. Booking API responses now include these fields alongside
