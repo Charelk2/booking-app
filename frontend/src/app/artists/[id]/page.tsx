@@ -172,9 +172,9 @@ export default function ArtistProfilePage() {
       <MainLayout hideFooter>
         <div className="md:flex md:h-[calc(100vh-4rem)] md:overflow-hidden bg-white">
           {/* Left Panel: image and host details */}
-          <aside className="md:w-2/5 md:flex md:flex-col bg-white">
+          <aside className="md:w-2/5 md:flex md:flex-col bg-white md:pt-6">
             <div
-              className="relative h-40 md:flex-grow overflow-hidden rounded-3xl"
+              className="relative h-32 md:h-48 overflow-hidden rounded-3xl"
               role="img"
               aria-label="Cover photo"
             >
