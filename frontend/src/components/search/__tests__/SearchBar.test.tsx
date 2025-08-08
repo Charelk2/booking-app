@@ -4,9 +4,9 @@ import SearchBar from '../SearchBar';
 
 // Mock next/dynamic to synchronously load a minimal SearchPopupContent
 jest.mock('next/dynamic', () => () => {
-  const Stub = ({ activeField }: { activeField: string }) =>
+  const Stub: React.FC<{ activeField: string }> = ({ activeField }) =>
     activeField === 'location' ? <div role="dialog">Suggestions</div> : null;
-  return Stub as React.FC<any>;
+  return Stub;
 });
 
 jest.mock('@/lib/loadPlaces', () => ({
@@ -50,5 +50,52 @@ describe('SearchBar', () => {
     fireEvent.change(input, { target: { value: 'Cape' } });
 
     await waitFor(() => expect(queryAllByRole('dialog').length).toBeGreaterThan(0));
+  });
+
+  it('dismisses popup with a single outside click and allows interactions', async () => {
+    const onSearch = jest.fn();
+    const outsideClick = jest.fn();
+
+    const Wrapper = () => {
+      const [category, setCategory] = React.useState(null);
+      const [location, setLocation] = React.useState('');
+      const [when, setWhen] = React.useState<Date | null>(null);
+      return (
+        <SearchBar
+          category={category}
+          setCategory={setCategory}
+          location={location}
+          setLocation={setLocation}
+          when={when}
+          setWhen={setWhen}
+          onSearch={onSearch}
+        />
+      );
+    };
+
+    const { getByPlaceholderText, queryByRole, getByTestId } = render(
+      <>
+        <Wrapper />
+        <div
+          data-testid="outside"
+          onMouseDown={outsideClick}
+          onClick={outsideClick}
+          style={{ height: 100 }}
+        >
+          Outside
+        </div>
+      </>,
+    );
+
+    const input = getByPlaceholderText('Add location');
+    fireEvent.focus(input);
+    expect(queryByRole('dialog')).toBeInTheDocument();
+
+    const outside = getByTestId('outside');
+    fireEvent.mouseDown(outside);
+    fireEvent.click(outside);
+
+    await waitFor(() => expect(queryByRole('dialog')).not.toBeInTheDocument());
+    expect(outsideClick).toHaveBeenCalled();
   });
 });
