@@ -40,10 +40,13 @@ from .db_utils import (
     ensure_user_profile_picture_column,
     ensure_booking_request_travel_columns,
     ensure_legacy_artist_user_type,
+    ensure_service_category_id_column,
+    seed_service_categories,
 )
 from .models.user import User
 from .models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
 from .models.service import Service
+from .models.service_category import ServiceCategory
 from .models.booking import Booking
 from .models.review import Review
 from .models.request_quote import BookingRequest, Quote
@@ -72,6 +75,7 @@ from .api import (
     api_settings,
     api_weather,
     api_flight,
+    api_service_category,
 )
 from routes import distance
 
@@ -117,6 +121,8 @@ ensure_calendar_account_email_column(engine)
 ensure_user_profile_picture_column(engine)
 ensure_booking_request_travel_columns(engine)
 ensure_legacy_artist_user_type(engine)
+ensure_service_category_id_column(engine)
+seed_service_categories(engine)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Artist Booking API")
@@ -245,6 +251,13 @@ app.include_router(
 # ─── SERVICE ROUTES (under /api/v1/services) ────────────────────────────────────────
 app.include_router(
     api_service.router, prefix=f"{api_prefix}/services", tags=["services"]
+)
+
+# ─── SERVICE CATEGORY ROUTES (under /api/v1/service-categories) ───────────
+app.include_router(
+    api_service_category.router,
+    prefix=f"{api_prefix}/service-categories",
+    tags=["service-categories"],
 )
 
 
