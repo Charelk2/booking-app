@@ -25,7 +25,14 @@ def test_artist_can_update_booking_status():
     db.refresh(client)
 
     profile = ArtistProfileV2(user_id=artist.id)
-    service = Service(artist_id=artist.id, title='Gig', price=100, duration_minutes=60)
+    service = Service(
+        artist_id=artist.id,
+        title='Gig',
+        price=100,
+        duration_minutes=60,
+        service_type='Live Performance',
+        media_url='x',
+    )
     db.add_all([profile, service])
     db.commit()
     db.refresh(service)

@@ -56,6 +56,7 @@ export interface Service {
   artist_id: number;
   title: string;
   description: string;
+  media_url: string;
   service_type:
     | "Live Performance"
     | "Virtual Appearance"

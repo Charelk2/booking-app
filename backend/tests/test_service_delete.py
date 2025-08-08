@@ -42,6 +42,7 @@ def test_delete_service_cascades_messages():
         price=100,
         duration_minutes=60,
         service_type=ServiceType.OTHER,
+        media_url='x',
     )
     profile.services.append(service)
     db.add(profile)

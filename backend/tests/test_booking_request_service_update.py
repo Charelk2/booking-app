@@ -27,8 +27,22 @@ def test_client_can_update_service_id():
     db.refresh(artist)
 
     profile = ArtistProfileV2(user_id=artist.id)
-    svc1 = Service(artist_id=artist.id, title='One', price=10, duration_minutes=30, service_type=ServiceType.OTHER)
-    svc2 = Service(artist_id=artist.id, title='Two', price=20, duration_minutes=45, service_type=ServiceType.OTHER)
+    svc1 = Service(
+        artist_id=artist.id,
+        title='One',
+        price=10,
+        duration_minutes=30,
+        service_type=ServiceType.OTHER,
+        media_url='x',
+    )
+    svc2 = Service(
+        artist_id=artist.id,
+        title='Two',
+        price=20,
+        duration_minutes=45,
+        service_type=ServiceType.OTHER,
+        media_url='y',
+    )
     profile.services.extend([svc1, svc2])
     db.add(profile)
     db.commit()
