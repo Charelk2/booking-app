@@ -42,8 +42,8 @@ export default function ArtistCardCompact({
     <Link
       href={href}
       className={clsx(
-        'group block rounded-xl overflow-hidden bg-white hover:shadow-md transition',
-        'no-underline hover:no-underline', // Ensure no underline by default and on hover
+        'group block rounded-xl overflow-hidden bg-gray-50 hover:shadow-md transition',
+        'no-underline hover:no-underline',
         className,
       )}
       {...props}
@@ -84,14 +84,14 @@ export default function ArtistCardCompact({
           </span>
         )}
         {price !== undefined && (
-          <span className="absolute bottom-1 left-1 text-[10px] bg-white/90 rounded-full px-1.5 py-px">
+          <span className="absolute bottom-1 left-1 text-[10px] font-semibold bg-gray-700/60 text-white rounded-full px-1.5 py-px">
             from R{Math.round(price)}
           </span>
         )}
       </div>
       <div className="p-1 space-y-0.5">
-        <p className="text-sm font-semibold truncate">{name}</p>
-        {subtitle && <p className="text-xs text-gray-500 truncate">{subtitle}</p>}
+        <p className="text-sm font-semibold truncate text-black">{name}</p>
+        {subtitle && <p className="text-xs text-gray-600 truncate">{subtitle}</p>}
         {location && (
           <p className="text-xs text-gray-400 truncate">{location}</p>
         )}
