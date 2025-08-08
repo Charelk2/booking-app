@@ -24,6 +24,33 @@ describe("AddServiceModal wizard", () => {
     jest.clearAllMocks();
   });
 
+  it("enables Next after selecting a category", async () => {
+    await act(async () => {
+      root.render(
+        React.createElement(AddServiceModal, {
+          isOpen: true,
+          onClose: jest.fn(),
+          onServiceSaved: jest.fn(),
+        }),
+      );
+    });
+
+    const nextBtn = container.querySelector(
+      'button[data-testid="next"]',
+    ) as HTMLButtonElement;
+    expect(nextBtn.disabled).toBe(true);
+
+    const typeButton = container.querySelector(
+      'button[data-value="Live Performance"]',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      typeButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await flushPromises();
+    });
+
+    expect(nextBtn.disabled).toBe(false);
+  });
+
   it.skip("completes the flow and publishes the service", async () => {
     await act(async () => {
       root.render(
