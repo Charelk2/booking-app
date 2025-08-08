@@ -352,4 +352,17 @@ describe('getArtists', () => {
     });
     spy.mockRestore();
   });
+
+  it('forwards artist parameter', async () => {
+    const spy = jest
+      .spyOn(api, 'get')
+      .mockResolvedValue({
+        data: { data: [], total: 0, price_distribution: [] },
+      } as unknown as { data: unknown });
+    await getArtists({ artist: 'john' });
+    expect(spy).toHaveBeenCalledWith('/api/v1/artist-profiles/', {
+      params: { artist: 'john' },
+    });
+    spy.mockRestore();
+  });
 });

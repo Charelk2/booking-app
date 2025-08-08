@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query
 from fastapi.params import Query as QueryParam
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, or_
 from collections import defaultdict
 from datetime import datetime, timedelta, date
 import logging
@@ -407,7 +407,12 @@ def read_all_artist_profiles(
     max_price: Optional[float] = Query(None, alias="maxPrice", ge=0),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    include_price_distribution: bool = Query(False, alias="include_price_distribution"),
+    include_price_distribution: bool = Query(
+        False, alias="include_price_distribution"
+    ),
+    artist: Optional[str] = Query(
+        None, description="Filter by artist name"
+    ),
 ):
     """Return a list of all artist profiles with optional filters."""
 
@@ -427,10 +432,12 @@ def read_all_artist_profiles(
         sort = None
     if hasattr(when, "default"):
         when = None
+    if hasattr(artist, "default"):
+        artist = None
 
     cache_category = category.value if isinstance(category, ServiceType) else category
     cached = None
-    if not include_price_distribution and when is None:
+    if not include_price_distribution and when is None and not artist:
         cached = get_cached_artist_list(
             page=page,
             limit=limit,
@@ -475,6 +482,14 @@ def read_all_artist_profiles(
         .outerjoin(rating_subq, rating_subq.c.artist_id == Artist.user_id)
         .outerjoin(booking_subq, booking_subq.c.artist_id == Artist.user_id)
     )
+    if artist:
+        query = query.join(User).filter(
+            or_(
+                Artist.business_name.ilike(f"%{artist}%"),
+                User.first_name.ilike(f"%{artist}%"),
+                User.last_name.ilike(f"%{artist}%"),
+            )
+        )
 
     join_services = False
     service_price_col = None
