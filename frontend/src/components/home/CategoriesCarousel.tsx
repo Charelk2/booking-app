@@ -41,6 +41,7 @@ export default function CategoriesCarousel() {
   };
 
   return (
+
     <section className="mt-4" aria-labelledby="categories-heading">
       <h2 id="categories-heading" className="px-4 text-xl font-semibold">
         Services Near You
