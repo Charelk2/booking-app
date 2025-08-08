@@ -26,4 +26,26 @@ describe('CategoriesCarousel', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('applies correct spacing and dimensions', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => {
+      root.render(React.createElement(CategoriesCarousel));
+    });
+
+    const heading = container.querySelector('h2');
+    expect(heading?.className).toContain('px-8');
+
+    const outer = container.querySelector('section > div');
+    expect(outer?.className).toContain('px-8');
+
+    const wrapper = container.querySelector('div.relative');
+    expect(wrapper?.className).toContain('w-30');
+    expect(wrapper?.className).toContain('h-30');
+
+    act(() => root.unmount());
+    container.remove();
+  });
 });
