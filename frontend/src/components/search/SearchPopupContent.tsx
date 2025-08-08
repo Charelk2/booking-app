@@ -317,7 +317,7 @@ export default function SearchPopupContent({
         value={artistQuery}
         onChange={(e) => setArtistQuery(e.target.value)}
         placeholder="Search artists"
-        className="mb-3 w-full rounded-md border px-3 py-2 text-sm"
+        className="mb-3 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-0"
         aria-label="Search artists"
       />
       {artistResults.length > 0 && (
@@ -363,7 +363,7 @@ export default function SearchPopupContent({
                   role="option"
                   aria-selected={selected}
                   className={clsx(
-                    'px-4 py-2 text-sm cursor-pointer transition',
+                    'px-4 py-2 text-sm cursor-pointer transition hover:bg-gray-100 hover:text-gray-900',
                     active ? 'bg-indigo-100 text-indigo-900' : 'text-gray-700',
                     selected && 'font-semibold',
                   )}
