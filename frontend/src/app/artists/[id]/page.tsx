@@ -150,11 +150,7 @@ export default function ArtistProfilePage() {
 
     e.preventDefault();
     e.stopPropagation();
-
-    const nextScrollTop = scrollTop + e.deltaY;
-    rightPanel.scrollTo({
-      top: Math.max(0, Math.min(nextScrollTop, scrollHeight - clientHeight)),
-    });
+    rightPanel.scrollBy({ top: e.deltaY, behavior: 'smooth' });
   };
 
   if (loading) {
@@ -223,7 +219,7 @@ export default function ArtistProfilePage() {
             </div>
             <div className="pt-0 bg-white">
               <div className="flex flex-col items-center text-center">
-                <div className="relative -mt-12">
+                <div className="relative -mt-8">
                   {profilePictureUrl ? (
                     <Image
                       src={profilePictureUrl}
