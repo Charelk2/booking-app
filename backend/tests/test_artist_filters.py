@@ -23,7 +23,7 @@ def setup_db():
 
 
 def create_artist(db, name, location, category, rating=5, bookings=0):
-    user = User(email=f'{name}@test.com', password='x', first_name=name, last_name='L', user_type=UserType.ARTIST)
+    user = User(email=f'{name}@test.com', password='x', first_name=name, last_name='L', user_type=UserType.SERVICE_PROVIDER)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -93,7 +93,7 @@ def test_price_range_filter(monkeypatch):
 
 def test_price_visible_default_true():
     db = setup_db()
-    user = User(email='a@test.com', password='x', first_name='A', last_name='B', user_type=UserType.ARTIST)
+    user = User(email='a@test.com', password='x', first_name='A', last_name='B', user_type=UserType.SERVICE_PROVIDER)
     db.add(user)
     db.commit()
     db.refresh(user)

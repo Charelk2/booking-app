@@ -28,7 +28,7 @@ def test_system_message_from_client_marked_as_artist():
     db = setup_db()
     # Create client and artist users
     client = User(email='c@test.com', password='x', first_name='C', last_name='User', user_type=UserType.CLIENT)
-    artist = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.ARTIST)
+    artist = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.SERVICE_PROVIDER)
     db.add_all([client, artist])
     db.commit()
     db.refresh(client)
@@ -63,7 +63,7 @@ def test_message_response_includes_avatar_url_for_artist():
         password="x",
         first_name="A2",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -105,7 +105,7 @@ def test_message_response_includes_avatar_url_for_client():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -140,7 +140,7 @@ def test_mark_messages_read_updates_flag():
         password="x",
         first_name="Writer",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()

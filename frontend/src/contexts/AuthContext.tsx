@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (user?.user_type === 'artist') {
+    if (user?.user_type === 'service_provider') {
       localStorage.setItem('artistViewActive', String(artistViewActive));
     }
   }, [artistViewActive, user]);
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchCurrentUserWithArtist = async () => {
     const res = await getCurrentUser();
     let userData = res.data;
-    if (userData.user_type === 'artist') {
+    if (userData.user_type === 'service_provider') {
       try {
         const profile = await getArtistProfileMe();
         if (profile.data.profile_picture_url) {
@@ -216,7 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (typeof window !== 'undefined') {
         localStorage.setItem('artistViewActive', String(next));
       }
-      if (user?.user_type === 'artist') {
+      if (user?.user_type === 'service_provider') {
         router.push(next ? '/dashboard/artist' : '/');
       }
       return next;

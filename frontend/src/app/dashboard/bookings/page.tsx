@@ -74,7 +74,7 @@ export default function ArtistBookingsPage() {
       }
     };
 
-    if (user.user_type === 'artist') {
+    if (user.user_type === 'service_provider') {
       fetchBookings();
     } else {
       setLoading(false);

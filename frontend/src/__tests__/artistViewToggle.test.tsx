@@ -16,7 +16,7 @@ describe('Header artist view', () => {
   it('shows artist links without search when artistViewActive', () => {
     const toggleArtistView = jest.fn();
     mockUseAuth.mockReturnValue({
-      user: { id: 1, user_type: 'artist', email: 'a', first_name: 'A', last_name: 'B' },
+      user: { id: 1, user_type: 'service_provider', email: 'a', first_name: 'A', last_name: 'B' },
       logout: jest.fn(),
       artistViewActive: true,
       toggleArtistView,
@@ -34,7 +34,7 @@ describe('Header artist view', () => {
 
   it('shows client nav when artistViewActive is false', () => {
     mockUseAuth.mockReturnValue({
-      user: { id: 1, user_type: 'artist', email: 'a', first_name: 'A', last_name: 'B' },
+      user: { id: 1, user_type: 'service_provider', email: 'a', first_name: 'A', last_name: 'B' },
       logout: jest.fn(),
       artistViewActive: false,
       toggleArtistView: jest.fn(),

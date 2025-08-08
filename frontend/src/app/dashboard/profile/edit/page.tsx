@@ -166,7 +166,7 @@ export default function EditArtistProfilePage(): JSX.Element {
       router.push(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
-    if (user.user_type !== 'artist') {
+    if (user.user_type !== 'service_provider') {
       setError('Access denied. This page is for artists only.');
       setLoading(false);
       return;
@@ -231,7 +231,7 @@ export default function EditArtistProfilePage(): JSX.Element {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
-    if (!user || user.user_type !== 'artist') {
+    if (!user || user.user_type !== 'service_provider') {
       setError('Action not allowed.');
       return;
     }
@@ -493,7 +493,7 @@ export default function EditArtistProfilePage(): JSX.Element {
     );
   }
 
-  if (user && user.user_type !== 'artist' && !authLoading) {
+  if (user && user.user_type !== 'service_provider' && !authLoading) {
     return (
       <MainLayout>
         <div className="p-6">

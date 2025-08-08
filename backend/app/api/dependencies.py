@@ -39,7 +39,7 @@ def get_current_active_client(current_user: User = Depends(get_current_user)) ->
 def get_current_active_artist(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
-    if current_user.user_type != UserType.ARTIST:
+    if current_user.user_type != UserType.SERVICE_PROVIDER:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not an artist.")
     
     # get_current_user should have eager-loaded artist_profile.

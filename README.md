@@ -2,6 +2,8 @@
 
 This repository contains a FastAPI backend and a Next.js frontend.
 
+User roles include `service_provider` (formerly `artist`) and `client`.
+
 The July 2025 update bumps key dependencies and Docker base images:
 
 - **FastAPI** 0.115.12 (requires Starlette 0.46+)

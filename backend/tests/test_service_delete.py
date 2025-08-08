@@ -27,7 +27,7 @@ def setup_db():
 def test_delete_service_cascades_messages():
     db = setup_db()
     # Create artist and client
-    artist_user = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.ARTIST)
+    artist_user = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.SERVICE_PROVIDER)
     client_user = User(email='c@test.com', password='x', first_name='C', last_name='Client', user_type=UserType.CLIENT)
     db.add_all([artist_user, client_user])
     db.commit()

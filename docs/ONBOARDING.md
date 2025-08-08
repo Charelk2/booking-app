@@ -19,11 +19,11 @@ These sample commands demonstrate the basic booking flow using the API. Replace 
      -d '{"email":"client@example.com","password":"pass","user_type":"client"}'
    curl -X POST http://localhost:8000/auth/register \
      -H 'Content-Type: application/json' \
-     -d '{"email":"artist@example.com","password":"pass","user_type":"artist"}'
+     -d '{"email":"provider@example.com","password":"pass","user_type":"service_provider"}'
    ```
    Log in via `/auth/login` to obtain `CLIENT_TOKEN` and `ARTIST_TOKEN`.
 
-2. **Artist creates a service**
+2. **Service provider creates a service**
    ```bash
    curl -X POST http://localhost:8000/api/v1/services/ \
      -H "Authorization: Bearer ARTIST_TOKEN" \
@@ -39,7 +39,7 @@ These sample commands demonstrate the basic booking flow using the API. Replace 
      -d '{"artist_id":ARTIST_ID,"service_id":SERVICE_ID,"event_date":"2025-12-25","message":"Please perform"}'
    ```
 
-4. **Artist sends a quote**
+4. **Service provider sends a quote**
    ```bash
    curl -X POST http://localhost:8000/api/v1/booking-requests/REQUEST_ID/quotes \
      -H "Authorization: Bearer ARTIST_TOKEN" \

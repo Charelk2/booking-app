@@ -19,7 +19,7 @@ def setup_db():
 
 
 def create_booking(db, status=BookingStatus.COMPLETED):
-    artist = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.ARTIST)
+    artist = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.SERVICE_PROVIDER)
     client = User(email='c@test.com', password='x', first_name='C', last_name='User', user_type=UserType.CLIENT)
     db.add_all([artist, client])
     db.commit()

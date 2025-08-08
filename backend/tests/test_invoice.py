@@ -44,7 +44,7 @@ def setup_app():
 def create_records(Session):
     db = Session()
     client = User(email="c@test.com", password="x", first_name="C", last_name="L", user_type=UserType.CLIENT)
-    artist = User(email="a@test.com", password="x", first_name="A", last_name="R", user_type=UserType.ARTIST)
+    artist = User(email="a@test.com", password="x", first_name="A", last_name="R", user_type=UserType.SERVICE_PROVIDER)
     db.add_all([client, artist])
     db.commit()
     db.refresh(client)

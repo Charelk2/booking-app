@@ -11,7 +11,7 @@ test('loads artist data', async () => {
   useRouter.mockReturnValue({ push: jest.fn(), replace: jest.fn() });
   usePathname.mockReturnValue('/dashboard/artist');
   useSearchParams.mockReturnValue({ get: () => null });
-  (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'artist' }, loading: false });
+  (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'service_provider' }, loading: false });
   (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
   (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [] });
   (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });

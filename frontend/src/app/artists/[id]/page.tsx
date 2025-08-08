@@ -232,7 +232,7 @@ export default function ArtistProfilePage() {
                       <UserIcon className="h-16 w-16 text-gray-400" />
                     </div>
                   )}
-                  {user && user.user_type === 'artist' && artist.user_id === user.id && (
+                  {user && user.user_type === 'service_provider' && artist.user_id === user.id && (
                     <button
                       type="button"
                       className="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow focus:outline-none focus:ring-2 focus:ring-brand-dark"

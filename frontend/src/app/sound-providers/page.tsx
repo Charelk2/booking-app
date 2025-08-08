@@ -30,7 +30,7 @@ export default function SoundProvidersPage() {
   const [prefPriority, setPrefPriority] = useState('');
 
   const fetchPreferences = useCallback(async () => {
-    if (user?.user_type !== 'artist') return;
+    if (user?.user_type !== 'service_provider') return;
     try {
       const prefRes = await getSoundProvidersForArtist(user.id);
       setPreferences(prefRes.data);
@@ -105,7 +105,7 @@ export default function SoundProvidersPage() {
 
   const onAddPreference = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || user.user_type !== 'artist') return;
+    if (!user || user.user_type !== 'service_provider') return;
     try {
       await addArtistSoundPreference(user.id, {
         provider_id: Number(prefProviderId),
@@ -203,7 +203,7 @@ export default function SoundProvidersPage() {
           ))}
         </div>
 
-        {user?.user_type === 'artist' && (
+        {user?.user_type === 'service_provider' && (
           <form onSubmit={onAddPreference} className="space-y-2 border p-4 bg-white rounded">
             <h2 className="font-medium">Preferred Providers</h2>
             <div>

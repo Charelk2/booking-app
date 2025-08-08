@@ -21,7 +21,7 @@ describe('MainLayout header behavior', () => {
 
   it('hides search bar on artist detail pages', async () => {
     usePathname.mockReturnValue('/artists/123');
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, email: 'a@test.com', user_type: 'artist' } as User, logout: jest.fn() });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, email: 'a@test.com', user_type: 'service_provider' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = createRoot(div);

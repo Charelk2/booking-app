@@ -35,11 +35,11 @@ const useMobileNavItems = (user: User | null): NavItem[] => {
     const accountLinks: NavItem[] = [
       {
         name: 'Dashboard',
-        href: user.user_type === 'artist' ? '/dashboard/artist' : '/dashboard/client',
+        href: user.user_type === 'service_provider' ? '/dashboard/artist' : '/dashboard/client',
       },
       { name: 'Sign out', href: '#' },
     ];
-    if (user.user_type === 'artist') {
+    if (user.user_type === 'service_provider') {
       accountLinks.splice(1, 0,
         { name: 'Edit Profile', href: '/dashboard/profile/edit' },
         { name: 'Quotes', href: '/dashboard/quotes' },

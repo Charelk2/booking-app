@@ -6,7 +6,9 @@ from .base import BaseModel
 import enum
 
 class UserType(str, enum.Enum):
-    ARTIST = "artist"
+    """Enumeration of all supported user roles."""
+
+    SERVICE_PROVIDER = "service_provider"
     CLIENT = "client"
 
 class User(BaseModel):
@@ -26,7 +28,7 @@ class User(BaseModel):
     mfa_recovery_tokens = Column(String, nullable=True)
     profile_picture_url = Column(String, nullable=True)
 
-    # ↔–↔ If this user is an artist, they get exactly one profile here:
+    # ↔–↔ If this user is a service provider, they get exactly one profile here:
     artist_profile = relationship(
         "ArtistProfileV2",
         back_populates="user",

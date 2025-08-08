@@ -42,7 +42,7 @@ export interface BookingRequestCardProps {
 
 export default function BookingRequestCard({ req }: BookingRequestCardProps) {
   const { user } = useAuth();
-  const isUserArtist = user?.user_type === 'artist';
+  const isUserArtist = user?.user_type === 'service_provider';
   const avatarSrc = isUserArtist
     ? req.client?.profile_picture_url || null
     : req.artist_profile?.profile_picture_url || null;

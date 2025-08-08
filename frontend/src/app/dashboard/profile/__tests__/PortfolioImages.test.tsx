@@ -17,7 +17,7 @@ jest.mock('@/components/layout/MainLayout', () => {
 
 
 function setup() {
-  (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'artist' } });
+  (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'service_provider' } });
   useRouter.mockReturnValue({ push: jest.fn() });
   usePathname.mockReturnValue('/dashboard/profile/edit');
   useSearchParams.mockReturnValue({ get: () => null });

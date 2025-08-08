@@ -3,7 +3,7 @@
 export interface User {
   id: number;
   email: string;
-  user_type: "artist" | "client";
+  user_type: "service_provider" | "client";
   first_name: string;
   last_name: string;
   phone_number: string;

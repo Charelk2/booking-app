@@ -33,7 +33,7 @@ export default function BookingRequestsPage() {
       setLoading(true);
       try {
         const res =
-          user.user_type === 'artist'
+          user.user_type === 'service_provider'
             ? await getBookingRequestsForArtist()
             : await getMyBookingRequests();
         setRequests(res.data);
@@ -73,7 +73,7 @@ export default function BookingRequestsPage() {
     const lowerSearch = search.toLowerCase();
     return requests
       .filter((r) => {
-        const name = user?.user_type === 'artist'
+        const name = user?.user_type === 'service_provider'
           ? r.client
             ? `${r.client.first_name} ${r.client.last_name}`.toLowerCase()
             : ''
@@ -127,8 +127,8 @@ export default function BookingRequestsPage() {
             <div className="p-2 space-y-2 sm:flex sm:space-y-0 sm:space-x-2 bg-gray-50">
               <input
                 type="text"
-                placeholder={user?.user_type === 'artist' ? 'Search by client name' : 'Search by artist name'}
-                aria-label={user?.user_type === 'artist' ? 'Search by client name' : 'Search by artist name'}
+                placeholder={user?.user_type === 'service_provider' ? 'Search by client name' : 'Search by artist name'}
+                aria-label={user?.user_type === 'service_provider' ? 'Search by client name' : 'Search by artist name'}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="border rounded-md p-1 text-sm flex-1"
