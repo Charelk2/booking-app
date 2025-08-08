@@ -15,6 +15,13 @@ export default function DashboardRedirectPage() {
       router.replace("/login?next=/dashboard");
       return;
     }
+    if (
+      user.user_type === "service_provider" &&
+      !user.service_category_id
+    ) {
+      router.replace("/register/category");
+      return;
+    }
     if (user.user_type === "service_provider") {
       router.replace("/dashboard/artist");
     } else {

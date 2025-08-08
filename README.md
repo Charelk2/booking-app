@@ -38,6 +38,8 @@ The July 2025 update bumps key dependencies and Docker base images:
   type so searching musicians shows available artists.
 - Category popup now includes an artist name search input for quick navigation to
   individual profiles.
+- Service providers must now choose a service category after registering;
+  categories are managed via the new `/api/v1/service-categories` endpoints.
 - An unobtrusive marketing strip replaces the old Hero section.
 - The homepage now highlights popular, top rated, and new artists using a compact card grid similar to Airbnb.
 - The "Services Near You" category carousel adds previous/next buttons so desktop users can page through service types.
