@@ -6,6 +6,10 @@ User roles include `service_provider` (formerly `artist`) and `client`. The API
 also accepts the legacy `ARTIST` user type and maps it to `service_provider`
 for backward compatibility.
 
+On startup the backend now upgrades any legacy `ARTIST` entries in the `users`
+table to the current `SERVICE_PROVIDER` role so existing artists can still log
+in.
+
 The July 2025 update bumps key dependencies and Docker base images:
 
 - **FastAPI** 0.115.12 (requires Starlette 0.46+)
