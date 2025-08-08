@@ -197,9 +197,12 @@ export default function ArtistProfilePage() {
       <MainLayout hideFooter>
         <div className="md:flex md:h-[calc(100vh-4rem)] md:overflow-hidden bg-white">
           {/* Left Panel: image and host details */}
-          <aside className="md:w-2/5 md:flex md:flex-col bg-white md:pt-8 md:overflow-hidden" onWheel={handleLeftScroll}>
+          <aside
+            className="md:w-2/5 md:flex md:flex-col bg-white p-6 md:overflow-hidden"
+            onWheel={handleLeftScroll}
+          >
             <div
-              className="relative h-32 md:h-48 overflow-hidden rounded-3xl mx-6"
+              className="relative h-32 md:h-48 overflow-hidden rounded-3xl"
               role="img"
               aria-label="Cover photo"
             >
@@ -218,7 +221,7 @@ export default function ArtistProfilePage() {
                 </div>
               )}
             </div>
-            <div className="p-6 pt-0 bg-white">
+            <div className="pt-0 bg-white">
               <div className="flex flex-col items-center text-center">
                 <div className="relative -mt-12">
                   {profilePictureUrl ? (
