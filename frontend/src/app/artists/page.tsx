@@ -8,7 +8,7 @@ import { getArtists, getRecommendedArtists, type PriceBucket } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCard from '@/components/artist/ArtistCard';
-import ArtistsPageHeader from '@/components/artist/ArtistsPageHeader';
+import { ArtistsPageHeader } from '@/components/artist/ArtistServiceCard';
 import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
 import { useDebounce } from '@/hooks/useDebounce';
 import { updateQueryParams } from '@/lib/urlParams';
