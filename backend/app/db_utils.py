@@ -36,6 +36,77 @@ def ensure_legacy_artist_user_type(engine: Engine) -> None:
         conn.commit()
 
 
+def ensure_service_category_id_column(engine: Engine) -> None:
+    """Add the ``service_category_id`` column to ``artist_profiles`` if missing."""
+
+    add_column_if_missing(
+        engine,
+        "artist_profiles",
+        "service_category_id",
+        "service_category_id INTEGER",
+    )
+
+
+def seed_service_categories(engine: Engine) -> None:
+    """Create and seed the ``service_categories`` table if absent."""
+
+    inspector = inspect(engine)
+    from datetime import datetime
+    from sqlalchemy import (
+        Table,
+        MetaData,
+        Integer,
+        String,
+        Column,
+        DateTime,
+        select,
+    )
+
+    categories = [
+        "DJ",
+        "Photographer",
+        "Videographer",
+        "Caterer",
+        "Decorator",
+        "Sound Engineer",
+        "Lighting Technician",
+        "Musician",
+        "MC",
+        "Other",
+    ]
+
+    if "service_categories" not in inspector.get_table_names():
+        metadata = MetaData()
+        table = Table(
+            "service_categories",
+            metadata,
+            Column("id", Integer, primary_key=True),
+            Column("name", String, unique=True, nullable=False),
+            Column("created_at", DateTime, default=datetime.utcnow),
+            Column("updated_at", DateTime, default=datetime.utcnow),
+        )
+        metadata.create_all(engine)
+    else:
+        metadata = MetaData()
+        table = Table("service_categories", metadata, autoload_with=engine)
+
+    with engine.connect() as conn:
+        result = conn.execute(select(table.c.id)).first()
+        if result is None:
+            for name in categories:
+                conn.execute(
+                    text(
+                        "INSERT INTO service_categories (name, created_at, updated_at) VALUES (:name, :created, :updated)"
+                    ),
+                    {
+                        "name": name,
+                        "created": datetime.utcnow(),
+                        "updated": datetime.utcnow(),
+                    },
+                )
+            conn.commit()
+
+
 def ensure_service_type_column(engine: Engine) -> None:
     """Ensure the ``service_type`` column exists on the ``services`` table."""
 
