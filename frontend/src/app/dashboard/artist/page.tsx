@@ -246,10 +246,6 @@ export default function DashboardPage() {
       router.push('/dashboard/client');
       return;
     }
-    if (!user.service_category_id) {
-      router.push('/register/category');
-      return;
-    }
 
     const fetchDashboardData = async () => {
       try {

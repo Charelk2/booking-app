@@ -19,13 +19,6 @@ from .crud_quote_template import (
 )
 from . import crud_message
 from . import crud_notification
-from .crud_service_category import (
-    get as get_service_category,
-    get_multi as get_service_categories,
-    create as create_service_category,
-    update as update_service_category,
-    remove as remove_service_category,
-)
 
 # For a cleaner import, you could define __all__ or group them
 # For now, direct import is fine for usage like `crud.user.get` 
