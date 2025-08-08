@@ -84,6 +84,13 @@ describe('CategoriesCarousel', () => {
     expect(wrapper?.className).toContain('w-40');
     expect(wrapper?.className).toContain('h-40');
 
+
+    const label = container.querySelector('a p');
+    expect(label?.className).toContain('absolute');
+    expect(label?.className).toContain('left-2');
+    expect(label?.className).toContain('bottom-2');
+
+
     act(() => root.unmount());
     container.remove();
   });
