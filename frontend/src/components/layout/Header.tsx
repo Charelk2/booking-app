@@ -164,7 +164,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   // Main header classes reacting to headerState
   const headerClasses = clsx(
-    "app-header sticky top-0 z-50 bg-white transition-all duration-300 ease-in-out",
+    "app-header sticky top-0 z-50 bg-white transition-all duration-50 ease-in-out",
     {
       "compacted": headerState === 'compacted',
       "expanded-from-compact": headerState === 'expanded-from-compact',
@@ -198,7 +198,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             <div
               className={clsx('content-area-wrapper header-nav-links', {
                 'opacity-0 pointer-events-none': headerState === 'compacted' && !isArtistView,
-                'opacity-100 pointer-events-auto transition-opacity duration-300 delay-100':
+                'opacity-100 pointer-events-auto transition-opacity duration-100 delay-100':
                   headerState !== 'compacted' || isArtistView,
               })}
             >
@@ -219,7 +219,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     'compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex items-center justify-center gap-2',
                     {
                       'opacity-0 pointer-events-none': headerState !== 'compacted',
-                      'opacity-100 pointer-events-auto transition-opacity duration-300 delay-100':
+                      'opacity-100 pointer-events-auto transition-opacity duration-100 delay-100':
                         headerState === 'compacted',
                     },
                   )}
@@ -235,7 +235,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   >
                     <div className="flex flex-1 divide-x divide-gray-300">
                       <div className="flex-1 px-2 truncate">
-                        {category ? category.label : 'Add artist'}
+                        {category ? category.label : 'Add service'}
                       </div>
                       <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
                         {location ? getStreetFromAddress(location) : 'Add location'}
@@ -277,7 +277,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       size={32}
                     />
                   </Menu.Button>
-                  <Transition as={Fragment} enter="transition ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+                  <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
                     <Menu.Items className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
                       <Menu.Item>
                         {({ active }) => (
