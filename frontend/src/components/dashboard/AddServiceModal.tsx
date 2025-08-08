@@ -17,6 +17,7 @@ import Image from "next/image";
 import type { Service } from "@/types";
 import {
   createService as apiCreateService,
+  updateService as apiUpdateService,
 } from "@/lib/api";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import Button from "../ui/Button";
@@ -63,7 +64,8 @@ const stepVariants = {
 interface AddServiceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onServiceAdded: (newService: Service) => void;
+  onServiceSaved: (newService: Service) => void;
+  service?: Service;
 }
 
 interface ServiceFormData {
@@ -79,15 +81,42 @@ interface ServiceFormData {
   flight_price?: number | "";
 }
 
-export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: AddServiceModalProps) {
-  const steps = [
-    "Type",
-    "Details",
-    "Media",
-    "Review",
-  ];
+export default function AddServiceModal({
+  isOpen,
+  onClose,
+  onServiceSaved,
+  service,
+}: AddServiceModalProps) {
+  const steps = ["Type", "Details", "Media", "Review"];
   const [step, setStep] = useState(0);
   const [maxStep, setMaxStep] = useState(0);
+
+  const emptyDefaults: ServiceFormData = {
+    service_type: undefined,
+    title: "",
+    description: "",
+    duration_minutes: 60,
+    is_remote: false,
+    price: 0,
+    travel_rate: 2.5,
+    travel_members: 1,
+    car_rental_price: 1000,
+    flight_price: 2780,
+  };
+
+  const editingDefaults: ServiceFormData = {
+    service_type: service?.service_type,
+    title: service?.title ?? "",
+    description: service?.description ?? "",
+    duration_minutes: service?.duration_minutes ?? 60,
+    is_remote: service?.is_remote ?? false,
+    price: service?.price ?? 0,
+    travel_rate: service?.travel_rate ?? "",
+    travel_members: service?.travel_members ?? "",
+    car_rental_price: service?.car_rental_price ?? "",
+    flight_price: service?.flight_price ?? "",
+  };
+
   const {
     register,
     handleSubmit,
@@ -101,25 +130,28 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
     reValidateMode: "onChange",
     criteriaMode: "all",
     shouldUnregister: false,
-    defaultValues: {
-      service_type: undefined,
-      title: "",
-      description: "",
-      duration_minutes: 60,
-      is_remote: false,
-      price: 0,
-      travel_rate: 2.5,
-      travel_members: 1,
-      car_rental_price: 1000,
-      flight_price: 2780,
-    },
+    defaultValues: service ? editingDefaults : emptyDefaults,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [mediaFiles, setMediaFiles] = useState<File[]>([]),
-    [mediaError, setMediaError] = useState<string | null>(null);
+  const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+  const [existingMediaUrl, setExistingMediaUrl] = useState<string | null>(
+    service?.media_url ?? null,
+  );
   const [publishing, setPublishing] = useState(false);
   const [, setServerError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      reset(service ? editingDefaults : emptyDefaults);
+      setMediaFiles([]);
+      setExistingMediaUrl(service?.media_url ?? null);
+      setMediaError(null);
+      setStep(0);
+      setMaxStep(0);
+    }
+  }, [isOpen, service, reset]);
 
   const watchTitle = watch("title");
   const watchDescription = watch("description");
@@ -135,7 +167,12 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
   const nextDisabled = () => {
     if (step === 0) return !watch("service_type");
     if (step === 1) return !isValid;
-    if (step === 2) return !mediaFiles.some((f) => f.type.startsWith("image/")) || !!mediaError;
+    if (step === 2)
+      return (
+        (!mediaFiles.some((f) => f.type.startsWith("image/")) &&
+          !existingMediaUrl) ||
+        !!mediaError
+      );
     return false;
   };
 
@@ -145,7 +182,10 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
       if (!valid) return;
     }
     if (step === 2) {
-      if (!mediaFiles.some((f) => f.type.startsWith("image/"))) {
+      if (
+        !mediaFiles.some((f) => f.type.startsWith("image/")) &&
+        !existingMediaUrl
+      ) {
         setMediaError("At least one image is required.");
         return;
       }
@@ -167,7 +207,8 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
     setMediaFiles((prev) => [...prev, ...images]);
     if (
       images.length === 0 &&
-      !mediaFiles.some((f) => f.type.startsWith("image/"))
+      !mediaFiles.some((f) => f.type.startsWith("image/")) &&
+      !existingMediaUrl
     ) {
       setMediaError("At least one image is required.");
     }
@@ -176,11 +217,21 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
   const removeFile = (i: number) => {
     setMediaFiles((prev) => {
       const updated = prev.filter((_, idx) => idx !== i);
-      if (!updated.some((f) => f.type.startsWith("image/"))) {
+      if (
+        !updated.some((f) => f.type.startsWith("image/")) &&
+        !existingMediaUrl
+      ) {
         setMediaError("At least one image is required.");
       }
       return updated;
     });
+  };
+
+  const removeExistingMedia = () => {
+    setExistingMediaUrl(null);
+    if (!mediaFiles.some((f) => f.type.startsWith("image/"))) {
+      setMediaError("At least one image is required.");
+    }
   };
 
 
@@ -203,27 +254,30 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
           ? Number(data.flight_price)
           : undefined,
       };
-      let media_url = '';
+      let media_url = existingMediaUrl || "";
       if (mediaFiles[0]) {
         media_url = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.onerror = () => reject(new Error("Failed to read file"));
           reader.readAsDataURL(mediaFiles[0]);
         });
       }
-      const res = await apiCreateService({ ...serviceData, media_url });
-      onServiceAdded(res.data);
-      reset();
+      const res = service
+        ? await apiUpdateService(service.id, { ...serviceData, media_url })
+        : await apiCreateService({ ...serviceData, media_url });
+      onServiceSaved(res.data);
+      reset(service ? editingDefaults : emptyDefaults);
       setMediaFiles([]);
+      setExistingMediaUrl(res.data.media_url ?? null);
       setStep(0);
       onClose();
     } catch (err: unknown) {
-      console.error("Service creation error:", err);
+      console.error("Service save error:", err);
       const msg =
         err instanceof Error
           ? err.message
-          : "An unexpected error occurred. Failed to create service.";
+          : "An unexpected error occurred. Failed to save service.";
       setServerError(msg);
     } finally {
       setPublishing(false);
@@ -231,9 +285,12 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
   };
 
   const handleCancel = () => {
-    reset();
+    reset(service ? editingDefaults : emptyDefaults);
     setMediaFiles([]);
+    setExistingMediaUrl(service?.media_url ?? null);
+    setMediaError(null);
     setStep(0);
+    setMaxStep(0);
     onClose();
   };
 
@@ -472,7 +529,24 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                         </label>
                         {mediaError && <p className="text-sm text-red-600">{mediaError}</p>}
                         <div className="flex flex-wrap gap-3 mt-4">
-                          {/* Use thumbnails from useImageThumbnails hook */}
+                          {existingMediaUrl && (
+                            <div className="relative w-24 h-24 border rounded overflow-hidden">
+                              <Image
+                                src={existingMediaUrl}
+                                alt="existing-media"
+                                width={96}
+                                height={96}
+                                className="object-cover w-full h-full"
+                              />
+                              <button
+                                type="button"
+                                onClick={removeExistingMedia}
+                                className="absolute top-0 right-0 bg-black/50 text-white rounded-full w-4 h-4 text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          )}
                           {thumbnails.map((src: string, i: number) => (
                             <div
                               key={i}
@@ -600,7 +674,7 @@ export default function AddServiceModal({ isOpen, onClose, onServiceAdded }: Add
                     isLoading={publishing || isSubmitting}
                     className="w-full sm:w-auto min-h-[44px]"
                   >
-                    Publish
+                    {service ? "Save Changes" : "Publish"}
                   </Button>
                 )}
               </div>

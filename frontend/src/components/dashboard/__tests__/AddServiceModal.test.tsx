@@ -30,7 +30,7 @@ describe("AddServiceModal wizard", () => {
         React.createElement(AddServiceModal, {
           isOpen: true,
           onClose: jest.fn(),
-          onServiceAdded: jest.fn(),
+          onServiceSaved: jest.fn(),
         }),
       );
     });
@@ -142,7 +142,7 @@ describe("AddServiceModal wizard", () => {
         React.createElement(AddServiceModal, {
           isOpen: true,
           onClose,
-          onServiceAdded: jest.fn(),
+          onServiceSaved: jest.fn(),
         }),
       );
     });
@@ -163,7 +163,7 @@ describe("AddServiceModal wizard", () => {
         React.createElement(AddServiceModal, {
           isOpen: true,
           onClose,
-          onServiceAdded: jest.fn(),
+          onServiceSaved: jest.fn(),
         }),
       );
     });
