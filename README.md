@@ -499,7 +499,9 @@ The default `https://example.com` is a placeholder. The API logs a warning on st
 Users registering via `/auth/register` receive a short-lived token in an email
 pointing to `/confirm-email?token=<token>`. Submitting this token through the
 new `POST /auth/confirm-email` endpoint marks the user as verified and removes
-the token from the `email_tokens` table.
+the token from the `email_tokens` table. Service providers are currently
+auto-verified on registration, so they can sign in without confirming their
+email.
 All email addresses are normalized to lowercase during registration and login so
 `User@Example.com` and `user@example.com` refer to the same account.
 Gmail addresses are further canonicalized: dots and `+tags` are ignored and
