@@ -25,10 +25,10 @@ export default function CategoriesCarousel() {
           >
             <div className="relative w-40 h-40 rounded-lg overflow-hidden bg-gray-100">
               <Image
-                src="/default-avatar.svg"
+                src={cat.image || '/default-avatar.svg'}
                 alt={cat.label}
                 fill
-                sizes="80px"
+                sizes="160px"
                 className="object-cover"
               />
             </div>
