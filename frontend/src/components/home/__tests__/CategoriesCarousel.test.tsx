@@ -23,11 +23,8 @@ describe('CategoriesCarousel', () => {
     UI_CATEGORIES.forEach((cat, index) => {
       expect(imgs[index].getAttribute('src')).toBe(cat.image);
     });
-    const prev = container.querySelector('button[aria-label="Previous"]');
     const next = container.querySelector('button[aria-label="Next"]');
-    expect(prev).not.toBeNull();
     expect(next).not.toBeNull();
-    expect((prev as HTMLButtonElement).disabled).toBe(true);
     act(() => root.unmount());
     container.remove();
   });
@@ -75,15 +72,22 @@ describe('CategoriesCarousel', () => {
       root.render(React.createElement(CategoriesCarousel));
     });
 
-    const heading = container.querySelector('h2');
-    expect(heading?.className).toContain('px-8');
+    const section = container.querySelector('section');
+    expect(section?.className).toContain('px-4');
+    expect(section?.className).toContain('sm:px-6');
+    expect(section?.className).toContain('lg:px-8');
 
-    const outer = container.querySelector('section > div');
-    expect(outer?.className).toContain('px-8');
+    const scroller = container.querySelector('[data-testid="categories-scroll"]');
+    expect(scroller?.className).toContain('scrollbar-hide');
 
-    const wrapper = container.querySelector('div.relative');
-    expect(wrapper?.className).toContain('w-30');
-    expect(wrapper?.className).toContain('h-30');
+    const wrapper = container.querySelector('a div.relative');
+    expect(wrapper?.className).toContain('w-40');
+    expect(wrapper?.className).toContain('h-40');
+
+    const label = container.querySelector('a p');
+    expect(label?.className).toContain('absolute');
+    expect(label?.className).toContain('left-2');
+    expect(label?.className).toContain('bottom-2');
 
     act(() => root.unmount());
     container.remove();

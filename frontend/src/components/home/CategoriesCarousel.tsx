@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
+import { ChevronRightIcon } from '@heroicons/react/24/solid';
 import { UI_CATEGORIES, UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
 
 /**
@@ -41,17 +41,18 @@ export default function CategoriesCarousel() {
   };
 
   return (
-
-    <section className="mt-4" aria-labelledby="categories-heading">
-      <h2 id="categories-heading" className="px-8 text-xl font-semibold">
+    <section
+      className="full-width mx-auto mt-4 px-4 sm:px-6 lg:px-8"
+      aria-labelledby="categories-heading"
+    >
+      <h2 id="categories-heading" className="text-xl font-semibold">
         Services Near You
       </h2>
       <div className="relative mt-2">
-       
         <div
           ref={scrollRef}
           data-testid="categories-scroll"
-          className="flex overflow-x-auto scroll-smooth gap-4 px-8 pb-2"
+          className="flex gap-4 overflow-x-auto scroll-smooth pb-2 scrollbar-hide"
         >
           {UI_CATEGORIES.map((cat) => (
             <Link
@@ -59,7 +60,7 @@ export default function CategoriesCarousel() {
               href={`/artists?category=${encodeURIComponent(
                 UI_CATEGORY_TO_SERVICE[cat.value] || cat.value,
               )}`}
-              className="flex-shrink-0 text-center"
+              className="flex-shrink-0"
             >
               <div className="relative h-40 w-40 overflow-hidden rounded-lg bg-gray-100">
                 <Image
@@ -69,8 +70,10 @@ export default function CategoriesCarousel() {
                   sizes="160px"
                   className="object-cover"
                 />
+                <p className="absolute bottom-2 left-2 text-sm font-medium text-white drop-shadow">
+                  {cat.label}
+                </p>
               </div>
-              <p className="mt-1 text-sm">{cat.label}</p>
             </Link>
           ))}
         </div>
