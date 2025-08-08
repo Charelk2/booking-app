@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, type WheelEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Head from 'next/head';
 import Image from 'next/image';
@@ -52,6 +52,7 @@ export default function ArtistProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const rightPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!artistId) return;
@@ -132,6 +133,13 @@ export default function ArtistProfilePage() {
     setSelectedService(null);
   };
 
+  // Scroll the right panel when the user scrolls over the left section
+  const handleLeftScroll = (e: WheelEvent) => {
+    if (rightPanelRef.current) {
+      rightPanelRef.current.scrollBy({ top: e.deltaY });
+    }
+  };
+
   if (loading) {
     return (
       <MainLayout hideFooter>
@@ -172,9 +180,9 @@ export default function ArtistProfilePage() {
       <MainLayout hideFooter>
         <div className="md:flex md:h-[calc(100vh-4rem)] md:overflow-hidden bg-white">
           {/* Left Panel: image and host details */}
-          <aside className="md:w-2/5 md:flex md:flex-col bg-white md:pt-6">
+          <aside className="md:w-2/5 md:flex md:flex-col bg-white md:pt-6" onWheel={handleLeftScroll}>
             <div
-              className="relative h-32 md:h-48 overflow-hidden rounded-3xl"
+              className="relative h-32 md:h-48 overflow-hidden rounded-3xl mx-6"
               role="img"
               aria-label="Cover photo"
             >
@@ -195,21 +203,21 @@ export default function ArtistProfilePage() {
             </div>
             <div className="p-6 pt-0 bg-white">
               <div className="flex flex-col items-center text-center">
-                <div className="relative -mt-16">
+                <div className="relative -mt-12">
                   {profilePictureUrl ? (
                     <Image
                       src={profilePictureUrl}
-                      width={128}
-                      height={128}
-                      className="h-32 w-32 rounded-full object-cover shadow"
+                      width={96}
+                      height={96}
+                      className="h-24 w-24 rounded-full object-cover shadow"
                       alt={artist.business_name || 'Artist'}
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src = '/static/default-avatar.svg';
                       }}
                     />
                   ) : (
-                    <div className="h-32 w-32 rounded-full bg-gray-300 flex items-center justify-center text-gray-500 shadow">
-                      <UserIcon className="h-16 w-16 text-gray-400" />
+                    <div className="h-24 w-24 rounded-full bg-gray-300 flex items-center justify-center text-gray-500 shadow">
+                      <UserIcon className="h-12 w-12 text-gray-400" />
                     </div>
                   )}
                   {user && user.user_type === 'service_provider' && artist.user_id === user.id && (
@@ -263,7 +271,7 @@ export default function ArtistProfilePage() {
           </aside>
 
           {/* Right Panel: scrollable content */}
-          <section className="md:w-3/5 md:overflow-y-auto p-6 space-y-8">
+          <section ref={rightPanelRef} className="md:w-3/5 md:overflow-y-auto p-6 space-y-8">
             {/* Services Section */}
             <section id="services" aria-labelledby="services-heading" role="region">
             
