@@ -29,7 +29,7 @@ def test_process_quote_expiration(mock_expired, mock_expiring):
         password='x',
         first_name='A',
         last_name='R',
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email='c@test.com',

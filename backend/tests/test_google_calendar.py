@@ -59,7 +59,7 @@ def test_exchange_code_saves_tokens(monkeypatch, google_dummy_flow):
         password="x",
         first_name="G",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add(user)
     db.commit()
@@ -80,7 +80,7 @@ def test_exchange_code_missing_refresh_token(monkeypatch):
         password="x",
         first_name="No",
         last_name="Token",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add(user)
     db.commit()
@@ -116,7 +116,7 @@ def test_exchange_code_missing_credentials(monkeypatch, google_dummy_flow):
         password="x",
         first_name="Miss",
         last_name="Cred",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add(user)
     db.commit()
@@ -139,7 +139,7 @@ def test_fetch_events_http_error(monkeypatch):
         password="x",
         first_name="C",
         last_name="U",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add(user)
     db.commit()
@@ -183,7 +183,7 @@ def test_fetch_events_refresh_error(monkeypatch):
         password="x",
         first_name="R",
         last_name="U",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add(user)
     db.commit()
@@ -229,7 +229,7 @@ def test_fetch_events_missing_credentials(monkeypatch):
         password="x",
         first_name="No",
         last_name="Cred",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add(user)
     db.commit()
@@ -267,7 +267,7 @@ def test_unavailable_dates_include_calendar(monkeypatch):
         password="x",
         first_name="A",
         last_name="A",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add(user)
     db.commit()
@@ -322,7 +322,7 @@ def test_calendar_status_endpoint():
         password="x",
         first_name="Status",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add(user)
     db.commit()
@@ -353,7 +353,7 @@ def test_callback_success(monkeypatch):
         password="x",
         first_name="Call",
         last_name="Back",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add(user)
     db.commit()
@@ -384,7 +384,7 @@ def test_callback_error(monkeypatch):
         password="x",
         first_name="Err",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add(user)
     db.commit()

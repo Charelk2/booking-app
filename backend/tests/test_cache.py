@@ -131,7 +131,7 @@ def test_read_all_artist_profiles_uses_cache(monkeypatch):
     Session = sessionmaker(bind=engine)
     db = Session()
 
-    user = User(email="a@test.com", password="x", first_name="A", last_name="B", user_type=UserType.ARTIST)
+    user = User(email="a@test.com", password="x", first_name="A", last_name="B", user_type=UserType.SERVICE_PROVIDER)
     profile = ArtistProfileV2(user_id=1, business_name="Test")
     db.add(user)
     db.add(profile)
@@ -175,7 +175,7 @@ def test_fallback_when_redis_unavailable(monkeypatch):
     Session = sessionmaker(bind=engine)
     db = Session()
 
-    user = User(email="b@test.com", password="x", first_name="B", last_name="C", user_type=UserType.ARTIST)
+    user = User(email="b@test.com", password="x", first_name="B", last_name="C", user_type=UserType.SERVICE_PROVIDER)
     profile = ArtistProfileV2(user_id=1, business_name="Test2")
     db.add(user)
     db.add(profile)

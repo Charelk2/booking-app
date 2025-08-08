@@ -56,7 +56,7 @@ def test_message_action_included_in_response():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
         is_verified=True,
     )
     db.add_all([client_user, artist_user])

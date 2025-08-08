@@ -6,7 +6,9 @@ from enum import Enum
 
 
 class UserType(str, Enum):
-    ARTIST = "artist"
+    """Roles supported by the API."""
+
+    SERVICE_PROVIDER = "service_provider"
     CLIENT = "client"
 
 

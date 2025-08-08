@@ -34,7 +34,7 @@ export default function BookingDetailsPanel({
   paymentModal,
 }: BookingDetailsPanelProps) {
   const { user } = useAuth();
-  const isUserArtist = user?.user_type === 'artist';
+  const isUserArtist = user?.user_type === 'service_provider';
 
   const cleanLocation = (locationString: string | undefined) => {
     if (!locationString) return 'N/A';

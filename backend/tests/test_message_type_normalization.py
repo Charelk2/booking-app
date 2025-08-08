@@ -30,7 +30,7 @@ def test_lowercase_message_type_normalized():
         password="x",
         first_name="Artist",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()

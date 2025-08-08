@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 from ..database import get_db
 from ..models.user import User, UserType
-from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
+from ..models.artist_profile_v2 import ArtistProfileV2 as ServiceProviderProfile
 from ..models.email_token import EmailToken
 from ..schemas.user import (
     UserCreate,
@@ -91,9 +91,9 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_user)
 
-        if db_user.user_type == UserType.ARTIST:
-            artist_profile = ArtistProfile(user_id=db_user.id)
-            db.add(artist_profile)
+        if db_user.user_type == UserType.SERVICE_PROVIDER:
+            service_provider_profile = ServiceProviderProfile(user_id=db_user.id)
+            db.add(service_provider_profile)
             db.commit()
 
         token_value = secrets.token_urlsafe(32)

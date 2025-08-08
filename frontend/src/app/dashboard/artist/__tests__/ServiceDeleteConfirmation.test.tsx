@@ -34,7 +34,7 @@ describe('Service deletion confirmation', () => {
   beforeEach(async () => {
     useRouter.mockReturnValue({ push: jest.fn() });
     usePathname.mockReturnValue('/dashboard/artist');
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'service_provider', email: 'a@example.com' } });
     (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
     (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [service] });
     (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });

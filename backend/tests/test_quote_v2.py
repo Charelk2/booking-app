@@ -40,7 +40,7 @@ def test_create_and_accept_quote():
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="client@test.com",
@@ -127,7 +127,7 @@ def test_create_quote_updates_request_status():
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="client_status@test.com",
@@ -188,7 +188,7 @@ def test_read_accepted_quote_has_booking_id():
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="clientx@test.com",
@@ -288,7 +288,7 @@ def test_accept_quote_booking_failure(monkeypatch, caplog):
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="failbookc@test.com",
@@ -368,7 +368,7 @@ def test_accept_quote_missing_client(caplog):
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="ghost@test.com",
@@ -483,7 +483,7 @@ def test_accept_quote_creates_deposit_notification():
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="client4@test.com",
@@ -550,7 +550,7 @@ def test_accept_quote_deposit_notification_link():
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="client5@test.com",
@@ -619,7 +619,7 @@ def test_accept_quote_supplies_missing_service_id():
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="client7@test.com",
@@ -689,7 +689,7 @@ def test_create_quote_returns_404_for_missing_request():
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="missingreqc@test.com",
@@ -729,7 +729,7 @@ def test_accept_quote_without_date_for_video_service():
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="videoc@test.com",
@@ -793,7 +793,7 @@ def test_expire_pending_quotes():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="expirec@test.com",
@@ -860,7 +860,7 @@ def test_scheduler_posts_system_message():
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="client2@test.com",
@@ -936,7 +936,7 @@ def test_decline_quote():
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="client_decline@test.com",
@@ -998,7 +998,7 @@ def test_create_quote_notifies_client_when_ids_missing():
         password="x",
         first_name="A",
         last_name="R",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="nclient@test.com",

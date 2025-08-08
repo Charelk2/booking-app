@@ -16,7 +16,7 @@ const mockUseAuth = useAuth as jest.Mock;
 describe('Header profile menu', () => {
   it('shows edit profile link when user is logged in', async () => {
     mockUseAuth.mockReturnValue({
-      user: { id: 1, user_type: 'artist', email: 'a', first_name: 'A' },
+      user: { id: 1, user_type: 'service_provider', email: 'a', first_name: 'A' },
       logout: jest.fn(),
       artistViewActive: false,
       toggleArtistView: jest.fn(),

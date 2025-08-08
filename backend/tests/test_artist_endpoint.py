@@ -41,7 +41,7 @@ def test_artist_profiles_endpoint_returns_paginated(monkeypatch):
         password="x",
         first_name="A",
         last_name="B",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     profile = ArtistProfileV2(user_id=1, business_name="Test Artist")
     db.add(user)

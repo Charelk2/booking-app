@@ -19,7 +19,7 @@ describe('ArtistBookingsPage', () => {
   it('renders bookings list with quote links', async () => {
     useRouter.mockReturnValue({ push: jest.fn() });
     usePathname.mockReturnValue('/dashboard/bookings');
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'service_provider', email: 'a@example.com' } });
     (api.getMyArtistBookings as jest.Mock).mockResolvedValue({
       data: [
         {
@@ -55,7 +55,7 @@ describe('ArtistBookingsPage', () => {
   it('allows status updates and calendar downloads', async () => {
     useRouter.mockReturnValue({ push: jest.fn() });
     usePathname.mockReturnValue('/dashboard/bookings');
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'service_provider', email: 'a@example.com' } });
     const booking = {
       id: 1,
       artist_id: 2,

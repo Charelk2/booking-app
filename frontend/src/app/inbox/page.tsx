@@ -45,7 +45,7 @@ export default function InboxPage() {
     try {
       const mineRes = await getMyBookingRequests();
       let artistRes: AxiosResponse<BookingRequest[]> = { data: [] } as unknown as AxiosResponse<BookingRequest[]>;
-      if (user?.user_type === 'artist') {
+      if (user?.user_type === 'service_provider') {
         artistRes = await getBookingRequestsForArtist();
       }
       const combined = [...mineRes.data, ...artistRes.data].reduce<BookingRequest[]>((acc, req) => {

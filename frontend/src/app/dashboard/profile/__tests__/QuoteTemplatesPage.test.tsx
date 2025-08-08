@@ -11,7 +11,7 @@ jest.mock('@/components/layout/MainLayout', () => ({ children }: { children: Rea
 
 describe('QuoteTemplatesPage', () => {
   beforeEach(() => {
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'artist' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'service_provider' } });
   });
 
   afterEach(() => {

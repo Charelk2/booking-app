@@ -58,7 +58,7 @@ def create_records(Session, deposit_amount=0):
         password="x",
         first_name="a",
         last_name="r",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()

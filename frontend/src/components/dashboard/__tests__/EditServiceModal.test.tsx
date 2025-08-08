@@ -13,7 +13,7 @@ describe('EditServiceModal', () => {
   const artistUser: User = {
     id: 1,
     email: 'a@band.com',
-    user_type: 'artist',
+    user_type: 'service_provider',
     first_name: 'Artist',
     last_name: 'User',
     phone_number: '',
