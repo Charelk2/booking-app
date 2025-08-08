@@ -40,13 +40,7 @@ type CustomHeaderProps = {
 
 // MOCK data for location suggestions (ensure images exist or remove image paths)
 const MOCK_LOCATION_SUGGESTIONS = [
-  { name: 'Nearby', description: 'Find what\'s around you', image: '/images/location-nearby.png' },
-  { name: 'Stellenbosch', description: 'Western Cape', image: '/images/location-stellenbosch.png' },
-  { name: 'Langebaan', description: 'For nature-lovers', image: '/images/location-langebaan.png' },
-  { name: 'Onrus', description: 'Popular with travelers near you', image: '/images/location-onrus.png' },
-  { name: 'Robertson', description: 'Western Cape', image: '/images/location-robertson.png' },
-  { name: 'Stanford', description: 'Near you', image: '/images/location-stanford.png' },
-  { name: 'Kleinmond', description: 'Popular with travelers near you', image: '/images/location-kleinmond.png' },
+  { name: 'Nearby', description: 'Find what\'s around you', image: '/location-nearby.png' },
 ];
 
 
