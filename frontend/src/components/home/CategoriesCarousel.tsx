@@ -13,8 +13,8 @@ import { UI_CATEGORIES, UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
 export default function CategoriesCarousel() {
   return (
     <section className="mt-4">
-      <h2 className="text-xl font-semibold px-4">Services Near You</h2>
-      <div className="mt-2 flex overflow-x-auto gap-4 px-4 pb-2">
+      <h2 className="text-xl font-semibold px-8">Services Near You</h2>
+      <div className="mt-2 flex overflow-x-auto gap-4 px-8 pb-2">
         {UI_CATEGORIES.map((cat) => (
           <Link
             key={cat.value}
@@ -23,12 +23,12 @@ export default function CategoriesCarousel() {
             )}`}
             className="flex-shrink-0 text-center"
           >
-            <div className="relative w-40 h-40 rounded-lg overflow-hidden bg-gray-100">
+            <div className="relative w-30 h-30 rounded-lg overflow-hidden bg-gray-100">
               <Image
                 src={cat.image || '/default-avatar.svg'}
                 alt={cat.label}
                 fill
-                sizes="160px"
+                sizes="120px"
                 className="object-cover"
               />
             </div>
