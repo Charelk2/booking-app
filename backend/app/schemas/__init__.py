@@ -42,6 +42,7 @@ from .notification import (
 )
 from .invoice import InvoiceRead, InvoiceMarkPaid
 from .nlp import BookingParseRequest, ParsedBookingDetails
+from .service_category import ServiceCategoryResponse
 
 __all__ = [
     "UserBase",
@@ -100,4 +101,5 @@ __all__ = [
     "InvoiceMarkPaid",
     "BookingParseRequest",
     "ParsedBookingDetails",
+    "ServiceCategoryResponse",
 ]

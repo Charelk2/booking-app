@@ -25,6 +25,7 @@ import {
   Notification,
   ThreadNotification,
   ParsedBookingDetails,
+  ServiceCategory,
 } from '@/types';
 import { useAuth as useContextAuth } from '@/contexts/AuthContext'; // Renamed to avoid conflict with default export 'api'
 
@@ -492,6 +493,10 @@ export const deleteQuoteTemplate = (id: number) =>
 // ─── SOUND PROVIDERS ─────────────────────────────────────────────────────────
 export const getSoundProviders = () =>
   api.get<SoundProvider[]>(`${API_V1}/sound-providers/`);
+
+// ─── SERVICE CATEGORIES ───────────────────────────────────────────────────────
+export const getServiceCategories = () =>
+  api.get<ServiceCategory[]>(`${API_V1}/service-categories/`);
 
 export const createSoundProvider = (data: Partial<SoundProvider>) =>
   api.post<SoundProvider>(`${API_V1}/sound-providers/`, data);
