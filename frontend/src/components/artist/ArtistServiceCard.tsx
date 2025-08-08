@@ -46,7 +46,7 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
   };
 
   return (
-    <Card role="listitem" className="p-4 border-none shadow-sm hover:shadow-sm">
+    <Card role="listitem" className="border-none shadow-sm hover:shadow-sm">
       <div className="flex gap-4">
         {currentService.media_url && (
           <div className="relative w-35 h-35 flex-shrink-0 pr-4">
