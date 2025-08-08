@@ -83,6 +83,31 @@ def test_token_created_on_register():
     app.dependency_overrides.pop(get_db, None)
 
 
+def test_service_provider_auto_verified():
+    Session = setup_app()
+    client = TestClient(app)
+
+    res = client.post(
+        '/auth/register',
+        json={
+            'email': 'sp@test.com',
+            'password': 'secret',
+            'first_name': 'S',
+            'last_name': 'Provider',
+            'phone_number': '123',
+            'user_type': 'service_provider',
+        },
+    )
+    assert res.status_code == 200
+    db = Session()
+    user_db = db.query(User).filter(User.email == 'sp@test.com').first()
+    token = db.query(EmailToken).filter(EmailToken.user_id == user_db.id).first()
+    db.close()
+    assert user_db.is_verified is True
+    assert token is None
+    app.dependency_overrides.pop(get_db, None)
+
+
 def test_confirm_email():
     Session = setup_app()
     user_id, token, _ = create_user(Session)

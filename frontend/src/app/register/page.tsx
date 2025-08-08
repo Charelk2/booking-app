@@ -41,8 +41,13 @@ export default function RegisterPage() {
       const { confirmPassword, ...userData } = data;
       void confirmPassword;
       await registerUser(userData);
-      toast.success('Registration successful! Check your email to verify.');
-      router.push('/confirm-email');
+      if (userData.user_type === 'service_provider') {
+        toast.success('Registration successful!');
+        router.push('/login');
+      } else {
+        toast.success('Registration successful! Check your email to verify.');
+        router.push('/confirm-email');
+      }
     } catch (err: unknown) {
       console.error('Registration error:', err);
       const message =
