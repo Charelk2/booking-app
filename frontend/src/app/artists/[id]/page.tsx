@@ -172,15 +172,19 @@ export default function ArtistProfilePage() {
       <MainLayout hideFooter>
         <div className="md:flex md:h-[calc(100vh-4rem)] md:overflow-hidden bg-white">
           {/* Left Panel: image and host details */}
-          <aside className="md:w-2/5 md:flex md:flex-col bg-gray-200">
-            <div className="relative h-48 md:flex-grow" role="img" aria-label="Cover photo">
+          <aside className="md:w-2/5 md:flex md:flex-col bg-white">
+            <div
+              className="relative h-40 md:flex-grow overflow-hidden rounded-3xl"
+              role="img"
+              aria-label="Cover photo"
+            >
               {coverPhotoUrl ? (
                 <Image
                   src={coverPhotoUrl}
                   alt="Cover photo"
                   fill
                   priority
-                  className="object-cover"
+                  className="object-cover rounded-3xl"
                   sizes="(min-width: 768px) 40vw, 100vw"
                 />
               ) : (
