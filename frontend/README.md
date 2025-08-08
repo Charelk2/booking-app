@@ -52,6 +52,10 @@ sync, ensuring responsive behavior matches the design system.
 
 Focusing the category chooser opens a popup that spans half of the search bar from the left. The location input opens a suggested-destinations popup on the right half, and selecting dates launches a full-screen calendar overlay. If the suggested destinations exceed the popup height, the list now scrolls so all options remain accessible. Once the user types in a location, the suggestions popup closes and will not reappear, while Google Places autocomplete suggestions show directly beneath the input.
 
+### Homepage Categories Carousel
+
+The home page includes a "Services Near You" carousel that lists common service categories such as Musicians and DJs. Items use a square image placeholder with the label below and link to the artists page filtered by the selected category.
+
 ### Loading Indicators
 
 `Spinner` and `SkeletonList` components in `src/components/ui` provide
