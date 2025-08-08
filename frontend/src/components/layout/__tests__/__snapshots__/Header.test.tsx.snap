@@ -200,7 +200,7 @@ exports[`Header matches compact snapshot with filter control 1`] = `
               <div
                 class="flex-1 px-2 truncate"
               >
-                Add artist
+                Add service
               </div>
               <div
                 class="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis"
@@ -290,7 +290,7 @@ exports[`Header matches compact snapshot with filter control 1`] = `
               <span
                 class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
               >
-                Add artist
+                Add service
               </span>
             </button>
           </div>
@@ -586,7 +586,7 @@ exports[`Header renders search bar when enabled 1`] = `
               <div
                 class="flex-1 px-2 truncate"
               >
-                Add artist
+                Add service
               </div>
               <div
                 class="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis"
@@ -669,7 +669,7 @@ exports[`Header renders search bar when enabled 1`] = `
               <span
                 class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
               >
-                Add artist
+                Add service
               </span>
             </button>
           </div>

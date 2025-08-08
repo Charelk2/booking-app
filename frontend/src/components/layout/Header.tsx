@@ -235,7 +235,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   >
                     <div className="flex flex-1 divide-x divide-gray-300">
                       <div className="flex-1 px-2 truncate">
-                        {category ? category.label : 'Add artist'}
+                        {category ? category.label : 'Add service'}
                       </div>
                       <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
                         {location ? getStreetFromAddress(location) : 'Add location'}

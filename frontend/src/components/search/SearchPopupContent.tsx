@@ -338,7 +338,7 @@ export default function SearchPopupContent({
         className="text-sm font-semibold text-gray-800 mb-2"
         id="search-popup-label-category"
       >
-        Select an artist category
+        Select a service category
       </h3>
       <Listbox value={category} onChange={handleCategorySelect}>
         {/* HeadlessUI Listbox handles arrow key navigation; we expose
