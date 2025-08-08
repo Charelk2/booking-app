@@ -23,7 +23,6 @@ import {
   applyDisplayOrder,
 } from "@/lib/utils";
 import AddServiceModal from "@/components/dashboard/AddServiceModal";
-import EditServiceModal from "@/components/dashboard/EditServiceModal";
 import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
 import ProfileProgress from "@/components/dashboard/ProfileProgress";
 import SectionList from "@/components/dashboard/SectionList";
@@ -160,7 +159,7 @@ export default function DashboardPage() {
   const [requestVisibleCount, setRequestVisibleCount] = useState(5);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
+  const [serviceModalOpen, setServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [requestToUpdate, setRequestToUpdate] = useState<BookingRequest | null>(null);
   const params = useSearchParams();
@@ -403,7 +402,10 @@ export default function DashboardPage() {
               </div>
               <Button
                 type="button"
-                onClick={() => setIsAddServiceModalOpen(true)}
+                onClick={() => {
+                  setEditingService(null);
+                  setServiceModalOpen(true);
+                }}
                 className="bg-brand-accent text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition shadow-md w-full md:w-auto"
               >
                 Add New Service
@@ -652,7 +654,10 @@ export default function DashboardPage() {
                         <SortableServiceCard
                           key={service.id}
                           service={service}
-                          onEdit={(s) => setEditingService(s)}
+                          onEdit={(s) => {
+                            setEditingService(s);
+                            setServiceModalOpen(true);
+                          }}
                           onDelete={handleDeleteService}
                         />
                       ))}
@@ -662,7 +667,10 @@ export default function DashboardPage() {
               )}
               <Button
                 type="button"
-                onClick={() => setIsAddServiceModalOpen(true)}
+                onClick={() => {
+                  setEditingService(null);
+                  setServiceModalOpen(true);
+                }}
                 className="mt-4 sm:w-auto"
                 fullWidth
               >
@@ -672,17 +680,21 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
-      <AddServiceModal
-        isOpen={isAddServiceModalOpen}
-        onClose={() => setIsAddServiceModalOpen(false)}
-        onServiceAdded={handleServiceAdded}
-      />
-      {editingService && (
-        <EditServiceModal
-          isOpen={!!editingService}
-          service={editingService}
-          onClose={() => setEditingService(null)}
-          onServiceUpdated={handleServiceUpdated}
+      {serviceModalOpen && (
+        <AddServiceModal
+          isOpen={serviceModalOpen}
+          service={editingService ?? undefined}
+          onClose={() => {
+            setServiceModalOpen(false);
+            setEditingService(null);
+          }}
+          onServiceSaved={(svc) => {
+            if (editingService) {
+              handleServiceUpdated(svc);
+            } else {
+              handleServiceAdded(svc);
+            }
+          }}
         />
       )}
       {requestToUpdate && (
