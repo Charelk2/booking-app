@@ -54,7 +54,7 @@ Focusing the category chooser opens a popup that spans half of the search bar fr
 
 ### Homepage Categories Carousel
 
-The home page includes a "Services Near You" carousel that lists common service categories such as Musicians and DJs. Each category now supports its own image, defined in `src/lib/categoryMap.ts` and served from `public/categories`. Items display the image with the label below and link to the artists page filtered by the selected category.
+The home page includes a "Services Near You" carousel that lists common service categories such as Musicians and DJs. Each category supports its own image, defined in `src/lib/categoryMap.ts` and served from `public/categories`. Items display the image with the label below and link to the artists page filtered by the selected category. On desktop, left and right buttons page through the list for easier navigation.
 
 ### Loading Indicators
 
