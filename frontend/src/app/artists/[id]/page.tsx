@@ -198,7 +198,7 @@ export default function ArtistProfilePage() {
         <div className="md:flex md:h-[calc(100vh-4rem)] md:overflow-hidden bg-white">
           {/* Left Panel: image and host details */}
           <aside
-            className="md:w-2/5 md:flex md:flex-col bg-white px-6 pb-6 md:overflow-hidden"
+            className="md:w-2/5 md:flex md:flex-col bg-white p-6 md:overflow-hidden"
             onWheel={handleLeftScroll}
           >
             <div
@@ -291,10 +291,7 @@ export default function ArtistProfilePage() {
           </aside>
 
           {/* Right Panel: scrollable content */}
-          <section
-            ref={rightPanelRef}
-            className="md:w-3/5 md:overflow-y-auto px-6 pb-6 space-y-8"
-          >
+          <section ref={rightPanelRef} className="md:w-3/5 md:overflow-y-auto p-6 space-y-8">
             {/* Services Section */}
             <section id="services" aria-labelledby="services-heading" role="region">
             
