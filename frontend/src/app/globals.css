@@ -207,7 +207,7 @@
 /* === Header Core Styles & Transitions === */
 #app-header {
   transition: all 0.5s ease-in-out; /* Smooth transitions for height and shadow */
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); /* Default shadow-sm */
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05); /* Default shadow-sm */
   /* Default: initial-expanded state styles */
   padding-top: 1rem; /* py-4 */
   padding-bottom: 1rem; /* py-4 */
@@ -218,7 +218,7 @@
   height: 4rem; /* h-16 */
   padding-top: 0.5rem; /* py-2 */
   padding-bottom: 0.5rem; /* py-2 */
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05); /* shadow-md */
 }
 
 /* State: Expanded from Compact (when pill is clicked) */
