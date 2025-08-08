@@ -133,22 +133,6 @@ export default function ArtistProfilePage() {
     setSelectedService(null);
   };
 
-  // Prevent the overall page from scrolling when the right panel
-  // still has scrollable content. Only allow scroll chaining when
-  // the panel is at its top or bottom edge.
-  const handleRightScroll = (e: WheelEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    const isScrollingDown = e.deltaY > 0;
-
-    if (isScrollingDown) {
-      if (el.scrollTop + el.clientHeight < el.scrollHeight) {
-        e.stopPropagation();
-      }
-    } else if (el.scrollTop > 0) {
-      e.stopPropagation();
-    }
-  };
-
   // Scroll the right panel when hovering over the left section
   // and prevent the overall page from jumping
   const handleLeftScroll = (e: WheelEvent) => {
@@ -307,11 +291,7 @@ export default function ArtistProfilePage() {
           </aside>
 
           {/* Right Panel: scrollable content */}
-          <section
-            ref={rightPanelRef}
-            className="md:w-3/5 md:overflow-y-auto md:overscroll-contain p-6 space-y-8"
-            onWheel={handleRightScroll}
-          >
+          <section ref={rightPanelRef} className="md:w-3/5 md:overflow-y-auto p-6 space-y-8">
             {/* Services Section */}
             <section id="services" aria-labelledby="services-heading" role="region">
             
