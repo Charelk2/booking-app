@@ -252,9 +252,8 @@ export default function SearchBar({
              Use a z-index lower than the header (z-50) so the active search field
              remains visible above the overlay while the rest of the page is dimmed. */}
             <div
-              className="animate-fadeIn fixed inset-0 z-40 cursor-pointer bg-black bg-opacity-30"
+              className="pointer-events-none animate-fadeIn fixed inset-0 z-40 bg-black bg-opacity-30"
               aria-hidden="true"
-              onClick={closeThisSearchBarsInternalPopups}
             />
 
             <Transition
