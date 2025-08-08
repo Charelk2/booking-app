@@ -54,6 +54,7 @@ describe('SearchBar', () => {
   });
 
   it('dismisses popup with a single outside click and allows interactions', async () => {
+    jest.useFakeTimers();
     const onSearch = jest.fn();
     const outsideClick = jest.fn();
 
@@ -96,8 +97,14 @@ describe('SearchBar', () => {
     fireEvent.mouseDown(outside);
     fireEvent.click(outside);
 
+    // Allow the internal close timeout to elapse
+    act(() => {
+      jest.advanceTimersByTime(250);
+    });
+
     await waitFor(() => expect(queryByRole('dialog')).toBeNull());
     expect(outsideClick).toHaveBeenCalled();
+    jest.useRealTimers();
   });
 
   it('keeps popup content when switching fields quickly', () => {
