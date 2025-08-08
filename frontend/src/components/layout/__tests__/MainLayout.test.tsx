@@ -138,7 +138,7 @@ describe('MainLayout header behavior', () => {
   });
 
   it('applies mobile nav height variable to main padding', async () => {
-    mockUsePathname.mockReturnValue('/');
+    usePathname.mockReturnValue('/');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 9, email: 'h@test.com', user_type: 'client' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -149,6 +149,21 @@ describe('MainLayout header behavior', () => {
     await flushPromises();
     const main = div.querySelector('main') as HTMLElement;
     expect(main.style.paddingBottom).toBe('var(--mobile-bottom-nav-height, 0px)');
+    act(() => { root.unmount(); });
+    div.remove();
+  });
+
+  it('omits footer when hideFooter is true', async () => {
+    usePathname.mockReturnValue('/');
+    (useAuth as jest.Mock).mockReturnValue({ user: null, logout: jest.fn() });
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(React.createElement(MainLayout, { hideFooter: true }, React.createElement('div')));
+    });
+    await flushPromises();
+    expect(div.querySelector('footer')).toBeNull();
     act(() => { root.unmount(); });
     div.remove();
   });

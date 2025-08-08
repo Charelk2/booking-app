@@ -20,9 +20,10 @@ interface Props {
   headerAddon?: React.ReactNode;
   headerFilter?: React.ReactNode;
   fullWidthContent?: boolean;
+  hideFooter?: boolean;
 }
 
-export default function MainLayout({ children, headerAddon, headerFilter, fullWidthContent = false }: Props) {
+export default function MainLayout({ children, headerAddon, headerFilter, fullWidthContent = false, hideFooter = false }: Props) {
   const { user, artistViewActive } = useAuth();
   const pathname = usePathname();
   const isArtistDetail = /^\/artists\//.test(pathname) && pathname.split('/').length > 2;
@@ -247,7 +248,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
         </main>
       </div>
 
-      <Footer />
+      {!hideFooter && <Footer />}
 
       {user && <MobileBottomNav user={user} />}
     </div>
