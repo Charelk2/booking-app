@@ -8,7 +8,11 @@ export const getFullImageUrl = (
   relativePath: string | undefined | null,
 ): string | null => {
   if (!relativePath) return null;
-  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+  if (
+    relativePath.startsWith('http://') ||
+    relativePath.startsWith('https://') ||
+    relativePath.startsWith('data:')
+  ) {
     return relativePath;
   }
 
