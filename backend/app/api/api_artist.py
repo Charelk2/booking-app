@@ -168,7 +168,7 @@ def list_all_artist_profiles(db: Session = Depends(get_db)) -> Any:
     profiles = (
         db.query(ArtistProfile)
         .join(User, ArtistProfile.user_id == User.id)
-        .filter(User.is_active == True, User.user_type == UserType.ARTIST)
+        .filter(User.is_active == True, User.user_type == UserType.SERVICE_PROVIDER)
         .options(joinedload(ArtistProfile.user))
         .all()
     )
@@ -199,7 +199,7 @@ def read_artist_profile_by_user_id(user_id: int, db: Session = Depends(get_db)) 
     if not (
         profile.user
         and profile.user.is_active
-        and profile.user.user_type == UserType.ARTIST
+        and profile.user.user_type == UserType.SERVICE_PROVIDER
     ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

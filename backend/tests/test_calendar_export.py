@@ -18,7 +18,7 @@ def setup_db():
 def test_calendar_download_returns_ics():
     db = setup_db()
     client_user = User(email='c@test.com', password='x', first_name='C', last_name='User', user_type=UserType.CLIENT)
-    artist_user = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.ARTIST)
+    artist_user = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.SERVICE_PROVIDER)
     db.add_all([client_user, artist_user])
     db.commit()
     db.refresh(client_user)

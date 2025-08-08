@@ -17,7 +17,7 @@ def setup_db():
 
 def test_service_response_includes_currency():
     db = setup_db()
-    artist = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.ARTIST)
+    artist = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.SERVICE_PROVIDER)
     db.add(artist)
     db.commit()
     db.refresh(artist)

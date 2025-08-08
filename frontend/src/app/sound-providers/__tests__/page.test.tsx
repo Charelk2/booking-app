@@ -13,7 +13,7 @@ jest.mock('@/components/layout/MainLayout', () => ({ children }: { children: Rea
 
 
 function setup() {
-  (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist' } });
+  (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'service_provider' } });
   (api.getSoundProviders as jest.Mock).mockResolvedValue({ data: [
     { id: 1, name: 'Provider', contact_info: 'c', price_per_event: 10 },
   ]});

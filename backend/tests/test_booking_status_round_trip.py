@@ -15,7 +15,7 @@ def setup_db():
 def test_booking_status_round_trip():
     db = setup_db()
     client = User(email='c@test.com', password='x', first_name='C', last_name='Client', user_type=UserType.CLIENT)
-    artist = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.ARTIST)
+    artist = User(email='a@test.com', password='x', first_name='A', last_name='Artist', user_type=UserType.SERVICE_PROVIDER)
     db.add_all([client, artist])
     db.commit()
     db.refresh(client)

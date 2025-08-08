@@ -47,9 +47,9 @@ describe('ConversationList', () => {
         client: { id: 1, email: 'a', user_type: 'client', first_name: 'A', last_name: 'B', phone_number: '', is_active: true, is_verified: true },
         artist: {
           id: 2,
-          user: { id: 2, email: 'b', user_type: 'artist', first_name: 'B', last_name: 'C', phone_number: '', is_active: true, is_verified: true },
+          user: { id: 2, email: 'b', user_type: 'service_provider', first_name: 'B', last_name: 'C', phone_number: '', is_active: true, is_verified: true },
           profile_picture_url: null,
-        } as unknown as BookingRequest['artist'],
+        } as unknown as BookingRequest['service_provider'],
         artist_profile: { business_name: 'Biz', profile_picture_url: null } as ArtistProfile,
       } as BookingRequest,
     ];
@@ -91,14 +91,14 @@ describe('ConversationList', () => {
           user: {
             id: 2,
             email: 'b',
-            user_type: 'artist',
+            user_type: 'service_provider',
             first_name: 'Nested',
             last_name: 'User',
             phone_number: '',
             is_active: true,
             is_verified: true,
           },
-        } as unknown as BookingRequest['artist'],
+        } as unknown as BookingRequest['service_provider'],
         artist_profile: { business_name: undefined } as ArtistProfile,
       } as BookingRequest,
     ];
@@ -138,9 +138,9 @@ describe('ConversationList', () => {
         client: { id: 1, email: 'a', user_type: 'client', first_name: 'A', last_name: 'B', phone_number: '', is_active: true, is_verified: true },
         artist: {
           id: 2,
-          user: { id: 2, email: 'b', user_type: 'artist', first_name: 'B', last_name: 'C', phone_number: '', is_active: true, is_verified: true },
+          user: { id: 2, email: 'b', user_type: 'service_provider', first_name: 'B', last_name: 'C', phone_number: '', is_active: true, is_verified: true },
           profile_picture_url: null,
-        } as unknown as BookingRequest['artist'],
+        } as unknown as BookingRequest['service_provider'],
         artist_profile: { business_name: 'Biz', profile_picture_url: null } as ArtistProfile,
       } as BookingRequest,
     ];
@@ -169,13 +169,13 @@ describe('ConversationList', () => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         client: { id: 2, email: 'b', user_type: 'client', first_name: 'Client', last_name: 'X', phone_number: '', is_active: true, is_verified: true },
-        artist: { id: 1, email: 'a', user_type: 'artist', first_name: 'Art', last_name: 'Ist', phone_number: '', is_active: true, is_verified: true },
+        artist: { id: 1, email: 'a', user_type: 'service_provider', first_name: 'Art', last_name: 'Ist', phone_number: '', is_active: true, is_verified: true },
         artist_profile: { business_name: 'Biz', profile_picture_url: null } as ArtistProfile,
       } as BookingRequest,
     ];
     const { container, root, props } = renderComponent({
       bookingRequests: requests,
-      currentUser: { id: 1, email: 'a', user_type: 'artist', first_name: 'Art', last_name: 'Ist', phone_number: '', is_active: true, is_verified: true },
+      currentUser: { id: 1, email: 'a', user_type: 'service_provider', first_name: 'Art', last_name: 'Ist', phone_number: '', is_active: true, is_verified: true },
     });
     await act(async () => {
       root.render(<ConversationList {...props} />);
@@ -212,14 +212,14 @@ describe('ConversationList', () => {
           user: {
             id: 2,
             email: 'b',
-            user_type: 'artist',
+            user_type: 'service_provider',
             first_name: 'B',
             last_name: 'C',
             phone_number: '',
             is_active: true,
             is_verified: true,
           },
-        } as unknown as BookingRequest['artist'],
+        } as unknown as BookingRequest['service_provider'],
       } as BookingRequest,
     ];
     const { container, root, props } = renderComponent({

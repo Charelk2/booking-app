@@ -18,7 +18,7 @@ def setup_db():
 def test_booking_request_creates_system_message():
     db = setup_db()
     client = User(email="client@test.com", password="x", first_name="C", last_name="L", user_type=UserType.CLIENT)
-    artist = User(email="artist@test.com", password="x", first_name="A", last_name="R", user_type=UserType.ARTIST)
+    artist = User(email="artist@test.com", password="x", first_name="A", last_name="R", user_type=UserType.SERVICE_PROVIDER)
     db.add_all([client, artist])
     db.commit()
     db.refresh(client)

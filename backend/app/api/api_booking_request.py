@@ -81,7 +81,7 @@ def create_booking_request(
     # Ensure the artist exists
     artist_user = db.query(models.User).filter(
         models.User.id == request_in.artist_id,
-        models.User.user_type == models.UserType.ARTIST,
+        models.User.user_type == models.UserType.SERVICE_PROVIDER,
     ).first()
     if not artist_user:
         logger.warning(

@@ -242,7 +242,7 @@ export default function DashboardPage() {
       router.push(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
-    if (user.user_type !== 'artist') {
+    if (user.user_type !== 'service_provider') {
       router.push('/dashboard/client');
       return;
     }
@@ -367,7 +367,7 @@ export default function DashboardPage() {
   }
 
   const showLocationPrompt =
-    user?.user_type === "artist" && artistProfile && !artistProfile.location;
+    user?.user_type === "service_provider" && artistProfile && !artistProfile.location;
 
   if (loading) {
     return (
@@ -396,7 +396,7 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold text-gray-800 mb-4">
             Welcome back, {user.first_name || 'User'}!
           </h1>
-          {user?.user_type === 'artist' && artistProfile && (
+          {user?.user_type === 'service_provider' && artistProfile && (
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
               <div className="w-full md:w-1/2">
                 <ProfileProgress profile={artistProfile} />
@@ -626,7 +626,7 @@ export default function DashboardPage() {
               )}
             </>
           )}
-          {user?.user_type === "artist" && activeTab === 'services' && (
+          {user?.user_type === "service_provider" && activeTab === 'services' && (
             <section className="bg-white rounded-xl shadow-custom p-6 mb-10">
               <h2 className="text-2xl font-bold text-gray-800 mb-6">Your Services</h2>
               {isReordering && showReorderHint && (

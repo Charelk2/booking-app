@@ -24,7 +24,7 @@ describe('ArtistQuotesPage', () => {
   it('renders quotes and triggers actions', async () => {
     useRouter.mockReturnValue({ push: jest.fn() });
     usePathname.mockReturnValue('/dashboard/quotes');
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'service_provider', email: 'a@example.com' } });
     (api.getMyArtistQuotes as jest.Mock).mockResolvedValue({
       data: [
         { id: 1, booking_request_id: 9, artist_id: 2, quote_details: 'Offer', price: 100, currency: 'ZAR', status: 'pending_client_action', created_at: '', updated_at: '' },
@@ -71,7 +71,7 @@ describe('ArtistQuotesPage', () => {
   it('opens edit modal and saves changes', async () => {
     useRouter.mockReturnValue({ push: jest.fn() });
     usePathname.mockReturnValue('/dashboard/quotes');
-    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'artist', email: 'a@example.com' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'service_provider', email: 'a@example.com' } });
     (api.getMyArtistQuotes as jest.Mock).mockResolvedValue({
       data: [
         { id: 1, booking_request_id: 9, artist_id: 2, quote_details: 'Offer', price: 100, currency: 'ZAR', status: 'pending_client_action', created_at: '', updated_at: '' },

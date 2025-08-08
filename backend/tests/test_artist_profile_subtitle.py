@@ -16,7 +16,7 @@ def setup_db():
 
 def test_custom_subtitle_field_roundtrip():
     db = setup_db()
-    user = User(email='a@test.com', password='x', first_name='A', last_name='B', user_type=UserType.ARTIST)
+    user = User(email='a@test.com', password='x', first_name='A', last_name='B', user_type=UserType.SERVICE_PROVIDER)
     db.add(user)
     db.commit()
     db.refresh(user)

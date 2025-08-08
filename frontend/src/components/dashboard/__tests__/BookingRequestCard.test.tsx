@@ -22,7 +22,7 @@ const client: User = {
 const artist: User = {
   id: 3,
   email: 'a@band.com',
-  user_type: 'artist',
+  user_type: 'service_provider',
   first_name: 'Band',
   last_name: 'Leader',
   phone_number: '',
@@ -80,7 +80,7 @@ describe('BookingRequestCard', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
-    (useAuth as jest.Mock).mockReturnValue({ user: { user_type: 'artist' } });
+    (useAuth as jest.Mock).mockReturnValue({ user: { user_type: 'service_provider' } });
   });
 
   afterEach(() => {

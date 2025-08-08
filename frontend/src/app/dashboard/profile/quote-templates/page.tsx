@@ -46,7 +46,7 @@ export default function QuoteTemplatesPage() {
   }, [user]);
 
   useEffect(() => {
-    if (user && user.user_type === 'artist') {
+    if (user && user.user_type === 'service_provider') {
       fetchTemplates();
     }
   }, [user, fetchTemplates]);
@@ -166,7 +166,7 @@ export default function QuoteTemplatesPage() {
     );
   }
 
-  if (user.user_type !== 'artist') {
+  if (user.user_type !== 'service_provider') {
     return (
       <MainLayout>
         <div className="p-8">Access denied</div>

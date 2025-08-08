@@ -27,7 +27,7 @@ export default function ConversationList({
       {bookingRequests.map((req) => {
         const isActive = selectedRequestId === req.id;
         const otherName = (() => {
-          if (currentUser.user_type === 'artist') {
+          if (currentUser.user_type === 'service_provider') {
             return req.client?.first_name || 'Client';
           }
           const artistProfile = req.artist_profile;
@@ -43,7 +43,7 @@ export default function ConversationList({
         })();
 
         const avatarUrl =
-          currentUser.user_type === 'artist'
+          currentUser.user_type === 'service_provider'
             ? req.client?.profile_picture_url
             : req.artist_profile?.profile_picture_url || req.artist?.profile_picture_url;
 
@@ -52,7 +52,7 @@ export default function ConversationList({
 
         const previewMessage = (() => {
           if (req.last_message_content === 'Artist sent a quote') {
-            return currentUser.user_type === 'artist'
+            return currentUser.user_type === 'service_provider'
               ? 'You sent a quote'
               : `${otherName} sent a quote`;
           }

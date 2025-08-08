@@ -90,7 +90,7 @@ def test_message_creates_notification():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -129,7 +129,7 @@ def test_system_booking_summary_message_suppressed():
         password="x",
         first_name="A2",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -169,7 +169,7 @@ def test_booking_request_creates_notification():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -194,7 +194,7 @@ def test_get_notifications_pagination_and_grouping():
         password="x",
         first_name="T",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add(user)
     db.commit()
@@ -244,7 +244,7 @@ def test_thread_notification_summary():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -295,7 +295,7 @@ def test_thread_notification_shows_client_avatar():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -336,7 +336,7 @@ def test_thread_notification_uses_business_name_for_artist():
         password="x",
         first_name="A2",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -384,7 +384,7 @@ def test_thread_notification_includes_booking_details():
         password="x",
         first_name="Artist",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -428,7 +428,7 @@ def test_mark_all_notifications_read():
         password="x",
         first_name="T3",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add(user)
     db.commit()
@@ -464,7 +464,7 @@ def test_status_update_creates_notification_for_client():
         password="x",
         first_name="Artist",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -504,7 +504,7 @@ def test_status_update_creates_notification_for_artist():
         password="x",
         first_name="Artist2",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -597,7 +597,7 @@ def test_personalized_video_notifications_suppressed_until_final():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -652,7 +652,7 @@ def test_review_request_notification():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client = User(
         email="rrc@test.com",
@@ -717,7 +717,7 @@ def test_notifications_endpoint_returns_sender_name():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client_user = User(
         email="client@test.com",
@@ -773,7 +773,7 @@ def test_new_message_notification_fallback_client_name():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client_user = User(
         email="clientfb@test.com",
@@ -825,7 +825,7 @@ def test_new_message_notification_fallback_business_name():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client_user = User(
         email="clientfb2@test.com",
@@ -888,7 +888,7 @@ def test_deposit_due_prefix_only_once():
         password="x",
         first_name="Artist",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -935,7 +935,7 @@ def test_deposit_due_notification_includes_artist_business_name():
         password="x",
         first_name="A3",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -995,7 +995,7 @@ def test_deposit_due_notification_includes_artist_avatar():
         password="x",
         first_name="A4",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -1058,7 +1058,7 @@ def test_booking_request_api_parses_sender_and_type():
         password="x",
         first_name="Artist",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -1124,7 +1124,7 @@ def test_new_booking_notification_includes_artist_business_name():
         password="x",
         first_name="A4",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -1175,7 +1175,7 @@ def test_new_booking_notification_includes_artist_avatar_for_client():
         password="x",
         first_name="AA",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -1229,7 +1229,7 @@ def test_booking_status_update_notification_includes_client_name():
         password="x",
         first_name="A5",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -1276,7 +1276,7 @@ def test_deposit_due_notification_includes_artist_avatar_url():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -1339,7 +1339,7 @@ def test_deposit_due_notification_falls_back_to_artist_user_avatar():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
         profile_picture_url="/static/profile_pics/artist_fallback.jpg",
     )
     db.add_all([client, artist])
@@ -1403,7 +1403,7 @@ def test_new_booking_notification_includes_client_avatar_for_artist():
         password="x",
         first_name="NB",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -1451,7 +1451,7 @@ def test_quote_accepted_notification_includes_client_avatar_url():
         password="x",
         first_name="Q",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client, artist])
     db.commit()
@@ -1491,7 +1491,7 @@ def test_quote_expired_notification():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client_user = User(
         email="exclient@test.com",
@@ -1537,7 +1537,7 @@ def test_quote_expiring_notification():
         password="x",
         first_name="A",
         last_name="Artist",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     client_user = User(
         email="qxclient@test.com",
@@ -1608,7 +1608,7 @@ def test_client_notification_on_quote_sent():
         password="x",
         first_name="Artist",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client_user, artist])
     db.commit()
@@ -1655,7 +1655,7 @@ def test_client_notified_when_artist_declines_request():
         password="x",
         first_name="Artist",
         last_name="User",
-        user_type=UserType.ARTIST,
+        user_type=UserType.SERVICE_PROVIDER,
     )
     db.add_all([client_user, artist])
     db.commit()
