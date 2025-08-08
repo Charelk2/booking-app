@@ -24,7 +24,6 @@ import {
   StarIcon,
   MapPinIcon,
   UserIcon,
-  GlobeAltIcon,
   ListBulletIcon,
   Squares2X2Icon,
   PencilIcon,
@@ -159,7 +158,7 @@ export default function ArtistProfilePage() {
 
   if (loading) {
     return (
-      <MainLayout>
+      <MainLayout hideFooter>
         <div className="flex justify-center items-center min-h-[80vh]">
           <Spinner size="lg" />
         </div>
@@ -169,7 +168,7 @@ export default function ArtistProfilePage() {
 
   if (error || !artist) {
     return (
-      <MainLayout>
+      <MainLayout hideFooter>
         <div className="text-center py-20" role="alert">
           <h2 className="text-2xl font-semibold text-gray-700">{error || 'Artist not found'}</h2>
         </div>
@@ -194,11 +193,11 @@ export default function ArtistProfilePage() {
         )}
         {profilePictureUrl && <meta property="og:image" content={profilePictureUrl} />}
       </Head>
-      <MainLayout fullWidthContent>
+      <MainLayout hideFooter>
         <div className="md:flex md:h-[calc(100vh-4rem)] md:overflow-hidden bg-white">
           {/* Left Panel: image and host details */}
           <aside className="md:w-2/5 md:flex md:flex-col bg-gray-200">
-            <div className="relative h-64 md:flex-grow" role="img" aria-label="Cover photo">
+            <div className="relative h-48 md:flex-grow" role="img" aria-label="Cover photo">
               {coverPhotoUrl ? (
                 <Image
                   src={coverPhotoUrl}
@@ -214,9 +213,9 @@ export default function ArtistProfilePage() {
                 </div>
               )}
             </div>
-            <div className="p-6 bg-white">
+            <div className="p-6 pt-0 bg-white">
               <div className="flex flex-col items-center text-center">
-                <div className="relative">
+                <div className="relative -mt-16">
                   {profilePictureUrl ? (
                     <Image
                       src={profilePictureUrl}
@@ -251,6 +250,11 @@ export default function ArtistProfilePage() {
                     {artist.custom_subtitle || artist.location}
                   </p>
                 )}
+                {artist.description && (
+                  <p className="mt-2 text-sm text-gray-600 whitespace-pre-line">
+                    {artist.description}
+                  </p>
+                )}
                 <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-gray-500">
                   {artist.location && !artist.custom_subtitle && (
                     <span className="flex items-center">
@@ -280,97 +284,6 @@ export default function ArtistProfilePage() {
 
           {/* Right Panel: scrollable content */}
           <section className="md:w-3/5 md:overflow-y-auto p-6 space-y-8">
-            {/* About Section */}
-            <section>
-              <h2 className="text-xl font-semibold text-gray-800 mb-3">About</h2>
-              {artist.description ? (
-                <p className="text-gray-600 whitespace-pre-line">{artist.description}</p>
-              ) : (
-                <p className="text-gray-500" role="status">
-                  Bio has not been added yet.
-                </p>
-              )}
-            </section>
-
-            {/* Specialties Section */}
-            <section aria-labelledby="specialties-heading" role="region">
-              <h2
-                id="specialties-heading"
-                className="text-xl font-semibold text-gray-800 mb-3"
-              >
-                Specialties
-              </h2>
-              {artist.specialties && artist.specialties.length > 0 ? (
-                <div className="flex flex-wrap gap-2" role="list">
-                  {artist.specialties.map((specialty) => (
-                    <Tag key={`${artist.id}-spec-${specialty}`}>{specialty}</Tag>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-600" role="status">
-                  No specialties listed.
-                </p>
-              )}
-            </section>
-
-            {/* Portfolio / Links Section */}
-            <section aria-labelledby="links-heading" role="region">
-              <h2
-                id="links-heading"
-                className="text-xl font-semibold text-gray-800 mb-3"
-              >
-                Links & Portfolio
-              </h2>
-              {artist.portfolio_urls && artist.portfolio_urls.length > 0 ? (
-                <div className="flex flex-wrap gap-x-4 gap-y-3">
-                  {artist.portfolio_urls.map((url, idx) => {
-                    // Decide label/icon by URL domain
-                    let text = 'Website';
-                    const IconComponent = GlobeAltIcon;
-                    const cleaned = url.toLowerCase();
-                    if (cleaned.includes('instagram.com')) text = 'Instagram';
-                    else if (cleaned.includes('youtube') || cleaned.includes('youtu.be'))
-                      text = 'YouTube';
-                    else if (cleaned.includes('spotify.com')) text = 'Spotify';
-                    else if (cleaned.includes('facebook.com')) text = 'Facebook';
-                    else if (cleaned.includes('twitter.com') || cleaned.includes('x.com'))
-                      text = 'Twitter / X';
-                    else if (cleaned.includes('linkedin.com')) text = 'LinkedIn';
-                    else if (cleaned.includes('behance.net')) text = 'Behance';
-                    else if (cleaned.includes('dribbble.com')) text = 'Dribbble';
-                    else if (cleaned.includes('soundcloud.com')) text = 'SoundCloud';
-                    else {
-                      try {
-                        const hostname = new URL(
-                          url.startsWith('http') ? url : `http://${url}`
-                        ).hostname;
-                        text = hostname.replace('www.', '');
-                      } catch {
-                        text = 'Link';
-                      }
-                    }
-
-                    return (
-                      <a
-                        key={`${artist.id}-link-${idx}`}
-                        href={url.startsWith('http') ? url : `http://${url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center text-sm text-brand-dark hover:text-brand-dark hover:underline bg-brand-light hover:bg-brand-light px-3 py-1.5 rounded-md transition-colors duration-150 shadow-sm border border-brand-light"
-                      >
-                        <IconComponent className="h-4 w-4 mr-2 text-brand" />
-                        {text}
-                      </a>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-gray-600" role="status">
-                  No links added yet.
-                </p>
-              )}
-            </section>
-
             {/* Services Section */}
             <section id="services" aria-labelledby="services-heading" role="region">
               <h2
