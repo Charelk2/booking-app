@@ -1,9 +1,11 @@
 import MainLayout from '@/components/layout/MainLayout'
 import ArtistsSection from '@/components/home/ArtistsSection'
+import CategoriesCarousel from '@/components/home/CategoriesCarousel'
 
 export default function HomePage() {
   return (
     <MainLayout>
+      <CategoriesCarousel />
       <ArtistsSection
         title="Popular Musicians"
         query={{ sort: 'most_booked' }}
