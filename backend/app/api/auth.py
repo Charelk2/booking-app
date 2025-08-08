@@ -83,7 +83,9 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         first_name=user_data.first_name,
         last_name=user_data.last_name,
         phone_number=user_data.phone_number,
-        user_type=user_data.user_type
+        user_type=user_data.user_type,
+        # Service providers can skip email confirmation in this environment.
+        is_verified=(user_data.user_type == UserType.SERVICE_PROVIDER),
     )
 
     try:
@@ -95,6 +97,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
             service_provider_profile = ServiceProviderProfile(user_id=db_user.id)
             db.add(service_provider_profile)
             db.commit()
+            return db_user
 
         token_value = secrets.token_urlsafe(32)
         expires = datetime.utcnow() + timedelta(hours=24)

@@ -23,6 +23,16 @@ export async function stubRegister(page: Page) {
   });
 }
 
+export async function stubRegisterServiceProvider(page: Page) {
+  await page.route('**/auth/register', async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 1, name: 'Test Provider', user_type: 'service_provider' }),
+    });
+  });
+}
+
 export async function stubConfirmEmail(page: Page, status = 200) {
   await page.route('**/auth/confirm-email', async (route) => {
     await route.fulfill({
