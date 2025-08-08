@@ -15,6 +15,27 @@ def add_column_if_missing(engine: Engine, table: str, column: str, ddl: str) -> 
             conn.commit()
 
 
+def ensure_legacy_artist_user_type(engine: Engine) -> None:
+    """Normalize legacy ``ARTIST`` user types to ``SERVICE_PROVIDER``.
+
+    Older databases stored ``user_type`` as ``ARTIST`` before the role was
+    renamed to ``SERVICE_PROVIDER``. This helper updates any remaining rows so
+    that existing artists can authenticate without enum errors.
+    """
+
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                "UPDATE users SET user_type='SERVICE_PROVIDER' "
+                "WHERE user_type='ARTIST'"
+            )
+        )
+        conn.commit()
+
+
 def ensure_service_type_column(engine: Engine) -> None:
     """Ensure the ``service_type`` column exists on the ``services`` table."""
 
