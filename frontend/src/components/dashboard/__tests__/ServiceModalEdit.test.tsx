@@ -1,12 +1,12 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import EditServiceModal from '../EditServiceModal';
+import AddServiceModal from '../AddServiceModal';
 import * as api from '@/lib/api';
 import { flushPromises } from '@/test/utils/flush';
 import { Service, ArtistProfile, User } from '@/types';
 
-describe('EditServiceModal', () => {
+describe('AddServiceModal editing mode', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -67,14 +67,22 @@ describe('EditServiceModal', () => {
   it('submits updated fields', async () => {
     await act(async () => {
       root.render(
-        React.createElement(EditServiceModal, {
+        React.createElement(AddServiceModal, {
           isOpen: true,
           service,
           onClose: jest.fn(),
-          onServiceUpdated: jest.fn(),
+          onServiceSaved: jest.fn(),
         }),
       );
     });
+
+    for (let i = 0; i < 3; i += 1) {
+      const nextBtn = container.querySelector('button[data-testid="next"]') as HTMLButtonElement;
+      await act(async () => {
+        nextBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        await flushPromises();
+      });
+    }
 
     const saveBtn = container.querySelector('button[type="submit"]') as HTMLButtonElement;
     await act(async () => {
