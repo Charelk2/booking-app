@@ -63,12 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (userData.user_type === 'service_provider') {
       try {
         const profile = await getArtistProfileMe();
-        if (profile.data.profile_picture_url) {
-          userData = {
-            ...userData,
-            profile_picture_url: profile.data.profile_picture_url,
-          };
-        }
+        userData = {
+          ...userData,
+          profile_picture_url: profile.data.profile_picture_url || null,
+          service_category_id: profile.data.service_category_id ?? null,
+        };
       } catch (err) {
         console.error('Failed to fetch artist profile:', err);
       }

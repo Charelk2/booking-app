@@ -25,6 +25,7 @@ import {
   Notification,
   ThreadNotification,
   ParsedBookingDetails,
+  ServiceCategory,
 } from '@/types';
 import { useAuth as useContextAuth } from '@/contexts/AuthContext'; // Renamed to avoid conflict with default export 'api'
 
@@ -205,6 +206,9 @@ export const getArtistProfileMe = async () => {
 
 export const updateMyArtistProfile = (data: Partial<ArtistProfile>) =>
   api.put(`${API_V1}/artist-profiles/me`, data);
+
+export const getServiceCategories = () =>
+  api.get<ServiceCategory[]>(`${API_V1}/service-categories`);
 
 export const uploadMyArtistProfilePicture = (file: File) => {
   const formData = new FormData();
