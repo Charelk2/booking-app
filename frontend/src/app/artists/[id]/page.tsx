@@ -141,7 +141,13 @@ export default function ArtistProfilePage() {
     const rightPanel = rightPanelRef.current;
     const { scrollTop, scrollHeight, clientHeight } = rightPanel;
 
-    // Always intercept the wheel event so the main page doesn't jump
+    const atTop = scrollTop <= 0;
+    const atBottom = scrollTop + clientHeight >= scrollHeight;
+
+    if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom)) {
+      return;
+    }
+
     e.preventDefault();
     e.stopPropagation();
 
@@ -191,7 +197,7 @@ export default function ArtistProfilePage() {
       <MainLayout hideFooter>
         <div className="md:flex md:h-[calc(100vh-4rem)] md:overflow-hidden bg-white">
           {/* Left Panel: image and host details */}
-          <aside className="md:w-2/5 md:flex md:flex-col bg-white md:pt-6 md:overflow-hidden" onWheel={handleLeftScroll}>
+          <aside className="md:w-2/5 md:flex md:flex-col bg-white md:pt-8 md:overflow-hidden" onWheel={handleLeftScroll}>
             <div
               className="relative h-32 md:h-48 overflow-hidden rounded-3xl mx-6"
               role="img"
