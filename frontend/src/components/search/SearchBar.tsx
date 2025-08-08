@@ -111,9 +111,18 @@ export default function SearchBar({
     }
   }, [showInternalPopup, activeField]); // Recalculate if popup state or active field changes
 
+  // Store timeout ID so we can cancel pending state resets when switching fields quickly
+  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const closeThisSearchBarsInternalPopups = useCallback(() => {
     setShowInternalPopup(false);
-    setTimeout(() => {
+
+    // Clear any previous timeout before starting a new one
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current);
+    }
+
+    resetTimeoutRef.current = setTimeout(() => {
       setActiveField(null);
       if (lastActiveButtonRef.current) {
         if (activeField === "location" && locationInputRef.current) {
@@ -123,6 +132,7 @@ export default function SearchBar({
         }
         lastActiveButtonRef.current = null;
       }
+      resetTimeoutRef.current = null;
     }, 200);
   }, [activeField]);
 
@@ -135,6 +145,11 @@ export default function SearchBar({
 
   const handleFieldClick = useCallback(
     (fieldId: SearchFieldId, element: HTMLElement) => {
+      // Cancel any pending reset to avoid clearing the new active field
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+        resetTimeoutRef.current = null;
+      }
       setActiveField(fieldId);
       setShowInternalPopup(true);
       // Store the element that triggered the popup so we can restore focus later
