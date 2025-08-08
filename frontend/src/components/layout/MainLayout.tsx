@@ -208,7 +208,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
     (pathname === '/' || pathname.startsWith('/artists'));
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 bg-gradient-to-b from-brand-light/50 to-gray-50">
+    <div className="flex min-h-screen flex-col bg-white bg-gradient-to-b from-brand-light/50 to-gray-50">
       {/* Global Overlay for expanded search form */}
       {showSearchOverlay && (
         <div
