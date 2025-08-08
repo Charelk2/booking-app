@@ -26,7 +26,7 @@ describe('Header artist view', () => {
     expect(screen.getByText('Services')).toBeTruthy();
     expect(screen.getByText('Messages')).toBeTruthy();
     expect(screen.getAllByText('View Profile')).toHaveLength(1);
-    expect(screen.queryByText('Add artist')).toBeNull();
+    expect(screen.queryByText('Add service')).toBeNull();
     expect(screen.queryByText('Add location')).toBeNull();
     expect(document.querySelector('#compact-search-trigger')).toBeNull();
     expect(mockUseAuth).toHaveBeenCalled();
