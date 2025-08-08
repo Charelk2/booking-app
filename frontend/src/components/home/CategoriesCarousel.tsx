@@ -43,23 +43,15 @@ export default function CategoriesCarousel() {
   return (
 
     <section className="mt-4" aria-labelledby="categories-heading">
-      <h2 id="categories-heading" className="px-4 text-xl font-semibold">
+      <h2 id="categories-heading" className="px-8 text-xl font-semibold">
         Services Near You
       </h2>
       <div className="relative mt-2">
-        <button
-          type="button"
-          aria-label="Previous"
-          className="absolute left-0 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border bg-white p-2 shadow disabled:opacity-50 sm:block"
-          disabled={!canScrollLeft}
-          onClick={() => scrollBy(-200)}
-        >
-          <ChevronLeftIcon className="h-5 w-5" />
-        </button>
+       
         <div
           ref={scrollRef}
           data-testid="categories-scroll"
-          className="flex overflow-x-auto scroll-smooth gap-4 px-4 pb-2"
+          className="flex overflow-x-auto scroll-smooth gap-4 px-8 pb-2"
         >
           {UI_CATEGORIES.map((cat) => (
             <Link
@@ -71,7 +63,7 @@ export default function CategoriesCarousel() {
             >
               <div className="relative h-40 w-40 overflow-hidden rounded-lg bg-gray-100">
                 <Image
-                  src={cat.image || '/default-avatar.svg'}
+                  src={cat.image || '/bartender.png'}
                   alt={cat.label}
                   fill
                   sizes="160px"
@@ -85,11 +77,11 @@ export default function CategoriesCarousel() {
         <button
           type="button"
           aria-label="Next"
-          className="absolute right-0 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border bg-white p-2 shadow disabled:opacity-50 sm:block"
+          className="absolute right-0 top-1 z-10 hidden -translate-y-1 rounded-full border bg-white p-2 opacity-50 shadow disabled:opacity-50 sm:block"
           disabled={!canScrollRight}
           onClick={() => scrollBy(200)}
         >
-          <ChevronRightIcon className="h-5 w-5" />
+          <ChevronRightIcon className="h-2 w-2" />
         </button>
       </div>
     </section>
