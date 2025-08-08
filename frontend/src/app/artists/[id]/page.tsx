@@ -133,25 +133,22 @@ export default function ArtistProfilePage() {
     setSelectedService(null);
   };
 
-  // Scroll the right panel when the user scrolls over the left section.
-  // Only allow the main page to scroll once the right panel reaches an edge
+  // Scroll the right panel when hovering over the left section
+  // and prevent the overall page from jumping
   const handleLeftScroll = (e: WheelEvent) => {
     if (!rightPanelRef.current) return;
 
     const rightPanel = rightPanelRef.current;
     const { scrollTop, scrollHeight, clientHeight } = rightPanel;
-    const atTop = scrollTop === 0;
-    const atBottom = scrollTop + clientHeight >= scrollHeight;
 
-    const scrollingUp = e.deltaY < 0;
-    const scrollingDown = e.deltaY > 0;
+    // Always intercept the wheel event so the main page doesn't jump
+    e.preventDefault();
+    e.stopPropagation();
 
-    // If the right panel can scroll in the desired direction, handle it here
-    if ((scrollingUp && !atTop) || (scrollingDown && !atBottom)) {
-      e.preventDefault();
-      e.stopPropagation();
-      rightPanel.scrollBy({ top: e.deltaY });
-    }
+    const nextScrollTop = scrollTop + e.deltaY;
+    rightPanel.scrollTo({
+      top: Math.max(0, Math.min(nextScrollTop, scrollHeight - clientHeight)),
+    });
   };
 
   if (loading) {
