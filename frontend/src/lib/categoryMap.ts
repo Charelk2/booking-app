@@ -2,16 +2,16 @@
 
 // Define the shape of a UI category item
 export const UI_CATEGORIES = [
-  { value: 'musician', label: 'Musicians' },
-  { value: 'dj', label: 'DJs' },
-  { value: 'photographer', label: 'Photographers' },
-  { value: 'videographer', label: 'Videographers' },
-  { value: 'speaker', label: 'Speakers' },
-  { value: 'event_service', label: 'Event Services' },
-  { value: 'wedding_venue', label: 'Wedding Venues' },
-  { value: 'caterer', label: 'Caterers' },
-  { value: 'bartender', label: 'Bartenders' },
-  { value: 'mc_host', label: 'MCs & Hosts' },
+  { value: 'musician', label: 'Musicians', image: '/categories/musician.png' },
+  { value: 'dj', label: 'DJs', image: '/categories/dj.png' },
+  { value: 'photographer', label: 'Photographers', image: '/categories/photographer.png' },
+  { value: 'videographer', label: 'Videographers', image: '/categories/videographer.png' },
+  { value: 'speaker', label: 'Speakers', image: '/categories/speaker.png' },
+  { value: 'event_service', label: 'Event Services', image: '/categories/event_service.png' },
+  { value: 'wedding_venue', label: 'Wedding Venues', image: '/categories/wedding_venue.png' },
+  { value: 'caterer', label: 'Caterers', image: '/categories/caterer.png' },
+  { value: 'bartender', label: 'Bartenders', image: '/categories/bartender.png' },
+  { value: 'mc_host', label: 'MCs & Hosts', image: '/categories/mc_host.png' },
 ] as const; // `as const` ensures TypeScript infers literal types, which is good practice
 
 // Map UI categories (keys are UI values) to backend service categories (values are backend values)
