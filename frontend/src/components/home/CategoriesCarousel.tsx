@@ -60,7 +60,9 @@ export default function CategoriesCarousel() {
               href={`/artists?category=${encodeURIComponent(
                 UI_CATEGORY_TO_SERVICE[cat.value] || cat.value,
               )}`}
-              className="flex flex-shrink-0 items-center gap-2"
+
+              className="flex-shrink-0"
+
             >
               <p className="text-sm whitespace-nowrap">{cat.label}</p>
               <div className="relative h-40 w-40 overflow-hidden rounded-lg bg-gray-100">
@@ -71,6 +73,9 @@ export default function CategoriesCarousel() {
                   sizes="160px"
                   className="object-cover"
                 />
+                <p className="absolute bottom-2 left-2 text-sm font-medium text-white drop-shadow">
+                  {cat.label}
+                </p>
               </div>
             </Link>
           ))}
