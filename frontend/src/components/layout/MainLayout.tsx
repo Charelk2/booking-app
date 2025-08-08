@@ -43,32 +43,42 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
   const prevHeaderHeight = useRef(0); // Store header height before state change
 
   // Boolean derived from headerState to control global overlay visibility
-  const showSearchOverlay = headerState === 'expanded-from-compact';
+  const showSearchOverlay =
+    headerState === 'expanded-from-compact' && !isArtistDetail;
 
 
   // Callback to force header state (e.g., when compact search is clicked or search is submitted)
   // This function is passed to the Header component.
-  const forceHeaderState = useCallback((state: HeaderState, scrollTarget?: number) => {
-    // Only update state if it's actually changing
-    if (headerState === state) return;
+  const forceHeaderState = useCallback(
+    (state: HeaderState, scrollTarget?: number) => {
+      // Lock the header in its initial state on artist profile pages
+      if (isArtistDetail) {
+        setHeaderState('initial');
+        return;
+      }
 
-    // Capture current header height before state change (for later scroll adjustment)
-    if (headerRef.current) {
+      // Only update state if it's actually changing
+      if (headerState === state) return;
+
+      // Capture current header height before state change (for later scroll adjustment)
+      if (headerRef.current) {
         prevHeaderHeight.current = headerRef.current.offsetHeight;
-    }
+      }
 
-    setHeaderState(state);
+      setHeaderState(state);
 
-    // If a specific scroll target is provided, initiate programmatic scroll
-    if (typeof scrollTarget === 'number') {
+      // If a specific scroll target is provided, initiate programmatic scroll
+      if (typeof scrollTarget === 'number') {
         isAdjustingScroll.current = true;
         window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
         // Reset flag after scroll is expected to complete
         setTimeout(() => {
-            isAdjustingScroll.current = false;
+          isAdjustingScroll.current = false;
         }, TRANSITION_DURATION + 150);
-    }
-  }, [headerState]); // Depend on headerState to prevent stale closures
+      }
+    },
+    [headerState, isArtistDetail],
+  ); // Depend on headerState to prevent stale closures
 
   // Function to adjust scroll after header's height transition
   const adjustScrollAfterHeaderChange = useCallback(() => {
