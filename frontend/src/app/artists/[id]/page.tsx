@@ -195,7 +195,7 @@ export default function ArtistProfilePage() {
         {profilePictureUrl && <meta property="og:image" content={profilePictureUrl} />}
       </Head>
       <MainLayout fullWidthContent>
-        <div className="md:flex md:h-[calc(100vh-4rem)] md:overflow-hidden bg-gray-100">
+        <div className="md:flex md:h-[calc(100vh-4rem)] md:overflow-hidden bg-white">
           {/* Left Panel: image and host details */}
           <aside className="md:w-2/5 md:flex md:flex-col bg-gray-200">
             <div className="relative h-64 md:flex-grow" role="img" aria-label="Cover photo">
