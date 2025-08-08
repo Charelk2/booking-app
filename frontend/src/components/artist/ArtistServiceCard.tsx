@@ -50,7 +50,7 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
               alt={currentService.title}
               fill
               unoptimized
-              className="object-cover rounded-md"
+              className="object-cover rounded-3xl"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = getFullImageUrl(
                   '/static/default-avatar.svg',
