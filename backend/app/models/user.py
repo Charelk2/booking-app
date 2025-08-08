@@ -11,6 +11,13 @@ class UserType(str, enum.Enum):
     SERVICE_PROVIDER = "service_provider"
     CLIENT = "client"
 
+    @classmethod
+    def _missing_(cls, value: object):
+        """Map legacy enum values to current ones."""
+        if isinstance(value, str) and value.upper() == "ARTIST":
+            return cls.SERVICE_PROVIDER
+        return None
+
 class User(BaseModel):
     __tablename__ = "users"
 
