@@ -266,12 +266,7 @@ export default function ArtistProfilePage() {
           <section className="md:w-3/5 md:overflow-y-auto p-6 space-y-8">
             {/* Services Section */}
             <section id="services" aria-labelledby="services-heading" role="region">
-              <h2
-                id="services-heading"
-                className="text-2xl font-bold text-gray-800 mb-6"
-              >
-                Services Offered
-              </h2>
+            
               {servicesLoading ? (
                 <SkeletonList className="max-w-md" />
               ) : services.length > 0 ? (
