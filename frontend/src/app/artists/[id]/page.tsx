@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, type WheelEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Head from 'next/head';
 import Image from 'next/image';
@@ -52,7 +52,6 @@ export default function ArtistProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const rightPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!artistId) return;
@@ -133,30 +132,6 @@ export default function ArtistProfilePage() {
     setSelectedService(null);
   };
 
-  // Scroll the right panel when hovering over the left section
-  // and prevent the overall page from jumping
-  const handleLeftScroll = (e: WheelEvent) => {
-    if (!rightPanelRef.current) return;
-
-    const rightPanel = rightPanelRef.current;
-    const { scrollTop, scrollHeight, clientHeight } = rightPanel;
-
-    const atTop = scrollTop <= 0;
-    const atBottom = scrollTop + clientHeight >= scrollHeight;
-
-    if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom)) {
-      return;
-    }
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    const nextScrollTop = scrollTop + e.deltaY;
-    rightPanel.scrollTo({
-      top: Math.max(0, Math.min(nextScrollTop, scrollHeight - clientHeight)),
-    });
-  };
-
   if (loading) {
     return (
       <MainLayout hideFooter>
@@ -195,11 +170,11 @@ export default function ArtistProfilePage() {
         {profilePictureUrl && <meta property="og:image" content={profilePictureUrl} />}
       </Head>
       <MainLayout hideFooter>
-        <div className="md:flex md:h-[calc(100vh-4rem)] md:overflow-hidden bg-white">
+        <div className="md:flex bg-white">
           {/* Left Panel: image and host details */}
           <aside
-            className="md:w-2/5 md:flex md:flex-col bg-white p-6 md:overflow-hidden"
-            onWheel={handleLeftScroll}
+            className="md:w-2/5 md:flex md:flex-col bg-white p-6 md:sticky md:self-start"
+            style={{ top: '5.5rem' }}
           >
             <div
               className="relative h-32 md:h-48 overflow-hidden rounded-3xl"
@@ -291,7 +266,7 @@ export default function ArtistProfilePage() {
           </aside>
 
           {/* Right Panel: scrollable content */}
-          <section ref={rightPanelRef} className="md:w-3/5 md:overflow-y-auto p-6 space-y-8">
+          <section className="md:w-3/5 p-6 space-y-8">
             {/* Services Section */}
             <section id="services" aria-labelledby="services-heading" role="region">
             
