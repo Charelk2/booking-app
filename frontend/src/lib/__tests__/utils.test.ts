@@ -117,6 +117,11 @@ describe('getFullImageUrl', () => {
     const url = 'https://cdn.example.com/img.png';
     expect(getFullImageUrl(url)).toBe(url);
   });
+
+  it('returns data URLs unchanged', () => {
+    const url = 'data:image/png;base64,abc';
+    expect(getFullImageUrl(url)).toBe(url);
+  });
 });
 
 describe('formatCurrency', () => {
