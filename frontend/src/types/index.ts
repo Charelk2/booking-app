@@ -148,7 +148,6 @@ export interface BookingRequestCreate {
   travel_mode?: 'fly' | 'drive';
   travel_cost?: number;
   travel_breakdown?: Record<string, unknown>;
-  details?: Record<string, unknown>;
 }
 
 export interface ParsedBookingDetails {
@@ -176,7 +175,6 @@ export interface BookingRequest {
   travel_mode?: 'fly' | 'drive' | null;
   travel_cost?: number | null;
   travel_breakdown?: Record<string, unknown> | null;
-  details?: Record<string, unknown> | null;
   status: BookingStatus;
   created_at: string;
   updated_at: string;

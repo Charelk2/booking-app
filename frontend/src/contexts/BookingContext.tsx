@@ -10,7 +10,7 @@ export interface EventDetails {
   location: string;
   guests: string;
   venueType: 'indoor' | 'outdoor' | 'hybrid';
-  sound?: 'yes' | 'no';
+  sound: 'yes' | 'no';
   notes?: string;
   attachment_url?: string;
 }
@@ -42,7 +42,7 @@ const initialDetails: EventDetails = {
   location: '',
   guests: '',
   venueType: 'indoor',
-  sound: undefined,
+  sound: 'yes',
   attachment_url: '',
 };
 
