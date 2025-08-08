@@ -321,7 +321,7 @@ export default function SearchPopupContent({
         aria-label="Search artists"
       />
       {artistResults.length > 0 && (
-        <ul className="mb-4 max-h-40 overflow-auto rounded-md border border-gray-200">
+        <ul className="mb-4 max-h-40 overflow-auto rounded-md">
           {artistResults.map((a) => {
             const name =
               a.business_name ||
