@@ -43,6 +43,7 @@ describe('normalizeService', () => {
       artist_id: 1,
       title: 'Foo',
       description: 'Bar',
+      media_url: 'img.jpg',
       service_type: 'Other',
       price: '12.5' as unknown as number,
       duration_minutes: '30' as unknown as number,
@@ -60,8 +61,8 @@ describe('normalizeService', () => {
 describe('applyDisplayOrder', () => {
   it('increments display_order sequentially', () => {
     const services: Service[] = [
-      { id: 1, artist_id: 1, title: 'A', description: '', service_type: 'Other', duration_minutes: 10, display_order: 5, price: 1, artist: {} as ArtistProfile },
-      { id: 2, artist_id: 1, title: 'B', description: '', service_type: 'Other', duration_minutes: 10, display_order: 2, price: 1, artist: {} as ArtistProfile },
+      { id: 1, artist_id: 1, title: 'A', description: '', media_url: 'img.jpg', service_type: 'Other', duration_minutes: 10, display_order: 5, price: 1, artist: {} as ArtistProfile },
+      { id: 2, artist_id: 1, title: 'B', description: '', media_url: 'img.jpg', service_type: 'Other', duration_minutes: 10, display_order: 2, price: 1, artist: {} as ArtistProfile },
     ];
     const ordered = applyDisplayOrder(services);
     expect(ordered[0].display_order).toBe(1);

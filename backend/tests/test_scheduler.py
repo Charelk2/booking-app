@@ -51,6 +51,7 @@ def test_process_quote_expiration(mock_expired, mock_expiring):
         currency='ZAR',
         duration_minutes=60,
         service_type='Live Performance',
+        media_url='x',
     )
     db.add(service)
     db.commit()

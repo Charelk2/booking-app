@@ -62,6 +62,7 @@ def test_create_and_accept_quote():
         currency="ZAR",
         duration_minutes=60,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()
@@ -148,6 +149,7 @@ def test_create_quote_updates_request_status():
         currency="ZAR",
         duration_minutes=60,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()
@@ -208,6 +210,7 @@ def test_read_accepted_quote_has_booking_id():
         currency="ZAR",
         duration_minutes=60,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()
@@ -307,6 +310,7 @@ def test_accept_quote_booking_failure(monkeypatch, caplog):
         currency="ZAR",
         duration_minutes=60,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()
@@ -386,6 +390,7 @@ def test_accept_quote_missing_client(caplog):
         currency="ZAR",
         duration_minutes=30,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()
@@ -500,6 +505,7 @@ def test_accept_quote_creates_deposit_notification():
         currency="ZAR",
         duration_minutes=45,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()
@@ -566,6 +572,7 @@ def test_accept_quote_deposit_notification_link():
         currency="ZAR",
         duration_minutes=60,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()
@@ -634,6 +641,7 @@ def test_accept_quote_supplies_missing_service_id():
         currency="ZAR",
         duration_minutes=60,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()
@@ -743,6 +751,7 @@ def test_accept_quote_without_date_for_video_service():
         currency="ZAR",
         duration_minutes=5,
         service_type="Personalized Video",
+        media_url="x",
     )
     db.add(service)
     db.commit()
@@ -806,6 +815,7 @@ def test_expire_pending_quotes():
         currency="ZAR",
         duration_minutes=60,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()
@@ -872,6 +882,7 @@ def test_scheduler_posts_system_message():
         currency="ZAR",
         duration_minutes=60,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()
@@ -947,6 +958,7 @@ def test_decline_quote():
         currency="ZAR",
         duration_minutes=60,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()
@@ -1008,6 +1020,7 @@ def test_create_quote_notifies_client_when_ids_missing():
         currency="ZAR",
         duration_minutes=60,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()

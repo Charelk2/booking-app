@@ -37,6 +37,7 @@ describe('EditServiceModal', () => {
     artist_id: 1,
     title: 'Old Title',
     description: 'Desc',
+    media_url: 'img.jpg',
     price: 100,
     duration_minutes: 60,
     service_type: 'Live Performance',

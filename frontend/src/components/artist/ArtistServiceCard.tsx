@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import type { Service } from '@/types';
 import { Button, Card } from '@/components/ui';
 import { getService } from '@/lib/api';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getFullImageUrl } from '@/lib/utils';
 
 // This component was updated to fetch the latest service data whenever the card
 // is expanded. It ensures pricing or descriptions changed on the server are
@@ -43,6 +44,16 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
       role="listitem"
       className="p-4 cursor-pointer"
     >
+      {service.media_url && (
+        <div className="relative w-full h-48 mb-3">
+          <Image
+            src={getFullImageUrl(service.media_url) || service.media_url}
+            alt={service.title}
+            fill
+            className="object-cover rounded-md"
+          />
+        </div>
+      )}
       <div className="flex justify-between items-center" aria-expanded={expanded}>
         <h3 className="text-lg font-semibold text-gray-900 pr-2">{service.title}</h3>
         <Button

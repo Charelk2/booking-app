@@ -23,6 +23,7 @@ describe('Service deletion confirmation', () => {
     artist_id: 2,
     title: 'Gig',
     description: 'desc',
+    media_url: 'img.jpg',
     service_type: 'Live Performance',
     duration_minutes: 60,
     display_order: 1,
