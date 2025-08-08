@@ -127,6 +127,11 @@ export default function AddServiceModal({
     defaultValues: service ? editingDefaults : emptyDefaults,
   });
 
+  // Ensure service_type is registered so watch and validation work when selecting a category.
+  useEffect(() => {
+    register("service_type", { required: true });
+  }, [register]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -377,7 +382,12 @@ export default function AddServiceModal({
                                   type="button"
                                   key={value}
                                   data-value={value}
-                                  onClick={() => setValue("service_type", value)}
+                                  onClick={() =>
+                                    setValue("service_type", value, {
+                                      shouldDirty: true,
+                                      shouldValidate: true,
+                                    })
+                                  }
                                   className={clsx(
                                     "flex flex-col items-center justify-center p-4 rounded-xl transition border text-sm",
                                     watch("service_type") === value
