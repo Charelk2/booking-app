@@ -26,6 +26,12 @@ class ArtistProfileV2(BaseModel):
     profile_picture_url= Column(String, nullable=True)
     cover_photo_url    = Column(String, nullable=True)
     price_visible      = Column(Boolean, nullable=False, default=True)
+    service_category_id = Column(
+        Integer,
+        ForeignKey("service_categories.id"),
+        nullable=True,
+        index=True,
+    )
 
     # Relationships
     user     = relationship("User", back_populates="artist_profile")
@@ -50,4 +56,9 @@ class ArtistProfileV2(BaseModel):
         "ArtistSoundPreference",
         back_populates="artist",
         cascade="all, delete-orphan",
+    )
+
+    service_category = relationship(
+        "ServiceCategory",
+        back_populates="artists",
     )
