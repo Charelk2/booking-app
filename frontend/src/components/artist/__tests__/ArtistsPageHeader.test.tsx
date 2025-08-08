@@ -1,9 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react-dom/test-utils';
-import ArtistsPageHeader from '../ArtistsPageHeader';
-
-jest.mock('@/hooks/useMediaQuery', () => jest.fn(() => true));
+import { ArtistsPageHeader } from '../ArtistServiceCard';
 
 describe('ArtistsPageHeader iconOnly', () => {
   afterEach(() => {
