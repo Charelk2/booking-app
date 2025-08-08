@@ -23,7 +23,7 @@ export default function CategoriesCarousel() {
             )}`}
             className="flex-shrink-0 text-center"
           >
-            <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
+            <div className="relative w-40 h-40 rounded-lg overflow-hidden bg-gray-100">
               <Image
                 src="/default-avatar.svg"
                 alt={cat.label}
