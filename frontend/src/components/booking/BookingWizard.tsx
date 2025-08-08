@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState, useRef, Fragment, useCallback, type ComponentType } from 'react';
+import React, { useEffect, useState, useRef, Fragment, useCallback } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import * as yup from 'yup';
 
 import { useBooking } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,7 +27,8 @@ import { BookingRequestCreate } from '@/types';
 import Stepper from '../ui/Stepper';
 import ProgressBar from '../ui/ProgressBar';
 import toast from '../ui/Toast';
-import { bookingFlowRegistry, type BookingFlowModule } from './bookingFlowRegistry';
+
+// --- Step Components ---
 import EventDescriptionStep from './steps/EventDescriptionStep';
 import LocationStep from './steps/LocationStep';
 import DateTimeStep from './steps/DateTimeStep';
@@ -35,7 +37,7 @@ import GuestsStep from './steps/GuestsStep';
 import VenueStep from './steps/VenueStep';
 import SoundStep from './steps/SoundStep';
 import NotesStep from './steps/NotesStep';
-import ReviewStep from './steps/ReviewStep';
+import ReviewStep from './steps/ReviewStep'; // Ensure this is the modified one
 
 // --- EventDetails Type & Schema ---
 type EventDetails = {
@@ -50,6 +52,35 @@ type EventDetails = {
   notes?: string;
   attachment_url?: string;
 };
+
+const schema = yup.object<EventDetails>().shape({
+  eventType: yup.string().required('Event type is required.'),
+  eventDescription: yup.string().required('Event description is required.').min(5, 'Description must be at least 5 characters.'),
+  date: yup.date().required('Date is required.').min(new Date(), 'Date cannot be in the past.'),
+  time: yup.string().optional(),
+  location: yup.string().required('Location is required.'),
+  guests: yup.string().required('Number of guests is required.').matches(/^\d+$/, 'Guests must be a number.'),
+  venueType: yup
+    .mixed<'indoor' | 'outdoor' | 'hybrid'>()
+    .oneOf(['indoor', 'outdoor', 'hybrid'], 'Venue type is required.')
+    .required(),
+  sound: yup.string().oneOf(['yes', 'no'], 'Sound equipment preference is required.').required(),
+  notes: yup.string().optional(),
+  attachment_url: yup.string().optional(),
+});
+
+// --- Wizard Steps & Instructions ---
+const steps = [
+  'Event Details',
+  'Location',
+  'Date & Time',
+  'Event Type',
+  'Guests',
+  'Venue Type',
+  'Sound',
+  'Notes',
+  'Review',
+];
 
 
 // --- Animation Variants ---
@@ -85,8 +116,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   } = useBooking();
   const { user } = useAuth();
 
-  const [flow, setFlow] = useState<BookingFlowModule>(bookingFlowRegistry.musician);
-
   // --- Component States ---
   const [unavailable, setUnavailable] = useState<string[]>([]);
   const [artistLocation, setArtistLocation] = useState<string | null>(null);
@@ -101,7 +130,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   const isMobile = useIsMobile();
   // Convert zero-based step index to progress percentage for the mobile progress bar.
-  const progressValue = ((step + 1) / flow.steps.length) * 100;
+  const progressValue = ((step + 1) / steps.length) * 100;
   const hasLoaded = useRef(false);
 
   // --- Form Hook (React Hook Form + Yup) ---
@@ -112,7 +141,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     setValue,
     watch,
     errors, // Directly destructure errors, assuming useBookingForm returns it at top level
-  } = useBookingForm(flow.validationSchema as any, details, setDetails);
+  } = useBookingForm(schema, details, setDetails);
 
   // --- Effects ---
 
@@ -133,12 +162,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         ]);
         setUnavailable(availabilityRes.data.unavailable_dates);
         setArtistLocation(artistRes.data.location || null);
-        const categoryKey = artistRes.data.service_category?.name?.toLowerCase();
-        if (categoryKey && bookingFlowRegistry[categoryKey]) {
-          setFlow(bookingFlowRegistry[categoryKey]);
-          setStep(0);
-          setMaxStepCompleted(0);
-        }
       } catch (err) {
         console.error('Failed to fetch artist data:', err);
       }
@@ -266,7 +289,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
     if (e.key !== 'Enter' || e.shiftKey || isMobile) return;
     e.preventDefault();
-    if (step < flow.steps.length - 1) {
+    if (step < steps.length - 1) {
       void next();
     } else {
       // For the review step, the submit is handled by the ReviewStep component's internal button
@@ -276,24 +299,20 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   // Navigates to the next step after validation
   const next = async () => {
-    const validationMap = new Map<ComponentType<any>, (keyof EventDetails)[]>([
-      [EventDescriptionStep, ['eventDescription']],
-      [LocationStep, ['location']],
-      [DateTimeStep, ['date']],
-      [EventTypeStep, ['eventType']],
-      [GuestsStep, ['guests']],
-      [VenueStep, ['venueType']],
-      [SoundStep, ['sound']],
-      [NotesStep, []],
-      [ReviewStep, []],
-    ]);
-    const fieldsToValidate =
-      validationMap.get(flow.steps[step]?.component) ?? [];
+    const stepFields: (keyof EventDetails)[][] = [
+      ['eventDescription'],
+      ['location'],
+      ['date'],
+      ['eventType'],
+      ['guests'],
+      ['venueType'],
+      ['sound'],
+      [],
+      [], // Review step has no fields to validate for "next"
+    ];
+    const fieldsToValidate = stepFields[step] as (keyof EventDetails)[];
 
-    const valid =
-      fieldsToValidate.length > 0
-        ? await trigger(fieldsToValidate)
-        : true;
+    const valid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
 
     if (valid) {
       const newStep = step + 1;
@@ -332,13 +351,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_mode: travelResult?.mode,
       travel_cost: travelResult?.totalCost,
       travel_breakdown: travelResult?.breakdown,
-      details: {
-        event_type: vals.eventType,
-        event_description: vals.eventDescription,
-        guests: vals.guests,
-        venue_type: vals.venueType,
-        ...(vals.sound ? { sound: vals.sound } : {}),
-      },
     };
     try {
       if (requestId) {
@@ -379,13 +391,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_mode: travelResult.mode,
       travel_cost: travelResult.totalCost,
       travel_breakdown: travelResult.breakdown,
-      details: {
-        event_type: vals.eventType,
-        event_description: vals.eventDescription,
-        guests: vals.guests,
-        venue_type: vals.venueType,
-        ...(vals.sound ? { sound: vals.sound } : {}),
-      },
     };
 
     try {
@@ -397,7 +402,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       if (!id) throw new Error('Missing booking request ID after creation/update.');
 
       await postMessageToBookingRequest(id, {
-        content: flow.buildSummary(vals),
+        content: `Booking details:\nEvent Type: ${vals.eventType || 'N/A'}\nDescription: ${vals.eventDescription || 'N/A'}\nDate: ${vals.date?.toLocaleDateString() || 'N/A'}\nLocation: ${vals.location || 'N/A'}\nGuests: ${vals.guests || 'N/A'}\nVenue: ${vals.venueType || 'N/A'}\nSound: ${vals.sound || 'N/A'}\nNotes: ${vals.notes || 'N/A'}`,
+        // Backend expects uppercase message types.
         message_type: 'SYSTEM',
       });
 
@@ -414,38 +420,54 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   // --- Render Step Logic ---
   const renderStep = () => {
-    const StepComponent = flow.steps[step]?.component;
-    if (!StepComponent) return null;
-    const stepProps: any = { control };
-    if (StepComponent === EventDescriptionStep) {
-      stepProps.setValue = setValue;
-      stepProps.watch = watch;
+    switch (step) {
+      case 0:
+        return (
+          <EventDescriptionStep
+            control={control}
+            setValue={setValue}
+            watch={watch}
+          />
+        );
+      case 1:
+        return (
+          <LocationStep
+            control={control}
+            artistLocation={artistLocation}
+            setWarning={setWarning}
+          />
+        );
+      case 2:
+        return <DateTimeStep control={control} unavailable={unavailable} />;
+      case 3:
+        return <EventTypeStep control={control} />;
+      case 4:
+        return <GuestsStep control={control} />;
+      case 5:
+        return <VenueStep control={control} />;
+      case 6:
+        return <SoundStep control={control} />;
+      case 7:
+        return <NotesStep control={control} setValue={setValue} />;
+      case 8:
+        return (
+          <ReviewStep
+            step={step}
+            steps={steps}
+            onBack={prev}
+            onSaveDraft={saveDraft}
+          onNext={submitRequest}
+          submitting={submitting}
+          isLoadingReviewData={isLoadingReviewData}
+          reviewDataError={reviewDataError}
+          calculatedPrice={calculatedPrice}
+          travelResult={travelResult}
+          submitLabel="Submit Request"
+          baseServicePrice={baseServicePrice}
+        />
+      );
+      default: return null;
     }
-    if (StepComponent === LocationStep) {
-      stepProps.artistLocation = artistLocation;
-      stepProps.setWarning = setWarning;
-    }
-    if (StepComponent === DateTimeStep) {
-      stepProps.unavailable = unavailable;
-    }
-    if (StepComponent === NotesStep) {
-      stepProps.setValue = setValue;
-    }
-    if (StepComponent === ReviewStep) {
-      stepProps.step = step;
-      stepProps.steps = flow.steps.map((s) => s.label);
-      stepProps.onBack = prev;
-      stepProps.onSaveDraft = saveDraft;
-      stepProps.onNext = submitRequest;
-      stepProps.submitting = submitting;
-      stepProps.isLoadingReviewData = isLoadingReviewData;
-      stepProps.reviewDataError = reviewDataError;
-      stepProps.calculatedPrice = calculatedPrice;
-      stepProps.travelResult = travelResult;
-      stepProps.submitLabel = 'Submit Request';
-      stepProps.baseServicePrice = baseServicePrice;
-    }
-    return <StepComponent {...stepProps} />;
   };
 
   if (!isOpen) return null;
@@ -476,7 +498,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 />
               ) : (
                 <Stepper
-                  steps={flow.steps.map((s) => s.label)}
+                  steps={steps}
                   currentStep={step}
                   maxStepCompleted={maxStepCompleted}
                   onStepClick={setStep}
@@ -530,7 +552,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 </button>
 
                 {/* Conditional rendering for Next button (only if not on Review Step) */}
-                {step < flow.steps.length - 1 && (
+                {step < steps.length - 1 && (
                   <button
                     type="button" // Ensure it's a button, not a submit
                     onClick={next}
