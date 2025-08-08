@@ -133,13 +133,24 @@ export default function ArtistProfilePage() {
     setSelectedService(null);
   };
 
-  // Scroll the right panel when the user scrolls over the left section
+  // Scroll the right panel when the user scrolls over the left section.
+  // Only allow the main page to scroll once the right panel reaches an edge
   const handleLeftScroll = (e: WheelEvent) => {
-    // Prevent default scrolling on the left panel to avoid page jumps
-    e.preventDefault();
-    e.stopPropagation();
-    if (rightPanelRef.current) {
-      rightPanelRef.current.scrollBy({ top: e.deltaY });
+    if (!rightPanelRef.current) return;
+
+    const rightPanel = rightPanelRef.current;
+    const { scrollTop, scrollHeight, clientHeight } = rightPanel;
+    const atTop = scrollTop === 0;
+    const atBottom = scrollTop + clientHeight >= scrollHeight;
+
+    const scrollingUp = e.deltaY < 0;
+    const scrollingDown = e.deltaY > 0;
+
+    // If the right panel can scroll in the desired direction, handle it here
+    if ((scrollingUp && !atTop) || (scrollingDown && !atBottom)) {
+      e.preventDefault();
+      e.stopPropagation();
+      rightPanel.scrollBy({ top: e.deltaY });
     }
   };
 
