@@ -26,7 +26,7 @@ on the document root for layout offsetting.
 
 - `filterControl?: React.ReactNode` – component rendered to the right of the full search bar. It is hidden when the header is compacted.
 
-The filter control is typically an icon button that opens a filtering UI, such as `ArtistsPageHeader`.
+The filter control is typically an icon button that opens a filtering UI, such as `ArtistsPageHeader` (exported from `ArtistServiceCard.tsx`).
 
 ## Footer
 
