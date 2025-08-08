@@ -126,7 +126,10 @@ export default function SearchBar({
       setActiveField(null);
       if (lastActiveButtonRef.current) {
         if (activeField === "location" && locationInputRef.current) {
-          locationInputRef.current.focus();
+          // Blurring prevents the onFocus handler from immediately
+          // re-opening the location popup, which previously required a
+          // second outside click to dismiss.
+          locationInputRef.current.blur();
         } else {
           lastActiveButtonRef.current.focus();
         }
