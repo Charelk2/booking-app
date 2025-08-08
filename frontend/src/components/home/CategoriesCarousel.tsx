@@ -60,8 +60,11 @@ export default function CategoriesCarousel() {
               href={`/artists?category=${encodeURIComponent(
                 UI_CATEGORY_TO_SERVICE[cat.value] || cat.value,
               )}`}
+
               className="flex-shrink-0"
+
             >
+              <p className="text-sm whitespace-nowrap">{cat.label}</p>
               <div className="relative h-40 w-40 overflow-hidden rounded-lg bg-gray-100">
                 <Image
                   src={cat.image || '/bartender.png'}
