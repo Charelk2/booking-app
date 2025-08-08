@@ -64,6 +64,7 @@ def create_records(
         price=Decimal("100"),
         duration_minutes=60,
         service_type="Live Performance",
+        media_url="x",
     )
     db.add(service)
     db.commit()

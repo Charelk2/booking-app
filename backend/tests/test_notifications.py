@@ -612,6 +612,7 @@ def test_personalized_video_notifications_suppressed_until_final():
         duration_minutes=5,
         price=100,
         display_order=1,
+        media_url="x",
     )
     db.add_all([profile, service])
     db.commit()
@@ -671,6 +672,7 @@ def test_review_request_notification():
         title="Gig",
         price=100,
         duration_minutes=60,
+        media_url="x",
     )
     db.add_all([profile, service])
     db.commit()
@@ -1069,6 +1071,7 @@ def test_booking_request_api_parses_sender_and_type():
         service_type=ServiceType.LIVE_PERFORMANCE,
         duration_minutes=60,
         price=100,
+        media_url="x",
     )
     db.add(service)
     db.commit()

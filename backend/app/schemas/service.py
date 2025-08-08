@@ -10,6 +10,7 @@ from datetime import datetime
 class ServiceBase(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
+    media_url: Optional[str] = None
     duration_minutes: Optional[int] = None
     price: Optional[Decimal] = None
     currency: Optional[str] = "ZAR"
@@ -27,6 +28,7 @@ class ServiceCreate(ServiceBase):
     duration_minutes: int
     price: Decimal
     service_type: ServiceType
+    media_url: str
     # artist_id will be set based on the authenticated artist, not in schema
 
 
@@ -43,5 +45,6 @@ class ServiceResponse(ServiceBase):
     display_order: int
     created_at: datetime
     updated_at: datetime
+    media_url: str
 
     model_config = {"from_attributes": True}

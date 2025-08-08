@@ -46,6 +46,7 @@ const service: Service = {
   artist_id: 3,
   title: 'Live Musiek',
   description: '',
+  media_url: 'img.jpg',
   service_type: 'Other',
   duration_minutes: 0,
   travel_rate: undefined,

@@ -63,6 +63,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - The chat thread now expands or contracts horizontally as the side panel is toggled, keeping date divider lines perfectly aligned across both sections.
 - Artists can upload multiple portfolio images and reorder them via drag-and-drop. Use `POST /api/v1/artist-profiles/me/portfolio-images` to upload and `PUT /api/v1/artist-profiles/me/portfolio-images` to save the order.
 - Artists can also drag and drop service cards on the dashboard to set their display order.
+- Adding a service now requires at least one image, and the uploaded media displays on the artist profile within each service block.
 - Dashboard pages are now separated by user type: artists use `frontend/src/app/dashboard/artist/page.tsx` and clients use `frontend/src/app/dashboard/client/page.tsx`.
 - Quote modal items can now be removed even when only one item is present.
 - Clients can upload and crop a profile picture via `/api/v1/users/me/profile-picture`; chat messages and notifications will show the artist or client avatar when available.

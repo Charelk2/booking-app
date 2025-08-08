@@ -34,6 +34,7 @@ class Service(BaseModel):
     )
     title = Column(String, index=True, nullable=False)
     description = Column(Text, nullable=True)
+    media_url = Column(String, nullable=False)
     price = Column(Numeric(10, 2), nullable=False)
     currency = Column(String(3), nullable=False, default="ZAR")
     duration_minutes = Column(Integer, nullable=False)

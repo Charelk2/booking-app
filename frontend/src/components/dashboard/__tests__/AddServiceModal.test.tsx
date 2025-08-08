@@ -130,6 +130,7 @@ describe("AddServiceModal wizard", () => {
         travel_members: 1,
         car_rental_price: 1000,
         flight_price: 2780,
+        media_url: expect.any(String),
       }),
     );
   });
