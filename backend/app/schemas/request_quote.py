@@ -21,7 +21,6 @@ class BookingRequestBase(BaseModel):
     travel_mode: Optional[str] = None
     travel_cost: Optional[Decimal] = None
     travel_breakdown: Optional[dict] = None
-    details: Optional[dict] = None
 
 class BookingRequestCreate(BookingRequestBase):
     artist_id: int # Client must specify the artist they are requesting
@@ -36,7 +35,6 @@ class BookingRequestUpdateByClient(BaseModel): # Client can withdraw or update m
     travel_mode: Optional[str] = None
     travel_cost: Optional[Decimal] = None
     travel_breakdown: Optional[dict] = None
-    details: Optional[dict] = None
     status: Optional[BookingStatus] = None # e.g. REQUEST_WITHDRAWN
 
 class BookingRequestUpdateByArtist(BaseModel): # Artist can decline
@@ -52,7 +50,6 @@ class BookingRequestResponse(BookingRequestBase):
     travel_mode: Optional[str] = None
     travel_cost: Optional[Decimal] = None
     travel_breakdown: Optional[dict] = None
-    details: Optional[dict] = None
     
     client: Optional[UserResponse] = None
     artist: Optional[UserResponse] = None  # Original artist user details

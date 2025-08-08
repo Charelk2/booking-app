@@ -39,6 +39,6 @@ This snippet demonstrates the HTML structure and Tailwind CSS classes for the bo
 </main>
 ```
 
-The stepper text is bright red for the active step and muted gray for the rest. On small screens, the stepper stacks above the card and remains centered. On larger screens, the card keeps a consistent width and minimum height across all steps so the layout doesn't shift as you progress. The exact set of steps is loaded from a `bookingFlowRegistry` based on the provider's service category so musicians, photographers, and videographers see tailored flows.
+The stepper text is bright red for the active step and muted gray for the rest. On small screens, the stepper stacks above the card and remains centered. On larger screens, the card keeps a consistent width and minimum height across all steps so the layout doesn't shift as you progress.
 
 Navigation controls live in a sticky footer so the primary actions remain visible even when the form scrolls. Each button has a minimum tap area of 44×44 px to satisfy mobile accessibility guidelines. Heavy widgets such as the map preview and calendar picker are loaded lazily once their sections expand, keeping the initial payload light on mobile connections.
