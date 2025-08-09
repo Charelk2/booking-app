@@ -12,7 +12,7 @@ class Booking(BaseModel):
     id         = Column(Integer, primary_key=True, index=True)
     artist_id  = Column(Integer, ForeignKey("artist_profiles.user_id"))
     client_id  = Column(Integer, ForeignKey("users.id"))
-    service_id = Column(Integer, ForeignKey("services.id"))
+    service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"))
     start_time = Column(DateTime, nullable=False)
     end_time   = Column(DateTime, nullable=False)
     status     = Column(Enum(BookingStatus), default=BookingStatus.PENDING)
