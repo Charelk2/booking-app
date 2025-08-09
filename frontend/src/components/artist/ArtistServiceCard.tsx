@@ -46,7 +46,7 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
   };
 
   return (
-    <Card role="listitem" className="border-none shadow-none hover:shadow-none">
+    <Card role="listitem" variant="flat">
       {/* Increased gap to add more spacing between media and details */}
       <div className="flex gap-6">
         {currentService.media_url && (
