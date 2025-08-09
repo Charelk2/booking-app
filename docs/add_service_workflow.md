@@ -1,0 +1,22 @@
+# Add Service Workflow
+
+Artists can now publish offerings using a shared **BaseServiceWizard**. The wizard manages step navigation, form submission and client-side media uploads while category wizards supply their own fields.
+
+## Categories
+
+- **Musician** – selects a service type such as Live Performance and sets pricing.
+- **Photographer** – captures camera details and pricing.
+
+Both wizards submit to the existing `/api/v1/services/` endpoint. Media files are read client-side and sent as base64 strings in the `media_url` field.
+
+```http
+POST /api/v1/services/
+{
+  "title": "My Service",
+  "price": 100,
+  "service_type": "Live Performance",
+  "media_url": "data:image/png;base64,..."
+}
+```
+
+Additional category details (e.g., `camera_brand`) are included under the `details` object.
