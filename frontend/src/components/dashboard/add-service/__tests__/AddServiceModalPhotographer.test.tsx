@@ -30,6 +30,7 @@ describe("AddServiceModalPhotographer", () => {
 
     const file = new File(["hello"], "cam.jpg", { type: "image/jpeg" });
     await user.upload(screen.getByLabelText(/Media/i), file);
+    await flushPromises();
     await user.click(screen.getByTestId("next"));
 
     // back flow
