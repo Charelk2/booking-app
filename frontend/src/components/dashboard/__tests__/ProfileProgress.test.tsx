@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import ProfileProgress, { computeProfileCompletion } from '../ProfileProgress';
+import { ProfileProgress, computeProfileCompletion } from '..';
 import type { ArtistProfile } from '@/types';
 
 describe('ProfileProgress component', () => {
