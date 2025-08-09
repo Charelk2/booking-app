@@ -207,9 +207,10 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
   }, [adjustScrollAfterHeaderChange]);
 
 
+  // Increased default horizontal padding for page content
   const contentWrapperClasses = fullWidthContent
     ? 'w-full'
-    : 'w-full px-4 sm:px-6 lg:px-8';
+    : 'w-full px-6 sm:px-8 lg:px-12';
 
 
   const showSearchBar =
