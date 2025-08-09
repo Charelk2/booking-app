@@ -47,7 +47,8 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
 
   return (
     <Card role="listitem" className="border-none shadow-none hover:shadow-none">
-      <div className="flex gap-4">
+      {/* Increased gap to add more spacing between media and details */}
+      <div className="flex gap-6">
         {currentService.media_url && (
           <div className="relative w-35 h-35 flex-shrink-0 pr-4">
             <Image
@@ -70,8 +71,9 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
           <h3 className="text-lg font-semibold text-gray-900">
             {currentService.title}
           </h3>
-          <div className="mt-1 text-sm text-gray-600 flex flex-wrap items-center gap-x-2">
-            <span className="text-base font-semibold text-gray-900">
+          {/* Price styling tweaked to be smaller and not bold, closer to title */}
+          <div className="mt-0.5 text-sm text-gray-600 flex flex-wrap items-center gap-x-2">
+            <span className="text-sm font-normal text-gray-900">
               {formatCurrency(Number(currentService.price))}
             </span>
             <span>per guest</span>
