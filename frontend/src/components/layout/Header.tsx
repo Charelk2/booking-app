@@ -12,7 +12,7 @@ import NotificationBell from './NotificationBell'; // Assuming NotificationBell 
 import MobileMenuDrawer from './MobileMenuDrawer'; // Assuming MobileMenuDrawer is set up
 import SearchBar from '../search/SearchBar'; // The full search bar component
 import { navItemClasses } from './navStyles';
-import { UI_CATEGORY_TO_SERVICE, SERVICE_TO_UI_CATEGORY, UI_CATEGORIES } from '@/lib/categoryMap';
+import { SERVICE_TO_UI_CATEGORY, UI_CATEGORIES } from '@/lib/categoryMap';
 import { Avatar } from '../ui'; // Assuming Avatar is set up
 import clsx from 'clsx';
 import { type Category } from '../search/SearchFields'; // Import Category type from SearchFields
@@ -129,10 +129,11 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const handleSearch = useCallback(
     ({ category, location, when }: SearchParams) => {
       const params = new URLSearchParams();
-      if (category) params.set('category', UI_CATEGORY_TO_SERVICE[category] || category);
       if (location) params.set('location', location);
       if (when) params.set('when', when.toISOString());
-      router.push(`/artists?${params.toString()}`);
+      const path = category ? `/artists/category/${category}` : '/artists';
+      const qs = params.toString();
+      router.push(qs ? `${path}?${qs}` : path);
       
       // After search submission, revert header.
       // Let MainLayout's scroll logic handle the final state based on current scroll.
