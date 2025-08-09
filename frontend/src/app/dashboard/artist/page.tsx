@@ -59,6 +59,8 @@ interface WizardProps {
 const wizardLoaders: Record<string, () => Promise<{ default: ComponentType<WizardProps> }>> = {
   musician: () => import("@/components/dashboard/add-service/AddServiceModalMusician"),
   photographer: () => import("@/components/dashboard/add-service/AddServiceModalPhotographer"),
+  dj: () => import("@/components/dashboard/add-service/AddServiceModalDJ"),
+  event_service: () => import("@/components/dashboard/add-service/AddServiceModalEventService"),
 };
 
 interface ServiceCardProps {
