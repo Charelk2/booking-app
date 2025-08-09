@@ -15,6 +15,7 @@ describe('accessibility audits', () => {
     (api.getArtists as jest.Mock).mockResolvedValue({ data: [], total: 0, price_distribution: [] });
     (api.getArtistAvailability as jest.Mock).mockResolvedValue({ data: { unavailable_dates: [] } });
     (api.getArtist as jest.Mock).mockResolvedValue({ data: { location: 'NYC' } });
+    (api.getRecommendedArtists as jest.Mock).mockResolvedValue([]);
   });
 
   it('Artists page has no axe violations', async () => {
