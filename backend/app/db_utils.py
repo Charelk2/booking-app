@@ -87,17 +87,18 @@ def seed_service_categories(engine: Engine) -> None:
         select,
     )
 
+    # Canonical list of service categories that should exist in the database.
     categories = [
+        "Musician",
         "DJ",
         "Photographer",
         "Videographer",
+        "Speaker",
+        "Event Service",
+        "Wedding Venue",
         "Caterer",
-        "Decorator",
-        "Sound Engineer",
-        "Lighting Technician",
-        "Musician",
-        "MC",
-        "Other",
+        "Bartender",
+        "MC & Host",
     ]
 
     if "service_categories" not in inspector.get_table_names():
@@ -115,21 +116,25 @@ def seed_service_categories(engine: Engine) -> None:
         metadata = MetaData()
         table = Table("service_categories", metadata, autoload_with=engine)
 
-    with engine.connect() as conn:
-        result = conn.execute(select(table.c.id)).first()
-        if result is None:
-            for name in categories:
+    # Upsert categories to keep the table in sync with the canonical list.
+    with engine.begin() as conn:
+        existing = {row.name for row in conn.execute(select(table.c.name))}
+
+        # Insert any missing categories.
+        for name in categories:
+            if name not in existing:
                 conn.execute(
-                    text(
-                        "INSERT INTO service_categories (name, created_at, updated_at) VALUES (:name, :created, :updated)"
-                    ),
-                    {
-                        "name": name,
-                        "created": datetime.utcnow(),
-                        "updated": datetime.utcnow(),
-                    },
+                    table.insert().values(
+                        name=name,
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow(),
+                    )
                 )
-            conn.commit()
+
+        # Remove categories that are no longer part of the canonical list.
+        obsolete = [name for name in existing if name not in categories]
+        if obsolete:
+            conn.execute(table.delete().where(table.c.name.in_(obsolete)))
 
 
 def ensure_service_type_column(engine: Engine) -> None:
@@ -354,16 +359,10 @@ def ensure_booking_simple_columns(engine: Engine) -> None:
         "payment_id VARCHAR",
     )
     add_column_if_missing(
-        engine,
-        "bookings_simple",
-        "deposit_amount",
-        "deposit_amount NUMERIC(10, 2)"
+        engine, "bookings_simple", "deposit_amount", "deposit_amount NUMERIC(10, 2)"
     )
     add_column_if_missing(
-        engine,
-        "bookings_simple",
-        "deposit_due_by",
-        "deposit_due_by DATETIME"
+        engine, "bookings_simple", "deposit_due_by", "deposit_due_by DATETIME"
     )
     add_column_if_missing(
         engine,
@@ -375,23 +374,12 @@ def ensure_booking_simple_columns(engine: Engine) -> None:
 
 def ensure_mfa_columns(engine: Engine) -> None:
     """Add MFA fields to the ``users`` table if missing."""
+    add_column_if_missing(engine, "users", "mfa_secret", "mfa_secret VARCHAR")
     add_column_if_missing(
-        engine,
-        "users",
-        "mfa_secret",
-        "mfa_secret VARCHAR"
+        engine, "users", "mfa_enabled", "mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE"
     )
     add_column_if_missing(
-        engine,
-        "users",
-        "mfa_enabled",
-        "mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE"
-    )
-    add_column_if_missing(
-        engine,
-        "users",
-        "mfa_recovery_tokens",
-        "mfa_recovery_tokens TEXT"
+        engine, "users", "mfa_recovery_tokens", "mfa_recovery_tokens TEXT"
     )
 
 
@@ -438,4 +426,3 @@ def ensure_booking_request_travel_columns(engine: Engine) -> None:
         "travel_breakdown",
         "travel_breakdown JSON",
     )
-
