@@ -52,8 +52,10 @@ describe('ArtistsPage', () => {
 
   it('requests and filters DJs', async () => {
     render(<ArtistsPage />);
-    await waitFor(() => expect(mockedGetArtists).toHaveBeenCalled());
-    expect(mockedGetArtists).toHaveBeenCalledWith(expect.objectContaining({ category: 'DJ' }));
+    await waitFor(() => expect(mockedGetArtists).toHaveBeenCalledTimes(1));
+    expect(mockedGetArtists).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'DJ' }),
+    );
 
     await screen.findByText('DJ One Biz');
     expect(screen.queryByText('DJ NoBiz')).toBeNull();
@@ -65,15 +67,19 @@ describe('ArtistsPage', () => {
   it('normalizes UI slug category query param', async () => {
     useSearchParams.mockReturnValue(new URLSearchParams('category=dj'));
     render(<ArtistsPage />);
-    await waitFor(() => expect(mockedGetArtists).toHaveBeenCalled());
-    expect(mockedGetArtists).toHaveBeenCalledWith(expect.objectContaining({ category: 'DJ' }));
+    await waitFor(() => expect(mockedGetArtists).toHaveBeenCalledTimes(1));
+    expect(mockedGetArtists).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'DJ' }),
+    );
   });
 
   it('derives category from /category path', async () => {
     useSearchParams.mockReturnValue(new URLSearchParams());
     usePathname.mockReturnValue('/category/dj');
     render(<ArtistsPage />);
-    await waitFor(() => expect(mockedGetArtists).toHaveBeenCalled());
-    expect(mockedGetArtists).toHaveBeenCalledWith(expect.objectContaining({ category: 'DJ' }));
+    await waitFor(() => expect(mockedGetArtists).toHaveBeenCalledTimes(1));
+    expect(mockedGetArtists).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'DJ' }),
+    );
   });
 });
