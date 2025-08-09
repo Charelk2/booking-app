@@ -63,7 +63,7 @@
   {UI_CATEGORIES.map((cat) => (
   <Link
   key={cat.value}
-  href={`/artists/category/${encodeURIComponent(cat.value)}`}
+  href={`/category/${encodeURIComponent(cat.value)}`}
   className="flex-shrink-0 flex flex-col hover:no-underline"
   >
   <div className="relative h-40 w-40 overflow-hidden rounded-lg bg-gray-100">
