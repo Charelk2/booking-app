@@ -158,6 +158,17 @@ describe('response interceptor', () => {
     });
   });
 
+  it('overrides server detail for 401 responses', async () => {
+    expect.assertions(1);
+    const err: unknown = {
+      isAxiosError: true,
+      response: { status: 401, data: { detail: 'Could not validate credentials' } },
+    };
+    await rejected(err).catch((e: Error) => {
+      expect(e.message).toBe('Authentication required. Please log in.');
+    });
+  });
+
   it('falls back to extracted detail and logs error', async () => {
     expect.assertions(2);
     const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
