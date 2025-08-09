@@ -99,4 +99,28 @@ describe("AddServiceCategorySelector", () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it("renders panel full screen", async () => {
+    const onSelect = jest.fn();
+    const onClose = jest.fn();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        React.createElement(AddServiceCategorySelector, {
+          isOpen: true,
+          onClose,
+          onSelect,
+        })
+      );
+    });
+
+    const panel = document.body.querySelector("div.flex.h-full.w-full");
+    expect(panel).not.toBeNull();
+
+    act(() => root.unmount());
+    container.remove();
+  });
 });
