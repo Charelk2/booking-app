@@ -37,25 +37,16 @@ def ensure_legacy_artist_user_type(engine: Engine) -> None:
 
 
 def ensure_service_category_id_column(engine: Engine) -> None:
-    """Ensure tables support service categories.
+    """Ensure ``services`` table supports service categories.
 
     Historically the ``service_category_id`` and ``details`` fields were
-    introduced after some databases were already in use.  This helper mirrors
-    the Alembic migration by adding the columns to both ``artist_profiles`` and
-    ``services`` when they are missing.  It allows deployments that have not run
-    migrations to function without SQL errors.
+    introduced after some databases were already in use. This helper mirrors
+    the Alembic migration by adding the columns to ``services`` when they are
+    missing. It allows deployments that have not run migrations to function
+    without SQL errors.
     """
 
-    # ``artist_profiles`` gained ``service_category_id`` to record an artist's
-    # default category.  Add it when absent so API calls can filter by category.
-    add_column_if_missing(
-        engine,
-        "artist_profiles",
-        "service_category_id",
-        "service_category_id INTEGER",
-    )
-
-    # ``services`` also received a ``service_category_id`` foreign key and an
+    # ``services`` received a ``service_category_id`` foreign key and an
     # optional JSON ``details`` column for category specific data.  Ensure both
     # columns exist to keep ORM queries in sync with the database schema.
     add_column_if_missing(

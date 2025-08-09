@@ -59,14 +59,8 @@ export default function ArtistsPage() {
     const load = async () => {
       try {
         const recs = await getRecommendedArtists();
-        // Only surface recommendations matching the currently selected UI category.
-        // The API returns personalized suggestions across all categories, so we
-        // derive the backend service name from the UI value and filter on the
-        // client to avoid showing musicians when browsing DJs or other services.
         const safeRecs = Array.isArray(recs) ? recs : [];
-        let filtered = serviceName
-          ? safeRecs.filter((a) => a.service_category?.name === serviceName)
-          : safeRecs;
+        let filtered = safeRecs;
         if (serviceName === 'DJ') {
           filtered = filtered.filter((a) => {
             const business = a.business_name?.trim().toLowerCase();
@@ -154,8 +148,6 @@ export default function ArtistsPage() {
         // only include profiles with a business name so personal artist names
         // never appear.
         const filtered = res.data.filter((a) => {
-          const matchesCategory = !serviceName || a.service_category?.name === serviceName;
-          if (!matchesCategory) return false;
           if (serviceName === 'DJ') {
             const business = a.business_name?.trim().toLowerCase();
             const fullName = `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`

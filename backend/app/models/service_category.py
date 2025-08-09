@@ -1,6 +1,4 @@
 from sqlalchemy import Column, Integer, String
-from sqlalchemy.orm import relationship
-
 from .base import BaseModel
 
 
@@ -9,8 +7,3 @@ class ServiceCategory(BaseModel):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False)
-
-    providers = relationship(
-        "ArtistProfileV2",
-        back_populates="service_category",
-    )
