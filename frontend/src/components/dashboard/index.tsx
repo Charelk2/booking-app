@@ -1,0 +1,645 @@
+"use client";
+
+import React, {
+  Fragment,
+  useState,
+  useMemo,
+  type ReactNode,
+  type SVGProps,
+} from "react";
+import Link from "next/link";
+import clsx from "clsx";
+import { format } from "date-fns";
+import { Dialog, Transition } from "@headlessui/react";
+import {
+  XMarkIcon,
+  MusicalNoteIcon,
+  CameraIcon,
+  VideoCameraIcon,
+  SpeakerWaveIcon,
+  MegaphoneIcon,
+  SparklesIcon,
+  HomeModernIcon,
+  CakeIcon,
+  BeakerIcon,
+  MicrophoneIcon,
+  CalendarIcon,
+} from "@heroicons/react/24/outline";
+import "./dashboard.css";
+import { BookingRequest, ArtistProfile } from "@/types";
+import { formatStatus } from "@/lib/utils";
+import { Avatar } from "../ui";
+import Button from "../ui/Button";
+import CollapsibleSection from "../ui/CollapsibleSection";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  updateBookingRequestArtist,
+  postMessageToBookingRequest,
+} from "@/lib/api";
+
+// ---------------------------------------------------------------------------
+// AddServiceCategorySelector
+
+interface Category {
+  id: string;
+  label: string;
+  Icon: React.ComponentType<SVGProps<SVGSVGElement>>;
+}
+
+const categories: Category[] = [
+  { id: "musician", label: "Musician", Icon: MusicalNoteIcon },
+  { id: "dj", label: "DJ", Icon: SpeakerWaveIcon },
+  { id: "photographer", label: "Photographer", Icon: CameraIcon },
+  { id: "videographer", label: "Videographer", Icon: VideoCameraIcon },
+  { id: "speaker", label: "Speaker", Icon: MegaphoneIcon },
+  { id: "event_service", label: "Event Service", Icon: SparklesIcon },
+  { id: "wedding_venue", label: "Wedding Venue", Icon: HomeModernIcon },
+  { id: "caterer", label: "Caterer", Icon: CakeIcon },
+  { id: "bartender", label: "Bartender", Icon: BeakerIcon },
+  { id: "mc_host", label: "MC & Host", Icon: MicrophoneIcon },
+];
+
+interface AddServiceCategorySelectorProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (categoryId: string) => void;
+}
+
+export function AddServiceCategorySelector({
+  isOpen,
+  onClose,
+  onSelect,
+}: AddServiceCategorySelectorProps) {
+  return (
+    <Transition show={isOpen} as={Fragment}>
+      <Dialog onClose={onClose} className="fixed inset-0 z-50">
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 z-0 bg-black/30" />
+        </Transition.Child>
+
+        <Dialog.Panel className="relative z-10 flex h-full w-full flex-col bg-white">
+          <div className="flex items-center justify-between p-6">
+            <Dialog.Title className="text-2xl font-semibold">
+              Booka
+            </Dialog.Title>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded p-1 hover:bg-gray-100"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-20">
+            <h2 className="mb-28 text-center text-4xl font-bold">
+              Choose your line of work
+            </h2>
+            <div className="grid grid-cols-5 grid-rows-2 gap-4">
+              {categories.map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  data-testid={`category-${id}`}
+                  onClick={() => {
+                    onSelect(id);
+                    onClose();
+                  }}
+                  className="flex flex-col items-center justify-center rounded border p-4 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand"
+                >
+                  <Icon className="mb-2 h-8 w-8" />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </Dialog.Panel>
+      </Dialog>
+    </Transition>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// BookingRequestCard
+
+const getBadgeClass = (status: string): string => {
+  if (
+    status.includes("declined") ||
+    status.includes("rejected") ||
+    status.includes("withdrawn")
+  ) {
+    return "status-badge-declined";
+  }
+  if (status.includes("confirmed") || status.includes("accepted")) {
+    return "status-badge-confirmed";
+  }
+  if (status === "pending_quote") {
+    return "status-badge-pending-quote";
+  }
+  if (status.includes("quote")) {
+    return "status-badge-quote-provided";
+  }
+  if (status.includes("pending")) {
+    return "status-badge-pending-action";
+  }
+  return "status-badge-pending-quote";
+};
+
+export interface BookingRequestCardProps {
+  req: BookingRequest;
+}
+
+export function BookingRequestCard({ req }: BookingRequestCardProps) {
+  const { user } = useAuth();
+  const isUserArtist = user?.user_type === "service_provider";
+  const avatarSrc = isUserArtist
+    ? req.client?.profile_picture_url || null
+    : req.artist_profile?.profile_picture_url || null;
+  const displayName = isUserArtist
+    ? req.client
+      ? `${req.client.first_name} ${req.client.last_name}`
+      : "Unknown Client"
+    :
+      req.artist_profile?.business_name ||
+      req.artist?.first_name ||
+      "Unknown Artist";
+  const ServiceIcon =
+    req.service?.title === "Live Musiek" ? MicrophoneIcon : MusicalNoteIcon;
+  const formattedDate = format(new Date(req.created_at), "dd MMM yyyy");
+
+  return (
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg bg-gray-50 border border-gray-200 shadow-sm">
+      <div className="flex gap-4 items-center">
+        <Avatar
+          src={avatarSrc}
+          initials={displayName.charAt(0)}
+          size={48}
+          className="bg-blue-100 w-12 h-12"
+        />
+        <div>
+          <div className="font-bold text-gray-800">{displayName}</div>
+          <div className="flex items-center gap-1 text-sm text-gray-600">
+            <ServiceIcon className="w-4 h-4" />
+            <span>{req.service?.title || "—"}</span>
+          </div>
+          <div className="flex items-center gap-1 text-sm text-gray-600">
+            <CalendarIcon className="w-4 h-4" />
+            <span>{formattedDate}</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex flex-col items-end gap-2 mt-3 sm:mt-0">
+        <span className={getBadgeClass(req.status)}>{
+          formatStatus(req.status)
+        }</span>
+        <Link
+          href={`/booking-requests/${req.id}`}
+          className="inline-flex items-center gap-1 px-4 py-2 text-sm rounded-md bg-brand-primary hover:opacity-90 text-white font-semibold transition shadow-md"
+        >
+          Manage
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DashboardTabs
+
+interface Tab {
+  id: "bookings" | "services" | "requests";
+  label: string;
+  icon?: React.ReactNode;
+  count?: number;
+}
+
+interface DashboardTabsProps {
+  tabs?: Tab[];
+  active: "bookings" | "services" | "requests";
+  onChange: (id: "bookings" | "services" | "requests") => void;
+}
+
+export function DashboardTabs({
+  tabs = [],
+  active,
+  onChange,
+}: DashboardTabsProps) {
+  if (tabs.length === 0) return null;
+
+  return (
+    <div className="sticky top-0 z-30 bg-gray-50 border-b">
+      <div className="flex text-sm">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onChange(tab.id)}
+            className={`flex-1 px-4 py-2 flex items-center justify-center space-x-1 ${
+              active === tab.id
+                ? "text-gray-900 border-b-2 border-gray-900 font-medium"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            {tab.icon && <span className="h-4 w-4">{tab.icon}</span>}
+            <span>{tab.label}</span>
+            {tab.count && (
+              <span className="ml-1 inline-flex items-center justify-center rounded-full bg-gray-100 px-2 text-xs text-gray-600">
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// MobileSaveBar
+
+interface MobileSaveBarProps {
+  onSave: () => void;
+  isSaving?: boolean;
+}
+
+export function MobileSaveBar({ onSave, isSaving = false }: MobileSaveBarProps) {
+  return (
+    <div className="fixed bottom-14 left-0 right-0 z-40 sm:hidden bg-white border-t p-2 flex justify-end">
+      <Button onClick={onSave} isLoading={isSaving} fullWidth>
+        Save Changes
+      </Button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// OverviewCard
+
+interface OverviewCardProps {
+  label: string;
+  value: string | number;
+  icon: ReactNode;
+  className?: string;
+}
+
+export function OverviewCard({ label, value, icon, className }: OverviewCardProps) {
+  return (
+    <div
+      className={clsx(
+        "flex items-center space-x-3 p-4 rounded-lg bg-white border border-gray-200 shadow-sm",
+        className,
+      )}
+    >
+      <div className="text-brand-dark">{icon}</div>
+      <div>
+        <p className="text-sm text-gray-500">{label}</p>
+        <p className="text-lg font-medium text-gray-900">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// OverviewAccordion
+
+interface Stat {
+  label: string;
+  value: string | number;
+  icon?: React.ReactNode;
+}
+
+interface OverviewAccordionProps {
+  primaryStats: Stat[];
+  secondaryStats?: Stat[];
+}
+
+export function OverviewAccordion({
+  primaryStats,
+  secondaryStats = [],
+}: OverviewAccordionProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        {primaryStats.map((s) => (
+          <OverviewCard
+            key={s.label}
+            label={s.label}
+            value={s.value}
+            icon={s.icon ?? null}
+          />
+        ))}
+      </div>
+      {secondaryStats.length > 0 && (
+        <CollapsibleSection
+          title="Overview"
+          open={open}
+          onToggle={() => setOpen(!open)}
+          className="border border-gray-200 rounded-md shadow-sm"
+        >
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            {secondaryStats.map((s) => (
+              <OverviewCard
+                key={s.label}
+                label={s.label}
+                value={s.value}
+                icon={s.icon ?? null}
+              />
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ProfileCompleteness
+
+export function computeProfileCompleteness(
+  stepsCompleted: number,
+  totalSteps: number,
+): number {
+  if (totalSteps <= 0) return 0;
+  return Math.round((stepsCompleted / totalSteps) * 100);
+}
+
+interface ProfileCompletenessProps {
+  stepsCompleted: number;
+  totalSteps: number;
+}
+
+export function ProfileCompleteness({
+  stepsCompleted,
+  totalSteps,
+}: ProfileCompletenessProps) {
+  const percentage = useMemo(
+    () => computeProfileCompleteness(stepsCompleted, totalSteps),
+    [stepsCompleted, totalSteps],
+  );
+
+  return (
+    <div className="w-full" data-testid="profile-completeness-wrapper">
+      <div className="flex justify-between text-sm mb-1">
+        <span>Profile Completion</span>
+        <span>{percentage}%</span>
+      </div>
+      <div
+        className="w-full bg-gray-200 rounded-full h-2"
+        data-testid="profile-completeness"
+      >
+        <div
+          className="h-2 rounded-full bg-[var(--color-accent)]"
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ProfileProgress
+
+const fields: (keyof ArtistProfile)[] = [
+  "business_name",
+  "description",
+  "location",
+  "profile_picture_url",
+  "cover_photo_url",
+];
+
+export function computeProfileCompletion(
+  profile?: Partial<ArtistProfile>,
+): number {
+  if (!profile) return 0;
+  const filled = fields.reduce(
+    (acc, key) => acc + (profile[key] ? 1 : 0),
+    0,
+  );
+  return Math.round((filled / fields.length) * 100);
+}
+
+interface ProfileProgressProps {
+  profile: Partial<ArtistProfile> | null;
+}
+
+export function ProfileProgress({ profile }: ProfileProgressProps) {
+  const percentage = useMemo(
+    () => computeProfileCompletion(profile || undefined),
+    [profile],
+  );
+  return (
+    <div className="w-full" data-testid="profile-progress-wrapper">
+      <div className="flex justify-between text-sm mb-1">
+        <span>Profile Completion</span>
+        <span>{percentage}%</span>
+      </div>
+      <div
+        className="w-full bg-gray-200 rounded-full h-2.5"
+        data-testid="profile-progress"
+      >
+        <div
+          className="bg-brand-secondary h-2.5 rounded-full progress-bar-fill"
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// QuickActionButton
+
+interface QuickActionButtonProps {
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  icon?: React.ReactNode;
+  className?: string;
+}
+
+export function QuickActionButton({
+  label,
+  href,
+  onClick,
+  icon,
+  className,
+}: QuickActionButtonProps) {
+  const content = (
+    <span className="flex items-center gap-1">{icon}{label}</span>
+  );
+  const baseClass = clsx(
+    "bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-3 rounded-lg text-sm font-medium transition",
+    className,
+  );
+  if (href) {
+    return (
+      <Link href={href} className={baseClass} onClick={onClick}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" className={baseClass} onClick={onClick}>
+      {content}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SectionList
+
+interface SectionListProps<T> {
+  title: string;
+  data: T[];
+  renderItem: (item: T) => React.ReactNode;
+  emptyState: React.ReactNode;
+  defaultOpen?: boolean;
+  footer?: React.ReactNode;
+}
+
+export function SectionList<T>({
+  title,
+  data,
+  renderItem,
+  emptyState,
+  defaultOpen = false,
+  footer,
+}: SectionListProps<T>) {
+  const [open, setOpen] = useState(defaultOpen && data.length > 0);
+
+  return (
+    <CollapsibleSection
+      title={title}
+      open={open}
+      onToggle={() => setOpen(!open)}
+      className="border border-gray-200 rounded-md shadow-sm"
+    >
+      {data.length === 0 ? (
+        <div className="text-sm text-gray-500 py-2">{emptyState}</div>
+      ) : (
+        <ul className="space-y-2 mt-2">
+          {data.map((item, i) => (
+            <li key={i}>{renderItem(item)}</li>
+          ))}
+        </ul>
+      )}
+      {footer && <div className="mt-2">{footer}</div>}
+    </CollapsibleSection>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// UpdateRequestModal
+
+interface UpdateRequestModalProps {
+  isOpen: boolean;
+  request: BookingRequest;
+  onClose: () => void;
+  onUpdated: (req: BookingRequest) => void;
+}
+
+export function UpdateRequestModal({
+  isOpen,
+  request,
+  onClose,
+  onUpdated,
+}: UpdateRequestModalProps) {
+  const [status, setStatus] = useState(request.status);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await updateBookingRequestArtist(request.id, { status });
+      if (note.trim()) {
+        await postMessageToBookingRequest(request.id, {
+          content: note.trim(),
+        });
+      }
+      onUpdated(res.data);
+      onClose();
+    } catch (err) {
+      console.error("Failed to update request", err);
+      setError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center transition-opacity">
+      <div className="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white transform transition-transform duration-200">
+        <div className="mt-3 text-center">
+          <h3 className="text-lg leading-6 font-medium text-gray-900">
+            Update Request
+          </h3>
+          <form
+            onSubmit={handleSubmit}
+            className="mt-2 px-7 py-3 space-y-4 text-left"
+          >
+            <div>
+              <label
+                htmlFor="status"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Status
+              </label>
+              <select
+                id="status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value as BookingRequest["status"])}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand sm:text-sm"
+              >
+                <option value="pending_quote">Pending Quote</option>
+                <option value="quote_provided">Quote Provided</option>
+                <option value="request_declined">Declined</option>
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="note"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Note to client
+              </label>
+              <textarea
+                id="note"
+                rows={3}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-brand focus:border-brand sm:text-sm"
+              />
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <div className="items-center px-4 py-3 space-x-2 text-right">
+              <Button type="button" variant="secondary" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+

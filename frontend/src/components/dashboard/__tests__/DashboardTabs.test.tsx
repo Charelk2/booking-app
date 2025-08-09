@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import DashboardTabs from '../DashboardTabs';
+import { DashboardTabs } from '..';
 
 describe('DashboardTabs', () => {
   let container: HTMLDivElement;

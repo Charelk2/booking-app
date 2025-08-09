@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import MobileSaveBar from '../MobileSaveBar';
+import { MobileSaveBar } from '..';
 
 describe('MobileSaveBar', () => {
   let container: HTMLDivElement;
