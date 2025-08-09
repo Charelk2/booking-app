@@ -47,4 +47,12 @@ class MessageResponse(BaseModel):
     avatar_url: str | None = None
     expires_at: Optional[datetime] = None
 
+    @field_validator("message_type", mode="before")
+    @classmethod
+    def normalize_message_type(cls, v):
+        """Map legacy ``TEXT`` values to ``USER`` for consistent output."""
+        if v == MessageType.TEXT or (isinstance(v, str) and v.upper() == "TEXT"):
+            return MessageType.USER
+        return v
+
     model_config = {"from_attributes": True}
