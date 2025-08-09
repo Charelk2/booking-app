@@ -43,7 +43,7 @@ export default function RegisterPage() {
       await registerUser(userData);
       if (userData.user_type === 'service_provider') {
         toast.success('Registration successful!');
-        router.push('/login');
+        router.push('/dashboard');
       } else {
         toast.success('Registration successful! Check your email to verify.');
         router.push('/confirm-email');
