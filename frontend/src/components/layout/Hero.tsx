@@ -5,7 +5,6 @@ import { useState, useEffect, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import SearchBar from '../search/SearchBar'; // ✨ Import your new component
-import { UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
 import { type Category } from '../search/SearchFields';
 import { useRouter } from 'next/navigation';
 
@@ -33,14 +32,11 @@ export default function Hero() {
 
   const handleSearch = ({ category: cat, location: loc, when: date }: { category?: string; location?: string; when?: Date | null }) => {
     const params = new URLSearchParams();
-    if (cat) {
-      const mapped = UI_CATEGORY_TO_SERVICE[cat] || cat;
-      params.set('category', mapped);
-    }
     if (loc) params.set('location', loc);
     if (date) params.set('when', date.toISOString());
+    const path = cat ? `/artists/category/${cat}` : '/artists';
     const qs = params.toString();
-    router.push(qs ? `/artists?${qs}` : '/artists');
+    router.push(qs ? `${path}?${qs}` : path);
     setModalOpen(false);
   };
 
