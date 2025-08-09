@@ -56,3 +56,26 @@ def test_artist_profiles_endpoint_returns_paginated(monkeypatch):
     assert body["data"][0]["business_name"] == "Test Artist"
     assert isinstance(body["price_distribution"], list)
     app.dependency_overrides.pop(get_db, None)
+
+
+def test_artist_profiles_unknown_category_ignored(monkeypatch):
+    """Requests with an unknown category should not raise 422."""
+    Session = setup_app(monkeypatch)
+    db = Session()
+    user = User(
+        email="b@test.com",
+        password="x",
+        first_name="B",
+        last_name="C",
+        user_type=UserType.SERVICE_PROVIDER,
+    )
+    profile = ArtistProfileV2(user_id=1, business_name="Another Artist")
+    db.add(user)
+    db.add(profile)
+    db.commit()
+    client = TestClient(app)
+    res = client.get("/api/v1/artist-profiles/?category=Musician")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["total"] == 1
+    app.dependency_overrides.pop(get_db, None)
