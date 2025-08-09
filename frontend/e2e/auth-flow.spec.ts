@@ -32,7 +32,7 @@ test.describe('Auth flow', () => {
     await page.getByLabel('Password').fill('secret!1');
     await page.getByLabel('Confirm password').fill('secret!1');
     await page.getByRole('button', { name: /create account/i }).click();
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL('/dashboard');
     await expect(page.getByText('Registration successful!')).toBeVisible();
   });
 

@@ -226,12 +226,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const register = async (data: Partial<User>) => {
+  const register = async (data: Partial<User> & { password?: string }) => {
     try {
-      const response = await apiRegister(data);
-      const userData = response.data;
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
+      await apiRegister(data);
+      if (data.email && data.password) {
+        await login(data.email, data.password);
+      }
     } catch (error) {
       console.error('Registration failed:', error);
       throw error;

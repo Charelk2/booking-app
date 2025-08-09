@@ -506,7 +506,7 @@ pointing to `/confirm-email?token=<token>`. Submitting this token through the
 new `POST /auth/confirm-email` endpoint marks the user as verified and removes
 the token from the `email_tokens` table. Service providers are currently
 auto-verified on registration, so they can sign in without confirming their
-email.
+email and are automatically signed in upon successful registration.
 All email addresses are normalized to lowercase during registration and login so
 `User@Example.com` and `user@example.com` refer to the same account.
 Gmail addresses are further canonicalized: dots and `+tags` are ignored and
