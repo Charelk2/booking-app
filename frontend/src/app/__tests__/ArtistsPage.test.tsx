@@ -44,4 +44,11 @@ describe('ArtistsPage', () => {
     await screen.findByText('Rec DJ');
     expect(screen.queryByText('Rec Musician')).not.toBeInTheDocument();
   });
+
+  it('normalizes UI slug category query param', async () => {
+    useSearchParams.mockReturnValue(new URLSearchParams('category=dj'));
+    render(<ArtistsPage />);
+    await waitFor(() => expect(mockedGetArtists).toHaveBeenCalled());
+    expect(mockedGetArtists).toHaveBeenCalledWith(expect.objectContaining({ category: 'DJ' }));
+  });
 });
