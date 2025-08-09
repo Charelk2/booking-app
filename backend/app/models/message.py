@@ -13,6 +13,7 @@ from datetime import datetime
 import enum
 
 from .base import BaseModel
+from .types import CaseInsensitiveEnum
 
 class SenderType(str, enum.Enum):
     CLIENT = "client"
@@ -54,12 +55,11 @@ class Message(BaseModel):
         Enum(MessageType), nullable=False, default=MessageType.USER
     )
     # Store enum values ("artist", "client", "both") to match existing DB rows
+    # Legacy rows may use uppercase variants like "BOTH". ``CaseInsensitiveEnum``
+    # normalizes values to lowercase on read/write so these entries can be
+    # loaded without raising lookup errors.
     visible_to = Column(
-        Enum(
-            VisibleTo,
-            name="visibleto",
-            values_callable=lambda enum: [e.value for e in enum],
-        ),
+        CaseInsensitiveEnum(VisibleTo, name="visibleto"),
         nullable=False,
         default=VisibleTo.BOTH,
     )
