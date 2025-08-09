@@ -43,7 +43,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - The "Services Near You" category carousel adds previous/next buttons so desktop users can page through service types.
 - Service providers choose from predefined service categories during onboarding. A new `/api/v1/service-categories` endpoint lists the seeded categories and a post‑registration page stores the selection.
 - Seeded categories include Musician, DJ, Photographer, Videographer, Speaker, Event Service, Wedding Venue, Caterer, Bartender, and MC & Host.
-- Services now store a `service_category_id` and optional JSON `details` object for category-specific attributes, enabling tailored service data.
+- Services may optionally include a `service_category_id` and JSON `details` object for category-specific attributes, enabling tailored service data.
 - Bookings now track `payment_status`, `deposit_amount`, and `deposit_paid` in
   `bookings_simple`. The deposit amount defaults to half of the accepted quote
   total. Booking API responses now include these fields alongside
