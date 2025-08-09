@@ -34,7 +34,7 @@ export default function Hero() {
     const params = new URLSearchParams();
     if (loc) params.set('location', loc);
     if (date) params.set('when', date.toISOString());
-    const path = cat ? `/artists/category/${cat}` : '/artists';
+    const path = cat ? `/category/${cat}` : '/artists';
     const qs = params.toString();
     router.push(qs ? `${path}?${qs}` : path);
     setModalOpen(false);

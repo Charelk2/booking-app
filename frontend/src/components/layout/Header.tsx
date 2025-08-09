@@ -89,7 +89,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isArtistsPage = pathname.startsWith('/artists');
+  const isArtistsPage = pathname.startsWith('/artists') || pathname.startsWith('/category');
   const [menuOpen, setMenuOpen] = useState(false); // Mobile menu drawer state
   const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
 
@@ -131,7 +131,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       const params = new URLSearchParams();
       if (location) params.set('location', location);
       if (when) params.set('when', when.toISOString());
-      const path = category ? `/artists/category/${category}` : '/artists';
+      const path = category ? `/category/${category}` : '/artists';
       const qs = params.toString();
       router.push(qs ? `${path}?${qs}` : path);
       
