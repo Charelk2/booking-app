@@ -444,7 +444,8 @@ def read_all_artist_profiles(
     # Normalize ``category`` to a slug (e.g. "videographer") so the filter works
     # regardless of whether the frontend sends "Videographer" or "videographer".
     category_slug: Optional[str] = None
-    if isinstance(category, str) and category:
+    category_provided = isinstance(category, str) and category
+    if category_provided:
         category_slug = category.lower().replace(" ", "_")
         normalized_name = category_slug.replace("_", " ")
         exists = (
@@ -453,7 +454,11 @@ def read_all_artist_profiles(
             .first()
         )
         if not exists:
-            category_slug = None
+            return {
+                "data": [],
+                "total": 0,
+                "price_distribution": [],
+            }
 
     cache_category = category_slug
     cached = None
