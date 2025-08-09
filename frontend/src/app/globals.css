@@ -141,9 +141,14 @@
   /* Booking wizard common styles */
   .wizard-step-container {
     /* Ensure a consistent width across all booking steps */
-    @apply w-full mx-auto max-w-xl space-y-6 rounded-2xl bg-white p-6 md:p-8;
+    @apply w-full mx-auto max-w-xl overflow-hidden space-y-6 rounded-2xl bg-white p-6 md:p-8;
     /* Keep height stable so the card doesn't jump between steps */
     @apply lg:min-h-[400px];
+  }
+
+  /* Allow the date picker step to expand while keeping content clipped */
+  .wizard-step-container-date {
+    @apply max-w-3xl;
   }
 
   .instruction-text {
