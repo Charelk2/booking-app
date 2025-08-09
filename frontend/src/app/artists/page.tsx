@@ -5,7 +5,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { getArtists, getRecommendedArtists, type PriceBucket } from '@/lib/api';
-import { UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
+import { UI_CATEGORY_TO_SERVICE, SERVICE_TO_UI_CATEGORY } from '@/lib/categoryMap';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCardCompact from '@/components/artist/ArtistCardCompact';
@@ -28,6 +28,8 @@ export default function ArtistsPage() {
   const [error, setError] = useState<string | null>(null);
   const [recError, setRecError] = useState<string | null>(null);
 
+  // Store the selected category as a UI slug (e.g. "dj") so we can map it
+  // to the backend service name whenever querying the API.
   const [category, setCategory] = useState<string | undefined>(undefined);
   const [location, setLocation] = useState('');
   const [sort, setSort] = useState<string | undefined>(undefined);
@@ -42,6 +44,9 @@ export default function ArtistsPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const LIMIT = 20;
+
+  // Derived backend service name for the selected UI category.
+  const serviceName = category ? UI_CATEGORY_TO_SERVICE[category] : undefined;
 
   useEffect(() => {
     // Recommendations are personalized and require authentication.
@@ -58,7 +63,6 @@ export default function ArtistsPage() {
         // The API returns personalized suggestions across all categories, so we
         // derive the backend service name from the UI value and filter on the
         // client to avoid showing musicians when browsing DJs or other services.
-        const serviceName = category ? UI_CATEGORY_TO_SERVICE[category] : undefined;
         const safeRecs = Array.isArray(recs) ? recs : [];
         const filtered = serviceName
           ? safeRecs.filter((a) => a.service_category?.name === serviceName)
@@ -75,7 +79,10 @@ export default function ArtistsPage() {
 
   useEffect(() => {
     const serviceCat = searchParams.get('category') || undefined;
-    setCategory(serviceCat);
+    // Convert the backend service name in the query string back to the
+    // corresponding UI slug. If no mapping exists, clear the category so we
+    // don't accidentally show results from unrelated services.
+    setCategory(serviceCat ? SERVICE_TO_UI_CATEGORY[serviceCat] : undefined);
     setLocation(searchParams.get('location') || '');
     const w = searchParams.get('when');
     if (w) {
@@ -106,7 +113,7 @@ export default function ArtistsPage() {
       setError(null);
       try {
         const res = await getArtists({
-          category,
+          category: serviceName,
           location: location || undefined,
           when: when || undefined,
           sort,
@@ -116,7 +123,6 @@ export default function ArtistsPage() {
           limit: LIMIT,
           includePriceDistribution: true,
         });
-        const serviceName = category ? UI_CATEGORY_TO_SERVICE[category] : undefined;
         // Filter client-side to guard against any backend responses that
         // include artists from other service categories.
         const filtered = res.data.filter(
@@ -136,6 +142,7 @@ export default function ArtistsPage() {
     },
     [
       category,
+      serviceName,
       location,
       when,
       sort,
@@ -166,7 +173,7 @@ export default function ArtistsPage() {
         setMinPrice(min);
         setMaxPrice(max);
         updateQueryParams(router, pathname, {
-          category,
+          category: serviceName,
           location,
           when,
           sort: s,
@@ -179,7 +186,7 @@ export default function ArtistsPage() {
         setMinPrice(SLIDER_MIN);
         setMaxPrice(SLIDER_MAX);
         updateQueryParams(router, pathname, {
-          category,
+          category: serviceName,
           location,
           when,
         });
