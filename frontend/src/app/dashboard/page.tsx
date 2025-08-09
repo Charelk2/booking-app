@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Spinner } from "@/components/ui";
-import { getArtistProfileMe } from "@/lib/api";
 
 export default function DashboardRedirectPage() {
   const { user, loading } = useAuth();
@@ -17,19 +16,7 @@ export default function DashboardRedirectPage() {
       return;
     }
     if (user.user_type === "service_provider") {
-      (async () => {
-        try {
-          const profile = await getArtistProfileMe();
-          if (!profile.data.service_category_id) {
-            router.replace("/register/category");
-          } else {
-            router.replace("/dashboard/artist");
-          }
-        } catch (err) {
-          console.error("Failed to fetch profile:", err);
-          router.replace("/dashboard/artist");
-        }
-      })();
+      router.replace("/dashboard/artist");
     } else {
       router.replace("/dashboard/client");
     }

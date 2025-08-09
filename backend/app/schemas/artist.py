@@ -6,7 +6,6 @@ from decimal import Decimal
 from datetime import datetime
 
 from .user import UserResponse  # <-- make sure this points at your nested User schema
-from .service_category import ServiceCategoryResponse
 
 
 #
@@ -28,7 +27,6 @@ class ArtistProfileBase(BaseModel):
     profile_picture_url: Optional[str] = None
     cover_photo_url: Optional[str] = None
     price_visible: Optional[bool] = True
-    service_category_id: Optional[int] = None
 
     model_config = {
         # Still needed so that Pydantic can work with ORM objects, but we override below
@@ -58,7 +56,6 @@ class ArtistProfileResponse(ArtistProfileBase):
     rating_count: int = 0
     is_available: Optional[bool] = None
     service_price: Optional[Decimal] = None
-    service_category: Optional[ServiceCategoryResponse] = None
 
     # We want to include a nested "user" object when returning an artist profile
     user: Optional[UserResponse] = None
@@ -79,7 +76,6 @@ class ArtistProfileNested(ArtistProfileBase):
     user_id: int = Field(..., exclude=True)
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    service_category: Optional[ServiceCategoryResponse] = None
 
     @computed_field(return_type=int)
     @property
