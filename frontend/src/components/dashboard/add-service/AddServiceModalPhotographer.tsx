@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { TextInput } from "@/components/ui";
 import type { Service } from "@/types";
 import BaseServiceWizard, { type WizardStep } from "./BaseServiceWizard";
@@ -59,30 +60,102 @@ export default function AddServiceModalPhotographer({
     },
     {
       label: "Media",
-      render: ({ mediaFiles, setMediaFiles }) => (
+      validate: ({ mediaFiles, existingMediaUrl, mediaError }) =>
+        (mediaFiles.length > 0 || !!existingMediaUrl) && !mediaError,
+      render: ({
+        onFileChange,
+        removeFile,
+        mediaError,
+        thumbnails,
+        existingMediaUrl,
+        removeExistingMedia,
+      }) => (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Upload Media</h2>
-          <input
-            aria-label="Media"
-            type="file"
-            accept="image/*"
-            onChange={(e) =>
-              setMediaFiles(e.target.files ? Array.from(e.target.files) : [])
-            }
-          />
-          {mediaFiles[0] && <p data-testid="file-name">{mediaFiles[0].name}</p>}
+          <label
+            htmlFor="media-upload"
+            className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 text-center"
+          >
+            <p className="text-sm">Drag files here or click to upload</p>
+            <input
+              id="media-upload"
+              aria-label="Media"
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => onFileChange(e.target.files)}
+            />
+          </label>
+          {mediaError && (
+            <p className="mt-2 text-sm text-red-600">{mediaError}</p>
+          )}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {existingMediaUrl && (
+              <div className="relative h-20 w-20 overflow-hidden rounded border">
+                <Image
+                  src={existingMediaUrl}
+                  alt="existing-media"
+                  width={80}
+                  height={80}
+                  className="h-full w-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={removeExistingMedia}
+                  className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white"
+                >
+                  ×
+                </button>
+              </div>
+            )}
+            {thumbnails.map((src, i) => (
+              <div
+                key={i}
+                className="relative h-20 w-20 overflow-hidden rounded border"
+              >
+                <Image
+                  src={src}
+                  alt={`media-${i}`}
+                  width={80}
+                  height={80}
+                  className="h-full w-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeFile(i)}
+                  className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       ),
     },
     {
       label: "Review",
-      render: ({ form, mediaFiles }) => (
+      render: ({ form, thumbnails }) => (
         <div className="space-y-2">
           <h2 className="text-xl font-semibold">Review</h2>
           <p>{form.getValues("title")}</p>
           <p>{form.getValues("price")}</p>
           <p>{form.getValues("camera_brand")}</p>
-          {mediaFiles[0] && <p>{mediaFiles[0].name}</p>}
+          {thumbnails.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {thumbnails.map((src, i) => (
+                <Image
+                  key={i}
+                  src={src}
+                  alt={`media-${i}`}
+                  width={64}
+                  height={64}
+                  className="h-16 w-16 rounded object-cover"
+                />
+              ))}
+            </div>
+          )}
         </div>
       ),
     },
