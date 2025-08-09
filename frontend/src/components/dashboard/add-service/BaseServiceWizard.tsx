@@ -112,102 +112,104 @@ export default function BaseServiceWizard<T extends FieldValues>({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/30" />
+          <div
+            className="fixed inset-0 z-40 bg-gray-500/75"
+            aria-hidden="true"
+          />
         </Transition.Child>
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
+
+        <div className="fixed inset-0 z-50 flex p-0">
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0 scale-95"
+            enterTo="opacity-100 scale-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100 scale-100"
+            leaveTo="opacity-0 scale-95"
+          >
+            <Dialog.Panel
+              as="div"
+              className="pointer-events-auto relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none bg-white shadow-none md:flex-row"
+              data-testid="wizard"
             >
-              <Dialog.Panel
-                as="div"
-                className="pointer-events-auto relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none bg-white shadow-none md:flex-row"
-                data-testid="wizard"
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="absolute right-4 top-4 z-10 rounded-md p-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
               >
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="absolute right-4 top-4 z-10 rounded-md p-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                <XMarkIcon className="pointer-events-none h-5 w-5" />
+              </button>
+
+              <div className="flex w-full flex-none flex-col justify-between overflow-y-auto bg-gray-50 p-6 md:w-1/5">
+                <Stepper
+                  steps={steps.slice(0, steps.length - 1).map((s) => s.label)}
+                  currentStep={step}
+                  maxStepCompleted={maxStep}
+                  onStepClick={setStep}
+                  ariaLabel="Add service progress"
+                  className="space-y-4"
+                  orientation="vertical"
+                  noCircles
+                />
+              </div>
+
+              <div className="flex w-full flex-1 flex-col overflow-hidden md:w-3/5">
+                <form
+                  id="service-form"
+                  onSubmit={onSubmit}
+                  className="flex-1 space-y-4 overflow-y-scroll p-6"
                 >
-                  <XMarkIcon className="pointer-events-none h-5 w-5" />
-                </button>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={step}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      variants={stepVariants}
+                      transition={stepVariants.transition}
+                    >
+                      {steps[step].render({
+                        form: form as UseFormReturn<T>,
+                        mediaFiles,
+                        setMediaFiles,
+                      })}
+                    </motion.div>
+                  </AnimatePresence>
+                </form>
 
-                <div className="flex w-full flex-none flex-col justify-between overflow-y-auto bg-gray-50 p-6 md:w-1/5">
-                  <Stepper
-                    steps={steps.slice(0, steps.length - 1).map((s) => s.label)}
-                    currentStep={step}
-                    maxStepCompleted={maxStep}
-                    onStepClick={setStep}
-                    ariaLabel="Add service progress"
-                    className="space-y-4"
-                    orientation="vertical"
-                    noCircles
-                  />
-                </div>
-
-                <div className="flex w-full flex-1 flex-col overflow-hidden md:w-3/5">
-                  <form
-                    id="service-form"
-                    onSubmit={onSubmit}
-                    className="flex-1 space-y-4 overflow-y-scroll p-6"
+                <div className="flex flex-shrink-0 flex-col-reverse gap-2 border-t border-gray-100 p-4 sm:flex-row sm:justify-between">
+                  <Button
+                    variant="outline"
+                    onClick={step === 0 ? handleCancel : back}
+                    data-testid="back"
+                    className="min-h-[40px] w-full sm:w-auto"
                   >
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={step}
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                        variants={stepVariants}
-                        transition={stepVariants.transition}
-                      >
-                        {steps[step].render({
-                          form: form as UseFormReturn<T>,
-                          mediaFiles,
-                          setMediaFiles,
-                        })}
-                      </motion.div>
-                    </AnimatePresence>
-                  </form>
-
-                  <div className="flex flex-shrink-0 flex-col-reverse gap-2 border-t border-gray-100 p-4 sm:flex-row sm:justify-between">
+                    {step === 0 ? "Cancel" : "Back"}
+                  </Button>
+                  {step < steps.length - 1 && (
                     <Button
-                      variant="outline"
-                      onClick={step === 0 ? handleCancel : back}
-                      data-testid="back"
+                      onClick={next}
+                      data-testid="next"
                       className="min-h-[40px] w-full sm:w-auto"
                     >
-                      {step === 0 ? "Cancel" : "Back"}
+                      Next
                     </Button>
-                    {step < steps.length - 1 && (
-                      <Button
-                        onClick={next}
-                        data-testid="next"
-                        className="min-h-[40px] w-full sm:w-auto"
-                      >
-                        Next
-                      </Button>
-                    )}
-                    {step === steps.length - 1 && (
-                      <Button
-                        type="submit"
-                        form="service-form"
-                        isLoading={formState.isSubmitting}
-                        className="min-h-[40px] w-full sm:w-auto"
-                      >
-                        {service ? "Save Changes" : "Publish"}
-                      </Button>
-                    )}
-                  </div>
+                  )}
+                  {step === steps.length - 1 && (
+                    <Button
+                      type="submit"
+                      form="service-form"
+                      isLoading={formState.isSubmitting}
+                      className="min-h-[40px] w-full sm:w-auto"
+                    >
+                      {service ? "Save Changes" : "Publish"}
+                    </Button>
+                  )}
                 </div>
-              </Dialog.Panel>
-            </Transition.Child>
-          </div>
+              </div>
+            </Dialog.Panel>
+          </Transition.Child>
         </div>
       </Dialog>
     </Transition>
