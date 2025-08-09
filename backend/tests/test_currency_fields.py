@@ -6,6 +6,7 @@ from app.models.base import BaseModel
 from app.models.service import ServiceType
 from app.schemas import ServiceCreate, ServiceResponse
 from app.api import api_service
+from app.models.service_category import ServiceCategory
 
 
 def setup_db():
@@ -25,7 +26,17 @@ def test_service_response_includes_currency():
     db.add(profile)
     db.commit()
 
-    svc_in = ServiceCreate(title='Gig', duration_minutes=60, price=100, service_type=ServiceType.OTHER, media_url='x')
+    category = ServiceCategory(name="DJ")
+    db.add(category)
+    db.commit()
+    svc_in = ServiceCreate(
+        title='Gig',
+        duration_minutes=60,
+        price=100,
+        service_type=ServiceType.OTHER,
+        media_url='x',
+        service_category_id=category.id,
+    )
     svc = api_service.create_service(db=db, service_in=svc_in, current_artist=artist)
     schema = ServiceResponse.model_validate(svc)
     assert schema.currency == 'ZAR'

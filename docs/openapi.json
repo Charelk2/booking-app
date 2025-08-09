@@ -736,14 +736,16 @@
             "schema": {
               "anyOf": [
                 {
-                  "$ref": "#/components/schemas/ServiceType"
+                  "type": "string"
                 },
                 {
                   "type": "null"
                 }
               ],
+              "description": "Filter by service category",
               "title": "Category"
-            }
+            },
+            "description": "Filter by service category"
           },
           {
             "name": "location",
@@ -861,6 +863,24 @@
               "default": false,
               "title": "Include Price Distribution"
             }
+          },
+          {
+            "name": "artist",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by artist name",
+              "title": "Artist"
+            },
+            "description": "Filter by artist name"
           }
         ],
         "responses": {
@@ -1299,6 +1319,31 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/service-categories/": {
+      "get": {
+        "tags": [
+          "service-categories"
+        ],
+        "summary": "List Service Categories",
+        "operationId": "list_service_categories_api_v1_service_categories__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceCategoryResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Service Categories Api V1 Service Categories  Get"
                 }
               }
             }
@@ -4667,6 +4712,17 @@
             "title": "Price Visible",
             "default": true
           },
+          "service_category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Category Id"
+          },
           "first_name": {
             "anyOf": [
               {
@@ -4688,6 +4744,16 @@
               }
             ],
             "title": "Last Name"
+          },
+          "service_category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServiceCategoryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "id": {
             "type": "integer",
@@ -4837,6 +4903,17 @@
             "title": "Price Visible",
             "default": true
           },
+          "service_category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Category Id"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -4884,6 +4961,16 @@
               }
             ],
             "title": "Service Price"
+          },
+          "service_category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ServiceCategoryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "user": {
             "anyOf": [
@@ -5047,6 +5134,17 @@
             ],
             "title": "Price Visible",
             "default": true
+          },
+          "service_category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Category Id"
           }
         },
         "type": "object",
@@ -6420,9 +6518,7 @@
               {
                 "type": "null"
               }
-            ],
-            "title": "Action",
-            "description": "Optional call-to-action token such as 'review_quote' that the frontend uses to display contextual buttons."
+            ]
           },
           "expires_at": {
             "anyOf": [
@@ -6500,9 +6596,7 @@
               {
                 "type": "null"
               }
-            ],
-            "title": "Action",
-            "description": "Optional call-to-action token such as 'review_quote' that the frontend uses to display contextual buttons."
+            ]
           },
           "is_read": {
             "type": "boolean",
@@ -6556,7 +6650,8 @@
         "enum": [
           "USER",
           "QUOTE",
-          "SYSTEM"
+          "SYSTEM",
+          "TEXT"
         ],
         "title": "MessageType",
         "description": "Type of message being stored."
@@ -7544,6 +7639,36 @@
         ],
         "title": "SenderType"
       },
+      "ServiceCategoryResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ServiceCategoryResponse"
+      },
       "ServiceCreate": {
         "properties": {
           "title": {
@@ -7560,6 +7685,10 @@
               }
             ],
             "title": "Description"
+          },
+          "media_url": {
+            "type": "string",
+            "title": "Media Url"
           },
           "duration_minutes": {
             "type": "integer",
@@ -7626,14 +7755,60 @@
               }
             ],
             "title": "Travel Members"
+          },
+          "car_rental_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car Rental Price"
+          },
+          "flight_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flight Price"
+          },
+          "service_category_id": {
+            "type": "integer",
+            "title": "Service Category Id"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
           }
         },
         "type": "object",
         "required": [
           "title",
+          "media_url",
           "duration_minutes",
           "price",
-          "service_type"
+          "service_type",
+          "service_category_id"
         ],
         "title": "ServiceCreate"
       },
@@ -7704,6 +7879,10 @@
             ],
             "title": "Description"
           },
+          "media_url": {
+            "type": "string",
+            "title": "Media Url"
+          },
           "duration_minutes": {
             "anyOf": [
               {
@@ -7774,6 +7953,51 @@
             ],
             "title": "Travel Members"
           },
+          "car_rental_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car Rental Price"
+          },
+          "flight_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flight Price"
+          },
+          "service_category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Category Id"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -7805,6 +8029,7 @@
         },
         "type": "object",
         "required": [
+          "media_url",
           "display_order",
           "id",
           "artist_id",
@@ -7849,6 +8074,17 @@
             ],
             "title": "Description"
           },
+          "media_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Url"
+          },
           "duration_minutes": {
             "anyOf": [
               {
@@ -7931,6 +8167,57 @@
               }
             ],
             "title": "Travel Members"
+          },
+          "car_rental_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Car Rental Price"
+          },
+          "flight_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flight Price"
+          },
+          "service_category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Category Id"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
           }
         },
         "type": "object",
@@ -8276,7 +8563,8 @@
           "service_provider",
           "client"
         ],
-        "title": "UserType"
+        "title": "UserType",
+        "description": "Roles supported by the API."
       },
       "ValidationError": {
         "properties": {

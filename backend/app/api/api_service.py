@@ -11,6 +11,7 @@ from ..database import get_db
 from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
 
 from ..models.service import Service
+from ..models.service_category import ServiceCategory
 from ..schemas.service import ServiceCreate, ServiceUpdate, ServiceResponse
 from .dependencies import get_current_active_artist
 from ..utils import error_response
@@ -45,6 +46,17 @@ def create_service(
     Full path → POST /api/v1/services/
     """
     service_data = service_in.model_dump()
+    # Validate that the referenced service category exists
+    category_id = service_data.get("service_category_id")
+    if (
+        category_id is not None
+        and not db.query(ServiceCategory).filter(ServiceCategory.id == category_id).first()
+    ):
+        raise error_response(
+            "Invalid service category.",
+            {"service_category_id": "invalid"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
     max_order = (
         db.query(func.max(Service.display_order))
         .filter(Service.artist_id == current_artist.id)
@@ -85,6 +97,17 @@ def update_service(
         )
 
     update_data = service_in.model_dump(exclude_unset=True)
+    if "service_category_id" in update_data:
+        category_id = update_data["service_category_id"]
+        if (
+            category_id is not None
+            and not db.query(ServiceCategory).filter(ServiceCategory.id == category_id).first()
+        ):
+            raise error_response(
+                "Invalid service category.",
+                {"service_category_id": "invalid"},
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
     for field, value in update_data.items():
         setattr(service, field, value)
 
