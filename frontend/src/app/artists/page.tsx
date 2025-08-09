@@ -68,7 +68,13 @@ export default function ArtistsPage() {
           ? safeRecs.filter((a) => a.service_category?.name === serviceName)
           : safeRecs;
         if (serviceName === 'DJ') {
-          filtered = filtered.filter((a) => a.business_name && a.business_name.trim());
+          filtered = filtered.filter((a) => {
+            const business = a.business_name?.trim().toLowerCase();
+            const fullName = `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`
+              .trim()
+              .toLowerCase();
+            return business && business !== fullName;
+          });
         }
         setRecommended(filtered);
         setRecError(null);
@@ -151,7 +157,11 @@ export default function ArtistsPage() {
           const matchesCategory = !serviceName || a.service_category?.name === serviceName;
           if (!matchesCategory) return false;
           if (serviceName === 'DJ') {
-            return !!(a.business_name && a.business_name.trim());
+            const business = a.business_name?.trim().toLowerCase();
+            const fullName = `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`
+              .trim()
+              .toLowerCase();
+            return !!business && business !== fullName;
           }
           return !!(a.business_name || a.user);
         });
