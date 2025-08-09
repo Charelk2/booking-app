@@ -30,7 +30,6 @@ import { BookingRequest, ArtistProfile } from "@/types";
 import { formatStatus } from "@/lib/utils";
 import { Avatar } from "../ui";
 import Button from "../ui/Button";
-import CollapsibleSection from "../ui/CollapsibleSection";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   updateBookingRequestArtist,
@@ -307,7 +306,7 @@ export function OverviewCard({ label, value, icon, className }: OverviewCardProp
 }
 
 // ---------------------------------------------------------------------------
-// OverviewAccordion
+// OverviewSection
 
 interface Stat {
   label: string;
@@ -315,19 +314,17 @@ interface Stat {
   icon?: React.ReactNode;
 }
 
-interface OverviewAccordionProps {
+interface OverviewSectionProps {
   primaryStats: Stat[];
   secondaryStats?: Stat[];
 }
 
-export function OverviewAccordion({
+export function OverviewSection({
   primaryStats,
   secondaryStats = [],
-}: OverviewAccordionProps) {
-  const [open, setOpen] = useState(false);
-
+}: OverviewSectionProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         {primaryStats.map((s) => (
           <OverviewCard
@@ -339,23 +336,16 @@ export function OverviewAccordion({
         ))}
       </div>
       {secondaryStats.length > 0 && (
-        <CollapsibleSection
-          title="Overview"
-          open={open}
-          onToggle={() => setOpen(!open)}
-          className="border border-gray-200 rounded-md shadow-sm"
-        >
-          <div className="mt-2 grid grid-cols-2 gap-3">
-            {secondaryStats.map((s) => (
-              <OverviewCard
-                key={s.label}
-                label={s.label}
-                value={s.value}
-                icon={s.icon ?? null}
-              />
-            ))}
-          </div>
-        </CollapsibleSection>
+        <div className="grid grid-cols-2 gap-3 border-t pt-4">
+          {secondaryStats.map((s) => (
+            <OverviewCard
+              key={s.label}
+              label={s.label}
+              value={s.value}
+              icon={s.icon ?? null}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -502,7 +492,6 @@ interface SectionListProps<T> {
   data: T[];
   renderItem: (item: T) => React.ReactNode;
   emptyState: React.ReactNode;
-  defaultOpen?: boolean;
   footer?: React.ReactNode;
 }
 
@@ -511,29 +500,24 @@ export function SectionList<T>({
   data,
   renderItem,
   emptyState,
-  defaultOpen = false,
   footer,
 }: SectionListProps<T>) {
-  const [open, setOpen] = useState(defaultOpen && data.length > 0);
-
   return (
-    <CollapsibleSection
-      title={title}
-      open={open}
-      onToggle={() => setOpen(!open)}
-      className="border border-gray-200 rounded-md shadow-sm"
-    >
-      {data.length === 0 ? (
-        <div className="text-sm text-gray-500 py-2">{emptyState}</div>
-      ) : (
-        <ul className="space-y-2 mt-2">
-          {data.map((item, i) => (
-            <li key={i}>{renderItem(item)}</li>
-          ))}
-        </ul>
-      )}
-      {footer && <div className="mt-2">{footer}</div>}
-    </CollapsibleSection>
+    <section className="border border-gray-200 rounded-md shadow-sm">
+      <h2 className="px-4 py-2 text-lg font-medium">{title}</h2>
+      <div className="px-4 pb-4">
+        {data.length === 0 ? (
+          <div className="text-sm text-gray-500 py-2">{emptyState}</div>
+        ) : (
+          <ul className="space-y-2 mt-2">
+            {data.map((item, i) => (
+              <li key={i}>{renderItem(item)}</li>
+            ))}
+          </ul>
+        )}
+        {footer && <div className="mt-2">{footer}</div>}
+      </div>
+    </section>
   );
 }
 
