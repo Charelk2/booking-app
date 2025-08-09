@@ -6,6 +6,7 @@ import {
   XMarkIcon,
   MusicalNoteIcon,
   CameraIcon,
+  SpeakerWaveIcon,
   MegaphoneIcon,
   SparklesIcon,
   HomeModernIcon,
@@ -22,6 +23,7 @@ interface Category {
 
 const categories: Category[] = [
   { id: "musician", label: "Musician", Icon: MusicalNoteIcon },
+  { id: "dj", label: "DJ", Icon: SpeakerWaveIcon },
   { id: "photographer", label: "Photographer", Icon: CameraIcon },
   { id: "speaker", label: "Speaker", Icon: MegaphoneIcon },
   { id: "event_service", label: "Event Service", Icon: SparklesIcon },
