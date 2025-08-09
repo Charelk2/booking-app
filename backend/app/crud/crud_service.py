@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from .. import models, schemas
+from ..models.service_category import ServiceCategory
 
 class CRUDService:
     def get_service(self, db: Session, service_id: int) -> Optional[models.Service]:
@@ -21,6 +22,13 @@ class CRUDService:
     def create_artist_service(
         self, db: Session, service: schemas.ServiceCreate, artist_id: int
     ) -> models.Service:
+        # Ensure provided service_category_id exists
+        category_id = service.service_category_id
+        if (
+            category_id is not None
+            and not db.query(ServiceCategory).filter(ServiceCategory.id == category_id).first()
+        ):
+            raise ValueError("Invalid service category")
         db_service = models.Service(**service.model_dump(), artist_id=artist_id)
         db.add(db_service)
         db.commit()
@@ -34,6 +42,12 @@ class CRUDService:
         service_in: schemas.ServiceUpdate
     ) -> models.Service:
         update_data = service_in.model_dump(exclude_unset=True)
+        category_id = update_data.get("service_category_id")
+        if (
+            category_id is not None
+            and not db.query(ServiceCategory).filter(ServiceCategory.id == category_id).first()
+        ):
+            raise ValueError("Invalid service category")
         for key, value in update_data.items():
             setattr(db_service, key, value)
         db.commit()
