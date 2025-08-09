@@ -4,10 +4,20 @@ Artists can now publish offerings using a shared **BaseServiceWizard**. The wiza
 
 ## Categories
 
-- **Musician** – selects a service type such as Live Performance and sets pricing.
-- **Photographer** – captures camera details and pricing.
+All service categories share the BaseServiceWizard for a consistent layout and navigation. Seeded categories include:
 
-Both wizards submit to the existing `/api/v1/services/` endpoint. Media files are read client-side and sent as base64 strings in the `media_url` field.
+- **Musician**
+- **DJ**
+- **Photographer**
+- **Videographer**
+- **Speaker**
+- **Event Service**
+- **Wedding Venue**
+- **Caterer**
+- **Bartender**
+- **MC & Host**
+
+Each category adds its own fields; for example, a **Musician** selects a service type such as Live Performance and sets pricing, while a **Photographer** captures camera details and pricing. All wizards submit to the existing `/api/v1/services/` endpoint. Media files are read client-side and sent as base64 strings in the `media_url` field.
 
 ```http
 POST /api/v1/services/

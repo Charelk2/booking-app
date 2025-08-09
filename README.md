@@ -34,10 +34,8 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Personalized artist suggestions are available via `/api/v1/artists/recommended` and displayed on the Artists page.
 - Fixed an initial load bug where a selected date sent an invalid `when` value and caused a 422 error.
 - Dashboard now casts `user.id` to a number when fetching services to avoid 422 errors if the ID is stored as a string.
-- Search categories now map **Musician / Band** to the `Live Performance` service
-  type so searching musicians shows available artists.
-- The artist search endpoint now ignores unrecognised `category` values (for
-  example, `category=Musician`) and returns all artists instead of a 422 error.
+- Search categories now map each service category to its corresponding service type (for example, **Musician / Band** maps to `Live Performance`) so searching by category shows available artists.
+- The artist search endpoint now ignores unrecognised `category` values (for example, `category=Musician` or `category=DJ`) and returns all artists instead of a 422 error.
 - Category popup now includes an artist name search input for quick navigation to
   individual profiles.
 - An unobtrusive marketing strip replaces the old Hero section.
@@ -1029,7 +1027,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Service deletion now requires confirmation to prevent mistakes.
 * **Add Service** button now opens a full-screen wizard. Steps appear in a coral-accented stepper with keyboard focus trapping. Pricing is captured directly on the **Details** step, removing the previous **Packages** step. The final review mirrors earlier steps with image thumbnails before publishing.
 * Add Service wizard validates fields on each keystroke with dynamic hints like "Need 3 more characters" and the **Next** button enables automatically once inputs are valid.
-* A shared **BaseServiceWizard** powers most category wizards. `AddServiceModalPhotographer` still uses it for navigation, media uploads and API submission, while `AddServiceModalMusician` now implements a custom stepper. The wizard's media step now mirrors the musician experience with image-only validation, thumbnail previews and removable selections.
+* A shared **BaseServiceWizard** powers category wizards for Musician, DJ, Photographer, Videographer, Speaker, Event Service, Wedding Venue, Caterer, Bartender and MC & Host, providing consistent navigation, media uploads and API submission with image-only validation, thumbnail previews and removable selections.
 * Selecting **Live Performance** now reveals travel-related fields beneath the duration input. Artists can specify a travel rate in Rand per km (default R2.5) and the number of members travelling.
 * This travel rate now also factors into airport transfer costs when flying so estimates remain consistent.
 * The **Edit Service** modal now includes these travel fields so artists can update their rate per km and members travelling from the dashboard. These values are stored server-side so edits persist.
