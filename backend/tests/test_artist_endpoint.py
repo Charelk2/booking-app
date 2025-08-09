@@ -132,3 +132,79 @@ def test_category_excludes_artists_without_services(monkeypatch):
     body = res.json()
     assert body["total"] == 1
     app.dependency_overrides.pop(get_db, None)
+
+
+def test_dj_category_filters_legacy_artists(monkeypatch):
+    """Profiles with a business name matching the user's full name are excluded."""
+    Session = setup_app(monkeypatch)
+    db = Session()
+
+    dj_cat = ServiceCategory(name="DJ")
+    db.add(dj_cat)
+    db.commit()
+
+    legacy_user = User(
+        email="legacy@test.com",
+        password="x",
+        first_name="Legacy",
+        last_name="Artist",
+        user_type=UserType.SERVICE_PROVIDER,
+    )
+    legacy_profile = ArtistProfileV2(
+        user_id=1,
+        business_name="Legacy Artist",
+        service_category_id=dj_cat.id,
+    )
+    legacy_service = Service(
+        artist_id=1,
+        title="Old Set",
+        description="",
+        media_url="http://example.com",
+        price=100,
+        currency="ZAR",
+        duration_minutes=60,
+        service_type=ServiceType.LIVE_PERFORMANCE,
+        service_category_id=dj_cat.id,
+    )
+
+    dj_user = User(
+        email="dj@test.com",
+        password="x",
+        first_name="Thabo",
+        last_name="Mix",
+        user_type=UserType.SERVICE_PROVIDER,
+    )
+    dj_profile = ArtistProfileV2(
+        user_id=2,
+        business_name="Beats Inc",
+        service_category_id=dj_cat.id,
+    )
+    dj_service = Service(
+        artist_id=2,
+        title="DJ Set",
+        description="",
+        media_url="http://example.com",
+        price=200,
+        currency="ZAR",
+        duration_minutes=60,
+        service_type=ServiceType.LIVE_PERFORMANCE,
+        service_category_id=dj_cat.id,
+    )
+
+    db.add_all([
+        legacy_user,
+        legacy_profile,
+        legacy_service,
+        dj_user,
+        dj_profile,
+        dj_service,
+    ])
+    db.commit()
+
+    client = TestClient(app)
+    res = client.get("/api/v1/artist-profiles/?category=DJ")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["total"] == 1
+    assert body["data"][0]["business_name"] == "Beats Inc"
+    app.dependency_overrides.pop(get_db, None)
