@@ -187,7 +187,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             >
               <Bars3Icon className="h-6 w-6" />
             </button>
-            <Link href="/" className="text-2xl font-bold text-brand-dark no-underline">
+            <Link href="/" className="text-4xl font-bold text-brand-dark no-underline">
               Booka
             </Link>
           </div>
