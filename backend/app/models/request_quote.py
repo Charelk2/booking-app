@@ -20,7 +20,7 @@ class BookingRequest(Base):
     id = Column(Integer, primary_key=True, index=True)
     client_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     artist_id = Column(Integer, ForeignKey("users.id"), nullable=False) # The artist's user_id
-    service_id = Column(Integer, ForeignKey("services.id"), nullable=True) # Optional
+    service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"), nullable=True) # Optional
 
     message = Column(Text, nullable=True)
     attachment_url = Column(String, nullable=True)
