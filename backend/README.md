@@ -54,4 +54,7 @@ without this field.
 The `/api/v1/artist-profiles/` endpoint returns an empty list when a `category`
 query parameter is provided but no matching `ServiceCategory` exists. This
 ensures that irrelevant artists are not shown when a category has no services.
+Additionally, when a valid `category` is supplied, only artists with at least
+one service in that category are returned so legacy providers without
+category-specific offerings are excluded.
 

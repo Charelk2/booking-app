@@ -519,26 +519,23 @@ def read_all_artist_profiles(
     join_services = False
     service_price_col = None
     if category_slug or min_price is not None or max_price is not None:
-        price_subq = (
-            db.query(
-                Service.artist_id.label("artist_id"),
-                func.min(Service.price).label("service_price"),
-            )
-            .group_by(Service.artist_id)
-            .subquery()
+        price_query = db.query(
+            Service.artist_id.label("artist_id"),
+            func.min(Service.price).label("service_price"),
         )
-        query = query.join(Service).join(price_subq, price_subq.c.artist_id == Artist.user_id)
+        if category_slug:
+            price_query = price_query.join(Service.service_category).filter(
+                func.lower(ServiceCategory.name) == category_slug.replace("_", " ")
+            )
+        price_subq = price_query.group_by(Service.artist_id).subquery()
+        query = query.join(price_subq, price_subq.c.artist_id == Artist.user_id)
         query = query.add_columns(price_subq.c.service_price)
         service_price_col = price_subq.c.service_price
         join_services = True
-    if category_slug:
-        query = query.join(Artist.service_category).filter(
-            func.lower(ServiceCategory.name) == category_slug.replace("_", " ")
-        )
     if min_price is not None:
-        query = query.filter(Service.price >= min_price)
+        query = query.filter(service_price_col >= min_price)
     if max_price is not None:
-        query = query.filter(Service.price <= max_price)
+        query = query.filter(service_price_col <= max_price)
     if join_services:
         query = query.group_by(
             Artist.user_id,
