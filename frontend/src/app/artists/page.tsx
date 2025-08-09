@@ -83,6 +83,7 @@ export default function ArtistsPage() {
       }: { append?: boolean; pageNumber: number },
     ) => {
       setLoading(true);
+      setError(null);
       try {
         const res = await getArtists({
           category,
