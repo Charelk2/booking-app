@@ -61,6 +61,12 @@ const wizardLoaders: Record<string, () => Promise<{ default: ComponentType<Wizar
   photographer: () => import("@/components/dashboard/add-service/AddServiceModalPhotographer"),
   dj: () => import("@/components/dashboard/add-service/AddServiceModalDJ"),
   event_service: () => import("@/components/dashboard/add-service/AddServiceModalEventService"),
+  videographer: () => import("@/components/dashboard/add-service/AddServiceModalVideographer"),
+  speaker: () => import("@/components/dashboard/add-service/AddServiceModalSpeaker"),
+  wedding_venue: () => import("@/components/dashboard/add-service/AddServiceModalWeddingVenue"),
+  caterer: () => import("@/components/dashboard/add-service/AddServiceModalCaterer"),
+  bartender: () => import("@/components/dashboard/add-service/AddServiceModalBartender"),
+  mc_host: () => import("@/components/dashboard/add-service/AddServiceModalMcHost"),
 };
 
 interface ServiceCardProps {
