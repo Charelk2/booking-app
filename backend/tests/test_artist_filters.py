@@ -40,7 +40,6 @@ def create_artist(db, name, location, category_name, rating=5, bookings=0):
         user_id=user.id,
         business_name=name,
         location=location,
-        service_category_id=cat.id,
     )
     service = Service(
         artist_id=user.id,

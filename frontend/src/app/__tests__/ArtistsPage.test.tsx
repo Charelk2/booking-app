@@ -24,21 +24,13 @@ describe('ArtistsPage', () => {
           id: 10,
           user: { first_name: 'DJ', last_name: 'One' },
           business_name: 'DJ One Biz',
-          service_category: { name: 'DJ' },
         },
         {
           id: 11,
           user: { first_name: 'DJ', last_name: 'NoBiz' },
-          service_category: { name: 'DJ' },
-        },
-        {
-          id: 12,
-          user: { first_name: 'Mus', last_name: 'Other' },
-          business_name: 'Other Biz',
-          service_category: { name: 'Musician' },
         },
       ],
-      total: 3,
+      total: 2,
       price_distribution: [],
     });
     mockedGetRecommended.mockResolvedValue([
@@ -46,12 +38,10 @@ describe('ArtistsPage', () => {
         id: 1,
         user: { first_name: 'Rec', last_name: 'DJ' },
         business_name: 'Rec DJ Biz',
-        service_category: { name: 'DJ' },
       },
       {
         id: 2,
         user: { first_name: 'Rec', last_name: 'NoBiz' },
-        service_category: { name: 'DJ' },
       },
     ] as unknown as ArtistProfile[]);
   });
@@ -67,7 +57,6 @@ describe('ArtistsPage', () => {
 
     await screen.findByText('DJ One Biz');
     expect(screen.queryByText('DJ NoBiz')).toBeNull();
-    expect(screen.queryByText('Other Biz')).toBeNull();
 
     await screen.findByText('Rec DJ Biz');
     expect(screen.queryByText('Rec NoBiz')).toBeNull();

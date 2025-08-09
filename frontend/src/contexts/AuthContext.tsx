@@ -67,10 +67,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (profile.data.profile_picture_url) {
           extras.profile_picture_url = profile.data.profile_picture_url;
         }
-        if (profile.data.service_category_id) {
-          // @ts-ignore augmenting user type at runtime
-          extras.service_category_id = profile.data.service_category_id;
-        }
         userData = { ...userData, ...extras };
       } catch (err) {
         console.error('Failed to fetch artist profile:', err);

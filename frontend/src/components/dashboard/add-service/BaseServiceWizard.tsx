@@ -17,7 +17,6 @@ import {
   updateService as apiUpdateService,
 } from "@/lib/api";
 import type { Service } from "@/types";
-import { useAuth } from "@/contexts/AuthContext";
 
 function useImageThumbnails(files: File[]) {
   const [thumbnails, setThumbnails] = useState<string[]>([]);
@@ -83,7 +82,6 @@ export default function BaseServiceWizard<T extends FieldValues>({
   );
   const thumbnails = useImageThumbnails(mediaFiles);
 
-  const { user } = useAuth();
 
   const form = useForm<T>({ defaultValues });
   const { handleSubmit, trigger, reset, formState } = form;
@@ -180,9 +178,6 @@ export default function BaseServiceWizard<T extends FieldValues>({
         });
       }
       const payload = toPayload(data, mediaUrl);
-      if (user?.service_category_id && payload.service_category_id == null) {
-        payload.service_category_id = user.service_category_id;
-      }
       const res = service
         ? await apiUpdateService(service.id, payload)
         : await apiCreateService(payload);

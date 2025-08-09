@@ -4712,17 +4712,6 @@
             "title": "Price Visible",
             "default": true
           },
-          "service_category_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Service Category Id"
-          },
           "first_name": {
             "anyOf": [
               {
@@ -4744,16 +4733,6 @@
               }
             ],
             "title": "Last Name"
-          },
-          "service_category": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ServiceCategoryResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "id": {
             "type": "integer",
@@ -4903,17 +4882,6 @@
             "title": "Price Visible",
             "default": true
           },
-          "service_category_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Service Category Id"
-          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -4961,16 +4929,6 @@
               }
             ],
             "title": "Service Price"
-          },
-          "service_category": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ServiceCategoryResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "user": {
             "anyOf": [
@@ -5134,17 +5092,6 @@
             ],
             "title": "Price Visible",
             "default": true
-          },
-          "service_category_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Service Category Id"
           }
         },
         "type": "object",

@@ -102,7 +102,6 @@ def test_category_excludes_artists_without_services(monkeypatch):
     profile = ArtistProfileV2(
         user_id=1,
         business_name="DJ Without Service",
-        service_category_id=dj_cat.id,
     )
     db.add_all([user, profile])
     db.commit()

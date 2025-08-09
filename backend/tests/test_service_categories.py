@@ -40,7 +40,7 @@ def override_user(user):
     return _override
 
 
-def test_list_and_update_category(monkeypatch):
+def test_list_categories(monkeypatch):
     Session = setup_db(monkeypatch)
     db = Session()
     user = User(
@@ -78,9 +78,6 @@ def test_list_and_update_category(monkeypatch):
     ]
     assert [c["name"] for c in data] == expected_categories
 
-    res = client.put("/api/v1/artist-profiles/me", json={"service_category_id": data[0]["id"]})
-    assert res.status_code == 200
-    assert res.json()["service_category_id"] == data[0]["id"]
 
     if prev_user is not None:
         app.dependency_overrides[get_current_user] = prev_user
