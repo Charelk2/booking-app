@@ -12,7 +12,7 @@ describe("AddServiceModalMusician editing", () => {
       id: 1,
       artist_id: 1,
       title: "Old Title",
-      description: "Desc",
+      description: "Existing service description that is long enough.",
       media_url: "img.jpg",
       price: 100,
       duration_minutes: 60,
@@ -34,7 +34,8 @@ describe("AddServiceModalMusician editing", () => {
 
     await user.click(screen.getByTestId("next"));
     await user.click(screen.getByTestId("next"));
-    await user.click(screen.getByRole("button", { name: /Save/i }));
+    await user.click(screen.getByTestId("next"));
+    await user.click(screen.getByRole("button", { name: /Save Changes/i }));
     await flushPromises();
 
     expect(spy).toHaveBeenCalledWith(1, expect.any(Object));
