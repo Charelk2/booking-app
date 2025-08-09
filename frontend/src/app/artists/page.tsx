@@ -7,7 +7,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { getArtists, getRecommendedArtists, type PriceBucket } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
-import ArtistCard from '@/components/artist/ArtistCard';
+import ArtistCardCompact from '@/components/artist/ArtistCardCompact';
 import { ArtistsPageHeader } from '@/components/artist/ArtistServiceCard';
 import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -165,16 +165,15 @@ export default function ArtistsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {recommended.length > 0 && (
           <div>
-            <h2 className="text-xl font-semibold mb-4">Recommended for you</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-              {recommended.map((a, i) => {
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Recommended for you</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-2 md:gap-2">
+              {recommended.map((a) => {
                 const user = a.user;
                 const name = a.business_name || `${user.first_name} ${user.last_name}`;
                 return (
-                  <ArtistCard
+                  <ArtistCardCompact
                     key={`rec-${a.id}`}
                     artistId={a.id}
-                    priority={i === 0}
                     name={name}
                     subtitle={a.custom_subtitle || undefined}
                     imageUrl={
@@ -188,12 +187,9 @@ export default function ArtistsPage() {
                           ? Number(a.hourly_rate)
                           : undefined
                     }
-                    location={a.location}
-                    specialties={a.specialties}
                     rating={a.rating ?? undefined}
                     ratingCount={a.rating_count ?? undefined}
-                    verified={user?.is_verified}
-                    isAvailable={a.is_available}
+                    location={a.location}
                     href={qs ? `/artists/${a.id}?${qs}` : `/artists/${a.id}`}
                   />
                 );
@@ -208,15 +204,14 @@ export default function ArtistsPage() {
         {error && <p className="text-red-600">{error}</p>}
         {!loading && artists.length === 0 && <p>No artists found.</p>}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {artists.map((a, i) => {
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-2 md:gap-2">
+          {artists.map((a) => {
             const user = a.user;
             const name = a.business_name || `${user.first_name} ${user.last_name}`;
             return (
-              <ArtistCard
+              <ArtistCardCompact
                 key={a.id}
                 artistId={a.id}
-                priority={i === 0}
                 name={name}
                 subtitle={a.custom_subtitle || undefined}
                 imageUrl={
@@ -230,12 +225,9 @@ export default function ArtistsPage() {
                       ? Number(a.hourly_rate)
                       : undefined
                 }
-                location={a.location}
-                specialties={a.specialties}
                 rating={a.rating ?? undefined}
                 ratingCount={a.rating_count ?? undefined}
-                verified={user?.is_verified}
-                isAvailable={a.is_available}
+                location={a.location}
                 href={qs ? `/artists/${a.id}?${qs}` : `/artists/${a.id}`}
               />
             );
