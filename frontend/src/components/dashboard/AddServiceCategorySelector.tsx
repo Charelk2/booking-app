@@ -58,10 +58,10 @@ export default function AddServiceCategorySelector({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/30" />
+          <div className="fixed inset-0 z-0 bg-black/30" />
         </Transition.Child>
 
-        <Dialog.Panel className="flex h-full w-full flex-col bg-white">
+        <Dialog.Panel className="relative z-10 flex h-full w-full flex-col bg-white">
           <div className="flex items-center justify-between p-6">
             <Dialog.Title className="text-lg font-semibold">
               Select Service Category
