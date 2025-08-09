@@ -22,7 +22,8 @@ from app.models.artist_profile_v2 import ArtistProfileV2 as Artist
 from app.models.booking import Booking
 from app.models.booking_status import BookingStatus
 from app.models.request_quote import BookingRequest
-from app.models.service import Service, ServiceType
+from app.models.service import Service
+from app.models.service_category import ServiceCategory
 from app.models.review import Review
 from app.schemas.artist import (
     ArtistProfileResponse,
@@ -440,21 +441,21 @@ def read_all_artist_profiles(
     if hasattr(artist, "default"):
         artist = None
 
-    # Coerce category to ServiceType if possible. Unknown strings are ignored
-    # so requests like ``?category=Musician`` simply return all artists.
-    category_enum: Optional[ServiceType] = None
-    if isinstance(category, ServiceType):
-        category_enum = category
-    elif isinstance(category, str) and category:
-        try:
-            category_enum = ServiceType(category)
-        except ValueError:
-            logger.debug("Unknown category '%s' provided; ignoring filter", category)
-            category_enum = None
+    # Normalize ``category`` to a slug (e.g. "videographer") so the filter works
+    # regardless of whether the frontend sends "Videographer" or "videographer".
+    category_slug: Optional[str] = None
+    if isinstance(category, str) and category:
+        category_slug = category.lower().replace(" ", "_")
+        normalized_name = category_slug.replace("_", " ")
+        exists = (
+            db.query(ServiceCategory.id)
+            .filter(func.lower(ServiceCategory.name) == normalized_name)
+            .first()
+        )
+        if not exists:
+            category_slug = None
 
-    cache_category = (
-        category_enum.value if isinstance(category_enum, ServiceType) else None
-    )
+    cache_category = category_slug
     cached = None
     if not include_price_distribution and when is None and not artist:
         cached = get_cached_artist_list(
@@ -512,7 +513,7 @@ def read_all_artist_profiles(
 
     join_services = False
     service_price_col = None
-    if category_enum or min_price is not None or max_price is not None:
+    if category_slug or min_price is not None or max_price is not None:
         price_subq = (
             db.query(
                 Service.artist_id.label("artist_id"),
@@ -525,8 +526,10 @@ def read_all_artist_profiles(
         query = query.add_columns(price_subq.c.service_price)
         service_price_col = price_subq.c.service_price
         join_services = True
-    if category_enum:
-        query = query.filter(Service.service_type == category_enum)
+    if category_slug:
+        query = query.join(Artist.service_category).filter(
+            func.lower(ServiceCategory.name) == category_slug.replace("_", " ")
+        )
     if min_price is not None:
         query = query.filter(Service.price >= min_price)
     if max_price is not None:
