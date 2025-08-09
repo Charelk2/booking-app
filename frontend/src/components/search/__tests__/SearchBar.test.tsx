@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react';
 import SearchBar from '../SearchBar';
+import { UI_CATEGORIES } from '@/lib/categoryMap';
 
 // Mock next/dynamic to synchronously load a minimal SearchPopupContent
 jest.mock('next/dynamic', () => () => {
@@ -145,5 +146,41 @@ describe('SearchBar', () => {
     expect(getByText('category')).not.toBeNull();
 
     jest.useRealTimers();
+  });
+
+  it('shows category clear button only after a category is selected', () => {
+    const Wrapper = () => {
+      const [category, setCategory] = React.useState(null);
+      const [location, setLocation] = React.useState('');
+      const [when, setWhen] = React.useState<Date | null>(null);
+      return (
+        <>
+          <SearchBar
+            category={category}
+            setCategory={setCategory}
+            location={location}
+            setLocation={setLocation}
+            when={when}
+            setWhen={setWhen}
+            onSearch={jest.fn()}
+          />
+          <button
+            type="button"
+            data-testid="select-category"
+            onClick={() => setCategory(UI_CATEGORIES[0])}
+          >
+            select
+          </button>
+        </>
+      );
+    };
+
+    const { queryByLabelText, getByTestId } = render(<Wrapper />);
+
+    expect(queryByLabelText('Clear Category')).toBeNull();
+
+    fireEvent.click(getByTestId('select-category'));
+
+    expect(queryByLabelText('Clear Category')).not.toBeNull();
   });
 });

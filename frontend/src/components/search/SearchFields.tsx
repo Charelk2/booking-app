@@ -85,7 +85,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       const isValuePresent =
         typeof currentValue === 'string' &&
         currentValue !== '' &&
-        !['Add service', 'Add dates', 'Add location'].includes(currentValue);
+        !['Add artist', 'Add dates', 'Add location'].includes(currentValue);
       const Icon = iconMap[id];
 
       return (
