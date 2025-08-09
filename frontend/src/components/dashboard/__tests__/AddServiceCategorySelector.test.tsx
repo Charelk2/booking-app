@@ -117,7 +117,9 @@ describe("AddServiceCategorySelector", () => {
       );
     });
 
-    const panel = document.body.querySelector("div.flex.h-full.w-full");
+    const panel = document.body.querySelector(
+      "div.relative.z-10.flex.h-full.w-full"
+    );
     expect(panel).not.toBeNull();
 
     act(() => root.unmount());
