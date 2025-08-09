@@ -5,6 +5,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { getArtists, getRecommendedArtists, type PriceBucket } from '@/lib/api';
+import { UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCardCompact from '@/components/artist/ArtistCardCompact';
@@ -44,14 +45,23 @@ export default function ArtistsPage() {
     const load = async () => {
       try {
         const recs = await getRecommendedArtists();
-        setRecommended(recs);
+        // Only surface recommendations matching the currently selected UI category.
+        // The API returns personalized suggestions across all categories, so we
+        // derive the backend service name from the UI value and filter on the
+        // client to avoid showing musicians when browsing DJs or other services.
+        const serviceName = category ? UI_CATEGORY_TO_SERVICE[category] : undefined;
+        const safeRecs = Array.isArray(recs) ? recs : [];
+        const filtered = serviceName
+          ? safeRecs.filter((a) => a.service_category?.name === serviceName)
+          : safeRecs;
+        setRecommended(filtered);
       } catch (err) {
         console.error(err);
         setRecError('Failed to load recommendations.');
       }
     };
     load();
-  }, []);
+  }, [category]);
 
   useEffect(() => {
     const serviceCat = searchParams.get('category') || undefined;
