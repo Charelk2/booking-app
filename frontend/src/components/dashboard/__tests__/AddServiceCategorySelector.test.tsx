@@ -36,7 +36,7 @@ describe("AddServiceCategorySelector", () => {
     container.remove();
   });
 
-  it("handles selecting newly added categories", async () => {
+  it("handles selecting DJ category", async () => {
     const onSelect = jest.fn();
     const onClose = jest.fn();
     const container = document.createElement("div");
@@ -54,14 +54,46 @@ describe("AddServiceCategorySelector", () => {
     });
 
     const button = document.body.querySelector(
-      'button[data-testid="category-speaker"]'
+      'button[data-testid="category-dj"]'
     ) as HTMLButtonElement;
 
     await act(async () => {
       button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    expect(onSelect).toHaveBeenCalledWith("speaker");
+    expect(onSelect).toHaveBeenCalledWith("dj");
+    expect(onClose).toHaveBeenCalled();
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it("handles selecting Event Service category", async () => {
+    const onSelect = jest.fn();
+    const onClose = jest.fn();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        React.createElement(AddServiceCategorySelector, {
+          isOpen: true,
+          onClose,
+          onSelect,
+        })
+      );
+    });
+
+    const button = document.body.querySelector(
+      'button[data-testid="category-event_service"]'
+    ) as HTMLButtonElement;
+
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onSelect).toHaveBeenCalledWith("event_service");
     expect(onClose).toHaveBeenCalled();
 
     act(() => root.unmount());
