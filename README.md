@@ -1028,7 +1028,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Service deletion now requires confirmation to prevent mistakes.
 * **Add Service** button now opens a full-screen wizard. Steps appear in a coral-accented stepper with keyboard focus trapping. Pricing is captured directly on the **Details** step, removing the previous **Packages** step. The final review mirrors earlier steps with image thumbnails before publishing.
 * Add Service wizard validates fields on each keystroke with dynamic hints like "Need 3 more characters" and the **Next** button enables automatically once inputs are valid.
-* A shared **BaseServiceWizard** now powers category wizards. Components like `AddServiceModalMusician` and `AddServiceModalPhotographer` provide custom fields while the base handles navigation, media uploads and API submission.
+* A shared **BaseServiceWizard** powers most category wizards. `AddServiceModalPhotographer` still uses it for navigation, media uploads and API submission, while `AddServiceModalMusician` now implements a custom stepper.
 * Selecting **Live Performance** now reveals travel-related fields beneath the duration input. Artists can specify a travel rate in Rand per km (default R2.5) and the number of members travelling.
 * This travel rate now also factors into airport transfer costs when flying so estimates remain consistent.
 * The **Edit Service** modal now includes these travel fields so artists can update their rate per km and members travelling from the dashboard. These values are stored server-side so edits persist.
