@@ -266,7 +266,7 @@ export default function ArtistProfilePage() {
           </aside>
 
           {/* Right Panel: scrollable content */}
-          <section className="md:w-3/5 p-6 space-y-8 md:mt-[5.5rem]">
+          <section className="md:w-3/5 p-6 space-y-8">
             {/* Services Section */}
             <section id="services" aria-labelledby="services-heading" role="region">
             
