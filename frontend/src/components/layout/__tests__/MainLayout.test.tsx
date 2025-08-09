@@ -35,6 +35,34 @@ describe('MainLayout header behavior', () => {
     div.remove();
   });
 
+  it('keeps header expanded in artist view', async () => {
+    usePathname.mockReturnValue('/artists');
+    (useAuth as jest.Mock).mockReturnValue({
+      user: { id: 10, email: 'artist@test.com', user_type: 'service_provider' } as User,
+      logout: jest.fn(),
+      artistViewActive: true,
+    });
+    Object.defineProperty(window, 'scrollY', { writable: true, configurable: true, value: 0 });
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(React.createElement(MainLayout, null, React.createElement('div')));
+    });
+    await flushPromises();
+    const header = div.querySelector('#app-header') as HTMLElement;
+    expect(header.getAttribute('data-header-state')).toBe('initial');
+    await act(async () => {
+      window.scrollY = 100;
+      window.dispatchEvent(new Event('scroll'));
+    });
+    await flushPromises();
+    expect(header.getAttribute('data-header-state')).toBe('initial');
+    window.scrollY = 0;
+    act(() => { root.unmount(); });
+    div.remove();
+  });
+
   it('keeps search pill available on artists listing page', async () => {
     usePathname.mockReturnValue('/artists');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 3, email: 'c@test.com', user_type: 'client' } as User, logout: jest.fn() });
