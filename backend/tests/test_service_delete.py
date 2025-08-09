@@ -83,3 +83,70 @@ def test_delete_service_cascades_messages():
 
     assert db.query(BookingRequest).count() == 0
     assert db.query(Message).count() == 0
+
+
+def test_delete_service_handles_legacy_text_messages():
+    """Deleting a service should work even if old messages use the legacy
+    ``TEXT`` type."""
+    db = setup_db()
+    artist_user = User(
+        email="a@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.SERVICE_PROVIDER,
+    )
+    client_user = User(
+        email="c@test.com",
+        password="x",
+        first_name="C",
+        last_name="Client",
+        user_type=UserType.CLIENT,
+    )
+    db.add_all([artist_user, client_user])
+    db.commit()
+    db.refresh(artist_user)
+    db.refresh(client_user)
+
+    profile = ArtistProfileV2(user_id=artist_user.id)
+    service = Service(
+        artist_id=artist_user.id,
+        title="Gig",
+        price=100,
+        duration_minutes=60,
+        service_type=ServiceType.OTHER,
+        media_url="x",
+    )
+    profile.services.append(service)
+    db.add(profile)
+    db.commit()
+    db.refresh(service)
+
+    br = BookingRequest(
+        client_id=client_user.id,
+        artist_id=artist_user.id,
+        service_id=service.id,
+        status=BookingStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+    db.refresh(br)
+
+    # Insert legacy message with raw TEXT type
+    db.execute(
+        Message.__table__.insert().values(
+            booking_request_id=br.id,
+            sender_id=client_user.id,
+            sender_type=SenderType.CLIENT,
+            content="hi",
+            message_type="TEXT",
+        )
+    )
+    db.commit()
+
+    assert db.query(Message).count() == 1
+    db.delete(service)
+    db.commit()
+
+    assert db.query(BookingRequest).count() == 0
+    assert db.query(Message).count() == 0
