@@ -18,14 +18,40 @@ import {
 } from "@/lib/api";
 import type { Service } from "@/types";
 
+function useImageThumbnails(files: File[]) {
+  const [thumbnails, setThumbnails] = useState<string[]>([]);
+
+  useEffect(() => {
+    const urls = files.map((file) => URL.createObjectURL(file));
+    setThumbnails(urls);
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [files]);
+
+  return thumbnails;
+}
+
 export interface WizardStep<T extends FieldValues> {
   label: string;
   render: (args: {
     form: UseFormReturn<T>;
     mediaFiles: File[];
     setMediaFiles: (files: File[]) => void;
+    onFileChange: (files: FileList | null) => void;
+    removeFile: (index: number) => void;
+    existingMediaUrl: string | null;
+    removeExistingMedia: () => void;
+    mediaError: string | null;
+    thumbnails: string[];
   }) => ReactNode;
   fields?: (keyof T)[];
+  validate?: (args: {
+    form: UseFormReturn<T>;
+    mediaFiles: File[];
+    existingMediaUrl: string | null;
+    mediaError: string | null;
+  }) => boolean | Promise<boolean>;
 }
 
 interface BaseServiceWizardProps<T extends FieldValues> {
@@ -50,6 +76,11 @@ export default function BaseServiceWizard<T extends FieldValues>({
   const [step, setStep] = useState(0);
   const [maxStep, setMaxStep] = useState(0);
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+  const [existingMediaUrl, setExistingMediaUrl] = useState<string | null>(
+    service?.media_url ?? null,
+  );
+  const thumbnails = useImageThumbnails(mediaFiles);
 
   const form = useForm<T>({ defaultValues });
   const { handleSubmit, trigger, reset, formState } = form;
@@ -62,6 +93,18 @@ export default function BaseServiceWizard<T extends FieldValues>({
   const next = async () => {
     const fields = steps[step].fields;
     if (fields && !(await trigger(fields as string[]))) return;
+    const validate = steps[step].validate;
+    if (
+      validate &&
+      !(await validate({
+        form: form as UseFormReturn<T>,
+        mediaFiles,
+        existingMediaUrl,
+        mediaError,
+      }))
+    ) {
+      return;
+    }
     setStep((s) => s + 1);
   };
 
@@ -70,13 +113,60 @@ export default function BaseServiceWizard<T extends FieldValues>({
   const handleCancel = () => {
     reset(defaultValues);
     setMediaFiles([]);
+    setExistingMediaUrl(service?.media_url ?? null);
+    setMediaError(null);
     setStep(0);
     setMaxStep(0);
     onClose();
   };
 
+  useEffect(() => {
+    if (isOpen) {
+      reset(defaultValues);
+      setMediaFiles([]);
+      setExistingMediaUrl(service?.media_url ?? null);
+      setMediaError(null);
+      setStep(0);
+      setMaxStep(0);
+    }
+  }, [isOpen, service, reset, defaultValues]);
+
+  const onFileChange = (files: FileList | null) => {
+    if (!files) return;
+    const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (images.length !== files.length) {
+      setMediaError("Only image files are allowed.");
+    } else {
+      setMediaError(null);
+    }
+    setMediaFiles((prev) => {
+      const updated = [...prev, ...images];
+      if (updated.length === 0 && !existingMediaUrl) {
+        setMediaError("At least one image is required.");
+      }
+      return updated;
+    });
+  };
+
+  const removeFile = (i: number) => {
+    setMediaFiles((prev) => {
+      const updated = prev.filter((_, idx) => idx !== i);
+      if (updated.length === 0 && !existingMediaUrl) {
+        setMediaError("At least one image is required.");
+      }
+      return updated;
+    });
+  };
+
+  const removeExistingMedia = () => {
+    setExistingMediaUrl(null);
+    if (!mediaFiles.some((f) => f.type.startsWith("image/"))) {
+      setMediaError("At least one image is required.");
+    }
+  };
+
   const onSubmit = handleSubmit(async (data: T) => {
-    let mediaUrl: string | null = service?.media_url ?? null;
+    let mediaUrl: string | null = existingMediaUrl;
     if (mediaFiles[0]) {
       mediaUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -173,6 +263,12 @@ export default function BaseServiceWizard<T extends FieldValues>({
                         form: form as UseFormReturn<T>,
                         mediaFiles,
                         setMediaFiles,
+                        onFileChange,
+                        removeFile,
+                        existingMediaUrl,
+                        removeExistingMedia,
+                        mediaError,
+                        thumbnails,
                       })}
                     </motion.div>
                   </AnimatePresence>
