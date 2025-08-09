@@ -1112,9 +1112,11 @@ The dashboard brings common actions to the surface with a tidy layout:
 `GET /api/v1/artist-profiles/` supports pagination and optional filters:
 
 ```
-page=<number>&limit=<1-100>&category=<ServiceType>&location=<substring>&sort=<top_rated|most_booked|newest>&minPrice=<number>&maxPrice=<number>&include_price_distribution=<true|false>
+page=<number>&limit=<1-100>&category=<slug>&location=<substring>&sort=<top_rated|most_booked|newest>&minPrice=<number>&maxPrice=<number>&include_price_distribution=<true|false>
 &when=<YYYY-MM-DD>
 ```
+
+The `category` parameter accepts a lowercase slug such as `musician` or `videographer`.
 
 When building query strings in JavaScript, format dates as pure `YYYY-MM-DD`
 values to avoid validation errors:
