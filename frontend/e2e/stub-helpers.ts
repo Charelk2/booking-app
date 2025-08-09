@@ -14,6 +14,7 @@ export async function stubLogin(page: Page) {
 }
 
 export async function stubRegister(page: Page) {
+  await stubLogin(page);
   await page.route('**/auth/register', async (route) => {
     await route.fulfill({
       status: 200,
@@ -24,6 +25,7 @@ export async function stubRegister(page: Page) {
 }
 
 export async function stubRegisterServiceProvider(page: Page) {
+  await stubLogin(page);
   await page.route('**/auth/register', async (route) => {
     await route.fulfill({
       status: 200,
