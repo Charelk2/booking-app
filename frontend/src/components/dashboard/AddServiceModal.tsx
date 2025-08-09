@@ -1,7 +1,7 @@
 "use client";
 
 import { useForm, type SubmitHandler } from "react-hook-form";
-import { useState, useRef, useEffect, Fragment } from "react";
+import { useState, useRef, useEffect, Fragment, useMemo } from "react";
 import {
   MusicalNoteIcon,
   VideoCameraIcon,
@@ -22,7 +22,7 @@ import {
 } from "@/lib/api";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import Button from "../ui/Button";
-import { Stepper, TextInput, TextArea, ToggleSwitch } from "../ui";
+import { Stepper, TextInput, TextArea } from "../ui";
 
 const serviceTypeIcons: Record<Service["service_type"], ElementType> = {
   "Live Performance": MusicalNoteIcon,
@@ -75,6 +75,19 @@ interface ServiceFormData {
   flight_price?: number | "";
 }
 
+const emptyDefaults: ServiceFormData = {
+  service_type: undefined,
+  title: "",
+  description: "",
+  duration_minutes: 60,
+  is_remote: false,
+  price: 0,
+  travel_rate: 2.5,
+  travel_members: 1,
+  car_rental_price: 1000,
+  flight_price: 2780,
+};
+
 export default function AddServiceModal({
   isOpen,
   onClose,
@@ -85,31 +98,21 @@ export default function AddServiceModal({
   const [step, setStep] = useState(0);
   const [maxStep, setMaxStep] = useState(0);
 
-  const emptyDefaults: ServiceFormData = {
-    service_type: undefined,
-    title: "",
-    description: "",
-    duration_minutes: 60,
-    is_remote: false,
-    price: 0,
-    travel_rate: 2.5,
-    travel_members: 1,
-    car_rental_price: 1000,
-    flight_price: 2780,
-  };
-
-  const editingDefaults: ServiceFormData = {
-    service_type: service?.service_type,
-    title: service?.title ?? "",
-    description: service?.description ?? "",
-    duration_minutes: service?.duration_minutes ?? 60,
-    is_remote: service?.is_remote ?? false,
-    price: service?.price ?? 0,
-    travel_rate: service?.travel_rate ?? "",
-    travel_members: service?.travel_members ?? "",
-    car_rental_price: service?.car_rental_price ?? "",
-    flight_price: service?.flight_price ?? "",
-  };
+  const editingDefaults = useMemo<ServiceFormData>(
+    () => ({
+      service_type: service?.service_type,
+      title: service?.title ?? "",
+      description: service?.description ?? "",
+      duration_minutes: service?.duration_minutes ?? 60,
+      is_remote: service?.is_remote ?? false,
+      price: service?.price ?? 0,
+      travel_rate: service?.travel_rate ?? "",
+      travel_members: service?.travel_members ?? "",
+      car_rental_price: service?.car_rental_price ?? "",
+      flight_price: service?.flight_price ?? "",
+    }),
+    [service],
+  );
 
   const {
     register,
@@ -150,7 +153,7 @@ export default function AddServiceModal({
       setStep(0);
       setMaxStep(0);
     }
-  }, [isOpen, service, reset, editingDefaults, emptyDefaults]);
+  }, [isOpen, service, reset, editingDefaults]);
 
   const watchTitle = watch("title");
   const watchDescription = watch("description");
@@ -176,7 +179,12 @@ export default function AddServiceModal({
 
   const next = async () => {
     if (step === 1) {
-      const valid = await trigger(["title", "description", "duration_minutes", "price"]);
+      const valid = await trigger([
+        "title",
+        "description",
+        "duration_minutes",
+        "price",
+      ]);
       if (!valid) return;
     }
     if (step === 2) {
@@ -247,9 +255,7 @@ export default function AddServiceModal({
         car_rental_price: data.car_rental_price
           ? Number(data.car_rental_price)
           : undefined,
-        flight_price: data.flight_price
-          ? Number(data.flight_price)
-          : undefined,
+        flight_price: data.flight_price ? Number(data.flight_price) : undefined,
       };
       let media_url = existingMediaUrl || "";
       if (mediaFiles[0]) {
@@ -312,11 +318,14 @@ export default function AddServiceModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500/75 z-40" aria-hidden="true" />
+          <div
+            className="fixed inset-0 z-40 bg-gray-500/75"
+            aria-hidden="true"
+          />
         </Transition.Child>
 
         {/* Modal content container: occupy full screen without padding */}
-        <div className="fixed inset-0 flex p-0 z-50">
+        <div className="fixed inset-0 z-50 flex p-0">
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"
@@ -328,19 +337,19 @@ export default function AddServiceModal({
           >
             <Dialog.Panel
               as="div"
-              className="pointer-events-auto relative w-full h-full max-w-none rounded-none shadow-none bg-white flex flex-col md:flex-row overflow-hidden"
+              className="pointer-events-auto relative flex h-full w-full max-w-none flex-col overflow-hidden rounded-none bg-white shadow-none md:flex-row"
             >
               {/* Close button for web and mobile */}
               <button
                 type="button"
                 onClick={handleCancel}
-                className="absolute top-4 right-4 z-10 p-2 rounded-md text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
+                className="absolute right-4 top-4 z-10 rounded-md p-2 text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand"
               >
-                <XMarkIcon className="h-5 w-5 pointer-events-none" />
+                <XMarkIcon className="pointer-events-none h-5 w-5" />
               </button>
 
               {/* Left Pane (Steps) */}
-              <div className="flex-none w-full md:w-1/5 p-6 bg-gray-50 flex flex-col justify-between overflow-y-auto">
+              <div className="flex w-full flex-none flex-col justify-between overflow-y-auto bg-gray-50 p-6 md:w-1/5">
                 <Stepper
                   steps={steps.slice(0, 3)}
                   currentStep={step}
@@ -354,11 +363,11 @@ export default function AddServiceModal({
               </div>
 
               {/* Right Pane (Form Content) */}
-              <div className="flex-1 w-full md:w-3/5 flex flex-col overflow-hidden">
+              <div className="flex w-full flex-1 flex-col overflow-hidden md:w-3/5">
                 <form
                   id="add-service-form"
                   onSubmit={handleSubmit(onSubmit)}
-                  className="flex-1 overflow-y-scroll p-6 space-y-4"
+                  className="flex-1 space-y-4 overflow-y-scroll p-6"
                 >
                   <AnimatePresence mode="wait">
                     <motion.div
@@ -374,7 +383,7 @@ export default function AddServiceModal({
                           <h2 className="text-xl font-semibold">
                             Choose Your Service Category
                           </h2>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {types.map(({ value, label }) => {
                               const Icon = serviceTypeIcons[value];
                               return (
@@ -389,13 +398,13 @@ export default function AddServiceModal({
                                     })
                                   }
                                   className={clsx(
-                                    "flex flex-col items-center justify-center p-4 rounded-xl transition border text-sm",
+                                    "flex flex-col items-center justify-center rounded-xl border p-4 text-sm transition",
                                     watch("service_type") === value
                                       ? "border-2 border-[var(--brand-color)]"
                                       : "border-gray-200 hover:border-gray-300",
                                   )}
                                 >
-                                  {Icon && <Icon className="h-6 w-6 mb-1" />}
+                                  {Icon && <Icon className="mb-1 h-6 w-6" />}
                                   <span className="text-sm font-medium text-gray-800">
                                     {label}
                                   </span>
@@ -428,7 +437,7 @@ export default function AddServiceModal({
                               })}
                               error={errors.title?.message}
                             />
-                            <p className="mt-1 text-xs text-right text-gray-500">
+                            <p className="mt-1 text-right text-xs text-gray-500">
                               {(watchTitle || "").length}/60
                             </p>
                           </div>
@@ -450,7 +459,7 @@ export default function AddServiceModal({
                               })}
                               error={errors.description?.message}
                             />
-                            <p className="mt-1 text-xs text-right text-gray-500">
+                            <p className="mt-1 text-right text-xs text-gray-500">
                               {(watchDescription || "").length}/500
                             </p>
                           </div>
@@ -472,7 +481,10 @@ export default function AddServiceModal({
                             {...register("price", {
                               required: "Price is required",
                               valueAsNumber: true,
-                              min: { value: 0.01, message: "Price must be positive" },
+                              min: {
+                                value: 0.01,
+                                message: "Price must be positive",
+                              },
                             })}
                             error={errors.price?.message}
                           />
@@ -519,15 +531,16 @@ export default function AddServiceModal({
                       {/* Step 2: Upload Media */}
                       {step === 2 && (
                         <div className="space-y-4">
-                          <h2 className="text-xl font-semibold mb-2">
+                          <h2 className="mb-2 text-xl font-semibold">
                             Upload Media
                           </h2>
-                          <p className="text-sm text-gray-600 mb-2">
-                            Use high-resolution images or short video clips to showcase your talent.
+                          <p className="mb-2 text-sm text-gray-600">
+                            Use high-resolution images or short video clips to
+                            showcase your talent.
                           </p>
                           <label
                             htmlFor="media-upload"
-                            className="border-2 border-dashed rounded-md p-4 text-center cursor-pointer w-full min-h-40 flex flex-col items-center justify-center"
+                            className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed p-4 text-center"
                           >
                             <p className="text-sm">
                               Drag files here or click to upload
@@ -543,24 +556,24 @@ export default function AddServiceModal({
                             />
                           </label>
                           {mediaError && (
-                            <p className="text-sm text-red-600 mt-2">
+                            <p className="mt-2 text-sm text-red-600">
                               {mediaError}
                             </p>
                           )}
-                          <div className="flex flex-wrap gap-2 mt-2">
+                          <div className="mt-2 flex flex-wrap gap-2">
                             {existingMediaUrl && (
-                              <div className="relative w-20 h-20 border rounded overflow-hidden">
+                              <div className="relative h-20 w-20 overflow-hidden rounded border">
                                 <Image
                                   src={existingMediaUrl}
                                   alt="existing-media"
                                   width={80}
                                   height={80}
-                                  className="object-cover w-full h-full"
+                                  className="h-full w-full object-cover"
                                 />
                                 <button
                                   type="button"
                                   onClick={removeExistingMedia}
-                                  className="absolute top-0 right-0 bg-black/50 text-white rounded-full w-4 h-4 text-xs"
+                                  className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white"
                                 >
                                   ×
                                 </button>
@@ -569,19 +582,19 @@ export default function AddServiceModal({
                             {thumbnails.map((src: string, i: number) => (
                               <div
                                 key={i}
-                                className="relative w-20 h-20 border rounded overflow-hidden"
+                                className="relative h-20 w-20 overflow-hidden rounded border"
                               >
                                 <Image
                                   src={src}
                                   alt={`media-${i}`}
                                   width={80}
                                   height={80}
-                                  className="object-cover w-full h-full"
+                                  className="h-full w-full object-cover"
                                 />
                                 <button
                                   type="button"
                                   onClick={() => removeFile(i)}
-                                  className="absolute top-0 right-0 bg-black/50 text-white rounded-full w-4 h-4 text-xs"
+                                  className="absolute right-0 top-0 h-4 w-4 rounded-full bg-black/50 text-xs text-white"
                                 >
                                   ×
                                 </button>
@@ -597,48 +610,48 @@ export default function AddServiceModal({
                           <h2 className="text-xl font-semibold">
                             Review Your Service
                           </h2>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                            <div className="border rounded-md p-2">
+                          <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                            <div className="rounded-md border p-2">
                               <h3 className="font-medium">Type</h3>
                               <p>{watch("service_type")}</p>
                             </div>
-                            <div className="border rounded-md p-2">
+                            <div className="rounded-md border p-2">
                               <h3 className="font-medium">Title</h3>
                               <p>{watch("title")}</p>
                             </div>
-                            <div className="border rounded-md p-2">
+                            <div className="rounded-md border p-2">
                               <h3 className="font-medium">Description</h3>
                               <p>{watch("description")}</p>
                             </div>
-                            <div className="border rounded-md p-2">
+                            <div className="rounded-md border p-2">
                               <h3 className="font-medium">Duration</h3>
                               <p>{watch("duration_minutes") || 0} minutes</p>
                             </div>
-                            <div className="border rounded-md p-2">
+                            <div className="rounded-md border p-2">
                               <h3 className="font-medium">Price</h3>
                               <p>{watch("price") || 0}</p>
                             </div>
                             {watchServiceType === "Live Performance" && (
                               <>
-                                <div className="border rounded-md p-2">
+                                <div className="rounded-md border p-2">
                                   <h3 className="font-medium">
                                     Travelling (Rand per km)
                                   </h3>
                                   <p>{watch("travel_rate") || 0}</p>
                                 </div>
-                                <div className="border rounded-md p-2">
+                                <div className="rounded-md border p-2">
                                   <h3 className="font-medium">
                                     Members travelling
                                   </h3>
                                   <p>{watch("travel_members") || 1}</p>
                                 </div>
-                                <div className="border rounded-md p-2">
+                                <div className="rounded-md border p-2">
                                   <h3 className="font-medium">
                                     Car rental price
                                   </h3>
                                   <p>{watch("car_rental_price") || 0}</p>
                                 </div>
-                                <div className="border rounded-md p-2">
+                                <div className="rounded-md border p-2">
                                   <h3 className="font-medium">
                                     Return flight price (per person)
                                   </h3>
@@ -647,9 +660,9 @@ export default function AddServiceModal({
                               </>
                             )}
                             {mediaFiles.length > 0 && (
-                              <div className="border rounded-md p-2 col-span-full">
+                              <div className="col-span-full rounded-md border p-2">
                                 <h3 className="font-medium">Images</h3>
-                                <div className="flex flex-wrap gap-1 mt-1">
+                                <div className="mt-1 flex flex-wrap gap-1">
                                   {thumbnails.map((src: string, i: number) => (
                                     <Image
                                       key={i}
@@ -657,7 +670,7 @@ export default function AddServiceModal({
                                       alt={`media-${i}`}
                                       width={64}
                                       height={64}
-                                      className="w-16 h-16 object-cover rounded"
+                                      className="h-16 w-16 rounded object-cover"
                                     />
                                   ))}
                                 </div>
@@ -671,12 +684,12 @@ export default function AddServiceModal({
                 </form>
 
                 {/* Action buttons */}
-                <div className="flex-shrink-0 border-t border-gray-100 p-4 flex flex-col-reverse sm:flex-row sm:justify-between gap-2">
+                <div className="flex flex-shrink-0 flex-col-reverse gap-2 border-t border-gray-100 p-4 sm:flex-row sm:justify-between">
                   <Button
                     variant="outline"
                     onClick={step === 0 ? handleCancel : prev}
                     data-testid="back"
-                    className="w-full sm:w-auto min-h-[40px]"
+                    className="min-h-[40px] w-full sm:w-auto"
                   >
                     {step === 0 ? "Cancel" : "Back"}
                   </Button>
@@ -685,7 +698,7 @@ export default function AddServiceModal({
                       onClick={next}
                       disabled={nextDisabled()}
                       data-testid="next"
-                      className="w-full sm:w-auto min-h-[40px]"
+                      className="min-h-[40px] w-full sm:w-auto"
                     >
                       Next
                     </Button>
@@ -696,7 +709,7 @@ export default function AddServiceModal({
                       form="add-service-form"
                       disabled={publishing || isSubmitting || nextDisabled()}
                       isLoading={publishing || isSubmitting}
-                      className="w-full sm:w-auto min-h-[40px]"
+                      className="min-h-[40px] w-full sm:w-auto"
                     >
                       {service ? "Save Changes" : "Publish"}
                     </Button>
