@@ -38,6 +38,11 @@ export default function ArtistsPage() {
   const [maxPrice, setMaxPrice] = useState<number>(SLIDER_MAX);
   const [priceDistribution, setPriceDistribution] = useState<PriceBucket[]>([]);
 
+  // Avoid fetching artists until all filters (including category from the
+  // URL) have been parsed. This prevents an initial unfiltered request that
+  // briefly shows providers from other categories.
+  const [filtersReady, setFiltersReady] = useState(false);
+
   const debouncedMinPrice = useDebounce(minPrice, 300);
   const debouncedMaxPrice = useDebounce(maxPrice, 300);
 
@@ -126,6 +131,7 @@ export default function ArtistsPage() {
     setSort(searchParams.get('sort') || undefined);
     setMinPrice(searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : SLIDER_MIN);
     setMaxPrice(searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : SLIDER_MAX);
+    setFiltersReady(true);
   }, [searchParams, pathname]);
 
   const fetchArtists = useCallback(
@@ -187,9 +193,19 @@ export default function ArtistsPage() {
   );
 
   useEffect(() => {
+    if (!filtersReady) return;
     setPage(1);
     fetchArtists({ pageNumber: 1 });
-  }, [category, location, when, sort, debouncedMinPrice, debouncedMaxPrice, fetchArtists]);
+  }, [
+    filtersReady,
+    category,
+    location,
+    when,
+    sort,
+    debouncedMinPrice,
+    debouncedMaxPrice,
+    fetchArtists,
+  ]);
 
   const loadMore = () => {
     const next = page + 1;
