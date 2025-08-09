@@ -51,8 +51,15 @@ class Message(BaseModel):
     message_type = Column(
         Enum(MessageType), nullable=False, default=MessageType.USER
     )
+    # Store enum values ("artist", "client", "both") to match existing DB rows
     visible_to = Column(
-        Enum(VisibleTo), nullable=False, default=VisibleTo.BOTH
+        Enum(
+            VisibleTo,
+            name="visibleto",
+            values_callable=lambda enum: [e.value for e in enum],
+        ),
+        nullable=False,
+        default=VisibleTo.BOTH,
     )
     content = Column(Text, nullable=False)
     # Link to the newer quotes_v2 table so quote messages render properly
