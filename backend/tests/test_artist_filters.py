@@ -9,8 +9,8 @@ from app.models import (
     Service,
     Review,
     Booking,
+    ServiceCategory,
 )
-from app.models.service import ServiceType
 from app.models.base import BaseModel
 from app.api.v1.api_artist import read_all_artist_profiles
 
@@ -22,19 +22,31 @@ def setup_db():
     return Session()
 
 
-def create_artist(db, name, location, category, rating=5, bookings=0):
+def create_artist(db, name, location, category_name, rating=5, bookings=0):
     user = User(email=f'{name}@test.com', password='x', first_name=name, last_name='L', user_type=UserType.SERVICE_PROVIDER)
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    profile = ArtistProfile(user_id=user.id, business_name=name, location=location)
+    # Ensure the service category exists
+    cat = db.query(ServiceCategory).filter(ServiceCategory.name == category_name).first()
+    if not cat:
+        cat = ServiceCategory(name=category_name)
+        db.add(cat)
+        db.commit()
+        db.refresh(cat)
+
+    profile = ArtistProfile(
+        user_id=user.id,
+        business_name=name,
+        location=location,
+        service_category_id=cat.id,
+    )
     service = Service(
         artist_id=user.id,
         title='Gig',
         price=100,
         duration_minutes=60,
-        service_type=category,
         media_url='x',
     )
     profile.services.append(service)
@@ -62,10 +74,10 @@ def create_artist(db, name, location, category, rating=5, bookings=0):
 def test_price_range_filter(monkeypatch):
     db = setup_db()
     # Prices: 100, 500, 1000
-    create_artist(db, 'Cheap', 'Joburg', ServiceType.LIVE_PERFORMANCE, rating=5)
-    create_artist(db, 'Mid', 'Joburg', ServiceType.LIVE_PERFORMANCE, rating=5)
+    create_artist(db, 'Cheap', 'Joburg', 'Musician', rating=5)
+    create_artist(db, 'Mid', 'Joburg', 'Musician', rating=5)
     db.query(Service).filter(Service.artist_id == 2).update({"price": 500})
-    create_artist(db, 'Expensive', 'Joburg', ServiceType.LIVE_PERFORMANCE, rating=5)
+    create_artist(db, 'Expensive', 'Joburg', 'Musician', rating=5)
     db.query(Service).filter(Service.artist_id == 3).update({"price": 1000})
     db.commit()
 
@@ -79,7 +91,7 @@ def test_price_range_filter(monkeypatch):
     )
 
     res = read_all_artist_profiles(
-        category=ServiceType.LIVE_PERFORMANCE,
+        category='musician',
         min_price=300,
         max_price=800,
         db=db,
@@ -106,8 +118,8 @@ def test_price_visible_default_true():
 
 def test_filters_and_sorting(monkeypatch):
     db = setup_db()
-    create_artist(db, 'Alpha', 'New York', ServiceType.LIVE_PERFORMANCE, rating=4, bookings=2)
-    create_artist(db, 'Beta', 'San Francisco', ServiceType.OTHER, rating=5, bookings=5)
+    create_artist(db, 'Alpha', 'New York', 'Musician', rating=4, bookings=2)
+    create_artist(db, 'Beta', 'San Francisco', 'Videographer', rating=5, bookings=5)
 
     monkeypatch.setattr(
         'app.utils.redis_cache.get_cached_artist_list',
@@ -119,7 +131,7 @@ def test_filters_and_sorting(monkeypatch):
     )
 
     res = read_all_artist_profiles(
-        category=ServiceType.OTHER,
+        category='videographer',
         location='San',
         sort='most_booked',
         db=db,
@@ -134,7 +146,7 @@ def test_filters_and_sorting(monkeypatch):
 
 def test_service_price_none_without_category(monkeypatch):
     db = setup_db()
-    create_artist(db, 'Solo', 'NY', ServiceType.LIVE_PERFORMANCE)
+    create_artist(db, 'Solo', 'NY', 'Musician')
     monkeypatch.setattr(
         'app.utils.redis_cache.get_cached_artist_list',
         lambda *args, **kwargs: None,
