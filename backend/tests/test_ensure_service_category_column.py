@@ -18,9 +18,9 @@ def test_ensure_service_category_columns():
     ensure_service_category_id_column(engine)
     inspector = inspect(engine)
 
-    artist_cols = {col["name"] for col in inspector.get_columns("artist_profiles")}
     service_cols = {col["name"] for col in inspector.get_columns("services")}
+    artist_cols = {col["name"] for col in inspector.get_columns("artist_profiles")}
 
-    assert "service_category_id" in artist_cols
+    assert "service_category_id" not in artist_cols
     assert "service_category_id" in service_cols
     assert "details" in service_cols
