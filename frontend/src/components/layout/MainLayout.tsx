@@ -29,10 +29,11 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
   const isArtistDetail = /^\/artists\//.test(pathname) && pathname.split('/').length > 2;
   const isArtistsRoot = pathname === '/artists';
   const isArtistsPage = pathname.startsWith('/artists');
+  const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
 
   // State to manage the header's visual and functional state
   const [headerState, setHeaderState] = useState<HeaderState>(
-    isArtistsRoot ? 'compacted' : 'initial',
+    isArtistView ? 'initial' : isArtistsRoot ? 'compacted' : 'initial',
   );
 
   // Refs for scroll logic
@@ -44,15 +45,15 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
 
   // Boolean derived from headerState to control global overlay visibility
   const showSearchOverlay =
-    headerState === 'expanded-from-compact' && !isArtistDetail;
+    headerState === 'expanded-from-compact' && !isArtistDetail && !isArtistView;
 
 
   // Callback to force header state (e.g., when compact search is clicked or search is submitted)
   // This function is passed to the Header component.
   const forceHeaderState = useCallback(
     (state: HeaderState, scrollTarget?: number) => {
-      // Lock the header in its initial state on artist profile pages
-      if (isArtistDetail) {
+      // Lock the header in its initial state on artist profile pages or artist view
+      if (isArtistDetail || isArtistView) {
         setHeaderState('initial');
         return;
       }
@@ -77,7 +78,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
         }, TRANSITION_DURATION + 150);
       }
     },
-    [headerState, isArtistDetail],
+    [headerState, isArtistDetail, isArtistView],
   ); // Depend on headerState to prevent stale closures
 
   // Function to adjust scroll after header's height transition
@@ -109,6 +110,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
 
   // Main scroll handler for state changes and snapping
   const handleScroll = useCallback(() => {
+    if (isArtistView) return; // No compaction in artist view
     const currentScrollY = window.scrollY;
     const scrollDirection = currentScrollY > prevScrollY.current ? 'down' : 'up';
     prevScrollY.current = currentScrollY; // Update previous scroll position
@@ -151,7 +153,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
         }
       }
     }
-  }, [headerState, isArtistsPage]); // Depend on headerState to get its latest value
+  }, [headerState, isArtistsPage, isArtistView]); // Depend on headerState to get its latest value
 
   // Optimized scroll handler with requestAnimationFrame
   const optimizedScrollHandler = useCallback(() => {
@@ -163,7 +165,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
 
   // Effect for scroll-based header state changes
   useEffect(() => {
-    if (isArtistDetail) return; // No scroll listener on artist detail pages
+    if (isArtistDetail || isArtistView) return; // No scroll listener on artist detail pages or artist view
 
     window.addEventListener('scroll', optimizedScrollHandler);
     if (window.scrollY > 0) {
@@ -176,7 +178,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
         cancelAnimationFrame(animationFrameId.current);
       }
     };
-  }, [isArtistDetail, optimizedScrollHandler, handleScroll]); // Dependencies
+  }, [isArtistDetail, isArtistView, optimizedScrollHandler, handleScroll]); // Dependencies
 
   // Artist detail pages show the full header and do not attach scroll listeners
 
@@ -215,7 +217,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
 
   const showSearchBar =
     !isArtistDetail &&
-    (!artistViewActive || user?.user_type !== 'service_provider') &&
+    !isArtistView &&
     (pathname === '/' || pathname.startsWith('/artists'));
 
   return (
