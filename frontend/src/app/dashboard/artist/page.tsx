@@ -22,14 +22,16 @@ import {
   formatStatus,
   applyDisplayOrder,
 } from "@/lib/utils";
-import AddServiceCategorySelector from "@/components/dashboard/AddServiceCategorySelector";
-import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
-import ProfileProgress from "@/components/dashboard/ProfileProgress";
-import SectionList from "@/components/dashboard/SectionList";
-import BookingRequestCard from "@/components/dashboard/BookingRequestCard";
+import {
+  AddServiceCategorySelector,
+  UpdateRequestModal,
+  ProfileProgress,
+  SectionList,
+  BookingRequestCard,
+  DashboardTabs,
+  QuickActionButton,
+} from "@/components/dashboard";
 import { Spinner, Button } from '@/components/ui';
-import DashboardTabs from "@/components/dashboard/DashboardTabs";
-import QuickActionButton from "@/components/dashboard/QuickActionButton";
 import Link from "next/link";
 import {
   DndContext,

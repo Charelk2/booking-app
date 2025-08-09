@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import OverviewAccordion from '../OverviewAccordion';
+import { OverviewAccordion } from '..';
 
 describe('OverviewAccordion', () => {
   let container: HTMLDivElement;

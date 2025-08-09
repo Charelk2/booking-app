@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import NextImage from 'next/image';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import MobileSaveBar from '@/components/dashboard/MobileSaveBar';
+import { MobileSaveBar } from '@/components/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArtistProfile } from '@/types';
 import {

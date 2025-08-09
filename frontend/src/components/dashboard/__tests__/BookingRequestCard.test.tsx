@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import BookingRequestCard from '../BookingRequestCard';
+import { BookingRequestCard } from '..';
 import type { BookingRequest, Service, User, ArtistProfile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 
