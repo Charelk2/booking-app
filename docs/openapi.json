@@ -7785,7 +7785,14 @@
             "title": "Flight Price"
           },
           "service_category_id": {
-            "type": "integer",
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Service Category Id"
           },
           "details": {
@@ -7807,8 +7814,7 @@
           "media_url",
           "duration_minutes",
           "price",
-          "service_type",
-          "service_category_id"
+          "service_type"
         ],
         "title": "ServiceCreate"
       },

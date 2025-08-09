@@ -31,8 +31,8 @@ class ServiceCreate(ServiceBase):
     price: Decimal
     service_type: ServiceType
     media_url: str
-    service_category_id: int
-    # artist_id will be set based on the authenticated artist, not in schema
+    # ``service_category_id`` is optional and inherited from ``ServiceBase``.
+    # The artist ID will be set based on the authenticated artist, not in the schema.
 
 
 # Properties to receive on item update
