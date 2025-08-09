@@ -24,6 +24,8 @@ class MessageType(str, enum.Enum):
     USER = "USER"
     QUOTE = "QUOTE"
     SYSTEM = "SYSTEM"
+    # Legacy value from early schema versions. Treat the same as ``USER``.
+    TEXT = "TEXT"
 
 
 class VisibleTo(str, enum.Enum):
