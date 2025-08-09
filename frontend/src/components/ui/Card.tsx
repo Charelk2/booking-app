@@ -5,7 +5,7 @@ import clsx from 'clsx';
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   /** Display a loading state overlay */
   loading?: boolean;
-  variant?: 'default' | 'wizard';
+  variant?: 'default' | 'wizard' | 'flat';
 }
 
 export default function Card({
@@ -18,7 +18,9 @@ export default function Card({
   const base =
     variant === 'wizard'
       ? 'bg-white rounded-2xl shadow-xl p-8 max-w-md mx-auto'
-      : 'bg-white rounded-lg border border-gray-200 shadow-sm transition-shadow hover:shadow-md relative';
+      : variant === 'flat'
+        ? 'bg-white rounded-lg relative'
+        : 'bg-white rounded-lg border border-gray-200 shadow-sm transition-shadow hover:shadow-md relative';
   return (
     <div {...props} className={clsx(base, className)}>
       {loading && (
