@@ -127,7 +127,7 @@ export default function InboxPage() {
   return (
     <MainLayout fullWidthContent>
       {/* Add the padding directly to this div */}
-      <div className="px-2 sm:px-4 lg:px-6 flex flex-col md:flex-row h-[calc(100vh-64px)] bg-gray-100">
+      <div className="px-2 sm:px-4 lg:px-6 flex flex-col md:flex-row h-[calc(100vh-64px)] bg-white">
         {(!isMobile || showList) && (
           <div
             id="conversation-list"
