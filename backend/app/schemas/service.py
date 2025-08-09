@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
 from ..models.service import ServiceType
 from .artist import ArtistProfileNested
 from decimal import Decimal
@@ -20,6 +20,8 @@ class ServiceBase(BaseModel):
     travel_members: Optional[int] = None
     car_rental_price: Optional[Decimal] = None
     flight_price: Optional[Decimal] = None
+    service_category_id: Optional[int] = None
+    details: Optional[Dict[str, Any]] = None
 
 
 # Properties to receive on item creation
@@ -29,6 +31,7 @@ class ServiceCreate(ServiceBase):
     price: Decimal
     service_type: ServiceType
     media_url: str
+    service_category_id: int
     # artist_id will be set based on the authenticated artist, not in schema
 
 
