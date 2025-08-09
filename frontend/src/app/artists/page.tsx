@@ -14,11 +14,13 @@ import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
 import { useDebounce } from '@/hooks/useDebounce';
 import { updateQueryParams } from '@/lib/urlParams';
 import { Spinner } from '@/components/ui';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ArtistsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [recommended, setRecommended] = useState<ArtistProfile[]>([]);
@@ -42,6 +44,13 @@ export default function ArtistsPage() {
   const LIMIT = 20;
 
   useEffect(() => {
+    // Recommendations are personalized and require authentication.
+    // When not logged in, skip the request entirely to avoid 401s and noisy errors.
+    if (!user) {
+      setRecommended([]);
+      setRecError(null);
+      return;
+    }
     const load = async () => {
       try {
         const recs = await getRecommendedArtists();
@@ -55,13 +64,14 @@ export default function ArtistsPage() {
           ? safeRecs.filter((a) => a.service_category?.name === serviceName)
           : safeRecs;
         setRecommended(filtered);
+        setRecError(null);
       } catch (err) {
         console.error(err);
         setRecError('Failed to load recommendations.');
       }
     };
     load();
-  }, [category]);
+  }, [category, user]);
 
   useEffect(() => {
     const serviceCat = searchParams.get('category') || undefined;
@@ -106,7 +116,14 @@ export default function ArtistsPage() {
           limit: LIMIT,
           includePriceDistribution: true,
         });
-        const filtered = res.data.filter((a) => a.business_name || a.user);
+        const serviceName = category ? UI_CATEGORY_TO_SERVICE[category] : undefined;
+        // Filter client-side to guard against any backend responses that
+        // include artists from other service categories.
+        const filtered = res.data.filter(
+          (a) =>
+            (a.business_name || a.user) &&
+            (!serviceName || a.service_category?.name === serviceName),
+        );
         setHasMore(filtered.length === LIMIT);
         setArtists((prev) => (append ? [...prev, ...filtered] : filtered));
         setPriceDistribution(res.price_distribution || []);
@@ -174,7 +191,7 @@ export default function ArtistsPage() {
   return (
     <MainLayout headerFilter={filterControl}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {recommended.length > 0 && (
+        {user && recommended.length > 0 && (
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Recommended for you</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-2 md:gap-2">
@@ -208,7 +225,7 @@ export default function ArtistsPage() {
             </div>
           </div>
         )}
-        {recError && <p className="text-red-600">{recError}</p>}
+        {user && recError && <p className="text-red-600">{recError}</p>}
 
         {/* Artists grid */}
         {loading && <Spinner className="my-4" />}
