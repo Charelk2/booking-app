@@ -399,7 +399,12 @@ def update_portfolio_images_order_me(
 )
 def read_all_artist_profiles(
     db: Session = Depends(get_db),
-    category: Optional[ServiceType] = Query(None),
+    # Accept category as a string so unknown values (e.g. "Musician")
+    # don't trigger a validation error. We'll attempt to coerce it to
+    # ``ServiceType`` below and ignore it if it's not a known value.
+    category: Optional[str] = Query(
+        None, description="Filter by service category"
+    ),
     location: Optional[str] = Query(None),
     sort: Optional[str] = Query(None, pattern="^(top_rated|most_booked|newest)$"),
     when: Optional[date] = Query(None),
@@ -435,7 +440,21 @@ def read_all_artist_profiles(
     if hasattr(artist, "default"):
         artist = None
 
-    cache_category = category.value if isinstance(category, ServiceType) else category
+    # Coerce category to ServiceType if possible. Unknown strings are ignored
+    # so requests like ``?category=Musician`` simply return all artists.
+    category_enum: Optional[ServiceType] = None
+    if isinstance(category, ServiceType):
+        category_enum = category
+    elif isinstance(category, str) and category:
+        try:
+            category_enum = ServiceType(category)
+        except ValueError:
+            logger.debug("Unknown category '%s' provided; ignoring filter", category)
+            category_enum = None
+
+    cache_category = (
+        category_enum.value if isinstance(category_enum, ServiceType) else None
+    )
     cached = None
     if not include_price_distribution and when is None and not artist:
         cached = get_cached_artist_list(
@@ -493,7 +512,7 @@ def read_all_artist_profiles(
 
     join_services = False
     service_price_col = None
-    if category or min_price is not None or max_price is not None:
+    if category_enum or min_price is not None or max_price is not None:
         price_subq = (
             db.query(
                 Service.artist_id.label("artist_id"),
@@ -506,8 +525,8 @@ def read_all_artist_profiles(
         query = query.add_columns(price_subq.c.service_price)
         service_price_col = price_subq.c.service_price
         join_services = True
-    if category:
-        query = query.filter(Service.service_type == category)
+    if category_enum:
+        query = query.filter(Service.service_type == category_enum)
     if min_price is not None:
         query = query.filter(Service.price >= min_price)
     if max_price is not None:

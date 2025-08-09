@@ -36,6 +36,8 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Dashboard now casts `user.id` to a number when fetching services to avoid 422 errors if the ID is stored as a string.
 - Search categories now map **Musician / Band** to the `Live Performance` service
   type so searching musicians shows available artists.
+- The artist search endpoint now ignores unrecognised `category` values (for
+  example, `category=Musician`) and returns all artists instead of a 422 error.
 - Category popup now includes an artist name search input for quick navigation to
   individual profiles.
 - An unobtrusive marketing strip replaces the old Hero section.
