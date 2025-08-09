@@ -78,10 +78,17 @@ export default function ArtistsPage() {
   }, [category, user]);
 
   useEffect(() => {
-    const serviceCat = searchParams.get('category') || undefined;
-    // Convert the backend service name in the query string back to the
-    // corresponding UI slug. If no mapping exists, clear the category so we
-    // don't accidentally show results from unrelated services.
+    let serviceCat = searchParams.get('category') || undefined;
+    if (!serviceCat) {
+      const match = pathname.match(/\/artists\/category\/([^/?]+)/);
+      if (match) {
+        const slug = match[1];
+        serviceCat = UI_CATEGORY_TO_SERVICE[slug] || slug;
+      }
+    }
+    // Convert the backend service name or path slug back to the corresponding
+    // UI value. If no mapping exists, clear the category so we don't
+    // accidentally show results from unrelated services.
     setCategory(serviceCat ? SERVICE_TO_UI_CATEGORY[serviceCat] : undefined);
     setLocation(searchParams.get('location') || '');
     const w = searchParams.get('when');
@@ -100,7 +107,7 @@ export default function ArtistsPage() {
     setSort(searchParams.get('sort') || undefined);
     setMinPrice(searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : SLIDER_MIN);
     setMaxPrice(searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : SLIDER_MAX);
-  }, [searchParams]);
+  }, [searchParams, pathname]);
 
   const fetchArtists = useCallback(
     async (

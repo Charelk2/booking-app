@@ -35,7 +35,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Fixed an initial load bug where a selected date sent an invalid `when` value and caused a 422 error.
 - Dashboard now casts `user.id` to a number when fetching services to avoid 422 errors if the ID is stored as a string.
 - Search categories now map each service category to its corresponding service type (for example, **Musician / Band** maps to `Live Performance`) so searching by category shows available artists.
-- Visiting `/artists?category=DJ` or similar URLs now normalizes the `category` query so listings and recommendations only show matching services.
+- Visiting `/artists/category/dj` or similar URLs now normalizes the category path so listings and recommendations only show matching services.
 - The artist search endpoint now ignores unrecognised `category` values (for example, `category=Musician` or `category=DJ`) and returns all artists instead of a 422 error.
 - Category popup now includes an artist name search input for quick navigation to
   individual profiles.

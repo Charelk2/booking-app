@@ -5,7 +5,7 @@
  import Link from 'next/link';
  import { useEffect, useRef, useState } from 'react';
  import { ChevronRightIcon } from '@heroicons/react/24/solid';
- import { UI_CATEGORIES, UI_CATEGORY_TO_SERVICE } from '@/lib/categoryMap';
+ import { UI_CATEGORIES } from '@/lib/categoryMap';
  
 
  /**
@@ -63,9 +63,7 @@
   {UI_CATEGORIES.map((cat) => (
   <Link
   key={cat.value}
-  href={`/artists?category=${encodeURIComponent(
-  UI_CATEGORY_TO_SERVICE?.[cat.value] || cat.value,
-  )}`}
+  href={`/artists/category/${encodeURIComponent(cat.value)}`}
   className="flex-shrink-0 flex flex-col hover:no-underline"
   >
   <div className="relative h-40 w-40 overflow-hidden rounded-lg bg-gray-100">
