@@ -22,7 +22,6 @@ import {
   StarIcon,
   MapPinIcon,
   UserIcon,
-  PencilIcon,
 } from '@heroicons/react/24/outline';
 import {
   getFullImageUrl,
@@ -214,15 +213,6 @@ export default function ArtistProfilePage() {
                     <div className="h-24 w-24 rounded-full bg-gray-300 flex items-center justify-center text-gray-500 shadow">
                       <UserIcon className="h-12 w-12 text-gray-400" />
                     </div>
-                  )}
-                  {user && user.user_type === 'service_provider' && artist.user_id === user.id && (
-                    <button
-                      type="button"
-                      className="absolute bottom-0 right-0 p-1 bg-white rounded-full shadow focus:outline-none focus:ring-2 focus:ring-brand-dark"
-                      aria-label="Edit profile photo"
-                    >
-                      <PencilIcon className="h-4 w-4 text-gray-600" />
-                    </button>
                   )}
                 </div>
                 <h1 className="mt-4 text-2xl font-bold text-gray-900">
