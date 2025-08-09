@@ -60,7 +60,8 @@ api.interceptors.response.use(
   (error) => {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
-      let message = extractErrorMessage(error.response?.data?.detail);
+      const detail = error.response?.data?.detail;
+      let message = extractErrorMessage(detail);
 
       if (status) {
         const map: Record<number, string> = {
@@ -71,14 +72,16 @@ api.interceptors.response.use(
           422: 'Validation failed. Please check your input.',
           500: 'Server error. Please try again later.',
         };
-        if (message === 'An unexpected error occurred.') {
+        if (status in map && !(status === 422 && message !== 'An unexpected error occurred.')) {
+          message = map[status];
+        } else if (message === 'An unexpected error occurred.') {
           message = map[status] || message;
         }
       } else {
         message = 'Network error. Please check your connection.';
       }
 
-      console.error('API error:', error);
+      console.error('API error:', { status, detail }, error);
       return Promise.reject(new Error(message));
     }
 

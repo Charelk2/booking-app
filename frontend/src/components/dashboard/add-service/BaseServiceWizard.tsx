@@ -166,21 +166,26 @@ export default function BaseServiceWizard<T extends FieldValues>({
   };
 
   const onSubmit = handleSubmit(async (data: T) => {
-    let mediaUrl: string | null = existingMediaUrl;
-    if (mediaFiles[0]) {
-      mediaUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error("Failed to read file"));
-        reader.readAsDataURL(mediaFiles[0]);
-      });
+    try {
+      let mediaUrl: string | null = existingMediaUrl;
+      if (mediaFiles[0]) {
+        mediaUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("Failed to read file"));
+          reader.readAsDataURL(mediaFiles[0]);
+        });
+      }
+      const payload = toPayload(data, mediaUrl);
+      const res = service
+        ? await apiUpdateService(service.id, payload)
+        : await apiCreateService(payload);
+      onServiceSaved(res.data);
+      handleCancel();
+    } catch (err) {
+      console.error("Failed to save service:", err);
+      alert(err instanceof Error ? err.message : "Failed to save service.");
     }
-    const payload = toPayload(data, mediaUrl);
-    const res = service
-      ? await apiUpdateService(service.id, payload)
-      : await apiCreateService(payload);
-    onServiceSaved(res.data);
-    handleCancel();
   });
 
   const stepVariants = {
