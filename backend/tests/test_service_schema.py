@@ -2,22 +2,13 @@ import pytest
 from app.schemas.service import ServiceCreate, ServiceUpdate, ServiceType
 
 
-def test_service_create_requires_type_and_category():
+def test_service_create_requires_type():
     with pytest.raises(Exception):
         ServiceCreate(
             title="Test",
             duration_minutes=10,
             price=5.0,
             media_url="x",
-            service_category_id=1,
-        )
-    with pytest.raises(Exception):
-        ServiceCreate(
-            title="Test",
-            duration_minutes=10,
-            price=5.0,
-            media_url="x",
-            service_type=ServiceType.OTHER,
         )
     s = ServiceCreate(
         title="Test",
@@ -25,11 +16,10 @@ def test_service_create_requires_type_and_category():
         price=5.0,
         service_type=ServiceType.OTHER,
         media_url="x",
-        service_category_id=1,
         details={"genre": "rock"},
     )
     assert s.service_type == ServiceType.OTHER
-    assert s.service_category_id == 1
+    assert s.service_category_id is None
     assert s.details["genre"] == "rock"
     assert s.display_order is None
     assert s.currency == "ZAR"
