@@ -7,6 +7,7 @@ from sqlalchemy import (
     ForeignKey,
     Text,
     Enum as SQLAlchemyEnum,
+    JSON,
 )
 from sqlalchemy.orm import relationship
 from .base import BaseModel
@@ -48,6 +49,14 @@ class Service(BaseModel):
         nullable=False,
         default=ServiceType.LIVE_PERFORMANCE,
     )
+
+    # Link to predefined service categories
+    service_category_id = Column(
+        Integer, ForeignKey("service_categories.id", ondelete="SET NULL"), nullable=True
+    )
+    # JSON blob for category-specific attributes, e.g., genres for musicians
+    details = Column(JSON, nullable=True)
+    service_category = relationship("ServiceCategory")
 
     # New travel fields so quotes can accurately reflect costs
     travel_rate = Column(Numeric(10, 2), nullable=True, default=2.5)
