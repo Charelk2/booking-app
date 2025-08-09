@@ -32,3 +32,4 @@ POST /api/v1/services/
 ```
 
 Additional category details (e.g., `camera_brand`) are included under the `details` object.
+Provide `service_category_id` only when the service belongs to one of the seeded categories; otherwise omit this field.
