@@ -78,18 +78,28 @@ export default function ArtistsPage() {
   }, [category, user]);
 
   useEffect(() => {
-    let serviceCat = searchParams.get('category') || undefined;
-    if (!serviceCat) {
+    // ``category`` may arrive either as a backend service name ("DJ") or
+    // as a UI slug ("dj"). Normalize both forms to the UI value so the rest of
+    // the page logic consistently derives the backend name via
+    // ``UI_CATEGORY_TO_SERVICE``.
+    let value = searchParams.get('category') || undefined;
+    if (!value) {
       const match = pathname.match(/\/artists\/category\/([^/?]+)/);
       if (match) {
-        const slug = match[1];
-        serviceCat = UI_CATEGORY_TO_SERVICE[slug] || slug;
+        value = match[1];
       }
     }
-    // Convert the backend service name or path slug back to the corresponding
-    // UI value. If no mapping exists, clear the category so we don't
-    // accidentally show results from unrelated services.
-    setCategory(serviceCat ? SERVICE_TO_UI_CATEGORY[serviceCat] : undefined);
+    let uiValue: string | undefined;
+    if (value) {
+      if (SERVICE_TO_UI_CATEGORY[value]) {
+        // Already a backend service name
+        uiValue = SERVICE_TO_UI_CATEGORY[value];
+      } else if (UI_CATEGORY_TO_SERVICE[value]) {
+        // Received a UI slug
+        uiValue = value;
+      }
+    }
+    setCategory(uiValue);
     setLocation(searchParams.get('location') || '');
     const w = searchParams.get('when');
     if (w) {
