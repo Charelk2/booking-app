@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import SectionList from '../SectionList';
+import { SectionList } from '..';
 
 describe('SectionList', () => {
   let container: HTMLDivElement;

@@ -6,10 +6,12 @@ import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { Booking, BookingRequest } from "@/types";
 import { getMyClientBookings, getMyBookingRequests } from "@/lib/api";
-import SectionList from "@/components/dashboard/SectionList";
-import BookingRequestCard from "@/components/dashboard/BookingRequestCard";
+import {
+  SectionList,
+  BookingRequestCard,
+  DashboardTabs,
+} from "@/components/dashboard";
 import { Spinner } from "@/components/ui";
-import DashboardTabs from "@/components/dashboard/DashboardTabs";
 import { format } from "date-fns";
 import { formatCurrency, formatStatus } from "@/lib/utils";
 import Link from "next/link";

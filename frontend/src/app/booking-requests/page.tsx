@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import useNotifications from '@/hooks/useNotifications';
 import clsx from 'clsx';
 import { Spinner } from '@/components/ui';
-import BookingRequestCard from '@/components/dashboard/BookingRequestCard';
+import { BookingRequestCard } from '@/components/dashboard';
 import {
   getMyBookingRequests,
   getBookingRequestsForArtist,

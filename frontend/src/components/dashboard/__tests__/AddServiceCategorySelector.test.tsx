@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import React from "react";
 import { act } from "react";
-import AddServiceCategorySelector from "../AddServiceCategorySelector";
+import { AddServiceCategorySelector } from "..";
 
 describe("AddServiceCategorySelector", () => {
   it("calls onSelect with category id", async () => {
