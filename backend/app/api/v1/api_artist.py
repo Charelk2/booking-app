@@ -588,6 +588,8 @@ def read_all_artist_profiles(
         else:
             artist, rating, rating_count, book_count = row
             service_price = None
+        # Access the related User to ensure it's loaded for downstream filters
+        _ = artist.user
         profile = ArtistProfileResponse.model_validate(
             {
                 **artist.__dict__,
@@ -609,6 +611,21 @@ def read_all_artist_profiles(
 
     if when:
         profiles = [p for p in profiles if p.is_available]
+        total_count = len(profiles)
+
+    # When browsing the DJ category, exclude legacy artist records where
+    # the business name matches the user's first and last name. These
+    # entries stem from older imports and represent musicians rather than
+    # actual DJ businesses.
+    if category_slug == "dj":
+        def _is_legacy(p: ArtistProfileResponse) -> bool:
+            full_name = (
+                f"{p.user.first_name} {p.user.last_name}" if p.user else ""
+            ).strip().lower()
+            business = (p.business_name or "").strip().lower()
+            return business == full_name or business == ""
+
+        profiles = [p for p in profiles if not _is_legacy(p)]
         total_count = len(profiles)
 
     if not include_price_distribution and when is None:
