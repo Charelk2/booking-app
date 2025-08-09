@@ -90,6 +90,8 @@ The July 2025 update bumps key dependencies and Docker base images:
   each participant. The API also accepts the legacy values `text`, `quote`, and
   `system` (in any case) and automatically normalizes them to the uppercase
   values above for backward compatibility.
+- Legacy `visible_to` values such as `BOTH` are now accepted and normalized to
+  lowercase to prevent errors when loading old messages.
 - Backend now fetches these fields using a single optimized query for improved performance.
 - Booking request endpoints now embed the artist's business name so clients no longer see placeholder `user/unknown` names.
 
