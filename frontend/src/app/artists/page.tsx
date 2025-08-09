@@ -64,9 +64,12 @@ export default function ArtistsPage() {
         // derive the backend service name from the UI value and filter on the
         // client to avoid showing musicians when browsing DJs or other services.
         const safeRecs = Array.isArray(recs) ? recs : [];
-        const filtered = serviceName
+        let filtered = serviceName
           ? safeRecs.filter((a) => a.service_category?.name === serviceName)
           : safeRecs;
+        if (serviceName === 'DJ') {
+          filtered = filtered.filter((a) => a.business_name && a.business_name.trim());
+        }
         setRecommended(filtered);
         setRecError(null);
       } catch (err) {
@@ -84,7 +87,7 @@ export default function ArtistsPage() {
     // ``UI_CATEGORY_TO_SERVICE``.
     let value = searchParams.get('category') || undefined;
     if (!value) {
-      const match = pathname.match(/\/artists\/category\/([^/?]+)/);
+      const match = pathname.match(/\/(?:artists\/category|category)\/([^/?]+)/);
       if (match) {
         value = match[1];
       }
@@ -141,12 +144,17 @@ export default function ArtistsPage() {
           includePriceDistribution: true,
         });
         // Filter client-side to guard against any backend responses that
-        // include artists from other service categories.
-        const filtered = res.data.filter(
-          (a) =>
-            (a.business_name || a.user) &&
-            (!serviceName || a.service_category?.name === serviceName),
-        );
+        // include artists from other service categories. For the DJ category,
+        // only include profiles with a business name so personal artist names
+        // never appear.
+        const filtered = res.data.filter((a) => {
+          const matchesCategory = !serviceName || a.service_category?.name === serviceName;
+          if (!matchesCategory) return false;
+          if (serviceName === 'DJ') {
+            return !!(a.business_name && a.business_name.trim());
+          }
+          return !!(a.business_name || a.user);
+        });
         setHasMore(filtered.length === LIMIT);
         setArtists((prev) => (append ? [...prev, ...filtered] : filtered));
         setPriceDistribution(res.price_distribution || []);
@@ -221,7 +229,10 @@ export default function ArtistsPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-2 md:gap-2">
               {recommended.map((a) => {
                 const user = a.user;
-                const name = a.business_name || `${user.first_name} ${user.last_name}`;
+                const name =
+                  serviceName === 'DJ'
+                    ? a.business_name!
+                    : a.business_name || `${user.first_name} ${user.last_name}`;
                 return (
                   <ArtistCardCompact
                     key={`rec-${a.id}`}
@@ -259,7 +270,10 @@ export default function ArtistsPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-2 md:gap-2">
           {artists.map((a) => {
             const user = a.user;
-            const name = a.business_name || `${user.first_name} ${user.last_name}`;
+            const name =
+              serviceName === 'DJ'
+                ? a.business_name!
+                : a.business_name || `${user.first_name} ${user.last_name}`;
             return (
               <ArtistCardCompact
                 key={a.id}
