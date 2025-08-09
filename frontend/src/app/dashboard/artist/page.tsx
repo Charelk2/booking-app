@@ -614,7 +614,6 @@ export default function DashboardPage() {
               <SectionList
                 title="Upcoming Bookings"
                 data={upcomingBookings}
-                defaultOpen={false}
                 emptyState={<span>No bookings yet</span>}
                 renderItem={(booking) => (
                   <div key={booking.id} className="bg-white p-4 shadow rounded-lg">
