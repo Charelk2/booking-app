@@ -160,3 +160,22 @@ def test_service_price_none_without_category(monkeypatch):
     assert len(res["data"]) == 1
     assert res["data"][0].service_price is None
 
+
+def test_unknown_category_returns_empty(monkeypatch):
+    db = setup_db()
+    create_artist(db, 'Solo', 'NY', 'Musician')
+    monkeypatch.setattr(
+        'app.utils.redis_cache.get_cached_artist_list',
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        'app.utils.redis_cache.cache_artist_list',
+        lambda *args, **kwargs: None,
+    )
+
+    res = read_all_artist_profiles(
+        category='videographer', db=db, page=1, limit=20
+    )
+    assert res["data"] == []
+    assert res["total"] == 0
+

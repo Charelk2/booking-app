@@ -49,3 +49,9 @@ an automatic migration that adds the `media_url` column to the `services` table 
 running against older databases, preventing runtime errors when querying services
 without this field.
 
+## Artist search
+
+The `/api/v1/artist-profiles/` endpoint returns an empty list when a `category`
+query parameter is provided but no matching `ServiceCategory` exists. This
+ensures that irrelevant artists are not shown when a category has no services.
+

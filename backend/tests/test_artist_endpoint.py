@@ -58,8 +58,8 @@ def test_artist_profiles_endpoint_returns_paginated(monkeypatch):
     app.dependency_overrides.pop(get_db, None)
 
 
-def test_artist_profiles_unknown_category_ignored(monkeypatch):
-    """Requests with an unknown category should not raise 422."""
+def test_artist_profiles_unknown_category_returns_empty(monkeypatch):
+    """Unknown categories should yield an empty result set."""
     Session = setup_app(monkeypatch)
     db = Session()
     user = User(
@@ -74,8 +74,8 @@ def test_artist_profiles_unknown_category_ignored(monkeypatch):
     db.add(profile)
     db.commit()
     client = TestClient(app)
-    res = client.get("/api/v1/artist-profiles/?category=Musician")
+    res = client.get("/api/v1/artist-profiles/?category=Guitarist")
     assert res.status_code == 200
     body = res.json()
-    assert body["total"] == 1
+    assert body["total"] == 0
     app.dependency_overrides.pop(get_db, None)
