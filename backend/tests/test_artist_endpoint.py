@@ -7,6 +7,8 @@ from app.main import app
 from app.models.base import BaseModel
 from app.models.user import User, UserType
 from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service import Service, ServiceType
+from app.models.service_category import ServiceCategory
 from app.api.dependencies import get_db
 from app.utils import redis_cache
 
@@ -78,4 +80,55 @@ def test_artist_profiles_unknown_category_returns_empty(monkeypatch):
     assert res.status_code == 200
     body = res.json()
     assert body["total"] == 0
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_category_excludes_artists_without_services(monkeypatch):
+    """Artists without services for the category should be excluded."""
+    Session = setup_app(monkeypatch)
+    db = Session()
+
+    dj_cat = ServiceCategory(name="DJ")
+    db.add(dj_cat)
+    db.commit()
+
+    user = User(
+        email="dj@test.com",
+        password="x",
+        first_name="DJ",
+        last_name="NoService",
+        user_type=UserType.SERVICE_PROVIDER,
+    )
+    profile = ArtistProfileV2(
+        user_id=1,
+        business_name="DJ Without Service",
+        service_category_id=dj_cat.id,
+    )
+    db.add_all([user, profile])
+    db.commit()
+
+    client = TestClient(app)
+    res = client.get("/api/v1/artist-profiles/?category=DJ")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["total"] == 0
+
+    service = Service(
+        artist_id=1,
+        title="DJ Set",
+        description="",
+        media_url="http://example.com",
+        price=100,
+        currency="ZAR",
+        duration_minutes=60,
+        service_type=ServiceType.LIVE_PERFORMANCE,
+        service_category_id=dj_cat.id,
+    )
+    db.add(service)
+    db.commit()
+
+    res = client.get("/api/v1/artist-profiles/?category=DJ")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["total"] == 1
     app.dependency_overrides.pop(get_db, None)

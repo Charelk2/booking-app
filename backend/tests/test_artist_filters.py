@@ -48,6 +48,7 @@ def create_artist(db, name, location, category_name, rating=5, bookings=0):
         price=100,
         duration_minutes=60,
         media_url='x',
+        service_category_id=cat.id,
     )
     profile.services.append(service)
     db.add(profile)
