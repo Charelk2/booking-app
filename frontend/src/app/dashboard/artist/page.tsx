@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, type ComponentType } from "react";
 import clsx from 'clsx';
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
@@ -22,7 +22,7 @@ import {
   formatStatus,
   applyDisplayOrder,
 } from "@/lib/utils";
-import AddServiceModal from "@/components/dashboard/AddServiceModal";
+import AddServiceCategorySelector from "@/components/dashboard/AddServiceCategorySelector";
 import UpdateRequestModal from "@/components/dashboard/UpdateRequestModal";
 import ProfileProgress from "@/components/dashboard/ProfileProgress";
 import SectionList from "@/components/dashboard/SectionList";
@@ -48,6 +48,17 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Bars3Icon } from "@heroicons/react/24/outline";
+
+interface WizardProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onServiceSaved: (svc: Service) => void;
+  service?: Service;
+}
+
+const wizardLoaders: Record<string, () => Promise<{ default: ComponentType<WizardProps> }>> = {
+  musician: () => import("@/components/dashboard/add-service/musician/AddServiceModalMusician"),
+};
 
 interface ServiceCardProps {
   service: Service;
@@ -159,9 +170,20 @@ export default function DashboardPage() {
   const [requestVisibleCount, setRequestVisibleCount] = useState(5);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [serviceModalOpen, setServiceModalOpen] = useState(false);
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [wizardCategory, setWizardCategory] = useState<string | null>(null);
+  const [WizardComponent, setWizardComponent] = useState<ComponentType<WizardProps> | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [requestToUpdate, setRequestToUpdate] = useState<BookingRequest | null>(null);
+
+  useEffect(() => {
+    if (!wizardCategory) return;
+    wizardLoaders[wizardCategory]().then((mod) => {
+      setWizardComponent(() => mod.default);
+      setWizardOpen(true);
+    });
+  }, [wizardCategory]);
   const params = useSearchParams();
   const initialTab =
     params.get('tab') === 'bookings'
@@ -404,7 +426,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => {
                   setEditingService(null);
-                  setServiceModalOpen(true);
+                  setSelectorOpen(true);
                 }}
                 className="bg-brand-accent text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition shadow-md w-full md:w-auto"
               >
@@ -656,7 +678,7 @@ export default function DashboardPage() {
                           service={service}
                           onEdit={(s) => {
                             setEditingService(s);
-                            setServiceModalOpen(true);
+                            setWizardCategory('musician');
                           }}
                           onDelete={handleDeleteService}
                         />
@@ -669,7 +691,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => {
                   setEditingService(null);
-                  setServiceModalOpen(true);
+                  setSelectorOpen(true);
                 }}
                 className="mt-4 sm:w-auto"
                 fullWidth
@@ -680,13 +702,22 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
-      {serviceModalOpen && (
-        <AddServiceModal
-          isOpen={serviceModalOpen}
+      {selectorOpen && (
+        <AddServiceCategorySelector
+          isOpen={selectorOpen}
+          onClose={() => setSelectorOpen(false)}
+          onSelect={(cat) => setWizardCategory(cat)}
+        />
+      )}
+      {WizardComponent && (
+        <WizardComponent
+          isOpen={wizardOpen}
           service={editingService ?? undefined}
           onClose={() => {
-            setServiceModalOpen(false);
+            setWizardOpen(false);
+            setWizardComponent(null);
             setEditingService(null);
+            setWizardCategory(null);
           }}
           onServiceSaved={(svc) => {
             if (editingService) {
@@ -694,6 +725,10 @@ export default function DashboardPage() {
             } else {
               handleServiceAdded(svc);
             }
+            setWizardOpen(false);
+            setWizardComponent(null);
+            setEditingService(null);
+            setWizardCategory(null);
           }}
         />
       )}

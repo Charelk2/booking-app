@@ -1,12 +1,12 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import AddServiceModal from '../AddServiceModal';
+import AddServiceModalMusician from '../add-service/musician/AddServiceModalMusician';
 import * as api from '@/lib/api';
 import { flushPromises } from '@/test/utils/flush';
 import { Service, ArtistProfile, User } from '@/types';
 
-describe('AddServiceModal editing mode', () => {
+describe('AddServiceModalMusician editing mode', () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -67,7 +67,7 @@ describe('AddServiceModal editing mode', () => {
   it('submits updated fields', async () => {
     await act(async () => {
       root.render(
-        React.createElement(AddServiceModal, {
+        React.createElement(AddServiceModalMusician, {
           isOpen: true,
           service,
           onClose: jest.fn(),
