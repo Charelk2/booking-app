@@ -2,7 +2,17 @@
 
 import { Fragment } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import { XMarkIcon, MusicalNoteIcon, CameraIcon } from "@heroicons/react/24/outline";
+import {
+  XMarkIcon,
+  MusicalNoteIcon,
+  CameraIcon,
+  MegaphoneIcon,
+  SparklesIcon,
+  HomeModernIcon,
+  CakeIcon,
+  BeakerIcon,
+  MicrophoneIcon,
+} from "@heroicons/react/24/outline";
 
 interface Category {
   id: string;
@@ -13,6 +23,12 @@ interface Category {
 const categories: Category[] = [
   { id: "musician", label: "Musician", Icon: MusicalNoteIcon },
   { id: "photographer", label: "Photographer", Icon: CameraIcon },
+  { id: "speaker", label: "Speaker", Icon: MegaphoneIcon },
+  { id: "event_service", label: "Event Service", Icon: SparklesIcon },
+  { id: "wedding_venue", label: "Wedding Venue", Icon: HomeModernIcon },
+  { id: "caterer", label: "Caterer", Icon: CakeIcon },
+  { id: "bartender", label: "Bartender", Icon: BeakerIcon },
+  { id: "mc_host", label: "MC & Host", Icon: MicrophoneIcon },
 ];
 
 interface AddServiceCategorySelectorProps {
