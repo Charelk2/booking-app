@@ -21,8 +21,8 @@ import {
   updateService as apiUpdateService,
 } from "@/lib/api";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
-import Button from "../ui/Button";
-import { Stepper, TextInput, TextArea } from "../ui";
+import Button from "@/components/ui/Button";
+import { Stepper, TextInput, TextArea } from "@/components/ui";
 
 const serviceTypeIcons: Record<Service["service_type"], ElementType> = {
   "Live Performance": MusicalNoteIcon,
@@ -55,7 +55,7 @@ const stepVariants = {
   transition: { duration: 0.3, ease: [0.42, 0, 0.58, 1] as const },
 };
 
-interface AddServiceModalProps {
+interface AddServiceModalMusicianProps {
   isOpen: boolean;
   onClose: () => void;
   onServiceSaved: (newService: Service) => void;
@@ -88,12 +88,12 @@ const emptyDefaults: ServiceFormData = {
   flight_price: 2780,
 };
 
-export default function AddServiceModal({
+export default function AddServiceModalMusician({
   isOpen,
   onClose,
   onServiceSaved,
   service,
-}: AddServiceModalProps) {
+}: AddServiceModalMusicianProps) {
   const steps = ["Type", "Details", "Media", "Review"];
   const [step, setStep] = useState(0);
   const [maxStep, setMaxStep] = useState(0);
