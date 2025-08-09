@@ -48,7 +48,7 @@ export default function AddServiceCategorySelector({
 }: AddServiceCategorySelectorProps) {
   return (
     <Transition show={isOpen} as={Fragment}>
-      <Dialog onClose={onClose} className="relative z-50">
+      <Dialog onClose={onClose} className="fixed inset-0 z-50">
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -60,51 +60,38 @@ export default function AddServiceCategorySelector({
         >
           <div className="fixed inset-0 bg-black/30" />
         </Transition.Child>
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
+
+        <Dialog.Panel className="flex h-full w-full flex-col bg-white">
+          <div className="flex items-center justify-between p-6">
+            <Dialog.Title className="text-lg font-semibold">
+              Select Service Category
+            </Dialog.Title>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded p-1 hover:bg-gray-100"
             >
-              <Dialog.Panel className="w-full max-w-lg rounded bg-white p-6">
-                <div className="mb-4 flex items-center justify-between">
-                  <Dialog.Title className="text-lg font-semibold">
-                    Select Service Category
-                  </Dialog.Title>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="rounded p-1 hover:bg-gray-100"
-                  >
-                    <XMarkIcon className="h-5 w-5" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  {categories.map(({ id, label, Icon }) => (
-                    <button
-                      key={id}
-                      type="button"
-                      data-testid={`category-${id}`}
-                      onClick={() => {
-                        onSelect(id);
-                        onClose();
-                      }}
-                      className="flex flex-col items-center justify-center rounded border p-4 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand"
-                    >
-                      <Icon className="mb-2 h-8 w-8" />
-                      <span>{label}</span>
-                    </button>
-                  ))}
-                </div>
-              </Dialog.Panel>
-            </Transition.Child>
+              <XMarkIcon className="h-5 w-5" />
+            </button>
           </div>
-        </div>
+          <div className="grid flex-1 grid-cols-2 gap-4 overflow-y-auto p-6">
+            {categories.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                data-testid={`category-${id}`}
+                onClick={() => {
+                  onSelect(id);
+                  onClose();
+                }}
+                className="flex flex-col items-center justify-center rounded border p-4 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand"
+              >
+                <Icon className="mb-2 h-8 w-8" />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </Dialog.Panel>
       </Dialog>
     </Transition>
   );
