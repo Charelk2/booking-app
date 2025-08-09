@@ -48,7 +48,7 @@ export default function DateTimeStep({
       description="When should we perform?"
       open={open}
       onToggle={onToggle}
-      className="wizard-step-container"
+      className="wizard-step-container wizard-step-container-date"
     >
       {loading || (!isMobile && !showPicker) ? (
         <div
