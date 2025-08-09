@@ -64,7 +64,19 @@ def test_list_and_update_category(monkeypatch):
     res = client.get("/api/v1/service-categories/")
     assert res.status_code == 200
     data = res.json()
-    assert len(data) >= 10
+    expected_categories = [
+        "Musician",
+        "DJ",
+        "Photographer",
+        "Videographer",
+        "Speaker",
+        "Event Service",
+        "Wedding Venue",
+        "Caterer",
+        "Bartender",
+        "MC & Host",
+    ]
+    assert [c["name"] for c in data] == expected_categories
 
     res = client.put("/api/v1/artist-profiles/me", json={"service_category_id": data[0]["id"]})
     assert res.status_code == 200
