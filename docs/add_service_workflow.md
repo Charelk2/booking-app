@@ -1,6 +1,6 @@
 # Add Service Workflow
 
-Artists can now publish offerings using a shared **BaseServiceWizard**. The wizard manages step navigation, form submission and client-side media uploads while category wizards supply their own fields.
+Artists can now publish offerings using a shared **BaseServiceWizard**. The wizard mirrors the musician service modal so every category shares the same layout and navigation. It manages step flow, form submission and client-side media uploads while category wizards supply their own fields.
 
 ## Categories
 
