@@ -94,9 +94,13 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         db.refresh(db_user)
 
         if db_user.user_type == UserType.SERVICE_PROVIDER:
+            # Create an empty service provider profile so the artist can
+            # decide their categories later. No default services are added,
+            # preventing accidental classification (e.g. as a photographer).
             service_provider_profile = ServiceProviderProfile(user_id=db_user.id)
             db.add(service_provider_profile)
             db.commit()
+            db.refresh(service_provider_profile)
             return db_user
 
         token_value = secrets.token_urlsafe(32)
