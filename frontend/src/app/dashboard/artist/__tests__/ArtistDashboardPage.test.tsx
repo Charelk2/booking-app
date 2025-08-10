@@ -14,7 +14,7 @@ test('loads artist data', async () => {
   (useAuth as jest.Mock).mockReturnValue({ user: { id: 1, user_type: 'service_provider' }, loading: false });
   (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
   (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [] });
-  (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
+  (api.getServiceProviderProfileMe as jest.Mock).mockResolvedValue({ data: {} });
   (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [] });
   (api.getDashboardStats as jest.Mock).mockResolvedValue({ data: {} });
 

@@ -1,14 +1,14 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import ArtistCardCompact from '../ArtistCardCompact';
+import ServiceProviderCardCompact from '../ServiceProviderCardCompact';
 
 function setup(props = {}) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
   const allProps = {
-    artistId: 1,
+    serviceProviderId: 1,
     name: 'Test',
     href: '/service-providers/1',
     ...props,
@@ -16,7 +16,7 @@ function setup(props = {}) {
   return { container, root, allProps };
 }
 
-describe('ArtistCardCompact', () => {
+describe('ServiceProviderCardCompact', () => {
   afterEach(() => {
     document.body.innerHTML = '';
   });
@@ -24,7 +24,7 @@ describe('ArtistCardCompact', () => {
   it('matches snapshot', () => {
     const { container, root, allProps } = setup();
     act(() => {
-      root.render(React.createElement(ArtistCardCompact, allProps));
+      root.render(React.createElement(ServiceProviderCardCompact, allProps));
     });
     expect(container.firstChild).toMatchSnapshot();
     act(() => root.unmount());

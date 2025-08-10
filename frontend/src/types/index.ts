@@ -13,7 +13,7 @@ export interface User {
   profile_picture_url?: string | null;
 }
 
-export interface ArtistProfile {
+export interface ServiceProviderProfile {
   id: number;
   user_id: number;
   business_name: string;
@@ -83,7 +83,7 @@ export interface Service {
   flight_price?: number;
   display_order: number;
   price: number;
-  artist: ArtistProfile;
+  artist: ServiceProviderProfile;
 }
 
 export type BookingStatus =
@@ -121,7 +121,7 @@ export interface Booking {
   payment_id?: string | null;
   /** Booking request associated with this booking */
   booking_request_id?: number;
-  artist: ArtistProfile;
+  artist: ServiceProviderProfile;
   client: User;
   service: Service;
   source_quote?: Quote;
@@ -192,7 +192,7 @@ export interface BookingRequest {
     user?: User | null;
   };
   /** Additional artist details including business name */
-  artist_profile?: ArtistProfile;
+  artist_profile?: ServiceProviderProfile;
   service?: Service;
   quotes?: Quote[];
   accepted_quote_id?: number | null;

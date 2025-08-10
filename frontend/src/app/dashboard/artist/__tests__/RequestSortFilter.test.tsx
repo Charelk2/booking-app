@@ -63,7 +63,7 @@ describe('DashboardPage booking request sort and filter', () => {
     (useAuth as jest.Mock).mockReturnValue({ user: baseUser });
     (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
     (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [] });
-    (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
+    (api.getServiceProviderProfileMe as jest.Mock).mockResolvedValue({ data: {} });
     (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: requests });
     (api.getDashboardStats as jest.Mock).mockResolvedValue({ data: { monthly_new_inquiries: 0, profile_views: 0, response_rate: 0 } });
 

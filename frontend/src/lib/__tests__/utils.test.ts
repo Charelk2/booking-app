@@ -13,7 +13,7 @@ import {
 import { DEFAULT_CURRENCY } from '../constants';
 import api from '../api';
 import { format } from 'date-fns';
-import type { Service, ArtistProfile, QuoteTemplate } from '@/types';
+import type { Service, ServiceProviderProfile, QuoteTemplate } from '@/types';
 
 describe('extractErrorMessage', () => {
   it('returns the string unchanged when given a string', () => {
@@ -48,7 +48,7 @@ describe('normalizeService', () => {
       price: '12.5' as unknown as number,
       duration_minutes: '30' as unknown as number,
       display_order: 1,
-      artist: {} as unknown as ArtistProfile,
+      artist: {} as unknown as ServiceProviderProfile,
     };
     const normalized = normalizeService(input);
     expect(typeof normalized.price).toBe('number');
@@ -61,8 +61,8 @@ describe('normalizeService', () => {
 describe('applyDisplayOrder', () => {
   it('increments display_order sequentially', () => {
     const services: Service[] = [
-      { id: 1, artist_id: 1, title: 'A', description: '', media_url: 'img.jpg', service_type: 'Other', duration_minutes: 10, display_order: 5, price: 1, artist: {} as ArtistProfile },
-      { id: 2, artist_id: 1, title: 'B', description: '', media_url: 'img.jpg', service_type: 'Other', duration_minutes: 10, display_order: 2, price: 1, artist: {} as ArtistProfile },
+      { id: 1, artist_id: 1, title: 'A', description: '', media_url: 'img.jpg', service_type: 'Other', duration_minutes: 10, display_order: 5, price: 1, artist: {} as ServiceProviderProfile },
+      { id: 2, artist_id: 1, title: 'B', description: '', media_url: 'img.jpg', service_type: 'Other', duration_minutes: 10, display_order: 2, price: 1, artist: {} as ServiceProviderProfile },
     ];
     const ordered = applyDisplayOrder(services);
     expect(ordered[0].display_order).toBe(1);

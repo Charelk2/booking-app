@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { extractErrorMessage, normalizeQuoteTemplate } from './utils';
 import {
   User,
-  ArtistProfile,
+  ServiceProviderProfile,
   Service,
   Booking,
   Review,
@@ -127,9 +127,9 @@ export const getCurrentUser = () => api.get<User>('/auth/me');
 const API_V1 = '/api/v1';
 
 // Helper to ensure API responses always include `user_id` and `id`
-const normalizeArtistProfile = (
-  profile: Partial<ArtistProfile> | ArtistProfile
-): ArtistProfile => {
+const normalizeServiceProviderProfile = (
+  profile: Partial<ServiceProviderProfile> | ServiceProviderProfile
+): ServiceProviderProfile => {
   // Ensure 'id' is always a number. Assuming 'profile.id' or 'profile.user_id' can serve as it.
   const id = (profile.id ?? profile.user_id) as number; // Use user_id as fallback for id
   const user_id = (profile.user_id ?? profile.id) as number; // Ensure user_id is number
@@ -143,7 +143,7 @@ const normalizeArtistProfile = (
       profile.service_price != null
         ? parseFloat(profile.service_price as unknown as string)
         : undefined,
-  } as ArtistProfile; // Cast to ArtistProfile to satisfy the return type, if confident
+  } as ServiceProviderProfile; // Cast to ServiceProviderProfile to satisfy the return type, if confident
 };
 
 // ─── ARTISTS ───────────────────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ export interface PriceBucket {
 }
 
 export interface GetArtistsResponse {
-  data: ArtistProfile[];
+  data: ServiceProviderProfile[];
   total: number;
   price_distribution: PriceBucket[];
 }
@@ -186,30 +186,30 @@ export const getArtists = async (params?: {
   });
   return {
     ...res.data,
-    data: res.data.data.map(normalizeArtistProfile),
+    data: res.data.data.map(normalizeServiceProviderProfile),
   };
 };
 
 export const getArtist = async (userId: number) => {
-  const res = await api.get<ArtistProfile>(`${API_V1}/service-provider-profiles/${userId}`);
-  return { ...res, data: normalizeArtistProfile(res.data) };
+  const res = await api.get<ServiceProviderProfile>(`${API_V1}/service-provider-profiles/${userId}`);
+  return { ...res, data: normalizeServiceProviderProfile(res.data) };
 };
 
 export const getArtistAvailability = (artistId: number) =>
   api.get<{ unavailable_dates: string[] }>(`${API_V1}/service-provider-profiles/${artistId}/availability`);
 
-export const getArtistProfileMe = async () => {
-  const res = await api.get<ArtistProfile>(`${API_V1}/service-provider-profiles/me`);
-  return { ...res, data: normalizeArtistProfile(res.data) };
+export const getServiceProviderProfileMe = async () => {
+  const res = await api.get<ServiceProviderProfile>(`${API_V1}/service-provider-profiles/me`);
+  return { ...res, data: normalizeServiceProviderProfile(res.data) };
 };
 
-export const updateMyArtistProfile = (data: Partial<ArtistProfile>) =>
+export const updateMyServiceProviderProfile = (data: Partial<ServiceProviderProfile>) =>
   api.put(`${API_V1}/service-provider-profiles/me`, data);
 
-export const uploadMyArtistProfilePicture = (file: File) => {
+export const uploadMyServiceProviderProfilePicture = (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
-  return api.post<ArtistProfile>(
+  return api.post<ServiceProviderProfile>(
     `${API_V1}/service-provider-profiles/me/profile-picture`,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } }
@@ -219,7 +219,7 @@ export const uploadMyArtistProfilePicture = (file: File) => {
 export const uploadMyArtistCoverPhoto = (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
-  return api.post<ArtistProfile>(
+  return api.post<ServiceProviderProfile>(
     `${API_V1}/service-provider-profiles/me/cover-photo`,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } }
@@ -237,7 +237,7 @@ export const uploadMyProfilePicture = (file: File) => {
 export const uploadMyArtistPortfolioImages = (files: File[]) => {
   const formData = new FormData();
   files.forEach((f) => formData.append('files', f));
-  return api.post<ArtistProfile>(
+  return api.post<ServiceProviderProfile>(
     `${API_V1}/service-provider-profiles/me/portfolio-images`,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } }
@@ -245,7 +245,7 @@ export const uploadMyArtistPortfolioImages = (files: File[]) => {
 };
 
 export const updateMyArtistPortfolioImageOrder = (urls: string[]) =>
-  api.put<ArtistProfile>(`${API_V1}/service-provider-profiles/me/portfolio-images`, {
+  api.put<ServiceProviderProfile>(`${API_V1}/service-provider-profiles/me/portfolio-images`, {
     portfolio_image_urls: urls,
   });
 

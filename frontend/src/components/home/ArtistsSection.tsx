@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import ArtistCardCompact from '@/components/artist/ArtistCardCompact';
+import ServiceProviderCardCompact from '@/components/service-provider/ServiceProviderCardCompact';
 import { getArtists } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
-import type { ArtistProfile, SearchParams } from '@/types';
+import type { ServiceProviderProfile, SearchParams } from '@/types';
 
 interface ArtistsSectionProps {
   title: string;
@@ -32,7 +32,7 @@ export default function ArtistsSection({
   limit = 12,
   hideIfEmpty = false,
 }: ArtistsSectionProps) {
-  const [artists, setArtists] = useState<ArtistProfile[]>([]);
+  const [artists, setArtists] = useState<ServiceProviderProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   const serializedQuery = useMemo(() => JSON.stringify(query), [query]);
@@ -89,9 +89,9 @@ export default function ArtistsSection({
           {artists.map((a) => {
             const name = a.business_name || `${a.user.first_name} ${a.user.last_name}`;
             return (
-              <ArtistCardCompact
+              <ServiceProviderCardCompact
                 key={a.id}
-                artistId={a.id}
+                serviceProviderId={a.id}
                 name={name}
                 subtitle={a.custom_subtitle || undefined}
                 imageUrl={

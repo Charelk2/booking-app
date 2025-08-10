@@ -10,10 +10,10 @@ import clsx from 'clsx';
 import { getFullImageUrl } from '@/lib/utils';
 import { BREAKPOINT_MD } from '@/lib/breakpoints';
 
-export interface ArtistCardCompactProps
+export interface ServiceProviderCardCompactProps
   extends LinkProps,
     Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof LinkProps> {
-  artistId: number;
+  serviceProviderId: number;
   name: string;
   subtitle?: string;
   imageUrl?: string;
@@ -25,8 +25,8 @@ export interface ArtistCardCompactProps
   href: string;
 }
 
-export default function ArtistCardCompact({
-  artistId,
+export default function ServiceProviderCardCompact({
+  serviceProviderId,
   name,
   subtitle,
   imageUrl,
@@ -38,7 +38,7 @@ export default function ArtistCardCompact({
   href,
   className,
   ...props
-}: ArtistCardCompactProps) {
+}: ServiceProviderCardCompactProps) {
   const [loaded, setLoaded] = useState(false);
   return (
     <Link

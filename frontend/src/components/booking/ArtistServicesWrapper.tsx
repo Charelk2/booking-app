@@ -4,7 +4,7 @@
 
 import React, { useState } from 'react';
 import type { Service } from '@/types';
-import ArtistServiceCard from '../artist/ArtistServiceCard';
+import ServiceProviderServiceCard from '../service-provider/ServiceProviderServiceCard';
 import BookingWizard from './BookingWizard';
 
 interface ArtistServicesWrapperProps {
@@ -30,7 +30,7 @@ export default function ArtistServicesWrapper({ artistId, services }: ArtistServ
     <>
       <div className="space-y-4">
         {services.map((service) => (
-          <ArtistServiceCard key={service.id} service={service} onBook={handleBook} />
+          <ServiceProviderServiceCard key={service.id} service={service} onBook={handleBook} />
         ))}
       </div>
 
