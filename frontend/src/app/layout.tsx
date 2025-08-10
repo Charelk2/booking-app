@@ -14,7 +14,6 @@ const inter = Inter({
 export const metadata = {
   title: 'Artist Booking App',
   description: 'Book your favorite artists for services',
-  viewport: 'width=device-width, initial-scale=1',
 };
 
 export const viewport = {
