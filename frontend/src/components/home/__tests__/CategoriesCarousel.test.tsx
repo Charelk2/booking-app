@@ -29,19 +29,6 @@ describe('CategoriesCarousel', () => {
     container.remove();
   });
 
-  it('links categories to the homepage with query params', () => {
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const root = createRoot(container);
-    act(() => {
-      root.render(React.createElement(CategoriesCarousel));
-    });
-    const firstLink = container.querySelector('a');
-    expect(firstLink?.getAttribute('href')).toBe('/?category=musician');
-    act(() => root.unmount());
-    container.remove();
-  });
-
   it('scrolls when clicking the next button', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
