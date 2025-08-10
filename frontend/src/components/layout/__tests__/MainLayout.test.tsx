@@ -20,7 +20,7 @@ describe('MainLayout header behavior', () => {
   });
 
   it('hides search bar on artist detail pages', async () => {
-    usePathname.mockReturnValue('/artists/123');
+    usePathname.mockReturnValue('/service-providers/123');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, email: 'a@test.com', user_type: 'service_provider' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -36,7 +36,7 @@ describe('MainLayout header behavior', () => {
   });
 
   it('keeps header expanded in artist view', async () => {
-    usePathname.mockReturnValue('/artists');
+      usePathname.mockReturnValue('/service-providers');
     (useAuth as jest.Mock).mockReturnValue({
       user: { id: 10, email: 'artist@test.com', user_type: 'service_provider' } as User,
       logout: jest.fn(),
@@ -64,7 +64,7 @@ describe('MainLayout header behavior', () => {
   });
 
   it('keeps search pill available on artists listing page', async () => {
-    usePathname.mockReturnValue('/artists');
+      usePathname.mockReturnValue('/service-providers');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 3, email: 'c@test.com', user_type: 'client' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -81,7 +81,7 @@ describe('MainLayout header behavior', () => {
   });
 
   it('expands search bar when compact pill is clicked on artists listing page', async () => {
-    usePathname.mockReturnValue('/artists');
+      usePathname.mockReturnValue('/service-providers');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 5, email: 'e@test.com', user_type: 'client' } as User, logout: jest.fn() });
     const div = document.createElement('div');
     document.body.appendChild(div);
@@ -104,7 +104,7 @@ describe('MainLayout header behavior', () => {
   });
 
   it('initializes compact header when search params present', async () => {
-    usePathname.mockReturnValue('/artists');
+      usePathname.mockReturnValue('/service-providers');
     useSearchParams.mockReturnValue(new URLSearchParams('category=Live%20Performance'));
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 7, email: 'q@test.com', user_type: 'client' } as User, logout: jest.fn() });
     const div = document.createElement('div');
@@ -121,7 +121,7 @@ describe('MainLayout header behavior', () => {
   });
 
   it('displays search values and filter control in compact pill on artists page', async () => {
-    usePathname.mockReturnValue('/artists');
+      usePathname.mockReturnValue('/service-providers');
     useSearchParams.mockReturnValue(
       new URLSearchParams('category=Live%20Performance&location=Cape%20Town&when=2025-07-01'),
     );

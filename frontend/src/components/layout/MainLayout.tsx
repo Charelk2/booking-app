@@ -26,9 +26,9 @@ interface Props {
 export default function MainLayout({ children, headerAddon, headerFilter, fullWidthContent = false, hideFooter = false }: Props) {
   const { user, artistViewActive } = useAuth();
   const pathname = usePathname();
-  const isArtistDetail = /^\/artists\//.test(pathname) && pathname.split('/').length > 2;
-  const isArtistsRoot = pathname === '/artists';
-  const isArtistsPage = pathname.startsWith('/artists');
+  const isArtistDetail = /^\/service-providers\//.test(pathname) && pathname.split('/').length > 2;
+  const isArtistsRoot = pathname === '/service-providers';
+  const isArtistsPage = pathname.startsWith('/service-providers');
   const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
 
   // State to manage the header's visual and functional state
@@ -218,7 +218,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
   const showSearchBar =
     !isArtistDetail &&
     !isArtistView &&
-    (pathname === '/' || pathname.startsWith('/artists'));
+    (pathname === '/' || pathname.startsWith('/service-providers'));
 
   return (
     <div className="flex min-h-screen flex-col bg-white bg-gradient-to-b from-brand-light/50 to-gray-50">

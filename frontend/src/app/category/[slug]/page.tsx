@@ -1,1 +1,1 @@
-export { default } from '../../artists/page';
+export { default } from '../../service-providers/page';

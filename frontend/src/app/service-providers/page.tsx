@@ -61,7 +61,7 @@ export default function ArtistsPage() {
     if (!categories.length) return;
     let value = searchParams.get('category') || undefined;
     if (!value) {
-      const match = pathname.match(/\/(?:artists\/category|category)\/([^/?]+)/);
+      const match = pathname.match(/\/(?:service-providers\/category|category)\/([^/?]+)/);
       if (match) {
         value = match[1];
       }
@@ -243,7 +243,7 @@ export default function ArtistsPage() {
                 ratingCount={a.rating_count ?? undefined}
                 location={a.location}
                 categories={a.service_categories}
-                href={qs ? `/artists/${a.id}?${qs}` : `/artists/${a.id}`}
+                href={qs ? `/service-providers/${a.id}?${qs}` : `/service-providers/${a.id}`}
               />
             );
           })}
