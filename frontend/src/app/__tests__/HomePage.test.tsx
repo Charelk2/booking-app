@@ -25,4 +25,18 @@ describe('HomePage', () => {
     });
     div.remove();
   });
+
+  it('renders category-specific providers when category is selected', async () => {
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(<HomePage searchParams={{ category: 'dj' }} />);
+    });
+    expect(div.textContent).toContain('DJs');
+    act(() => {
+      root.unmount();
+    });
+    div.remove();
+  });
 });
