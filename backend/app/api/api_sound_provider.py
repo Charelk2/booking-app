@@ -1,6 +1,7 @@
 """API endpoints for managing sound providers and artist preferences."""
 
 from fastapi import APIRouter, Depends, status, Query
+from fastapi.params import Query as QueryParam
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
@@ -15,6 +16,11 @@ from ..schemas import (
 )
 from .dependencies import get_current_service_provider
 from ..utils import error_response
+from ..utils.redis_cache import (
+    get_cached_provider_list,
+    cache_provider_list,
+    invalidate_provider_list_cache,
+)
 
 router = APIRouter(tags=["sound-providers"])
 
@@ -28,17 +34,32 @@ def list_providers(
         None, description="Comma-separated fields to include in the response"
     ),
 ):
+    if isinstance(skip, QueryParam):
+        skip = skip.default
+    if isinstance(limit, QueryParam):
+        limit = limit.default
+    if isinstance(fields, QueryParam):
+        fields = fields.default
+
+    cached = get_cached_provider_list(skip=skip, limit=limit, fields=fields)
+    if cached is not None:
+        return cached
+
     providers = db.query(SoundProvider).offset(skip).limit(limit).all()
     if fields:
         include = {
             *{"id", "created_at", "updated_at"},
             *{f.strip() for f in fields.split(",") if f.strip()},
         }
-        return [
+        result = [
             SoundProviderResponse.model_validate(p).model_dump(include=include)
             for p in providers
         ]
-    return providers
+    else:
+        result = providers
+
+    cache_provider_list(result, skip=skip, limit=limit, fields=fields)
+    return result
 
 
 @router.post(
@@ -49,6 +70,7 @@ def create_provider(*, db: Session = Depends(get_db), provider_in: SoundProvider
     db.add(provider)
     db.commit()
     db.refresh(provider)
+    invalidate_provider_list_cache()
     return provider
 
 
@@ -68,6 +90,7 @@ def update_provider(
     db.add(provider)
     db.commit()
     db.refresh(provider)
+    invalidate_provider_list_cache()
     return provider
 
 
@@ -82,6 +105,7 @@ def delete_provider(*, db: Session = Depends(get_db), provider_id: int):
         )
     db.delete(provider)
     db.commit()
+    invalidate_provider_list_cache()
     return None
 
 

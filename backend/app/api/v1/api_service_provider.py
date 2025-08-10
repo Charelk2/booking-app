@@ -13,7 +13,12 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Dict, Any
 from pydantic import BaseModel
 
-from app.utils.redis_cache import get_cached_artist_list, cache_artist_list
+from app.utils.redis_cache import (
+    get_cached_artist_list,
+    cache_artist_list,
+    get_cached_availability,
+    cache_availability,
+)
 from app.services import calendar_service
 
 from app.database import get_db
@@ -695,12 +700,17 @@ def read_artist_availability(
     db: Session = Depends(get_db),
 ):
     """Return dates the artist is unavailable."""
+    if isinstance(when, QueryParam):
+        when = when.default
+
+    cached = get_cached_availability(artist_id, when)
+    if cached:
+        return cached
+
     bookings_query = db.query(Booking).filter(
         Booking.artist_id == artist_id,
         Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
     )
-    if isinstance(when, QueryParam):
-        when = when.default
     if when:
         day_start = datetime.combine(when, datetime.min.time())
         day_end = day_start + timedelta(days=1)
@@ -746,8 +756,9 @@ def read_artist_availability(
             dates.add(ev.date().isoformat())
     except HTTPException:
         pass
-
-    return {"unavailable_dates": sorted(dates)}
+    result = {"unavailable_dates": sorted(dates)}
+    cache_availability(result, artist_id, when)
+    return result
 
 
 def read_all_artists(db: Session = Depends(get_db)):
