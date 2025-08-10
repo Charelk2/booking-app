@@ -4,7 +4,6 @@ import AddServiceModalMusician from "../AddServiceModalMusician";
 import * as api from "@/lib/api";
 import { Service } from "@/types";
 import { flushPromises } from "@/test/utils/flush";
-import { UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 
 describe("AddServiceModalMusician editing", () => {
   it("calls updateService on submit", async () => {
@@ -42,7 +41,7 @@ describe("AddServiceModalMusician editing", () => {
     expect(spy).toHaveBeenCalledWith(
       1,
       expect.objectContaining({
-        service_category_id: UI_CATEGORY_TO_ID.musician,
+        service_category_slug: "musician",
       }),
     );
   });
