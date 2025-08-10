@@ -1,8 +1,9 @@
-import { categorySlug } from '@/lib/categoryMap';
+import { UI_CATEGORIES, UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 
-describe('categoryMap helpers', () => {
-  it('slugifies names consistently', () => {
-    expect(categorySlug('MC & Host')).toBe('mc_host');
-    expect(categorySlug('Wedding Venue')).toBe('wedding_venue');
+describe("categoryMap", () => {
+  it("maps each category value to its explicit id", () => {
+    UI_CATEGORIES.forEach((cat) => {
+      expect(UI_CATEGORY_TO_ID[cat.value]).toBe(cat.id);
+    });
   });
 });
