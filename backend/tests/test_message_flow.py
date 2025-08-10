@@ -9,7 +9,7 @@ from app.models import (
     BookingStatus,
     MessageType,
     SenderType,
-    ArtistProfile,
+    ServiceProviderProfile,
 )
 from app.models.base import BaseModel
 from app.api import api_message
@@ -70,7 +70,7 @@ def test_message_response_includes_avatar_url_for_artist():
     db.refresh(client)
     db.refresh(artist)
 
-    profile = ArtistProfile(
+    profile = ServiceProviderProfile(
         user_id=artist.id, profile_picture_url="/static/profile_pics/pic.jpg"
     )
     db.add(profile)

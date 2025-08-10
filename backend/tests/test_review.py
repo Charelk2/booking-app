@@ -5,7 +5,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from app.models import User, UserType, Service, Booking, BookingStatus
-from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service_provider_profile import ServiceProviderProfile
 from app.models.base import BaseModel
 from app.api import api_review
 from app.schemas.review import ReviewCreate
@@ -26,7 +26,7 @@ def create_booking(db, status=BookingStatus.COMPLETED):
     db.refresh(artist)
     db.refresh(client)
 
-    profile = ArtistProfileV2(user_id=artist.id)
+    profile = ServiceProviderProfile(user_id=artist.id)
     service = Service(
         artist_id=artist.id,
         title='Gig',

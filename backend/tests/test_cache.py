@@ -61,7 +61,7 @@ def test_invalidate_artist_list_cache(monkeypatch):
 
 from types import SimpleNamespace
 from datetime import datetime
-from app.api.v1 import api_artist
+from app.api.v1 import api_service_provider
 from app.models.service import Service, ServiceType
 
 class DummyDB:
@@ -130,7 +130,7 @@ def make_artist(id_: int):
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models.base import BaseModel
-from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service_provider_profile import ServiceProviderProfile
 from app.models.user import User, UserType
 
 
@@ -144,7 +144,7 @@ def test_read_all_artist_profiles_uses_cache(monkeypatch):
     db = Session()
 
     user = User(email="a@test.com", password="x", first_name="A", last_name="B", user_type=UserType.SERVICE_PROVIDER)
-    profile = ArtistProfileV2(user_id=1, business_name="Test")
+    profile = ServiceProviderProfile(user_id=1, business_name="Test")
     service = Service(
         artist_id=1,
         title="Gig",
@@ -158,7 +158,7 @@ def test_read_all_artist_profiles_uses_cache(monkeypatch):
     db.add_all([user, profile, service])
     db.commit()
 
-    first = api_artist.read_all_artist_profiles(
+    first = api_service_provider.read_all_artist_profiles(
         db=db,
         category=None,
         location=None,
@@ -170,7 +170,7 @@ def test_read_all_artist_profiles_uses_cache(monkeypatch):
     assert len(first["data"]) == 1
 
     # Use failing DB to ensure cache is consulted on second call
-    second = api_artist.read_all_artist_profiles(
+    second = api_service_provider.read_all_artist_profiles(
         db=FailingDB([]),
         category=None,
         location=None,
@@ -197,7 +197,7 @@ def test_fallback_when_redis_unavailable(monkeypatch):
     db = Session()
 
     user = User(email="b@test.com", password="x", first_name="B", last_name="C", user_type=UserType.SERVICE_PROVIDER)
-    profile = ArtistProfileV2(user_id=1, business_name="Test2")
+    profile = ServiceProviderProfile(user_id=1, business_name="Test2")
     service = Service(
         artist_id=1,
         title="Set",
@@ -211,7 +211,7 @@ def test_fallback_when_redis_unavailable(monkeypatch):
     db.add_all([user, profile, service])
     db.commit()
 
-    result = api_artist.read_all_artist_profiles(
+    result = api_service_provider.read_all_artist_profiles(
         db=db,
         category=None,
         location=None,

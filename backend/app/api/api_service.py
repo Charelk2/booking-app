@@ -7,13 +7,13 @@ from typing import List
 
 from ..database import get_db
 
-# Import the actual ArtistProfileV2 model by name
-from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
+# Import the actual ServiceProviderProfile model by name
+from ..models.service_provider_profile import ServiceProviderProfile
 
 from ..models.service import Service
 from ..models.service_category import ServiceCategory
 from ..schemas.service import ServiceCreate, ServiceUpdate, ServiceResponse
-from .dependencies import get_current_active_artist
+from .dependencies import get_current_service_provider
 from ..utils import error_response
 from ..utils.redis_cache import invalidate_artist_list_cache
 
@@ -40,7 +40,7 @@ def create_service(
     *,
     db: Session = Depends(get_db),
     service_in: ServiceCreate,
-    current_artist=Depends(get_current_active_artist)
+    current_artist=Depends(get_current_service_provider)
 ):
     """
     Create a new service for the currently authenticated artist.
@@ -103,7 +103,7 @@ def update_service(
     db: Session = Depends(get_db),
     service_id: int,
     service_in: ServiceUpdate,
-    current_artist=Depends(get_current_active_artist)
+    current_artist=Depends(get_current_service_provider)
 ):
     """
     Update a service owned by the currently authenticated artist.
@@ -188,9 +188,11 @@ def read_services_by_artist(artist_user_id: int, db: Session = Depends(get_db)):
     Get all services offered by a specific artist (by their user_id).
     Full path → GET /api/v1/services/artist/{artist_user_id}
     """
-    # Confirm that artist_user_id has an ArtistProfile record
+    # Confirm that artist_user_id has a ServiceProviderProfile record
     artist_profile = (
-        db.query(ArtistProfile).filter(ArtistProfile.user_id == artist_user_id).first()
+        db.query(ServiceProviderProfile)
+        .filter(ServiceProviderProfile.user_id == artist_user_id)
+        .first()
     )
     if not artist_profile:
         raise error_response(
@@ -214,7 +216,7 @@ def delete_service(
     *,
     db: Session = Depends(get_db),
     service_id: int,
-    current_artist=Depends(get_current_active_artist)
+    current_artist=Depends(get_current_service_provider)
 ):
     """
     Delete a service owned by the currently authenticated artist.

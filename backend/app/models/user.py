@@ -37,7 +37,7 @@ class User(BaseModel):
 
     # ↔–↔ If this user is a service provider, they get exactly one profile here:
     artist_profile = relationship(
-        "ArtistProfileV2",
+        "ServiceProviderProfile",
         back_populates="user",
         uselist=False,
         cascade="all, delete-orphan"

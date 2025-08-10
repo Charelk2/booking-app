@@ -14,5 +14,5 @@ class ArtistSoundPreference(BaseModel):
     provider_id = Column(Integer, ForeignKey("sound_providers.id", ondelete="CASCADE"), nullable=False)
     priority = Column(Integer, nullable=True)
 
-    artist = relationship("ArtistProfileV2", back_populates="sound_preferences")
+    artist = relationship("ServiceProviderProfile", back_populates="sound_preferences")
     provider = relationship("SoundProvider", back_populates="preferred_by")

@@ -30,7 +30,7 @@ if config.config_file_name is not None:
 
 from app.database import Base  # Import Base from your app's database module
 # Import all models to ensure they are registered with Base.metadata
-from app.models import User, ArtistProfile, Service, Booking, Review, BookingRequest, Quote 
+from app.models import User, ServiceProviderProfile, Service, Booking, Review, BookingRequest, Quote
 
 target_metadata = Base.metadata # Point Alembic to your app's metadata
 

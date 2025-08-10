@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from app.models import User, UserType, Booking, BookingStatus, Service
-from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service_provider_profile import ServiceProviderProfile
 from app.models.base import BaseModel
 from app.api.api_booking import update_booking_status
 from app.schemas.booking import BookingUpdate
@@ -24,7 +24,7 @@ def test_artist_can_update_booking_status():
     db.refresh(artist)
     db.refresh(client)
 
-    profile = ArtistProfileV2(user_id=artist.id)
+    profile = ServiceProviderProfile(user_id=artist.id)
     service = Service(
         artist_id=artist.id,
         title='Gig',

@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models import User, UserType, BookingRequest, BookingStatus
-from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service_provider_profile import ServiceProviderProfile
 from app.models.base import BaseModel
 from app.models.service import ServiceType
 from app.schemas import ServiceCreate, ServiceResponse
@@ -22,7 +22,7 @@ def test_service_response_includes_currency():
     db.add(artist)
     db.commit()
     db.refresh(artist)
-    profile = ArtistProfileV2(user_id=artist.id)
+    profile = ServiceProviderProfile(user_id=artist.id)
     db.add(profile)
     db.commit()
 

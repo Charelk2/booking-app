@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service_provider_profile import ServiceProviderProfile
 from app.models.user import User, UserType
 from app.models.base import BaseModel
 from app.schemas.artist import ArtistProfileResponse
@@ -21,7 +21,7 @@ def test_custom_subtitle_field_roundtrip():
     db.commit()
     db.refresh(user)
 
-    profile = ArtistProfileV2(user_id=user.id, business_name='The Band', custom_subtitle='Indie Rock Band')
+    profile = ServiceProviderProfile(user_id=user.id, business_name='The Band', custom_subtitle='Indie Rock Band')
     db.add(profile)
     db.commit()
     db.refresh(profile)

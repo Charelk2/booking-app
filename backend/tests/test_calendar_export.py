@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from ics import Calendar
 from app.models import User, UserType, Booking, BookingStatus, Service
-from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service_provider_profile import ServiceProviderProfile
 from app.models.base import BaseModel
 from app.api.api_booking import download_booking_calendar
 
@@ -24,7 +24,7 @@ def test_calendar_download_returns_ics():
     db.refresh(client_user)
     db.refresh(artist_user)
 
-    profile = ArtistProfileV2(user_id=artist_user.id)
+    profile = ServiceProviderProfile(user_id=artist_user.id)
     service = Service(
         artist_id=artist_user.id,
         title='Gig',
