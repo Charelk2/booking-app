@@ -119,7 +119,7 @@ export default function ArtistsSection({
             <div className="relative hidden xl:block">
               <div
                 ref={scrollRef}
-                className="flex gap-2 overflow-x-auto scroll-smooth pb-2"
+                className="flex items-stretch gap-2 overflow-x-auto scroll-smooth pb-2"
               >
                 {artists.map((a) => {
                   const name = a.business_name || `${a.user.first_name} ${a.user.last_name}`;
@@ -140,7 +140,7 @@ export default function ArtistsSection({
                         location={a.location}
                         categories={a.service_categories}
                         href={`/service-providers/${a.id}`}
-                        className="w-full"
+                        className="h-full w-full"
                       />
                     </div>
                   );
