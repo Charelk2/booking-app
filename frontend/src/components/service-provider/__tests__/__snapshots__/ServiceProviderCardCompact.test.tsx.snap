@@ -18,7 +18,7 @@ exports[`ServiceProviderCardCompact matches snapshot 1`] = `
     />
   </div>
   <div
-    class="p-1 space-y-0.5 flex-grow"
+    class="p-1 space-y-0.5"
   >
     <p
       class="text-sm font-semibold truncate text-black"
