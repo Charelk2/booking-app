@@ -46,6 +46,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Seeded categories include Musician, DJ, Photographer, Videographer, Speaker, Event Service, Wedding Venue, Caterer, Bartender, and MC & Host.
 - Services may optionally include a `service_category_id` and JSON `details` object for category-specific attributes, enabling tailored service data.
 - Artist profile responses now include a `service_categories` array listing all categories the artist offers.
+- Artist search results clear their Redis cache whenever services change so new offerings appear immediately in category searches.
 - Bookings now track `payment_status`, `deposit_amount`, and `deposit_paid` in
   `bookings_simple`. The deposit amount defaults to half of the accepted quote
   total. Booking API responses now include these fields alongside
