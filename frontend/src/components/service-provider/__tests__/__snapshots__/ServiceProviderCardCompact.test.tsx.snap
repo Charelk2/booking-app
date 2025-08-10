@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`ArtistCardCompact matches snapshot 1`] = `
+exports[`ServiceProviderCardCompact matches snapshot 1`] = `
 <a
   href="/service-providers/1"
 >

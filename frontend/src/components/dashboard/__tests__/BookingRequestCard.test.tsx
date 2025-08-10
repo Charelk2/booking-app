@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import { BookingRequestCard } from '..';
-import type { BookingRequest, Service, User, ArtistProfile } from '@/types';
+import type { BookingRequest, Service, User, ServiceProviderProfile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 
 jest.mock('@/contexts/AuthContext');
@@ -31,7 +31,7 @@ const artist: User = {
   profile_picture_url: null,
 };
 
-const artistProfile: ArtistProfile = {
+const artistProfile: ServiceProviderProfile = {
   id: 3,
   user_id: 3,
   business_name: 'The Band',

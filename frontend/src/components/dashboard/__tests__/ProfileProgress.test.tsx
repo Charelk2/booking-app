@@ -2,11 +2,11 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import { ProfileProgress, computeProfileCompletion } from '..';
-import type { ArtistProfile } from '@/types';
+import type { ServiceProviderProfile } from '@/types';
 
 describe('ProfileProgress component', () => {
   it('computes completion percentage correctly', () => {
-    const profile: Partial<ArtistProfile> = { business_name: 'x', description: 'd' };
+    const profile: Partial<ServiceProviderProfile> = { business_name: 'x', description: 'd' };
     expect(computeProfileCompletion(profile)).toBe(40);
   });
 
@@ -14,7 +14,7 @@ describe('ProfileProgress component', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
-    const profile: Partial<ArtistProfile> = {
+    const profile: Partial<ServiceProviderProfile> = {
       business_name: 'x',
       description: 'd',
       location: 'loc',

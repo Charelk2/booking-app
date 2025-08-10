@@ -5,11 +5,11 @@ import clsx from 'clsx';
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import MainLayout from "@/components/layout/MainLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { Booking, Service, ArtistProfile, BookingRequest } from "@/types";
+import { Booking, Service, ServiceProviderProfile, BookingRequest } from "@/types";
 import {
   getMyArtistBookings,
   getArtistServices,
-  getArtistProfileMe,
+  getServiceProviderProfileMe,
   getBookingRequestsForArtist,
   getDashboardStats,
   updateService,
@@ -171,7 +171,7 @@ export default function DashboardPage() {
   const pathname = usePathname();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<Service[]>([]);
-  const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(
+  const [artistProfile, setServiceProviderProfile] = useState<ServiceProviderProfile | null>(
     null
   );
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
@@ -290,7 +290,7 @@ export default function DashboardPage() {
         ] = await Promise.all([
           getMyArtistBookings(),
           getArtistServices(user.id),
-          getArtistProfileMe(),
+          getServiceProviderProfileMe(),
           getBookingRequestsForArtist(),
           getDashboardStats(),
         ]);
@@ -301,7 +301,7 @@ export default function DashboardPage() {
           .map((service: Service) => normalizeService(service))
           .sort((a, b) => a.display_order - b.display_order);
         setServices(processedServices);
-        setArtistProfile(artistProfileData.data);
+        setServiceProviderProfile(artistProfileData.data);
         setDashboardStats(statsData.data);
       } catch (err) {
         console.error("Dashboard fetch error:", err);

@@ -7,9 +7,9 @@ import MainLayout from '@/components/layout/MainLayout';
 import { getArtists, type PriceBucket } from '@/lib/api';
 import useServiceCategories from '@/hooks/useServiceCategories';
 import { getFullImageUrl } from '@/lib/utils';
-import type { ArtistProfile } from '@/types';
-import ArtistCardCompact from '@/components/artist/ArtistCardCompact';
-import { ArtistsPageHeader } from '@/components/artist/ArtistServiceCard';
+import type { ServiceProviderProfile } from '@/types';
+import ServiceProviderCardCompact from '@/components/service-provider/ServiceProviderCardCompact';
+import { ServiceProvidersPageHeader } from '@/components/service-provider/ServiceProviderServiceCard';
 import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
 import { useDebounce } from '@/hooks/useDebounce';
 import { updateQueryParams } from '@/lib/urlParams';
@@ -22,7 +22,7 @@ export default function ArtistsPage() {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  const [artists, setArtists] = useState<ArtistProfile[]>([]);
+  const [artists, setArtists] = useState<ServiceProviderProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -174,7 +174,7 @@ export default function ArtistsPage() {
     fetchArtists({ append: true, pageNumber: next });
   };
   const filterControl = (
-    <ArtistsPageHeader
+    <ServiceProvidersPageHeader
       iconOnly
       initialSort={sort}
       initialMinPrice={minPrice}
@@ -223,9 +223,9 @@ export default function ArtistsPage() {
                 ? a.business_name!
                 : a.business_name || `${user.first_name} ${user.last_name}`;
             return (
-              <ArtistCardCompact
+              <ServiceProviderCardCompact
                 key={a.id}
-                artistId={a.id}
+                serviceProviderId={a.id}
                 name={name}
                 subtitle={a.custom_subtitle || undefined}
                 imageUrl={

@@ -1,28 +1,28 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import ArtistCard from '../ArtistCard';
+import ServiceProviderCard from '../ServiceProviderCard';
 
 function setup(props = {}) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
   const allProps = {
-    id: 1,
-    name: 'Test Artist',
+    serviceProviderId: 1,
+    name: 'Test Provider',
     href: '/service-providers/1',
     ...props,
   };
   act(() => {
-    root.render(React.createElement(ArtistCard, allProps));
+    root.render(React.createElement(ServiceProviderCard, allProps));
   });
   return { container, root };
 }
 
-describe('ArtistCard optional fields', () => {
+describe('ServiceProviderCard optional fields', () => {
   beforeAll(() => {
     Object.defineProperty(window, 'matchMedia', {
-    // Polyfill for matchMedia used in ArtistCard
+    // Polyfill for matchMedia used in ServiceProviderCard
       writable: true,
       value: jest.fn().mockImplementation((query) => ({
         matches: false,
@@ -54,7 +54,7 @@ describe('ArtistCard optional fields', () => {
   });
 
   it('shows location and tagline truncated', () => {
-    const { container, root } = setup({ location: 'NYC', subtitle: 'Best artist ever in the world' });
+    const { container, root } = setup({ location: 'NYC', subtitle: 'Best service provider ever in the world' });
     expect(container.textContent).toContain('NYC');
     const subtitleEl = container.querySelector('p.text-sm');
     expect(subtitleEl?.className).toContain('line-clamp-2');
@@ -114,7 +114,7 @@ describe('ArtistCard optional fields', () => {
     container.remove();
   });
 
-  it('wraps the image in a link to the artist profile', () => {
+  it('wraps the image in a link to the service provider profile', () => {
     const { container, root } = setup({ imageUrl: '/a.jpg', href: '/service-providers/9' });
     const img = container.querySelector('img');
     expect(img).not.toBeNull();

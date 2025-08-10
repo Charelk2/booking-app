@@ -28,7 +28,7 @@ describe('Service deletion confirmation', () => {
     duration_minutes: 60,
     display_order: 1,
     price: 100,
-    artist: {} as unknown as import('@/types').ArtistProfile,
+    artist: {} as unknown as import('@/types').ServiceProviderProfile,
   };
 
   beforeEach(async () => {
@@ -37,7 +37,7 @@ describe('Service deletion confirmation', () => {
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 2, user_type: 'service_provider', email: 'a@example.com' } });
     (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
     (api.getArtistServices as jest.Mock).mockResolvedValue({ data: [service] });
-    (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: {} });
+    (api.getServiceProviderProfileMe as jest.Mock).mockResolvedValue({ data: {} });
     (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [] });
     (api.deleteService as jest.Mock).mockResolvedValue({});
 

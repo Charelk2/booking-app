@@ -2,7 +2,7 @@ import { flushPromises } from "@/test/utils/flush";
 import React from 'react';
 import { act } from 'react-dom/test-utils';
 import { createRoot } from 'react-dom/client';
-import EditArtistProfilePage from '../edit/page';
+import EditServiceProviderProfilePage from '../edit/page';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, useSearchParams, usePathname } from '@/tests/mocks/next-navigation';
@@ -21,7 +21,7 @@ function setup() {
   useRouter.mockReturnValue({ push: jest.fn() });
   usePathname.mockReturnValue('/dashboard/profile/edit');
   useSearchParams.mockReturnValue({ get: () => null });
-  (api.getArtistProfileMe as jest.Mock).mockResolvedValue({ data: { user_id: 1, portfolio_image_urls: ['/img1.jpg', '/img2.jpg'] } });
+  (api.getServiceProviderProfileMe as jest.Mock).mockResolvedValue({ data: { user_id: 1, portfolio_image_urls: ['/img1.jpg', '/img2.jpg'] } });
   (api.getGoogleCalendarStatus as jest.Mock).mockResolvedValue({ data: { connected: false } });
   const div = document.createElement('div');
   document.body.appendChild(div);
@@ -42,7 +42,7 @@ describe('Portfolio images upload and reorder', () => {
     (api.updateMyArtistPortfolioImageOrder as jest.Mock).mockResolvedValue({ data: {} });
     const { div, root } = setup();
     await act(async () => {
-      root.render(<EditArtistProfilePage />);
+      root.render(<EditServiceProviderProfilePage />);
     });
     await flushPromises();
     const input = div.querySelector('#portfolioImagesInput') as HTMLInputElement;
