@@ -30,4 +30,15 @@ describe('ServiceProviderCardCompact', () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it('ignores subtitle and categories props', () => {
+    const { container, root, allProps } = setup({ subtitle: 'DJ', categories: ['Photographer'] });
+    act(() => {
+      root.render(React.createElement(ServiceProviderCardCompact, allProps));
+    });
+    expect(container.textContent).not.toContain('DJ');
+    expect(container.textContent).not.toContain('Photographer');
+    act(() => root.unmount());
+    container.remove();
+  });
 });
