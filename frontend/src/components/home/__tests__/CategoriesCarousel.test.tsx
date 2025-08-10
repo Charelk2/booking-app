@@ -2,11 +2,28 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react-dom/test-utils';
 import CategoriesCarousel from '../CategoriesCarousel';
-import { UI_CATEGORIES } from '@/lib/categoryMap';
+import { getServiceCategories } from '@/lib/api';
+import type { Category } from '@/hooks/useServiceCategories';
+
+jest.mock('@/lib/api');
+
+const mockedGetServiceCategories = getServiceCategories as jest.MockedFunction<
+  typeof getServiceCategories
+>;
+
+const MOCK_CATEGORIES: Category[] = [
+  { id: 1, value: 'dj', label: 'DJ' },
+  { id: 2, value: 'musician', label: 'Musician' },
+];
 
 describe('CategoriesCarousel', () => {
+  beforeEach(() => {
+    mockedGetServiceCategories.mockResolvedValue({ data: MOCK_CATEGORIES } as any);
+  });
+
   afterEach(() => {
     document.body.innerHTML = '';
+    jest.clearAllMocks();
   });
 
   it('renders categories with navigation buttons', () => {
@@ -16,12 +33,12 @@ describe('CategoriesCarousel', () => {
     act(() => {
       root.render(React.createElement(CategoriesCarousel));
     });
-    UI_CATEGORIES.forEach((cat) => {
+    MOCK_CATEGORIES.forEach((cat) => {
       expect(container.textContent).toContain(cat.label);
     });
     const imgs = container.querySelectorAll('img');
-    UI_CATEGORIES.forEach((cat, index) => {
-      expect(imgs[index].getAttribute('src')).toBe(cat.image);
+    MOCK_CATEGORIES.forEach((cat, index) => {
+      expect(imgs[index].getAttribute('src')).toContain(cat.value);
     });
     const next = container.querySelector('button[aria-label="Next"]');
     expect(next).not.toBeNull();
@@ -84,12 +101,10 @@ describe('CategoriesCarousel', () => {
     expect(wrapper?.className).toContain('w-40');
     expect(wrapper?.className).toContain('h-40');
 
-
     const label = container.querySelector('a p');
     expect(label?.className).toContain('absolute');
     expect(label?.className).toContain('left-2');
     expect(label?.className).toContain('bottom-2');
-
 
     act(() => root.unmount());
     container.remove();
