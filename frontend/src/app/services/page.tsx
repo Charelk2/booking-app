@@ -6,7 +6,7 @@ import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { Service } from '@/types';
 import { formatCurrency } from '@/lib/utils';
-import { getAllServices, getArtistServices } from '@/lib/api';
+import { getAllServices, getServiceProviderServices } from '@/lib/api';
 import { Spinner } from '@/components/ui';
 
 export default function ServicesPage() {
@@ -21,7 +21,7 @@ export default function ServicesPage() {
     const fetch = async () => {
       try {
         const res = artistId
-          ? await getArtistServices(artistId)
+          ? await getServiceProviderServices(artistId)
           : await getAllServices();
         setServices(res.data);
       } catch (err) {

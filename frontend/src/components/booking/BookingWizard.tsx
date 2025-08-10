@@ -11,11 +11,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import useIsMobile from '@/hooks/useIsMobile';
 import useBookingForm from '@/hooks/useBookingForm';
 import {
-  getArtistAvailability,
+  getServiceProviderAvailability,
   createBookingRequest,
   updateBookingRequest,
   postMessageToBookingRequest,
-  getArtist,
+  getServiceProvider,
   getService,
   calculateQuote,
 } from '@/lib/api';
@@ -157,8 +157,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     const fetchArtistData = async () => {
       try {
         const [availabilityRes, artistRes] = await Promise.all([
-          getArtistAvailability(artistId),
-          getArtist(artistId),
+          getServiceProviderAvailability(artistId),
+          getServiceProvider(artistId),
         ]);
         setUnavailable(availabilityRes.data.unavailable_dates);
         setArtistLocation(artistRes.data.location || null);

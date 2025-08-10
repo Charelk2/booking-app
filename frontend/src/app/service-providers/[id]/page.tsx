@@ -12,9 +12,9 @@ import {
   Review as ReviewType,
 } from '@/types';
 import {
-  getArtist,
-  getArtistServices,
-  getArtistReviews,
+  getServiceProvider,
+  getServiceProviderServices,
+  getServiceProviderReviews,
   createBookingRequest,
 } from '@/lib/api';
 
@@ -33,7 +33,7 @@ import BookingWizard from '@/components/booking/BookingWizard';
 import { BookingProvider } from '@/contexts/BookingContext';
 
 // This profile page now lazy loads services and reviews separately so the main
-// artist info appears faster. Images use the
+// service provider info appears faster. Images use the
 // Next.js `<Image>` component for optimized loading.
 
 export default function ServiceProviderProfilePage() {
@@ -42,7 +42,7 @@ export default function ServiceProviderProfilePage() {
   const { user } = useAuth();
   const serviceProviderId = Number(params.id);
 
-  const [artist, setArtist] = useState<ServiceProviderProfile | null>(null);
+  const [serviceProvider, setServiceProvider] = useState<ServiceProviderProfile | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [reviews, setReviews] = useState<ReviewType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,27 +55,27 @@ export default function ServiceProviderProfilePage() {
   useEffect(() => {
     if (!serviceProviderId) return;
 
-    const fetchArtist = async () => {
+    const fetchServiceProvider = async () => {
       setLoading(true);
       try {
-        const res = await getArtist(serviceProviderId);
-        setArtist(res.data);
+        const res = await getServiceProvider(serviceProviderId);
+        setServiceProvider(res.data);
       } catch (err) {
-        console.error('Error fetching artist:', err);
-        setError('Failed to load artist profile');
+        console.error('Error fetching service provider:', err);
+        setError('Failed to load service provider profile');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchArtist();
+    fetchServiceProvider();
   }, [serviceProviderId]);
 
   // load services independently so the section can render on demand
   useEffect(() => {
     if (!serviceProviderId) return;
     setServicesLoading(true);
-    getArtistServices(serviceProviderId)
+    getServiceProviderServices(serviceProviderId)
       .then((res) => {
         const processed = res.data.map((service: Service) =>
           normalizeService(service)
@@ -92,7 +92,7 @@ export default function ServiceProviderProfilePage() {
   useEffect(() => {
     if (!serviceProviderId) return;
     setReviewsLoading(true);
-    getArtistReviews(serviceProviderId)
+    getServiceProviderReviews(serviceProviderId)
       .then((res) => setReviews(res.data))
       .catch((err) => {
         console.error('Error fetching reviews:', err);
@@ -141,7 +141,7 @@ export default function ServiceProviderProfilePage() {
     );
   }
 
-  if (error || !artist) {
+  if (error || !serviceProvider) {
     return (
       <MainLayout hideFooter>
         <div className="text-center py-20" role="alert">
@@ -152,19 +152,19 @@ export default function ServiceProviderProfilePage() {
   }
 
   // Build full URLs for cover & profile photos
-  const coverPhotoUrl = getFullImageUrl(artist.cover_photo_url);
-  const profilePictureUrl = getFullImageUrl(artist.profile_picture_url);
+  const coverPhotoUrl = getFullImageUrl(serviceProvider.cover_photo_url);
+  const profilePictureUrl = getFullImageUrl(serviceProvider.profile_picture_url);
 
   return (
     <>
       <Head>
-        <title>{artist.business_name || `${artist.user.first_name} ${artist.user.last_name}`}</title>
+        <title>{serviceProvider.business_name || `${serviceProvider.user.first_name} ${serviceProvider.user.last_name}`}</title>
         <meta
           property="og:title"
-          content={artist.business_name || `${artist.user.first_name} ${artist.user.last_name}`}
+          content={serviceProvider.business_name || `${serviceProvider.user.first_name} ${serviceProvider.user.last_name}`}
         />
-        {artist.description && (
-          <meta property="og:description" content={artist.description} />
+        {serviceProvider.description && (
+          <meta property="og:description" content={serviceProvider.description} />
         )}
         {profilePictureUrl && <meta property="og:image" content={profilePictureUrl} />}
       </Head>
@@ -204,7 +204,7 @@ export default function ServiceProviderProfilePage() {
                       width={96}
                       height={96}
                       className="h-24 w-24 rounded-full object-cover shadow"
-                      alt={artist.business_name || 'Artist'}
+                      alt={serviceProvider.business_name || 'Service Provider'}
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src = '/static/default-avatar.svg';
                       }}
@@ -216,22 +216,22 @@ export default function ServiceProviderProfilePage() {
                   )}
                 </div>
                 <h1 className="mt-4 text-2xl font-bold text-gray-900">
-                  {artist.business_name || `${artist.user.first_name} ${artist.user.last_name}`}
+                  {serviceProvider.business_name || `${serviceProvider.user.first_name} ${serviceProvider.user.last_name}`}
                 </h1>
-                {(artist.custom_subtitle || (!artist.custom_subtitle && artist.location)) && (
+                {(serviceProvider.custom_subtitle || (!serviceProvider.custom_subtitle && serviceProvider.location)) && (
                   <p className="text-md text-gray-600">
-                    {artist.custom_subtitle || artist.location}
+                    {serviceProvider.custom_subtitle || serviceProvider.location}
                   </p>
                 )}
-                {artist.description && (
+                {serviceProvider.description && (
                   <p className="mt-2 text-sm text-gray-600 whitespace-pre-line">
-                    {artist.description}
+                    {serviceProvider.description}
                   </p>
                 )}
                 <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-gray-500">
-                  {artist.location && !artist.custom_subtitle && (
+                  {serviceProvider.location && !serviceProvider.custom_subtitle && (
                     <span className="flex items-center">
-                      <MapPinIcon className="h-4 w-4 mr-1" /> {artist.location}
+                      <MapPinIcon className="h-4 w-4 mr-1" /> {serviceProvider.location}
                     </span>
                   )}
                   {averageRating && (
@@ -240,14 +240,14 @@ export default function ServiceProviderProfilePage() {
                     </span>
                   )}
                 </div>
-                {artist.user.email && (
+                {serviceProvider.user.email && (
                   <p className="mt-4 text-sm">
                     Contact:{' '}
                     <a
-                      href={`mailto:${artist.user.email}`}
+                      href={`mailto:${serviceProvider.user.email}`}
                       className="text-brand-dark hover:underline"
                     >
-                      {artist.user.email}
+                      {serviceProvider.user.email}
                     </a>
                   </p>
                 )}
@@ -275,7 +275,7 @@ export default function ServiceProviderProfilePage() {
                 </ul>
               ) : (
                 <p className="text-gray-600" role="status">
-                  This artist currently has no services listed.
+                  This service provider currently has no services listed.
                 </p>
               )}
             </section>
@@ -326,7 +326,7 @@ export default function ServiceProviderProfilePage() {
                 </ul>
               ) : (
                 <p className="text-gray-600" role="status">
-                  No reviews yet for this artist.
+                  No reviews yet for this service provider.
                 </p>
               )}
             </section>

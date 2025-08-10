@@ -9,7 +9,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import useServiceCategories from '@/hooks/useServiceCategories';
-import { getArtists } from '@/lib/api';
+import { getServiceProviders } from '@/lib/api';
 import type { ServiceProviderProfile } from '@/types';
 import { AUTOCOMPLETE_LISTBOX_ID } from '../ui/LocationInput';
 
@@ -91,7 +91,7 @@ export default function SearchPopupContent({
     }
     const handler = setTimeout(async () => {
       try {
-        const res = await getArtists({ artist: artistQuery, limit: 5 });
+        const res = await getServiceProviders({ artist: artistQuery, limit: 5 });
         setArtistResults(res.data);
       } catch (err) {
         // eslint-disable-next-line no-console

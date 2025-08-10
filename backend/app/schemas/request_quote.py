@@ -95,7 +95,7 @@ class QuoteResponse(QuoteBase):
     updated_at: Optional[datetime] = None
     
     artist: Optional[UserResponse] = None  # Artist user details
-    # Include artist profile so quotes also expose the business name
+    # Include service provider profile so quotes also expose the business name
     artist_profile: Optional[ArtistProfileResponse] = None
     # Exclude booking_request to avoid recursion when nested under
     # BookingRequestResponse -> QuoteResponse -> BookingRequestResponse

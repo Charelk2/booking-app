@@ -58,7 +58,7 @@ class ArtistProfileResponse(ArtistProfileBase):
     service_price: Optional[Decimal] = None
     service_categories: List[str] = Field(default_factory=list)
 
-    # We want to include a nested "user" object when returning an artist profile
+    # We want to include a nested "user" object when returning a service provider profile
     user: Optional[UserResponse] = None
 
     @computed_field(return_type=int)

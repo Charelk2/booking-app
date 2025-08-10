@@ -91,30 +91,30 @@ def get_review(booking_id: int, db: Session = Depends(get_db)) -> Any:
     return review
 
 
-@router.get("/artist-profiles/{artist_id}/reviews", response_model=List[ReviewDetails])
-def list_reviews_for_artist(artist_id: int, db: Session = Depends(get_db)) -> Any:
+@router.get("/service-provider-profiles/{service_provider_id}/reviews", response_model=List[ReviewDetails])
+def list_reviews_for_service_provider(service_provider_id: int, db: Session = Depends(get_db)) -> Any:
     """
-    List all reviews for a specific artist.
+    List all reviews for a specific service provider.
     This requires joining through Bookings and Services or directly if Review had artist_id.
     For now, let's assume reviews are primarily linked to bookings.
     """
-    # Ensure artist exists
-    artist_profile = (
+    # Ensure service provider exists
+    service_provider_profile = (
         db.query(ServiceProviderProfile)
-        .filter(ServiceProviderProfile.user_id == artist_id)
+        .filter(ServiceProviderProfile.user_id == service_provider_id)
         .first()
     )
-    if not artist_profile:
+    if not service_provider_profile:
         raise error_response(
-            "Artist profile not found.",
-            {"artist_id": "not_found"},
+            "Service provider profile not found.",
+            {"service_provider_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
 
     reviews = (
         db.query(Review)
         .join(Booking, Review.booking_id == Booking.id)
-        .filter(Booking.artist_id == artist_id)
+        .filter(Booking.artist_id == service_provider_id)
         .options(selectinload(Review.booking))
         .order_by(Review.created_at.desc())
         .all()

@@ -2,7 +2,7 @@ import React from 'react';
 import { act } from 'react-dom/test-utils';
 import { createRoot } from 'react-dom/client';
 import { axe, toHaveNoViolations } from 'jest-axe';
-import ArtistsPage from '../app/service-providers/page';
+import ServiceProvidersPage from '../app/service-providers/page';
 import BookingWizard from '../components/booking/BookingWizard';
 import { BookingProvider } from '../contexts/BookingContext';
 import * as api from '../lib/api';
@@ -15,17 +15,17 @@ expect.extend(toHaveNoViolations);
 describe('accessibility audits', () => {
   beforeEach(() => {
     (useAuth as jest.Mock).mockReturnValue({ user: null });
-    (api.getArtists as jest.Mock).mockResolvedValue({ data: [], total: 0, price_distribution: [] });
-    (api.getArtistAvailability as jest.Mock).mockResolvedValue({ data: { unavailable_dates: [] } });
-    (api.getArtist as jest.Mock).mockResolvedValue({ data: { location: 'NYC' } });
+    (api.getServiceProviders as jest.Mock).mockResolvedValue({ data: [], total: 0, price_distribution: [] });
+    (api.getServiceProviderAvailability as jest.Mock).mockResolvedValue({ data: { unavailable_dates: [] } });
+    (api.getServiceProvider as jest.Mock).mockResolvedValue({ data: { location: 'NYC' } });
   });
 
-  it('Artists page has no axe violations', async () => {
+  it('Service providers page has no axe violations', async () => {
     const div = document.createElement('div');
     document.body.appendChild(div);
     const root = createRoot(div);
     await act(async () => {
-      root.render(<ArtistsPage />);
+      root.render(<ServiceProvidersPage />);
     });
     const results = await axe(div, { rules: { 'landmark-unique': { enabled: false } } });
     expect(results).toHaveNoViolations();

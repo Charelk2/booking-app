@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import ArtistsPage from '../service-providers/page';
-import { getArtists } from '@/lib/api';
+import ServiceProvidersPage from '../service-providers/page';
+import { getServiceProviders } from '@/lib/api';
 import { useSearchParams, usePathname } from '@/tests/mocks/next-navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import useServiceCategories from '@/hooks/useServiceCategories';
@@ -10,11 +10,11 @@ jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
 jest.mock('@/hooks/useServiceCategories');
 
-const mockedGetArtists = getArtists as jest.MockedFunction<typeof getArtists>;
+const mockedGetServiceProviders = getServiceProviders as jest.MockedFunction<typeof getServiceProviders>;
 const mockedUseAuth = useAuth as jest.Mock;
 const mockedUseServiceCategories = useServiceCategories as jest.Mock;
 
-describe('ArtistsPage', () => {
+describe('ServiceProvidersPage', () => {
   beforeEach(() => {
     useSearchParams.mockReturnValue(new URLSearchParams('category=DJ'));
     usePathname.mockReturnValue('/');
@@ -23,7 +23,7 @@ describe('ArtistsPage', () => {
       { id: 1, value: 'dj', label: 'DJ' },
       { id: 2, value: 'musician', label: 'Musician' },
     ]);
-    mockedGetArtists.mockResolvedValue({
+    mockedGetServiceProviders.mockResolvedValue({
       data: [
         {
           id: 10,
@@ -47,9 +47,9 @@ describe('ArtistsPage', () => {
   });
 
   it('requests and filters DJs', async () => {
-    render(<ArtistsPage />);
-    await waitFor(() => expect(mockedGetArtists).toHaveBeenCalledTimes(1));
-    expect(mockedGetArtists).toHaveBeenCalledWith(
+    render(<ServiceProvidersPage />);
+    await waitFor(() => expect(mockedGetServiceProviders).toHaveBeenCalledTimes(1));
+    expect(mockedGetServiceProviders).toHaveBeenCalledWith(
       expect.objectContaining({ category: 'DJ' }),
     );
 
@@ -60,9 +60,9 @@ describe('ArtistsPage', () => {
 
   it('normalizes UI slug category query param', async () => {
     useSearchParams.mockReturnValue(new URLSearchParams('category=dj'));
-    render(<ArtistsPage />);
-    await waitFor(() => expect(mockedGetArtists).toHaveBeenCalledTimes(1));
-    expect(mockedGetArtists).toHaveBeenCalledWith(
+    render(<ServiceProvidersPage />);
+    await waitFor(() => expect(mockedGetServiceProviders).toHaveBeenCalledTimes(1));
+    expect(mockedGetServiceProviders).toHaveBeenCalledWith(
       expect.objectContaining({ category: 'DJ' }),
     );
   });
@@ -70,9 +70,9 @@ describe('ArtistsPage', () => {
   it('derives category from /category path', async () => {
     useSearchParams.mockReturnValue(new URLSearchParams());
     usePathname.mockReturnValue('/category/dj');
-    render(<ArtistsPage />);
-    await waitFor(() => expect(mockedGetArtists).toHaveBeenCalledTimes(1));
-    expect(mockedGetArtists).toHaveBeenCalledWith(
+    render(<ServiceProvidersPage />);
+    await waitFor(() => expect(mockedGetServiceProviders).toHaveBeenCalledTimes(1));
+    expect(mockedGetServiceProviders).toHaveBeenCalledWith(
       expect.objectContaining({ category: 'DJ' }),
     );
   });

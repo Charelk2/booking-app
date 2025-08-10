@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import ServiceProviderCardCompact from '@/components/service-provider/ServiceProviderCardCompact';
-import { getArtists } from '@/lib/api';
+import { getServiceProviders } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ServiceProviderProfile, SearchParams } from '@/types';
 
@@ -43,7 +43,7 @@ export default function ArtistsSection({
       setLoading(true);
       try {
         const params = JSON.parse(serializedQuery) as Record<string, unknown>;
-        const res = await getArtists({ ...(params as object), limit });
+        const res = await getServiceProviders({ ...(params as object), limit });
         if (isMounted) {
           setArtists(res.data.filter((a) => a.business_name || a.user));
         }
