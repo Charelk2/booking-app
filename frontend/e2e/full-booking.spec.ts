@@ -2,14 +2,14 @@ import { test, expect } from '@playwright/test';
 import {
   setupDepositStubs,
   stubRegister,
-  stubArtist,
+  stubServiceProvider,
 } from './stub-helpers';
 
 test.describe('Signup to deposit flow', () => {
   test.beforeEach(async ({ page }) => {
     await setupDepositStubs(page);
     await stubRegister(page);
-    await stubArtist(page);
+    await stubServiceProvider(page);
   });
 
   test('completes signup, requests quote, and pays deposit', async ({ page }) => {
@@ -29,7 +29,7 @@ test.describe('Signup to deposit flow', () => {
     await page.getByRole('button', { name: /sign in/i }).click();
     await expect(page).toHaveURL('/dashboard/client');
 
-    await page.goto('/booking?artist_id=1&service_id=1');
+    await page.goto('/booking?service_provider_id=1&service_id=1');
     await expect(page.getByTestId('step-heading')).toHaveText(/Date & Time/);
     await page.getByTestId('date-next-button').click();
     await expect(page.getByTestId('step-heading')).toHaveText(/Event Type/);

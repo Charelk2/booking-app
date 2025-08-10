@@ -12,8 +12,8 @@ jest.mock('@/contexts/AuthContext');
 
 const mockUseAuth = useAuth as jest.Mock;
 
-describe('Header artist view', () => {
-  it('shows artist links without search when artistViewActive', () => {
+describe('Header service provider view', () => {
+  it('shows service provider links without search when artistViewActive', () => {
     const toggleArtistView = jest.fn();
     mockUseAuth.mockReturnValue({
       user: { id: 1, user_type: 'service_provider', email: 'a', first_name: 'A', last_name: 'B' },
@@ -26,7 +26,7 @@ describe('Header artist view', () => {
     expect(screen.getByText('Services')).toBeTruthy();
     expect(screen.getByText('Messages')).toBeTruthy();
     expect(screen.getAllByText('View Profile')).toHaveLength(1);
-    expect(screen.queryByText('Add artist')).toBeNull();
+    expect(screen.queryByText('Add service provider')).toBeNull();
     expect(screen.queryByText('Add location')).toBeNull();
     expect(document.querySelector('#compact-search-trigger')).toBeNull();
     expect(mockUseAuth).toHaveBeenCalled();
