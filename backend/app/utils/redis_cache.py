@@ -82,6 +82,17 @@ def cache_artist_list(
     return None
 
 
+def invalidate_artist_list_cache() -> None:
+    """Remove all cached artist list entries."""
+    client = get_redis_client()
+    try:
+        for key in client.scan_iter(f"{ARTIST_LIST_KEY_PREFIX}:*"):
+            client.delete(key)
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Could not clear artist list cache: %s", exc)
+    return None
+
+
 def close_redis_client() -> None:
     """Close the global Redis client if it exists."""
     global _redis_client

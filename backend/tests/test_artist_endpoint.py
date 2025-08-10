@@ -185,7 +185,6 @@ def test_dj_category_filters_legacy_artists(monkeypatch):
     legacy_profile = ArtistProfileV2(
         user_id=1,
         business_name="Legacy Artist",
-        service_category_id=dj_cat.id,
     )
     legacy_service = Service(
         artist_id=1,
@@ -209,7 +208,6 @@ def test_dj_category_filters_legacy_artists(monkeypatch):
     dj_profile = ArtistProfileV2(
         user_id=2,
         business_name="Beats Inc",
-        service_category_id=dj_cat.id,
     )
     dj_service = Service(
         artist_id=2,
