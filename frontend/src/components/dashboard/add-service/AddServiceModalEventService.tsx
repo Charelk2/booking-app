@@ -4,7 +4,6 @@ import Image from "next/image";
 import { TextInput, TextArea } from "@/components/ui";
 import type { Service } from "@/types";
 import BaseServiceWizard, { type WizardStep } from "./BaseServiceWizard";
-import { UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 
 interface EventServiceForm {
   title: string;
@@ -183,7 +182,7 @@ export default function AddServiceModalEventService({
       steps={steps}
       defaultValues={defaults}
       toPayload={toPayload}
-      serviceCategoryId={UI_CATEGORY_TO_ID['event_service']}
+      serviceCategorySlug="event_service"
     />
   );
 }
