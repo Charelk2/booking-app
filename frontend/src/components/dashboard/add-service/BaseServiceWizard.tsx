@@ -62,7 +62,6 @@ interface BaseServiceWizardProps<T extends FieldValues> {
   steps: WizardStep<T>[];
   defaultValues: T;
   toPayload: (data: T, mediaUrl: string | null) => Partial<Service>;
-  serviceCategoryId?: number;
 }
 
 export default function BaseServiceWizard<T extends FieldValues>({
@@ -73,7 +72,6 @@ export default function BaseServiceWizard<T extends FieldValues>({
   steps,
   defaultValues,
   toPayload,
-  serviceCategoryId,
 }: BaseServiceWizardProps<T>) {
   const [step, setStep] = useState(0);
   const [maxStep, setMaxStep] = useState(0);
@@ -179,10 +177,7 @@ export default function BaseServiceWizard<T extends FieldValues>({
           reader.readAsDataURL(mediaFiles[0]);
         });
       }
-      const payload: Partial<Service> = toPayload(data, mediaUrl);
-      if (serviceCategoryId !== undefined) {
-        payload.service_category_id = serviceCategoryId;
-      }
+      const payload = toPayload(data, mediaUrl);
       const res = service
         ? await apiUpdateService(service.id, payload)
         : await apiCreateService(payload);

@@ -23,7 +23,6 @@ import {
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import Button from "@/components/ui/Button";
 import { Stepper, TextInput, TextArea } from "@/components/ui";
-import { UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 
 const serviceTypeIcons: Record<Service["service_type"], ElementType> = {
   "Live Performance": MusicalNoteIcon,
@@ -249,7 +248,6 @@ export default function AddServiceModalMusician({
         ...data,
         price: Number(data.price || 0),
         duration_minutes: Number(data.duration_minutes || 0),
-        service_category_id: UI_CATEGORY_TO_ID['musician'],
         travel_rate: data.travel_rate ? Number(data.travel_rate) : undefined,
         travel_members: data.travel_members
           ? Number(data.travel_members)

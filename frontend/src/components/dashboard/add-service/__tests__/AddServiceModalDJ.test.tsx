@@ -2,7 +2,6 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import * as api from "@/lib/api";
 import AddServiceModalDJ from "../AddServiceModalDJ";
-import { UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 import { flushPromises } from "@/test/utils/flush";
 
 describe("AddServiceModalDJ", () => {
@@ -43,7 +42,6 @@ describe("AddServiceModalDJ", () => {
         service_type: "Live Performance",
         details: { genre: "EDM" },
         media_url: expect.stringContaining("base64"),
-        service_category_id: UI_CATEGORY_TO_ID['dj'],
       }),
     );
   });
