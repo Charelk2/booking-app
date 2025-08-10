@@ -29,10 +29,12 @@ describe('ArtistsPage', () => {
           id: 10,
           user: { first_name: 'DJ', last_name: 'One' },
           business_name: 'DJ One Biz',
+          service_categories: ['DJ'],
         },
         {
           id: 11,
           user: { first_name: 'DJ', last_name: 'NoBiz' },
+          service_categories: ['DJ'],
         },
       ],
       total: 2,
@@ -53,6 +55,7 @@ describe('ArtistsPage', () => {
 
     await screen.findByText('DJ One Biz');
     expect(screen.queryByText('DJ NoBiz')).toBeNull();
+    expect(screen.getByText('DJ')).toBeTruthy();
   });
 
   it('normalizes UI slug category query param', async () => {
