@@ -46,7 +46,7 @@ export default function ServiceProviderCardCompact({
     <Link
       href={href}
       className={clsx(
-        'group block rounded-xl overflow-hidden bg-gray-50 hover:shadow-md transition',
+        'group flex h-full flex-col rounded-xl overflow-hidden bg-gray-50 hover:shadow-md transition',
         'no-underline hover:no-underline',
         className,
       )}
@@ -93,7 +93,7 @@ export default function ServiceProviderCardCompact({
           </span>
         )}
       </div>
-      <div className="p-1 space-y-0.5">
+      <div className="p-1 space-y-0.5 flex-grow">
         <p className="text-sm font-semibold truncate text-black">{name}</p>
         {location && (
           <p className="text-xs text-gray-400 truncate">{location}</p>
