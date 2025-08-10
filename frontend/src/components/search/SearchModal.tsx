@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { BottomSheet, Button } from '@/components/ui';
 import { SearchFields, type Category } from './SearchFields';
-import { UI_CATEGORIES } from '@/lib/categoryMap';
+import useServiceCategories from '@/hooks/useServiceCategories';
 
 interface SearchModalProps {
   open: boolean;
@@ -25,9 +25,8 @@ export default function SearchModal({
   initialWhen,
   onSearch,
 }: SearchModalProps) {
-  const [category, setCategory] = useState<Category | null>(
-    initialCategory ? UI_CATEGORIES.find((c) => c.value === initialCategory) ?? null : null,
-  );
+  const categories = useServiceCategories();
+  const [category, setCategory] = useState<Category | null>(null);
   const [location, setLocation] = useState(initialLocation || '');
   const [when, setWhen] = useState<Date | null>(initialWhen || null);
   const firstRef = useRef<HTMLDivElement>(null);
@@ -36,14 +35,16 @@ export default function SearchModal({
   const handleFieldClick = () => {};
 
   useEffect(() => {
-    if (open) {
+    if (open && categories.length) {
       setCategory(
-        initialCategory ? UI_CATEGORIES.find((c) => c.value === initialCategory) ?? null : null,
+        initialCategory
+          ? categories.find((c) => c.value === initialCategory) ?? null
+          : null,
       );
       setLocation(initialLocation || '');
       setWhen(initialWhen || null);
     }
-  }, [open, initialCategory, initialLocation, initialWhen]);
+  }, [open, initialCategory, initialLocation, initialWhen, categories]);
 
   const handleClear = () => {
     setCategory(null);

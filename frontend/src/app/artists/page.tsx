@@ -5,7 +5,7 @@ import { format, parseISO, isValid } from 'date-fns';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { getArtists, type PriceBucket } from '@/lib/api';
-import { UI_CATEGORY_TO_SERVICE, SERVICE_TO_UI_CATEGORY } from '@/lib/categoryMap';
+import useServiceCategories from '@/hooks/useServiceCategories';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
 import ArtistCardCompact from '@/components/artist/ArtistCardCompact';
@@ -28,6 +28,7 @@ export default function ArtistsPage() {
 
   // Store the selected category as a UI slug (e.g. "dj") so we can map it
   // to the backend service name whenever querying the API.
+  const categories = useServiceCategories();
   const [category, setCategory] = useState<string | undefined>(undefined);
   const [location, setLocation] = useState('');
   const [sort, setSort] = useState<string | undefined>(undefined);
@@ -49,13 +50,15 @@ export default function ArtistsPage() {
   const LIMIT = 20;
 
   // Derived backend service name for the selected UI category.
-  const serviceName = category ? UI_CATEGORY_TO_SERVICE[category] : undefined;
+  const serviceName = category
+    ? categories.find((c) => c.value === category)?.label
+    : undefined;
 
   useEffect(() => {
     // ``category`` may arrive either as a backend service name ("DJ") or
-    // as a UI slug ("dj"). Normalize both forms to the UI value so the rest of
-    // the page logic consistently derives the backend name via
-    // ``UI_CATEGORY_TO_SERVICE``.
+    // as a UI slug ("dj"). Normalize both forms to the UI slug so the rest of
+    // the page logic can derive the backend name from the loaded categories.
+    if (!categories.length) return;
     let value = searchParams.get('category') || undefined;
     if (!value) {
       const match = pathname.match(/\/(?:artists\/category|category)\/([^/?]+)/);
@@ -65,12 +68,12 @@ export default function ArtistsPage() {
     }
     let uiValue: string | undefined;
     if (value) {
-      if (SERVICE_TO_UI_CATEGORY[value]) {
-        // Already a backend service name
-        uiValue = SERVICE_TO_UI_CATEGORY[value];
-      } else if (UI_CATEGORY_TO_SERVICE[value]) {
-        // Received a UI slug
-        uiValue = value;
+      const bySlug = categories.find((c) => c.value === value);
+      if (bySlug) {
+        uiValue = bySlug.value;
+      } else {
+        const byName = categories.find((c) => c.label === value);
+        uiValue = byName?.value;
       }
     }
     setCategory(uiValue);
@@ -92,7 +95,7 @@ export default function ArtistsPage() {
     setMinPrice(searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : SLIDER_MIN);
     setMaxPrice(searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : SLIDER_MAX);
     setFiltersReady(true);
-  }, [searchParams, pathname]);
+  }, [searchParams, pathname, categories]);
 
   const fetchArtists = useCallback(
     async (
