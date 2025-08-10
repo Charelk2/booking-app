@@ -13,7 +13,7 @@ export default function HomeSearchForm() {
     const params = new URLSearchParams();
     if (destination) params.set('location', destination);
     if (date) params.set('date', date);
-    router.push(`/artists?${params.toString()}`);
+    router.push(`/service-providers?${params.toString()}`);
   };
 
   return (

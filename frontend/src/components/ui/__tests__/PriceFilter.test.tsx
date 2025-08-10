@@ -38,7 +38,7 @@ jest.mock('rheostat', () => {
 
 const push = jest.fn();
 useRouter.mockReturnValue({ push });
-usePathname.mockReturnValue('/artists');
+usePathname.mockReturnValue('/service-providers');
 const searchParamsMock: Pick<URLSearchParams, 'toString'> = {
   toString: () => '',
 };
