@@ -33,6 +33,12 @@ export const UI_CATEGORY_TO_ID: Record<string, number> = {
   mc_host: 10,
 };
 
+// Inverse lookup from category ID to slug for cases where only the numeric ID
+// is available, such as when editing an existing service without a stored slug.
+export const ID_TO_UI_CATEGORY: Record<number, string> = Object.fromEntries(
+  Object.entries(UI_CATEGORY_TO_ID).map(([slug, id]) => [id, slug]),
+);
+
 // Convert a backend category name to a URL-friendly slug. This mirrors the
 // previous hard-coded mapping but works for future categories as well.
 export const categorySlug = (name: string): string =>
