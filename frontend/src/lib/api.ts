@@ -462,7 +462,10 @@ export const uploadBookingAttachment = (
   );
 
 export const parseBookingText = (text: string) =>
-  api.post<ParsedBookingDetails>(`${API_V1}/booking-requests/parse`, { text });
+  api.post<{ task_id: string }>(`${API_V1}/booking-requests/parse`, { text });
+
+export const getParsedBooking = (taskId: string) =>
+  api.get<ParsedBookingDetails>(`${API_V1}/booking-requests/parse/${taskId}`);
 
 // ─── QUOTE TEMPLATES ─────────────────────────────────────────────────────────
 export const getQuoteTemplates = async (artistId: number) => {

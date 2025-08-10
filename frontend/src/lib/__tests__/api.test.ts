@@ -2,6 +2,7 @@ import api, {
   updateBookingRequestArtist,
   createPayment,
   parseBookingText,
+  getParsedBooking,
   updateBookingStatus,
   downloadBookingIcs,
   downloadQuotePdf,
@@ -133,6 +134,17 @@ describe('parseBookingText', () => {
       '/api/v1/booking-requests/parse',
       { text: 'party for 20 people on Friday in Paris' },
     );
+    spy.mockRestore();
+  });
+});
+
+describe('getParsedBooking', () => {
+  it('requests the parse result', async () => {
+    const spy = jest
+      .spyOn(api, 'get')
+      .mockResolvedValue({ data: {} } as unknown as { data: unknown });
+    await getParsedBooking('abc');
+    expect(spy).toHaveBeenCalledWith('/api/v1/booking-requests/parse/abc');
     spy.mockRestore();
   });
 });
