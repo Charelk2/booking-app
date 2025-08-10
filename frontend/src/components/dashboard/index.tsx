@@ -26,7 +26,7 @@ import {
   CalendarIcon,
 } from "@heroicons/react/24/outline";
 import "./dashboard.css";
-import { BookingRequest, ArtistProfile } from "@/types";
+import { BookingRequest, ServiceProviderProfile } from "@/types";
 import { formatStatus } from "@/lib/utils";
 import { Avatar } from "../ui";
 import Button from "../ui/Button";
@@ -398,7 +398,7 @@ export function ProfileCompleteness({
 // ---------------------------------------------------------------------------
 // ProfileProgress
 
-const fields: (keyof ArtistProfile)[] = [
+const fields: (keyof ServiceProviderProfile)[] = [
   "business_name",
   "description",
   "location",
@@ -407,7 +407,7 @@ const fields: (keyof ArtistProfile)[] = [
 ];
 
 export function computeProfileCompletion(
-  profile?: Partial<ArtistProfile>,
+  profile?: Partial<ServiceProviderProfile>,
 ): number {
   if (!profile) return 0;
   const filled = fields.reduce(
@@ -418,7 +418,7 @@ export function computeProfileCompletion(
 }
 
 interface ProfileProgressProps {
-  profile: Partial<ArtistProfile> | null;
+  profile: Partial<ServiceProviderProfile> | null;
 }
 
 export function ProfileProgress({ profile }: ProfileProgressProps) {

@@ -7,7 +7,7 @@ import Image from 'next/image';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  ArtistProfile,
+  ServiceProviderProfile,
   Service,
   Review as ReviewType,
 } from '@/types';
@@ -27,7 +27,7 @@ import {
   getFullImageUrl,
   normalizeService,
 } from '@/lib/utils';
-import ArtistServiceCard from '@/components/artist/ArtistServiceCard';
+import ServiceProviderServiceCard from '@/components/service-provider/ServiceProviderServiceCard';
 import { Toast, Spinner, SkeletonList } from '@/components/ui';
 import BookingWizard from '@/components/booking/BookingWizard';
 import { BookingProvider } from '@/contexts/BookingContext';
@@ -36,13 +36,13 @@ import { BookingProvider } from '@/contexts/BookingContext';
 // artist info appears faster. Images use the
 // Next.js `<Image>` component for optimized loading.
 
-export default function ArtistProfilePage() {
+export default function ServiceProviderProfilePage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
-  const artistId = Number(params.id);
+  const serviceProviderId = Number(params.id);
 
-  const [artist, setArtist] = useState<ArtistProfile | null>(null);
+  const [artist, setArtist] = useState<ServiceProviderProfile | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [reviews, setReviews] = useState<ReviewType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,12 +53,12 @@ export default function ArtistProfilePage() {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
 
   useEffect(() => {
-    if (!artistId) return;
+    if (!serviceProviderId) return;
 
     const fetchArtist = async () => {
       setLoading(true);
       try {
-        const res = await getArtist(artistId);
+        const res = await getArtist(serviceProviderId);
         setArtist(res.data);
       } catch (err) {
         console.error('Error fetching artist:', err);
@@ -69,13 +69,13 @@ export default function ArtistProfilePage() {
     };
 
     fetchArtist();
-  }, [artistId]);
+  }, [serviceProviderId]);
 
   // load services independently so the section can render on demand
   useEffect(() => {
-    if (!artistId) return;
+    if (!serviceProviderId) return;
     setServicesLoading(true);
-    getArtistServices(artistId)
+    getArtistServices(serviceProviderId)
       .then((res) => {
         const processed = res.data.map((service: Service) =>
           normalizeService(service)
@@ -86,19 +86,19 @@ export default function ArtistProfilePage() {
         console.error('Error fetching services:', err);
       })
       .finally(() => setServicesLoading(false));
-  }, [artistId]);
+  }, [serviceProviderId]);
 
   // load reviews separately
   useEffect(() => {
-    if (!artistId) return;
+    if (!serviceProviderId) return;
     setReviewsLoading(true);
-    getArtistReviews(artistId)
+    getArtistReviews(serviceProviderId)
       .then((res) => setReviews(res.data))
       .catch((err) => {
         console.error('Error fetching reviews:', err);
       })
       .finally(() => setReviewsLoading(false));
-  }, [artistId]);
+  }, [serviceProviderId]);
 
   const averageRating =
     reviews.length > 0
@@ -116,7 +116,7 @@ export default function ArtistProfilePage() {
     }
     try {
       const res = await createBookingRequest({
-        artist_id: artistId,
+        artist_id: serviceProviderId,
         service_id: service.id,
       });
       router.push(`/booking-requests/${res.data.id}`);
@@ -266,7 +266,7 @@ export default function ArtistProfilePage() {
                 <ul className="space-y-6" role="list">
                   {services.map((service) => (
                     <li key={`service-${service.id}`}>
-                      <ArtistServiceCard
+                      <ServiceProviderServiceCard
                         service={service}
                         onBook={handleBookService}
                       />
@@ -335,7 +335,7 @@ export default function ArtistProfilePage() {
       </MainLayout>
       <BookingProvider>
         <BookingWizard
-          artistId={artistId}
+          artistId={serviceProviderId}
           serviceId={selectedService?.id}
           isOpen={isBookingOpen}
           onClose={closeBooking}

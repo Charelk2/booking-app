@@ -1,9 +1,9 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react-dom/test-utils';
-import { ArtistsPageHeader } from '../ArtistServiceCard';
+import { ServiceProvidersPageHeader } from '../ServiceProviderServiceCard';
 
-describe('ArtistsPageHeader iconOnly', () => {
+describe('ServiceProvidersPageHeader iconOnly', () => {
   afterEach(() => {
     document.body.innerHTML = '';
     jest.clearAllMocks();
@@ -16,7 +16,7 @@ describe('ArtistsPageHeader iconOnly', () => {
 
     act(() => {
       root.render(
-        <ArtistsPageHeader
+        <ServiceProvidersPageHeader
           iconOnly
           initialMinPrice={0}
           initialMaxPrice={100}

@@ -10,7 +10,7 @@ import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
 import useServiceCategories from '@/hooks/useServiceCategories';
 import { getArtists } from '@/lib/api';
-import type { ArtistProfile } from '@/types';
+import type { ServiceProviderProfile } from '@/types';
 import { AUTOCOMPLETE_LISTBOX_ID } from '../ui/LocationInput';
 
 import type { ActivePopup } from './SearchBar';
@@ -63,7 +63,7 @@ export default function SearchPopupContent({
   // from both the location and category pickers.
   const [announcement, setAnnouncement] = useState('');
   const [artistQuery, setArtistQuery] = useState('');
-  const [artistResults, setArtistResults] = useState<ArtistProfile[]>([]);
+  const [artistResults, setArtistResults] = useState<ServiceProviderProfile[]>([]);
   const categories = useServiceCategories();
   const router = useRouter();
 
@@ -121,7 +121,7 @@ export default function SearchPopupContent({
   );
 
   const handleArtistSelect = useCallback(
-    (a: ArtistProfile) => {
+    (a: ServiceProviderProfile) => {
       const name = a.business_name || `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`.trim();
       setAnnouncement(`Artist selected: ${name}`);
       closeAllPopups();

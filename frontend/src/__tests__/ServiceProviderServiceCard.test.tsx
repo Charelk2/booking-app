@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
-import ArtistServiceCard from '@/components/artist/ArtistServiceCard';
+import ServiceProviderServiceCard from '@/components/service-provider/ServiceProviderServiceCard';
 import type { Service } from '@/types';
 
-describe('ArtistServiceCard', () => {
+describe('ServiceProviderServiceCard', () => {
   const baseService: Service = {
     id: 1,
     artist_id: 1,
@@ -17,7 +17,7 @@ describe('ArtistServiceCard', () => {
   };
 
   it('renders service media image when media_url is provided', () => {
-    render(<ArtistServiceCard service={baseService} onBook={jest.fn()} />);
+    render(<ServiceProviderServiceCard service={baseService} onBook={jest.fn()} />);
     const img = screen.getByRole('img', { name: baseService.title });
     expect(img).toBeTruthy();
   });

@@ -15,12 +15,12 @@ import { formatCurrency, getFullImageUrl } from "@/lib/utils";
 // Fetch the latest service data on mount so pricing and descriptions stay
 // current without requiring a full page refresh.
 
-interface ArtistServiceCardProps {
+interface ServiceProviderServiceCardProps {
   service: Service;
   onBook: (service: Service) => void;
 }
 
-export default function ArtistServiceCard({ service, onBook }: ArtistServiceCardProps) {
+export default function ServiceProviderServiceCard({ service, onBook }: ServiceProviderServiceCardProps) {
   const [currentService, setCurrentService] = useState<Service>(service);
 
   // keep local copy in sync with parent prop
@@ -90,7 +90,7 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
               type="button"
               onClick={() => onBook(currentService)}
               fullWidth={false}
-              title="The artist will respond with a quote"
+              title="The service provider will respond with a quote"
             >
               Request Booking
             </Button>
@@ -101,7 +101,7 @@ export default function ArtistServiceCard({ service, onBook }: ArtistServiceCard
   );
 }
 
-export interface ArtistsPageHeaderProps {
+export interface ServiceProvidersPageHeaderProps {
   categoryLabel?: string;
   categoryValue?: string;
   location?: string;
@@ -126,7 +126,7 @@ export interface ArtistsPageHeaderProps {
   iconOnly?: boolean;
 }
 
-export function ArtistsPageHeader({
+export function ServiceProvidersPageHeader({
   categoryLabel,
   categoryValue,
   location,
@@ -139,7 +139,7 @@ export function ArtistsPageHeader({
   onFilterApply,
   onFilterClear,
   iconOnly,
-}: ArtistsPageHeaderProps) {
+}: ServiceProvidersPageHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
 

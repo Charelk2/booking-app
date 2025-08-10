@@ -6,11 +6,11 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
 import { MobileSaveBar } from '@/components/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArtistProfile } from '@/types';
+import { ServiceProviderProfile } from '@/types';
 import {
-  getArtistProfileMe,
-  updateMyArtistProfile,
-  uploadMyArtistProfilePicture,
+  getServiceProviderProfileMe,
+  updateMyServiceProviderProfile,
+  uploadMyServiceProviderProfilePicture,
   uploadMyArtistCoverPhoto,
   uploadMyArtistPortfolioImages,
   updateMyArtistPortfolioImageOrder,
@@ -112,13 +112,13 @@ async function getCroppedImg(
   });
 }
 
-export default function EditArtistProfilePage(): JSX.Element {
+export default function EditServiceProviderProfilePage(): JSX.Element {
   const { user, loading: authLoading, refreshUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   // Fetched profile
-  const [profile, setProfile] = useState<Partial<ArtistProfile>>({});
+  const [profile, setProfile] = useState<Partial<ServiceProviderProfile>>({});
 
   // Business‐form fields
   const [businessNameInput, setBusinessNameInput] = useState('');
@@ -175,7 +175,7 @@ export default function EditArtistProfilePage(): JSX.Element {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const response = await getArtistProfileMe();
+        const response = await getServiceProviderProfileMe();
         const fetchedProfile = response.data || {};
         setProfile(fetchedProfile);
 
@@ -248,7 +248,7 @@ export default function EditArtistProfilePage(): JSX.Element {
 
     try {
       setLoading(true);
-      const dataToUpdate: Partial<ArtistProfile> = {
+      const dataToUpdate: Partial<ServiceProviderProfile> = {
         business_name: businessNameInput.trim(),
         custom_subtitle: customSubtitleInput.trim() || undefined,
         description: descriptionInput.trim(),
@@ -275,7 +275,7 @@ export default function EditArtistProfilePage(): JSX.Element {
           : undefined,
       };
 
-      await updateMyArtistProfile(dataToUpdate);
+      await updateMyServiceProviderProfile(dataToUpdate);
       setSuccessMessage('Profile details updated successfully!');
     } catch (err) {
       console.error('Failed to update profile:', err);
@@ -361,7 +361,7 @@ export default function EditArtistProfilePage(): JSX.Element {
         return;
       }
 
-      const response = await uploadMyArtistProfilePicture(croppedImageFile);
+      const response = await uploadMyServiceProviderProfilePicture(croppedImageFile);
       const newRelativeUrl = response.data.profile_picture_url || '';
       setProfilePictureUrlInput(newRelativeUrl);
       setImagePreviewUrl(getFullImageUrl(newRelativeUrl));
