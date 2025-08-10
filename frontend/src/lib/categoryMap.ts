@@ -14,6 +14,13 @@ export const UI_CATEGORIES = [
   { value: 'mc_host', label: 'MCs & Hosts', image: '/categories/mc_host.png' },
 ] as const; // `as const` ensures TypeScript infers literal types, which is good practice
 
+// Map UI category slugs to their canonical numeric IDs. The order of
+// `UI_CATEGORIES` mirrors the backend seed data so the index + 1
+// consistently matches the database IDs.
+export const UI_CATEGORY_TO_ID: Record<string, number> = Object.fromEntries(
+  UI_CATEGORIES.map((c, idx) => [c.value, idx + 1]),
+);
+
 // Map UI categories (keys are UI values) to backend service categories (values are backend values)
 export const UI_CATEGORY_TO_SERVICE: Record<string, string> = {
   musician: 'Musician',

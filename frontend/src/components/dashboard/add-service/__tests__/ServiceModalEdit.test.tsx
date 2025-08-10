@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import AddServiceModalMusician from "../AddServiceModalMusician";
 import * as api from "@/lib/api";
 import { Service } from "@/types";
+import { UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 import { flushPromises } from "@/test/utils/flush";
 
 describe("AddServiceModalMusician editing", () => {
@@ -38,6 +39,9 @@ describe("AddServiceModalMusician editing", () => {
     await user.click(screen.getByRole("button", { name: /Save Changes/i }));
     await flushPromises();
 
-    expect(spy).toHaveBeenCalledWith(1, expect.any(Object));
+    expect(spy).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ service_category_id: UI_CATEGORY_TO_ID['musician'] }),
+    );
   });
 });
