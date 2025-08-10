@@ -3,7 +3,6 @@ import React from 'react';
 import { act } from 'react-dom/test-utils';
 import CategoriesCarousel from '../CategoriesCarousel';
 import { getServiceCategories } from '@/lib/api';
-import type { Category } from '@/hooks/useServiceCategories';
 
 jest.mock('@/lib/api');
 
@@ -11,9 +10,10 @@ const mockedGetServiceCategories = getServiceCategories as jest.MockedFunction<
   typeof getServiceCategories
 >;
 
-const MOCK_CATEGORIES: Category[] = [
-  { id: 1, value: 'dj', label: 'DJ' },
-  { id: 2, value: 'musician', label: 'Musician' },
+const MOCK_CATEGORIES = [
+  { id: 0, name: 'Service Providers' },
+  { id: 1, name: 'DJ' },
+  { id: 2, name: 'Musician' },
 ];
 
 describe('CategoriesCarousel', () => {
@@ -33,13 +33,13 @@ describe('CategoriesCarousel', () => {
     act(() => {
       root.render(React.createElement(CategoriesCarousel));
     });
-    MOCK_CATEGORIES.forEach((cat) => {
-      expect(container.textContent).toContain(cat.label);
-    });
+    expect(container.textContent).toContain('DJ');
+    expect(container.textContent).toContain('Musician');
+    expect(container.textContent).not.toContain('Service Providers');
     const imgs = container.querySelectorAll('img');
-    MOCK_CATEGORIES.forEach((cat, index) => {
-      expect(imgs[index].getAttribute('src')).toContain(cat.value);
-    });
+    expect(imgs).toHaveLength(2);
+    expect(imgs[0].getAttribute('src')).toContain('dj');
+    expect(imgs[1].getAttribute('src')).toContain('musician');
     const next = container.querySelector('button[aria-label="Next"]');
     expect(next).not.toBeNull();
     act(() => root.unmount());

@@ -2,7 +2,6 @@ import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react';
 import SearchBar from '../SearchBar';
 import { getServiceCategories } from '@/lib/api';
-import type { Category } from '@/hooks/useServiceCategories';
 
 // Mock next/dynamic to synchronously load a minimal SearchPopupContent
 jest.mock('next/dynamic', () => () => {
@@ -28,9 +27,10 @@ jest.mock('@/lib/api');
 const mockedGetServiceCategories = getServiceCategories as jest.MockedFunction<
   typeof getServiceCategories
 >;
-const MOCK_CATEGORIES: Category[] = [
-  { id: 1, value: 'dj', label: 'DJ' },
-  { id: 2, value: 'musician', label: 'Musician' },
+const MOCK_CATEGORIES = [
+  { id: 0, name: 'Service Providers' },
+  { id: 1, name: 'DJ' },
+  { id: 2, name: 'Musician' },
 ];
 
 beforeEach(() => {
@@ -182,7 +182,7 @@ describe('SearchBar', () => {
           <button
             type="button"
             data-testid="select-category"
-            onClick={() => setCategory(MOCK_CATEGORIES[0])}
+            onClick={() => setCategory({ id: 1, value: 'dj', label: 'DJ' })}
           >
             select
           </button>
@@ -218,8 +218,9 @@ describe('SearchBar', () => {
       );
     };
 
-    const { getByRole, findByText } = render(<Wrapper />);
+    const { getByRole, findByText, queryByText } = render(<Wrapper />);
     fireEvent.click(getByRole('button', { name: /Category/ }));
+    expect(queryByText('Service Providers')).toBeNull();
     expect(await findByText('DJ')).not.toBeNull();
   });
 });
