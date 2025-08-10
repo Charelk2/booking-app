@@ -6,7 +6,7 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.models.base import BaseModel
 from app.models.user import User, UserType
-from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service_provider_profile import ServiceProviderProfile
 from app.models.service import Service, ServiceType
 from app.models.service_category import ServiceCategory
 from app.api.dependencies import get_db
@@ -45,7 +45,7 @@ def test_artist_profiles_endpoint_returns_paginated(monkeypatch):
         last_name="B",
         user_type=UserType.SERVICE_PROVIDER,
     )
-    profile = ArtistProfileV2(user_id=1, business_name="Test Artist")
+    profile = ServiceProviderProfile(user_id=1, business_name="Test Artist")
     service = Service(
         artist_id=1,
         title="My Service",
@@ -61,7 +61,7 @@ def test_artist_profiles_endpoint_returns_paginated(monkeypatch):
     db.add(profile)
     db.commit()
     client = TestClient(app)
-    res = client.get("/api/v1/artist-profiles/")
+    res = client.get("/api/v1/service-provider-profiles/")
     assert res.status_code == 200
     body = res.json()
     assert body["total"] == 1
@@ -81,11 +81,11 @@ def test_artist_profiles_excludes_artists_without_services(monkeypatch):
         last_name="Service",
         user_type=UserType.SERVICE_PROVIDER,
     )
-    profile = ArtistProfileV2(user_id=1, business_name="Hidden Artist")
+    profile = ServiceProviderProfile(user_id=1, business_name="Hidden Artist")
     db.add_all([user, profile])
     db.commit()
     client = TestClient(app)
-    res = client.get("/api/v1/artist-profiles/")
+    res = client.get("/api/v1/service-provider-profiles/")
     assert res.status_code == 200
     body = res.json()
     assert body["total"] == 0
@@ -103,12 +103,12 @@ def test_artist_profiles_unknown_category_returns_empty(monkeypatch):
         last_name="C",
         user_type=UserType.SERVICE_PROVIDER,
     )
-    profile = ArtistProfileV2(user_id=1, business_name="Another Artist")
+    profile = ServiceProviderProfile(user_id=1, business_name="Another Artist")
     db.add(user)
     db.add(profile)
     db.commit()
     client = TestClient(app)
-    res = client.get("/api/v1/artist-profiles/?category=Guitarist")
+    res = client.get("/api/v1/service-provider-profiles/?category=Guitarist")
     assert res.status_code == 200
     body = res.json()
     assert body["total"] == 0
@@ -131,7 +131,7 @@ def test_category_excludes_artists_without_services(monkeypatch):
         last_name="NoService",
         user_type=UserType.SERVICE_PROVIDER,
     )
-    profile = ArtistProfileV2(
+    profile = ServiceProviderProfile(
         user_id=1,
         business_name="DJ Without Service",
     )
@@ -139,7 +139,7 @@ def test_category_excludes_artists_without_services(monkeypatch):
     db.commit()
 
     client = TestClient(app)
-    res = client.get("/api/v1/artist-profiles/?category=DJ")
+    res = client.get("/api/v1/service-provider-profiles/?category=DJ")
     assert res.status_code == 200
     body = res.json()
     assert body["total"] == 0
@@ -158,7 +158,7 @@ def test_category_excludes_artists_without_services(monkeypatch):
     db.add(service)
     db.commit()
 
-    res = client.get("/api/v1/artist-profiles/?category=DJ")
+    res = client.get("/api/v1/service-provider-profiles/?category=DJ")
     assert res.status_code == 200
     body = res.json()
     assert body["total"] == 1
@@ -182,7 +182,7 @@ def test_dj_category_filters_legacy_artists(monkeypatch):
         last_name="Artist",
         user_type=UserType.SERVICE_PROVIDER,
     )
-    legacy_profile = ArtistProfileV2(
+    legacy_profile = ServiceProviderProfile(
         user_id=1,
         business_name="Legacy Artist",
     )
@@ -205,7 +205,7 @@ def test_dj_category_filters_legacy_artists(monkeypatch):
         last_name="Mix",
         user_type=UserType.SERVICE_PROVIDER,
     )
-    dj_profile = ArtistProfileV2(
+    dj_profile = ServiceProviderProfile(
         user_id=2,
         business_name="Thabo Mix",
         profile_picture_url="http://example.com/pic.jpg",
@@ -235,7 +235,7 @@ def test_dj_category_filters_legacy_artists(monkeypatch):
     db.commit()
 
     client = TestClient(app)
-    res = client.get("/api/v1/artist-profiles/?category=DJ")
+    res = client.get("/api/v1/service-provider-profiles/?category=DJ")
     assert res.status_code == 200
     body = res.json()
     assert body["total"] == 1

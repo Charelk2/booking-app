@@ -20,9 +20,9 @@ For setup instructions see [README.md](README.md).
 | **Payment** | Handles deposit or full payments via `/api/v1/payments` | `backend/app/api/api_payment.py` | After quote acceptance |
 | **Notification** | Sends emails, chat alerts, and booking status updates | `backend/app/api/api_notification.py`<br>`backend/app/utils/notifications.py`<br>`frontend/hooks/useNotifications.ts` | On status changes, messages, actions |
 | **Chat** | Manages client–artist chat and WebSocket updates | `backend/app/api/api_message.py`<br>`backend/app/api/api_ws.py`<br>`frontend/src/components/booking/MessageThread.tsx` | Always on for active bookings |
-| **Caching** | Caches artist lists using Redis | `backend/app/utils/redis_cache.py`<br>`backend/app/api/v1/api_artist.py` | On artist list requests |
+| **Caching** | Caches artist lists using Redis | `backend/app/utils/redis_cache.py`<br>`backend/app/api/v1/api_service_provider.py` | On artist list requests |
 | **Personalized Video** | Automates Q&A for custom video requests | `frontend/src/components/booking/PersonalizedVideoFlow.tsx`<br>`frontend/src/lib/videoFlow.ts` | When `service_type` is Personalized Video |
-| **Availability** | Checks artist/service availability in real time | `backend/app/api/v1/api_artist.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | On date selection and booking start |
+| **Availability** | Checks artist/service availability in real time | `backend/app/api/v1/api_service_provider.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | On date selection and booking start |
 | **Form State** | Maintains booking progress across steps | `frontend/src/components/booking/BookingWizard.tsx`<br>`frontend/src/contexts/BookingContext.tsx` | Throughout the user session |
 | **Validation** | Validates user input and business logic | `frontend/src/components/booking/BookingWizard.tsx`<br>`backend/app/schemas/` | At every form step and backend endpoint |
 | **Calendar Sync** | Imports Google Calendar events and merges them into `read_artist_availability` | `backend/app/api/api_calendar.py`<br>`backend/app/services/calendar_service.py`<br>`frontend/src/app/dashboard/profile/edit/page.tsx` | When artists connect or disconnect Google Calendar |
@@ -95,7 +95,7 @@ For setup instructions see [README.md](README.md).
 ### 10. Caching Agent
 
 * **Purpose:** Cache heavy artist list responses using Redis.
-* **Backend:** `redis_cache.py` stores serialized profiles; used in `api_artist.py`.
+* **Backend:** `redis_cache.py` stores serialized profiles; used in `api_service_provider.py`.
 ### 11. Personalized Video Agent
 
 * **Purpose:** Automates question prompts for personalized video requests.
@@ -105,7 +105,7 @@ For setup instructions see [README.md](README.md).
 ### 12. Availability Agent
 * **Purpose:** Checks/updates in real time which artists and providers are available for a user’s event date and needs.
 * **Frontend:** When client picks date/artist, disables blocked dates, shows live availability.
-* **Backend:** `api_artist.py` logic for checking calendars, marking bookings.
+* **Backend:** `api_service_provider.py` logic for checking calendars, marking bookings.
 
 ### 13. Form State Agent
 

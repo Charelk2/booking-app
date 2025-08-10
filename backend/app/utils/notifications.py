@@ -106,8 +106,8 @@ def _resolve_sender_avatar(
         if artist:
             sender = f"{artist.first_name} {artist.last_name}"
             profile = (
-                db.query(models.ArtistProfile)
-                .filter(models.ArtistProfile.user_id == artist.id)
+                db.query(models.ServiceProviderProfile)
+                .filter(models.ServiceProviderProfile.user_id == artist.id)
                 .first()
             )
             if profile and profile.business_name:
@@ -163,8 +163,8 @@ def _build_response(db: Session, n: models.Notification) -> NotificationResponse
                             sender = f"{other.first_name} {other.last_name}"
                         if other.user_type == models.UserType.SERVICE_PROVIDER:
                             profile = (
-                                db.query(models.ArtistProfile)
-                                .filter(models.ArtistProfile.user_id == other.id)
+                                db.query(models.ServiceProviderProfile)
+                                .filter(models.ServiceProviderProfile.user_id == other.id)
                                 .first()
                             )
                             if profile and profile.business_name and not match:
@@ -449,8 +449,8 @@ def notify_user_new_message(
     avatar_url = None
     if sender.user_type == models.UserType.SERVICE_PROVIDER:
         profile = (
-            db.query(models.ArtistProfile)
-            .filter(models.ArtistProfile.user_id == sender.id)
+            db.query(models.ServiceProviderProfile)
+            .filter(models.ServiceProviderProfile.user_id == sender.id)
             .first()
         )
         if profile and profile.business_name:
@@ -721,8 +721,8 @@ def notify_new_booking(db: Session, user: Optional[User], booking_id: int) -> No
         if artist:
             sender_name = f"{artist.first_name} {artist.last_name}"
             profile = (
-                db.query(models.ArtistProfile)
-                .filter(models.ArtistProfile.user_id == artist.id)
+                db.query(models.ServiceProviderProfile)
+                .filter(models.ServiceProviderProfile.user_id == artist.id)
                 .first()
             )
             if profile and profile.business_name:

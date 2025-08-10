@@ -15,7 +15,7 @@ from app.models import (
     VisibleTo,
 )
 from app.models.service import ServiceType
-from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service_provider_profile import ServiceProviderProfile
 from app.models.base import BaseModel
 
 
@@ -44,7 +44,7 @@ def test_delete_service_cascades_messages():
     db.refresh(client_user)
 
     # Artist profile and service
-    profile = ArtistProfileV2(user_id=artist_user.id)
+    profile = ServiceProviderProfile(user_id=artist_user.id)
     service = Service(
         artist_id=artist_user.id,
         title='Gig',
@@ -111,7 +111,7 @@ def test_delete_service_handles_uppercase_visible_to():
     db.refresh(artist_user)
     db.refresh(client_user)
 
-    profile = ArtistProfileV2(user_id=artist_user.id)
+    profile = ServiceProviderProfile(user_id=artist_user.id)
     service = Service(
         artist_id=artist_user.id,
         title="Gig",
@@ -205,7 +205,7 @@ def test_delete_service_handles_legacy_text_messages():
     db.refresh(artist_user)
     db.refresh(client_user)
 
-    profile = ArtistProfileV2(user_id=artist_user.id)
+    profile = ServiceProviderProfile(user_id=artist_user.id)
     service = Service(
         artist_id=artist_user.id,
         title="Gig",

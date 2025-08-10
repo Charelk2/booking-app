@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models import User, UserType, Service, BookingStatus
-from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service_provider_profile import ServiceProviderProfile
 from app.models.service import ServiceType
 from app.models.base import BaseModel
 from app.api import api_booking_request
@@ -26,7 +26,7 @@ def test_client_can_update_service_id():
     db.refresh(client)
     db.refresh(artist)
 
-    profile = ArtistProfileV2(user_id=artist.id)
+    profile = ServiceProviderProfile(user_id=artist.id)
     svc1 = Service(
         artist_id=artist.id,
         title='One',

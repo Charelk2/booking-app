@@ -7,7 +7,7 @@ import logging
 
 from .. import crud, models, schemas
 from ..services import nlp_booking
-from .dependencies import get_db, get_current_user, get_current_active_client, get_current_active_artist
+from .dependencies import get_db, get_current_user, get_current_active_client, get_current_service_provider
 from ..utils.notifications import (
     notify_user_new_booking_request,
     notify_booking_status_update,
@@ -183,7 +183,7 @@ def read_my_artist_booking_requests(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_artist: models.User = Depends(get_current_active_artist) # Artist specific endpoint
+    current_artist: models.User = Depends(get_current_service_provider) # Artist specific endpoint
 ):
     """
     Retrieve booking requests made to the current artist.
@@ -361,7 +361,7 @@ def update_booking_request_by_artist(
     request_id: int,
     request_update: schemas.BookingRequestUpdateByArtist,
     db: Session = Depends(get_db),
-    current_artist: models.User = Depends(get_current_active_artist)
+    current_artist: models.User = Depends(get_current_service_provider)
 ):
     """
     Update a booking request status (e.g., decline it).
@@ -463,7 +463,7 @@ def update_booking_request_by_artist(
 @router.get("/stats", summary="Get dashboard stats")
 def get_dashboard_stats(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_artist),
+    current_user: models.User = Depends(get_current_service_provider),
 ):
     """Return monthly inquiries, profile views, and response rate for the artist."""
     now = datetime.utcnow()

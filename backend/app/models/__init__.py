@@ -1,5 +1,5 @@
 from .user import User, UserType
-from .artist_profile_v2 import ArtistProfileV2 as ArtistProfile
+from .service_provider_profile import ServiceProviderProfile
 from .service import Service
 from .booking import Booking
 from .booking_status import BookingStatus
@@ -20,7 +20,7 @@ from .profile_view import ArtistProfileView
 
 __all__ = [
     "User",
-    "ArtistProfile",
+    "ServiceProviderProfile",
     "Service",
     "Booking",
     "Review",

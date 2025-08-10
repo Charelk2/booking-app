@@ -6,7 +6,7 @@ from datetime import datetime
 from app.models import (
     User,
     UserType,
-    ArtistProfile,
+    ServiceProviderProfile,
     BookingRequest,
     BookingStatus,
     Message,
@@ -37,7 +37,7 @@ def test_get_dashboard_stats():
     db.refresh(artist)
     db.refresh(client)
 
-    profile = ArtistProfile(user_id=artist.id)
+    profile = ServiceProviderProfile(user_id=artist.id)
     db.add(profile)
     db.commit()
 

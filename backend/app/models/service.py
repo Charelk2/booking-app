@@ -65,8 +65,8 @@ class Service(BaseModel):
     car_rental_price = Column(Numeric(10, 2), nullable=True)
     flight_price = Column(Numeric(10, 2), nullable=True)
 
-    # Link back to the ArtistProfileV2
-    artist = relationship("ArtistProfileV2", back_populates="services")
+    # Link back to the ServiceProviderProfile
+    artist = relationship("ServiceProviderProfile", back_populates="services")
 
     # ← Here’s the missing piece:
     booking_requests = relationship(

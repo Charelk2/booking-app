@@ -332,7 +332,7 @@ describe('getArtists', () => {
         data: { data: [], total: 0, price_distribution: [] },
       } as unknown as { data: unknown });
     await getArtists({ includePriceDistribution: true, page: 2 });
-    expect(spy).toHaveBeenCalledWith('/api/v1/artist-profiles/', {
+    expect(spy).toHaveBeenCalledWith('/api/v1/service-provider-profiles/', {
       params: { page: 2, include_price_distribution: true },
     });
     spy.mockRestore();
@@ -345,7 +345,7 @@ describe('getArtists', () => {
         data: { data: [], total: 0, price_distribution: [] },
       } as unknown as { data: unknown });
     await getArtists({ when: '2025-07-25' });
-    expect(spy).toHaveBeenCalledWith('/api/v1/artist-profiles/', {
+    expect(spy).toHaveBeenCalledWith('/api/v1/service-provider-profiles/', {
       params: { when: '2025-07-25' },
     });
     spy.mockRestore();
@@ -358,7 +358,7 @@ describe('getArtists', () => {
         data: { data: [], total: 0, price_distribution: [] },
       } as unknown as { data: unknown });
     await getArtists({ when: new Date('2025-07-25T22:00:00.000Z') });
-    expect(spy).toHaveBeenCalledWith('/api/v1/artist-profiles/', {
+    expect(spy).toHaveBeenCalledWith('/api/v1/service-provider-profiles/', {
       params: { when: '2025-07-25' },
     });
     spy.mockRestore();
@@ -371,7 +371,7 @@ describe('getArtists', () => {
         data: { data: [], total: 0, price_distribution: [] },
       } as unknown as { data: unknown });
     await getArtists({ artist: 'john' });
-    expect(spy).toHaveBeenCalledWith('/api/v1/artist-profiles/', {
+    expect(spy).toHaveBeenCalledWith('/api/v1/service-provider-profiles/', {
       params: { artist: 'john' },
     });
     spy.mockRestore();

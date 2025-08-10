@@ -5,9 +5,9 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.models.base import BaseModel
-from app.api.dependencies import get_db, get_current_active_artist
+from app.api.dependencies import get_db, get_current_service_provider
 from app.models import User, UserType
-from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service_provider_profile import ServiceProviderProfile
 from app.models.service_category import ServiceCategory
 from app.db_utils import seed_service_categories
 
@@ -46,14 +46,14 @@ def test_create_and_retrieve_service_with_category():
     db.add(user)
     db.commit()
     db.refresh(user)
-    db.add(ArtistProfileV2(user_id=user.id))
+    db.add(ServiceProviderProfile(user_id=user.id))
     db.commit()
 
     def override_artist():
         return user
 
-    prev_artist = app.dependency_overrides.get(get_current_active_artist)
-    app.dependency_overrides[get_current_active_artist] = override_artist
+    prev_artist = app.dependency_overrides.get(get_current_service_provider)
+    app.dependency_overrides[get_current_service_provider] = override_artist
 
     client = TestClient(app)
     category = db.query(ServiceCategory).first()
@@ -85,7 +85,7 @@ def test_create_and_retrieve_service_with_category():
     )
 
     if prev_artist is not None:
-        app.dependency_overrides[get_current_active_artist] = prev_artist
+        app.dependency_overrides[get_current_service_provider] = prev_artist
     else:
-        app.dependency_overrides.pop(get_current_active_artist, None)
+        app.dependency_overrides.pop(get_current_service_provider, None)
     db.close()

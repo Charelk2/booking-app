@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 from ..database import get_db
 from ..models.user import User, UserType
-from ..models.artist_profile_v2 import ArtistProfileV2 as ServiceProviderProfile
+from ..models.service_provider_profile import ServiceProviderProfile
 from ..models.email_token import EmailToken
 from ..schemas.user import (
     UserCreate,
