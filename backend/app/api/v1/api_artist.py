@@ -507,6 +507,8 @@ def read_all_artist_profiles(
         .outerjoin(rating_subq, rating_subq.c.artist_id == Artist.user_id)
         .outerjoin(booking_subq, booking_subq.c.artist_id == Artist.user_id)
     )
+    # Exclude service providers who have not added any services.
+    query = query.filter(Artist.services.any())
     if artist:
         query = query.join(User).filter(
             or_(

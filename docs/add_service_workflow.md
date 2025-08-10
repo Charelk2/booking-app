@@ -2,6 +2,8 @@
 
 Artists can now publish offerings using a shared **BaseServiceWizard**. The wizard mirrors the musician service modal so every category shares the same layout and navigation. It manages step flow, form submission and client-side media uploads while category wizards supply their own fields. Media uploads now match the musician experience with image-only validation, thumbnail previews and the ability to remove selections before publishing.
 
+> **Visibility note:** Service providers remain hidden from search results and the homepage until they publish at least one service. Adding a service through this workflow makes the profile publicly discoverable.
+
 ## Categories
 
 All service categories share the BaseServiceWizard for a consistent layout and navigation. Seeded categories include:

@@ -35,6 +35,7 @@ class RecommendationService:
         return (
             db.query(ArtistProfile)
             .outerjoin(Review, Review.artist_id == ArtistProfile.user_id)
+            .filter(ArtistProfile.services.any())
             .group_by(ArtistProfile.user_id)
             .order_by(func.coalesce(func.avg(Review.rating), 0).desc())
             .limit(limit)
