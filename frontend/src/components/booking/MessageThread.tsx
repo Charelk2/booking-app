@@ -17,7 +17,15 @@ import {
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
 import { DocumentIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
-import { Booking, Review, Message, MessageCreate, QuoteV2, QuoteV2Create } from '@/types';
+import {
+  Booking,
+  Review,
+  Message,
+  MessageCreate,
+  QuoteV2,
+  QuoteV2Create,
+} from '@/types';
+import { ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import {
   getMessagesForBookingRequest,
   postMessageToBookingRequest,
@@ -540,8 +548,10 @@ useEffect(() => {
         e.preventDefault();
         if (!newMessageContent.trim() && !attachmentFile) return;
 
+        let attachment_url: string | undefined;
+        const tempId = Date.now();
+
         try {
-          let attachment_url: string | undefined;
           if (attachmentFile) {
             setIsUploadingAttachment(true);
             const res = await uploadMessageAttachment(
@@ -561,29 +571,69 @@ useEffect(() => {
             attachment_url,
           };
 
-          await postMessageToBookingRequest(bookingRequestId, payload);
+          // Optimistically append the message
+          const optimistic: Message = {
+            id: tempId,
+            booking_request_id: bookingRequestId,
+            sender_id: user?.id || 0,
+            sender_type: user?.user_type === 'service_provider' ? 'artist' : 'client',
+            content: payload.content,
+            message_type: 'USER',
+            quote_id: null,
+            attachment_url,
+            visible_to: 'both',
+            action: null,
+            avatar_url: undefined,
+            expires_at: null,
+            unread: false,
+            is_read: true,
+            timestamp: new Date().toISOString(),
+            status: 'sending',
+          };
+          setMessages((prev) => [...prev, optimistic]);
+
+          const res = await postMessageToBookingRequest(bookingRequestId, payload);
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? { ...res.data, status: 'sent' } : m)),
+          );
 
           setNewMessageContent('');
           setAttachmentFile(null);
           setAttachmentPreviewUrl(null);
           setUploadingProgress(0);
           setIsUploadingAttachment(false);
-          // Reset textarea height after sending message
           if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
             textareaRef.current.rows = 1;
           }
-          void fetchMessages();
           if (onMessageSent) onMessageSent();
         } catch (err: unknown) {
           console.error('Failed to send message:', err);
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)),
+          );
           setThreadError(
-            `Failed to send message. ${(err as Error).message || 'Please try again later.'}`
+            `Failed to send message. ${(err as Error).message || 'Please try again later.'}`,
           );
           setIsUploadingAttachment(false);
         }
       },
-      [newMessageContent, attachmentFile, bookingRequestId, fetchMessages, onMessageSent, textareaRef, setAttachmentFile, setAttachmentPreviewUrl, setUploadingProgress, setIsUploadingAttachment, setNewMessageContent, setThreadError],
+      [
+        newMessageContent,
+        attachmentFile,
+        bookingRequestId,
+        onMessageSent,
+        textareaRef,
+        user?.id,
+        user?.user_type,
+        setAttachmentFile,
+        setAttachmentPreviewUrl,
+        setUploadingProgress,
+        setIsUploadingAttachment,
+        setNewMessageContent,
+        setThreadError,
+        setMessages,
+      ],
     );
 
     const handleSendQuote = useCallback(
@@ -921,9 +971,15 @@ useEffect(() => {
                             </time>
                             {isMsgFromSelf && (
                               <div className="flex-shrink-0">
-                                <DoubleCheckmarkIcon
-                                  className={`h-5 w-5 ${msg.is_read ? 'text-blue-500' : 'text-gray-400'} -ml-[8px]`}
-                                />
+                                {msg.status === 'sending' ? (
+                                  <ClockIcon className="h-4 w-4 text-gray-400 -ml-1" />
+                                ) : msg.status === 'failed' ? (
+                                  <ExclamationTriangleIcon className="h-4 w-4 text-red-500 -ml-1" />
+                                ) : (
+                                  <DoubleCheckmarkIcon
+                                    className={`h-5 w-5 ${msg.is_read ? 'text-blue-500' : 'text-gray-400'} -ml-[8px]`}
+                                  />
+                                )}
                               </div>
                             )}
                           </div>
