@@ -5,8 +5,7 @@
  import Link from 'next/link';
  import { useEffect, useRef, useState } from 'react';
  import { ChevronRightIcon } from '@heroicons/react/24/solid';
- import useServiceCategories from '@/hooks/useServiceCategories';
- import { CATEGORY_IMAGES } from '@/lib/categoryMap';
+ import { UI_CATEGORIES } from '@/lib/categoryMap';
  
 
  /**
@@ -47,8 +46,6 @@
   };
  
 
-  const categories = useServiceCategories();
-
   return (
   <section
   className="full-width mx-auto mt-4 px-4 sm:px-6 lg:px-8"
@@ -63,7 +60,7 @@
   data-testid="categories-scroll"
   className="flex gap-4 overflow-x-auto scroll-smooth pb-2 scrollbar-hide"
   >
-  {categories.map((cat) => (
+  {UI_CATEGORIES.map((cat) => (
   <Link
   key={cat.value}
   href={`/category/${encodeURIComponent(cat.value)}`}
@@ -71,7 +68,7 @@
   >
   <div className="relative h-40 w-40 overflow-hidden rounded-lg bg-gray-100">
   <Image
-  src={CATEGORY_IMAGES[cat.value] || '/bartender.png'}
+  src={cat.image || '/bartender.png'}
   alt={cat.label}
   fill
   sizes="160px"
