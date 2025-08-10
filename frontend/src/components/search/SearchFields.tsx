@@ -14,7 +14,7 @@ import { MusicalNoteIcon, CalendarIcon, MapPinIcon } from '@heroicons/react/24/o
 
 // Import types for consistency
 import type { ActivePopup } from './SearchBar'; // Assuming SearchBar defines ActivePopup
-import { Category as CategoryType } from '@/lib/categoryMap'; // Correctly import Category from categoryMap.ts
+import { Category as CategoryType } from '@/hooks/useServiceCategories';
 
 // Re-exporting for external use, if needed
 export type Category = CategoryType;
