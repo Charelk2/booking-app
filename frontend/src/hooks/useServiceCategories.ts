@@ -20,11 +20,13 @@ export default function useServiceCategories(): Category[] {
     if (cachedCategories) return;
     getServiceCategories()
       .then((res) => {
-        const data = res.data.map((c) => ({
-          id: c.id,
-          value: categorySlug(c.name),
-          label: c.name,
-        }));
+        const data = res.data
+          .filter((c) => c.name.toLowerCase() !== 'service providers')
+          .map((c) => ({
+            id: c.id,
+            value: categorySlug(c.name),
+            label: c.name,
+          }));
         cachedCategories = data;
         setCategories(data);
       })
