@@ -1,13 +1,7 @@
 'use client';
 
-import {
-  useEffect,
-  useState,
-  useMemo,
-  useRef,
-} from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { ChevronRightIcon } from '@heroicons/react/24/solid';
 import ServiceProviderCardCompact from '@/components/service-provider/ServiceProviderCardCompact';
 import { getServiceProviders } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
@@ -40,8 +34,6 @@ export default function ArtistsSection({
 }: ArtistsSectionProps) {
   const [artists, setArtists] = useState<ServiceProviderProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollRight, setCanScrollRight] = useState(false);
 
   const serializedQuery = useMemo(() => JSON.stringify(query), [query]);
 
@@ -69,27 +61,6 @@ export default function ArtistsSection({
     };
   }, [serializedQuery, limit]);
 
-  useEffect(() => {
-    const updateScrollButtons = () => {
-      const el = scrollRef.current;
-      if (!el) return;
-      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth);
-    };
-    updateScrollButtons();
-    const el = scrollRef.current;
-    if (!el) return;
-    el.addEventListener('scroll', updateScrollButtons);
-    window.addEventListener('resize', updateScrollButtons);
-    return () => {
-      el.removeEventListener('scroll', updateScrollButtons);
-      window.removeEventListener('resize', updateScrollButtons);
-    };
-  }, [artists]);
-
-  const scrollBy = (offset: number) => {
-    scrollRef.current?.scrollBy({ left: offset, behavior: 'smooth' });
-  };
-
   if (!loading && artists.length === 0 && hideIfEmpty) {
     return null;
   }
@@ -114,99 +85,30 @@ export default function ArtistsSection({
           ))}
         </div>
       ) : artists.length > 0 ? (
-        artists.length > 7 ? (
-          <>
-            <div className="relative hidden xl:block">
-              <div
-                ref={scrollRef}
-                className="flex gap-2 overflow-x-auto scroll-smooth pb-2"
-              >
-                {artists.map((a) => {
-                  const name = a.business_name || `${a.user.first_name} ${a.user.last_name}`;
-                  return (
-                    <div key={a.id} className="flex-shrink-0 basis-[14.285%]">
-                      <ServiceProviderCardCompact
-                        serviceProviderId={a.id}
-                        name={name}
-                        subtitle={a.custom_subtitle || undefined}
-                        imageUrl={
-                          getFullImageUrl(a.profile_picture_url || a.portfolio_urls?.[0]) || undefined
-                        }
-                        price={
-                          a.hourly_rate && a.price_visible ? Number(a.hourly_rate) : undefined
-                        }
-                        rating={a.rating ?? undefined}
-                        ratingCount={a.rating_count ?? undefined}
-                        location={a.location}
-                        categories={a.service_categories}
-                        href={`/service-providers/${a.id}`}
-                        className="w-full"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-              <button
-                type="button"
-                aria-label="Next"
-                className="absolute right-0 top-1 z-10 rounded-full border bg-white p-2 opacity-50 shadow disabled:opacity-50"
-                disabled={!canScrollRight}
-                onClick={() => scrollBy(200)}
-              >
-                <ChevronRightIcon className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:hidden gap-2 md:gap-2">
-              {artists.map((a) => {
-                const name = a.business_name || `${a.user.first_name} ${a.user.last_name}`;
-                return (
-                  <ServiceProviderCardCompact
-                    key={a.id}
-                    serviceProviderId={a.id}
-                    name={name}
-                    subtitle={a.custom_subtitle || undefined}
-                    imageUrl={
-                      getFullImageUrl(a.profile_picture_url || a.portfolio_urls?.[0]) || undefined
-                    }
-                    price={
-                      a.hourly_rate && a.price_visible ? Number(a.hourly_rate) : undefined
-                    }
-                    rating={a.rating ?? undefined}
-                    ratingCount={a.rating_count ?? undefined}
-                    location={a.location}
-                    categories={a.service_categories}
-                    href={`/service-providers/${a.id}`}
-                  />
-                );
-              })}
-            </div>
-          </>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-2 md:gap-2">
-            {artists.map((a) => {
-              const name = a.business_name || `${a.user.first_name} ${a.user.last_name}`;
-              return (
-                <ServiceProviderCardCompact
-                  key={a.id}
-                  serviceProviderId={a.id}
-                  name={name}
-                  subtitle={a.custom_subtitle || undefined}
-                  imageUrl={
-                    getFullImageUrl(a.profile_picture_url || a.portfolio_urls?.[0]) || undefined
-                  }
-                  price={
-                    a.hourly_rate && a.price_visible ? Number(a.hourly_rate) : undefined
-                  }
-                  rating={a.rating ?? undefined}
-                  ratingCount={a.rating_count ?? undefined}
-                  location={a.location}
-                  categories={a.service_categories}
-                  href={`/service-providers/${a.id}`}
-                />
-              );
-            })}
-          </div>
-        )
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-2 md:gap-2">
+          {artists.map((a) => {
+            const name = a.business_name || `${a.user.first_name} ${a.user.last_name}`;
+            return (
+              <ServiceProviderCardCompact
+                key={a.id}
+                serviceProviderId={a.id}
+                name={name}
+                subtitle={a.custom_subtitle || undefined}
+                imageUrl={
+                  getFullImageUrl(a.profile_picture_url || a.portfolio_urls?.[0]) || undefined
+                }
+                price={
+                  a.hourly_rate && a.price_visible ? Number(a.hourly_rate) : undefined
+                }
+                rating={a.rating ?? undefined}
+                ratingCount={a.rating_count ?? undefined}
+                location={a.location}
+                categories={a.service_categories}
+                href={`/service-providers/${a.id}`}
+              />
+            );
+          })}
+        </div>
       ) : (
         <p>No service providers found.</p>
       )}
