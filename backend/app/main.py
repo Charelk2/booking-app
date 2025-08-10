@@ -12,7 +12,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from .middleware.security_headers import SecurityHeadersMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, ORJSONResponse
 from fastapi.exceptions import RequestValidationError
 
 from .database import engine, Base
@@ -124,7 +124,7 @@ ensure_service_category_id_column(engine)
 seed_service_categories(engine)
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Artist Booking API")
+app = FastAPI(title="Artist Booking API", default_response_class=ORJSONResponse)
 
 
 # ─── Figure out the absolute filesystem path to `backend/app/static` ─────────
@@ -141,6 +141,7 @@ os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
 os.makedirs(COVER_PHOTOS_DIR, exist_ok=True)
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 os.makedirs(INVOICE_PDFS_DIR, exist_ok=True)
+
 
 class StaticFilesWithDefault(StaticFiles):
     """Serve static files with a fallback default avatar."""
@@ -195,8 +196,12 @@ async def catch_exceptions(request: Request, call_next):
     try:
         response = await call_next(request)
     except StarletteHTTPException as exc:  # return the original status and detail
-        logger.error("HTTP error %s at %s: %s", exc.status_code, request.url.path, exc.detail)
-        response = JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        logger.error(
+            "HTTP error %s at %s: %s", exc.status_code, request.url.path, exc.detail
+        )
+        response = JSONResponse(
+            status_code=exc.status_code, content={"detail": exc.detail}
+        )
     except Exception as exc:  # pragma: no cover - generic handler
         logger.exception("Unhandled error: %s", exc)
         response = JSONResponse(

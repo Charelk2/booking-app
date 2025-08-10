@@ -81,7 +81,9 @@ ALLOWED_PORTFOLIO_IMAGE_TYPES = ALLOWED_PROFILE_PIC_TYPES
 MAX_PORTFOLIO_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
-@router.get("/me", response_model=ArtistProfileResponse)
+@router.get(
+    "/me", response_model=ArtistProfileResponse, response_model_exclude_none=True
+)
 def read_current_artist_profile(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -101,6 +103,7 @@ def read_current_artist_profile(
 @router.put(
     "/me",
     response_model=ArtistProfileResponse,
+    response_model_exclude_none=True,
     summary="Update current artist's profile",
     description=("Update fields of the currently authenticated artist's profile."),
 )
@@ -146,6 +149,7 @@ def update_current_artist_profile(
 @router.post(
     "/me/profile-picture",
     response_model=ArtistProfileResponse,
+    response_model_exclude_none=True,
     summary="Upload or update current artist's profile picture",
     description=(
         "Uploads a new profile picture for the currently authenticated artist,"
@@ -225,6 +229,7 @@ async def upload_artist_profile_picture_me(
 @router.post(
     "/me/cover-photo",
     response_model=ArtistProfileResponse,
+    response_model_exclude_none=True,
     summary="Upload or update current artist's cover photo",
     description="Uploads a new cover photo for the currently authenticated artist, replacing any existing one.",
 )
@@ -292,6 +297,7 @@ async def upload_artist_cover_photo_me(
 @router.post(
     "/me/portfolio-images",
     response_model=ArtistProfileResponse,
+    response_model_exclude_none=True,
     summary="Upload portfolio images",
     description="Upload one or more portfolio images and append them to the artist's portfolio_image_urls list.",
 )
@@ -350,6 +356,7 @@ class PortfolioImagesUpdate(BaseModel):
 @router.put(
     "/me/portfolio-images",
     response_model=ArtistProfileResponse,
+    response_model_exclude_none=True,
     summary="Update portfolio image order",
     description="Replace portfolio_image_urls with the provided list to reorder images.",
 )
@@ -373,6 +380,7 @@ def update_portfolio_images_order_me(
 @router.get(
     "/",
     response_model=ArtistListResponse,
+    response_model_exclude_none=True,
     summary="List all service provider profiles",
     description="Return a paginated list of service provider profiles.",
 )
@@ -663,7 +671,11 @@ def read_all_service_provider_profiles(
     }
 
 
-@router.get("/{artist_id}", response_model=ArtistProfileResponse)
+@router.get(
+    "/{artist_id}",
+    response_model=ArtistProfileResponse,
+    response_model_exclude_none=True,
+)
 def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
     artist = db.query(Artist).filter(Artist.user_id == artist_id).first()
     if not artist:
@@ -671,7 +683,11 @@ def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
     return artist
 
 
-@router.get("/{artist_id}/availability", response_model=ArtistAvailabilityResponse)
+@router.get(
+    "/{artist_id}/availability",
+    response_model=ArtistAvailabilityResponse,
+    response_model_exclude_none=True,
+)
 def read_artist_availability(
     artist_id: int,
     when: Optional[date] = Query(None),
