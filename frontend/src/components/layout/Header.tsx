@@ -12,10 +12,9 @@ import NotificationBell from './NotificationBell'; // Assuming NotificationBell 
 import MobileMenuDrawer from './MobileMenuDrawer'; // Assuming MobileMenuDrawer is set up
 import SearchBar from '../search/SearchBar'; // The full search bar component
 import { navItemClasses } from './navStyles';
-import { SERVICE_TO_UI_CATEGORY, UI_CATEGORIES } from '@/lib/categoryMap';
+import useServiceCategories, { Category } from '@/hooks/useServiceCategories';
 import { Avatar } from '../ui'; // Assuming Avatar is set up
 import clsx from 'clsx';
-import { type Category } from '../search/SearchFields'; // Import Category type from SearchFields
 import { parseISO, isValid } from 'date-fns';
 import { getStreetFromAddress } from '@/lib/utils';
 
@@ -94,14 +93,17 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
 
   // Search parameters for the search bars (managed locally by Header and passed to SearchBar)
+  const categories = useServiceCategories();
   const [category, setCategory] = useState<Category | null>(null);
   const [location, setLocation] = useState<string>('');
   const [when, setWhen] = useState<Date | null>(null);
 
   useEffect(() => {
+    if (!categories.length) return;
     const serviceCat = searchParams.get('category');
-    const uiValue = serviceCat ? SERVICE_TO_UI_CATEGORY[serviceCat] || serviceCat : undefined;
-    const uiCategory = uiValue ? UI_CATEGORIES.find((c) => c.value === uiValue) || null : null;
+    const uiCategory = serviceCat
+      ? categories.find((c) => c.value === serviceCat) || null
+      : null;
     setCategory(uiCategory);
 
     setLocation(searchParams.get('location') || '');
@@ -117,7 +119,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     } else {
       setWhen(null);
     }
-  }, [searchParams]);
+  }, [searchParams, categories]);
 
   const dateFormatter = new Intl.DateTimeFormat('en-US', {
     month: 'short',
