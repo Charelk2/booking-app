@@ -53,11 +53,10 @@ describe('ServiceProviderCard optional fields', () => {
     c2.remove();
   });
 
-  it('shows location and tagline truncated', () => {
+  it('shows location but omits subtitle', () => {
     const { container, root } = setup({ location: 'NYC', subtitle: 'Best service provider ever in the world' });
     expect(container.textContent).toContain('NYC');
-    const subtitleEl = container.querySelector('p.text-sm');
-    expect(subtitleEl?.className).toContain('line-clamp-2');
+    expect(container.textContent).not.toContain('Best service provider');
     const locEl = container.querySelector('span.text-sm');
     expect(locEl?.textContent).toContain('NYC');
     act(() => root.unmount());
@@ -161,29 +160,10 @@ describe('ServiceProviderCard optional fields', () => {
     container.remove();
   });
 
-  it('shows at most two specialty tags', () => {
-    const { container, root } = setup({
-      specialties: ['a', 'b', 'c', 'd', 'e', 'f'],
-    });
+  it('does not render specialty tags when provided', () => {
+    const { container, root } = setup({ specialties: ['a', 'b'] });
     const tagContainer = container.querySelector('div.flex.flex-nowrap');
-    const tags = tagContainer?.querySelectorAll('span');
-    expect(tags?.length).toBeLessThanOrEqual(2);
-    tags?.forEach((tag) => {
-      expect(tag.className).toContain('text-[10px]');
-      expect(tag.className).toContain('px-1.5');
-      expect(tag.className).toContain('py-0.5');
-    });
-    act(() => root.unmount());
-    container.remove();
-  });
-
-  it('always limits specialty tags to two', () => {
-    const { container, root } = setup({ specialties: ['x', 'y', 'z'] });
-    const tagDiv = container.querySelector('div.flex.flex-nowrap');
-    expect(tagDiv).not.toBeNull();
-    const tags = tagDiv?.querySelectorAll('span');
-    expect(tags?.length).toBe(2);
-
+    expect(tagContainer).toBeNull();
     act(() => root.unmount());
     container.remove();
   });
