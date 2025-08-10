@@ -104,7 +104,7 @@ describe("ClientBookingsPage", () => {
     const link = div.querySelector('a[data-booking-id="1"]');
     expect(link?.getAttribute("href")).toBe("/dashboard/client/bookings/1");
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
-    expect(artistLink?.getAttribute("href")).toBe("/artists/2");
+    expect(artistLink?.getAttribute("href")).toBe("/service-providers/2");
     const receipt = div.querySelector('[data-testid="booking-receipt-link"]');
     expect(receipt?.getAttribute("href")).toBe(
       "/api/v1/payments/pay_upcoming/receipt",
@@ -288,7 +288,7 @@ describe("ClientBookingsPage", () => {
     expect(msgLink).not.toBeNull();
     expect(msgLink?.getAttribute("href")).toBe("/booking-requests/12");
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
-    expect(artistLink?.getAttribute("href")).toBe("/artists/2");
+    expect(artistLink?.getAttribute("href")).toBe("/service-providers/2");
 
     act(() => {
       root.unmount();

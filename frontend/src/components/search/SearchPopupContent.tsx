@@ -127,7 +127,7 @@ export default function SearchPopupContent({
       closeAllPopups();
       setArtistQuery('');
       setArtistResults([]);
-      router.push(`/artists/${a.user_id}`);
+      router.push(`/service-providers/${a.user_id}`);
     },
     [closeAllPopups, router],
   );

@@ -76,7 +76,7 @@ describe("BookingDetailsPage", () => {
       formatDepositReminder(50, new Date("2024-01-08")),
     );
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
-    expect(artistLink?.getAttribute("href")).toBe("/artists/2");
+    expect(artistLink?.getAttribute("href")).toBe("/service-providers/2");
     const pay = div.querySelector('[data-testid="pay-deposit-button"]');
     expect(pay).not.toBeNull();
 
@@ -196,7 +196,7 @@ describe("BookingDetailsPage", () => {
     expect(msg).not.toBeNull();
     expect(msg?.getAttribute("href")).toBe("/booking-requests/7");
     const artistLink = div.querySelector('[data-testid="view-artist-link"]');
-    expect(artistLink?.getAttribute("href")).toBe("/artists/2");
+    expect(artistLink?.getAttribute("href")).toBe("/service-providers/2");
 
     act(() => {
       root.unmount();

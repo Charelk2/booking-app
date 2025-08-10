@@ -94,7 +94,7 @@ export default function BookingDetailsPage() {
           {new Date(booking.start_time).toLocaleString()}
         </p>
         <Link
-          href={`/artists/${booking.artist_id}`}
+          href={`/service-providers/${booking.artist_id}`}
           className="text-brand-dark underline text-sm"
           data-testid="view-artist-link"
         >

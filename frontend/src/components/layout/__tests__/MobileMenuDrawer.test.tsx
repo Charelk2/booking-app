@@ -22,7 +22,7 @@ jest.mock('next/link', () => ({
 
 const nav = [
   { name: 'Home', href: '/', icon: HomeIcon },
-  { name: 'Artists', href: '/artists', icon: UsersIcon },
+  { name: 'Artists', href: '/service-providers', icon: UsersIcon },
   { name: 'Sound Providers', href: '/sound-providers', icon: SpeakerWaveIcon },
   { name: 'Quote Calculator', href: '/quote-calculator', icon: CalculatorIcon },
   {

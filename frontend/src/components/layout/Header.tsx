@@ -29,7 +29,7 @@ type SearchParams = {
 };
 
 const clientNav = [
-  { name: 'Artists', href: '/artists' },
+  { name: 'Artists', href: '/service-providers' },
   { name: 'Services', href: '/services' },
   { name: 'FAQ', href: '/faq' },
   { name: 'Contact', href: '/contact' },
@@ -50,7 +50,7 @@ function ClientNav({ pathname }: { pathname: string }) {
 function ArtistNav({ user, pathname }: { user: { id: number }; pathname: string }) {
   const items = [
     { name: 'Today', href: '/dashboard/today' },
-    { name: 'View Profile', href: `/artists/${user.id}` },
+    { name: 'View Profile', href: `/service-providers/${user.id}` },
     { name: 'Services', href: '/dashboard?tab=services' },
     { name: 'Messages', href: '/inbox' },
   ];
@@ -88,7 +88,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isArtistsPage = pathname.startsWith('/artists') || pathname.startsWith('/category');
+  const isArtistsPage = pathname.startsWith('/service-providers') || pathname.startsWith('/category');
   const [menuOpen, setMenuOpen] = useState(false); // Mobile menu drawer state
   const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
 
@@ -133,7 +133,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       const params = new URLSearchParams();
       if (location) params.set('location', location);
       if (when) params.set('when', when.toISOString());
-      const path = category ? `/category/${category}` : '/artists';
+      const path = category ? `/category/${category}` : '/service-providers';
       const qs = params.toString();
       router.push(qs ? `${path}?${qs}` : path);
       
