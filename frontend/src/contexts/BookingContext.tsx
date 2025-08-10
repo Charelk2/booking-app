@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { useThrottle } from '@/hooks/useThrottle';
 import { TravelResult } from '@/lib/travel';
 
 export interface EventDetails {
@@ -110,26 +111,33 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Persist progress
+  // Persist progress with throttling to avoid excessive localStorage writes
+  const throttledState = useThrottle(
+    { step, details, serviceId, requestId, travelResult },
+    1000,
+  );
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const data = {
-      step,
-        details: {
-          ...details,
-          // Guard against undefined or invalid dates when persisting progress
-          date: details.date ? new Date(details.date).toISOString() : null,
-        },
-      serviceId,
-      requestId,
-      travelResult,
+      step: throttledState.step,
+      details: {
+        ...throttledState.details,
+        // Guard against undefined or invalid dates when persisting progress
+        date: throttledState.details.date
+          ? new Date(throttledState.details.date).toISOString()
+          : null,
+      },
+      serviceId: throttledState.serviceId,
+      requestId: throttledState.requestId,
+      travelResult: throttledState.travelResult,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
       console.error('Failed to save booking progress:', e);
     }
-  }, [step, details, serviceId, requestId, travelResult]);
+  }, [throttledState]);
   return (
     <BookingContext.Provider
       value={{

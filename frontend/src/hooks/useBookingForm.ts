@@ -5,6 +5,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import type * as yup from 'yup';
 import { EventDetails } from '@/contexts/BookingContext';
 import type { Control, FieldErrors, UseFormHandleSubmit, UseFormSetValue, UseFormWatch, UseFormTrigger } from 'react-hook-form';
+import { useDebounce } from './useDebounce';
 
 
 interface BookingFormHookReturn {
@@ -35,8 +36,17 @@ export default function useBookingForm(
   } = useForm<EventDetails>({
     defaultValues,
     resolver: yupResolver(schema),
-    mode: 'onChange',
+    // Use onBlur to avoid validating on every keystroke; manual trigger is debounced below
+    mode: 'onBlur',
   });
+
+  // Debounce validation to reduce expensive schema checks while typing
+  const watchedValues = watch();
+  const debouncedValues = useDebounce(watchedValues, 300);
+
+  useEffect(() => {
+    void trigger();
+  }, [debouncedValues, trigger]);
 
   useEffect(() => {
     const sub = watch((value) => {
