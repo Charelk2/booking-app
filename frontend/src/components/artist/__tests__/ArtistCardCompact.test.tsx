@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 import ArtistCardCompact from '../ArtistCardCompact';
 
 function setup(props = {}) {
@@ -8,7 +8,7 @@ function setup(props = {}) {
   document.body.appendChild(container);
   const root = createRoot(container);
   const allProps = {
-    id: 1,
+    artistId: 1,
     name: 'Test',
     href: '/artists/1',
     ...props,

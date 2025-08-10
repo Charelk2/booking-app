@@ -56,6 +56,7 @@ class ArtistProfileResponse(ArtistProfileBase):
     rating_count: int = 0
     is_available: Optional[bool] = None
     service_price: Optional[Decimal] = None
+    service_categories: List[str] = Field(default_factory=list)
 
     # We want to include a nested "user" object when returning an artist profile
     user: Optional[UserResponse] = None
@@ -66,9 +67,7 @@ class ArtistProfileResponse(ArtistProfileBase):
         # This exposes `id` in JSON based on the underlying user_id
         return self.user_id
 
-    model_config = {
-        "from_attributes": True  # Pydantic V2 equivalent of orm_mode
-    }
+    model_config = {"from_attributes": True}  # Pydantic V2 equivalent of orm_mode
 
 
 class ArtistProfileNested(ArtistProfileBase):
@@ -82,9 +81,7 @@ class ArtistProfileNested(ArtistProfileBase):
     def id(self) -> int:
         return self.user_id
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = {"from_attributes": True}
 
 
 class ArtistAvailabilityResponse(BaseModel):

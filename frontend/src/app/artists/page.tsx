@@ -242,6 +242,7 @@ export default function ArtistsPage() {
                 rating={a.rating ?? undefined}
                 ratingCount={a.rating_count ?? undefined}
                 location={a.location}
+                categories={a.service_categories}
                 href={qs ? `/artists/${a.id}?${qs}` : `/artists/${a.id}`}
               />
             );
