@@ -11,7 +11,7 @@ import {
   generateRecoveryCodes as apiGenerateRecoveryCodes,
   disableMfa as apiDisableMfa,
   getCurrentUser,
-  getArtistProfileMe,
+  getServiceProviderProfileMe,
 } from '@/lib/api';
 
 interface AuthContextType {
@@ -62,14 +62,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let userData = res.data;
     if (userData.user_type === 'service_provider') {
       try {
-        const profile = await getArtistProfileMe();
+        const profile = await getServiceProviderProfileMe();
         const extras: Partial<User> = {};
         if (profile.data.profile_picture_url) {
           extras.profile_picture_url = profile.data.profile_picture_url;
         }
         userData = { ...userData, ...extras };
       } catch (err) {
-        console.error('Failed to fetch artist profile:', err);
+        console.error('Failed to fetch service provider profile:', err);
       }
     }
     return userData;

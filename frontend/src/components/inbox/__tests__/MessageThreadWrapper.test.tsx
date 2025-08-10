@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import MessageThreadWrapper from '../MessageThreadWrapper';
 import * as api from '@/lib/api';
 import { useRouter } from '@/tests/mocks/next-navigation';
-import type { BookingRequest, ArtistProfile } from '@/types';
+import type { BookingRequest, ServiceProviderProfile } from '@/types';
 
 jest.mock('@/lib/api');
 
@@ -47,7 +47,7 @@ const bookingRequest: Partial<BookingRequest> = {
     first_name: 'Client',
     profile_picture_url: null,
   },
-  artist_profile: { business_name: 'ArtistBiz' } as Partial<ArtistProfile>,
+  artist_profile: { business_name: 'ArtistBiz' } as Partial<ServiceProviderProfile>,
 };
 
 function setup(userType: 'client' | 'artist') {
