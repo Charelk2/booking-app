@@ -1,3 +1,5 @@
+import os
+
 from fastapi.openapi.utils import get_openapi
 from dotenv import load_dotenv
 from app.main import app
@@ -13,9 +15,7 @@ def custom_openapi() -> dict:
     app.openapi_schema = get_openapi(
         title="Artist Booking API",
         version="1.0.0",
-        description=(
-            "API for managing artist bookings, payments, and notifications."
-        ),
+        description=("API for managing artist bookings, payments, and notifications."),
         contact={"name": "Artist Booking Support", "email": "support@example.com"},
         routes=app.routes,
     )
@@ -26,4 +26,14 @@ app.openapi = custom_openapi
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+
+    workers = int(os.getenv("UVICORN_WORKERS", "1"))
+    keepalive = int(os.getenv("UVICORN_KEEPALIVE", "65"))
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        workers=workers,
+        timeout_keep_alive=keepalive,
+    )

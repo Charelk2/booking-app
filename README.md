@@ -245,6 +245,8 @@ The SQLite database path is automatically resolved to the project root, so you c
 
 `backend/main.py` also calls `load_dotenv()` so these variables are available when running the script directly. This ensures features such as the travel distance API work with your configured credentials.
 
+Responses now use `orjson` for faster serialization and omit `null` fields by default. You can adjust server concurrency and keep-alive behavior by setting `UVICORN_WORKERS` and `UVICORN_KEEPALIVE` before launching Uvicorn.
+
 ### Travel estimator
 
 The `/api/v1/quotes/calculate` endpoint now uses a regression-based travel estimator. Pass `distance_km` in the request body and the response will include a `travel_estimates` array of `{mode, cost}` pairs along with the chosen `travel_mode` used for totals.
