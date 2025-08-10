@@ -1,4 +1,4 @@
-# backend/app/models/artist_profile_v2.py
+# backend/app/models/service_provider_profile.py
 
 from sqlalchemy import (
     Column,
@@ -15,7 +15,9 @@ from sqlalchemy.orm import relationship
 from .base import BaseModel      # ← import BaseModel directly
 
 
-class ArtistProfileV2(BaseModel):
+class ServiceProviderProfile(BaseModel):
+    """ORM model representing a service provider's profile."""
+
     __tablename__ = "artist_profiles"
 
     user_id = Column(

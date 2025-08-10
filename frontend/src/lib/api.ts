@@ -181,7 +181,7 @@ export const getArtists = async (params?: {
     query.include_price_distribution = true;
   }
 
-  const res = await api.get<GetArtistsResponse>(`${API_V1}/artist-profiles/`, {
+  const res = await api.get<GetArtistsResponse>(`${API_V1}/service-provider-profiles/`, {
     params: query,
   });
   return {
@@ -191,26 +191,26 @@ export const getArtists = async (params?: {
 };
 
 export const getArtist = async (userId: number) => {
-  const res = await api.get<ArtistProfile>(`${API_V1}/artist-profiles/${userId}`);
+  const res = await api.get<ArtistProfile>(`${API_V1}/service-provider-profiles/${userId}`);
   return { ...res, data: normalizeArtistProfile(res.data) };
 };
 
 export const getArtistAvailability = (artistId: number) =>
-  api.get<{ unavailable_dates: string[] }>(`${API_V1}/artist-profiles/${artistId}/availability`);
+  api.get<{ unavailable_dates: string[] }>(`${API_V1}/service-provider-profiles/${artistId}/availability`);
 
 export const getArtistProfileMe = async () => {
-  const res = await api.get<ArtistProfile>(`${API_V1}/artist-profiles/me`);
+  const res = await api.get<ArtistProfile>(`${API_V1}/service-provider-profiles/me`);
   return { ...res, data: normalizeArtistProfile(res.data) };
 };
 
 export const updateMyArtistProfile = (data: Partial<ArtistProfile>) =>
-  api.put(`${API_V1}/artist-profiles/me`, data);
+  api.put(`${API_V1}/service-provider-profiles/me`, data);
 
 export const uploadMyArtistProfilePicture = (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
   return api.post<ArtistProfile>(
-    `${API_V1}/artist-profiles/me/profile-picture`,
+    `${API_V1}/service-provider-profiles/me/profile-picture`,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } }
   );
@@ -220,7 +220,7 @@ export const uploadMyArtistCoverPhoto = (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
   return api.post<ArtistProfile>(
-    `${API_V1}/artist-profiles/me/cover-photo`,
+    `${API_V1}/service-provider-profiles/me/cover-photo`,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } }
   );
@@ -238,14 +238,14 @@ export const uploadMyArtistPortfolioImages = (files: File[]) => {
   const formData = new FormData();
   files.forEach((f) => formData.append('files', f));
   return api.post<ArtistProfile>(
-    `${API_V1}/artist-profiles/me/portfolio-images`,
+    `${API_V1}/service-provider-profiles/me/portfolio-images`,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } }
   );
 };
 
 export const updateMyArtistPortfolioImageOrder = (urls: string[]) =>
-  api.put<ArtistProfile>(`${API_V1}/artist-profiles/me/portfolio-images`, {
+  api.put<ArtistProfile>(`${API_V1}/service-provider-profiles/me/portfolio-images`, {
     portfolio_image_urls: urls,
   });
 

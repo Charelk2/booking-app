@@ -462,13 +462,13 @@
         }
       }
     },
-    "/api/v1/artist-profiles/me": {
+    "/api/v1/service-provider-profiles/me": {
       "get": {
         "tags": [
-          "artist-profiles"
+          "service-provider-profiles"
         ],
         "summary": "Read Current Artist Profile",
-        "description": "GET /api/v1/artist-profiles/me\nReturns the profile of the currently authenticated artist.",
+        "description": "GET /api/v1/service-provider-profiles/me\nReturns the profile of the currently authenticated artist.",
         "operationId": "read_current_artist_profile_api_v1_artist_profiles_me_get",
         "responses": {
           "200": {
@@ -490,7 +490,7 @@
       },
       "put": {
         "tags": [
-          "artist-profiles"
+          "service-provider-profiles"
         ],
         "summary": "Update current artist's profile",
         "description": "Update fields of the currently authenticated artist's profile.",
@@ -534,10 +534,10 @@
         ]
       }
     },
-    "/api/v1/artist-profiles/me/profile-picture": {
+    "/api/v1/service-provider-profiles/me/profile-picture": {
       "post": {
         "tags": [
-          "artist-profiles"
+          "service-provider-profiles"
         ],
         "summary": "Upload or update current artist's profile picture",
         "description": "Uploads a new profile picture for the currently authenticated artist, replacing any existing one.",
@@ -581,10 +581,10 @@
         ]
       }
     },
-    "/api/v1/artist-profiles/me/cover-photo": {
+    "/api/v1/service-provider-profiles/me/cover-photo": {
       "post": {
         "tags": [
-          "artist-profiles"
+          "service-provider-profiles"
         ],
         "summary": "Upload or update current artist's cover photo",
         "description": "Uploads a new cover photo for the currently authenticated artist, replacing any existing one.",
@@ -628,10 +628,10 @@
         ]
       }
     },
-    "/api/v1/artist-profiles/me/portfolio-images": {
+    "/api/v1/service-provider-profiles/me/portfolio-images": {
       "put": {
         "tags": [
-          "artist-profiles"
+          "service-provider-profiles"
         ],
         "summary": "Update portfolio image order",
         "description": "Replace portfolio_image_urls with the provided list to reorder images.",
@@ -676,7 +676,7 @@
       },
       "post": {
         "tags": [
-          "artist-profiles"
+          "service-provider-profiles"
         ],
         "summary": "Upload portfolio images",
         "description": "Upload one or more portfolio images and append them to the artist's portfolio_image_urls list.",
@@ -720,10 +720,10 @@
         ]
       }
     },
-    "/api/v1/artist-profiles/": {
+    "/api/v1/service-provider-profiles/": {
       "get": {
         "tags": [
-          "artist-profiles"
+          "service-provider-profiles"
         ],
         "summary": "List all artist profiles",
         "description": "Return a paginated list of artist profiles.",
@@ -907,10 +907,10 @@
         }
       }
     },
-    "/api/v1/artist-profiles/{artist_id}": {
+    "/api/v1/service-provider-profiles/{artist_id}": {
       "get": {
         "tags": [
-          "artist-profiles"
+          "service-provider-profiles"
         ],
         "summary": "Read Artist Profile By Id",
         "operationId": "read_artist_profile_by_id_api_v1_artist_profiles__artist_id__get",
@@ -949,10 +949,10 @@
         }
       }
     },
-    "/api/v1/artist-profiles/{artist_id}/availability": {
+    "/api/v1/service-provider-profiles/{artist_id}/availability": {
       "get": {
         "tags": [
-          "artist-profiles"
+          "service-provider-profiles"
         ],
         "summary": "Read Artist Availability",
         "description": "Return dates the artist is unavailable.",
@@ -1708,7 +1708,7 @@
         }
       }
     },
-    "/api/v1/reviews/artist-profiles/{artist_id}/reviews": {
+    "/api/v1/reviews/service-provider-profiles/{artist_id}/reviews": {
       "get": {
         "tags": [
           "reviews",

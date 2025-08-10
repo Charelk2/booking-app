@@ -5,14 +5,14 @@ from datetime import datetime
 from app.models import (
     User,
     UserType,
-    ArtistProfile,
+    ServiceProviderProfile,
     Service,
     Review,
     Booking,
     ServiceCategory,
 )
 from app.models.base import BaseModel
-from app.api.v1.api_artist import read_all_artist_profiles
+from app.api.v1.api_service_provider import read_all_artist_profiles
 
 
 def setup_db():
@@ -36,7 +36,7 @@ def create_artist(db, name, location, category_name, rating=5, bookings=0):
         db.commit()
         db.refresh(cat)
 
-    profile = ArtistProfile(
+    profile = ServiceProviderProfile(
         user_id=user.id,
         business_name=name,
         location=location,
@@ -109,7 +109,7 @@ def test_price_visible_default_true():
     db.add(user)
     db.commit()
     db.refresh(user)
-    profile = ArtistProfile(user_id=user.id)
+    profile = ServiceProviderProfile(user_id=user.id)
     db.add(profile)
     db.commit()
     db.refresh(profile)

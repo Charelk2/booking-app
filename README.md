@@ -75,7 +75,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - After accepting a quote, clients see quick links in the chat to view that booking, pay the deposit, and add it to a calendar.
 - Inbox conversations feature a **Show Details** button that opens a slide-out booking details panel. On mobile the panel overlays the chat, while on desktop it appears side-by-side with smooth Tailwind transitions.
 - The chat thread now expands or contracts horizontally as the side panel is toggled, keeping date divider lines perfectly aligned across both sections.
-- Artists can upload multiple portfolio images and reorder them via drag-and-drop. Use `POST /api/v1/artist-profiles/me/portfolio-images` to upload and `PUT /api/v1/artist-profiles/me/portfolio-images` to save the order.
+- Artists can upload multiple portfolio images and reorder them via drag-and-drop. Use `POST /api/v1/service-provider-profiles/me/portfolio-images` to upload and `PUT /api/v1/service-provider-profiles/me/portfolio-images` to save the order.
 - Artists can also drag and drop service cards on the dashboard to set their display order.
 - Adding a service now requires at least one image, and the uploaded media displays on the artist profile within each service block.
 - Dashboard pages are now separated by user type: artists use `frontend/src/app/dashboard/artist/page.tsx` and clients use `frontend/src/app/dashboard/client/page.tsx`.
@@ -1082,7 +1082,7 @@ The dashboard brings common actions to the surface with a tidy layout:
 
 ### Artist Availability
 
-* `GET /api/v1/artist-profiles/{artist_id}/availability` returns `unavailable_dates`.
+* `GET /api/v1/service-provider-profiles/{artist_id}/availability` returns `unavailable_dates`.
 * Sidebar badges show up to five next available dates.
 
 ### Service Types
@@ -1096,7 +1096,7 @@ The dashboard brings common actions to the surface with a tidy layout:
 
 * `POST /api/v1/bookings/{booking_id}/reviews`
 * `GET /api/v1/reviews/{booking_id}`
-* `GET /api/v1/artist-profiles/{artist_id}/reviews`
+* `GET /api/v1/service-provider-profiles/{artist_id}/reviews`
 * `GET /api/v1/services/{service_id}/reviews`
 * Booking must have **status `completed`** before a review can be created.
 * Request body requires `rating` (1–5) and optional `comment`.
@@ -1104,7 +1104,7 @@ The dashboard brings common actions to the surface with a tidy layout:
 
 ### Redis Caching
 
-* Caches `/api/v1/artist-profiles/` GET responses.
+* Caches `/api/v1/service-provider-profiles/` GET responses.
 * Cache keys include page number, limit, and filter parameters so each combination is stored separately.
 * Default Redis URL: `redis://localhost:6379/0`.
 * Fallback to DB if Redis is unavailable.
@@ -1112,7 +1112,7 @@ The dashboard brings common actions to the surface with a tidy layout:
 
 ### Artist Listing Filters
 
-`GET /api/v1/artist-profiles/` supports pagination and optional filters:
+`GET /api/v1/service-provider-profiles/` supports pagination and optional filters:
 
 ```
 page=<number>&limit=<1-100>&category=<slug>&location=<substring>&sort=<top_rated|most_booked|newest>&minPrice=<number>&maxPrice=<number>&include_price_distribution=<true|false>
@@ -1265,14 +1265,14 @@ descriptive 422 responses so clients can correct issues.
 ```
 POST /api/v1/bookings/{booking_id}/reviews
 GET  /api/v1/reviews/{booking_id}
-GET  /api/v1/artist-profiles/{artist_id}/reviews
+GET  /api/v1/service-provider-profiles/{artist_id}/reviews
 GET  /api/v1/services/{service_id}/reviews
 ```
 
 ### Artist Availability
 
 ```
-GET /api/v1/artist-profiles/{artist_id}/availability
+GET /api/v1/service-provider-profiles/{artist_id}/availability
 ```
 
 ### Calendar Export

@@ -6,7 +6,7 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.models.base import BaseModel
 from app.models.user import User, UserType
-from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service_provider_profile import ServiceProviderProfile
 from app.api.dependencies import get_db
 from app.api.auth import get_current_user
 from app.db_utils import ensure_service_category_id_column, seed_service_categories
@@ -53,7 +53,7 @@ def test_list_categories(monkeypatch):
     )
     db.add(user)
     db.commit()
-    db.add(ArtistProfileV2(user_id=user.id))
+    db.add(ServiceProviderProfile(user_id=user.id))
     db.commit()
 
     prev_user = app.dependency_overrides.get(get_current_user)

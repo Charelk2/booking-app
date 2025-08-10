@@ -1,4 +1,4 @@
-# app/api/v1/api_artist.py
+# app/api/v1/api_service_provider.py
 
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query
 from fastapi.params import Query as QueryParam
@@ -18,7 +18,7 @@ from app.services import calendar_service
 
 from app.database import get_db
 from app.models.user import User
-from app.models.artist_profile_v2 import ArtistProfileV2 as Artist
+from app.models.service_provider_profile import ServiceProviderProfile as Artist
 from app.models.booking import Booking
 from app.models.booking_status import BookingStatus
 from app.models.request_quote import BookingRequest
@@ -86,7 +86,7 @@ def read_current_artist_profile(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
-    GET /api/v1/artist-profiles/me
+    GET /api/v1/service-provider-profiles/me
     Returns the profile of the currently authenticated artist.
     """
     artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
@@ -110,7 +110,7 @@ def update_current_artist_profile(
     current_user: User = Depends(get_current_user),
 ):
     """
-    PUT /api/v1/artist-profiles/me
+    PUT /api/v1/service-provider-profiles/me
     Allows the authenticated artist to update their own profile fields.
     """
     artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
@@ -158,7 +158,7 @@ async def upload_artist_profile_picture_me(
     file: UploadFile = File(...),
 ):
     """
-    POST /api/v1/artist-profiles/me/profile-picture
+    POST /api/v1/service-provider-profiles/me/profile-picture
     """
     artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
     if not artist_profile:
@@ -234,7 +234,7 @@ async def upload_artist_cover_photo_me(
     file: UploadFile = File(...),
 ):
     """
-    POST /api/v1/artist-profiles/me/cover-photo
+    POST /api/v1/service-provider-profiles/me/cover-photo
     """
     artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
     if not artist_profile:
@@ -300,7 +300,7 @@ async def upload_artist_portfolio_images_me(
     current_user: User = Depends(get_current_user),
     files: List[UploadFile] = File(...),
 ):
-    """POST /api/v1/artist-profiles/me/portfolio-images"""
+    """POST /api/v1/service-provider-profiles/me/portfolio-images"""
     artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
     if not artist_profile:
         raise HTTPException(status_code=404, detail="Artist profile not found.")
@@ -358,7 +358,7 @@ def update_portfolio_images_order_me(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """PUT /api/v1/artist-profiles/me/portfolio-images"""
+    """PUT /api/v1/service-provider-profiles/me/portfolio-images"""
     artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
     if not artist_profile:
         raise HTTPException(status_code=404, detail="Artist profile not found.")
@@ -735,7 +735,7 @@ def read_artist_availability(
 
 def read_all_artists(db: Session = Depends(get_db)):
     """
-    GET /api/v1/artist-profiles
+    GET /api/v1/service-provider-profiles
     """
     artists = db.query(Artist).all()
     return artists

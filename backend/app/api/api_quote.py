@@ -9,7 +9,7 @@ from .dependencies import (
     get_db,
     get_current_user,
     get_current_active_client,
-    get_current_active_artist,
+    get_current_service_provider,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ def create_quote_for_request(
     request_id: int,
     quote_in: schemas.QuoteCreate,
     db: Session = Depends(get_db),
-    current_artist: models.User = Depends(get_current_active_artist),
+    current_artist: models.User = Depends(get_current_service_provider),
 ):
     """
     Create a new quote for a specific booking request.
@@ -225,7 +225,7 @@ def read_my_artist_quotes(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_artist: models.User = Depends(get_current_active_artist),
+    current_artist: models.User = Depends(get_current_service_provider),
 ):
     """
     Retrieve all quotes made by the current artist.
@@ -298,7 +298,7 @@ def update_quote_by_artist(
     quote_id: int,
     quote_update: schemas.QuoteUpdateByArtist,  # Artist can update details or withdraw
     db: Session = Depends(get_db),
-    current_artist: models.User = Depends(get_current_active_artist),
+    current_artist: models.User = Depends(get_current_service_provider),
 ):
     """
     Update quote details or withdraw a quote.
@@ -360,7 +360,7 @@ def update_quote_by_artist(
 def confirm_quote_and_create_booking(
     quote_id: int,
     db: Session = Depends(get_db),
-    current_artist: models.User = Depends(get_current_active_artist),
+    current_artist: models.User = Depends(get_current_service_provider),
 ):
     """
     Artist confirms a client-accepted quote, which creates a formal Booking.

@@ -28,8 +28,8 @@ class Review(BaseModel):
         back_populates="reviews"
     )
 
-    #   Each Review belongs to exactly one ArtistProfileV2
+    #   Each Review belongs to exactly one ServiceProviderProfile
     artist = relationship(
-        "ArtistProfileV2",
+        "ServiceProviderProfile",
         back_populates="reviews"
     )

@@ -9,7 +9,7 @@ from app.models import (
     BookingStatus,
     MessageType,
     NotificationType,
-    ArtistProfile,
+    ServiceProviderProfile,
     QuoteV2,
     BookingSimple,
 )
@@ -343,7 +343,7 @@ def test_thread_notification_uses_business_name_for_artist():
     db.refresh(client)
     db.refresh(artist)
 
-    profile = models.ArtistProfile(
+    profile = models.ServiceProviderProfile(
         user_id=artist.id,
         business_name="The Band",
         profile_picture_url="/static/profile_pics/avatar.jpg",
@@ -603,7 +603,7 @@ def test_personalized_video_notifications_suppressed_until_final():
     db.commit()
     db.refresh(client)
     db.refresh(artist)
-    profile = models.ArtistProfile(user_id=artist.id, business_name="Vid Artist")
+    profile = models.ServiceProviderProfile(user_id=artist.id, business_name="Vid Artist")
     service = models.Service(
         artist_id=artist.id,
         title="Video",
@@ -666,7 +666,7 @@ def test_review_request_notification():
     db.refresh(artist)
     db.refresh(client)
 
-    profile = models.ArtistProfile(user_id=artist.id)
+    profile = models.ServiceProviderProfile(user_id=artist.id)
     service = models.Service(
         artist_id=artist.id,
         title="Gig",
@@ -839,7 +839,7 @@ def test_new_message_notification_fallback_business_name():
     db.refresh(artist)
     db.refresh(client_user)
 
-    profile = models.ArtistProfile(user_id=artist.id, business_name="The Band")
+    profile = models.ServiceProviderProfile(user_id=artist.id, business_name="The Band")
     db.add(profile)
     db.commit()
     db.refresh(profile)
@@ -941,7 +941,7 @@ def test_deposit_due_notification_includes_artist_business_name():
     db.commit()
     db.refresh(client)
     db.refresh(artist)
-    profile = models.ArtistProfile(user_id=artist.id, business_name="The Band")
+    profile = models.ServiceProviderProfile(user_id=artist.id, business_name="The Band")
     db.add(profile)
     db.commit()
     db.refresh(profile)
@@ -1001,7 +1001,7 @@ def test_deposit_due_notification_includes_artist_avatar():
     db.commit()
     db.refresh(client)
     db.refresh(artist)
-    profile = models.ArtistProfile(
+    profile = models.ServiceProviderProfile(
         user_id=artist.id,
         profile_picture_url="http://example.com/pic.jpg",
     )
@@ -1130,7 +1130,7 @@ def test_new_booking_notification_includes_artist_business_name():
     db.commit()
     db.refresh(client)
     db.refresh(artist)
-    profile = models.ArtistProfile(user_id=artist.id, business_name="The Band")
+    profile = models.ServiceProviderProfile(user_id=artist.id, business_name="The Band")
     db.add(profile)
     db.commit()
     db.refresh(profile)
@@ -1181,7 +1181,7 @@ def test_new_booking_notification_includes_artist_avatar_for_client():
     db.commit()
     db.refresh(client)
     db.refresh(artist)
-    profile = models.ArtistProfile(
+    profile = models.ServiceProviderProfile(
         user_id=artist.id, profile_picture_url="/static/profile_pics/artist.jpg"
     )
     db.add(profile)
@@ -1282,7 +1282,7 @@ def test_deposit_due_notification_includes_artist_avatar_url():
     db.commit()
     db.refresh(client)
     db.refresh(artist)
-    profile = models.ArtistProfile(
+    profile = models.ServiceProviderProfile(
         user_id=artist.id,
         profile_picture_url="/static/profile_pics/artist.jpg",
     )
@@ -1348,7 +1348,7 @@ def test_deposit_due_notification_falls_back_to_artist_user_avatar():
     db.refresh(artist)
 
     # Create empty profile so ``profile_picture_url`` is missing on profile.
-    profile = models.ArtistProfile(user_id=artist.id)
+    profile = models.ServiceProviderProfile(user_id=artist.id)
     db.add(profile)
     db.commit()
     db.refresh(profile)

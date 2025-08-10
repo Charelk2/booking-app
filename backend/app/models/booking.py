@@ -21,7 +21,7 @@ class Booking(BaseModel):
     quote_id   = Column(Integer, ForeignKey("quotes.id"), nullable=True)
     
     # Relationships
-    artist       = relationship("ArtistProfileV2", back_populates="bookings")
+    artist       = relationship("ServiceProviderProfile", back_populates="bookings")
     client       = relationship("User", foreign_keys=[client_id], back_populates="bookings_as_client")
     service      = relationship("Service", back_populates="bookings")
     review       = relationship("Review", back_populates="booking", uselist=False)

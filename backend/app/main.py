@@ -44,7 +44,7 @@ from .db_utils import (
     seed_service_categories,
 )
 from .models.user import User
-from .models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
+from .models.service_provider_profile import ServiceProviderProfile
 from .models.service import Service
 from .models.service_category import ServiceCategory
 from .models.booking import Booking
@@ -79,8 +79,8 @@ from .api import (
 )
 from routes import distance
 
-# The “artist‐profiles” router lives under app/api/v1/
-from .api.v1 import api_artist as api_artist_profiles
+# The “service-provider-profiles” router lives under app/api/v1/
+from .api.v1 import api_service_provider as api_service_provider_profiles
 
 from .core.config import settings
 from .utils.redis_cache import close_redis_client
@@ -234,9 +234,11 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(api_oauth.router, prefix="/auth", tags=["auth"])
 
 
-# ─── ARTIST‐PROFILE ROUTES (under /api/v1/artist-profiles) ──────────────────────────
+# ─── SERVICE-PROVIDER PROFILE ROUTES (under /api/v1/service-provider-profiles) ──────────
 app.include_router(
-    api_artist_profiles.router, prefix=f"{api_prefix}/artist-profiles", tags=["artist-profiles"]
+    api_service_provider_profiles.router,
+    prefix=f"{api_prefix}/service-provider-profiles",
+    tags=["service-provider-profiles"],
 )
 
 

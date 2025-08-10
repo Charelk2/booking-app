@@ -108,8 +108,8 @@ def get_message_thread_notifications(db: Session, user_id: int) -> List[dict]:
                 name = f"{other.first_name} {other.last_name}"
                 if other.user_type == models.UserType.SERVICE_PROVIDER:
                     profile = (
-                        db.query(models.ArtistProfile)
-                        .filter(models.ArtistProfile.user_id == other.id)
+                        db.query(models.ServiceProviderProfile)
+                        .filter(models.ServiceProviderProfile.user_id == other.id)
                         .first()
                     )
                     if profile:
