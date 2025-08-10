@@ -8,12 +8,13 @@
  import { UI_CATEGORIES } from '@/lib/categoryMap';
  
 
- /**
-  * Displays a horizontally scrollable list of service categories.
-  * Each item shows a square image placeholder and a label below.
-  * Clicking an item navigates to the artists listing with the
-  * category pre-selected.
-  */
+/**
+ * Displays a horizontally scrollable list of service categories.
+ * Each item shows a square image placeholder and a label below.
+ * Clicking an item navigates to the homepage with the category
+ * pre-selected via a query parameter so the relevant service
+ * providers render immediately.
+ */
  export default function CategoriesCarousel() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -63,7 +64,7 @@
   {UI_CATEGORIES.map((cat) => (
   <Link
   key={cat.value}
-  href={`/category/${encodeURIComponent(cat.value)}`}
+        href={`/?category=${encodeURIComponent(cat.value)}`}
   className="flex-shrink-0 flex flex-col hover:no-underline"
   >
   <div className="relative h-40 w-40 overflow-hidden rounded-lg bg-gray-100">
