@@ -7,6 +7,7 @@ from app.main import app
 from app.models.base import BaseModel
 from app.models.user import User, UserType
 from app.models.artist_profile_v2 import ArtistProfileV2
+from app.models.service import Service, ServiceType
 from app.api.dependencies import get_db, get_current_user
 
 
@@ -47,11 +48,32 @@ def test_recommendations_fallback(monkeypatch):
         last_name="R",
         user_type=UserType.SERVICE_PROVIDER,
     )
-    db.add(artist)
+    artist2 = User(
+        email="noservice@test.com",
+        password="x",
+        first_name="No",
+        last_name="Service",
+        user_type=UserType.SERVICE_PROVIDER,
+    )
+    db.add_all([artist, artist2])
     db.commit()
     db.refresh(artist)
     profile = ArtistProfileV2(user_id=artist.id, business_name="Test Artist")
-    db.add(profile)
+    profile_no_service = ArtistProfileV2(
+        user_id=artist2.id, business_name="Hidden Artist"
+    )
+    service = Service(
+        artist_id=artist.id,
+        title="Rec Service",
+        description="",
+        media_url="http://example.com",
+        price=100,
+        currency="ZAR",
+        duration_minutes=60,
+        service_type=ServiceType.LIVE_PERFORMANCE,
+    )
+    profile.services.append(service)
+    db.add_all([profile, profile_no_service])
     db.commit()
 
     client_user = User(
@@ -71,6 +93,7 @@ def test_recommendations_fallback(monkeypatch):
     assert res.status_code == 200
     body = res.json()
     assert isinstance(body, list)
+    assert len(body) == 1
     assert body[0]["business_name"] == "Test Artist"
 
     app.dependency_overrides.clear()
