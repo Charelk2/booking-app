@@ -296,6 +296,8 @@ export interface Message {
   /** Whether the message has been read by the current user */
   unread?: boolean;
   timestamp: string;
+  /** Client-side status for optimistic UI */
+  status?: 'sending' | 'sent' | 'failed';
 }
 
 export interface MessageCreate {

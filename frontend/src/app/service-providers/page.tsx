@@ -15,6 +15,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { updateQueryParams } from '@/lib/urlParams';
 import { Spinner } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
+import { FixedSizeList as List, type ListChildComponentProps } from 'react-window';
 
 export default function ServiceProvidersPage() {
   const router = useRouter();
@@ -48,6 +49,7 @@ export default function ServiceProvidersPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const LIMIT = 20;
+  const ITEM_HEIGHT = 280;
 
   // Derived backend service name for the selected UI category.
   const serviceName = category
@@ -215,39 +217,47 @@ export default function ServiceProvidersPage() {
         {error && <p className="text-red-600">{error}</p>}
         {!loading && artists.length === 0 && <p>No service providers found.</p>}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-2 md:gap-2">
-          {artists.map((a) => {
+        <List
+          height={Math.min(ITEM_HEIGHT * artists.length, ITEM_HEIGHT * 10)}
+          itemCount={artists.length}
+          itemSize={ITEM_HEIGHT}
+          width="100%"
+        >
+          {({ index, style }: ListChildComponentProps) => {
+            const a = artists[index];
             const user = a.user;
             const name =
               serviceName === 'DJ'
                 ? a.business_name!
                 : a.business_name || `${user.first_name} ${user.last_name}`;
             return (
-              <ServiceProviderCardCompact
-                key={a.id}
-                serviceProviderId={a.id}
-                name={name}
-                subtitle={a.custom_subtitle || undefined}
-                imageUrl={
-                  getFullImageUrl(a.profile_picture_url || a.portfolio_urls?.[0]) ||
-                  undefined
-                }
-                price={
-                  category && a.service_price != null
-                    ? Number(a.service_price)
-                    : a.hourly_rate && a.price_visible
-                      ? Number(a.hourly_rate)
-                      : undefined
-                }
-                rating={a.rating ?? undefined}
-                ratingCount={a.rating_count ?? undefined}
-                location={a.location}
-                categories={a.service_categories}
-                href={qs ? `/service-providers/${a.id}?${qs}` : `/service-providers/${a.id}`}
-              />
+              <div style={style} className="p-1">
+                <ServiceProviderCardCompact
+                  key={a.id}
+                  serviceProviderId={a.id}
+                  name={name}
+                  subtitle={a.custom_subtitle || undefined}
+                  imageUrl={
+                    getFullImageUrl(a.profile_picture_url || a.portfolio_urls?.[0]) ||
+                    undefined
+                  }
+                  price={
+                    category && a.service_price != null
+                      ? Number(a.service_price)
+                      : a.hourly_rate && a.price_visible
+                        ? Number(a.hourly_rate)
+                        : undefined
+                  }
+                  rating={a.rating ?? undefined}
+                  ratingCount={a.rating_count ?? undefined}
+                  location={a.location}
+                  categories={a.service_categories}
+                  href={qs ? `/service-providers/${a.id}?${qs}` : `/service-providers/${a.id}`}
+                />
+              </div>
             );
-          })}
-        </div>
+          }}
+        </List>
 
         {hasMore && !loading && (
           <div className="flex justify-center mt-4">
