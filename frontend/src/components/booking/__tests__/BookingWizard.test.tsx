@@ -36,10 +36,10 @@ describe('BookingWizard instructions', () => {
   beforeEach(() => {
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 1 } });
     (useIsMobile as jest.Mock).mockReturnValue(false);
-    (api.getArtistAvailability as jest.Mock).mockResolvedValue({
+    (api.getServiceProviderAvailability as jest.Mock).mockResolvedValue({
       data: { unavailable_dates: [] },
     });
-    (api.getArtist as jest.Mock).mockResolvedValue({
+    (api.getServiceProvider as jest.Mock).mockResolvedValue({
       data: { location: 'NYC' },
     });
     (api.getService as jest.Mock).mockResolvedValue({

@@ -725,9 +725,9 @@
         "tags": [
           "service-provider-profiles"
         ],
-        "summary": "List all artist profiles",
-        "description": "Return a paginated list of artist profiles.",
-        "operationId": "read_all_artist_profiles_api_v1_artist_profiles__get",
+        "summary": "List all service provider profiles",
+        "description": "Return a paginated list of service provider profiles.",
+        "operationId": "read_all_service_provider_profiles_api_v1_service_provider_profiles__get",
         "parameters": [
           {
             "name": "category",

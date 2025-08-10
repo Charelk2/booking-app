@@ -15,7 +15,7 @@ import api, {
   createReviewForBooking,
   getReview,
   getServiceReviews,
-  getArtists,
+  getServiceProviders,
 } from '../api';
 import type { AxiosRequestConfig } from 'axios';
 
@@ -324,14 +324,14 @@ describe('review helpers', () => {
   });
 });
 
-describe('getArtists', () => {
+describe('getServiceProviders', () => {
   it('passes include_price_distribution param when requested', async () => {
     const spy = jest
       .spyOn(api, 'get')
       .mockResolvedValue({
         data: { data: [], total: 0, price_distribution: [] },
       } as unknown as { data: unknown });
-    await getArtists({ includePriceDistribution: true, page: 2 });
+    await getServiceProviders({ includePriceDistribution: true, page: 2 });
     expect(spy).toHaveBeenCalledWith('/api/v1/service-provider-profiles/', {
       params: { page: 2, include_price_distribution: true },
     });
@@ -344,7 +344,7 @@ describe('getArtists', () => {
       .mockResolvedValue({
         data: { data: [], total: 0, price_distribution: [] },
       } as unknown as { data: unknown });
-    await getArtists({ when: '2025-07-25' });
+    await getServiceProviders({ when: '2025-07-25' });
     expect(spy).toHaveBeenCalledWith('/api/v1/service-provider-profiles/', {
       params: { when: '2025-07-25' },
     });
@@ -357,7 +357,7 @@ describe('getArtists', () => {
       .mockResolvedValue({
         data: { data: [], total: 0, price_distribution: [] },
       } as unknown as { data: unknown });
-    await getArtists({ when: new Date('2025-07-25T22:00:00.000Z') });
+    await getServiceProviders({ when: new Date('2025-07-25T22:00:00.000Z') });
     expect(spy).toHaveBeenCalledWith('/api/v1/service-provider-profiles/', {
       params: { when: '2025-07-25' },
     });
@@ -370,7 +370,7 @@ describe('getArtists', () => {
       .mockResolvedValue({
         data: { data: [], total: 0, price_distribution: [] },
       } as unknown as { data: unknown });
-    await getArtists({ artist: 'john' });
+    await getServiceProviders({ artist: 'john' });
     expect(spy).toHaveBeenCalledWith('/api/v1/service-provider-profiles/', {
       params: { artist: 'john' },
     });

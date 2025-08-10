@@ -11,9 +11,9 @@ import {
   getServiceProviderProfileMe,
   updateMyServiceProviderProfile,
   uploadMyServiceProviderProfilePicture,
-  uploadMyArtistCoverPhoto,
-  uploadMyArtistPortfolioImages,
-  updateMyArtistPortfolioImageOrder,
+  uploadMyServiceProviderCoverPhoto,
+  uploadMyServiceProviderPortfolioImages,
+  updateMyServiceProviderPortfolioImageOrder,
   getGoogleCalendarStatus,
   connectGoogleCalendar,
   disconnectGoogleCalendar,
@@ -200,7 +200,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
         setCrop(undefined);
         setCompletedCrop(undefined);
       } catch (err) {
-        console.error('Failed to fetch artist profile:', err);
+        console.error('Failed to fetch service provider profile:', err);
         setError('Failed to load your profile. Please try again later.');
       } finally {
         setLoading(false);
@@ -389,7 +389,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
     setUploadingCoverPhoto(true);
 
     try {
-      const response = await uploadMyArtistCoverPhoto(file);
+      const response = await uploadMyServiceProviderCoverPhoto(file);
       const newRelativeCoverUrl = response.data.cover_photo_url || '';
       setCoverPhotoUrl(getFullImageUrl(newRelativeCoverUrl));
       setProfile((prev) => ({ ...prev, cover_photo_url: newRelativeCoverUrl || undefined }));
@@ -413,7 +413,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
     setUploadingPortfolioImages(true);
     try {
       const fileArray = Array.from(files);
-      const response = await uploadMyArtistPortfolioImages(fileArray);
+      const response = await uploadMyServiceProviderPortfolioImages(fileArray);
       const urls = response.data.portfolio_image_urls || [];
       setPortfolioImages(urls);
       setProfile((prev) => ({ ...prev, portfolio_image_urls: urls }));
@@ -438,7 +438,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
       const arr = [...prev];
       const [moved] = arr.splice(from, 1);
       arr.splice(index, 0, moved);
-      updateMyArtistPortfolioImageOrder(arr).catch((err) => {
+      updateMyServiceProviderPortfolioImageOrder(arr).catch((err) => {
         console.error('Failed to update portfolio order:', err);
       });
       return arr;

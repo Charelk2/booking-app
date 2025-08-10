@@ -373,10 +373,10 @@ def update_portfolio_images_order_me(
 @router.get(
     "/",
     response_model=ArtistListResponse,
-    summary="List all artist profiles",
-    description="Return a paginated list of artist profiles.",
+    summary="List all service provider profiles",
+    description="Return a paginated list of service provider profiles.",
 )
-def read_all_artist_profiles(
+def read_all_service_provider_profiles(
     db: Session = Depends(get_db),
     # Accept category as a string so unknown values (e.g. "Musician")
     # don't trigger a validation error. We'll attempt to coerce it to
@@ -392,7 +392,7 @@ def read_all_artist_profiles(
     include_price_distribution: bool = Query(False, alias="include_price_distribution"),
     artist: Optional[str] = Query(None, description="Filter by artist name"),
 ):
-    """Return a list of all artist profiles with optional filters."""
+    """Return a list of all service provider profiles with optional filters."""
 
     # FastAPI's Query objects appear when this function is called directly in tests.
     # Normalize them to plain values for compatibility.

@@ -52,7 +52,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
   // This function is passed to the Header component.
   const forceHeaderState = useCallback(
     (state: HeaderState, scrollTarget?: number) => {
-      // Lock the header in its initial state on artist profile pages or artist view
+      // Lock the header in its initial state on service provider profile pages or artist view
       if (isArtistDetail || isArtistView) {
         setHeaderState('initial');
         return;

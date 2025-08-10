@@ -134,7 +134,7 @@ from app.models.service_provider_profile import ServiceProviderProfile
 from app.models.user import User, UserType
 
 
-def test_read_all_artist_profiles_uses_cache(monkeypatch):
+def test_read_all_service_provider_profiles_uses_cache(monkeypatch):
     fake = fakeredis.FakeStrictRedis()
     monkeypatch.setattr(redis_cache, "get_redis_client", lambda: fake)
 
@@ -158,7 +158,7 @@ def test_read_all_artist_profiles_uses_cache(monkeypatch):
     db.add_all([user, profile, service])
     db.commit()
 
-    first = api_service_provider.read_all_artist_profiles(
+    first = api_service_provider.read_all_service_provider_profiles(
         db=db,
         category=None,
         location=None,
@@ -170,7 +170,7 @@ def test_read_all_artist_profiles_uses_cache(monkeypatch):
     assert len(first["data"]) == 1
 
     # Use failing DB to ensure cache is consulted on second call
-    second = api_service_provider.read_all_artist_profiles(
+    second = api_service_provider.read_all_service_provider_profiles(
         db=FailingDB([]),
         category=None,
         location=None,
@@ -211,7 +211,7 @@ def test_fallback_when_redis_unavailable(monkeypatch):
     db.add_all([user, profile, service])
     db.commit()
 
-    result = api_service_provider.read_all_artist_profiles(
+    result = api_service_provider.read_all_service_provider_profiles(
         db=db,
         category=None,
         location=None,
