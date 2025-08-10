@@ -62,7 +62,7 @@ interface BaseServiceWizardProps<T extends FieldValues> {
   steps: WizardStep<T>[];
   defaultValues: T;
   toPayload: (data: T, mediaUrl: string | null) => Partial<Service>;
-  serviceCategoryId?: number;
+  serviceCategorySlug?: string;
 }
 
 export default function BaseServiceWizard<T extends FieldValues>({
@@ -73,7 +73,7 @@ export default function BaseServiceWizard<T extends FieldValues>({
   steps,
   defaultValues,
   toPayload,
-  serviceCategoryId,
+  serviceCategorySlug,
 }: BaseServiceWizardProps<T>) {
   const [step, setStep] = useState(0);
   const [maxStep, setMaxStep] = useState(0);
@@ -180,8 +180,8 @@ export default function BaseServiceWizard<T extends FieldValues>({
         });
       }
       const payload: Partial<Service> = toPayload(data, mediaUrl);
-      if (serviceCategoryId !== undefined) {
-        payload.service_category_id = serviceCategoryId;
+      if (serviceCategorySlug !== undefined) {
+        payload.service_category_slug = serviceCategorySlug;
       }
       const res = service
         ? await apiUpdateService(service.id, payload)
