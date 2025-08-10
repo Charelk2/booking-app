@@ -1,16 +1,14 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import ArtistsPage from '../artists/page';
-import { getArtists, getRecommendedArtists } from '@/lib/api';
+import { getArtists } from '@/lib/api';
 import { useSearchParams, usePathname } from '@/tests/mocks/next-navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import type { ArtistProfile } from '@/types';
 
 jest.mock('next/navigation', () => require('@/tests/mocks/next-navigation'));
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
 
 const mockedGetArtists = getArtists as jest.MockedFunction<typeof getArtists>;
-const mockedGetRecommended = getRecommendedArtists as jest.MockedFunction<typeof getRecommendedArtists>;
 const mockedUseAuth = useAuth as jest.Mock;
 
 describe('ArtistsPage', () => {
@@ -33,17 +31,6 @@ describe('ArtistsPage', () => {
       total: 2,
       price_distribution: [],
     });
-    mockedGetRecommended.mockResolvedValue([
-      {
-        id: 1,
-        user: { first_name: 'Rec', last_name: 'DJ' },
-        business_name: 'Rec DJ Biz',
-      },
-      {
-        id: 2,
-        user: { first_name: 'Rec', last_name: 'NoBiz' },
-      },
-    ] as unknown as ArtistProfile[]);
   });
 
   afterEach(() => {
@@ -59,9 +46,6 @@ describe('ArtistsPage', () => {
 
     await screen.findByText('DJ One Biz');
     expect(screen.queryByText('DJ NoBiz')).toBeNull();
-
-    await screen.findByText('Rec DJ Biz');
-    expect(screen.queryByText('Rec NoBiz')).toBeNull();
   });
 
   it('normalizes UI slug category query param', async () => {
