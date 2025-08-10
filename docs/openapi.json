@@ -1009,61 +1009,6 @@
         }
       }
     },
-    "/api/v1/artists/recommended": {
-      "get": {
-        "tags": [
-          "artists"
-        ],
-        "summary": "Get recommended artists",
-        "description": "Return personalized artist suggestions for the current user.",
-        "operationId": "recommended_artists_api_v1_artists_recommended_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 20,
-              "minimum": 1,
-              "default": 5,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ArtistProfileResponse"
-                  },
-                  "title": "Response Recommended Artists Api V1 Artists Recommended Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/services/": {
       "get": {
         "tags": [
