@@ -194,11 +194,6 @@ export const getArtist = async (userId: number) => {
   return { ...res, data: normalizeArtistProfile(res.data) };
 };
 
-export const getRecommendedArtists = async (limit = 5) => {
-  const res = await api.get<ArtistProfile[]>(`${API_V1}/artists/recommended`, { params: { limit } });
-  return res.data.map(normalizeArtistProfile);
-};
-
 export const getArtistAvailability = (artistId: number) =>
   api.get<{ unavailable_dates: string[] }>(`${API_V1}/artist-profiles/${artistId}/availability`);
 

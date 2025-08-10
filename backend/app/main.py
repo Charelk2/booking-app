@@ -81,7 +81,6 @@ from routes import distance
 
 # The “artist‐profiles” router lives under app/api/v1/
 from .api.v1 import api_artist as api_artist_profiles
-from .api import api_artist as api_artist_recommendation
 
 from .core.config import settings
 from .utils.redis_cache import close_redis_client
@@ -238,13 +237,6 @@ app.include_router(api_oauth.router, prefix="/auth", tags=["auth"])
 # ─── ARTIST‐PROFILE ROUTES (under /api/v1/artist-profiles) ──────────────────────────
 app.include_router(
     api_artist_profiles.router, prefix=f"{api_prefix}/artist-profiles", tags=["artist-profiles"]
-)
-
-# ─── ARTIST RECOMMENDATION ROUTES (under /api/v1/artists) ─────────────────────
-app.include_router(
-    api_artist_recommendation.recommendation_router,
-    prefix=f"{api_prefix}/artists",
-    tags=["artists"],
 )
 
 

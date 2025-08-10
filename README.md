@@ -31,11 +31,10 @@ The July 2025 update bumps key dependencies and Docker base images:
   global rule in `globals.css`.
 - Homepage search now lives in the header on a light gray background.
 - Collapsed search bar truncates long locations with an ellipsis so the text never wraps.
-- Personalized artist suggestions are available via `/api/v1/artists/recommended` and displayed on the Artists page.
 - Fixed an initial load bug where a selected date sent an invalid `when` value and caused a 422 error.
 - Dashboard now casts `user.id` to a number when fetching services to avoid 422 errors if the ID is stored as a string.
 - Search categories now map each service category to its corresponding service type (for example, **Musician / Band** maps to `Live Performance`) so searching by category shows available artists.
-- Visiting `/category/dj` (or the legacy `/artists/category/dj`) normalizes the category path so listings and recommendations only show matching services.
+- Visiting `/category/dj` (or the legacy `/artists/category/dj`) normalizes the category path so listings only show matching services.
 - The artist search endpoint now ignores unrecognised `category` values (for example, `category=Musician` or `category=DJ`) and returns all artists instead of a 422 error.
 - Category popup now includes an artist name search input for quick navigation to
   individual profiles.

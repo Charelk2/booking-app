@@ -21,7 +21,6 @@ For setup instructions see [README.md](README.md).
 | **Notification** | Sends emails, chat alerts, and booking status updates | `backend/app/api/api_notification.py`<br>`backend/app/utils/notifications.py`<br>`frontend/hooks/useNotifications.ts` | On status changes, messages, actions |
 | **Chat** | Manages client–artist chat and WebSocket updates | `backend/app/api/api_message.py`<br>`backend/app/api/api_ws.py`<br>`frontend/src/components/booking/MessageThread.tsx` | Always on for active bookings |
 | **Caching** | Caches artist lists using Redis | `backend/app/utils/redis_cache.py`<br>`backend/app/api/v1/api_artist.py` | On artist list requests |
-| **Recommendation** | Provides personalized artist suggestions with fallback to top-rated when data is sparse | `backend/app/services/recommendation_service.py`<br>`backend/app/api/api_artist.py`<br>`frontend/src/app/artists/page.tsx` | When a user views artist listings |
 | **Personalized Video** | Automates Q&A for custom video requests | `frontend/src/components/booking/PersonalizedVideoFlow.tsx`<br>`frontend/src/lib/videoFlow.ts` | When `service_type` is Personalized Video |
 | **Availability** | Checks artist/service availability in real time | `backend/app/api/v1/api_artist.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | On date selection and booking start |
 | **Form State** | Maintains booking progress across steps | `frontend/src/components/booking/BookingWizard.tsx`<br>`frontend/src/contexts/BookingContext.tsx` | Throughout the user session |
@@ -119,13 +118,7 @@ For setup instructions see [README.md](README.md).
 * **Frontend:** Inline validation on form steps, helpful error messages.
 * **Backend:** Schema and Pydantic model validation for all POSTs/PATCHes.
 
-### 15. Recommendation Agent
-
-* **Purpose:** Suggests artists tailored to a client's past activity with fallback to top-rated performers.
-* **Frontend:** `frontend/src/app/artists/page.tsx` displays a recommended section on the artists page.
-* **Backend:** `backend/app/services/recommendation_service.py` ranks artists and `/api/v1/artists/recommended` exposes them.
-
-### 16. NLP Booking Agent
+### 15. NLP Booking Agent
 
 * **Purpose:** Parses natural language descriptions to pre-fill booking details like event type, date, location, and guest count.
 * **Frontend:** A text/voice input in `BookingWizard.tsx` sends the prompt and lets users apply or edit the AI-suggested values.

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { getArtists, getRecommendedArtists, type PriceBucket } from '@/lib/api';
+import { getArtists, type PriceBucket } from '@/lib/api';
 import { UI_CATEGORY_TO_SERVICE, SERVICE_TO_UI_CATEGORY } from '@/lib/categoryMap';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ArtistProfile } from '@/types';
@@ -23,10 +23,8 @@ export default function ArtistsPage() {
   const { user } = useAuth();
 
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
-  const [recommended, setRecommended] = useState<ArtistProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [recError, setRecError] = useState<string | null>(null);
 
   // Store the selected category as a UI slug (e.g. "dj") so we can map it
   // to the backend service name whenever querying the API.
@@ -52,38 +50,6 @@ export default function ArtistsPage() {
 
   // Derived backend service name for the selected UI category.
   const serviceName = category ? UI_CATEGORY_TO_SERVICE[category] : undefined;
-
-  useEffect(() => {
-    // Recommendations are personalized and require authentication.
-    // When not logged in, skip the request entirely to avoid 401s and noisy errors.
-    if (!user) {
-      setRecommended([]);
-      setRecError(null);
-      return;
-    }
-    const load = async () => {
-      try {
-        const recs = await getRecommendedArtists();
-        const safeRecs = Array.isArray(recs) ? recs : [];
-        let filtered = safeRecs;
-        if (serviceName === 'DJ') {
-          filtered = filtered.filter((a) => {
-            const business = a.business_name?.trim().toLowerCase();
-            const fullName = `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`
-              .trim()
-              .toLowerCase();
-            return business && business !== fullName;
-          });
-        }
-        setRecommended(filtered);
-        setRecError(null);
-      } catch (err) {
-        console.error(err);
-        setRecError('Failed to load recommendations.');
-      }
-    };
-    load();
-  }, [category, user]);
 
   useEffect(() => {
     // ``category`` may arrive either as a backend service name ("DJ") or
@@ -241,45 +207,6 @@ export default function ArtistsPage() {
   return (
     <MainLayout headerFilter={filterControl}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {user && recommended.length > 0 && (
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Recommended for you</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-2 md:gap-2">
-              {recommended.map((a) => {
-                const user = a.user;
-                const name =
-                  serviceName === 'DJ'
-                    ? a.business_name!
-                    : a.business_name || `${user.first_name} ${user.last_name}`;
-                return (
-                  <ArtistCardCompact
-                    key={`rec-${a.id}`}
-                    artistId={a.id}
-                    name={name}
-                    subtitle={a.custom_subtitle || undefined}
-                    imageUrl={
-                      getFullImageUrl(a.profile_picture_url || a.portfolio_urls?.[0]) ||
-                      undefined
-                    }
-                    price={
-                      category && a.service_price != null
-                        ? Number(a.service_price)
-                        : a.hourly_rate && a.price_visible
-                          ? Number(a.hourly_rate)
-                          : undefined
-                    }
-                    rating={a.rating ?? undefined}
-                    ratingCount={a.rating_count ?? undefined}
-                    location={a.location}
-                    href={qs ? `/artists/${a.id}?${qs}` : `/artists/${a.id}`}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        )}
-        {user && recError && <p className="text-red-600">{recError}</p>}
-
         {/* Artists grid */}
         {loading && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}
