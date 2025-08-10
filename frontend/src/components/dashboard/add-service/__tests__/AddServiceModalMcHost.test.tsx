@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import * as api from "@/lib/api";
 import AddServiceModalMcHost from "../AddServiceModalMcHost";
 import { flushPromises } from "@/test/utils/flush";
-import { UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 
 describe("AddServiceModalMcHost", () => {
   it("follows step flow and sends details payload", async () => {
@@ -43,7 +42,7 @@ describe("AddServiceModalMcHost", () => {
         service_type: "Other",
         details: { hosting_style: "Formal" },
         media_url: expect.stringContaining("base64"),
-        service_category_id: UI_CATEGORY_TO_ID.mc_host,
+        service_category_slug: "mc_host",
       }),
     );
   });

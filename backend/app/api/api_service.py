@@ -54,6 +54,13 @@ def create_service(
     category_id = service_data.pop("service_category_id", None)
     category_slug = service_data.pop("service_category_slug", None)
 
+    if category_id is None and category_slug is None:
+        raise error_response(
+            "Service category is required.",
+            {"service_category_slug": "required"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
     if category_slug is not None:
         normalized = category_slug.replace("_", " ").lower()
         category = (
