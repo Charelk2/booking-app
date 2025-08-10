@@ -67,8 +67,8 @@ def read_messages(
         if sender:
             if sender.user_type == models.UserType.SERVICE_PROVIDER:
                 profile = (
-                    db.query(models.ArtistProfile)
-                    .filter(models.ArtistProfile.user_id == m.sender_id)
+                    db.query(models.ServiceProviderProfile)
+                    .filter(models.ServiceProviderProfile.user_id == m.sender_id)
                     .first()
                 )
                 if profile and profile.profile_picture_url:
@@ -213,8 +213,8 @@ def create_message(
     if sender:
         if sender.user_type == models.UserType.SERVICE_PROVIDER:
             profile = (
-                db.query(models.ArtistProfile)
-                .filter(models.ArtistProfile.user_id == msg.sender_id)
+                db.query(models.ServiceProviderProfile)
+                .filter(models.ServiceProviderProfile.user_id == msg.sender_id)
                 .first()
             )
             if profile and profile.profile_picture_url:

@@ -1,5 +1,5 @@
 from .crud_user import user
-from .crud_artist import artist_profile
+from .crud_service_provider import service_provider_profile
 from .crud_service import service
 from .crud_booking import (
     booking,

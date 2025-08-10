@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.main import app
 from app.models.base import BaseModel
-from app.api.dependencies import get_db, get_current_active_artist
+from app.api.dependencies import get_db, get_current_service_provider
 from datetime import datetime, timedelta
 
 from app.models import (
@@ -81,8 +81,8 @@ def test_create_quote_endpoint_returns_201():
     def override_artist():
         return artist
 
-    prev = app.dependency_overrides.get(get_current_active_artist)
-    app.dependency_overrides[get_current_active_artist] = override_artist
+    prev = app.dependency_overrides.get(get_current_service_provider)
+    app.dependency_overrides[get_current_service_provider] = override_artist
 
     client_api = TestClient(app)
     payload = {
@@ -117,6 +117,6 @@ def test_create_quote_endpoint_returns_201():
     db.close()
 
     if prev is not None:
-        app.dependency_overrides[get_current_active_artist] = prev
+        app.dependency_overrides[get_current_service_provider] = prev
     else:
-        app.dependency_overrides.pop(get_current_active_artist, None)
+        app.dependency_overrides.pop(get_current_service_provider, None)

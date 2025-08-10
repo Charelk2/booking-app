@@ -4,7 +4,7 @@ from typing import List, Any
 
 from ..database import get_db
 from ..models.user import User
-from ..models import ArtistProfile
+from ..models import ServiceProviderProfile
 from ..models import Booking, BookingStatus
 from ..models.review import Review
 from ..models.service import Service
@@ -100,7 +100,9 @@ def list_reviews_for_artist(artist_id: int, db: Session = Depends(get_db)) -> An
     """
     # Ensure artist exists
     artist_profile = (
-        db.query(ArtistProfile).filter(ArtistProfile.user_id == artist_id).first()
+        db.query(ServiceProviderProfile)
+        .filter(ServiceProviderProfile.user_id == artist_id)
+        .first()
     )
     if not artist_profile:
         raise error_response(

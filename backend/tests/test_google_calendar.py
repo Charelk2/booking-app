@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 from app.api import api_calendar
-from app.api.v1 import api_artist
+from app.api.v1 import api_service_provider
 from app.models import (
     Booking,
     BookingStatus,
@@ -290,7 +290,7 @@ def test_unavailable_dates_include_calendar(monkeypatch):
         lambda uid, s, e, d: [datetime(2025, 1, 2, 10, 0)],
     )
 
-    resp = api_artist.read_artist_availability(user.id, db=db)
+    resp = api_service_provider.read_artist_availability(user.id, db=db)
     assert resp["unavailable_dates"] == ["2025-01-01", "2025-01-02"]
 
 

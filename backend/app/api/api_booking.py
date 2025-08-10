@@ -10,7 +10,7 @@ from decimal import Decimal
 
 from ..database import get_db
 from ..models.user import User, UserType
-from ..models.artist_profile_v2 import ArtistProfileV2 as ArtistProfile
+from ..models.service_provider_profile import ServiceProviderProfile
 from ..models.service import Service
 from ..models import Booking, BookingStatus
 from ..models.booking_simple import BookingSimple
@@ -19,7 +19,7 @@ from ..schemas.booking import BookingCreate, BookingUpdate, BookingResponse
 from .dependencies import (
     get_current_user,
     get_current_active_client,
-    get_current_active_artist,
+    get_current_service_provider,
 )
 
 router = APIRouter(tags=["bookings"])
@@ -39,8 +39,8 @@ def create_booking(
     """
     # 1) Verify that the artist exists
     artist_profile = (
-        db.query(ArtistProfile)
-        .filter(ArtistProfile.user_id == booking_in.artist_id)
+        db.query(ServiceProviderProfile)
+        .filter(ServiceProviderProfile.user_id == booking_in.artist_id)
         .first()
     )
     if not artist_profile:
@@ -193,7 +193,7 @@ def read_my_bookings(
 def read_artist_bookings(
     *,
     db: Session = Depends(get_db),
-    current_artist: User = Depends(get_current_active_artist),
+    current_artist: User = Depends(get_current_service_provider),
 ) -> Any:
     """
     Return all bookings for the currently authenticated artist.
@@ -218,7 +218,7 @@ def update_booking_status(
     db: Session = Depends(get_db),
     booking_id: int,
     status_update: BookingUpdate,  # Only contains a `status: BookingStatus` field
-    current_artist: User = Depends(get_current_active_artist),
+    current_artist: User = Depends(get_current_service_provider),
 ) -> Any:
     """
     Update the status of a booking.  Only the artist who owns that booking may call this.

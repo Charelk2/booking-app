@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List
 
 from ..database import get_db
-from ..models import SoundProvider, ArtistSoundPreference, ArtistProfile
+from ..models import SoundProvider, ArtistSoundPreference, ServiceProviderProfile
 from ..schemas import (
     SoundProviderCreate,
     SoundProviderUpdate,
@@ -13,7 +13,7 @@ from ..schemas import (
     ArtistSoundPreferenceBase,
     ArtistSoundPreferenceResponse,
 )
-from .dependencies import get_current_active_artist
+from .dependencies import get_current_service_provider
 from ..utils import error_response
 
 router = APIRouter(tags=["sound-providers"])
@@ -90,7 +90,7 @@ def add_artist_preference(
     db: Session = Depends(get_db),
     artist_id: int,
     pref_in: ArtistSoundPreferenceBase,
-    current_artist=Depends(get_current_active_artist),
+    current_artist=Depends(get_current_service_provider),
 ):
     if artist_id != current_artist.user_id:
         raise error_response(
