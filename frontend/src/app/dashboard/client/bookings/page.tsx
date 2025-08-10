@@ -46,14 +46,14 @@ function BookingList({
         }
         if (b.booking_request_id) {
           actions.push({
-            label: "Message Artist",
+            label: "Message Service Provider",
             href: `/booking-requests/${b.booking_request_id}`,
             ariaLabel: `Message artist about ${b.service.title} – ${b.service.artist.business_name}`,
             dataTestId: "message-artist-link",
           });
         }
         actions.push({
-          label: "View Artist",
+          label: "View Service Provider",
           href: `/service-providers/${b.artist_id}`,
           ariaLabel: `View ${b.service.artist.business_name} profile`,
           dataTestId: "view-artist-link",

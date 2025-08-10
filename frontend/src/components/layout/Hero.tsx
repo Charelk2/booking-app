@@ -45,7 +45,7 @@ export default function Hero() {
       <section className="bg-gradient-to-br from-indigo-50 to-indigo-100 py-16">
         <div className="max-w-5xl mx-auto px-6 text-center">
           <h2 className="text-3xl font-semibold text-gray-800 mb-8">
-            Find and Book <span className="bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-400">{word}</span> Artists & More
+            Find and Book <span className="bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-blue-400">{word}</span> Service Providers & More
           </h2>
 
           {/* ✨ This is the Airbnb-style trigger button */}

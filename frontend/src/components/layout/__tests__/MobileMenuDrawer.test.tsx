@@ -22,7 +22,7 @@ jest.mock('next/link', () => ({
 
 const nav = [
   { name: 'Home', href: '/', icon: HomeIcon },
-  { name: 'Artists', href: '/service-providers', icon: UsersIcon },
+  { name: 'Service Providers', href: '/service-providers', icon: UsersIcon },
   { name: 'Sound Providers', href: '/sound-providers', icon: SpeakerWaveIcon },
   { name: 'Quote Calculator', href: '/quote-calculator', icon: CalculatorIcon },
   {
@@ -65,7 +65,7 @@ describe('MobileMenuDrawer', () => {
     await flushPromises();
     const bodyText = document.body.textContent || '';
     expect(bodyText).toContain('Home');
-    expect(bodyText).toContain('Artists');
+    expect(bodyText).toContain('Service Providers');
     expect(bodyText).toContain('Sound Providers');
     expect(bodyText).toContain('Quote Calculator');
     expect(bodyText).toContain('Quote Templates');

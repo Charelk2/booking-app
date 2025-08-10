@@ -123,7 +123,7 @@ export default function SearchPopupContent({
   const handleArtistSelect = useCallback(
     (a: ServiceProviderProfile) => {
       const name = a.business_name || `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`.trim();
-      setAnnouncement(`Artist selected: ${name}`);
+      setAnnouncement(`Service Provider selected: ${name}`);
       closeAllPopups();
       setArtistQuery('');
       setArtistResults([]);
@@ -375,10 +375,10 @@ export default function SearchPopupContent({
 
   const renderDefault = () => (
     <div className="text-center text-gray-500 py-8">
-      <h3 className="text-lg font-semibold mb-2" id="search-popup-label-default">Find artists for your event!</h3>
+      <h3 className="text-lg font-semibold mb-2" id="search-popup-label-default">Find service providers for your event!</h3>
       <p className="text-sm">Click &quot;Where&quot;, &quot;When&quot;, or &quot;Category&quot; to start.</p>
       <div className="mt-6">
-        <h4 className="text-md font-semibold text-gray-700 mb-3">Popular Artist Locations</h4>
+        <h4 className="text-md font-semibold text-gray-700 mb-3">Popular Service Provider Locations</h4>
         {/* Responsive grid: stack suggestions on small screens */}
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {MOCK_LOCATION_SUGGESTIONS.slice(0, 4).map((s) => (

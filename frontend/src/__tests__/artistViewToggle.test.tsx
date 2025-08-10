@@ -40,7 +40,7 @@ describe('Header artist view', () => {
       toggleArtistView: jest.fn(),
     });
     render(<Header headerState="initial" onForceHeaderState={jest.fn()} />);
-    expect(screen.getByText('Artists')).toBeTruthy();
+    expect(screen.getByText('Service Providers')).toBeTruthy();
     expect(screen.queryByText('Today')).toBeNull();
     expect(mockUseAuth).toHaveBeenCalled();
   });

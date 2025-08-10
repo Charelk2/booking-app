@@ -48,13 +48,13 @@ sync, ensuring responsive behavior matches the design system.
 
 ### Search Interface
 
- The global search bar and its compact pill appear only on the home page and the artists listing page. Artist detail pages and other routes omit these elements for a cleaner layout. On the artists listing page, the header loads directly in its compact pill state, preserving any category, date, and location selections from the URL and showing the filter icon beside the pill for quick refinement. Clicking the pill now expands the full SearchBar above the filter controls, and the compact pill mirrors the collapsed SearchBar by displaying any selected category, dates, and location when the full bar is hidden. For addresses, the pill shows only the street name to keep things concise.
+ The global search bar and its compact pill appear only on the home page and the service providers listing page. Service provider detail pages and other routes omit these elements for a cleaner layout. On the service providers listing page, the header loads directly in its compact pill state, preserving any category, date, and location selections from the URL and showing the filter icon beside the pill for quick refinement. Clicking the pill now expands the full SearchBar above the filter controls, and the compact pill mirrors the collapsed SearchBar by displaying any selected category, dates, and location when the full bar is hidden. For addresses, the pill shows only the street name to keep things concise.
 
 Focusing the category chooser opens a popup that spans half of the search bar from the left. The location input opens a suggested-destinations popup on the right half, and selecting dates launches a full-screen calendar overlay. If the suggested destinations exceed the popup height, the list now scrolls so all options remain accessible. Once the user types in a location, the suggestions popup closes and will not reappear, while Google Places autocomplete suggestions show directly beneath the input.
 
 ### Homepage Categories Carousel
 
-The home page includes a "Services Near You" carousel that lists common service categories such as Musicians and DJs. Each category supports its own image, defined in `src/lib/categoryMap.ts` and served from `public/categories`. Items display the image with the label below and link to the artists page filtered by the selected category. On desktop, left and right buttons page through the list for easier navigation.
+ The home page includes a "Services Near You" carousel that lists common service categories such as Musicians and DJs. Each category supports its own image, defined in `src/lib/categoryMap.ts` and served from `public/categories`. Items display the image with the label below and link to the service providers page filtered by the selected category. On desktop, left and right buttons page through the list for easier navigation.
 
 
 ### Loading Indicators
@@ -114,7 +114,7 @@ typeface across the site.
 
 ### Booking Wizard URL Parameters
 
-The `/booking` page requires an `artist_id` query parameter and accepts an optional `service_id` to pre-select a service.
+The `/booking` page requires an `artist_id` query parameter (the service provider's ID) and accepts an optional `service_id` to pre-select a service.
 
 ```
 /booking?artist_id=123&service_id=456
@@ -124,7 +124,7 @@ Passing `service_id` skips the service selection step when a user clicks "Reques
 
 ### Inbox URL Parameters
 
-The `/inbox` page accepts a `requestId` to open a specific conversation. Artists now receive a quote summary bubble directly in the thread, so the former `sendQuote=1` flag is no longer supported.
+The `/inbox` page accepts a `requestId` to open a specific conversation. Service providers now receive a quote summary bubble directly in the thread, so the former `sendQuote=1` flag is no longer supported.
 
 ```
 /inbox?requestId=42
@@ -136,16 +136,16 @@ Quote messages within the thread now render as full-width cards showing booking 
 
 ## Dashboard
 
-The artist dashboard includes a quotes page for managing offers. The `EditQuoteModal` allows artists to modify quote details and price inline without leaving the list. It opens when clicking the "Edit" button next to a pending quote and uses the shared `BottomSheet` component so it displays full screen on mobile and centered on larger screens. Trigger buttons expose `aria-expanded` and focus returns after closing. Sound, travel, discount, accommodation, and expiry fields remain wrapped in accessible labels so screen readers announce each input.
+The service provider dashboard includes a quotes page for managing offers. The `EditQuoteModal` allows service providers to modify quote details and price inline without leaving the list. It opens when clicking the "Edit" button next to a pending quote and uses the shared `BottomSheet` component so it displays full screen on mobile and centered on larger screens. Trigger buttons expose `aria-expanded` and focus returns after closing. Sound, travel, discount, accommodation, and expiry fields remain wrapped in accessible labels so screen readers announce each input.
 
 Helper hooks `useSendQuote`, `useAcceptQuote`, and `useDeclineQuote` are available for interacting with quote endpoints in components and pages.
 
 The View Quote modal also generates a quote number automatically, shows today's date and a description box, and positions a compact **Choose template** dropdown next to the title. The **Add Item** button sits beneath the travel fee input. Service, sound, travel, and discount fees use the same horizontal pair layout as custom items, and newly added rows inherit the bordered styling so they visually match the preset fees. The bottom now mirrors the booking Review step, listing base fee, travel and sound costs, taxes and an estimated total above a **Submit Request** button. Future enhancements will include a PDF preview option, currency symbols within each field, and a signature/terms section.
 
-### Artist Listing
+### Service Provider Listing
 
-The artists page uses a responsive grid that shows one card per row on mobile,
- two cards on tablets and three or more on larger screens. Each artist card
+The service providers page uses a responsive grid that shows one card per row on mobile,
+ two cards on tablets and three or more on larger screens. Each service provider card
  displays a skeleton placeholder until the image loads and reveals a **Book
  Now** overlay button when hovered. A sticky header hosts the search UI. On
  desktop the header includes a compact pill that collapses into three segments
@@ -158,7 +158,7 @@ The artists page uses a responsive grid that shows one card per row on mobile,
  sheet while the filter icon opens `FilterSheet`. All search options and filters
 persist in the URL so pages can be shared or refreshed without losing state.
 
-### Artist Detail Layout
+### Service Provider Detail Layout
 
 Individual service provider profile pages use a split-screen layout on desktop. A static left
 panel keeps the cover image and key contact details visible, while the right
