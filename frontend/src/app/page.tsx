@@ -8,7 +8,7 @@ export default function HomePage() {
       <CategoriesCarousel />
       <ArtistsSection
         title="Popular Musicians"
-        query={{ sort: 'most_booked' }}
+        query={{ category: 'musician', sort: 'most_booked' }}
         hideIfEmpty
       />
       <ArtistsSection
