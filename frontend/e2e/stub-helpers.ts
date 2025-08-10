@@ -87,13 +87,13 @@ export async function stubBookingRequest(page: Page, requestId = 42) {
       body: JSON.stringify({
         id: requestId,
         client_id: 1,
-        artist_id: 1,
+        service_provider_id: 1,
         service_id: 1,
         status: 'quote_provided',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         client: { first_name: 'Client' },
-        artist: { user: { first_name: 'Artist' } },
+        service_provider: { user: { first_name: 'Provider' } },
         service: { title: 'Gig' },
       }),
     });
@@ -112,7 +112,7 @@ export async function stubMessages(page: Page, requestId = 42, quoteId = 1) {
             id: 1,
             booking_request_id: requestId,
             sender_id: 1,
-            sender_type: 'artist',
+            sender_type: 'service_provider',
             content: 'Quote',
             // Backend emits message types in uppercase.
             message_type: 'QUOTE',
@@ -139,7 +139,7 @@ export async function stubQuoteFlow(
         id: quoteId,
         booking_id: status === 'accepted' ? bookingId : null,
         booking_request_id: 42,
-        artist_id: 1,
+        service_provider_id: 1,
         client_id: 1,
         services: [{ description: 'Gig', price: 100 }],
         sound_fee: 0,
@@ -161,7 +161,7 @@ export async function stubQuoteFlow(
       body: JSON.stringify({
         id: bookingId,
         quote_id: quoteId,
-        artist_id: 1,
+        service_provider_id: 1,
         client_id: 1,
         confirmed: true,
         payment_status: 'pending',
@@ -189,15 +189,15 @@ export async function stubPayments(page: Page, paymentId = 'pay_1') {
   });
 }
 
-export async function stubArtist(page: Page, artistId = 1) {
-  await page.route(`**/api/v1/artists/${artistId}`, async (route) => {
+export async function stubServiceProvider(page: Page, serviceProviderId = 1) {
+  await page.route(`**/api/v1/service-provider-profiles/${serviceProviderId}`, async (route) => {
     await route.fulfill({
       status: 200,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ location: 'NYC' }),
     });
   });
-  await page.route(`**/api/v1/artists/${artistId}/availability`, async (route) => {
+  await page.route(`**/api/v1/service-provider-profiles/${serviceProviderId}/availability`, async (route) => {
     await route.fulfill({
       status: 200,
       headers: { 'Content-Type': 'application/json' },
