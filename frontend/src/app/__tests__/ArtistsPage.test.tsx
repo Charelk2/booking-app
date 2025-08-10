@@ -3,19 +3,26 @@ import ArtistsPage from '../artists/page';
 import { getArtists } from '@/lib/api';
 import { useSearchParams, usePathname } from '@/tests/mocks/next-navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import useServiceCategories from '@/hooks/useServiceCategories';
 
 jest.mock('next/navigation', () => require('@/tests/mocks/next-navigation'));
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
+jest.mock('@/hooks/useServiceCategories');
 
 const mockedGetArtists = getArtists as jest.MockedFunction<typeof getArtists>;
 const mockedUseAuth = useAuth as jest.Mock;
+const mockedUseServiceCategories = useServiceCategories as jest.Mock;
 
 describe('ArtistsPage', () => {
   beforeEach(() => {
     useSearchParams.mockReturnValue(new URLSearchParams('category=DJ'));
     usePathname.mockReturnValue('/');
     mockedUseAuth.mockReturnValue({ user: { id: 1, first_name: 'Test', email: 't@example.com' } });
+    mockedUseServiceCategories.mockReturnValue([
+      { id: 1, value: 'dj', label: 'DJ' },
+      { id: 2, value: 'musician', label: 'Musician' },
+    ]);
     mockedGetArtists.mockResolvedValue({
       data: [
         {
