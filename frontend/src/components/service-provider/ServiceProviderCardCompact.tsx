@@ -40,6 +40,8 @@ export default function ServiceProviderCardCompact({
   ...props
 }: ServiceProviderCardCompactProps) {
   const [loaded, setLoaded] = useState(false);
+  void subtitle;
+  void categories;
   return (
     <Link
       href={href}
@@ -93,12 +95,6 @@ export default function ServiceProviderCardCompact({
       </div>
       <div className="p-1 space-y-0.5">
         <p className="text-sm font-semibold truncate text-black">{name}</p>
-        {subtitle && <p className="text-xs text-gray-600 truncate">{subtitle}</p>}
-        {categories && categories.length > 0 && (
-          <p className="text-xs text-gray-500 truncate">
-            {categories.join(', ')}
-          </p>
-        )}
         {location && (
           <p className="text-xs text-gray-400 truncate">{location}</p>
         )}

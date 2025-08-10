@@ -2,14 +2,13 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type { HTMLAttributes } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import {
   StarIcon,
   CheckBadgeIcon,
 } from '@heroicons/react/24/solid';
-import { Tag } from '@/components/ui';
 import { getFullImageUrl } from '@/lib/utils';
 
 export interface ServiceProviderCardProps extends HTMLAttributes<HTMLDivElement> {
@@ -61,13 +60,9 @@ export default function ServiceProviderCard({
   // Ensure unused props don't trigger lint errors until availability features land
   void ratingCount;
   void isAvailable;
-  const tags = useMemo(
-    () => specialties || specialities || [],
-    [specialties, specialities],
-  );
-  // Display at most two tags so pills remain compact.
-  const maxTags = 2;
-  const limitedTags = tags.slice(0, maxTags);
+  void subtitle;
+  void specialties;
+  void specialities;
   const [imgLoaded, setImgLoaded] = useState(false);
   const [supportsHover, setSupportsHover] = useState(true);
 
@@ -139,16 +134,6 @@ export default function ServiceProviderCard({
           <h2 className="flex-1 text-lg font-semibold text-gray-900 truncate mt-4 mb-2">{name}</h2>
           {verified && <CheckBadgeIcon className="h-4 w-4 text-brand" aria-label="Verified" />}
         </div>
-        {subtitle && <p className="text-sm text-gray-500 leading-tight line-clamp-2">{subtitle}</p>}
-        {limitedTags.length > 0 && (
-          <div className="flex flex-nowrap overflow-hidden gap-1 mt-2 whitespace-nowrap">
-            {limitedTags.map((s) => (
-              <Tag key={`${serviceProviderId}-${s}`} className="text-[10px]">
-                {s}
-              </Tag>
-            ))}
-          </div>
-        )}
         <hr className="mt-4 mb-4 border-gray-200" />
         <div className="flex justify-between items-center text-sm text-gray-700">
           <span className="flex items-center">
