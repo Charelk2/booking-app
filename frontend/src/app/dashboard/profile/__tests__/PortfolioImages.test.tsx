@@ -36,10 +36,10 @@ describe('Portfolio images upload and reorder', () => {
   });
 
   it('uploads images and reorders them', async () => {
-    (api.uploadMyArtistPortfolioImages as jest.Mock).mockResolvedValue({
+    (api.uploadMyServiceProviderPortfolioImages as jest.Mock).mockResolvedValue({
       data: { portfolio_image_urls: ['/img1.jpg', '/img2.jpg', '/img3.jpg'] },
     });
-    (api.updateMyArtistPortfolioImageOrder as jest.Mock).mockResolvedValue({ data: {} });
+    (api.updateMyServiceProviderPortfolioImageOrder as jest.Mock).mockResolvedValue({ data: {} });
     const { div, root } = setup();
     await act(async () => {
       root.render(<EditServiceProviderProfilePage />);
@@ -51,7 +51,7 @@ describe('Portfolio images upload and reorder', () => {
       Object.defineProperty(input, 'files', { value: [file], configurable: true });
       input.dispatchEvent(new Event('change', { bubbles: true }));
     });
-    expect(api.uploadMyArtistPortfolioImages).toHaveBeenCalled();
+    expect(api.uploadMyServiceProviderPortfolioImages).toHaveBeenCalled();
     await flushPromises();
     const items = div.querySelectorAll('[data-testid="portfolio-item"]');
     expect(items.length).toBe(3);
@@ -59,7 +59,7 @@ describe('Portfolio images upload and reorder', () => {
       items[0].dispatchEvent(new Event('dragstart', { bubbles: true }));
       items[1].dispatchEvent(new Event('drop', { bubbles: true }));
     });
-    expect(api.updateMyArtistPortfolioImageOrder).toHaveBeenCalled();
+    expect(api.updateMyServiceProviderPortfolioImageOrder).toHaveBeenCalled();
     act(() => { root.unmount(); });
     div.remove();
   });

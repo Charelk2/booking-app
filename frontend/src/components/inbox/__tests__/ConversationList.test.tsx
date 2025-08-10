@@ -186,7 +186,7 @@ describe('ConversationList', () => {
     container.remove();
   });
 
-  it('uses artist profile picture when artist_profile missing', async () => {
+  it('uses service provider profile picture when artist_profile missing', async () => {
     const requests: BookingRequest[] = [
       {
         id: 1,

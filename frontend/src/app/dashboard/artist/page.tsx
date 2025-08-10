@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Booking, Service, ServiceProviderProfile, BookingRequest } from "@/types";
 import {
   getMyArtistBookings,
-  getArtistServices,
+  getServiceProviderServices,
   getServiceProviderProfileMe,
   getBookingRequestsForArtist,
   getDashboardStats,
@@ -289,7 +289,7 @@ export default function DashboardPage() {
           statsData,
         ] = await Promise.all([
           getMyArtistBookings(),
-          getArtistServices(user.id),
+          getServiceProviderServices(user.id),
           getServiceProviderProfileMe(),
           getBookingRequestsForArtist(),
           getDashboardStats(),
