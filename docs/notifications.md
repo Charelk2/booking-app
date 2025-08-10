@@ -7,6 +7,11 @@ created whenever a new chat message is sent. The card subtitle includes a short
 snippet of the latest message so clients can quickly decide whether they need to
 open the conversation.
 
+SMS alerts and other external deliveries are now dispatched through an
+in-process background worker. Each send operation is retried up to three times
+with exponential backoff; failures are appended to a dead-letter queue for
+future inspection.
+
 Important fields returned by `/api/v1/notifications`:
 
 - **sender_name** – name or business name of the actor that triggered the

@@ -12,6 +12,7 @@ import logging
 import enum
 import re
 from twilio.rest import Client
+from . import background_worker
 
 TWILIO_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
@@ -377,14 +378,20 @@ def _build_response(db: Session, n: models.Notification) -> NotificationResponse
 
 
 def _send_sms(phone: Optional[str], message: str) -> None:
+    """Send an SMS notification in the background with retries."""
+
     if not phone or not TWILIO_SID or not TWILIO_TOKEN or not TWILIO_FROM:
         return
-    try:
+
+    def _task():
         Client(TWILIO_SID, TWILIO_TOKEN).messages.create(
             body=message, from_=TWILIO_FROM, to=phone
         )
-    except Exception as exc:
-        logger.warning("SMS failed: %s", exc)
+
+    try:
+        background_worker.enqueue(_task)
+    except Exception as exc:  # pragma: no cover - background scheduling errors
+        logger.warning("SMS enqueue failed: %s", exc)
 
 
 def _create_and_broadcast(
