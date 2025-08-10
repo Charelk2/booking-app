@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import * as api from "@/lib/api";
 import AddServiceModalBartender from "../AddServiceModalBartender";
 import { flushPromises } from "@/test/utils/flush";
-import { UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 
 describe("AddServiceModalBartender", () => {
   it("follows step flow and sends details payload", async () => {
@@ -43,7 +42,7 @@ describe("AddServiceModalBartender", () => {
         service_type: "Other",
         details: { signature_drink: "Mojito" },
         media_url: expect.stringContaining("base64"),
-        service_category_id: UI_CATEGORY_TO_ID.bartender,
+        service_category_slug: "bartender",
       }),
     );
   });

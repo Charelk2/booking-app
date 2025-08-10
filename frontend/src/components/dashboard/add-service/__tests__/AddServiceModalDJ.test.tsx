@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import * as api from "@/lib/api";
 import AddServiceModalDJ from "../AddServiceModalDJ";
 import { flushPromises } from "@/test/utils/flush";
-import { UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 
 describe("AddServiceModalDJ", () => {
   it("follows step flow and sends details payload", async () => {
@@ -43,7 +42,7 @@ describe("AddServiceModalDJ", () => {
         service_type: "Live Performance",
         details: { genre: "EDM" },
         media_url: expect.stringContaining("base64"),
-        service_category_id: UI_CATEGORY_TO_ID.dj,
+        service_category_slug: "dj",
       }),
     );
   });

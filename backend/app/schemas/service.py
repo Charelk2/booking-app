@@ -1,6 +1,6 @@
 from typing import Optional, Dict, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from ..models.service import ServiceType
 from .artist import ArtistProfileNested
@@ -37,8 +37,17 @@ class ServiceCreate(ServiceBase):
     price: Decimal
     service_type: ServiceType
     media_url: str
-    # ``service_category_id`` is optional and inherited from ``ServiceBase``.
-    # The artist ID will be set based on the authenticated artist, not in the schema.
+    # ``service_category_id`` and ``service_category_slug`` are optional on the
+    # base model, but one of them must be supplied when creating a service.
+
+    @model_validator(mode="after")
+    def category_required(cls, model: "ServiceCreate") -> "ServiceCreate":
+        """Ensure that a service category is provided either by slug or ID."""
+        if model.service_category_id is None and not model.service_category_slug:
+            raise ValueError(
+                "Either service_category_slug or service_category_id must be provided."
+            )
+        return model
 
 
 # Properties to receive on item update
