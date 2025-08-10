@@ -9,6 +9,16 @@ jest.mock('@/components/layout/MainLayout', () => {
   return Mock;
 });
 
+jest.mock('@/components/home/ArtistsSection', () => {
+  const Mock = ({ title, query }: { title: string; query: unknown }) => (
+    <div data-title={title} data-query={JSON.stringify(query)}>
+      {title}
+    </div>
+  );
+  Mock.displayName = 'MockArtistsSection';
+  return Mock;
+});
+
 describe('HomePage', () => {
   it('renders artist sections', async () => {
     const div = document.createElement('div');
@@ -17,7 +27,9 @@ describe('HomePage', () => {
     await act(async () => {
       root.render(<HomePage />);
     });
-    expect(div.textContent).toContain('Popular Musicians');
+    const popular = div.querySelector('[data-title="Popular Musicians"]');
+    expect(popular).not.toBeNull();
+    expect(popular?.getAttribute('data-query')).toContain('"category":"musician"');
     expect(div.textContent).toContain('Top Rated');
     expect(div.textContent).toContain('New on Booka');
     act(() => {
