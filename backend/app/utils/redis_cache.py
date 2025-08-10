@@ -1,7 +1,10 @@
 import json
 import logging
-import redis
+import random
+from datetime import date
 from typing import List, Optional
+
+import redis
 
 from app.core.config import settings
 from .json_utils import dumps
@@ -17,6 +20,14 @@ def get_redis_client() -> redis.Redis:
 
 
 ARTIST_LIST_KEY_PREFIX = "artist_profiles:list"
+PROVIDER_LIST_KEY_PREFIX = "sound_providers:list"
+WEATHER_KEY_PREFIX = "weather:3day"
+AVAILABILITY_KEY_PREFIX = "availability"
+
+
+def _apply_jitter(expire: int) -> int:
+    """Return a TTL with a small random jitter to prevent cache stampedes."""
+    return expire + random.randint(0, max(1, expire // 10))
 
 
 def _make_key(
@@ -90,6 +101,134 @@ def invalidate_artist_list_cache() -> None:
             client.delete(key)
     except redis.exceptions.ConnectionError as exc:
         logging.warning("Could not clear artist list cache: %s", exc)
+    return None
+
+
+def _provider_key(skip: int, limit: int, fields: Optional[str]) -> str:
+    fields_part = fields or ""
+    return f"{PROVIDER_LIST_KEY_PREFIX}:{skip}:{limit}:{fields_part}"
+
+
+def get_cached_provider_list(
+    skip: int = 0, *, limit: int = 100, fields: Optional[str] = None
+) -> List[dict] | None:
+    client = get_redis_client()
+    key = _provider_key(skip, limit, fields)
+    try:
+        data = client.get(key)
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Redis unavailable: %s", exc)
+        return None
+    if data:
+        return json.loads(data)
+    return None
+
+
+def cache_provider_list(
+    data: List[dict],
+    skip: int = 0,
+    *,
+    limit: int = 100,
+    fields: Optional[str] = None,
+    expire: int = 600,
+) -> None:
+    client = get_redis_client()
+    key = _provider_key(skip, limit, fields)
+    ttl = _apply_jitter(expire)
+    try:
+        client.setex(key, ttl, dumps(data))
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Could not cache provider list: %s", exc)
+    return None
+
+
+def invalidate_provider_list_cache() -> None:
+    client = get_redis_client()
+    try:
+        for key in client.scan_iter(f"{PROVIDER_LIST_KEY_PREFIX}:*"):
+            client.delete(key)
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Could not clear provider list cache: %s", exc)
+    return None
+
+
+def _weather_key(location: str) -> str:
+    return f"{WEATHER_KEY_PREFIX}:{location.lower()}"
+
+
+def get_cached_weather(location: str) -> dict | None:
+    client = get_redis_client()
+    key = _weather_key(location)
+    try:
+        data = client.get(key)
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Redis unavailable: %s", exc)
+        return None
+    if data:
+        return json.loads(data)
+    return None
+
+
+def cache_weather(data: dict, location: str, expire: int = 1800) -> None:
+    client = get_redis_client()
+    key = _weather_key(location)
+    ttl = _apply_jitter(expire)
+    try:
+        client.setex(key, ttl, dumps(data))
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Could not cache weather: %s", exc)
+    return None
+
+
+def _availability_key(artist_id: int, when: Optional[date]) -> str:
+    day = when.isoformat() if when else "all"
+    return f"{AVAILABILITY_KEY_PREFIX}:{artist_id}:{day}"
+
+
+def get_cached_availability(
+    artist_id: int, when: Optional[date] = None
+) -> dict | None:
+    client = get_redis_client()
+    key = _availability_key(artist_id, when)
+    try:
+        data = client.get(key)
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Redis unavailable: %s", exc)
+        return None
+    if data:
+        return json.loads(data)
+    return None
+
+
+def cache_availability(
+    data: dict,
+    artist_id: int,
+    when: Optional[date] = None,
+    expire: int = 300,
+) -> None:
+    client = get_redis_client()
+    key = _availability_key(artist_id, when)
+    ttl = _apply_jitter(expire)
+    try:
+        client.setex(key, ttl, dumps(data))
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Could not cache availability: %s", exc)
+    return None
+
+
+def invalidate_availability_cache(
+    artist_id: int, when: Optional[date] = None
+) -> None:
+    client = get_redis_client()
+    try:
+        if when is None:
+            pattern = f"{AVAILABILITY_KEY_PREFIX}:{artist_id}:*"
+            for key in client.scan_iter(pattern):
+                client.delete(key)
+        else:
+            client.delete(_availability_key(artist_id, when))
+    except redis.exceptions.ConnectionError as exc:
+        logging.warning("Could not clear availability cache: %s", exc)
     return None
 
 

@@ -1107,10 +1107,14 @@ The dashboard brings common actions to the surface with a tidy layout:
 
 ### Redis Caching
 
-* Caches `/api/v1/service-provider-profiles/` GET responses.
-* Cache keys include page number, limit, and filter parameters so each combination is stored separately.
-* Default Redis URL: `redis://localhost:6379/0`.
-* Fallback to DB if Redis is unavailable.
+* Caches heavy endpoints using Redis:
+  * `/api/v1/service-provider-profiles/` artist lists (60 s TTL).
+  * `/api/v1/sound-providers/` provider lists (10 min TTL).
+  * `/api/v1/travel-forecast` 3‑day weather by location (30 min TTL).
+  * `/api/v1/service-provider-profiles/{id}/availability` results (5 min TTL).
+* Random jitter is added to each TTL to reduce cache stampedes.
+* Cache keys include all relevant query parameters so each combination is stored separately.
+* Fallback to the database or external API if Redis is unavailable.
 * Connections close cleanly on API shutdown.
 
 ### Artist Listing Filters

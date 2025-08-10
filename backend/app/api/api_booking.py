@@ -21,6 +21,7 @@ from .dependencies import (
     get_current_active_client,
     get_current_service_provider,
 )
+from ..utils.redis_cache import invalidate_availability_cache
 
 router = APIRouter(tags=["bookings"])
 logger = logging.getLogger(__name__)
@@ -87,6 +88,8 @@ def create_booking(
     db.add(db_booking)
     db.commit()
     db.refresh(db_booking)
+
+    invalidate_availability_cache(booking_in.artist_id)
 
     # Re‐load with relationships for the response model (if BookingResponse expects nested fields)
     reloaded = (
@@ -243,6 +246,7 @@ def update_booking_status(
 
     db.add(booking)
     db.commit()
+    invalidate_availability_cache(booking.artist_id)
 
     reloaded = (
         db.query(Booking)
