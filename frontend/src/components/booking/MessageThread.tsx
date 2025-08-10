@@ -37,8 +37,10 @@ import QuoteBubble from './QuoteBubble';
 import InlineQuoteForm from './InlineQuoteForm';
 import useWebSocket from '@/hooks/useWebSocket';
 import { format, isValid } from 'date-fns';
-import Countdown from './Countdown';
 import { useRouter } from 'next/navigation';
+
+const MemoQuoteBubble = React.memo(QuoteBubble);
+const MemoInlineQuoteForm = React.memo(InlineQuoteForm);
 
 
 // Constants
@@ -693,7 +695,7 @@ useEffect(() => {
 
           {user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && (
             <div className="mb-4" data-testid="artist-inline-quote">
-              <InlineQuoteForm
+              <MemoInlineQuoteForm
                 artistId={currentArtistId}
                 clientId={currentClientId}
                 bookingRequestId={bookingRequestId}
@@ -812,7 +814,7 @@ useEffect(() => {
                           className={`mb-0.5 w-full`}
                           ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                         >
-                          <QuoteBubble
+                          <MemoQuoteBubble
                             description={quoteData.services[0]?.description || ''}
                             price={Number(quoteData.services[0]?.price || 0)}
                             soundFee={Number(quoteData.sound_fee)}

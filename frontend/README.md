@@ -116,6 +116,13 @@ font (`--font-inter`) is provided by `next/font`. The body font size is set to
 `16px` for readability. Replace the `--font-inter` variable to use a different
 typeface across the site.
 
+### Performance Optimizations
+
+Booking wizard steps load on demand using `next/dynamic`, and heavy chat
+components are wrapped with `React.memo` to minimize re-renders. Service and
+profile requests in the wizard use App Router caching (`force-cache`) where
+safe to reduce network traffic.
+
 ### Booking Wizard URL Parameters
 
 The `/booking` page requires an `artist_id` query parameter (the service provider's ID) and accepts an optional `service_id` to pre-select a service.
