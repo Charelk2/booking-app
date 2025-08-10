@@ -547,11 +547,12 @@ def read_all_artist_profiles(
     if include_price_distribution:
         bucket_counts: Dict[Tuple[int, int], int] = defaultdict(int)
         for row in all_rows:
-            if join_services:
-                _, _, _, _, service_price = row
-            else:
-                _, _, _, _ = row
-                service_price = None
+            # ``row`` can contain either 5 or 6 items depending on whether
+            # service prices were joined above.  We only care about the
+            # ``service_price`` column here, so grab the last element when the
+            # join is active instead of unpacking a fixed number of values.
+            service_price = row[-1] if join_services else None
+
             if service_price is not None:
                 for b_min, b_max in PRICE_BUCKETS:
                     if b_min <= service_price <= b_max:
