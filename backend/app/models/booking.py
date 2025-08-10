@@ -10,12 +10,12 @@ class Booking(BaseModel):
     __tablename__ = "bookings"
 
     id         = Column(Integer, primary_key=True, index=True)
-    artist_id  = Column(Integer, ForeignKey("artist_profiles.user_id"))
+    artist_id  = Column(Integer, ForeignKey("artist_profiles.user_id"), index=True)
     client_id  = Column(Integer, ForeignKey("users.id"))
     service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"))
-    start_time = Column(DateTime, nullable=False)
+    start_time = Column(DateTime, nullable=False, index=True)
     end_time   = Column(DateTime, nullable=False)
-    status     = Column(Enum(BookingStatus), default=BookingStatus.PENDING)
+    status     = Column(Enum(BookingStatus), default=BookingStatus.PENDING, index=True)
     total_price= Column(Numeric(10, 2), nullable=False)  # ← Numeric is now imported
     notes      = Column(String)
     quote_id   = Column(Integer, ForeignKey("quotes.id"), nullable=True)

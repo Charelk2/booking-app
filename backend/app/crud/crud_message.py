@@ -1,7 +1,7 @@
 from typing import List
 from datetime import datetime
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
 
@@ -38,17 +38,28 @@ def create_message(
 
 
 def get_messages_for_request(
-    db: Session, booking_request_id: int, viewer: models.VisibleTo | None = None
+    db: Session,
+    booking_request_id: int,
+    viewer: models.VisibleTo | None = None,
+    skip: int = 0,
+    limit: int = 100,
 ) -> List[models.Message]:
     query = (
         db.query(models.Message)
+        .options(
+            joinedload(models.Message.sender).joinedload(models.User.artist_profile)
+        )
         .filter(models.Message.booking_request_id == booking_request_id)
-        .order_by(models.Message.timestamp.asc())
     )
     if viewer:
         query = query.filter(
             models.Message.visible_to.in_([models.VisibleTo.BOTH, viewer])
         )
+    query = (
+        query.order_by(models.Message.timestamp.asc())
+        .offset(skip)
+        .limit(limit)
+    )
     return query.all()
 
 

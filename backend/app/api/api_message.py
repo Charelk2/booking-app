@@ -5,9 +5,10 @@ from fastapi import (
     UploadFile,
     File,
     BackgroundTasks,
+    Query,
 )
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from .. import crud, models, schemas
 from .dependencies import get_db, get_current_user
@@ -38,6 +39,11 @@ def read_messages(
     request_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    fields: Optional[str] = Query(
+        None, description="Comma-separated fields to include in the response"
+    ),
 ):
     booking_request = crud.crud_booking_request.get_booking_request(
         db, request_id=request_id
@@ -59,24 +65,46 @@ def read_messages(
         if current_user.id == booking_request.client_id
         else models.VisibleTo.ARTIST
     )
-    db_messages = crud.crud_message.get_messages_for_request(db, request_id, viewer)
+    if hasattr(skip, "default"):
+        skip = skip.default
+    if hasattr(limit, "default"):
+        limit = limit.default
+    if hasattr(fields, "default"):
+        fields = None
+
+    db_messages = crud.crud_message.get_messages_for_request(
+        db, request_id, viewer, skip=skip, limit=limit
+    )
+    include = None
+    if fields:
+        include = {
+            "id",
+            "booking_request_id",
+            "sender_id",
+            "sender_type",
+            "message_type",
+            "visible_to",
+            "content",
+            "is_read",
+            "timestamp",
+            "avatar_url",
+        }
+        include.update({f.strip() for f in fields.split(",") if f.strip()})
     result = []
     for m in db_messages:
         avatar_url = None
         sender = m.sender  # sender may be None if the user was deleted
         if sender:
             if sender.user_type == models.UserType.SERVICE_PROVIDER:
-                profile = (
-                    db.query(models.ServiceProviderProfile)
-                    .filter(models.ServiceProviderProfile.user_id == m.sender_id)
-                    .first()
-                )
+                profile = sender.artist_profile
                 if profile and profile.profile_picture_url:
                     avatar_url = profile.profile_picture_url
             elif sender.profile_picture_url:
                 avatar_url = sender.profile_picture_url
         data = schemas.MessageResponse.model_validate(m).model_dump()
         data["avatar_url"] = avatar_url
+        if include is not None:
+            data = {k: v for k, v in data.items() if k in include}
         result.append(data)
     return result
 
@@ -212,11 +240,7 @@ def create_message(
     sender = msg.sender  # sender should exist, but guard against missing relation
     if sender:
         if sender.user_type == models.UserType.SERVICE_PROVIDER:
-            profile = (
-                db.query(models.ServiceProviderProfile)
-                .filter(models.ServiceProviderProfile.user_id == msg.sender_id)
-                .first()
-            )
+            profile = sender.artist_profile
             if profile and profile.profile_picture_url:
                 avatar_url = profile.profile_picture_url
         elif sender.profile_picture_url:

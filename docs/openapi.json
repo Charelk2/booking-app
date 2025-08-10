@@ -2087,6 +2087,39 @@
               "type": "integer",
               "title": "Request Id"
             }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Skip",
+              "default": 0,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Limit",
+              "default": 100,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Fields"
+            },
+            "description": "Comma-separated fields to include in the response"
           }
         ],
         "responses": {
@@ -2127,17 +2160,50 @@
             "OAuth2PasswordBearer": []
           }
         ],
-        "parameters": [
-          {
-            "name": "request_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Request Id"
+          "parameters": [
+            {
+              "name": "request_id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "integer",
+                "title": "Request Id"
+              }
+            },
+            {
+              "name": "skip",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "title": "Skip",
+                "default": 0,
+                "minimum": 0
+              }
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "title": "Limit",
+                "default": 100,
+                "minimum": 1,
+                "maximum": 100
+              }
+            },
+            {
+              "name": "fields",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "title": "Fields"
+              },
+              "description": "Comma-separated fields to include in the response"
             }
-          }
-        ],
+          ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2576,6 +2642,39 @@
               "type": "integer",
               "title": "Request Id"
             }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Skip",
+              "default": 0,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Limit",
+              "default": 100,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Fields"
+            },
+            "description": "Comma-separated fields to include in the response"
           }
         ],
         "responses": {
@@ -3099,30 +3198,63 @@
         }
       }
     },
-    "/api/v1/booking-requests/{request_id}/messages": {
-      "get": {
-        "tags": [
-          "messages",
-          "messages"
-        ],
-        "summary": "Read Messages",
-        "operationId": "read_messages_api_v1_booking_requests__request_id__messages_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "request_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Request Id"
+      "/api/v1/booking-requests/{request_id}/messages": {
+        "get": {
+          "tags": [
+            "messages",
+            "messages"
+          ],
+          "summary": "Read Messages",
+          "operationId": "read_messages_api_v1_booking_requests__request_id__messages_get",
+          "security": [
+            {
+              "OAuth2PasswordBearer": []
             }
-          }
-        ],
+          ],
+          "parameters": [
+            {
+              "name": "request_id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "integer",
+                "title": "Request Id"
+              }
+            },
+            {
+              "name": "skip",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "title": "Skip",
+                "default": 0,
+                "minimum": 0
+              }
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "title": "Limit",
+                "default": 100,
+                "minimum": 1,
+                "maximum": 100
+              }
+            },
+            {
+              "name": "fields",
+              "in": "query",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "title": "Fields"
+              },
+              "description": "Comma-separated fields to include in the response"
+            }
+          ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3536,6 +3668,41 @@
         ],
         "summary": "List Providers",
         "operationId": "list_providers_api_v1_sound_providers__get",
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Skip",
+              "default": 0,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "title": "Limit",
+              "default": 100,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "Fields"
+            },
+            "description": "Comma-separated fields to include in the response"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
