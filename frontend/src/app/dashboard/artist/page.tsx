@@ -22,6 +22,7 @@ import {
   formatStatus,
   applyDisplayOrder,
 } from "@/lib/utils";
+import { ID_TO_UI_CATEGORY } from "@/lib/categoryMap";
 import {
   AddServiceCategorySelector,
   UpdateRequestModal,
@@ -688,7 +689,12 @@ export default function DashboardPage() {
                           service={service}
                           onEdit={(s) => {
                             setEditingService(s);
-                            setWizardCategory('musician');
+                            const slug =
+                              s.service_category_slug ||
+                              (s.service_category_id
+                                ? ID_TO_UI_CATEGORY[s.service_category_id]
+                                : null);
+                            setWizardCategory(slug || 'musician');
                           }}
                           onDelete={handleDeleteService}
                         />
