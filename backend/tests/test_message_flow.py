@@ -166,3 +166,46 @@ def test_mark_messages_read_updates_flag():
 
     msgs = crud_message.get_messages_for_request(db, br.id)
     assert msgs[0].is_read is True
+
+
+def test_read_messages_pagination_and_fields():
+    db = setup_db()
+    client = User(
+        email="page@test.com",
+        password="x",
+        first_name="P",
+        last_name="Client",
+        user_type=UserType.CLIENT,
+    )
+    artist = User(
+        email="artistpage@test.com",
+        password="x",
+        first_name="A",
+        last_name="Artist",
+        user_type=UserType.SERVICE_PROVIDER,
+    )
+    db.add_all([client, artist])
+    db.commit()
+    db.refresh(client)
+    db.refresh(artist)
+
+    br = BookingRequest(
+        client_id=client.id,
+        artist_id=artist.id,
+        status=BookingStatus.PENDING_QUOTE,
+    )
+    db.add(br)
+    db.commit()
+
+    # Create three messages
+    for i in range(3):
+        msg_in = MessageCreate(content=f"m{i}", message_type=MessageType.USER)
+        api_message.create_message(br.id, msg_in, db, current_user=client)
+
+    result = api_message.read_messages(
+        br.id, db=db, current_user=client, skip=1, limit=1, fields="content"
+    )
+    assert len(result) == 1
+    msg = result[0]
+    assert msg["content"] == "m1"
+    assert "quote_id" not in msg
