@@ -6,19 +6,15 @@ import ArtistsPage from '../app/artists/page';
 import BookingWizard from '../components/booking/BookingWizard';
 import { BookingProvider } from '../contexts/BookingContext';
 import * as api from '../lib/api';
-import { useAuth } from '../contexts/AuthContext';
 
 jest.mock('../lib/api');
-jest.mock('../contexts/AuthContext');
 expect.extend(toHaveNoViolations);
 
 describe('accessibility audits', () => {
   beforeEach(() => {
-    (useAuth as jest.Mock).mockReturnValue({ user: null });
     (api.getArtists as jest.Mock).mockResolvedValue({ data: [], total: 0, price_distribution: [] });
     (api.getArtistAvailability as jest.Mock).mockResolvedValue({ data: { unavailable_dates: [] } });
     (api.getArtist as jest.Mock).mockResolvedValue({ data: { location: 'NYC' } });
-    (api.getRecommendedArtists as jest.Mock).mockResolvedValue([]);
   });
 
   it('Artists page has no axe violations', async () => {

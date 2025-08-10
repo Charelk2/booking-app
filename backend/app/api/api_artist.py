@@ -20,7 +20,6 @@ from ..schemas.artist import (
 )
 from .dependencies import get_current_user, get_current_active_artist
 from ..utils import error_response
-from ..services.recommendation_service import RecommendationService
 
 router = APIRouter()  # No prefix here. Main mounts it under "/api/v1/artist-profiles".
 logger = logging.getLogger(__name__)
@@ -311,26 +310,3 @@ async def upload_artist_cover_photo_me(
     db.refresh(profile)
     return profile
 
-recommendation_router = APIRouter()
-
-@recommendation_router.get(
-    "/recommended",
-    response_model=List[ArtistProfileResponse],
-    summary="Get recommended artists",
-)
-def recommended_artists(
-    *,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-    limit: int = Query(5, ge=1, le=20),
-) -> Any:
-    """Return personalized artist suggestions for the current user."""
-    service = RecommendationService()
-    try:
-        return service.recommend_for_user(db, current_user.id, limit=limit)
-    except Exception as exc:  # pragma: no cover - log unexpected errors
-        logger.exception("Failed to generate recommendations for user %s", current_user.id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Could not generate recommendations.",
-        ) from exc
