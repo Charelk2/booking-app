@@ -116,19 +116,9 @@ export default function ArtistsPage() {
           includePriceDistribution: true,
         });
         // Filter client-side to guard against any backend responses that
-        // include artists from other service categories. For the DJ category,
-        // only include profiles with a business name so personal artist names
-        // never appear.
-        const filtered = res.data.filter((a) => {
-          if (serviceName === 'DJ') {
-            const business = a.business_name?.trim().toLowerCase();
-            const fullName = `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`
-              .trim()
-              .toLowerCase();
-            return !!business && business !== fullName;
-          }
-          return !!(a.business_name || a.user);
-        });
+        // include artists from other service categories. All DJs are now
+        // included regardless of business name.
+        const filtered = res.data.filter((a) => !!(a.business_name || a.user));
         setHasMore(filtered.length === LIMIT);
         setArtists((prev) => (append ? [...prev, ...filtered] : filtered));
         setPriceDistribution(res.price_distribution || []);
