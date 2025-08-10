@@ -179,3 +179,39 @@ def test_unknown_category_returns_empty(monkeypatch):
     assert res["data"] == []
     assert res["total"] == 0
 
+
+def test_price_distribution_with_join_services(monkeypatch):
+    """Ensure price distribution is calculated without unpack errors."""
+    db = setup_db()
+    # Create three artists with different prices so they land in distinct buckets
+    create_artist(db, 'Cheap', 'NY', 'Musician')
+    create_artist(db, 'Mid', 'NY', 'Musician')
+    db.query(Service).filter(Service.artist_id == 2).update({"price": 2500})
+    create_artist(db, 'High', 'NY', 'Musician')
+    db.query(Service).filter(Service.artist_id == 3).update({"price": 10000})
+    db.commit()
+
+    monkeypatch.setattr(
+        'app.utils.redis_cache.get_cached_artist_list',
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        'app.utils.redis_cache.cache_artist_list',
+        lambda *args, **kwargs: None,
+    )
+
+    res = read_all_artist_profiles(
+        category='musician',
+        include_price_distribution=True,
+        db=db,
+        page=1,
+        limit=20,
+    )
+
+    # Verify all three artists returned and price distribution counted correctly
+    assert res["total"] == 3
+    pd = {(b["min"], b["max"]): b["count"] for b in res["price_distribution"]}
+    assert pd[(0, 1000)] == 1
+    assert pd[(2001, 3000)] == 1
+    assert pd[(7501, 10000)] == 1
+
