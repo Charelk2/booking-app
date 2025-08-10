@@ -1,7 +1,8 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react';
 import SearchBar from '../SearchBar';
-import { UI_CATEGORIES } from '@/lib/categoryMap';
+import { getServiceCategories } from '@/lib/api';
+import type { Category } from '@/hooks/useServiceCategories';
 
 // Mock next/dynamic to synchronously load a minimal SearchPopupContent
 jest.mock('next/dynamic', () => () => {
@@ -21,6 +22,20 @@ jest.mock('@/lib/loadPlaces', () => ({
       AutocompleteSessionToken: function () {},
     }),
 }));
+
+jest.mock('@/lib/api');
+
+const mockedGetServiceCategories = getServiceCategories as jest.MockedFunction<
+  typeof getServiceCategories
+>;
+const MOCK_CATEGORIES: Category[] = [
+  { id: 1, value: 'dj', label: 'DJ' },
+  { id: 2, value: 'musician', label: 'Musician' },
+];
+
+beforeEach(() => {
+  mockedGetServiceCategories.mockResolvedValue({ data: MOCK_CATEGORIES } as any);
+});
 
 describe('SearchBar', () => {
   it('keeps suggestions visible when typing in location', async () => {
@@ -167,7 +182,7 @@ describe('SearchBar', () => {
           <button
             type="button"
             data-testid="select-category"
-            onClick={() => setCategory(UI_CATEGORIES[0])}
+            onClick={() => setCategory(MOCK_CATEGORIES[0])}
           >
             select
           </button>
@@ -182,5 +197,29 @@ describe('SearchBar', () => {
     fireEvent.click(getByTestId('select-category'));
 
     expect(queryByLabelText('Clear Category')).not.toBeNull();
+  });
+
+  it('renders categories from the API', async () => {
+    const onSearch = jest.fn();
+    const Wrapper = () => {
+      const [category, setCategory] = React.useState<Category | null>(null);
+      const [location, setLocation] = React.useState('');
+      const [when, setWhen] = React.useState<Date | null>(null);
+      return (
+        <SearchBar
+          category={category}
+          setCategory={setCategory}
+          location={location}
+          setLocation={setLocation}
+          when={when}
+          setWhen={setWhen}
+          onSearch={onSearch}
+        />
+      );
+    };
+
+    const { getByRole, findByText } = render(<Wrapper />);
+    fireEvent.click(getByRole('button', { name: /Category/ }));
+    expect(await findByText('DJ')).not.toBeNull();
   });
 });
