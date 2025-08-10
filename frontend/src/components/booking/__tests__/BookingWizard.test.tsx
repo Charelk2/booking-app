@@ -39,17 +39,18 @@ describe('BookingWizard instructions', () => {
     (api.getServiceProviderAvailability as jest.Mock).mockResolvedValue({
       data: { unavailable_dates: [] },
     });
-    (api.getServiceProvider as jest.Mock).mockResolvedValue({
-      data: { location: 'NYC' },
-    });
-    (api.getService as jest.Mock).mockResolvedValue({
-      data: {
-        price: 'R100',
-        travel_rate: 2.5,
-        travel_members: 1,
-        car_rental_price: 0,
-        flight_price: 0,
-      },
+    global.fetch = jest.fn((url: RequestInfo) => {
+      const response =
+        typeof url === 'string' && url.includes('service-provider-profiles')
+          ? { location: 'NYC' }
+          : {
+              price: 'R100',
+              travel_rate: 2.5,
+              travel_members: 1,
+              car_rental_price: 0,
+              flight_price: 0,
+            };
+      return Promise.resolve({ json: () => Promise.resolve(response) }) as any;
     });
     (api.calculateQuote as jest.Mock).mockResolvedValue({ data: { total: 100 } });
     (geo.geocodeAddress as jest.Mock).mockResolvedValue({ lat: 0, lng: 0 });
