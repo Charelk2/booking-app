@@ -147,7 +147,7 @@ export default function MessageThreadWrapper({
             )
           ) : bookingRequest.artist_profile?.profile_picture_url ? (
             <Link
-              href={`/artists/${bookingRequest.artist?.id}`}
+              href={`/service-providers/${bookingRequest.artist?.id}`}
               aria-label="Artist profile"
               className="flex-shrink-0"
             >

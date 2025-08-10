@@ -104,7 +104,7 @@ export default function ArtistsSection({
                 ratingCount={a.rating_count ?? undefined}
                 location={a.location}
                 categories={a.service_categories}
-                href={`/artists/${a.id}`}
+                href={`/service-providers/${a.id}`}
               />
             );
           })}

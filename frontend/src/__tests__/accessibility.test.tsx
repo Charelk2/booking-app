@@ -2,7 +2,7 @@ import React from 'react';
 import { act } from 'react-dom/test-utils';
 import { createRoot } from 'react-dom/client';
 import { axe, toHaveNoViolations } from 'jest-axe';
-import ArtistsPage from '../app/artists/page';
+import ArtistsPage from '../app/service-providers/page';
 import BookingWizard from '../components/booking/BookingWizard';
 import { BookingProvider } from '../contexts/BookingContext';
 import * as api from '../lib/api';

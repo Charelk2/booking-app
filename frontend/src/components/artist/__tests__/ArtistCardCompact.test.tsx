@@ -10,7 +10,7 @@ function setup(props = {}) {
   const allProps = {
     artistId: 1,
     name: 'Test',
-    href: '/artists/1',
+    href: '/service-providers/1',
     ...props,
   };
   return { container, root, allProps };

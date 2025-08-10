@@ -34,7 +34,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Fixed an initial load bug where a selected date sent an invalid `when` value and caused a 422 error.
 - Dashboard now casts `user.id` to a number when fetching services to avoid 422 errors if the ID is stored as a string.
 - Search categories now map each service category to its corresponding service type (for example, **Musician / Band** maps to `Live Performance`) so searching by category shows available artists.
-- Visiting `/category/dj` (or the legacy `/artists/category/dj`) normalizes the category path so listings only show matching services.
+- Visiting `/category/dj` (or the legacy `/service-providers/category/dj`) normalizes the category path so listings only show matching services.
 - The artist search endpoint now ignores unrecognised `category` values (for example, `category=Musician` or `category=DJ`) and returns all artists instead of a 422 error.
 - Category popup now includes an artist name search input for quick navigation to
   individual profiles.
@@ -136,7 +136,7 @@ For a map of all booking agents, see [AGENTS.md](AGENTS.md).
 
 ### Home Page Carousels
 
-The homepage now showcases musicians in horizontally scrollable carousels. Sections such as **Popular**, **Top Rated**, **New on Booka**, and **Recently Booked** let visitors swipe or drag to browse profiles. Each musician card links to `/artists/[id]`.
+The homepage now showcases musicians in horizontally scrollable carousels. Sections such as **Popular**, **Top Rated**, **New on Booka**, and **Recently Booked** let visitors swipe or drag to browse profiles. Each musician card links to `/service-providers/[id]`.
 
 This discovery feed is experimental and may evolve in future updates.
 
@@ -1149,7 +1149,7 @@ header collapses to a single segment that expands inline to show **Category**,
 on the right in a pink pill. Clicking any part opens all fields together in one
 popover, which floats above the header and closes on ESC or outside clicks. The
 bar now sits directly beneath the global navigation whenever you visit
-`/artists`, providing a consistent header across the site. A
+`/service-providers`, providing a consistent header across the site. A
 `useMediaQuery('(min-width:768px)')` hook picks between this inline bar and the
 mobile `SearchModal`. On mobile a compact summary displays the selected values;
 tapping it opens the modal prefilled with those values. A **Filters** button
@@ -1159,7 +1159,7 @@ rests on a soft gradient background from the brand color to white. When no
 results match the current filters the page shows "No artists found" beneath the
 header. Filter selections persist in the URL so sharing or reloading the page
 keeps the current view, e.g.
-`/artists?category=Live+Performance&location=NY&minPrice=0&maxPrice=200000`.
+`/service-providers?category=Live+Performance&location=NY&minPrice=0&maxPrice=200000`.
 
 ### Mobile Navigation & Inbox
 

@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import ArtistsPage from '../artists/page';
+import ArtistsPage from '../service-providers/page';
 import { getArtists } from '@/lib/api';
 import { useSearchParams, usePathname } from '@/tests/mocks/next-navigation';
 import { useAuth } from '@/contexts/AuthContext';
