@@ -611,22 +611,33 @@ def read_all_artist_profiles(
         profiles = [p for p in profiles if p.is_available]
         total_count = len(profiles)
 
-    # When browsing the DJ category, exclude legacy artist records where
-    # the business name matches the user's first and last name. These
-    # entries stem from older imports and represent musicians rather than
-    # actual DJ businesses.
+    # When browsing the DJ category, filter out placeholder legacy records
+    # that were imported from older systems. These entries usually have a
+    # business name that exactly matches the user's full name and lack any
+    # profile details such as a description or profile picture. Legitimate
+    # DJs often brand themselves with their given names, so we only exclude
+    # profiles that *also* have no substantive content.
     if category_slug == "dj":
 
-        def _is_legacy(p: ArtistProfileResponse) -> bool:
+        def _is_placeholder(p: ArtistProfileResponse) -> bool:
             full_name = (
                 (f"{p.user.first_name} {p.user.last_name}" if p.user else "")
                 .strip()
                 .lower()
             )
             business = (p.business_name or "").strip().lower()
-            return business == full_name or business == ""
+            matches_name = business == full_name or business == ""
+            has_profile = any(
+                [
+                    p.profile_picture_url,
+                    p.description,
+                    p.portfolio_image_urls,
+                    p.custom_subtitle,
+                ]
+            )
+            return matches_name and not has_profile
 
-        profiles = [p for p in profiles if not _is_legacy(p)]
+        profiles = [p for p in profiles if not _is_placeholder(p)]
         total_count = len(profiles)
 
     if not include_price_distribution and when is None:

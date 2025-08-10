@@ -207,7 +207,8 @@ def test_dj_category_filters_legacy_artists(monkeypatch):
     )
     dj_profile = ArtistProfileV2(
         user_id=2,
-        business_name="Beats Inc",
+        business_name="Thabo Mix",
+        profile_picture_url="http://example.com/pic.jpg",
     )
     dj_service = Service(
         artist_id=2,
@@ -238,5 +239,5 @@ def test_dj_category_filters_legacy_artists(monkeypatch):
     assert res.status_code == 200
     body = res.json()
     assert body["total"] == 1
-    assert body["data"][0]["business_name"] == "Beats Inc"
+    assert body["data"][0]["business_name"] == "Thabo Mix"
     app.dependency_overrides.pop(get_db, None)
