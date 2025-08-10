@@ -15,6 +15,7 @@ from ..models.service_category import ServiceCategory
 from ..schemas.service import ServiceCreate, ServiceUpdate, ServiceResponse
 from .dependencies import get_current_active_artist
 from ..utils import error_response
+from ..utils.redis_cache import invalidate_artist_list_cache
 
 router = APIRouter(
     # Note: NO prefix here, because main.py already does `prefix="/api/v1/services"`
@@ -92,6 +93,7 @@ def create_service(
     db.add(new_service)
     db.commit()
     db.refresh(new_service)
+    invalidate_artist_list_cache()
     return new_service
 
 
@@ -155,6 +157,7 @@ def update_service(
     db.add(service)
     db.commit()
     db.refresh(service)
+    invalidate_artist_list_cache()
     return service
 
 
@@ -231,4 +234,5 @@ def delete_service(
 
     db.delete(service)
     db.commit()
+    invalidate_artist_list_cache()
     return None

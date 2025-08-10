@@ -48,9 +48,21 @@ def test_cache_artist_list_page_specific(monkeypatch):
     )
 
 
+def test_invalidate_artist_list_cache(monkeypatch):
+    fake = fakeredis.FakeStrictRedis()
+    monkeypatch.setattr(redis_cache, "get_redis_client", lambda: fake)
+
+    data = [{"id": 3, "business_name": "X"}]
+    redis_cache.cache_artist_list(data, page=1)
+    assert redis_cache.get_cached_artist_list(page=1) == data
+    redis_cache.invalidate_artist_list_cache()
+    assert redis_cache.get_cached_artist_list(page=1) is None
+
+
 from types import SimpleNamespace
 from datetime import datetime
 from app.api.v1 import api_artist
+from app.models.service import Service, ServiceType
 
 class DummyDB:
     def __init__(self, data):
@@ -133,8 +145,17 @@ def test_read_all_artist_profiles_uses_cache(monkeypatch):
 
     user = User(email="a@test.com", password="x", first_name="A", last_name="B", user_type=UserType.SERVICE_PROVIDER)
     profile = ArtistProfileV2(user_id=1, business_name="Test")
-    db.add(user)
-    db.add(profile)
+    service = Service(
+        artist_id=1,
+        title="Gig",
+        description="",
+        media_url="http://example.com",
+        price=100,
+        currency="ZAR",
+        duration_minutes=60,
+        service_type=ServiceType.LIVE_PERFORMANCE,
+    )
+    db.add_all([user, profile, service])
     db.commit()
 
     first = api_artist.read_all_artist_profiles(
@@ -177,8 +198,17 @@ def test_fallback_when_redis_unavailable(monkeypatch):
 
     user = User(email="b@test.com", password="x", first_name="B", last_name="C", user_type=UserType.SERVICE_PROVIDER)
     profile = ArtistProfileV2(user_id=1, business_name="Test2")
-    db.add(user)
-    db.add(profile)
+    service = Service(
+        artist_id=1,
+        title="Set",
+        description="",
+        media_url="http://example.com",
+        price=200,
+        currency="ZAR",
+        duration_minutes=45,
+        service_type=ServiceType.LIVE_PERFORMANCE,
+    )
+    db.add_all([user, profile, service])
     db.commit()
 
     result = api_artist.read_all_artist_profiles(
