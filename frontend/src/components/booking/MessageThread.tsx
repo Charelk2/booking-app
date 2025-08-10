@@ -115,7 +115,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       onMessageSent,
       onQuoteSent,
       serviceId,
-      artistName = 'Artist',
+      artistName = 'Service Provider',
       clientName = 'Client',
       clientAvatarUrl = null,
       clientId: propClientId,
@@ -755,7 +755,7 @@ useEffect(() => {
                           ? (
                               <Image
                                 src={getFullImageUrl(artistAvatarUrl) as string}
-                                alt="Artist avatar"
+                                alt="Service Provider avatar"
                                 width={20}
                                 height={20}
                                 className="h-5 w-5 rounded-full object-cover mr-2"

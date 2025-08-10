@@ -13,7 +13,7 @@ function renderTimeline(status: string) {
 }
 
 describe('BookingTimeline component', () => {
-  it('highlights Artist Reviewing for pending_quote', () => {
+  it('highlights Service Provider Reviewing for pending_quote', () => {
     const { div, root } = renderTimeline('pending_quote');
     const items = div.querySelectorAll('[role="listitem"]');
     expect(items).toHaveLength(4);

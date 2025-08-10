@@ -131,7 +131,7 @@ const InlineQuoteForm: React.FC<Props> = ({
             <h3 className="text-sm font-semibold text-gray-900">Estimated Cost</h3>
             <div className="space-y-1 text-gray-700">
               <div className="flex justify-between items-center py-1">
-                <span className="font-medium">Artist Base Fee</span>
+                <span className="font-medium">Service Provider Base Fee</span>
                 <input
                   ref={firstFieldRef}
                   type="number"

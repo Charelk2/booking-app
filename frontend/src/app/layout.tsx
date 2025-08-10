@@ -12,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: 'Artist Booking App',
+  title: 'Service Provider Booking App',
   description: 'Book your favorite artists for services',
 };
 

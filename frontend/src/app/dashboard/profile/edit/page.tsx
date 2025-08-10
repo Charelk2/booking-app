@@ -507,7 +507,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
     <MainLayout>
       <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 bg-white shadow-lg rounded-lg my-10">
         <h1 className="text-2xl sm:text-3xl font-semibold text-gray-800 mb-8 border-b pb-4">
-          Edit Your Artist Profile
+          Edit Your Service Provider Profile
         </h1>
 
         {error && <p className="mb-4 text-sm text-red-600 bg-red-100 p-3 rounded-md">{error}</p>}

@@ -125,7 +125,7 @@ export default function ReviewStep({
         <h5 className="font-bold text-lg mb-3 text-gray-800">Estimated Cost</h5>
         <div className="space-y-2 text-gray-700">
           <div className="flex justify-between items-center">
-            <span>Artist Base Fee</span>
+            <span>Service Provider Base Fee</span>
             <span>{formatCurrency(baseServicePrice)}</span>
           </div>
           <div className="flex justify-between items-center">
