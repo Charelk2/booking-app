@@ -615,20 +615,10 @@ def read_all_artist_profiles(
         profiles = [p for p in profiles if p.is_available]
         total_count = len(profiles)
 
-    # When browsing the DJ category, exclude legacy artist records where
-    # the business name matches the user's first and last name. These
-    # entries stem from older imports and represent musicians rather than
-    # actual DJ businesses.
-    if category_slug == "dj":
-        def _is_legacy(p: ArtistProfileResponse) -> bool:
-            full_name = (
-                f"{p.user.first_name} {p.user.last_name}" if p.user else ""
-            ).strip().lower()
-            business = (p.business_name or "").strip().lower()
-            return business == full_name or business == ""
-
-        profiles = [p for p in profiles if not _is_legacy(p)]
-        total_count = len(profiles)
+    # Previously, legacy DJ records with a business name matching the user's
+    # full name were filtered out. This excluded legitimate providers who had
+    # not set a distinct business name. All providers with a DJ service should
+    # now be visible, so no additional filtering is applied here.
 
     if not include_price_distribution and when is None:
         cache_artist_list(
