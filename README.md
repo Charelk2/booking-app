@@ -39,7 +39,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - Category popup now includes an provider name search input for quick navigation to
   individual profiles.
 - An unobtrusive marketing strip replaces the old Hero section.
-- The homepage now highlights popular, top rated, and new artists using a compact card grid similar to Airbnb.
+- The homepage now highlights popular, top rated, and new artists in horizontally scrollable carousels.
 - The "Services Near You" category carousel adds previous/next buttons so desktop users can page through service types.
 - Service categories are assigned when adding services; service providers no longer choose a category during onboarding. The `/api/v1/service-categories` endpoint lists the seeded categories.
 - Newly registered service providers start with no default category, ensuring they aren't automatically labeled (e.g., as photographers) until they add a service.
