@@ -1,5 +1,7 @@
-from pydantic import BaseModel
 from typing import Optional, Dict, Any
+
+from pydantic import BaseModel
+
 from ..models.service import ServiceType
 from .artist import ArtistProfileNested
 from decimal import Decimal
@@ -21,6 +23,10 @@ class ServiceBase(BaseModel):
     car_rental_price: Optional[Decimal] = None
     flight_price: Optional[Decimal] = None
     service_category_id: Optional[int] = None
+    # Allow the client to send a category slug like "dj". The API will
+    # resolve this slug to a ``service_category_id`` to decouple the
+    # frontend from database-specific IDs.
+    service_category_slug: Optional[str] = None
     details: Optional[Dict[str, Any]] = None
 
 

@@ -46,8 +46,28 @@ def create_service(
     Full path → POST /api/v1/services/
     """
     service_data = service_in.model_dump()
-    # Validate that the referenced service category exists
-    category_id = service_data.get("service_category_id")
+
+    # Resolve category by ID or slug if provided. This lets the frontend send a
+    # stable slug (e.g., "dj") instead of relying on database IDs, which can
+    # vary across deployments.
+    category_id = service_data.pop("service_category_id", None)
+    category_slug = service_data.pop("service_category_slug", None)
+
+    if category_slug is not None:
+        normalized = category_slug.replace("_", " ").lower()
+        category = (
+            db.query(ServiceCategory)
+            .filter(func.lower(ServiceCategory.name) == normalized)
+            .first()
+        )
+        if not category:
+            raise error_response(
+                "Invalid service category.",
+                {"service_category_slug": "invalid"},
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        category_id = category.id
+
     if (
         category_id is not None
         and not db.query(ServiceCategory).filter(ServiceCategory.id == category_id).first()
@@ -57,6 +77,9 @@ def create_service(
             {"service_category_id": "invalid"},
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
+
+    if category_id is not None:
+        service_data["service_category_id"] = category_id
     max_order = (
         db.query(func.max(Service.display_order))
         .filter(Service.artist_id == current_artist.id)
@@ -97,17 +120,35 @@ def update_service(
         )
 
     update_data = service_in.model_dump(exclude_unset=True)
-    if "service_category_id" in update_data:
-        category_id = update_data["service_category_id"]
-        if (
-            category_id is not None
-            and not db.query(ServiceCategory).filter(ServiceCategory.id == category_id).first()
-        ):
+    category_id = update_data.pop("service_category_id", None)
+    category_slug = update_data.pop("service_category_slug", None)
+
+    if category_slug is not None:
+        normalized = category_slug.replace("_", " ").lower()
+        category = (
+            db.query(ServiceCategory)
+            .filter(func.lower(ServiceCategory.name) == normalized)
+            .first()
+        )
+        if not category:
             raise error_response(
                 "Invalid service category.",
-                {"service_category_id": "invalid"},
+                {"service_category_slug": "invalid"},
                 status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
+        category_id = category.id
+
+    if (
+        category_id is not None
+        and not db.query(ServiceCategory).filter(ServiceCategory.id == category_id).first()
+    ):
+        raise error_response(
+            "Invalid service category.",
+            {"service_category_id": "invalid"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    if category_id is not None:
+        update_data["service_category_id"] = category_id
     for field, value in update_data.items():
         setattr(service, field, value)
 

@@ -71,6 +71,10 @@ export interface Service {
     | "Custom Song"
     | "Other";
   duration_minutes: number;
+  // Optional linkage to a predefined category. The slug is used when creating
+  // services so the frontend does not depend on database-specific IDs.
+  service_category_id?: number;
+  service_category_slug?: string;
   travel_rate?: number;
   travel_members?: number;
   car_rental_price?: number;
