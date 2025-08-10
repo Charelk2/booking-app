@@ -46,6 +46,17 @@ def test_artist_profiles_endpoint_returns_paginated(monkeypatch):
         user_type=UserType.SERVICE_PROVIDER,
     )
     profile = ArtistProfileV2(user_id=1, business_name="Test Artist")
+    service = Service(
+        artist_id=1,
+        title="My Service",
+        description="",
+        media_url="http://example.com",
+        price=100,
+        currency="ZAR",
+        duration_minutes=60,
+        service_type=ServiceType.LIVE_PERFORMANCE,
+    )
+    profile.services.append(service)
     db.add(user)
     db.add(profile)
     db.commit()
@@ -57,6 +68,27 @@ def test_artist_profiles_endpoint_returns_paginated(monkeypatch):
     assert isinstance(body["data"], list)
     assert body["data"][0]["business_name"] == "Test Artist"
     assert isinstance(body["price_distribution"], list)
+    app.dependency_overrides.pop(get_db, None)
+
+
+def test_artist_profiles_excludes_artists_without_services(monkeypatch):
+    Session = setup_app(monkeypatch)
+    db = Session()
+    user = User(
+        email="noservice@test.com",
+        password="x",
+        first_name="No",
+        last_name="Service",
+        user_type=UserType.SERVICE_PROVIDER,
+    )
+    profile = ArtistProfileV2(user_id=1, business_name="Hidden Artist")
+    db.add_all([user, profile])
+    db.commit()
+    client = TestClient(app)
+    res = client.get("/api/v1/artist-profiles/")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["total"] == 0
     app.dependency_overrides.pop(get_db, None)
 
 
