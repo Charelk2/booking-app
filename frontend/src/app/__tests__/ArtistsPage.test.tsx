@@ -37,7 +37,7 @@ describe('ArtistsPage', () => {
     jest.clearAllMocks();
   });
 
-  it('requests DJs including those without business names', async () => {
+  it('requests and filters DJs', async () => {
     render(<ArtistsPage />);
     await waitFor(() => expect(mockedGetArtists).toHaveBeenCalledTimes(1));
     expect(mockedGetArtists).toHaveBeenCalledWith(
@@ -45,7 +45,7 @@ describe('ArtistsPage', () => {
     );
 
     await screen.findByText('DJ One Biz');
-    await screen.findByText('DJ NoBiz');
+    expect(screen.queryByText('DJ NoBiz')).toBeNull();
   });
 
   it('normalizes UI slug category query param', async () => {
