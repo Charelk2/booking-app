@@ -1,6 +1,8 @@
 import logging
 import httpx
 
+from app.utils.redis_cache import get_cached_weather, cache_weather
+
 logger = logging.getLogger(__name__)
 
 class WeatherAPIError(Exception):
@@ -12,6 +14,10 @@ class LocationNotFoundError(Exception):
 
 def get_3day_forecast(location: str) -> dict:
     """Return a 3-day weather forecast for the given location."""
+    cached = get_cached_weather(location)
+    if cached:
+        return cached
+
     url = f"https://wttr.in/{location}"
     try:
         resp = httpx.get(url, params={"format": "j1"}, timeout=10)
@@ -31,4 +37,6 @@ def get_3day_forecast(location: str) -> dict:
         logger.warning("No forecast data returned for location %s", location)
         raise LocationNotFoundError(location)
 
-    return {"location": location, "forecast": forecast[:3]}
+    result = {"location": location, "forecast": forecast[:3]}
+    cache_weather(result, location)
+    return result

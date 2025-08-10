@@ -2,6 +2,9 @@ import pytest
 import fakeredis
 
 from app.utils import redis_cache
+from app.services import weather_service
+from app.api.v1 import api_service_provider
+from app.api import api_sound_provider
 
 
 def test_cache_artist_list(monkeypatch):
@@ -61,7 +64,6 @@ def test_invalidate_artist_list_cache(monkeypatch):
 
 from types import SimpleNamespace
 from datetime import datetime
-from app.api.v1 import api_service_provider
 from app.models.service import Service, ServiceType
 
 class DummyDB:
@@ -221,3 +223,103 @@ def test_fallback_when_redis_unavailable(monkeypatch):
         include_price_distribution=False,
     )
     assert len(result["data"]) == 1
+
+
+def test_cache_weather_forecast(monkeypatch):
+    fake = fakeredis.FakeStrictRedis()
+    monkeypatch.setattr(redis_cache, "get_redis_client", lambda: fake)
+
+    calls = {"count": 0}
+
+    class DummyResp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"weather": [{"day": 1}, {"day": 2}, {"day": 3}]}
+
+    def fake_get(url, params, timeout):
+        calls["count"] += 1
+        return DummyResp()
+
+    monkeypatch.setattr(weather_service.httpx, "get", fake_get)
+
+    first = weather_service.get_3day_forecast("Paris")
+    second = weather_service.get_3day_forecast("Paris")
+    assert calls["count"] == 1
+    assert first == second
+
+
+def test_cache_artist_availability(monkeypatch):
+    fake = fakeredis.FakeStrictRedis()
+    monkeypatch.setattr(redis_cache, "get_redis_client", lambda: fake)
+    monkeypatch.setattr(api_service_provider.calendar_service, "fetch_events", lambda *a, **k: [])
+
+    class DummyQuery:
+        def filter(self, *args, **kwargs):
+            return self
+
+        def all(self):
+            return []
+
+    class DummyDB:
+        def __init__(self):
+            self.called = 0
+
+        def query(self, *args, **kwargs):
+            self.called += 1
+            return DummyQuery()
+
+    db = DummyDB()
+    first = api_service_provider.read_artist_availability(1, db=db)
+    assert db.called >= 2
+
+    def fail_query(*args, **kwargs):
+        raise AssertionError("db should not be accessed")
+
+    db_fail = DummyDB()
+    db_fail.query = fail_query
+    second = api_service_provider.read_artist_availability(1, db=db_fail)
+    assert first == second
+
+
+def test_cache_provider_list(monkeypatch):
+    fake = fakeredis.FakeStrictRedis()
+    monkeypatch.setattr(redis_cache, "get_redis_client", lambda: fake)
+
+    providers = [SimpleNamespace(id=1, name="P1"), SimpleNamespace(id=2, name="P2")]
+
+    class PDB:
+        def __init__(self, data):
+            self.data = data
+
+        def query(self, model):
+            class Q:
+                def __init__(self, data):
+                    self.data = data
+
+                def offset(self, skip):
+                    return self
+
+                def limit(self, limit):
+                    return self
+
+                def all(self):
+                    return self.data
+
+            return Q(self.data)
+
+    db = PDB(providers)
+    first = api_sound_provider.list_providers(db=db)
+    expected = [
+        {"id": p.id, "name": p.name} if not isinstance(p, dict) else p
+        for p in first
+    ]
+
+    def fail_query(model):
+        raise AssertionError("db should not be accessed")
+
+    db_fail = PDB(providers)
+    db_fail.query = fail_query
+    second = api_sound_provider.list_providers(db=db_fail)
+    assert second == expected
