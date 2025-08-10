@@ -57,7 +57,8 @@ ensures that irrelevant artists are not shown when a category has no services.
 Additionally, when a valid `category` is supplied, only artists with at least
 one service in that category are returned so legacy providers without
 category-specific offerings are excluded. When the category is `DJ`, the API
-also filters out legacy artist records whose business name matches the user's
-first and last name so that only bona fide DJ businesses appear in search
-results.
+filters out placeholder records whose business name matches the user's full
+name *and* lack any profile details (e.g., description or profile picture).
+This keeps legacy imports from appearing while allowing real DJs who perform
+under their own names to show up in search results.
 
