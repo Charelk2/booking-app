@@ -165,8 +165,8 @@ def test_category_excludes_artists_without_services(monkeypatch):
     app.dependency_overrides.pop(get_db, None)
 
 
-def test_dj_category_filters_legacy_artists(monkeypatch):
-    """Profiles with a business name matching the user's full name are excluded."""
+def test_dj_category_includes_legacy_artists(monkeypatch):
+    """Profiles with a business name matching the user's full name should appear."""
     Session = setup_app(monkeypatch)
     db = Session()
 
@@ -236,6 +236,8 @@ def test_dj_category_filters_legacy_artists(monkeypatch):
     res = client.get("/api/v1/artist-profiles/?category=DJ")
     assert res.status_code == 200
     body = res.json()
-    assert body["total"] == 1
-    assert body["data"][0]["business_name"] == "Beats Inc"
+    assert body["total"] == 2
+    names = {item["business_name"] for item in body["data"]}
+    assert "Beats Inc" in names
+    assert "Legacy Artist" in names
     app.dependency_overrides.pop(get_db, None)
