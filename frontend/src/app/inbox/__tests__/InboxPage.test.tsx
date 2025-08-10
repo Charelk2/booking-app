@@ -64,7 +64,7 @@ describe('InboxPage', () => {
       root.render(<InboxPage />);
     });
     await act(async () => {});
-    expect(container.textContent).toContain('Artist');
+    expect(container.textContent).toContain('Service Provider');
     expect(api.getMyBookingRequests).toHaveBeenCalledTimes(1);
     expect(api.getBookingRequestsForArtist).not.toHaveBeenCalled();
     act(() => root.unmount());

@@ -148,12 +148,12 @@ export default function MessageThreadWrapper({
           ) : bookingRequest.artist_profile?.profile_picture_url ? (
             <Link
               href={`/service-providers/${bookingRequest.artist?.id}`}
-              aria-label="Artist profile"
+              aria-label="Service Provider profile"
               className="flex-shrink-0"
             >
               <Image
                 src={getFullImageUrl(bookingRequest.artist_profile.profile_picture_url) as string}
-                alt="Artist avatar"
+                alt="Service Provider avatar"
                 width={40}
                 height={40}
                 loading="lazy"
@@ -235,7 +235,7 @@ export default function MessageThreadWrapper({
       {/* Alert Banners */}
       {bookingConfirmed && confirmedBookingDetails && (
         <AlertBanner variant="success" className="mx-4 mt-4 rounded-lg z-10">
-          🎉 Booking confirmed for {bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'Artist'}! {confirmedBookingDetails.service?.title} on {new Date(confirmedBookingDetails.start_time).toLocaleString()}. {formatDepositReminder(confirmedBookingDetails.deposit_amount ?? 0, confirmedBookingDetails.deposit_due_by ?? undefined)}.
+          🎉 Booking confirmed for {bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'Service Provider'}! {confirmedBookingDetails.service?.title} on {new Date(confirmedBookingDetails.start_time).toLocaleString()}. {formatDepositReminder(confirmedBookingDetails.deposit_amount ?? 0, confirmedBookingDetails.deposit_due_by ?? undefined)}.
           <div className="flex flex-wrap gap-3 mt-2">
             <Link href={`/dashboard/client/bookings/${confirmedBookingDetails.id}`} className="inline-block text-indigo-600 hover:underline text-sm font-medium">
               View booking

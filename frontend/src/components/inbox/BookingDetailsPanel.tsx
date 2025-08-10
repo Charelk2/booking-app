@@ -55,7 +55,7 @@ export default function BookingDetailsPanel({
       <h4 className="mb-2 text-sm font-semibold">Booking Details</h4>
       <ul className="flex-1 overflow-y-auto space-y-1">
         <li>
-          <span className="font-medium">{isUserArtist ? 'Client' : 'Artist'}:</span>{' '}
+          <span className="font-medium">{isUserArtist ? 'Client' : 'Service Provider'}:</span>{' '}
           {isUserArtist
             ? bookingRequest.client
               ? `${bookingRequest.client.first_name} ${bookingRequest.client.last_name}`

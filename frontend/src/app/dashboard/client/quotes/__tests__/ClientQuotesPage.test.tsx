@@ -41,7 +41,7 @@ describe('ClientQuotesPage', () => {
     expect(getMyClientQuotes).toHaveBeenCalled();
     expect(div.textContent).toContain('My Quotes');
     expect(div.textContent).toContain('Pending Client Action');
-    expect(div.textContent).toContain('Confirmed by Artist');
+    expect(div.textContent).toContain('Confirmed by Service Provider');
 
     act(() => {
       root.unmount();

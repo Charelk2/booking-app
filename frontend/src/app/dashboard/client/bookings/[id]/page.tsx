@@ -98,7 +98,7 @@ export default function BookingDetailsPage() {
           className="text-brand-dark underline text-sm"
           data-testid="view-artist-link"
         >
-          View Artist
+          View Service Provider
         </Link>
         {booking.deposit_amount !== undefined && (
           <p className="text-sm text-gray-700">
@@ -159,7 +159,7 @@ export default function BookingDetailsPage() {
             className="text-brand-dark underline text-sm"
             data-testid="message-artist-link"
           >
-            Message Artist
+            Message Service Provider
           </Link>
         )}
           <Link

@@ -168,7 +168,7 @@ export function BookingRequestCard({ req }: BookingRequestCardProps) {
     :
       req.artist_profile?.business_name ||
       req.artist?.first_name ||
-      "Unknown Artist";
+      "Unknown Service Provider";
   const ServiceIcon =
     req.service?.title === "Live Musiek" ? MicrophoneIcon : MusicalNoteIcon;
   const formattedDate = format(new Date(req.created_at), "dd MMM yyyy");

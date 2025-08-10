@@ -32,13 +32,13 @@ export default function ConversationList({
           }
           const artistProfile = req.artist_profile;
           const artist = req.artist;
-          if (!artistProfile && !artist) return 'Artist';
+          if (!artistProfile && !artist) return 'Service Provider';
           return (
             artistProfile?.business_name ||
             artist?.business_name ||
             artist?.user?.first_name ||
             artist?.first_name ||
-            'Artist'
+            'Service Provider'
           );
         })();
 
@@ -51,7 +51,10 @@ export default function ConversationList({
           req.last_message_timestamp || req.updated_at || req.created_at;
 
         const previewMessage = (() => {
-          if (req.last_message_content === 'Artist sent a quote') {
+          if (
+            req.last_message_content === 'Artist sent a quote' ||
+            req.last_message_content === 'Service Provider sent a quote'
+          ) {
             return currentUser.user_type === 'service_provider'
               ? 'You sent a quote'
               : `${otherName} sent a quote`;

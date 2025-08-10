@@ -8,7 +8,7 @@ export interface BookingTimelineProps {
 
 const steps = [
   'Request Submitted',
-  'Artist Reviewing',
+  'Service Provider Reviewing',
   'Quote Sent',
   'Quote Accepted/Rejected',
 ];

@@ -208,7 +208,7 @@ export default function SearchBar({
           showInternalPopup ? "shadow-xl" : "shadow-md hover:shadow-lg",
         )}
         role="search"
-        aria-label="Artist booking search"
+        aria-label="Service Provider booking search"
       >
         <SearchFields
           category={category}
