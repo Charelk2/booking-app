@@ -19,6 +19,7 @@ from ..utils.notifications import (
     notify_user_new_message,
 )
 from ..utils import error_response
+from ..utils.redis_cache import invalidate_availability_cache
 import os
 import uuid
 import shutil
@@ -182,6 +183,7 @@ def create_booking_request(
         visible_to=models.VisibleTo.ARTIST,
         action=models.MessageAction.REVIEW_QUOTE,
     )
+    invalidate_availability_cache(new_request.artist_id)
     return new_request
 
 
@@ -413,6 +415,7 @@ def update_booking_request_by_client(
     updated = crud.crud_booking_request.update_booking_request(
         db=db, db_booking_request=db_request, request_update=request_update
     )
+    invalidate_availability_cache(db_request.artist_id)
 
     if request_update.status and request_update.status != prev_status:
         artist_user = (
@@ -510,6 +513,7 @@ def update_booking_request_by_artist(
     updated = crud.crud_booking_request.update_booking_request(
         db=db, db_booking_request=db_request, request_update=request_update
     )
+    invalidate_availability_cache(db_request.artist_id)
 
     if request_update.status and request_update.status != prev_status:
         client_user = (
