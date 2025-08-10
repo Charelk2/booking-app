@@ -22,7 +22,7 @@ All service categories share the BaseServiceWizard for a consistent layout and n
 Each category has a canonical numeric ID defined in `frontend/src/lib/categoryMap.ts`,
 ensuring services map to the correct providers regardless of display order.
 
-Each category adds its own fields; for example, a **Musician** selects a service type such as Live Performance and sets pricing, while a **Photographer** captures camera details and pricing. All wizards submit to the existing `/api/v1/services/` endpoint. Media files are read client-side and sent as base64 strings in the `media_url` field.
+Each category adds its own fields; for example, a **Musician** selects a service type such as Live Performance and sets pricing, while a **Photographer** captures camera details and pricing. All wizards submit to the existing `/api/v1/services/` endpoint. Media files are read client-side and sent as base64 strings in the `media_url` field. When a provider chooses a line of work, the wizard maps the selected slug to the canonical `service_category_id` so the API links the new service to the correct backend category.
 
 The newly added **DJ** wizard records a preferred genre, while the **Event Service** wizard captures a description of the offering. Both reuse the BaseServiceWizard to provide the same navigation and media upload experience as other categories.
 
