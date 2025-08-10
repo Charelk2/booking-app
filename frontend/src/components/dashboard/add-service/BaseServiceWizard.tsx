@@ -16,6 +16,7 @@ import {
   createService as apiCreateService,
   updateService as apiUpdateService,
 } from "@/lib/api";
+import { UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 import type { Service } from "@/types";
 
 function useImageThumbnails(files: File[]) {
@@ -181,7 +182,7 @@ export default function BaseServiceWizard<T extends FieldValues>({
       }
       const payload: Partial<Service> = toPayload(data, mediaUrl);
       if (serviceCategorySlug !== undefined) {
-        payload.service_category_slug = serviceCategorySlug;
+        payload.service_category_id = UI_CATEGORY_TO_ID[serviceCategorySlug];
       }
       const res = service
         ? await apiUpdateService(service.id, payload)
