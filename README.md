@@ -42,7 +42,6 @@ The July 2025 update bumps key dependencies and Docker base images:
 - An unobtrusive marketing strip replaces the old Hero section.
 - The homepage now highlights popular, top rated, and new artists using a compact card grid similar to Airbnb.
 - The "Services Near You" category carousel adds previous/next buttons so desktop users can page through service types.
-- Selecting a category now routes back to the homepage with the category filter applied so matching service providers appear immediately.
 - Service categories are assigned when adding services; service providers no longer choose a category during onboarding. The `/api/v1/service-categories` endpoint lists the seeded categories.
 - Seeded categories include Musician, DJ, Photographer, Videographer, Speaker, Event Service, Wedding Venue, Caterer, Bartender, and MC & Host.
 - Services may optionally include a `service_category_id` and JSON `details` object for category-specific attributes, enabling tailored service data.
