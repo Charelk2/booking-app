@@ -38,6 +38,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - The artist search endpoint now ignores unrecognised `category` values (for example, `category=Musician` or `category=DJ`) and returns all artists instead of a 422 error.
 - Category popup now includes an provider name search input for quick navigation to
   individual profiles.
+- Chat now provides optimistic send with status indicators, long message and provider lists are virtualized for smoother scrolling, and booking form validation/autosave are debounced and throttled for better responsiveness.
 - An unobtrusive marketing strip replaces the old Hero section.
 - The homepage now highlights popular, top rated, and new artists in horizontally scrollable carousels.
 - The "Services Near You" category carousel adds previous/next buttons so desktop users can page through service types.

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { formatRelative } from 'date-fns';
 import { BookingRequest, User } from '@/types';
 import { getFullImageUrl } from '@/lib/utils'; // Import getFullImageUrl
+import { FixedSizeList as List, type ListChildComponentProps } from 'react-window';
 
 interface ConversationListProps {
   bookingRequests: BookingRequest[];
@@ -22,9 +23,17 @@ export default function ConversationList({
   if (!currentUser) {
     return null;
   }
+  const ROW_HEIGHT = 72;
   return (
-    <div className="divide-y-2 divide-gray-100">
-      {bookingRequests.map((req) => {
+    <List
+      height={Math.min(ROW_HEIGHT * bookingRequests.length, ROW_HEIGHT * 10)}
+      itemCount={bookingRequests.length}
+      itemSize={ROW_HEIGHT}
+      width="100%"
+      className="divide-y-2 divide-gray-100"
+    >
+      {({ index, style }: ListChildComponentProps) => {
+        const req = bookingRequests[index];
         const isActive = selectedRequestId === req.id;
         const otherName = (() => {
           if (currentUser.user_type === 'service_provider') {
@@ -69,6 +78,7 @@ export default function ConversationList({
 
         return (
           <div
+            style={style}
             key={req.id}
             role="button"
             tabIndex={0}
@@ -135,7 +145,7 @@ export default function ConversationList({
             )}
           </div>
         );
-      })}
-    </div>
+      }}
+    </List>
   );
 }
