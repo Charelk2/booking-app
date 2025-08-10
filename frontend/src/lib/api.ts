@@ -154,13 +154,13 @@ export interface PriceBucket {
   count: number;
 }
 
-export interface GetArtistsResponse {
+export interface GetServiceProvidersResponse {
   data: ServiceProviderProfile[];
   total: number;
   price_distribution: PriceBucket[];
 }
 
-export const getArtists = async (params?: {
+export const getServiceProviders = async (params?: {
   category?: string;
   location?: string;
   when?: string | Date;
@@ -171,7 +171,7 @@ export const getArtists = async (params?: {
   limit?: number;
   artist?: string;
   includePriceDistribution?: boolean;
-}): Promise<GetArtistsResponse> => {
+}): Promise<GetServiceProvidersResponse> => {
   const { includePriceDistribution, ...rest } = params || {};
   const query = { ...rest } as Record<string, unknown>;
   if (query.when instanceof Date) {
@@ -181,7 +181,7 @@ export const getArtists = async (params?: {
     query.include_price_distribution = true;
   }
 
-  const res = await api.get<GetArtistsResponse>(`${API_V1}/service-provider-profiles/`, {
+  const res = await api.get<GetServiceProvidersResponse>(`${API_V1}/service-provider-profiles/`, {
     params: query,
   });
   return {
@@ -190,13 +190,13 @@ export const getArtists = async (params?: {
   };
 };
 
-export const getArtist = async (userId: number) => {
+export const getServiceProvider = async (userId: number) => {
   const res = await api.get<ServiceProviderProfile>(`${API_V1}/service-provider-profiles/${userId}`);
   return { ...res, data: normalizeServiceProviderProfile(res.data) };
 };
 
-export const getArtistAvailability = (artistId: number) =>
-  api.get<{ unavailable_dates: string[] }>(`${API_V1}/service-provider-profiles/${artistId}/availability`);
+export const getServiceProviderAvailability = (serviceProviderId: number) =>
+  api.get<{ unavailable_dates: string[] }>(`${API_V1}/service-provider-profiles/${serviceProviderId}/availability`);
 
 export const getServiceProviderProfileMe = async () => {
   const res = await api.get<ServiceProviderProfile>(`${API_V1}/service-provider-profiles/me`);
@@ -216,7 +216,7 @@ export const uploadMyServiceProviderProfilePicture = (file: File) => {
   );
 };
 
-export const uploadMyArtistCoverPhoto = (file: File) => {
+export const uploadMyServiceProviderCoverPhoto = (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
   return api.post<ServiceProviderProfile>(
@@ -234,7 +234,7 @@ export const uploadMyProfilePicture = (file: File) => {
   });
 };
 
-export const uploadMyArtistPortfolioImages = (files: File[]) => {
+export const uploadMyServiceProviderPortfolioImages = (files: File[]) => {
   const formData = new FormData();
   files.forEach((f) => formData.append('files', f));
   return api.post<ServiceProviderProfile>(
@@ -244,16 +244,16 @@ export const uploadMyArtistPortfolioImages = (files: File[]) => {
   );
 };
 
-export const updateMyArtistPortfolioImageOrder = (urls: string[]) =>
+export const updateMyServiceProviderPortfolioImageOrder = (urls: string[]) =>
   api.put<ServiceProviderProfile>(`${API_V1}/service-provider-profiles/me/portfolio-images`, {
     portfolio_image_urls: urls,
   });
 
 // ─── SERVICES ──────────────────────────────────────────────────────────────────
 
-// “services by artist” is GET /api/v1/services/artist/{artist_user_id}
-export const getArtistServices = (artistUserId: number | string) => {
-  const id = Number(artistUserId);
+// “services by service provider” is GET /api/v1/services/artist/{artist_user_id}
+export const getServiceProviderServices = (serviceProviderUserId: number | string) => {
+  const id = Number(serviceProviderUserId);
   return api.get<Service[]>(`${API_V1}/services/artist/${id}`);
 };
 
@@ -326,10 +326,10 @@ export const getReview = (bookingId: number) =>
 export const getServiceReviews = (serviceId: number) =>
   api.get<Review[]>(`${API_V1}/services/${serviceId}/reviews`);
 
-// list reviews for an artist: GET /api/v1/reviews/artist-profiles/{artist_id}/reviews
-export const getArtistReviews = (artistUserId: number) =>
+// list reviews for a service provider: GET /api/v1/reviews/service-provider-profiles/{service_provider_id}/reviews
+export const getServiceProviderReviews = (serviceProviderUserId: number) =>
   api.get<Review[]>(
-    `${API_V1}/reviews/artist-profiles/${artistUserId}/reviews`
+    `${API_V1}/reviews/service-provider-profiles/${serviceProviderUserId}/reviews`
   );
 
 // ─── BOOKING REQUESTS & QUOTES ─────────────────────────────────────────────────

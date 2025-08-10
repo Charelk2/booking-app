@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { getArtists, type PriceBucket } from '@/lib/api';
+import { getServiceProviders, type PriceBucket } from '@/lib/api';
 import useServiceCategories from '@/hooks/useServiceCategories';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ServiceProviderProfile } from '@/types';
@@ -16,7 +16,7 @@ import { updateQueryParams } from '@/lib/urlParams';
 import { Spinner } from '@/components/ui';
 import { useAuth } from '@/contexts/AuthContext';
 
-export default function ArtistsPage() {
+export default function ServiceProvidersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -107,7 +107,7 @@ export default function ArtistsPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await getArtists({
+        const res = await getServiceProviders({
           category: serviceName,
           location: location || undefined,
           when: when || undefined,

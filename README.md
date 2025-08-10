@@ -77,7 +77,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 - The chat thread now expands or contracts horizontally as the side panel is toggled, keeping date divider lines perfectly aligned across both sections.
 - Artists can upload multiple portfolio images and reorder them via drag-and-drop. Use `POST /api/v1/service-provider-profiles/me/portfolio-images` to upload and `PUT /api/v1/service-provider-profiles/me/portfolio-images` to save the order.
 - Artists can also drag and drop service cards on the dashboard to set their display order.
-- Adding a service now requires at least one image, and the uploaded media displays on the artist profile within each service block.
+- Adding a service now requires at least one image, and the uploaded media displays on the service provider profile within each service block.
 - Dashboard pages are now separated by user type: artists use `frontend/src/app/dashboard/artist/page.tsx` and clients use `frontend/src/app/dashboard/client/page.tsx`.
 - Quote modal items can now be removed even when only one item is present.
 - Clients can upload and crop a profile picture via `/api/v1/users/me/profile-picture`; chat messages and notifications will show the artist or client avatar when available.
@@ -386,7 +386,7 @@ similar provider and add it to your `.env` file.
 
 The host portion of `NEXT_PUBLIC_API_URL` is also used by
 `next.config.js` to allow optimized image requests from the backend.
-Set this URL to match your API server so artist profile pictures and
+Set this URL to match your API server so service provider profile pictures and
 cover photos load without 400 errors from the `/_next/image` endpoint.
 The `next.config.js` file now explicitly includes `/static/cover_photos/**` and
 `/static/portfolio_images/**` alongside `/static/profile_pics/**` in its
@@ -1074,7 +1074,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 
 The dashboard brings common actions to the surface with a tidy layout:
 
-* **Profile progress** – a bar at the top shows how complete your artist profile is. Updating services and media increases the percentage so you know when you are ready to promote your page.
+* **Profile progress** – a bar at the top shows how complete your service provider profile is. Updating services and media increases the percentage so you know when you are ready to promote your page.
 * **Quick actions** – buttons for adding a service, updating your calendar, or sending a quote appear below the progress bar so frequent tasks are one tap away.
 * **Bookings and requests lists** – the next five upcoming bookings and newest requests are summarized in side-by-side cards. Use the **Load More** button to reveal additional requests in batches of five.
 

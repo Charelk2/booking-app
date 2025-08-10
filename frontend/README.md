@@ -160,7 +160,7 @@ persist in the URL so pages can be shared or refreshed without losing state.
 
 ### Artist Detail Layout
 
-Individual artist profile pages use a split-screen layout on desktop. A static left
+Individual service provider profile pages use a split-screen layout on desktop. A static left
 panel keeps the cover image and key contact details visible, while the right
 panel scrolls independently with services, portfolio links and reviews. On
 smaller screens the panels stack vertically for a conventional mobile flow.

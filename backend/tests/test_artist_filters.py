@@ -12,7 +12,7 @@ from app.models import (
     ServiceCategory,
 )
 from app.models.base import BaseModel
-from app.api.v1.api_service_provider import read_all_artist_profiles
+from app.api.v1.api_service_provider import read_all_service_provider_profiles
 
 
 def setup_db():
@@ -90,7 +90,7 @@ def test_price_range_filter(monkeypatch):
         lambda *args, **kwargs: None,
     )
 
-    res = read_all_artist_profiles(
+    res = read_all_service_provider_profiles(
         category='musician',
         min_price=300,
         max_price=800,
@@ -130,7 +130,7 @@ def test_filters_and_sorting(monkeypatch):
         lambda *args, **kwargs: None,
     )
 
-    res = read_all_artist_profiles(
+    res = read_all_service_provider_profiles(
         category='videographer',
         location='San',
         sort='most_booked',
@@ -156,7 +156,7 @@ def test_service_price_none_without_category(monkeypatch):
         lambda *args, **kwargs: None,
     )
 
-    res = read_all_artist_profiles(db=db, page=1, limit=20)
+    res = read_all_service_provider_profiles(db=db, page=1, limit=20)
     assert len(res["data"]) == 1
     assert res["data"][0].service_price is None
 
@@ -173,7 +173,7 @@ def test_unknown_category_returns_empty(monkeypatch):
         lambda *args, **kwargs: None,
     )
 
-    res = read_all_artist_profiles(
+    res = read_all_service_provider_profiles(
         category='videographer', db=db, page=1, limit=20
     )
     assert res["data"] == []
@@ -200,7 +200,7 @@ def test_price_distribution_with_join_services(monkeypatch):
         lambda *args, **kwargs: None,
     )
 
-    res = read_all_artist_profiles(
+    res = read_all_service_provider_profiles(
         category='musician',
         include_price_distribution=True,
         db=db,
