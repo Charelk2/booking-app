@@ -19,19 +19,19 @@ class BookingRequest(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     client_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    artist_id = Column(Integer, ForeignKey("users.id"), nullable=False) # The artist's user_id
+    artist_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True) # The artist's user_id
     service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"), nullable=True) # Optional
 
     message = Column(Text, nullable=True)
     attachment_url = Column(String, nullable=True)
-    proposed_datetime_1 = Column(DateTime, nullable=True)
-    proposed_datetime_2 = Column(DateTime, nullable=True)
+    proposed_datetime_1 = Column(DateTime, nullable=True, index=True)
+    proposed_datetime_2 = Column(DateTime, nullable=True, index=True)
 
     travel_mode = Column(String, nullable=True)
     travel_cost = Column(Numeric(10, 2), nullable=True)
     travel_breakdown = Column(JSON, nullable=True)
     
-    status = Column(SQLAlchemyEnum(BookingStatus), nullable=False, default=BookingStatus.PENDING_QUOTE)
+    status = Column(SQLAlchemyEnum(BookingStatus), nullable=False, default=BookingStatus.PENDING_QUOTE, index=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

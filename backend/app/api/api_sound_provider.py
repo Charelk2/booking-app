@@ -1,8 +1,8 @@
 """API endpoints for managing sound providers and artist preferences."""
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session, joinedload
-from typing import List
+from typing import List, Optional
 
 from ..database import get_db
 from ..models import SoundProvider, ArtistSoundPreference, ServiceProviderProfile
@@ -20,8 +20,25 @@ router = APIRouter(tags=["sound-providers"])
 
 
 @router.get("/", response_model=List[SoundProviderResponse])
-def list_providers(db: Session = Depends(get_db)):
-    return db.query(SoundProvider).all()
+def list_providers(
+    db: Session = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    fields: Optional[str] = Query(
+        None, description="Comma-separated fields to include in the response"
+    ),
+):
+    providers = db.query(SoundProvider).offset(skip).limit(limit).all()
+    if fields:
+        include = {
+            *{"id", "created_at", "updated_at"},
+            *{f.strip() for f in fields.split(",") if f.strip()},
+        }
+        return [
+            SoundProviderResponse.model_validate(p).model_dump(include=include)
+            for p in providers
+        ]
+    return providers
 
 
 @router.post(

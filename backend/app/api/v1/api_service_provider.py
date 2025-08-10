@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query
 from fastapi.params import Query as QueryParam
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, or_
 from collections import defaultdict
 from datetime import datetime, timedelta, date
@@ -494,6 +494,7 @@ def read_all_service_provider_profiles(
             booking_subq.c.book_count,
             category_subq.c.service_categories,
         )
+        .options(joinedload(Artist.user))
         .outerjoin(rating_subq, rating_subq.c.artist_id == Artist.user_id)
         .outerjoin(booking_subq, booking_subq.c.artist_id == Artist.user_id)
         .outerjoin(category_subq, category_subq.c.artist_id == Artist.user_id)
