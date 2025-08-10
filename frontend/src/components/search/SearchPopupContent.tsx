@@ -8,7 +8,7 @@ import { Listbox } from '@headlessui/react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
-import useServiceCategories from '@/hooks/useServiceCategories';
+import { UI_CATEGORIES } from '@/lib/categoryMap';
 import { getArtists } from '@/lib/api';
 import type { ArtistProfile } from '@/types';
 import { AUTOCOMPLETE_LISTBOX_ID } from '../ui/LocationInput';
@@ -64,7 +64,6 @@ export default function SearchPopupContent({
   const [announcement, setAnnouncement] = useState('');
   const [artistQuery, setArtistQuery] = useState('');
   const [artistResults, setArtistResults] = useState<ArtistProfile[]>([]);
-  const categories = useServiceCategories();
   const router = useRouter();
 
   useEffect(() => {
@@ -350,7 +349,7 @@ export default function SearchPopupContent({
           ref={categoryListboxOptionsRef}
           className="max-h-60 overflow-auto rounded-lg bg-white py-1 focus:outline-none scrollbar-thin"
         >
-          {categories.map((c, index) => (
+          {UI_CATEGORIES.map((c, index) => (
             <Listbox.Option key={c.value} value={c} as={React.Fragment}>
               {({ active, selected }) => (
                 <li
