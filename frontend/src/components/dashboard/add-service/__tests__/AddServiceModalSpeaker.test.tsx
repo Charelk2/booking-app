@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import * as api from "@/lib/api";
 import AddServiceModalSpeaker from "../AddServiceModalSpeaker";
 import { flushPromises } from "@/test/utils/flush";
-import { UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 
 describe("AddServiceModalSpeaker", () => {
   it("follows step flow and sends details payload", async () => {
@@ -43,7 +42,7 @@ describe("AddServiceModalSpeaker", () => {
         service_type: "Other",
         details: { topic: "Motivation" },
         media_url: expect.stringContaining("base64"),
-        service_category_id: UI_CATEGORY_TO_ID.speaker,
+        service_category_slug: "speaker",
       }),
     );
   });

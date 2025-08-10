@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import * as api from "@/lib/api";
 import AddServiceModalPhotographer from "../AddServiceModalPhotographer";
 import { flushPromises } from "@/test/utils/flush";
-import { UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 
 describe("AddServiceModalPhotographer", () => {
   it("follows step flow and sends details payload", async () => {
@@ -49,7 +48,7 @@ describe("AddServiceModalPhotographer", () => {
         service_type: "Other",
         details: { camera_brand: "Canon" },
         media_url: expect.stringContaining("base64"),
-        service_category_id: UI_CATEGORY_TO_ID.photographer,
+        service_category_slug: "photographer",
       }),
     );
   });

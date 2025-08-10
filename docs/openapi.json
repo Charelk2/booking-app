@@ -7695,6 +7695,10 @@
             ],
             "title": "Service Category Id"
           },
+          "service_category_slug": {
+            "type": "string",
+            "title": "Service Category Slug"
+          },
           "details": {
             "anyOf": [
               {
@@ -7714,7 +7718,8 @@
           "media_url",
           "duration_minutes",
           "price",
-          "service_type"
+          "service_type",
+          "service_category_slug"
         ],
         "title": "ServiceCreate"
       },
@@ -7891,6 +7896,13 @@
               }
             ],
             "title": "Service Category Id"
+          },
+          "service_category_slug": {
+            "anyOf": [
+              {"type": "string"},
+              {"type": "null"}
+            ],
+            "title": "Service Category Slug"
           },
           "details": {
             "anyOf": [
@@ -8112,6 +8124,13 @@
               }
             ],
             "title": "Service Category Id"
+          },
+          "service_category_slug": {
+            "anyOf": [
+              {"type": "string"},
+              {"type": "null"}
+            ],
+            "title": "Service Category Slug"
           },
           "details": {
             "anyOf": [
