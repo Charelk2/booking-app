@@ -213,7 +213,7 @@ export default function ServiceProvidersPage() {
         {/* Artists grid */}
         {loading && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}
-        {!loading && artists.length === 0 && <p>No artists found.</p>}
+        {!loading && artists.length === 0 && <p>No service providers found.</p>}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-2 md:gap-2">
           {artists.map((a) => {

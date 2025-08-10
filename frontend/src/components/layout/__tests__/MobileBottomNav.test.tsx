@@ -64,7 +64,7 @@ describe('MobileBottomNav', () => {
       );
     });
     expect(container.textContent).toContain('Home');
-    expect(container.textContent).toContain('Artists');
+    expect(container.textContent).toContain('Service Providers');
     const nav = container.querySelector('nav');
     expect(nav?.className).toContain('pb-safe');
   });

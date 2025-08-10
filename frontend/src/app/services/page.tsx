@@ -87,7 +87,7 @@ export default function ServicesPage() {
                     passHref
                   >
                     <a className="mt-4 inline-block bg-brand-dark text-white px-4 py-2 rounded-md text-center hover:bg-brand-dark">
-                      View Artist
+                      View Service Provider
                     </a>
                   </Link>
                 </div>

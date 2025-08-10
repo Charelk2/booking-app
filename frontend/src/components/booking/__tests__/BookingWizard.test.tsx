@@ -93,7 +93,7 @@ describe('BookingWizard instructions', () => {
       (window as unknown as { __setStep: (s: number) => void }).__setStep(8);
     });
 
-    expect(await screen.findByText('Artist Base Fee')).toBeTruthy();
+    expect(await screen.findByText('Service Provider Base Fee')).toBeTruthy();
     expect(document.body.textContent).toContain(formatCurrency(100));
   });
 

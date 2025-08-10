@@ -185,7 +185,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const calculateReviewData = useCallback(async () => {
     if (!serviceId || !artistLocation || !details.location) {
       setIsLoadingReviewData(false);
-      setReviewDataError("Missing booking details (Service ID, Artist Location, or Event Location) to calculate estimates.");
+      setReviewDataError("Missing booking details (Service ID, Service Provider Location, or Event Location) to calculate estimates.");
       setCalculatedPrice(null);
       setTravelResult(null);
       return;

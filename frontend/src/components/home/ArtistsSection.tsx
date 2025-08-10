@@ -110,7 +110,7 @@ export default function ArtistsSection({
           })}
         </div>
       ) : (
-        <p>No artists found.</p>
+        <p>No service providers found.</p>
       )}
     </section>
   );

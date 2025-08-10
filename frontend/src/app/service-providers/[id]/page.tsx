@@ -145,7 +145,7 @@ export default function ServiceProviderProfilePage() {
     return (
       <MainLayout hideFooter>
         <div className="text-center py-20" role="alert">
-          <h2 className="text-2xl font-semibold text-gray-700">{error || 'Artist not found'}</h2>
+          <h2 className="text-2xl font-semibold text-gray-700">{error || 'Service Provider not found'}</h2>
         </div>
       </MainLayout>
     );

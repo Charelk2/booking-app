@@ -29,7 +29,7 @@ type SearchParams = {
 };
 
 const clientNav = [
-  { name: 'Artists', href: '/service-providers' },
+  { name: 'Service Providers', href: '/service-providers' },
   { name: 'Services', href: '/services' },
   { name: 'FAQ', href: '/faq' },
   { name: 'Contact', href: '/contact' },
@@ -263,7 +263,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       onClick={toggleArtistView}
                       className={clsx(navItemClasses, 'text-gray-800')}
                     >
-                      {artistViewActive ? 'Switch to Booking' : 'Switch to Artist View'}
+                      {artistViewActive ? 'Switch to Booking' : 'Switch to Service Provider View'}
                     </button>
                   )}
                   <div className={navItemClasses}>

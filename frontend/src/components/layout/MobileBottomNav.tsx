@@ -54,7 +54,7 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
   }, []);
   const navItems: Item[] = [
     { name: 'Home', href: '/', icon: HomeIcon },
-    { name: 'Artists', href: '/service-providers', icon: UsersIcon },
+    { name: 'Service Providers', href: '/service-providers', icon: UsersIcon },
     { name: 'Messages', href: '/inbox', icon: ChatBubbleLeftRightIcon, auth: true },
     {
       name: 'Dashboard',
