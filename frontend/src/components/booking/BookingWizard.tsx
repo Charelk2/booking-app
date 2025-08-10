@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, Fragment, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { Dialog, Transition } from '@headlessui/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -15,8 +16,6 @@ import {
   createBookingRequest,
   updateBookingRequest,
   postMessageToBookingRequest,
-  getServiceProvider,
-  getService,
   calculateQuote,
 } from '@/lib/api';
 import { geocodeAddress } from '@/lib/geo';
@@ -29,15 +28,15 @@ import ProgressBar from '../ui/ProgressBar';
 import toast from '../ui/Toast';
 
 // --- Step Components ---
-import EventDescriptionStep from './steps/EventDescriptionStep';
-import LocationStep from './steps/LocationStep';
-import DateTimeStep from './steps/DateTimeStep';
-import EventTypeStep from './steps/EventTypeStep';
-import GuestsStep from './steps/GuestsStep';
-import VenueStep from './steps/VenueStep';
-import SoundStep from './steps/SoundStep';
-import NotesStep from './steps/NotesStep';
-import ReviewStep from './steps/ReviewStep'; // Ensure this is the modified one
+const EventDescriptionStep = dynamic(() => import('./steps/EventDescriptionStep'));
+const LocationStep = dynamic(() => import('./steps/LocationStep'));
+const DateTimeStep = dynamic(() => import('./steps/DateTimeStep'));
+const EventTypeStep = dynamic(() => import('./steps/EventTypeStep'));
+const GuestsStep = dynamic(() => import('./steps/GuestsStep'));
+const VenueStep = dynamic(() => import('./steps/VenueStep'));
+const SoundStep = dynamic(() => import('./steps/SoundStep'));
+const NotesStep = dynamic(() => import('./steps/NotesStep'));
+const ReviewStep = dynamic(() => import('./steps/ReviewStep'));
 
 // --- EventDetails Type & Schema ---
 type EventDetails = {
@@ -158,10 +157,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       try {
         const [availabilityRes, artistRes] = await Promise.all([
           getServiceProviderAvailability(artistId),
-          getServiceProvider(artistId),
+          fetch(
+            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/service-provider-profiles/${artistId}`,
+            { cache: 'force-cache' },
+          ).then((res) => res.json()),
         ]);
         setUnavailable(availabilityRes.data.unavailable_dates);
-        setArtistLocation(artistRes.data.location || null);
+        setArtistLocation(artistRes.location || null);
       } catch (err) {
         console.error('Failed to fetch artist data:', err);
       }
@@ -196,7 +198,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
     try {
       const [svcRes, artistPos, eventPos] = await Promise.all([
-        getService(serviceId),
+        fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/services/${serviceId}`,
+          { cache: 'force-cache' },
+        ).then((res) => res.json()),
         geocodeAddress(artistLocation),
         geocodeAddress(details.location),
       ]);
@@ -232,13 +237,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         return undefined;
       };
 
-      const basePrice = parseNumber(svcRes.data.price);
+      const basePrice = parseNumber(svcRes.price);
       setBaseServicePrice(basePrice); // Set the base service price
 
-      const travelRate = parseNumber(svcRes.data.travel_rate, 2.5) || 2.5;
-      const numTravelMembers = parseNumber(svcRes.data.travel_members, 1) || 1;
-      const carRentalPrice = parseOptionalNumber(svcRes.data.car_rental_price);
-      const flightPrice = parseOptionalNumber(svcRes.data.flight_price);
+      const travelRate = parseNumber(svcRes.travel_rate, 2.5) || 2.5;
+      const numTravelMembers = parseNumber(svcRes.travel_members, 1) || 1;
+      const carRentalPrice = parseOptionalNumber(svcRes.car_rental_price);
+      const flightPrice = parseOptionalNumber(svcRes.flight_price);
 
       const metrics = await getDrivingMetrics(artistLocation, details.location);
       if (!metrics.distanceKm) {
@@ -276,9 +281,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     }
   }, [serviceId, artistLocation, details.location, details.date, setTravelResult]);
 
-  // Trigger the calculation when at or beyond the Guests step
+  // Trigger the calculation when approaching the Review step to prefetch data
+  const hasPrefetched = useRef(false);
   useEffect(() => {
-    if (step >= 4) { // Assuming Guests step is index 4
+    if (step >= steps.length - 2 && !hasPrefetched.current) {
+      hasPrefetched.current = true;
       void calculateReviewData();
     }
   }, [step, calculateReviewData]);
