@@ -138,6 +138,7 @@ const normalizeArtistProfile = (
     ...profile,
     id: id, // Explicitly set id to ensure it's number
     user_id: user_id, // Explicitly set user_id
+    service_categories: (profile.service_categories as string[] | undefined) || [],
     service_price:
       profile.service_price != null
         ? parseFloat(profile.service_price as unknown as string)

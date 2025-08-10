@@ -5,7 +5,7 @@ exports[`ArtistCardCompact matches snapshot 1`] = `
   href="/artists/1"
 >
   <div
-    class="relative aspect-[4/3] bg-gray-100 overflow-hidden"
+    class="relative aspect-[4/4] bg-gray-100 overflow-hidden"
   >
     <div
       class="absolute inset-0 animate-pulse bg-gray-200"
@@ -13,18 +13,15 @@ exports[`ArtistCardCompact matches snapshot 1`] = `
     <img
       alt="Test"
       class="object-cover w-full h-full"
-      data-nimg="fill"
-      decoding="async"
-      loading="lazy"
-      src="/static/default-avatar.svg"
-      style="position: absolute; height: 100%; width: 100%; left: 0px; top: 0px; right: 0px; bottom: 0px; color: transparent;"
+      sizes="(max-width:768px) 0vw, 33vw"
+      src="http://localhost:8000/static/default-avatar.svg"
     />
   </div>
   <div
-    class="p-3 space-y-0.5"
+    class="p-1 space-y-0.5"
   >
     <p
-      class="text-sm font-semibold truncate"
+      class="text-sm font-semibold truncate text-black"
     >
       Test
     </p>

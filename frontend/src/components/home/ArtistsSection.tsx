@@ -103,6 +103,7 @@ export default function ArtistsSection({
                 rating={a.rating ?? undefined}
                 ratingCount={a.rating_count ?? undefined}
                 location={a.location}
+                categories={a.service_categories}
                 href={`/artists/${a.id}`}
               />
             );

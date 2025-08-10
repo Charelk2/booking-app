@@ -36,6 +36,8 @@ export interface ArtistProfile {
   price_visible?: boolean;
   /** Price of the selected service category when filtering */
   service_price?: number | string | null;
+  /** Names of service categories offered by the artist */
+  service_categories?: string[];
   user: User;
   created_at: string;
   updated_at: string;

@@ -162,6 +162,7 @@ def test_category_excludes_artists_without_services(monkeypatch):
     assert res.status_code == 200
     body = res.json()
     assert body["total"] == 1
+    assert body["data"][0]["service_categories"] == ["DJ"]
     app.dependency_overrides.pop(get_db, None)
 
 
@@ -222,14 +223,16 @@ def test_dj_category_filters_legacy_artists(monkeypatch):
         service_category_id=dj_cat.id,
     )
 
-    db.add_all([
-        legacy_user,
-        legacy_profile,
-        legacy_service,
-        dj_user,
-        dj_profile,
-        dj_service,
-    ])
+    db.add_all(
+        [
+            legacy_user,
+            legacy_profile,
+            legacy_service,
+            dj_user,
+            dj_profile,
+            dj_service,
+        ]
+    )
     db.commit()
 
     client = TestClient(app)

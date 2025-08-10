@@ -83,18 +83,13 @@ MAX_PORTFOLIO_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 @router.get("/me", response_model=ArtistProfileResponse)
 def read_current_artist_profile(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     GET /api/v1/artist-profiles/me
     Returns the profile of the currently authenticated artist.
     """
-    artist_profile = (
-        db.query(Artist)
-          .filter(Artist.user_id == current_user.id)
-          .first()
-    )
+    artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
     if not artist_profile:
         raise HTTPException(
             status_code=404,
@@ -107,24 +102,18 @@ def read_current_artist_profile(
     "/me",
     response_model=ArtistProfileResponse,
     summary="Update current artist's profile",
-    description=(
-        "Update fields of the currently authenticated artist's profile."
-    )
+    description=("Update fields of the currently authenticated artist's profile."),
 )
 def update_current_artist_profile(
     profile_in: ArtistProfileUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     PUT /api/v1/artist-profiles/me
     Allows the authenticated artist to update their own profile fields.
     """
-    artist_profile = (
-        db.query(Artist)
-          .filter(Artist.user_id == current_user.id)
-          .first()
-    )
+    artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
     if not artist_profile:
         raise HTTPException(
             status_code=404,
@@ -134,10 +123,7 @@ def update_current_artist_profile(
     update_data = profile_in.model_dump(exclude_unset=True)
 
     # Convert Pydantic HttpUrl objects to plain strings for JSON columns
-    if (
-        "portfolio_urls" in update_data
-        and update_data["portfolio_urls"] is not None
-    ):
+    if "portfolio_urls" in update_data and update_data["portfolio_urls"] is not None:
         update_data["portfolio_urls"] = [
             str(url) for url in update_data["portfolio_urls"]
         ]
@@ -146,9 +132,7 @@ def update_current_artist_profile(
         "profile_picture_url" in update_data
         and update_data["profile_picture_url"] is not None
     ):
-        update_data["profile_picture_url"] = str(
-            update_data["profile_picture_url"]
-        )
+        update_data["profile_picture_url"] = str(update_data["profile_picture_url"])
 
     for field, value in update_data.items():
         setattr(artist_profile, field, value)
@@ -166,21 +150,17 @@ def update_current_artist_profile(
     description=(
         "Uploads a new profile picture for the currently authenticated artist,"
         " replacing any existing one."
-    )
+    ),
 )
 async def upload_artist_profile_picture_me(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
 ):
     """
     POST /api/v1/artist-profiles/me/profile-picture
     """
-    artist_profile = (
-        db.query(Artist)
-          .filter(Artist.user_id == current_user.id)
-          .first()
-    )
+    artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
     if not artist_profile:
         raise HTTPException(
             status_code=404,
@@ -190,9 +170,7 @@ async def upload_artist_profile_picture_me(
     if file.content_type not in ALLOWED_PROFILE_PIC_TYPES:
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"Invalid image type. Allowed: {ALLOWED_PROFILE_PIC_TYPES}"
-            )
+            detail=(f"Invalid image type. Allowed: {ALLOWED_PROFILE_PIC_TYPES}"),
         )
 
     try:
@@ -217,11 +195,11 @@ async def upload_artist_profile_picture_me(
                 try:
                     old_file.unlink()
                 except OSError as e:
-                    logger.warning("Error deleting old profile picture %s: %s", old_file, e)
+                    logger.warning(
+                        "Error deleting old profile picture %s: %s", old_file, e
+                    )
 
-        artist_profile.profile_picture_url = (
-            f"/static/profile_pics/{unique_filename}"
-        )
+        artist_profile.profile_picture_url = f"/static/profile_pics/{unique_filename}"
         db.add(artist_profile)
         db.commit()
         db.refresh(artist_profile)
@@ -229,12 +207,16 @@ async def upload_artist_profile_picture_me(
         return artist_profile
 
     except Exception as e:
-        if 'file_path' in locals() and file_path.exists():
+        if "file_path" in locals() and file_path.exists():
             try:
                 file_path.unlink()
             except OSError as cleanup_err:
-                logger.warning("Error cleaning up profile picture %s: %s", file_path, cleanup_err)
-        raise HTTPException(status_code=500, detail=f"Could not upload profile picture: {e}")
+                logger.warning(
+                    "Error cleaning up profile picture %s: %s", file_path, cleanup_err
+                )
+        raise HTTPException(
+            status_code=500, detail=f"Could not upload profile picture: {e}"
+        )
 
     finally:
         await file.close()
@@ -244,28 +226,24 @@ async def upload_artist_profile_picture_me(
     "/me/cover-photo",
     response_model=ArtistProfileResponse,
     summary="Upload or update current artist's cover photo",
-    description="Uploads a new cover photo for the currently authenticated artist, replacing any existing one."
+    description="Uploads a new cover photo for the currently authenticated artist, replacing any existing one.",
 )
 async def upload_artist_cover_photo_me(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
 ):
     """
     POST /api/v1/artist-profiles/me/cover-photo
     """
-    artist_profile = (
-        db.query(Artist)
-          .filter(Artist.user_id == current_user.id)
-          .first()
-    )
+    artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
     if not artist_profile:
         raise HTTPException(status_code=404, detail="Artist profile not found.")
 
     if file.content_type not in ALLOWED_PROFILE_PIC_TYPES:
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid image type. Allowed: {ALLOWED_PROFILE_PIC_TYPES}"
+            detail=f"Invalid image type. Allowed: {ALLOWED_PROFILE_PIC_TYPES}",
         )
 
     try:
@@ -296,12 +274,16 @@ async def upload_artist_cover_photo_me(
         return artist_profile
 
     except Exception as e:
-        if 'file_path' in locals() and file_path.exists():
+        if "file_path" in locals() and file_path.exists():
             try:
                 file_path.unlink()
             except OSError as cleanup_err:
-                logger.warning("Error cleaning up cover photo %s: %s", file_path, cleanup_err)
-        raise HTTPException(status_code=500, detail=f"Could not upload cover photo: {e}")
+                logger.warning(
+                    "Error cleaning up cover photo %s: %s", file_path, cleanup_err
+                )
+        raise HTTPException(
+            status_code=500, detail=f"Could not upload cover photo: {e}"
+        )
 
     finally:
         await file.close()
@@ -319,11 +301,7 @@ async def upload_artist_portfolio_images_me(
     files: List[UploadFile] = File(...),
 ):
     """POST /api/v1/artist-profiles/me/portfolio-images"""
-    artist_profile = (
-        db.query(Artist)
-          .filter(Artist.user_id == current_user.id)
-          .first()
-    )
+    artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
     if not artist_profile:
         raise HTTPException(status_code=404, detail="Artist profile not found.")
 
@@ -350,12 +328,16 @@ async def upload_artist_portfolio_images_me(
         db.refresh(artist_profile)
         return artist_profile
     except Exception as e:
-        if 'file_path' in locals() and file_path.exists():
+        if "file_path" in locals() and file_path.exists():
             try:
                 file_path.unlink()
             except OSError as cleanup_err:
-                logger.warning("Error cleaning up portfolio image %s: %s", file_path, cleanup_err)
-        raise HTTPException(status_code=500, detail=f"Could not upload portfolio image: {e}")
+                logger.warning(
+                    "Error cleaning up portfolio image %s: %s", file_path, cleanup_err
+                )
+        raise HTTPException(
+            status_code=500, detail=f"Could not upload portfolio image: {e}"
+        )
     finally:
         for up in files:
             await up.close()
@@ -377,11 +359,7 @@ def update_portfolio_images_order_me(
     current_user: User = Depends(get_current_user),
 ):
     """PUT /api/v1/artist-profiles/me/portfolio-images"""
-    artist_profile = (
-        db.query(Artist)
-          .filter(Artist.user_id == current_user.id)
-          .first()
-    )
+    artist_profile = db.query(Artist).filter(Artist.user_id == current_user.id).first()
     if not artist_profile:
         raise HTTPException(status_code=404, detail="Artist profile not found.")
 
@@ -403,9 +381,7 @@ def read_all_artist_profiles(
     # Accept category as a string so unknown values (e.g. "Musician")
     # don't trigger a validation error. We'll attempt to coerce it to
     # ``ServiceType`` below and ignore it if it's not a known value.
-    category: Optional[str] = Query(
-        None, description="Filter by service category"
-    ),
+    category: Optional[str] = Query(None, description="Filter by service category"),
     location: Optional[str] = Query(None),
     sort: Optional[str] = Query(None, pattern="^(top_rated|most_booked|newest)$"),
     when: Optional[date] = Query(None),
@@ -413,12 +389,8 @@ def read_all_artist_profiles(
     max_price: Optional[float] = Query(None, alias="maxPrice", ge=0),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    include_price_distribution: bool = Query(
-        False, alias="include_price_distribution"
-    ),
-    artist: Optional[str] = Query(
-        None, description="Filter by artist name"
-    ),
+    include_price_distribution: bool = Query(False, alias="include_price_distribution"),
+    artist: Optional[str] = Query(None, description="Filter by artist name"),
 ):
     """Return a list of all artist profiles with optional filters."""
 
@@ -496,6 +468,15 @@ def read_all_artist_profiles(
         .group_by(Booking.artist_id)
         .subquery()
     )
+    category_subq = (
+        db.query(
+            Service.artist_id.label("artist_id"),
+            func.group_concat(ServiceCategory.name, ",").label("service_categories"),
+        )
+        .join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
+        .group_by(Service.artist_id)
+        .subquery()
+    )
 
     query = (
         db.query(
@@ -503,9 +484,11 @@ def read_all_artist_profiles(
             rating_subq.c.rating,
             rating_subq.c.rating_count,
             booking_subq.c.book_count,
+            category_subq.c.service_categories,
         )
         .outerjoin(rating_subq, rating_subq.c.artist_id == Artist.user_id)
         .outerjoin(booking_subq, booking_subq.c.artist_id == Artist.user_id)
+        .outerjoin(category_subq, category_subq.c.artist_id == Artist.user_id)
     )
     # Exclude service providers who have not added any services.
     query = query.filter(Artist.services.any())
@@ -544,6 +527,7 @@ def read_all_artist_profiles(
             rating_subq.c.rating,
             rating_subq.c.rating_count,
             booking_subq.c.book_count,
+            category_subq.c.service_categories,
         )
 
     if location:
@@ -574,22 +558,29 @@ def read_all_artist_profiles(
                         bucket_counts[(b_min, b_max)] += 1
                         break
         for b_min, b_max in PRICE_BUCKETS:
-            price_distribution_data.append({
-                "min": b_min,
-                "max": b_max,
-                "count": bucket_counts.get((b_min, b_max), 0),
-            })
+            price_distribution_data.append(
+                {
+                    "min": b_min,
+                    "max": b_max,
+                    "count": bucket_counts.get((b_min, b_max), 0),
+                }
+            )
 
     offset = (page - 1) * limit
-    artists = all_rows[offset: offset + limit]
+    artists = all_rows[offset : offset + limit]
 
     profiles: List[ArtistProfileResponse] = []
     for row in artists:
         if join_services:
-            artist, rating, rating_count, book_count, service_price = row
+            artist, rating, rating_count, book_count, category_names, service_price = (
+                row
+            )
         else:
-            artist, rating, rating_count, book_count = row
+            artist, rating, rating_count, book_count, category_names = row
             service_price = None
+        categories = (
+            sorted(set(category_names.split(","))) if category_names is not None else []
+        )
         # Access the related User to ensure it's loaded for downstream filters
         _ = artist.user
         profile = ArtistProfileResponse.model_validate(
@@ -597,7 +588,10 @@ def read_all_artist_profiles(
                 **artist.__dict__,
                 "rating": float(rating) if rating is not None else None,
                 "rating_count": int(rating_count or 0),
-                "service_price": float(service_price) if service_price is not None else None,
+                "service_price": (
+                    float(service_price) if service_price is not None else None
+                ),
+                "service_categories": categories,
             }
         )
         availability = read_artist_availability(
@@ -606,7 +600,9 @@ def read_all_artist_profiles(
             db=db,
         )
         if when:
-            profile.is_available = when.isoformat() not in availability["unavailable_dates"]
+            profile.is_available = (
+                when.isoformat() not in availability["unavailable_dates"]
+            )
         else:
             profile.is_available = len(availability["unavailable_dates"]) == 0
         profiles.append(profile)
@@ -620,10 +616,13 @@ def read_all_artist_profiles(
     # entries stem from older imports and represent musicians rather than
     # actual DJ businesses.
     if category_slug == "dj":
+
         def _is_legacy(p: ArtistProfileResponse) -> bool:
             full_name = (
-                f"{p.user.first_name} {p.user.last_name}" if p.user else ""
-            ).strip().lower()
+                (f"{p.user.first_name} {p.user.last_name}" if p.user else "")
+                .strip()
+                .lower()
+            )
             business = (p.business_name or "").strip().lower()
             return business == full_name or business == ""
 
@@ -651,6 +650,7 @@ def read_all_artist_profiles(
         "price_distribution": price_distribution_data,
     }
 
+
 @router.get("/{artist_id}", response_model=ArtistProfileResponse)
 def read_artist_profile_by_id(artist_id: int, db: Session = Depends(get_db)):
     artist = db.query(Artist).filter(Artist.user_id == artist_id).first()
@@ -666,12 +666,9 @@ def read_artist_availability(
     db: Session = Depends(get_db),
 ):
     """Return dates the artist is unavailable."""
-    bookings_query = (
-        db.query(Booking)
-        .filter(
-            Booking.artist_id == artist_id,
-            Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
-        )
+    bookings_query = db.query(Booking).filter(
+        Booking.artist_id == artist_id,
+        Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
     )
     if isinstance(when, QueryParam):
         when = when.default
@@ -683,12 +680,9 @@ def read_artist_availability(
         )
     bookings = bookings_query.all()
 
-    requests_query = (
-        db.query(BookingRequest)
-        .filter(
-            BookingRequest.artist_id == artist_id,
-            BookingRequest.status != BookingStatus.REQUEST_DECLINED,
-        )
+    requests_query = db.query(BookingRequest).filter(
+        BookingRequest.artist_id == artist_id,
+        BookingRequest.status != BookingStatus.REQUEST_DECLINED,
     )
     if when:
         requests_query = requests_query.filter(
@@ -725,6 +719,7 @@ def read_artist_availability(
         pass
 
     return {"unavailable_dates": sorted(dates)}
+
 
 def read_all_artists(db: Session = Depends(get_db)):
     """
