@@ -30,6 +30,7 @@ router = APIRouter(
     "/booking-requests/{request_id}/quotes",
     response_model=schemas.QuoteResponse,
     status_code=status.HTTP_201_CREATED,
+    response_model_exclude_none=True,
 )
 def create_quote_for_request(
     request_id: int,
@@ -113,8 +114,14 @@ def create_quote_for_request(
             attachment_url=None,
             expires_at=expires_at,
         )
-        client = db.query(models.User).filter(models.User.id == db_booking_request.client_id).first()
-        artist = db.query(models.User).filter(models.User.id == current_artist.id).first()
+        client = (
+            db.query(models.User)
+            .filter(models.User.id == db_booking_request.client_id)
+            .first()
+        )
+        artist = (
+            db.query(models.User).filter(models.User.id == current_artist.id).first()
+        )
         if client and artist:
             notify_user_new_message(
                 db,
@@ -134,7 +141,11 @@ def create_quote_for_request(
         raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
 
 
-@router.get("/quotes/{quote_id}", response_model=schemas.QuoteResponse)
+@router.get(
+    "/quotes/{quote_id}",
+    response_model=schemas.QuoteResponse,
+    response_model_exclude_none=True,
+)
 def read_quote(
     quote_id: int,
     db: Session = Depends(get_db),
@@ -176,6 +187,7 @@ def read_quote(
 @router.get(
     "/booking-requests/{request_id}/quotes",
     response_model=List[schemas.QuoteResponse],
+    response_model_exclude_none=True,
 )
 def read_quotes_for_booking_request(
     request_id: int,
@@ -220,7 +232,11 @@ def read_quotes_for_booking_request(
     return quotes
 
 
-@router.get("/quotes/me/artist", response_model=List[schemas.QuoteResponse])
+@router.get(
+    "/quotes/me/artist",
+    response_model=List[schemas.QuoteResponse],
+    response_model_exclude_none=True,
+)
 def read_my_artist_quotes(
     skip: int = 0,
     limit: int = 100,
@@ -238,7 +254,11 @@ def read_my_artist_quotes(
     return quotes
 
 
-@router.put("/quotes/{quote_id}/client", response_model=schemas.QuoteResponse)
+@router.put(
+    "/quotes/{quote_id}/client",
+    response_model=schemas.QuoteResponse,
+    response_model_exclude_none=True,
+)
 def update_quote_by_client(
     quote_id: int,
     quote_update: schemas.QuoteUpdateByClient,  # Client can only update status (accept/reject)
@@ -293,7 +313,11 @@ def update_quote_by_client(
         raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
 
 
-@router.put("/quotes/{quote_id}/artist", response_model=schemas.QuoteResponse)
+@router.put(
+    "/quotes/{quote_id}/artist",
+    response_model=schemas.QuoteResponse,
+    response_model_exclude_none=True,
+)
 def update_quote_by_artist(
     quote_id: int,
     quote_update: schemas.QuoteUpdateByArtist,  # Artist can update details or withdraw
@@ -356,6 +380,7 @@ def update_quote_by_artist(
 @router.post(
     "/quotes/{quote_id}/confirm-booking",
     response_model=schemas.BookingResponse,
+    response_model_exclude_none=True,
 )
 def confirm_quote_and_create_booking(
     quote_id: int,
@@ -404,7 +429,9 @@ def confirm_quote_and_create_booking(
             quote_update=quote_update_schema,
             actor_is_artist=True,
         )
-    except (ValueError,) as e:  # Should catch the specific error from crud if client hasn't accepted
+    except (
+        ValueError,
+    ) as e:  # Should catch the specific error from crud if client hasn't accepted
         raise error_response(
             f"Could not update quote {quote_id}: {e}",
             {"quote_id": str(e)},
@@ -416,10 +443,7 @@ def confirm_quote_and_create_booking(
     # Assuming BookingRequest has service_id, proposed_datetime_1 (as start_time)
     # and Quote has price.
     booking_request = updated_quote.booking_request
-    if (
-        not booking_request.service_id
-        or not booking_request.proposed_datetime_1
-    ):
+    if not booking_request.service_id or not booking_request.proposed_datetime_1:
         raise error_response(
             "Booking request lacks service_id or proposed_datetime_1; cannot create booking",
             {"booking_request": "Incomplete"},
@@ -476,9 +500,7 @@ def confirm_quote_and_create_booking(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
     except Exception as e:
-        logger.exception(
-            "Error creating booking from quote %s: %s", quote_id, e
-        )
+        logger.exception("Error creating booking from quote %s: %s", quote_id, e)
         raise error_response(
             f"Failed to create booking from quote {quote_id}",
             {"quote_id": "server_error"},
@@ -487,7 +509,9 @@ def confirm_quote_and_create_booking(
 
 
 @router.post(
-    "/quotes/calculate", response_model=schemas.QuoteCalculationResponse
+    "/quotes/calculate",
+    response_model=schemas.QuoteCalculationResponse,
+    response_model_exclude_none=True,
 )
 def calculate_quote_endpoint(
     params: schemas.QuoteCalculationParams,

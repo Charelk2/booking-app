@@ -7,7 +7,12 @@ import logging
 
 from .. import crud, models, schemas
 from ..services import nlp_booking
-from .dependencies import get_db, get_current_user, get_current_active_client, get_current_service_provider
+from .dependencies import (
+    get_db,
+    get_current_user,
+    get_current_active_client,
+    get_current_service_provider,
+)
 from ..utils.notifications import (
     notify_user_new_booking_request,
     notify_booking_status_update,
@@ -47,7 +52,11 @@ async def upload_booking_attachment(file: UploadFile = File(...)):
     return {"url": url}
 
 
-@router.post("/parse", response_model=schemas.ParsedBookingDetails)
+@router.post(
+    "/parse",
+    response_model=schemas.ParsedBookingDetails,
+    response_model_exclude_none=True,
+)
 def parse_booking_text(payload: schemas.BookingParseRequest):
     """Parse free-form text and extract event details."""
 
@@ -68,21 +77,30 @@ def parse_booking_text(payload: schemas.BookingParseRequest):
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         )
 
-@router.post("/", response_model=schemas.BookingRequestResponse)
+
+@router.post(
+    "/", response_model=schemas.BookingRequestResponse, response_model_exclude_none=True
+)
 def create_booking_request(
     request_in: schemas.BookingRequestCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_client) # Changed to active client
+    current_user: models.User = Depends(
+        get_current_active_client
+    ),  # Changed to active client
 ):
     """
     Create a new booking request.
     A client makes a request to an artist.
     """
     # Ensure the artist exists
-    artist_user = db.query(models.User).filter(
-        models.User.id == request_in.artist_id,
-        models.User.user_type == models.UserType.SERVICE_PROVIDER,
-    ).first()
+    artist_user = (
+        db.query(models.User)
+        .filter(
+            models.User.id == request_in.artist_id,
+            models.User.user_type == models.UserType.SERVICE_PROVIDER,
+        )
+        .first()
+    )
     if not artist_user:
         logger.warning(
             "Artist not found when creating booking request; user_id=%s path=%s payload=%s",
@@ -95,13 +113,18 @@ def create_booking_request(
             {"artist_id": "Artist not found"},
             status.HTTP_404_NOT_FOUND,
         )
-    
+
     # Ensure service_id, if provided, belongs to the specified artist_id
     if request_in.service_id:
-        service = db.query(models.Service).filter(
-            models.Service.id == request_in.service_id,
-            models.Service.artist_id == request_in.artist_id,  # artist_id on service is artist_profiles.user_id
-        ).first()
+        service = (
+            db.query(models.Service)
+            .filter(
+                models.Service.id == request_in.service_id,
+                models.Service.artist_id
+                == request_in.artist_id,  # artist_id on service is artist_profiles.user_id
+            )
+            .first()
+        )
         if not service:
             logger.warning(
                 "Invalid service_id in booking request; user_id=%s path=%s payload=%s",
@@ -126,7 +149,11 @@ def create_booking_request(
     # conversation view, so it has been removed.
     service = None
     if new_request.service_id:
-        service = db.query(models.Service).filter(models.Service.id == new_request.service_id).first()
+        service = (
+            db.query(models.Service)
+            .filter(models.Service.id == new_request.service_id)
+            .first()
+        )
     booking_type = service.service_type if service else "General"
     sender_name = f"{current_user.first_name} {current_user.last_name}"
     if booking_type != "Personalized Video":
@@ -157,12 +184,19 @@ def create_booking_request(
     )
     return new_request
 
-@router.get("/me/client", response_model=List[schemas.BookingRequestResponse])
+
+@router.get(
+    "/me/client",
+    response_model=List[schemas.BookingRequestResponse],
+    response_model_exclude_none=True,
+)
 def read_my_client_booking_requests(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_client) # Changed to active client
+    current_user: models.User = Depends(
+        get_current_active_client
+    ),  # Changed to active client
 ):
     """
     Retrieve booking requests made by the current client.
@@ -178,12 +212,19 @@ def read_my_client_booking_requests(
             q.booking_request = None
     return requests
 
-@router.get("/me/artist", response_model=List[schemas.BookingRequestResponse])
+
+@router.get(
+    "/me/artist",
+    response_model=List[schemas.BookingRequestResponse],
+    response_model_exclude_none=True,
+)
 def read_my_artist_booking_requests(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_artist: models.User = Depends(get_current_service_provider) # Artist specific endpoint
+    current_artist: models.User = Depends(
+        get_current_service_provider
+    ),  # Artist specific endpoint
 ):
     """
     Retrieve booking requests made to the current artist.
@@ -199,11 +240,18 @@ def read_my_artist_booking_requests(
             q.booking_request = None
     return requests
 
-@router.get("/{request_id:int}", response_model=schemas.BookingRequestResponse)
+
+@router.get(
+    "/{request_id:int}",
+    response_model=schemas.BookingRequestResponse,
+    response_model_exclude_none=True,
+)
 def read_booking_request(
     request_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user) # Changed to get_current_user
+    current_user: models.User = Depends(
+        get_current_user
+    ),  # Changed to get_current_user
 ):
     """
     Retrieve a specific booking request by its ID.
@@ -224,7 +272,10 @@ def read_booking_request(
             {"request_id": "Not found"},
             status.HTTP_404_NOT_FOUND,
         )
-    if not (db_request.client_id == current_user.id or db_request.artist_id == current_user.id):
+    if not (
+        db_request.client_id == current_user.id
+        or db_request.artist_id == current_user.id
+    ):
         raise error_response(
             "Not authorized to access this request",
             {"request_id": "Forbidden"},
@@ -237,7 +288,10 @@ def read_booking_request(
             q
             for q in db_request.quotes
             if q.status
-            in [models.QuoteStatus.ACCEPTED_BY_CLIENT, models.QuoteStatus.CONFIRMED_BY_ARTIST]
+            in [
+                models.QuoteStatus.ACCEPTED_BY_CLIENT,
+                models.QuoteStatus.CONFIRMED_BY_ARTIST,
+            ]
         ),
         None,
     )
@@ -249,18 +303,27 @@ def read_booking_request(
         setattr(db_request, "last_message_timestamp", last_msg.timestamp)
     return db_request
 
-@router.put("/{request_id:int}/client", response_model=schemas.BookingRequestResponse)
+
+@router.put(
+    "/{request_id:int}/client",
+    response_model=schemas.BookingRequestResponse,
+    response_model_exclude_none=True,
+)
 def update_booking_request_by_client(
     request_id: int,
     request_update: schemas.BookingRequestUpdateByClient,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_client) # Changed to active client
+    current_user: models.User = Depends(
+        get_current_active_client
+    ),  # Changed to active client
 ):
     """
     Update a booking request (e.g., message, proposed times) or withdraw it.
     Only accessible by the client who created the request.
     """
-    db_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
+    db_request = crud.crud_booking_request.get_booking_request(
+        db, request_id=request_id
+    )
     if db_request is None:
         logger.warning(
             "Booking request %s not found; user_id=%s path=%s payload=%s",
@@ -285,7 +348,7 @@ def update_booking_request_by_client(
             {"request_id": "Forbidden"},
             status.HTTP_403_FORBIDDEN,
         )
-    
+
     # Prevent updating if artist has already provided a quote or declined
     if db_request.status not in [
         models.BookingStatus.DRAFT,
@@ -326,10 +389,14 @@ def update_booking_request_by_client(
         )
 
     if request_update.service_id:
-        service = db.query(models.Service).filter(
-            models.Service.id == request_update.service_id,
-            models.Service.artist_id == db_request.artist_id,
-        ).first()
+        service = (
+            db.query(models.Service)
+            .filter(
+                models.Service.id == request_update.service_id,
+                models.Service.artist_id == db_request.artist_id,
+            )
+            .first()
+        )
         if not service:
             logger.warning(
                 "Invalid service_id update by client; user_id=%s path=%s payload=%s",
@@ -348,7 +415,9 @@ def update_booking_request_by_client(
     )
 
     if request_update.status and request_update.status != prev_status:
-        artist_user = db.query(models.User).filter(models.User.id == db_request.artist_id).first()
+        artist_user = (
+            db.query(models.User).filter(models.User.id == db_request.artist_id).first()
+        )
         if artist_user:
             notify_booking_status_update(
                 db, artist_user, updated.id, updated.status.value
@@ -356,18 +425,25 @@ def update_booking_request_by_client(
 
     return updated
 
-@router.put("/{request_id:int}/artist", response_model=schemas.BookingRequestResponse)
+
+@router.put(
+    "/{request_id:int}/artist",
+    response_model=schemas.BookingRequestResponse,
+    response_model_exclude_none=True,
+)
 def update_booking_request_by_artist(
     request_id: int,
     request_update: schemas.BookingRequestUpdateByArtist,
     db: Session = Depends(get_db),
-    current_artist: models.User = Depends(get_current_service_provider)
+    current_artist: models.User = Depends(get_current_service_provider),
 ):
     """
     Update a booking request status (e.g., decline it).
     Only accessible by the artist to whom the request was made.
     """
-    db_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
+    db_request = crud.crud_booking_request.get_booking_request(
+        db, request_id=request_id
+    )
     if db_request is None:
         logger.warning(
             "Booking request %s not found for artist update; user_id=%s path=%s",
@@ -411,7 +487,10 @@ def update_booking_request_by_artist(
         )
 
     # Validate status change by artist (e.g., only to REQUEST_DECLINED)
-    if request_update.status and request_update.status != models.BookingStatus.REQUEST_DECLINED:
+    if (
+        request_update.status
+        and request_update.status != models.BookingStatus.REQUEST_DECLINED
+    ):
         logger.warning(
             "Artist attempted invalid status update; user_id=%s request_id=%s payload=%s",
             current_artist.id,
@@ -423,7 +502,7 @@ def update_booking_request_by_artist(
             {"status": "Not allowed"},
             status.HTTP_400_BAD_REQUEST,
         )
-    
+
     # If artist is declining a request that already has a quote, this logic might need adjustment based on product decision
     # For now, assume declining the request means any existing quotes are implicitly void.
 
@@ -433,7 +512,9 @@ def update_booking_request_by_artist(
     )
 
     if request_update.status and request_update.status != prev_status:
-        client_user = db.query(models.User).filter(models.User.id == db_request.client_id).first()
+        client_user = (
+            db.query(models.User).filter(models.User.id == db_request.client_id).first()
+        )
         if client_user:
             if request_update.status == models.BookingStatus.REQUEST_DECLINED:
                 crud.crud_message.create_message(
@@ -495,10 +576,8 @@ def get_dashboard_stats(
         db.query(models.BookingRequest)
         .filter(
             models.BookingRequest.artist_id == current_user.id,
-            models.BookingRequest.status
-            != models.BookingStatus.PENDING_QUOTE,
-            models.BookingRequest.status
-            != models.BookingStatus.DRAFT,
+            models.BookingRequest.status != models.BookingStatus.PENDING_QUOTE,
+            models.BookingRequest.status != models.BookingStatus.DRAFT,
         )
         .count()
     )
