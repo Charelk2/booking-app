@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useState, useRef, Fragment, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Dialog, Transition } from '@headlessui/react';
+import { Dialog } from '@headlessui/react';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
 
@@ -614,96 +614,82 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   if (!isOpen) return null;
 
   return (
-    <Transition show={isOpen} as={Fragment}>
-      <Dialog as="div" className="fixed inset-0 z-50" onClose={onClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100"
-          leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0"
-        >
-          <Dialog.Overlay className="fixed inset-0 bg-gray-500/75 z-40" />
-        </Transition.Child>
+    <Dialog as="div" className="fixed inset-0 z-50" onClose={onClose} open={isOpen}>
+      <div className="fixed inset-0 bg-gray-500/75 z-40" />
 
-        <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100"
-            leave="ease-in duration-200" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95"
+      <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
+        <Dialog.Panel className="pointer-events-auto w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl bg-white flex flex-col overflow-hidden">
+          {isMobile ? (
+            // On mobile, use a simple progress bar to avoid step label overflow.
+            <ProgressBar
+              value={progressValue}
+              className="px-6 py-4 border-b border-gray-100"
+            />
+          ) : (
+            <Stepper
+              steps={steps}
+              currentStep={step}
+              maxStepCompleted={maxStepCompleted}
+              onStepClick={setStep}
+              ariaLabel="Booking progress"
+              orientation="horizontal"
+              className="px-6 py-4 border-b border-gray-100"
+              noCircles
+            />
+          )}
+
+          <form
+            ref={formRef}
+            autoComplete="on"
+            onSubmit={(e) => {
+              e.preventDefault();
+              // Prevent default form submission on Enter key press if not mobile
+              // The submit logic for the final step is now handled by ReviewStep's internal button
+            }}
+            onKeyDown={handleKeyDown}
+            className="flex-1 overflow-y-scroll p-6 space-y-6"
           >
-            <Dialog.Panel className="pointer-events-auto w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl bg-white flex flex-col overflow-hidden">
-              {isMobile ? (
-                // On mobile, use a simple progress bar to avoid step label overflow.
-                <ProgressBar
-                  value={progressValue}
-                  className="px-6 py-4 border-b border-gray-100"
-                />
-              ) : (
-                <Stepper
-                  steps={steps}
-                  currentStep={step}
-                  maxStepCompleted={maxStepCompleted}
-                  onStepClick={setStep}
-                  ariaLabel="Booking progress"
-                  orientation="horizontal"
-                  className="px-6 py-4 border-b border-gray-100"
-                  noCircles
-                />
+            <div className="overscroll-contain">
+              {renderStep()}
+
+              {warning && <p className="text-orange-600 text-sm mt-4">{warning}</p>}
+              {Object.keys(errors).length > 0 && (
+                <p className="text-red-600 text-sm mt-4">
+                  Please fix the highlighted errors above to continue.
+                </p>
               )}
+              {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}
+            </div>
+          </form>
 
-              <form
-                ref={formRef}
-                autoComplete="on"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  // Prevent default form submission on Enter key press if not mobile
-                  // The submit logic for the final step is now handled by ReviewStep's internal button
-                }}
-                onKeyDown={handleKeyDown}
-                className="flex-1 overflow-y-scroll p-6 space-y-6"
+          {/* Navigation controls - Adjusted for ReviewStep */}
+          <div
+            className="flex-shrink-0 border-t border-gray-100 p-6 flex flex-col-reverse sm:flex-row sm:justify-between gap-2 sticky bottom-0 bg-white pb-safe"
+            style={{ bottom: keyboardOffset }}
+          >
+            {/* Back/Cancel Button */}
+            <button
+              type="button" // Ensure it's a button, not a submit
+              onClick={handleBack}
+              className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 w-32 min-h-[44px] min-w-[44px]"
+            >
+              {step === 0 ? 'Cancel' : 'Back'}
+            </button>
+
+            {/* Conditional rendering for Next button (only if not on Review Step) */}
+            {step < steps.length - 1 && (
+              <button
+                type="button" // Ensure it's a button, not a submit
+                onClick={next}
+                className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 w-32 min-h-[44px] min-w-[44px]"
               >
-                <div className="overscroll-contain">
-                  {renderStep()}
-
-                  {warning && <p className="text-orange-600 text-sm mt-4">{warning}</p>}
-                  {Object.keys(errors).length > 0 && (
-                    <p className="text-red-600 text-sm mt-4">
-                      Please fix the highlighted errors above to continue.
-                    </p>
-                  )}
-                  {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}
-                </div>
-              </form>
-
-              {/* Navigation controls - Adjusted for ReviewStep */}
-              <div
-                className="flex-shrink-0 border-t border-gray-100 p-6 flex flex-col-reverse sm:flex-row sm:justify-between gap-2 sticky bottom-0 bg-white pb-safe"
-                style={{ bottom: keyboardOffset }}
-              >
-                {/* Back/Cancel Button */}
-                <button
-                  type="button" // Ensure it's a button, not a submit
-                  onClick={handleBack}
-                  className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 w-32 min-h-[44px] min-w-[44px]"
-                >
-                  {step === 0 ? 'Cancel' : 'Back'}
-                </button>
-
-                {/* Conditional rendering for Next button (only if not on Review Step) */}
-                {step < steps.length - 1 && (
-                  <button
-                    type="button" // Ensure it's a button, not a submit
-                    onClick={next}
-                    className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 w-32 min-h-[44px] min-w-[44px]"
-                  >
-                    Next
-                  </button>
-                )}
-                {/* The Submit Request button for the Review Step is now handled INSIDE ReviewStep.tsx */}
-              </div>
-            </Dialog.Panel>
-          </Transition.Child>
-        </div>
-      </Dialog>
-    </Transition>
+                Next
+              </button>
+            )}
+            {/* The Submit Request button for the Review Step is now handled INSIDE ReviewStep.tsx */}
+          </div>
+        </Dialog.Panel>
+      </div>
+    </Dialog>
   );
 }
