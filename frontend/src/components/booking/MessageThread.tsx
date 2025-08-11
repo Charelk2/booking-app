@@ -67,6 +67,12 @@ const MAX_TEXTAREA_LINES = 10;
 const isImageAttachment = (url?: string | null) =>
   !!url && /\.(jpe?g|png|gif|webp)$/i.test(url);
 
+// Generate an ISO timestamp in GMT+2 regardless of client locale
+const gmt2ISOString = ()
+  new Date(Date.now() + 2 * 60 * 60 * 1000)
+    .toISOString()
+    .replace('Z', '+02:00');
+
 // Normalize backend-provided message types for case-insensitive comparisons.
 const normalizeType = (t?: string | null) => (t ?? '').toUpperCase();
 
@@ -664,7 +670,8 @@ useEffect(() => {
             expires_at: null,
             unread: false,
             is_read: true,
-            timestamp: new Date().toISOString(),
+            // Ensure optimistic message uses GMT+2 timestamp
+            timestamp: gmt2ISOString(),
             status: 'sending',
           };
           setMessages((prev) => [...prev, optimistic]);
