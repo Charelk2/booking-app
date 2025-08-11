@@ -22,3 +22,12 @@ Connecting to `/ws/notifications` without credentials resulted in immediate clos
 ## Notes
 
 These values serve as a starting point for future optimization work.
+
+## Mobile Performance Budgets
+
+The CI pipeline enforces basic mobile DOMContentLoaded budgets:
+
+| Route | Budget (ms) |
+|-------|-------------|
+| `/` | 2000 |
+| `/booking?service_provider_id=1&service_id=1` | 3000 |
