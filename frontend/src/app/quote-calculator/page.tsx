@@ -32,7 +32,7 @@ export default function QuoteCalculatorPage() {
         provider_id: providerId ? Number(providerId) : undefined,
         accommodation_cost: accommodation ? Number(accommodation) : undefined,
       });
-      setResult(res.data);
+      setResult(res);
     } catch (err) {
       console.error(err);
     }
