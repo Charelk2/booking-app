@@ -91,13 +91,15 @@ export default function InboxPage() {
       setSelectedBookingRequestId(id);
       const params = new URLSearchParams(searchParams.toString());
       params.set('requestId', String(id));
-      router.replace(`?${params.toString()}`, { scroll: false });
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `?${params.toString()}`);
+      }
 
       if (isMobile) {
         setShowList(false);
       }
     },
-    [router, searchParams, isMobile]
+    [searchParams, isMobile]
   );
 
   const handleBackToList = useCallback(() => {
