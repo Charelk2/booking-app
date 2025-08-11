@@ -53,12 +53,20 @@ describe('ServiceProviderCard optional fields', () => {
     c2.remove();
   });
 
-  it('shows location but omits subtitle', () => {
-    const { container, root } = setup({ location: 'NYC', subtitle: 'Best service provider ever in the world' });
-    expect(container.textContent).toContain('NYC');
+  it('shows only the city for location and omits subtitle', () => {
+    const fullAddress =
+      '123 Main St, Suburb, Johannesburg, Gauteng, South Africa';
+    const { container, root } = setup({
+      location: fullAddress,
+      subtitle: 'Best service provider ever in the world',
+    });
+    expect(container.textContent).toContain('Johannesburg');
+    expect(container.textContent).not.toContain('123 Main St');
+    expect(container.textContent).not.toContain('Suburb');
+    expect(container.textContent).not.toContain('Gauteng');
     expect(container.textContent).not.toContain('Best service provider');
     const locEl = container.querySelector('span.text-sm');
-    expect(locEl?.textContent).toContain('NYC');
+    expect(locEl?.textContent).toBe('Johannesburg');
     act(() => root.unmount());
     container.remove();
   });

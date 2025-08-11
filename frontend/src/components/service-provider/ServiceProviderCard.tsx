@@ -9,7 +9,7 @@ import {
   StarIcon,
   CheckBadgeIcon,
 } from '@heroicons/react/24/solid';
-import { getFullImageUrl } from '@/lib/utils';
+import { getFullImageUrl, getCityFromAddress } from '@/lib/utils';
 
 export interface ServiceProviderCardProps extends HTMLAttributes<HTMLDivElement> {
   serviceProviderId: number;
@@ -152,7 +152,9 @@ export default function ServiceProviderCard({
         </div>
         <div className="flex justify-between items-center mt-4">
           {location ? (
-            <span className="text-sm text-gray-600 truncate">{location}</span>
+            <span className="text-sm text-gray-600 truncate">
+              {getCityFromAddress(location)}
+            </span>
           ) : (
             <span />
           )}
