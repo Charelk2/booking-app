@@ -54,6 +54,11 @@ This document outlines key friction points in the current booking wizard and pro
 * Keep the hamburger menu visible so the main navigation drawer is always accessible. ✅ Implemented July 2025.
 * Simplify the hamburger menu by deduplicating links and grouping related items under clear section headings. ✅ Implemented July 2025.
 
+## JavaScript Optimization
+* Converted static layout pieces like `Footer` and `NavLink` into server components to eliminate unnecessary client-side bundles.
+* Deferred the home page category carousel with a dynamic import so non-critical widgets load after the main content.
+* Dropped heavy date utilities in favour of native `Intl` formatting for components such as `TimeAgo` and `NotificationListItem`.
+
 ## Collapsible Sections Component
 The `CollapsibleSection` component replaces raw `<details>` elements in the booking wizard. Each step header is rendered as a button with proper `aria-expanded` state so screen readers and keyboard users can toggle sections just as easily as touch users.
 

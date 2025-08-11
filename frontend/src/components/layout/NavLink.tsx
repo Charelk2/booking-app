@@ -1,4 +1,3 @@
-'use client';
 import Link, { LinkProps } from 'next/link';
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import clsx from 'clsx';
