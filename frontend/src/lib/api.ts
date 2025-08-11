@@ -1,6 +1,6 @@
 // frontend/src/lib/api.ts
 
-import axios, { AxiosProgressEvent } from 'axios';
+import axios, { AxiosProgressEvent, type AxiosResponse } from 'axios';
 import logger from './logger';
 import { format } from 'date-fns';
 import { extractErrorMessage, normalizeQuoteTemplate } from './utils';
@@ -524,12 +524,26 @@ export const addArtistSoundPreference = (
     data);
 
 // ─── QUOTE CALCULATOR ───────────────────────────────────────────────────────
-export const calculateQuote = (params: {
+// Cache quote calculation responses to avoid duplicate network requests during review
+const quoteCache = new Map<string, QuoteCalculationResponse>();
+
+export const calculateQuote = async (params: {
   base_fee: number;
   distance_km: number;
   provider_id?: number;
   accommodation_cost?: number;
-}) => api.post<QuoteCalculationResponse>(`${API_V1}/quotes/calculate`, params);
+}): Promise<AxiosResponse<QuoteCalculationResponse>> => {
+  const cacheKey = JSON.stringify(params);
+  if (quoteCache.has(cacheKey)) {
+    return { data: quoteCache.get(cacheKey)! } as AxiosResponse<QuoteCalculationResponse>;
+  }
+  const res = await api.post<QuoteCalculationResponse>(`${API_V1}/quotes/calculate`, params);
+  quoteCache.set(cacheKey, res.data);
+  return res;
+};
+
+// Exposed for tests to clear the cache between runs
+export const __clearQuoteCache = () => quoteCache.clear();
 
 // ─── PAYMENTS ───────────────────────────────────────────────────────────────
 export const createPayment = (data: {

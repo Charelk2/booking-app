@@ -927,6 +927,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Simplified buttons sit below each step in a responsive button group. On phones
   the order is **Next**, **Save Draft**, **Back** but remains **Back**, **Save Draft**,
   **Next** on larger screens.
+* Next step components preload when the browser is idle for smoother navigation.
+* Quote estimates are cached locally to avoid redundant preview requests.
 * Guests step now matches the others with Back, Save Draft, and Next buttons.
 * Attachment uploads in the notes step display a progress bar and disable the Next button until finished.
 * Collapsible sections ensure only the active step is expanded on phones.
@@ -1133,10 +1135,12 @@ The dashboard brings common actions to the surface with a tidy layout:
   * `/api/v1/sound-providers/` provider lists (10 min TTL).
   * `/api/v1/travel-forecast` 3‑day weather by location (30 min TTL).
   * `/api/v1/service-provider-profiles/{id}/availability` results (5 min TTL).
+  * `/api/v1/service-categories/` responses include `Cache-Control: public, max-age=3600`.
 * Random jitter is added to each TTL to reduce cache stampedes.
 * Cache keys include all relevant query parameters so each combination is stored separately.
 * Fallback to the database or external API if Redis is unavailable.
 * Connections close cleanly on API shutdown.
+* The frontend service worker pre-caches local icons and Google Fonts using Next-PWA.
 
 ### Artist Listing Filters
 
