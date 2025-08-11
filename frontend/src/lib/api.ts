@@ -1,6 +1,7 @@
 // frontend/src/lib/api.ts
 
 import axios, { AxiosProgressEvent } from 'axios';
+import logger from './logger';
 import { format } from 'date-fns';
 import { extractErrorMessage, normalizeQuoteTemplate } from './utils';
 import {
@@ -40,6 +41,7 @@ const api = axios.create({
 // Automatically attach the bearer token (if present) to every request
 api.interceptors.request.use(
   (config) => {
+    logger.info({ method: config.method, url: config.url }, 'API request');
     if (typeof window !== 'undefined') {
       const token =
         localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -81,11 +83,11 @@ api.interceptors.response.use(
         message = 'Network error. Please check your connection.';
       }
 
-      console.error('API error:', { status, detail }, error);
+      logger.error({ err: error, status, detail }, 'API error');
       return Promise.reject(new Error(message));
     }
 
-    console.error('Unexpected API error:', error);
+    logger.error({ err: error }, 'Unexpected API error');
     return Promise.reject(
       error instanceof Error ? error : new Error('An unexpected error occurred.'),
     );
