@@ -9,11 +9,14 @@ from sqlalchemy import (
     Boolean,
 )
 from sqlalchemy.orm import relationship, backref
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import enum
 
 from .base import BaseModel
 from .types import CaseInsensitiveEnum
+
+
+TZ_GMT2 = timezone(timedelta(hours=2))
 
 class SenderType(str, enum.Enum):
     CLIENT = "client"
@@ -70,7 +73,10 @@ class Message(BaseModel):
     action = Column(Enum(MessageAction), nullable=True)
     # Optional time after which this message should be considered expired
     expires_at = Column(DateTime, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    # Store message timestamps in GMT+2 for consistent chat chronology
+    timestamp = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(TZ_GMT2)
+    )
     is_read = Column(Boolean, default=False)
 
     booking_request = relationship(
