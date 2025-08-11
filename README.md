@@ -42,6 +42,7 @@ The July 2025 update bumps key dependencies and Docker base images:
 ## Observability
 
 Structured JSON logs and OpenTelemetry traces are enabled for both the FastAPI backend and the Next.js frontend. See [docs/observability.md](docs/observability.md) for SLO targets and alerting recommendations.
+- Mobile telemetry captures Web Vitals (LCP, INP), tap errors, and rage taps, segmenting events by viewport width and device pixel ratio. Alerts fire when mobile SLOs are exceeded.
 - Chat now provides optimistic send with status indicators, long message and provider lists are virtualized for smoother scrolling, and booking form validation/autosave are debounced and throttled for better responsiveness.
 - An unobtrusive marketing strip replaces the old Hero section.
 - The homepage now highlights popular, top rated, and new artists in horizontally scrollable carousels.
