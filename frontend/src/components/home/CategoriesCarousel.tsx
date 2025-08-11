@@ -33,7 +33,7 @@
   updateScrollButtons();
   const el = scrollRef.current;
   if (!el) return;
-  el.addEventListener('scroll', updateScrollButtons);
+  el.addEventListener('scroll', updateScrollButtons, { passive: true });
   window.addEventListener('resize', updateScrollButtons);
   return () => {
   el.removeEventListener('scroll', updateScrollButtons);

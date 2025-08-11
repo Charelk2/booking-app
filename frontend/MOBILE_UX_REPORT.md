@@ -67,3 +67,9 @@ The `CollapsibleSection` component replaces raw `<details>` elements in the book
   <LocationStep />
 </CollapsibleSection>
 ```
+
+## Gestures & Jank
+* Scroll and touch listeners now use passive mode to keep gesture handling off the main thread.
+* Step transitions rely on GPU-friendly `transform`/`opacity` animations with `will-change` hints for smooth 60fps updates.
+* Global `overscroll-behavior` prevents scroll chaining between the wizard and the page.
+* Heavy shadows are removed on small screens to cut compositing costs and avoid jank.
