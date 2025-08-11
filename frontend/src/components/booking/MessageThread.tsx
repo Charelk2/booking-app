@@ -47,10 +47,12 @@ import QuoteBubble from './QuoteBubble';
 import InlineQuoteForm from './InlineQuoteForm';
 import useWebSocket from '@/hooks/useWebSocket';
 import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
+import { buildReceiptUrl } from '@/lib/utils';
 import { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import data from '@emoji-mart/data';
+import { createPortal } from 'react-dom';
 import { t } from '@/lib/i18n';
 
 const MemoQuoteBubble = React.memo(QuoteBubble);
@@ -132,6 +134,9 @@ interface MessageThreadProps {
   onPaymentStatusChange?: (status: string | null, amount: number | null, receiptUrl: string | null) => void;
   onShowReviewModal?: (show: boolean) => void;
   onOpenDetailsPanel?: () => void;
+  artistCancellationPolicy?: string | null;
+  allowInstantBooking?: boolean;
+  instantBookingPrice?: number;
 }
 
 // SVG Checkmark Icons (refined sizes and stroke)
@@ -173,6 +178,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       onPaymentStatusChange,
       onShowReviewModal,
       onOpenDetailsPanel,
+      artistCancellationPolicy,
+      allowInstantBooking,
+      instantBookingPrice,
     }: MessageThreadProps,
     ref,
   ) {
@@ -199,6 +207,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [textareaLineHeight, setTextareaLineHeight] = useState(0);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [showDetailsCard, setShowDetailsCard] = useState(false);
+    const [isPortalReady, setIsPortalReady] = useState(false);
     const { enqueue: enqueueMessage } = useOfflineQueue<{
       tempId: number;
       payload: MessageCreate;
@@ -259,6 +268,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       textareaRef.current?.focus();
     }, [bookingRequestId]);
 
+    // Ensure portal mounts only on client to avoid hydration mismatch
+    useEffect(() => {
+      setIsPortalReady(true);
+    }, []);
+
     const hasSentQuote = useMemo(
       () => messages.some((m) => Number(m.quote_id) > 0),
       [messages],
@@ -275,8 +289,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
 
 
     // Payment Modal Hook
+    const [paymentInfo, setPaymentInfo] = useState<{ status: string | null; amount: number | null; receiptUrl: string | null }>({ status: null, amount: null, receiptUrl: null });
+
     const { openPaymentModal, paymentModal } = usePaymentModal(
       useCallback(({ status, amount, receiptUrl: url }) => {
+        setPaymentInfo({ status: status ?? null, amount: amount ?? null, receiptUrl: url ?? null });
         if (onPaymentStatusChange) {
           onPaymentStatusChange(status, amount, url ?? null);
         }
@@ -1318,6 +1335,221 @@ useEffect(() => {
         <div aria-live="polite" className="sr-only">{announceNewMessage}</div>
 
         
+
+        {/* Details Card Modal (Portal to escape stacking contexts) */}
+        {showDetailsCard && isPortalReady && createPortal(
+          (
+            <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4">
+              <div
+                className="absolute inset-0 bg-black/40"
+                onClick={() => setShowDetailsCard(false)}
+                aria-hidden="true"
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                className="relative z-[10000] w-full sm:max-w-md md:max-w-lg bg-white text-black rounded-2xl shadow-2xl max-h-[92vh] overflow-hidden"
+              >
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                  <h3 className="text-base font-semibold">Your booking details</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowDetailsCard(false)}
+                    className="p-2 rounded-full hover:bg-gray-100"
+                    aria-label="Close details"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="px-4 pt-3 text-sm text-gray-600">Here’s a summary of your request.</div>
+                <div className="px-4 mt-3 flex items-center gap-3">
+                  <div className="relative h-16 w-16 rounded-xl overflow-hidden flex-shrink-0">
+                    {artistAvatarUrl ? (
+                      <Image
+                        src={getFullImageUrl(artistAvatarUrl) as string}
+                        alt="Artist"
+                        fill
+                        className="object-cover"
+                        sizes="64px"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gray-200" aria-hidden="true" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-base font-semibold">{computedServiceName || 'Service'}</div>
+                    <div className="text-sm text-gray-600">{artistName || 'Service Provider'}</div>
+                  </div>
+                </div>
+                <div className="my-4 mt-4 border-t border-gray-200" />
+                <div className="px-4 pb-4 overflow-y-auto max-h-[60vh] text-sm leading-6">
+                  {/* Booking details list */}
+                  <ul className="divide-y divide-gray-100">
+                    {parsedBookingDetails?.eventType && (
+                      <li className="py-2"><span className="font-semibold">Event Type:</span> {parsedBookingDetails.eventType}</li>
+                    )}
+                    {parsedBookingDetails?.date && (
+                      <li className="py-2"><span className="font-semibold">Date:</span> {isValid(new Date(parsedBookingDetails.date)) ? format(new Date(parsedBookingDetails.date), 'PPP p') : parsedBookingDetails.date}</li>
+                    )}
+                    {parsedBookingDetails?.location && (
+                      <li className="py-2"><span className="font-semibold">Location:</span> {parsedBookingDetails.location}</li>
+                    )}
+                    {parsedBookingDetails?.guests && (
+                      <li className="py-2"><span className="font-semibold">Guests:</span> {parsedBookingDetails.guests}</li>
+                    )}
+                    {parsedBookingDetails?.venueType && (
+                      <li className="py-2"><span className="font-semibold">Venue Type:</span> {parsedBookingDetails.venueType}</li>
+                    )}
+                    {parsedBookingDetails?.notes && (
+                      <li className="py-2"><span className="font-semibold">Notes:</span> {parsedBookingDetails.notes}</li>
+                    )}
+                  </ul>
+
+                  {/* Order & receipt */}
+                  {(bookingConfirmed || paymentInfo.status) && (
+                    <div className="mt-4">
+                      <div className="font-semibold mb-1">Order</div>
+                      <div className="rounded-lg bg-gray-50 border border-gray-100 p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-700">Order number</span>
+                          <span className="font-medium">{bookingDetails?.id ?? '—'}</span>
+                        </div>
+                        {(() => {
+                          const url = buildReceiptUrl(paymentInfo.receiptUrl, bookingDetails?.payment_id ?? null);
+                          return url ? (
+                            <div className="mt-2 text-right">
+                              <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium underline text-gray-700">View receipt</a>
+                            </div>
+                          ) : null;
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Estimate or Quote Totals */}
+                  {(() => {
+                    const quoteList = Object.values(quotes || {});
+                    const accepted = quoteList.find((q) => q.status === 'accepted');
+                    const pending = quoteList.filter((q) => q.status === 'pending');
+                    const latestPending = pending.sort((a,b) => (a.id||0) - (b.id||0)).slice(-1)[0];
+                    const best = accepted || latestPending;
+                    if (best) {
+                      return (
+                        <div className="mt-4">
+                          <div className="font-semibold mb-1">Quote total</div>
+                          <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-1">
+                            {best.services?.[0]?.description && (
+                              <div className="flex justify-between text-gray-700">
+                                <span>{best.services[0].description}</span>
+                                <span>{formatCurrency(Number(best.services[0].price||0))}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between text-gray-700">
+                              <span>Sound</span>
+                              <span>{formatCurrency(Number(best.sound_fee||0))}</span>
+                            </div>
+                            <div className="flex justify-between text-gray-700">
+                              <span>Travel</span>
+                              <span>{formatCurrency(Number(best.travel_fee||0))}</span>
+                            </div>
+                            {best.accommodation && (
+                              <div className="flex justify-between text-gray-700">
+                                <span>Accommodation</span>
+                                <span>{best.accommodation}</span>
+                              </div>
+                            )}
+                            {Number(best.discount||0) > 0 && (
+                              <div className="flex justify-between text-gray-700">
+                                <span>Discount</span>
+                                <span>-{formatCurrency(Number(best.discount||0))}</span>
+                              </div>
+                            )}
+                            <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
+                              <span>Total</span>
+                              <span>{formatCurrency(Number(best.total||0))}</span>
+                            </div>
+                          </div>
+                          {allowInstantBooking && !accepted && (
+                            <div className="mt-3 text-right">
+                              <Button
+                                type="button"
+                                onClick={() => openPaymentModal({ bookingRequestId, amount: Number(best.total||0) })}
+                                className="bg-gray-900 text-white hover:bg-black"
+                              >
+                                Reserve now
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="mt-4">
+                        <div className="font-semibold mb-1">Estimated total</div>
+                        <div className="rounded-lg bg-gray-50 border border-gray-100 p-3">
+                          <div className="flex justify-between text-gray-700">
+                            <span>Base fee</span>
+                            <span>{formatCurrency(Number(baseFee || 0))}</span>
+                          </div>
+                          <div className="flex justify-between text-gray-700 mt-1">
+                            <span>Travel</span>
+                            <span>{formatCurrency(Number(travelFee || 0))}</span>
+                          </div>
+                          <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
+                            <span>Total estimate</span>
+                            <span>{formatCurrency(Number(baseFee || 0) + Number(travelFee || 0))}</span>
+                          </div>
+                          {typeof initialSoundNeeded !== 'undefined' && (
+                            <div className="text-xs text-gray-500 mt-1">Sound equipment: {initialSoundNeeded ? 'Yes' : 'No'} (if required, may be quoted separately)</div>
+                          )}
+                        </div>
+                        {allowInstantBooking && (
+                          <div className="mt-3 text-right">
+                            <Button
+                              type="button"
+                              onClick={() => openPaymentModal({ bookingRequestId, amount: Number(instantBookingPrice ?? (Number(baseFee||0)+Number(travelFee||0))) })}
+                              className="bg-gray-900 text-white hover:bg-black"
+                            >
+                              Reserve now
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Policy */}
+                  <div className="mt-5">
+                    <div className="font-semibold mb-1">Cancellation policy</div>
+                    <p className="text-gray-600 text-sm">
+                      {artistCancellationPolicy?.trim() ||
+                        'Free cancellation within 48 hours of booking. 50% refund up to 7 days before the event. Policies may vary by provider.'}
+                    </p>
+                  </div>
+
+                  {/* Links */}
+                  <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <a
+                      href={currentArtistId ? `/service-providers/${currentArtistId}` : '#'}
+                      className="block text-center rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 font-medium"
+                    >
+                      View service provider
+                    </a>
+                    <a
+                      href="/support"
+                      className="block text-center rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 font-medium"
+                    >
+                      Get support
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ),
+          document.body
+        )}
 
         {/* Message Input and Action Bar */}
         {user && (

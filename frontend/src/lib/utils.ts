@@ -27,6 +27,20 @@ export const getFullImageUrl = (
   return `${base}${cleanPath}`;
 };
 
+// Build a receipt URL from payment info. Prefers explicit receiptUrl, then PayFast base + payment_id.
+export const buildReceiptUrl = (
+  receiptUrl?: string | null,
+  paymentId?: string | null,
+): string | null => {
+  if (receiptUrl) return receiptUrl;
+  const base =
+    process.env.NEXT_PUBLIC_RECEIPT_BASE_URL ||
+    process.env.NEXT_PUBLIC_PAYFAST_RECEIPT_BASE_URL ||
+    '';
+  if (base && paymentId) return `${base.replace(/\/$/, '')}/${paymentId}`;
+  return null;
+};
+
 export const extractErrorMessage = (detail: unknown): string => {
   if (!detail) return 'An unexpected error occurred.';
   if (typeof detail === 'string') return detail;

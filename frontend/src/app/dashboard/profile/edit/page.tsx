@@ -22,6 +22,7 @@ import { getFullImageUrl } from '@/lib/utils';
 import { DEFAULT_CURRENCY } from '@/lib/constants';
 import { Spinner } from '@/components/ui';
 import LocationInput from '@/components/ui/LocationInput';
+import MarkdownPreview from '@/components/ui/MarkdownPreview';
 
 import dynamic from 'next/dynamic';
 import {
@@ -158,6 +159,22 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [calendarEmail, setCalendarEmail] = useState<string | null>(null);
 
+  // Policies wizard state
+  const [policyTemplate, setPolicyTemplate] = useState<'flexible'|'moderate'|'strict'|'custom'>('flexible');
+  const [cancellationPolicy, setCancellationPolicy] = useState<string>('');
+  const POLICY_TEMPLATES: Record<string, string> = {
+    flexible: '# Flexible\n\n- Free cancellation within 48 hours of booking.\n- 100% refund up to 14 days before the event.\n- 50% refund up to 7 days before.',
+    moderate: '# Moderate\n\n- Free cancellation within 24 hours of booking.\n- 50% refund up to 7 days before the event.',
+    strict: '# Strict\n\n- Non-refundable within 14 days of the event.\n- 50% refund before that period.',
+    custom: '',
+  };
+  const POLICY_DESCRIPTIONS: Record<'flexible'|'moderate'|'strict'|'custom', string> = {
+    flexible: 'Great for gigs with flexible schedules. Encourages bookings with generous refunds.',
+    moderate: 'Balanced protection for both you and clients.',
+    strict: 'Use for high-demand dates or complex events.',
+    custom: 'Write your own terms (supports basic Markdown).',
+  };
+
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -188,6 +205,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
         setSpecialtiesInput(fetchedProfile.specialties?.join(', ') || '');
         setPortfolioUrlsInput(fetchedProfile.portfolio_urls?.join(', ') || '');
         setPortfolioImages(fetchedProfile.portfolio_image_urls || []);
+        setCancellationPolicy(fetchedProfile.cancellation_policy || '');
 
         const currentRelativePic = fetchedProfile.profile_picture_url || '';
         setProfilePictureUrlInput(currentRelativePic);
@@ -273,6 +291,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
         profile_picture_url: profilePictureUrlInput.trim()
           ? profilePictureUrlInput.trim()
           : undefined,
+        cancellation_policy: cancellationPolicy.trim() || undefined,
       };
 
       await updateMyServiceProviderProfile(dataToUpdate);
@@ -695,7 +714,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
           className="space-y-8 divide-y divide-gray-200"
         >
           <div className="space-y-6 pt-8 sm:space-y-5">
-            <section>
+            <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
               <h2 className="text-xl font-medium text-gray-700 mb-6">Business Details</h2>
               <div className="space-y-4">
                 <div>
@@ -754,7 +773,55 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
               </div>
             </section>
 
-            <section className="pt-8">
+            {/* Policies Wizard */}
+            <section className="pt-8 bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+              <h2 className="text-xl font-medium text-gray-700 mb-3">Policies</h2>
+              <p className="text-sm text-gray-600 mb-4">Set a cancellation policy clients will see before they book.</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                {(['flexible','moderate','strict','custom'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setPolicyTemplate(t);
+                      if (t !== 'custom') setCancellationPolicy(POLICY_TEMPLATES[t]);
+                    }}
+                    className={`px-3 py-2 rounded-md border text-sm ${policyTemplate===t ? 'border-gray-800 text-gray-900' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+                    aria-pressed={policyTemplate===t}
+                  >
+                    {t.charAt(0).toUpperCase()+t.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mb-3">{POLICY_DESCRIPTIONS[policyTemplate]}</p>
+              <div className="space-y-2">
+                <label htmlFor="cancellationPolicy" className={labelClasses}>Cancellation policy text</label>
+                <textarea
+                  id="cancellationPolicy"
+                  value={cancellationPolicy}
+                  onChange={(e)=>{ setCancellationPolicy(e.target.value); setPolicyTemplate('custom'); }}
+                  rows={5}
+                  className={inputClasses}
+                  placeholder="Write your policy here..."
+                />
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>Live preview</span>
+                  <span>{cancellationPolicy.length} chars</span>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-700">
+                  {cancellationPolicy.trim() ? (
+                    <MarkdownPreview value={cancellationPolicy} />
+                  ) : (
+                    <span>No policy yet. Choose a template or write your own.</span>
+                  )}
+                </div>
+                <div className="pt-2">
+                  <button type="submit" className={primaryButtonClasses}>Save & Preview</button>
+                </div>
+              </div>
+            </section>
+
+            <section className="pt-8 bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
               <h2 className="text-xl font-medium text-gray-700 mb-6">Professional Details</h2>
               <div className="space-y-4">
                 <div>
@@ -801,7 +868,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
               </div>
             </section>
 
-            <section className="pt-8">
+            <section className="pt-8 bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
               <h2 className="text-xl font-medium text-gray-700 mb-6">Sync Google Calendar</h2>
               <p className="text-sm text-gray-600 mb-4">
                 Status:

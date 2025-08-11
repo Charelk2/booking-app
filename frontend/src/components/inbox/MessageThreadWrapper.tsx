@@ -264,6 +264,7 @@ export default function MessageThreadWrapper({
             clientAvatarUrl={bookingRequest.client?.profile_picture_url ?? null}
             serviceName={bookingRequest.service?.title}
             initialNotes={bookingRequest.message ?? null}
+            artistCancellationPolicy={bookingRequest.artist_profile?.cancellation_policy ?? null}
             initialBaseFee={bookingRequest.service?.price ? Number(bookingRequest.service.price) : undefined}
             initialTravelCost={
               bookingRequest.travel_cost !== null && bookingRequest.travel_cost !== undefined
