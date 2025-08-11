@@ -2,6 +2,7 @@ import { Inter } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { NotificationsProvider } from '@/hooks/useNotifications';
+import MobileTelemetry from '@/components/analytics/MobileTelemetry';
 import './globals.css';
 
 
@@ -37,6 +38,7 @@ export default function RootLayout({
             <Toaster position="top-right" />
           </NotificationsProvider>
         </AuthProvider>
+        <MobileTelemetry />
         <div id="modal-root"></div>
 
       </body>
