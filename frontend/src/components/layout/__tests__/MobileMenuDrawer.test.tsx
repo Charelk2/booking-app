@@ -201,7 +201,7 @@ describe('MobileMenuDrawer', () => {
     expect(body).toContain('Quote Templates');
   });
 
-  it('shows My Bookings link for clients', async () => {
+  it('shows Events and Messages links for clients', async () => {
     await act(async () => {
       root.render(
         React.createElement(MobileMenuDrawer, {
@@ -216,8 +216,8 @@ describe('MobileMenuDrawer', () => {
     });
     await flushPromises();
     const body = document.body.textContent || '';
-    expect(body).toContain('My Bookings');
-    expect(body).toContain('Account');
+    expect(body).toContain('Events');
+    expect(body).toContain('Messages');
   });
 
   it('deduplicates items across navigation sections', async () => {
