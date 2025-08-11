@@ -26,6 +26,8 @@ export interface ServiceProviderProfile {
   portfolio_urls?: string[] | null;
   portfolio_image_urls?: string[] | null;
   specialties?: string[] | null;
+  /** Optional cancellation policy text configured by the artist */
+  cancellation_policy?: string | null;
   /** Average star rating calculated from reviews */
   rating?: number;
   /** Number of reviews contributing to the rating */
