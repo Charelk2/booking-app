@@ -25,7 +25,7 @@ import {
   QuoteV2,
   QuoteV2Create,
 } from '@/types';
-import { ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import {
   getMessagesForBookingRequest,
   postMessageToBookingRequest,
@@ -312,11 +312,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
 
       const style = getComputedStyle(ta);
       const padT = parseFloat(style.paddingTop);
-      const padB = parseFloat(style.paddingBottom);
       const bdrT = parseFloat(style.borderTopWidth);
       const bdrB = parseFloat(style.borderBottomWidth);
 
-      const maxH = textareaLineHeight * MAX_TEXTAREA_LINES + padT + padB + bdrT + bdrB;
+      const maxH = textareaLineHeight * MAX_TEXTAREA_LINES + padT + bdrT + bdrB;
       const newH = Math.min(ta.scrollHeight, maxH);
       ta.style.height = `${newH}px`;
 
@@ -901,9 +900,8 @@ useEffect(() => {
         <div
           ref={messagesContainerRef}
           onScroll={handleScroll}
-          className="relative flex-1 flex-grow overflow-y-auto flex flex-col gap-3 bg-white px-4 pt-4"
+          className="relative flex-1 flex-grow overflow-y-auto flex flex-col gap-3 bg-[#ffffff] px-4 pt-4 pb-2"
           style={{
-            paddingBottom: `${composerHeight + 7}px`,
             WebkitOverflowScrolling: 'touch',
           }}
         >
@@ -942,14 +940,12 @@ useEffect(() => {
 
             return (
               <React.Fragment key={firstMsgInGroup.id}>
-                {/* Day Divider Line (WhatsApp style) */}
+                {/* Day Divider: centered date without side lines */}
                 {group.showDayDivider && (
-                  <div className="flex items-center my-4 w-full">
-                    <hr className="flex-grow border-t border-gray-200" />
+                  <div className="flex justify-center my-4 w-full">
                     <span className="px-3 text-xs text-gray-500 bg-gray-100 rounded-full py-1">
                       {daySeparatorLabel(new Date(firstMsgInGroup.timestamp))}
                     </span>
-                    <hr className="flex-grow border-t border-gray-200" />
                   </div>
                 )}
 
@@ -1010,9 +1006,9 @@ useEffect(() => {
                     if (isSystemMessage) {
                       bubbleShape = 'rounded-lg';
                     } else if (isMsgFromSelf) {
-                      bubbleShape = isLastInGroup ? 'rounded-br-none rounded-2xl' : 'rounded-2xl';
+                      bubbleShape = isLastInGroup ? 'rounded-br-none rounded-xl' : 'rounded-xl';
                     } else {
-                      bubbleShape = isLastInGroup ? 'rounded-bl-none rounded-2xl' : 'rounded-2xl';
+                      bubbleShape = isLastInGroup ? 'rounded-bl-none rounded-xl' : 'rounded-xl';
                     }
 
                     const quoteId = Number(msg.quote_id);
@@ -1026,7 +1022,7 @@ useEffect(() => {
                       return (
                         <div
                           key={msg.id}
-                          className="text-center text-xs text-gray-500 py-2"
+                          className="text-center text-sm text-gray-500 py-2"
                           ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}>
                           {msg.content}
                         </div>
@@ -1034,8 +1030,8 @@ useEffect(() => {
                     }
 
                     const bubbleBase = isMsgFromSelf
-                      ? 'bg-blue-50 text-black'
-                      : 'bg-gray-50 text-gray-700';
+                      ? 'bg-blue-50 text-gray-900'
+                      : 'bg-gray-50 text-gray-900';
 
                     const bubbleClasses = `${bubbleBase} ${bubbleShape}`;
                     const messageTime = format(new Date(msg.timestamp), 'HH:mm');
@@ -1043,6 +1039,7 @@ useEffect(() => {
                     if (isQuoteMessage) {
                       const quoteData = quotes[quoteId];
                       if (!quoteData) return null;
+                      const isClient = user?.user_type === 'client';
                       return (
                         <div
                           key={msg.id}
@@ -1050,6 +1047,16 @@ useEffect(() => {
                           className={`mb-0.5 w-full`}
                           ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                         >
+                          {isClient && (
+                            <div className="my-2 md:my-3">
+                              <div className="flex items-center gap-3 text-gray-500">
+                                <div className="h-px flex-1 bg-gray-200" />
+                                <span className="text-[11px] sm:text-xs">New quote from {artistName || 'the artist'}</span>
+                                <div className="h-px flex-1 bg-gray-200" />
+                              </div>
+                            </div>
+                          )}
+
                           <MemoQuoteBubble
                             description={quoteData.services[0]?.description || ''}
                             price={Number(quoteData.services[0]?.price || 0)}
@@ -1099,6 +1106,27 @@ useEffect(() => {
                                 : undefined
                             }
                           />
+
+                          {isClient && (
+                            <>
+                              <div className="mt-2 mb-2">
+                                <div className="flex items-start gap-2 rounded-lg bg-white/60 px-3 py-2 border border-gray-100">
+                                  <InformationCircleIcon className="h-4 w-4 text-gray-400 mt-0.5" />
+                                  <div>
+                                    <p className="text-[11px] sm:text-xs text-gray-600">
+                                      Review the itemized price and included services. Ask questions if anything looks off.
+                                    </p>
+                                    <p className="text-[11px] sm:text-xs text-gray-600 mt-1">
+                                      Ready to go? Tap <span className="font-medium">Accept</span> to secure the date. You can pay the deposit right after.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="my-2 md:my-3">
+                                <div className="h-px w-full bg-gray-200" />
+                              </div>
+                            </>
+                          )}
                         </div>
                       );
                     }
@@ -1285,8 +1313,7 @@ useEffect(() => {
             <div
               ref={composerRef}
               data-testid="composer-container"
-              className="bg-white border-t border-gray-100 shadow-lg pb-safe relative flex-shrink-0"
-              style={{ paddingBottom: 'var(--mobile-bottom-nav-offset, var(--mobile-bottom-nav-height,56px))' }}
+              className="bg-white border-t border-gray-100 shadow-lg pb-safe relative flex-shrink-0 pb-2"
             >
               {showEmojiPicker && (
                 <div ref={emojiPickerRef} className="absolute bottom-14 left-0 z-50">
