@@ -5,6 +5,7 @@ export type MessageHandler = (event: MessageEvent) => void;
 interface UseWebSocketReturn {
   send: (data: string | ArrayBufferLike | Blob | ArrayBufferView) => void;
   onMessage: (handler: MessageHandler) => () => void;
+  updatePresence: (userId: number, status: string) => void;
 }
 
 /**
@@ -22,6 +23,9 @@ export default function useWebSocket(
   const handlersRef = useRef<MessageHandler[]>([]);
   const attemptsRef = useRef(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const presenceBuffer = useRef<Map<number, string>>(new Map());
+  const presenceTimer = useRef<NodeJS.Timeout | null>(null);
+  const lastPresenceUser = useRef<number | null>(null);
 
   const send = useCallback<UseWebSocketReturn['send']>((data) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -35,6 +39,31 @@ export default function useWebSocket(
       handlersRef.current = handlersRef.current.filter((h) => h !== handler);
     };
   }, []);
+
+  const flushPresence = useCallback(() => {
+    const updates: Record<number, string> = {};
+    presenceBuffer.current.forEach((status, id) => {
+      updates[id] = status;
+    });
+    presenceBuffer.current.clear();
+    presenceTimer.current = null;
+    try {
+      send(JSON.stringify({ type: 'presence', updates }));
+    } catch {
+      /* ignore */
+    }
+  }, [send]);
+
+  const updatePresence = useCallback<UseWebSocketReturn['updatePresence']>(
+    (userId, status) => {
+      lastPresenceUser.current = userId;
+      presenceBuffer.current.set(userId, status);
+      if (!presenceTimer.current) {
+        presenceTimer.current = setTimeout(flushPresence, 1000);
+      }
+    },
+    [flushPresence],
+  );
 
   useEffect(() => {
     if (!url) return undefined;
@@ -58,9 +87,25 @@ export default function useWebSocket(
 
       ws.onopen = () => {
         attemptsRef.current = 0;
+        const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+        const base = isMobile ? 60 : 30;
+        try {
+          ws.send(JSON.stringify({ type: 'heartbeat', interval: base }));
+        } catch {
+          /* ignore */
+        }
       };
 
       ws.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data as string);
+          if (data?.type === 'ping') {
+            ws.send(JSON.stringify({ type: 'pong' }));
+            return;
+          }
+        } catch {
+          /* ignore */
+        }
         handlersRef.current.forEach((h) => h(e));
       };
 
@@ -98,10 +143,32 @@ export default function useWebSocket(
       ws.onclose = scheduleReconnect;
     };
 
+    const handleVisibility = () => {
+      if (!socketRef.current) return;
+      const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+      const base = isMobile ? 60 : 30;
+      const interval = document.hidden ? base * 2 : base;
+      try {
+        socketRef.current.send(
+          JSON.stringify({ type: 'heartbeat', interval }),
+        );
+      } catch {
+        /* ignore */
+      }
+      if (lastPresenceUser.current !== null) {
+        updatePresence(
+          lastPresenceUser.current,
+          document.hidden ? 'away' : 'online',
+        );
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
     connect();
 
     return () => {
       cancelled = true;
+      document.removeEventListener('visibilitychange', handleVisibility);
       if (socketRef.current) {
         try {
           socketRef.current.close();
@@ -117,5 +184,5 @@ export default function useWebSocket(
     };
   }, [url, onError]);
 
-  return { send, onMessage };
+  return { send, onMessage, updatePresence };
 }
