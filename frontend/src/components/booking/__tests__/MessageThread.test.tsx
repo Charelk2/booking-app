@@ -208,9 +208,11 @@ describe('MessageThread composer positioning', () => {
     });
     await act(async () => { await flushPromises(); });
 
-    const form = container.querySelector('form');
-    expect(form).not.toBeNull();
-    expect((form as HTMLFormElement).style.bottom).toBe('var(--mobile-bottom-nav-height,56px)');
+    const composer = container.querySelector('[data-testid="composer-container"]');
+    expect(composer).not.toBeNull();
+    expect((composer as HTMLElement).style.paddingBottom).toBe(
+      'var(--mobile-bottom-nav-offset, var(--mobile-bottom-nav-height,56px))',
+    );
 
     act(() => root.unmount());
     container.remove();
