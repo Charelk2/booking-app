@@ -360,7 +360,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 </Link>
                 <Link
                   href="/register"
-                  className={clsx(navItemClasses, 'bg-brand-dark text-white rounded')}
+                  className={clsx(navItemClasses, 'bg-brand-dark h-8 p-2 text-white rounded')}
                 >
                   Sign up
                 </Link>
