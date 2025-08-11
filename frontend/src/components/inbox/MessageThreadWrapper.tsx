@@ -11,7 +11,7 @@ import AlertBanner from '../ui/AlertBanner';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import * as api from '@/lib/api';
 import { formatCurrency, formatDepositReminder, getFullImageUrl } from '@/lib/utils';
-import { InformationCircleIcon } from '@heroicons/react/24/outline';
+import { InformationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
 
 interface ParsedBookingDetails {
@@ -65,6 +65,17 @@ export default function MessageThreadWrapper({
     }, []),
     useCallback(() => {}, []),
   );
+
+  // Close mobile sheet on Escape
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowSidePanel(false);
+    };
+    if (showSidePanel) {
+      window.addEventListener('keydown', onKeyDown);
+    }
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showSidePanel]);
 
   const handleDownloadCalendar = useCallback(async () => {
     if (!confirmedBookingDetails?.id) return;
@@ -123,7 +134,7 @@ export default function MessageThreadWrapper({
   return (
     <div className="flex flex-col h-full w-full bg-white shadow-xl border-l border-gray-100 relative">
       {/* Unified Header */}
-      <header className="sticky top-0 z-10 bg-white text-black px-4 py-3 flex items-center justify-between border-b border-gray-100 md:min-h-[64px]">
+      <header className="sticky top-0 z-10 bg-[#ece5da] text-gray-900 px-3 py-2 sm:px-5 sm:py-3 flex items-center justify-between border-b border-gray-200 md:min-h-[64px]">
         <div className="flex items-center gap-3">
           {/* Avatar on left */}
           {isUserArtist ? (
@@ -183,7 +194,7 @@ export default function MessageThreadWrapper({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 px-4">
+        <div className="flex items-center gap-2 px-2 sm:px-4">
           <button
             type="button"
             onClick={() => setShowSidePanel((s) => !s)}
@@ -271,14 +282,15 @@ export default function MessageThreadWrapper({
               setReceiptUrl(url);
             }}
             onShowReviewModal={setShowReviewModal}
+            onOpenDetailsPanel={() => setShowSidePanel(true)}
           />
         </div>
 
         <section
           id="reservation-panel-desktop"
           role="complementary"
-          className={`hidden md:flex flex-col transform transition-all duration-300 ease-in-out flex-shrink-0 md:static md:translate-x-0 md:overflow-y-auto ${
-            showSidePanel ? 'border-l border-gray-200 md:w-[300px] lg:w-[360px] md:p-4' : 'md:w-0 md:p-0 md:overflow-hidden'
+          className={`hidden md:flex flex-col bg-white text-sm leading-6 transform transition-all duration-300 ease-in-out flex-shrink-0 md:static md:translate-x-0 md:overflow-y-auto ${
+            showSidePanel ? 'border-l border-gray-200 md:w-[300px] lg:w-[360px] md:p-5 lg:p-6' : 'md:w-0 md:p-0 md:overflow-hidden'
           }`}
         >
           <BookingDetailsPanel
@@ -291,13 +303,35 @@ export default function MessageThreadWrapper({
           />
         </section>
 
+        {/* Mobile overlay backdrop */}
+        {showSidePanel && (
+          <div
+            className="md:hidden fixed inset-0 z-30 bg-black/30"
+            onClick={() => setShowSidePanel(false)}
+            aria-hidden="true"
+          />
+        )}
+
         <section
           id="reservation-panel-mobile"
           role="complementary"
-          className={`md:hidden fixed inset-0 z-20 w-full bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
-            showSidePanel ? 'translate-x-0' : 'translate-x-full'
-          } p-4`}
+          aria-modal="true"
+          className={`md:hidden fixed inset-x-0 bottom-0 z-40 w-full bg-white shadow-2xl transform transition-transform duration-300 ease-out rounded-t-2xl text-sm leading-6 ${
+            showSidePanel ? 'translate-y-0' : 'translate-y-full'
+          } max-h-[85vh] h-[85vh] overflow-y-auto`}
         >
+          <div className="sticky top-0 z-10 bg-white rounded-t-2xl px-4 pt-3 pb-2 border-b border-gray-100 flex items-center justify-between">
+            <div className="mx-auto h-1.5 w-10 rounded-full bg-gray-300" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={() => setShowSidePanel(false)}
+              aria-label="Close details"
+              className="absolute right-2 top-2 p-2 rounded-full hover:bg-gray-100"
+            >
+              <XMarkIcon className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
+          <div className="p-4">
           <BookingDetailsPanel
             bookingRequest={bookingRequest}
             parsedBookingDetails={parsedDetails}
@@ -306,6 +340,7 @@ export default function MessageThreadWrapper({
             setShowReviewModal={setShowReviewModal}
             paymentModal={paymentModal}
           />
+          </div>
         </section>
       </div>
     </div>

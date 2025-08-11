@@ -13,6 +13,7 @@ import React, {
 import Image from 'next/image';
 import {
   getFullImageUrl,
+  formatCurrency,
 } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
@@ -50,6 +51,7 @@ import { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import data from '@emoji-mart/data';
+import { t } from '@/lib/i18n';
 
 const MemoQuoteBubble = React.memo(QuoteBubble);
 const MemoInlineQuoteForm = React.memo(InlineQuoteForm);
@@ -129,6 +131,7 @@ interface MessageThreadProps {
   onBookingConfirmedChange?: (isConfirmed: boolean, booking: Booking | null) => void;
   onPaymentStatusChange?: (status: string | null, amount: number | null, receiptUrl: string | null) => void;
   onShowReviewModal?: (show: boolean) => void;
+  onOpenDetailsPanel?: () => void;
 }
 
 // SVG Checkmark Icons (refined sizes and stroke)
@@ -169,6 +172,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       onBookingConfirmedChange,
       onPaymentStatusChange,
       onShowReviewModal,
+      onOpenDetailsPanel,
     }: MessageThreadProps,
     ref,
   ) {
@@ -194,6 +198,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
     const [textareaLineHeight, setTextareaLineHeight] = useState(0);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [showDetailsCard, setShowDetailsCard] = useState(false);
     const { enqueue: enqueueMessage } = useOfflineQueue<{
       tempId: number;
       payload: MessageCreate;
@@ -580,6 +585,15 @@ useEffect(() => {
       return () => {};
     }, [handleScroll]);
 
+    // Close details card on Escape
+    useEffect(() => {
+      const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') setShowDetailsCard(false);
+      };
+      if (showDetailsCard) window.addEventListener('keydown', onKey);
+      return () => window.removeEventListener('keydown', onKey);
+    }, [showDetailsCard]);
+
     useEffect(() => {
       if (prevMessageCountRef.current && messages.length > prevMessageCountRef.current && showScrollButton) {
         setAnnounceNewMessage('New messages available');
@@ -911,7 +925,37 @@ useEffect(() => {
             </div>
           ) : (
             visibleMessages.length === 0 && !isSystemTyping && (
-              <p className="text-xs text-gray-500 text-center py-4">No messages yet. Start the conversation below.</p>
+              <div className="text-center py-4">
+                {user?.user_type === 'client' ? (
+                  <p className="text-xs text-gray-600">
+                    {t(
+                      'chat.empty.client',
+                      'Your request is in - expect a quote soon. Add any notes or questions below.',
+                    )}
+                    <>
+                      <span className="mx-1">·</span>
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-gray-600 underline underline-offset-2"
+                        onClick={() => setShowDetailsCard(true)}
+                      >
+                        {t('chat.empty.viewDetails', 'View details')}
+                      </button>
+                    </>
+                  </p>
+                ) : user?.user_type === 'service_provider' ? (
+                  <p className="text-xs text-gray-600">
+                    {t(
+                      'chat.empty.artist',
+                      'No messages yet—say hi or share details. You can send a quick quote when you’re ready.',
+                    )}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-600">
+                    {t('chat.empty.default', 'Start the conversation whenever you’re ready.')}
+                  </p>
+                )}
+              </div>
             )
           )}
 
@@ -1047,11 +1091,13 @@ useEffect(() => {
                           className={`mb-0.5 w-full`}
                           ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                         >
-                          {isClient && (
+                          {isClient && quoteData.status === 'pending' && !bookingConfirmed && (
                             <div className="my-2 md:my-3">
                               <div className="flex items-center gap-3 text-gray-500">
                                 <div className="h-px flex-1 bg-gray-200" />
-                                <span className="text-[11px] sm:text-xs">New quote from {artistName || 'the artist'}</span>
+                                <span className="text-[11px] sm:text-xs">
+                                  {t('quote.newFrom', 'New quote from {name}', { name: artistName || 'the artist' })}
+                                </span>
                                 <div className="h-px flex-1 bg-gray-200" />
                               </div>
                             </div>
@@ -1107,17 +1153,17 @@ useEffect(() => {
                             }
                           />
 
-                          {isClient && (
+                          {isClient && quoteData.status === 'pending' && !bookingConfirmed && (
                             <>
                               <div className="mt-2 mb-2">
                                 <div className="flex items-start gap-2 rounded-lg bg-white/60 px-3 py-2 border border-gray-100">
                                   <InformationCircleIcon className="h-4 w-4 text-gray-400 mt-0.5" />
                                   <div>
                                     <p className="text-[11px] sm:text-xs text-gray-600">
-                                      Review the itemized price and included services. Ask questions if anything looks off.
+                                      {t('quote.guidance.review', 'Review the itemized price and included services. Ask questions if anything looks off.')}
                                     </p>
                                     <p className="text-[11px] sm:text-xs text-gray-600 mt-1">
-                                      Ready to go? Tap <span className="font-medium">Accept</span> to secure the date. You can pay the deposit right after.
+                                      {t('quote.guidance.acceptCta', 'Ready to go? Tap Accept to secure the date. You can pay the deposit right after.')}
                                     </p>
                                   </div>
                                 </div>
