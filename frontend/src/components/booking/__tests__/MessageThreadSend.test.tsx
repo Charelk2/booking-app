@@ -53,4 +53,23 @@ describe('MessageThread send flow', () => {
     await new Promise((res) => setTimeout(res, 0));
     expect(api.postMessageToBookingRequest).not.toHaveBeenCalled();
   });
+
+  it('queues messages when offline and flushes on reconnect', async () => {
+    (api.postMessageToBookingRequest as jest.Mock).mockResolvedValue({ data: { id: 2 } });
+    const { findByPlaceholderText, findByLabelText } = render(
+      <MessageThread bookingRequestId={1} />,
+    );
+    const textarea = (await findByPlaceholderText('Type your message...')) as HTMLTextAreaElement;
+    const button = (await findByLabelText('Send message')) as HTMLButtonElement;
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+    fireEvent.change(textarea, { target: { value: 'Offline msg' } });
+    fireEvent.click(button);
+    await new Promise((res) => setTimeout(res, 0));
+    expect(api.postMessageToBookingRequest).not.toHaveBeenCalled();
+    Object.defineProperty(navigator, 'onLine', { value: true });
+    window.dispatchEvent(new Event('online'));
+    await waitFor(() => {
+      expect(api.postMessageToBookingRequest).toHaveBeenCalled();
+    });
+  });
 });
