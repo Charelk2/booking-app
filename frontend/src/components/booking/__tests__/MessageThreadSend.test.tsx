@@ -16,7 +16,10 @@ describe('MessageThread send flow', () => {
     (api.getBookingDetails as jest.Mock).mockResolvedValue({
       data: { id: 1, service: { title: 'Gig' }, start_time: '2024-01-01T00:00:00Z' },
     });
-    (Element.prototype as any).scrollTo = jest.fn();
+    (Element.prototype as unknown as { scrollTo: () => void }).scrollTo = jest.fn();
+    // Mock blob URL helpers used by MessageThread
+    (global.URL.createObjectURL as unknown as () => string) = jest.fn(() => 'blob:mock');
+    (global.URL.revokeObjectURL as unknown as (url: string) => void) = jest.fn();
   });
 
   it('sends a message and clears the input', async () => {
@@ -39,6 +42,32 @@ describe('MessageThread send flow', () => {
       });
     });
     expect(textarea.value).toBe('');
+  });
+
+  it('uploads attachment and includes attachment_url', async () => {
+    (api.postMessageToBookingRequest as jest.Mock).mockResolvedValue({ data: { id: 3 } });
+    (api.uploadMessageAttachment as jest.Mock).mockResolvedValue({
+      data: { url: '/static/attachments/file.png' },
+    });
+    const { container, findByPlaceholderText, findByLabelText } = render(
+      <MessageThread bookingRequestId={1} />,
+    );
+    const textarea = (await findByPlaceholderText('Type your message...')) as HTMLTextAreaElement;
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const sendButton = (await findByLabelText('Send message')) as HTMLButtonElement;
+
+    const file = new File(['hello'], 'hello.png', { type: 'image/png' });
+    fireEvent.change(textarea, { target: { value: 'Hi with file' } });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      expect(api.uploadMessageAttachment).toHaveBeenCalledWith(1, file, expect.any(Function));
+      expect(api.postMessageToBookingRequest).toHaveBeenCalledWith(1, {
+        content: 'Hi with file',
+        attachment_url: '/static/attachments/file.png',
+      });
+    });
   });
 
   it('does not send empty messages', async () => {
