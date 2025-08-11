@@ -125,16 +125,23 @@ describe('createPayment', () => {
 });
 
 describe('parseBookingText', () => {
-  it('posts text to the parse endpoint', async () => {
-    const spy = jest
+  it('queues parsing and fetches the result', async () => {
+    const postSpy = jest
       .spyOn(api, 'post')
+      .mockResolvedValue({ data: { task_id: 'abc' } } as unknown as { data: unknown });
+    const getSpy = jest
+      .spyOn(api, 'get')
       .mockResolvedValue({ data: {} } as unknown as { data: unknown });
     await parseBookingText('party for 20 people on Friday in Paris');
-    expect(spy).toHaveBeenCalledWith(
+    expect(postSpy).toHaveBeenCalledWith(
       '/api/v1/booking-requests/parse',
       { text: 'party for 20 people on Friday in Paris' },
     );
-    spy.mockRestore();
+    expect(getSpy).toHaveBeenCalledWith(
+      '/api/v1/booking-requests/parse/abc',
+    );
+    postSpy.mockRestore();
+    getSpy.mockRestore();
   });
 });
 
