@@ -51,65 +51,59 @@ export default function BookingDetailsPanel({
     : null;
 
   return (
-    <div className="w-full bg-brand/10 dark:bg-brand-dark/30 rounded-xl p-4 text-xs flex flex-col h-full">
-      <h4 className="mb-2 text-sm font-semibold">Booking Details</h4>
-      <ul className="flex-1 overflow-y-auto space-y-1">
-        <li>
-          <span className="font-medium">{isUserArtist ? 'Client' : 'Service Provider'}:</span>{' '}
+    <div className="w-full flex flex-col h-full">
+      <h4 className="mb-3 text-base font-semibold text-gray-900">Booking Details</h4>
+      <ul className="flex-1 overflow-y-auto divide-y divide-gray-100">
+        <li className="py-2">
+          <span className="font-semibold">{isUserArtist ? 'Client' : 'Service Provider'}:</span>{' '}
           {isUserArtist
             ? bookingRequest.client
               ? `${bookingRequest.client.first_name} ${bookingRequest.client.last_name}`
               : 'N/A'
             : bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'N/A'}
         </li>
-        <li>
-          <span className="font-medium">Email:</span>{' '}
-          {isUserArtist
-            ? bookingRequest.client?.email || 'N/A'
-            : bookingRequest.artist?.email || 'N/A'}
-        </li>
-        <li>
-          <span className="font-medium">Service:</span> {bookingRequest.service?.title || 'N/A'}
+        <li className="py-2">
+          <span className="font-semibold">Service:</span> {bookingRequest.service?.title || 'N/A'}
         </li>
         {parsedBookingDetails?.eventType && (
-          <li>
-            <span className="font-medium">Event Type:</span> {parsedBookingDetails.eventType}
+          <li className="py-2">
+            <span className="font-semibold">Event Type:</span> {parsedBookingDetails.eventType}
           </li>
         )}
         {displayProposedDateTime && isValid(displayProposedDateTime) && (
-          <li>
-            <span className="font-medium">Date &amp; Time:</span>{' '}
+          <li className="py-2">
+            <span className="font-semibold">Date &amp; Time:</span>{' '}
             {format(displayProposedDateTime, 'PPP')} {format(displayProposedDateTime, 'p')}
           </li>
         )}
         {parsedBookingDetails?.location && (
-          <li>
-            <span className="font-medium">Location:</span> {cleanLocation(parsedBookingDetails.location)}
+          <li className="py-2">
+            <span className="font-semibold">Location:</span> {cleanLocation(parsedBookingDetails.location)}
           </li>
         )}
         {parsedBookingDetails?.description && (
-          <li>
-            <span className="font-medium">Description:</span> {parsedBookingDetails.description}
+          <li className="py-2">
+            <span className="font-semibold">Description:</span> {parsedBookingDetails.description}
           </li>
         )}
         {parsedBookingDetails?.guests && (
-          <li>
-            <span className="font-medium">Guests:</span> {parsedBookingDetails.guests}
+          <li className="py-2">
+            <span className="font-semibold">Guests:</span> {parsedBookingDetails.guests}
           </li>
         )}
         {parsedBookingDetails?.venueType && (
-          <li>
-            <span className="font-medium">Venue Type:</span> {parsedBookingDetails.venueType}
+          <li className="py-2">
+            <span className="font-semibold">Venue Type:</span> {parsedBookingDetails.venueType}
           </li>
         )}
         {parsedBookingDetails?.soundNeeded && (
-          <li>
-            <span className="font-medium">Sound Needed:</span> {parsedBookingDetails.soundNeeded === 'Yes' ? 'Yes' : 'No'}
+          <li className="py-2">
+            <span className="font-semibold">Sound Needed:</span> {parsedBookingDetails.soundNeeded === 'Yes' ? 'Yes' : 'No'}
           </li>
         )}
         {parsedBookingDetails?.notes && (
-          <li>
-            <span className="font-medium">Notes:</span> {parsedBookingDetails.notes}
+          <li className="py-2">
+            <span className="font-semibold">Notes:</span> {parsedBookingDetails.notes}
           </li>
         )}
       </ul>
