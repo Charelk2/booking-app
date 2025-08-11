@@ -55,18 +55,19 @@ describe('ServiceProviderCard optional fields', () => {
 
   it('shows only the city for location and omits subtitle', () => {
     const fullAddress =
-      '123 Main St, Suburb, Johannesburg, Gauteng, South Africa';
+      '123 Main St, Suburb, Worcester, 6850, Western Cape, South Africa';
     const { container, root } = setup({
       location: fullAddress,
       subtitle: 'Best service provider ever in the world',
     });
-    expect(container.textContent).toContain('Johannesburg');
+    expect(container.textContent).toContain('Worcester');
     expect(container.textContent).not.toContain('123 Main St');
     expect(container.textContent).not.toContain('Suburb');
-    expect(container.textContent).not.toContain('Gauteng');
+    expect(container.textContent).not.toContain('6850');
+    expect(container.textContent).not.toContain('Western Cape');
     expect(container.textContent).not.toContain('Best service provider');
     const locEl = container.querySelector('span.text-sm');
-    expect(locEl?.textContent).toBe('Johannesburg');
+    expect(locEl?.textContent).toBe('Worcester');
     act(() => root.unmount());
     container.remove();
   });

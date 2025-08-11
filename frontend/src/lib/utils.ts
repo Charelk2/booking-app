@@ -132,8 +132,13 @@ export const getCityFromAddress = (address: string): string => {
     'free state',
   ];
   while (parts.length > 1) {
-    const last = parts[parts.length - 1].toLowerCase();
-    if (countries.includes(last) || provinces.includes(last)) {
+    const lastRaw = parts[parts.length - 1];
+    const last = lastRaw.toLowerCase();
+    if (
+      countries.includes(last) ||
+      provinces.includes(last) ||
+      /^\d{4,}$/.test(last)
+    ) {
       parts.pop();
     } else {
       break;

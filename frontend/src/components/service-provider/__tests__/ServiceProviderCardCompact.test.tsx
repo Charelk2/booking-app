@@ -44,14 +44,15 @@ describe('ServiceProviderCardCompact', () => {
 
   it('shows only the city when full address is provided', () => {
     const { container, root, allProps } = setup({
-      location: '123 Main St, Suburb, Cape Town, Western Cape, South Africa',
+      location: '123 Main St, Suburb, Worcester, 6850, Western Cape, South Africa',
     });
     act(() => {
       root.render(React.createElement(ServiceProviderCardCompact, allProps));
     });
-    expect(container.textContent).toContain('Cape Town');
+    expect(container.textContent).toContain('Worcester');
     expect(container.textContent).not.toContain('123 Main St');
     expect(container.textContent).not.toContain('Suburb');
+    expect(container.textContent).not.toContain('6850');
     expect(container.textContent).not.toContain('Western Cape');
     act(() => root.unmount());
     container.remove();
