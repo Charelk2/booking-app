@@ -10,6 +10,7 @@ import {
   CheckBadgeIcon,
 } from '@heroicons/react/24/solid';
 import { getFullImageUrl, getCityFromAddress } from '@/lib/utils';
+import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 
 export interface ServiceProviderCardProps extends HTMLAttributes<HTMLDivElement> {
   serviceProviderId: number;
@@ -91,6 +92,9 @@ export default function ServiceProviderCard({
               alt={name}
               width={512}
               height={512}
+              sizes="(max-width: 640px) 100vw, 512px"
+              placeholder="blur"
+              blurDataURL={BLUR_PLACEHOLDER}
               className="object-cover w-full h-full"
               {...(priority ? {} : { loading: 'lazy' })}
               priority={priority}
@@ -105,6 +109,9 @@ export default function ServiceProviderCard({
               alt={name}
               width={512}
               height={512}
+              sizes="(max-width: 640px) 100vw, 512px"
+              placeholder="blur"
+              blurDataURL={BLUR_PLACEHOLDER}
               className="object-cover w-full h-full"
               {...(priority ? {} : { loading: 'lazy' })}
               priority={priority}
