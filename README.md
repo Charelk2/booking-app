@@ -1199,6 +1199,7 @@ keeps the current view, e.g.
 * Bottom nav auto-hides when you scroll down and reappears when scrolling up.
 * Unread message counts badge on Messages icon. Badge now sits snugly over the icon on all devices.
 * Chat attachment button stays inline with the message input and send button on all screens.
+* Message attachments now upload reliably by letting Axios set multipart boundaries automatically.
 * Tap feedback on icons via `active:bg-gray-100`.
 * **Inbox** page redesigned with a sticky "Messages" header and search icon. The left column lists conversations while the right shows the selected chat with booking details. Message notifications open directly to this page so clients can read and respond without hunting for the correct thread.
 * URL parameters on `/inbox` include `requestId` to select a conversation. Artists receive an inline quote summary bubble instead of a modal, so the previous `sendQuote` flag has been removed.
