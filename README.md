@@ -120,6 +120,9 @@ The chat service exposes REST endpoints for each booking request:
 | `POST` | `/api/v1/booking-requests/{id}/messages` | Send a new message |
 | `POST` | `/api/v1/booking-requests/{id}/attachments` | Upload a file attachment |
 
+If no file is included in the request body, the API responds with status `422`
+and a clear error message: `{"message": "No file provided", "field_errors": {"file": "required"}}`.
+
 Example message payload:
 
 ```json
