@@ -1,4 +1,4 @@
-jest.mock('@/hooks/useWebSocket', () => () => ({ send: jest.fn(), onMessage: jest.fn() }));
+jest.mock('@/hooks/useWebSocket', () => () => ({ send: jest.fn(), onMessage: jest.fn(), updatePresence: jest.fn() }));
 jest.mock('@/lib/api');
 jest.mock('@/contexts/AuthContext');
 
@@ -16,6 +16,7 @@ describe('MessageThread send flow', () => {
     (api.getBookingDetails as jest.Mock).mockResolvedValue({
       data: { id: 1, service: { title: 'Gig' }, start_time: '2024-01-01T00:00:00Z' },
     });
+    (Element.prototype as any).scrollTo = jest.fn();
   });
 
   it('sends a message and clears the input', async () => {

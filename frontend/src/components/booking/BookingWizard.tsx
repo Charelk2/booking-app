@@ -11,6 +11,7 @@ import { useBooking } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import useIsMobile from '@/hooks/useIsMobile';
 import useBookingForm from '@/hooks/useBookingForm';
+import useOfflineQueue from '@/hooks/useOfflineQueue';
 import { useDebounce } from '@/hooks/useDebounce';
 import useKeyboardOffset from '@/hooks/useKeyboardOffset';
 import {
@@ -141,6 +142,36 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
+
+  const { enqueue: enqueueBooking } = useOfflineQueue<{
+    action: 'draft' | 'submit';
+    payload: BookingRequestCreate;
+    requestId?: number;
+    message?: string;
+  }>('offlineBookingQueue', async ({ action, payload, requestId: rid, message }) => {
+    let id = rid;
+    try {
+      if (id) {
+        await updateBookingRequest(id, payload);
+      } else {
+        const res = await createBookingRequest(payload);
+        id = res.data.id;
+        setRequestId(id);
+      }
+      if (action === 'submit' && id && message) {
+        await postMessageToBookingRequest(id, {
+          content: message,
+          message_type: 'SYSTEM',
+        });
+        toast.success('Queued booking request submitted.');
+      } else if (action === 'draft') {
+        toast.success('Queued draft saved.');
+      }
+    } catch (err) {
+      console.error('Queued booking request failed:', err);
+      throw err;
+    }
+  });
 
   const isMobile = useIsMobile();
   // Convert zero-based step index to progress percentage for the mobile progress bar.
@@ -449,6 +480,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_cost: travelResult?.totalCost,
       travel_breakdown: travelResult?.breakdown,
     };
+    if (!navigator.onLine) {
+      enqueueBooking({ action: 'draft', payload, requestId });
+      toast.success('Draft queued. It will save when back online.');
+      return;
+    }
     try {
       if (requestId) {
         await updateBookingRequest(requestId, payload);
@@ -489,6 +525,22 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_cost: travelResult.totalCost,
       travel_breakdown: travelResult.breakdown,
     };
+    const message = `Booking details:\nEvent Type: ${
+      vals.eventType || 'N/A'
+    }\nDescription: ${vals.eventDescription || 'N/A'}\nDate: ${
+      vals.date?.toLocaleDateString() || 'N/A'
+    }\nLocation: ${vals.location || 'N/A'}\nGuests: ${
+      vals.guests || 'N/A'
+    }\nVenue: ${vals.venueType || 'N/A'}\nSound: ${
+      vals.sound || 'N/A'
+    }\nNotes: ${vals.notes || 'N/A'}`;
+
+    if (!navigator.onLine) {
+      enqueueBooking({ action: 'submit', payload, requestId, message });
+      toast.success('Booking request queued. It will submit when back online.');
+      setSubmitting(false);
+      return;
+    }
 
     try {
       const res = requestId
@@ -498,11 +550,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const id = requestId || res?.data?.id;
       if (!id) throw new Error('Missing booking request ID after creation/update.');
 
-      await postMessageToBookingRequest(id, {
-        content: `Booking details:\nEvent Type: ${vals.eventType || 'N/A'}\nDescription: ${vals.eventDescription || 'N/A'}\nDate: ${vals.date?.toLocaleDateString() || 'N/A'}\nLocation: ${vals.location || 'N/A'}\nGuests: ${vals.guests || 'N/A'}\nVenue: ${vals.venueType || 'N/A'}\nSound: ${vals.sound || 'N/A'}\nNotes: ${vals.notes || 'N/A'}`,
-        // Backend expects uppercase message types.
-        message_type: 'SYSTEM',
-      });
+        await postMessageToBookingRequest(id, {
+          content: message,
+          // Backend expects uppercase message types.
+          message_type: 'SYSTEM',
+        });
 
       toast.success('Your booking request has been submitted successfully!');
       router.push(`/booking-requests/${id}`);
