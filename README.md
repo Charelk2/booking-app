@@ -1093,7 +1093,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 
 * Dashboard overview now highlights **New Inquiries**, **Total Services**, and **Earnings This Month**.
 
-* A profile completion progress bar still appears above the dashboard stats for artists.
+* A profile completion progress bar appears above the dashboard stats until the profile is 100% complete.
 * Stats cards use a simple grid layout for quick reference.
 
 * Currency values now use consistent locale formatting with `formatCurrency()`.
