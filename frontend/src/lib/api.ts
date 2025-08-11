@@ -466,11 +466,23 @@ export const uploadBookingAttachment = (
     { onUploadProgress, headers: { 'Content-Type': undefined } }
   );
 
-export const parseBookingText = (text: string) =>
-  api.post<{ task_id: string }>(`${API_V1}/booking-requests/parse`, { text });
-
 export const getParsedBooking = (taskId: string) =>
   api.get<ParsedBookingDetails>(`${API_V1}/booking-requests/parse/${taskId}`);
+
+/**
+ * Parse free-form booking text using the NLP service and wait for the result.
+ *
+ * The backend enqueues the parsing task and returns a `task_id`. This helper
+ * handles the follow-up request to retrieve the parsed details so callers can
+ * simply await a single promise for the structured data.
+ */
+export const parseBookingText = async (text: string) => {
+  const { data } = await api.post<{ task_id: string }>(
+    `${API_V1}/booking-requests/parse`,
+    { text },
+  );
+  return getParsedBooking(data.task_id);
+};
 
 // ─── QUOTE TEMPLATES ─────────────────────────────────────────────────────────
 export const getQuoteTemplates = async (artistId: number) => {
