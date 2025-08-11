@@ -366,11 +366,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const directDistanceKm = metrics.distanceKm;
       const drivingEstimateCost = directDistanceKm * travelRate * 2;
 
-      const quoteResponse = await calculateQuote({
+      const quote = await calculateQuote({
         base_fee: basePrice, // Use the fetched base price
         distance_km: directDistanceKm,
       });
-      setCalculatedPrice(Number(quoteResponse.data.total));
+      setCalculatedPrice(Number(quote.total));
 
       const travelModeResult = await calculateTravelMode({
         artistLocation: artistLocation,

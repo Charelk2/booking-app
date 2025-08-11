@@ -1,6 +1,6 @@
 // frontend/src/lib/api.ts
 
-import axios, { AxiosProgressEvent, type AxiosResponse } from 'axios';
+import axios, { AxiosProgressEvent } from 'axios';
 import logger from './logger';
 import { format } from 'date-fns';
 import { extractErrorMessage, normalizeQuoteTemplate } from './utils';
@@ -535,14 +535,17 @@ export const calculateQuote = async (params: {
   distance_km: number;
   provider_id?: number;
   accommodation_cost?: number;
-}): Promise<AxiosResponse<QuoteCalculationResponse>> => {
+}): Promise<QuoteCalculationResponse> => {
   const cacheKey = JSON.stringify(params);
   if (quoteCache.has(cacheKey)) {
-    return { data: quoteCache.get(cacheKey)! } as AxiosResponse<QuoteCalculationResponse>;
+    return quoteCache.get(cacheKey)!;
   }
-  const res = await api.post<QuoteCalculationResponse>(`${API_V1}/quotes/calculate`, params);
+  const res = await api.post<QuoteCalculationResponse>(
+    `${API_V1}/quotes/calculate`,
+    params,
+  );
   quoteCache.set(cacheKey, res.data);
-  return res;
+  return res.data;
 };
 
 // Exposed for tests to clear the cache between runs
