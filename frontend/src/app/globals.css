@@ -190,7 +190,8 @@ html, body {
   }
 
   .map-container {
-    @apply w-full transition-[height] duration-300 ease-in-out;
+    /* Removing height transition to prevent map flicker */
+    @apply w-full overflow-hidden;
   }
 
   .map-container-collapsed {
