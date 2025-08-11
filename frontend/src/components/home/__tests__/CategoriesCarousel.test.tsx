@@ -3,6 +3,7 @@ import React from 'react';
 import { act } from 'react-dom/test-utils';
 import CategoriesCarousel from '../CategoriesCarousel';
 import { getServiceCategories } from '@/lib/api';
+import { flushPromises } from '@/test/utils/flush';
 
 jest.mock('@/lib/api');
 
@@ -26,14 +27,15 @@ describe('CategoriesCarousel', () => {
     jest.clearAllMocks();
   });
 
-  it('renders categories with navigation buttons', () => {
+  it('renders categories with navigation buttons', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
     act(() => {
       root.render(React.createElement(CategoriesCarousel));
     });
-    expect(container.textContent).toContain('DJ');
+    await flushPromises();
+    expect(container.textContent).toContain("DJ's");
     expect(container.textContent).toContain('Musician');
     expect(container.textContent).not.toContain('Service Providers');
     const imgs = container.querySelectorAll('img');
@@ -46,13 +48,14 @@ describe('CategoriesCarousel', () => {
     container.remove();
   });
 
-  it('scrolls when clicking the next button', () => {
+  it('scrolls when clicking the next button', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
     act(() => {
       root.render(React.createElement(CategoriesCarousel));
     });
+    await flushPromises();
     const scroller = container.querySelector(
       '[data-testid="categories-scroll"]',
     ) as HTMLDivElement;
@@ -81,13 +84,14 @@ describe('CategoriesCarousel', () => {
     container.remove();
   });
 
-  it('applies correct spacing and dimensions', () => {
+  it('applies correct spacing and dimensions', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
     act(() => {
       root.render(React.createElement(CategoriesCarousel));
     });
+    await flushPromises();
 
     const section = container.querySelector('section');
     expect(section?.className).toContain('px-4');
@@ -102,9 +106,9 @@ describe('CategoriesCarousel', () => {
     expect(wrapper?.className).toContain('h-40');
 
     const label = container.querySelector('a p');
-    expect(label?.className).toContain('absolute');
-    expect(label?.className).toContain('left-2');
-    expect(label?.className).toContain('bottom-2');
+    expect(label?.className).toContain('mt-2');
+    expect(label?.className).toContain('text-sm');
+    expect(label?.className).toContain('font-semibold');
 
     act(() => root.unmount());
     container.remove();

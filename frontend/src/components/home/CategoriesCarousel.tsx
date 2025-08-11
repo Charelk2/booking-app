@@ -45,9 +45,21 @@
   const scrollBy = (offset: number) => {
   scrollRef.current?.scrollBy({ left: offset, behavior: 'smooth' });
   };
- 
+
 
   const categories = useServiceCategories();
+
+  const DISPLAY_LABELS: Record<string, string> = {
+    photographer: 'Photography',
+    caterer: 'Catering',
+    dj: "DJ's",
+    videographer: 'Videographers',
+    speaker: 'Speakers',
+    event_service: 'Event Services',
+    wedding_venue: 'Wedding Venues',
+    bartender: 'Bartending',
+    mc_host: 'MC & Hosts',
+  };
 
   return (
   <section
@@ -72,14 +84,14 @@
   <div className="relative h-40 w-40 overflow-hidden rounded-lg bg-gray-100">
   <Image
   src={CATEGORY_IMAGES[cat.value] || '/bartender.png'}
-  alt={cat.label}
+  alt={DISPLAY_LABELS[cat.value] || cat.label}
   fill
   sizes="160px"
   className="object-cover"
   />
   </div>
   <p className="mt-2 text-sm text-left text-black font-semibold whitespace-nowrap">
-  {cat.label}
+  {DISPLAY_LABELS[cat.value] || cat.label}
   </p>
   </Link>
   ))}
