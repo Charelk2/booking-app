@@ -449,7 +449,7 @@ export const uploadMessageAttachment = (
   return api.post<{ url: string }>(
     `${API_V1}/booking-requests/${bookingRequestId}/attachments`,
     formData,
-    { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress }
+    { onUploadProgress }
   );
 };
 
@@ -460,7 +460,7 @@ export const uploadBookingAttachment = (
   api.post<{ url: string }>(
     `${API_V1}/booking-requests/attachments`,
     formData,
-    { headers: { 'Content-Type': 'multipart/form-data' }, onUploadProgress }
+    { onUploadProgress }
   );
 
 export const parseBookingText = (text: string) =>
