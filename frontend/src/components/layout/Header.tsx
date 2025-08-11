@@ -277,11 +277,11 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     <Avatar
                       src={user.profile_picture_url || null}
                       initials={user.first_name?.[0] || user.email[0]}
-                      size={32}
+                      size={40}
                     />
                   </Menu.Button>
                   <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                    <Menu.Items className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
+                    <Menu.Items className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
                       {user.user_type === 'service_provider' ? (
                         <>
                           <Menu.Item>

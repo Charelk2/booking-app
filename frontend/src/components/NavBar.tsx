@@ -28,7 +28,7 @@ export default function NavBar() {
 
   return (
     <nav className="flex items-center justify-between p-4 bg-white shadow">
-      <div className="text-lg font-bold">Booking App</div>
+      <div className="text-lg font-bold">Booka</div>
       <div className="relative">
         <button onClick={toggleDrawer} className="relative p-2" type="button">
           <BellIcon className="w-6 h-6 text-gray-600 hover:text-gray-800" />
