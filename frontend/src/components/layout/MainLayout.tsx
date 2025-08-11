@@ -195,15 +195,32 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
   useEffect(() => {
     const headerElement = headerRef.current;
     if (headerElement) {
+        // Keep a CSS var in sync with header height so pages can offset correctly
+        const setHeaderVar = () => {
+          const h = headerElement.offsetHeight || 64;
+          document.documentElement.style.setProperty('--app-header-height', `${h}px`);
+        };
+        setHeaderVar();
+        let ro: ResizeObserver | null = null;
+        try {
+          ro = new ResizeObserver(() => setHeaderVar());
+          ro.observe(headerElement);
+        } catch {
+          window.addEventListener('resize', setHeaderVar);
+        }
+
         // We listen for max-height transition end to trigger scroll adjustment
         const transitionEndHandler = (event: TransitionEvent) => {
             if (event.propertyName === 'max-height') {
                 adjustScrollAfterHeaderChange();
+                setHeaderVar();
             }
         };
         headerElement.addEventListener('transitionend', transitionEndHandler);
         return () => {
             headerElement.removeEventListener('transitionend', transitionEndHandler);
+            if (ro) ro.disconnect();
+            window.removeEventListener('resize', setHeaderVar);
         };
     }
   }, [adjustScrollAfterHeaderChange]);
@@ -251,7 +268,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
 
         {/* CONTENT */}
         <main
-          className={clsx('py-1', {
+          className={clsx('', {
             // Adjust padding if content jumps due to header height changes.
             // With max-height transitions, it should typically flow well.
           })}

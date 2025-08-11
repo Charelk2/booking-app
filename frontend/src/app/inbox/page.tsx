@@ -106,7 +106,7 @@ export default function InboxPage() {
 
   if (authLoading || loadingRequests) {
     return (
-      <MainLayout>
+      <MainLayout hideFooter={true}>
         <div className="flex justify-center items-center min-h-[60vh]">
           <Spinner />
         </div>
@@ -116,7 +116,7 @@ export default function InboxPage() {
 
   if (error) {
     return (
-      <MainLayout>
+      <MainLayout hideFooter={true}>
         <div className="p-4 text-red-600">{error}</div>
       </MainLayout>
     );
@@ -125,15 +125,18 @@ export default function InboxPage() {
   const selectedRequest = allBookingRequests.find((r) => r.id === selectedBookingRequestId) || null;
 
   return (
-    <MainLayout fullWidthContent>
-      {/* Add the padding directly to this div */}
-      <div className="px-2 sm:px-4 lg:px-6 flex flex-col md:flex-row h-[calc(100vh-64px)] bg-white">
+    <MainLayout fullWidthContent hideFooter={true}>
+      {/* Lock inbox to viewport to prevent page scroll; headers stay visible */}
+      <div
+        className="fixed inset-x-0 bottom-0 flex flex-col md:flex-row overflow-hidden bg-white"
+        style={{ top: 'var(--app-header-height, 64px)' }}
+      >
         {(!isMobile || showList) && (
           <div
-            id="conversation-list"
-            className="w-full md:w-1/4 lg:w-1/4 border border-gray-200 md:border-y-0 md:border-l-0 md:border-r md:rounded-none rounded-lg md:shadow-none shadow overflow-y-auto bg-white flex-shrink-0 h-1/2 md:h-full"
+            id="conversation-list-wrapper"
+            className="w-full px-4 md:w-1/4 lg:w-1/4 border-gray-100 flex-shrink-0 h-full min-h-0 flex flex-col overflow-y-auto border-gray-100"
           >
-            <div className="sticky top-0 bg-white p-3 border-b border-gray-200 flex justify-between items-center z-10">
+            <div className="p-3 flex justify-between items-center sticky top-0 z-10 bg-white">
               <h1 className="text-xl font-semibold">Messages</h1>
               <button
                 className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
@@ -155,20 +158,22 @@ export default function InboxPage() {
                 </svg>
               </button>
             </div>
-            {allBookingRequests.length > 0 ? (
-              <ConversationList
-                bookingRequests={allBookingRequests}
-                selectedRequestId={selectedBookingRequestId}
-                onSelectRequest={handleSelect}
-                currentUser={user}
-              />
-            ) : (
-              <p className="p-6 text-center text-gray-500">No conversations yet.</p>
-            )}
+            <div className="flex-1">
+              {allBookingRequests.length > 0 ? (
+                <ConversationList
+                  bookingRequests={allBookingRequests}
+                  selectedRequestId={selectedBookingRequestId}
+                  onSelectRequest={handleSelect}
+                  currentUser={user}
+                />
+              ) : (
+                <p className="p-6 text-center text-gray-500">No conversations yet.</p>
+              )}
+            </div>
           </div>
         )}
         {(!isMobile || !showList) && (
-          <div id="chat-thread" className="flex-1 overflow-y-auto relative">
+          <div id="chat-thread" className="flex-1 relative min-h-0 overflow-hidden">
             {isMobile && (
               <button
                 onClick={handleBackToList}

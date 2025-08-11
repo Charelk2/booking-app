@@ -45,7 +45,7 @@ import usePaymentModal from '@/hooks/usePaymentModal';
 import QuoteBubble from './QuoteBubble';
 import InlineQuoteForm from './InlineQuoteForm';
 import useWebSocket from '@/hooks/useWebSocket';
-import { format, isValid } from 'date-fns';
+import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
 import { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -75,6 +75,20 @@ const gmt2ISOString = () =>
 
 // Normalize backend-provided message types for case-insensitive comparisons.
 const normalizeType = (t?: string | null) => (t ?? '').toUpperCase();
+
+// Human-friendly day label for separators: Today, Yesterday, weekday, weeks ago, or date
+const daySeparatorLabel = (date: Date) => {
+  const now = new Date();
+  const days = differenceInCalendarDays(startOfDay(now), startOfDay(date));
+  // Today -> weekday name (e.g., Monday)
+  if (days === 0) return format(date, 'EEEE');
+  // Yesterday -> literal lowercase per request
+  if (days === 1) return 'yesterday';
+  // Within past week -> weekday name (e.g., Saturday, Friday)
+  if (days < 7) return format(date, 'EEEE');
+  // Older than a week -> abbreviated day and date (e.g., Mon, 29 Jun)
+  return format(date, 'EEE, d LLL');
+};
 
 // Interface for component handle
 export interface MessageThreadHandle {
@@ -194,10 +208,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [revealedImages, setRevealedImages] = useState<Set<number>>(new Set());
 
     // Refs
-    const messagesEndRef = useRef<HTMLDivElement | null>(null);
-    const messagesContainerRef = useRef<HTMLDivElement | null>(null);
-    const prevMessageCountRef = useRef(0);
-    const firstUnreadMessageRef = useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const composerRef = useRef<HTMLDivElement | null>(null);
+  const prevMessageCountRef = useRef(0);
+  const firstUnreadMessageRef = useRef<HTMLDivElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const emojiPickerRef = useRef<HTMLDivElement | null>(null);
 
@@ -229,6 +244,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       }),
       [clientName, parsedBookingDetails],
     );
+
+    // Focus textarea on mount and when switching conversations
+    useEffect(() => {
+      textareaRef.current?.focus();
+    }, []);
+
+    useEffect(() => {
+      textareaRef.current?.focus();
+    }, [bookingRequestId]);
 
     const hasSentQuote = useMemo(
       () => messages.some((m) => Number(m.quote_id) > 0),
@@ -321,7 +345,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       [messages, user?.id],
     );
 
-    const ensureQuoteLoaded = useCallback(
+  const ensureQuoteLoaded = useCallback(
       async (quoteId: number) => {
         if (quotes[quoteId]) return;
         try {
@@ -345,6 +369,27 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       },
       [quotes, bookingDetails, setQuotes, setBookingConfirmed, setBookingDetails],
     );
+
+    // Track composer height to avoid cutting off last message behind the input on mobile
+    const [composerHeight, setComposerHeight] = useState(0);
+    useEffect(() => {
+      const el = composerRef.current;
+      if (!el) return;
+      const update = () => setComposerHeight(el.offsetHeight || 0);
+      update();
+      let ro: ResizeObserver | null = null;
+      try {
+        ro = new ResizeObserver(() => update());
+        ro.observe(el);
+      } catch {
+        // Fallback: update on resize
+        window.addEventListener('resize', update);
+      }
+      return () => {
+        if (ro && el) ro.unobserve(el);
+        window.removeEventListener('resize', update);
+      };
+    }, [composerRef]);
 
     const fetchMessages = useCallback(async () => {
       setLoading(true);
@@ -495,7 +540,7 @@ useEffect(() => {
   const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
   const atBottom = scrollHeight - scrollTop - clientHeight <= MIN_SCROLL_OFFSET;
 
-  const shouldAutoScroll = (messages.length > prevMessageCountRef.current || typingIndicator) && (atBottom || !isUserScrolledUp);
+  const shouldAutoScroll = messages.length > prevMessageCountRef.current || (typingIndicator && (atBottom || !isUserScrolledUp));
 
   if (shouldAutoScroll) {
     messagesContainerRef.current.scrollTo({
@@ -591,7 +636,10 @@ useEffect(() => {
       const groups: { sender_id: number | null; sender_type: string; messages: Message[]; showDayDivider: boolean; }[] = [];
       visibleMessages.forEach((msg, idx) => {
         const isNewGroupNeeded = shouldShowTimestampGroup(msg, idx, visibleMessages);
-        const isNewDay = idx > 0 && format(new Date(msg.timestamp), 'yyyy-MM-dd') !== format(new Date(visibleMessages[idx - 1].timestamp), 'yyyy-MM-dd');
+        const isNewDay =
+          idx === 0 ||
+          format(new Date(msg.timestamp), 'yyyy-MM-dd') !==
+            format(new Date(visibleMessages[idx - 1].timestamp), 'yyyy-MM-dd');
 
         if (isNewGroupNeeded || groups.length === 0) {
           groups.push({
@@ -685,6 +733,8 @@ useEffect(() => {
             if (textareaRef.current) {
               textareaRef.current.style.height = 'auto';
               textareaRef.current.rows = 1;
+              // Keep focus ready for continued typing
+              textareaRef.current.focus();
             }
           };
 
@@ -835,12 +885,16 @@ useEffect(() => {
     );
 
     return (
-      <div className="flex flex-col h-full rounded-b-2xl overflow-hidden w-full">
+      <div className="flex flex-col rounded-b-2xl overflow-hidden w-full bg-white h-full">
         {/* Messages Container */}
         <div
           ref={messagesContainerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto flex flex-col gap-3 bg-white p-4"
+          className="relative flex-1 flex-grow overflow-y-auto flex flex-col gap-3 bg-white px-4 pt-4"
+          style={{
+            paddingBottom: composerHeight ? `${composerHeight}px` : undefined,
+            WebkitOverflowScrolling: 'touch',
+          }}
         >
           {loading ? (
             <div className="flex justify-center py-6" aria-label="Loading messages">
@@ -880,11 +934,11 @@ useEffect(() => {
                 {/* Day Divider Line (WhatsApp style) */}
                 {group.showDayDivider && (
                   <div className="flex items-center my-4 w-full">
-                    <hr className="flex-grow border-t border-gray-300" />
-                    <span className="px-3 text-xs text-gray-500 bg-gray-50 rounded-full py-1">
-                      {format(new Date(firstMsgInGroup.timestamp), 'MMM d, yyyy')}
+                    <hr className="flex-grow border-t border-gray-200" />
+                    <span className="px-3 text-xs text-gray-500 bg-gray-100 rounded-full py-1">
+                      {daySeparatorLabel(new Date(firstMsgInGroup.timestamp))}
                     </span>
-                    <hr className="flex-grow border-t border-gray-300" />
+                    <hr className="flex-grow border-t border-gray-200" />
                   </div>
                 )}
 
@@ -945,9 +999,9 @@ useEffect(() => {
                     if (isSystemMessage) {
                       bubbleShape = 'rounded-lg';
                     } else if (isMsgFromSelf) {
-                      bubbleShape = isLastInGroup ? 'rounded-br-none rounded-xl' : 'rounded-xl';
+                      bubbleShape = isLastInGroup ? 'rounded-br-none rounded-2xl' : 'rounded-2xl';
                     } else {
-                      bubbleShape = isLastInGroup ? 'rounded-bl-none rounded-xl' : 'rounded-xl';
+                      bubbleShape = isLastInGroup ? 'rounded-bl-none rounded-2xl' : 'rounded-2xl';
                     }
 
                     const quoteId = Number(msg.quote_id);
@@ -956,9 +1010,21 @@ useEffect(() => {
                       (normalizeType(msg.message_type) === 'QUOTE' ||
                         (normalizeType(msg.message_type) === 'SYSTEM' &&
                           msg.action === 'review_quote'));
+
+                    if (isSystemMessage) {
+                      return (
+                        <div
+                          key={msg.id}
+                          className="text-center text-xs text-gray-500 py-2"
+                          ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}>
+                          {msg.content}
+                        </div>
+                      );
+                    }
+
                     const bubbleBase = isMsgFromSelf
-                      ? 'bg-blue-100 text-gray-900'
-                      : 'bg-white text-gray-800';
+                      ? 'bg-blue-50 text-black'
+                      : 'bg-gray-50 text-gray-700';
 
                     const bubbleClasses = `${bubbleBase} ${bubbleShape}`;
                     const messageTime = format(new Date(msg.timestamp), 'HH:mm');
@@ -1036,7 +1102,7 @@ useEffect(() => {
                       return (
                         <div
                           key={msg.id}
-                          className={`relative inline-block w-auto max-w-[75%] px-3 py-1.5 text-xs font-normal leading-snug shadow-sm ${bubbleClasses} ${msgIdx < group.messages.length - 1 ? 'mb-0.5' : ''} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'}`}
+                          className={`relative inline-block w-auto max-w-[75%] px-4 py-2 text-sm font-normal leading-snug ${bubbleClasses} ${msgIdx < group.messages.length - 1 ? 'mb-0.5' : ''} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'}`}
                           ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                         >
                           <div className="pr-10">
@@ -1095,7 +1161,7 @@ useEffect(() => {
                             )}
                           </div>
                           {/* Timestamp and Read Receipts - positioned absolutely within the bubble */}
-                          <div className="absolute bottom-0.5 right-1.5 flex items-center space-x-0.5 text-[9px] text-right text-gray-400">
+                          <div className="absolute bottom-0.5 right-1.5 flex items-center space-x-0.5 text-[9px] text-right text-gray-500">
                             <time
                               dateTime={msg.timestamp}
                               title={new Date(msg.timestamp).toLocaleString()}
@@ -1105,12 +1171,12 @@ useEffect(() => {
                             {isMsgFromSelf && (
                               <div className="flex-shrink-0">
                                 {msg.status === 'sending' ? (
-                                  <ClockIcon className="h-4 w-4 text-gray-400 -ml-1" />
+                                  <ClockIcon className="h-4 w-4 text-gray-500 -ml-1" />
                                 ) : msg.status === 'failed' ? (
                                   <ExclamationTriangleIcon className="h-4 w-4 text-red-500 -ml-1" />
                                 ) : (
                                   <DoubleCheckmarkIcon
-                                    className={`h-5 w-5 ${msg.is_read ? 'text-blue-500' : 'text-gray-400'} -ml-[8px]`}
+                                    className={`h-5 w-5 ${msg.is_read ? 'text-blue-600' : 'text-gray-500'} -ml-[8px]`}
                                   />
                                 )}
                               </div>
@@ -1127,7 +1193,7 @@ useEffect(() => {
           {typingIndicator && (
             <p className="text-xs text-gray-500" aria-live="polite">{typingIndicator}</p>
           )}
-          <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} className="absolute bottom-0 left-0 w-0 h-0" aria-hidden="true" />
         </div>
 
         {/* Scroll to Bottom Button (Mobile Only) */}
@@ -1136,7 +1202,9 @@ useEffect(() => {
             type="button"
             aria-label="Scroll to latest message"
             onClick={() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+              if (messagesContainerRef.current) {
+                messagesContainerRef.current.scrollTo({ top: messagesContainerRef.current.scrollHeight, behavior: 'smooth' });
+              }
               setShowScrollButton(false);
               setIsUserScrolledUp(false);
             }}
@@ -1159,24 +1227,12 @@ useEffect(() => {
           </button>
         )}
 
-        {/* Jump to Unread Button (Mobile Only) */}
-        {firstUnreadIndex !== -1 && (
-          <button
-            type="button"
-            aria-label="Jump to unread messages"
-            onClick={() => {
-              firstUnreadMessageRef.current?.scrollIntoView({ behavior: 'smooth' });
-              setShowScrollButton(true);
-              setIsUserScrolledUp(true);
-            }}
-            className="fixed bottom-24 left-6 z-50 md:hidden rounded-full bg-indigo-600 p-3 text-white shadow-lg hover:bg-indigo-700 transition-colors"
-          >
-            Jump to unread
-          </button>
-        )}
+        
 
         {/* Live Region for New Message Announcements */}
         <div aria-live="polite" className="sr-only">{announceNewMessage}</div>
+
+        
 
         {/* Message Input and Action Bar */}
         {user && (
@@ -1216,15 +1272,16 @@ useEffect(() => {
 
             {/* Message Input Form */}
             <div
-              className="sticky sm:bottom-0 bg-white border-t border-gray-100 shadow-lg pb-safe relative"
-              style={{ bottom: 'var(--mobile-bottom-nav-height,56px)' }}
+              ref={composerRef}
+              className="sticky sm:bottom-0 max-sm:fixed max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:z-20 bg-white border-t border-gray-100 shadow-lg pb-safe relative"
+              style={{ bottom: 'var(--mobile-bottom-nav-offset, var(--mobile-bottom-nav-height,56px))' }}
             >
               {showEmojiPicker && (
                 <div ref={emojiPickerRef} className="absolute bottom-14 left-0 z-50">
                   <EmojiPicker data={data} onEmojiSelect={handleEmojiSelect} />
                 </div>
               )}
-              <form onSubmit={handleSendMessage} className="flex items-center gap-x-2 px-3 py-1.5">
+              <form onSubmit={handleSendMessage} className="flex items-center gap-x-2 px-3 pt-2">
                 <input
                   id="file-upload"
                   type="file"
@@ -1235,9 +1292,9 @@ useEffect(() => {
                 <label
                   htmlFor="file-upload"
                   aria-label="Upload attachment"
-                  className="flex-shrink-0 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
                 </label>
@@ -1245,9 +1302,9 @@ useEffect(() => {
                   type="button"
                   onClick={() => setShowEmojiPicker((prev) => !prev)}
                   aria-label="Add emoji"
-                  className="flex-shrink-0 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors"
+                  className="flex-shrink-0 w-10 h-10 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors"
                 >
-                  <FaceSmileIcon className="w-7 h-7" />
+                  <FaceSmileIcon className="w-6 h-6" />
                 </button>
                 {/* Textarea for auto-expansion and scrolling */}
                 <textarea
@@ -1257,8 +1314,9 @@ useEffect(() => {
                     setNewMessageContent(e.target.value);
                   }}
                   onInput={autoResizeTextarea}
+                  autoFocus
                   rows={1}
-                  className="flex-grow rounded-xl px-3.5 py-1.5 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm resize-none overflow-y-auto text-xs font-medium"
+                  className="flex-grow rounded-2xl px-4 py-2 border border-gray-300 shadow-sm resize-none text-sm font-medium focus:outline-none"
                   placeholder="Type your message..."
                   aria-label="New message input"
                   disabled={isUploadingAttachment}
@@ -1283,7 +1341,7 @@ useEffect(() => {
                 <Button
                   type="submit"
                   aria-label="Send message"
-                  className="flex-shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md w-11 h-11 min-w-[44px] min-h-[44px] p-2"
+                  className="flex-shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center w-10 h-10 p-2"
                   disabled={isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile)}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
@@ -1327,4 +1385,3 @@ useEffect(() => {
 
 MessageThread.displayName = 'MessageThread';
 export default React.memo(MessageThread);
-
