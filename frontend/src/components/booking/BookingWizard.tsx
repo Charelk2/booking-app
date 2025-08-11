@@ -11,6 +11,8 @@ import { useBooking } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import useIsMobile from '@/hooks/useIsMobile';
 import useBookingForm from '@/hooks/useBookingForm';
+import { useDebounce } from '@/hooks/useDebounce';
+import useKeyboardOffset from '@/hooks/useKeyboardOffset';
 import {
   getServiceProviderAvailability,
   createBookingRequest,
@@ -131,6 +133,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   // Convert zero-based step index to progress percentage for the mobile progress bar.
   const progressValue = ((step + 1) / steps.length) * 100;
   const hasLoaded = useRef(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const keyboardOffset = useKeyboardOffset();
 
   // --- Form Hook (React Hook Form + Yup) ---
   const {
@@ -142,12 +146,64 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     errors, // Directly destructure errors, assuming useBookingForm returns it at top level
   } = useBookingForm(schema, details, setDetails);
 
+  const watchedValues = watch();
+  const debouncedValues = useDebounce(watchedValues, 300);
+
+  useEffect(() => {
+    void trigger();
+  }, [debouncedValues, trigger]);
+
   // --- Effects ---
 
   // Effect to manage step completion and focus heading on step change
   useEffect(() => {
     setMaxStepCompleted((prev) => Math.max(prev, step));
     setValidationError(null);
+  }, [step]);
+
+  // Ensure inputs have appropriate attributes and stay visible when focused
+  useEffect(() => {
+    const formEl = formRef.current;
+    if (!formEl) return;
+
+    const setAttrs = (
+      selector: string,
+      attrs: Record<string, string>,
+    ) => {
+      const el = formEl.querySelector<HTMLElement>(selector);
+      if (el) {
+        Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+      }
+    };
+
+    setAttrs('input[name="guests"]', {
+      inputmode: 'numeric',
+      autocomplete: 'off',
+    });
+    setAttrs('input[name="location"]', {
+      autocomplete: 'street-address',
+    });
+    setAttrs('input[name="date"]', {
+      inputmode: 'numeric',
+      autocomplete: 'bday',
+    });
+    setAttrs('input[name="time"]', {
+      inputmode: 'numeric',
+      autocomplete: 'off',
+    });
+    setAttrs('textarea[name="eventDescription"]', {
+      autocomplete: 'on',
+    });
+
+    const focusHandler = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      // Scroll slightly after keyboard open
+      setTimeout(() => {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    };
+    formEl.addEventListener('focusin', focusHandler);
+    return () => formEl.removeEventListener('focusin', focusHandler);
   }, [step]);
 
   // Effect to fetch artist availability and base location from API
@@ -517,6 +573,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               )}
 
               <form
+                ref={formRef}
+                autoComplete="on"
                 onSubmit={(e) => {
                   e.preventDefault();
                   // Prevent default form submission on Enter key press if not mobile
@@ -548,7 +606,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               </form>
 
               {/* Navigation controls - Adjusted for ReviewStep */}
-              <div className="flex-shrink-0 border-t border-gray-100 p-6 flex flex-col-reverse sm:flex-row sm:justify-between gap-2 sticky bottom-0 bg-white">
+              <div
+                className="flex-shrink-0 border-t border-gray-100 p-6 flex flex-col-reverse sm:flex-row sm:justify-between gap-2 sticky bottom-0 bg-white pb-safe"
+                style={{ bottom: keyboardOffset }}
+              >
                 {/* Back/Cancel Button */}
                 <button
                   type="button" // Ensure it's a button, not a submit
