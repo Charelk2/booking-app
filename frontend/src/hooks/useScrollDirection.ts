@@ -23,7 +23,7 @@ export default function useScrollDirection(): 'up' | 'down' {
       lastY = y;
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
