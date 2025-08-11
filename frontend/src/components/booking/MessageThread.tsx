@@ -303,8 +303,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     // Function to auto-resize the textarea
     const autoResizeTextarea = useCallback(() => {
       const ta = textareaRef.current;
+      const container = messagesContainerRef.current;
       if (!ta || textareaLineHeight === 0) return;
 
+      // Track current height before resizing so we can adjust scroll position
+      const prevH = ta.offsetHeight;
       ta.style.height = 'auto';
 
       const style = getComputedStyle(ta);
@@ -314,10 +317,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       const bdrB = parseFloat(style.borderBottomWidth);
 
       const maxH = textareaLineHeight * MAX_TEXTAREA_LINES + padT + padB + bdrT + bdrB;
-
       const newH = Math.min(ta.scrollHeight, maxH);
       ta.style.height = `${newH}px`;
-    }, [textareaLineHeight]);
+
+      // Adjust scroll so the latest messages remain visible when textarea grows
+      const diff = newH - prevH;
+      if (container && diff !== 0 && !isUserScrolledUp) {
+        container.scrollTop += diff;
+      }
+    }, [textareaLineHeight, isUserScrolledUp]);
 
     // Effect to resize textarea when content changes
     useEffect(() => {
@@ -487,9 +495,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     useEffect(
       () =>
         onSocketMessage((event) => {
-          const incoming = JSON.parse(event.data) as any;
+          const incoming = JSON.parse(event.data) as Partial<Message> & {
+            type?: string;
+            users?: number[];
+          };
           if (incoming.type === 'typing' && Array.isArray(incoming.users)) {
-            setTypingUsers(incoming.users.filter((id: number) => id !== user?.id));
+            setTypingUsers(incoming.users.filter((id) => id !== user?.id));
             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
             typingTimeoutRef.current = setTimeout(() => setTypingUsers([]), 2000);
             return;
@@ -892,7 +903,7 @@ useEffect(() => {
           onScroll={handleScroll}
           className="relative flex-1 flex-grow overflow-y-auto flex flex-col gap-3 bg-white px-4 pt-4"
           style={{
-            paddingBottom: '7px',
+            paddingBottom: `${composerHeight + 7}px`,
             WebkitOverflowScrolling: 'touch',
           }}
         >
