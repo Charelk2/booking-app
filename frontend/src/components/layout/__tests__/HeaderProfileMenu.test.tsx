@@ -27,4 +27,20 @@ describe('Header profile menu', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Account menu' }));
     expect(await screen.findByText('Edit Profile')).toBeTruthy();
   });
+
+  it('shows client links without dashboard', async () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 2, user_type: 'client', email: 'b', first_name: 'B' },
+      logout: jest.fn(),
+      artistViewActive: false,
+      toggleArtistView: jest.fn(),
+    });
+
+    render(<Header headerState="initial" onForceHeaderState={jest.fn()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Account menu' }));
+    expect(screen.queryByText('Dashboard')).toBeNull();
+    expect(await screen.findByText('Events')).toBeTruthy();
+    expect(await screen.findByText('Messages')).toBeTruthy();
+  });
 });
