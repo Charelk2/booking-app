@@ -1273,8 +1273,9 @@ useEffect(() => {
             {/* Message Input Form */}
             <div
               ref={composerRef}
-              className="sticky bottom-0 max-sm:sticky max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:z-20 bg-white border-t border-gray-100 shadow-lg pb-safe relative"
-              style={{ bottom: 'var(--mobile-bottom-nav-offset, var(--mobile-bottom-nav-height,56px))' }}
+              data-testid="composer-container"
+              className="bg-white border-t border-gray-100 shadow-lg pb-safe relative flex-shrink-0"
+              style={{ paddingBottom: 'var(--mobile-bottom-nav-offset, var(--mobile-bottom-nav-height,56px))' }}
             >
               {showEmojiPicker && (
                 <div ref={emojiPickerRef} className="absolute bottom-14 left-0 z-50">
