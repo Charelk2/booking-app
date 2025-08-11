@@ -77,6 +77,7 @@ def test_list_categories(monkeypatch):
         "MC & Host",
     ]
     assert [c["name"] for c in data] == expected_categories
+    assert res.headers["Cache-Control"] == "public, max-age=3600"
 
 
     if prev_user is not None:
