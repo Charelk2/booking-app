@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { act } from 'react';
-import React from 'react';
+import React, { useEffect } from 'react';
 import useWebSocket from '../useWebSocket';
 
 // Simple WebSocket stub
@@ -145,5 +145,44 @@ describe('useWebSocket', () => {
     });
 
     expect(StubSocket.instances.length).toBe(0);
+  });
+
+  it('responds to ping and batches presence updates', () => {
+    jest.useFakeTimers();
+
+    function Test() {
+      const { onMessage, updatePresence } = useWebSocket('ws://test');
+      useEffect(() => onMessage(() => {}), [onMessage]);
+      useEffect(() => {
+        updatePresence(1, 'online');
+        updatePresence(2, 'away');
+      }, [updatePresence]);
+      return null;
+    }
+
+    act(() => {
+      root.render(<Test />);
+    });
+
+    const socket = StubSocket.last!;
+    act(() => {
+      socket.onopen?.();
+    });
+    socket.send.mockClear();
+
+    act(() => {
+      socket.onmessage?.({ data: JSON.stringify({ type: 'ping' }) } as MessageEvent);
+    });
+    expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ type: 'pong' }));
+    socket.send.mockClear();
+
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+    expect(socket.send).toHaveBeenCalledWith(
+      JSON.stringify({ type: 'presence', updates: { 1: 'online', 2: 'away' } }),
+    );
+
+    jest.useRealTimers();
   });
 });

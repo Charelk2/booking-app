@@ -416,7 +416,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     }, [flushQueue]);
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') || sessionStorage.getItem('token') || '' : '';
-    const { onMessage: onSocketMessage } = useWebSocket(
+    const { onMessage: onSocketMessage, updatePresence } = useWebSocket(
       `${WS_BASE}${API_V1}/ws/booking-requests/${bookingRequestId}?token=${token}`,
       (event) => {
         if (event?.code === 4401) {
@@ -426,6 +426,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
         }
       },
     );
+
+    useEffect(() => {
+      if (!user?.id) return;
+      updatePresence(user.id, 'online');
+      const handleVisibility = () => {
+        updatePresence(user.id, document.hidden ? 'away' : 'online');
+      };
+      document.addEventListener('visibilitychange', handleVisibility);
+      return () => {
+        updatePresence(user.id, 'offline');
+        document.removeEventListener('visibilitychange', handleVisibility);
+      };
+    }, [updatePresence, user?.id]);
 
     useEffect(
       () =>

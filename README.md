@@ -81,7 +81,7 @@ Structured JSON logs and OpenTelemetry traces are enabled for both the FastAPI b
 - After accepting a quote, clients see quick links in the chat to view that booking, pay the deposit, and add it to a calendar.
 - Inbox conversations feature a **Show Details** button that opens a slide-out booking details panel. On mobile the panel overlays the chat, while on desktop it appears side-by-side with smooth Tailwind transitions.
 - The chat thread now expands or contracts horizontally as the side panel is toggled, keeping date divider lines perfectly aligned across both sections.
-- Chat WebSocket connections send periodic ping/pong heartbeats, batch typing indicators, and close slow clients after a one-second send timeout. A `reconnect_hint` message guides exponential retries and Redis pub/sub is used when `WEBSOCKET_REDIS_URL` is set.
+- Chat WebSocket connections send periodic ping/pong heartbeats that lengthen on mobile and pause when tabs are hidden, batch typing indicators, coalesce presence updates, and close slow clients after a one-second send timeout. A `reconnect_hint` message guides exponential retries and Redis pub/sub is used when `WEBSOCKET_REDIS_URL` is set.
 - Artists can upload multiple portfolio images and reorder them via drag-and-drop. Use `POST /api/v1/service-provider-profiles/me/portfolio-images` to upload and `PUT /api/v1/service-provider-profiles/me/portfolio-images` to save the order.
 - Artists can also drag and drop service cards on the dashboard to set their display order.
 - Heavy tasks like NLP parsing, notification delivery, and weather lookups now run

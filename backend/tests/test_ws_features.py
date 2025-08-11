@@ -91,3 +91,22 @@ def test_batched_typing():
         assert set(data["users"]) == {artist.id, artist.id + 1}
         ws.close()
     app.dependency_overrides.clear()
+
+
+def test_batched_presence():
+    Session = setup_app()
+    br, artist, _ = create_data(Session)
+    client = TestClient(app)
+    token = create_access_token({"sub": artist.email})
+    with client.websocket_connect(
+        f"/api/v1/ws/booking-requests/{br.id}?token={token}"
+    ) as ws:
+        ws.receive_json()  # reconnect hint
+        ws.send_json({"type": "presence", "user_id": artist.id, "status": "online"})
+        ws.send_json({"type": "presence", "user_id": artist.id + 1, "status": "away"})
+        data = ws.receive_json()
+        assert data["type"] == "presence"
+        assert data["updates"][str(artist.id)] == "online"
+        assert data["updates"][str(artist.id + 1)] == "away"
+        ws.close()
+    app.dependency_overrides.clear()
