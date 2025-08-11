@@ -91,7 +91,10 @@ from .utils.notifications import (
     alert_scheduler_failure,
 )
 from .utils.status_logger import register_status_listeners
+from .core.observability import setup_logging, setup_tracer
 
+# Configure logging before creating any loggers
+setup_logging()
 logger = logging.getLogger(__name__)
 
 # Register SQLAlchemy listeners that log status transitions
@@ -125,6 +128,7 @@ seed_service_categories(engine)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Artist Booking API", default_response_class=ORJSONResponse)
+setup_tracer(app)
 
 
 # ─── Figure out the absolute filesystem path to `backend/app/static` ─────────
