@@ -14,14 +14,16 @@ import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
 import { useDebounce } from '@/hooks/useDebounce';
 import { updateQueryParams } from '@/lib/urlParams';
 import { Spinner } from '@/components/ui';
-import { useAuth } from '@/contexts/AuthContext';
-import { FixedSizeList as List, type ListChildComponentProps } from 'react-window';
+// The category page previously used `react-window` to render each provider as a
+// full-width row. This looked inconsistent with the compact cards shown on the
+// homepage and resulted in a visually jarring full-screen layout. Since the
+// lists are relatively small, a simple flexbox grid is sufficient and lets us
+// reuse the same compact card layout for consistency across pages.
 
 export default function ServiceProvidersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const { user } = useAuth();
 
   const [artists, setArtists] = useState<ServiceProviderProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +51,6 @@ export default function ServiceProvidersPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const LIMIT = 20;
-  const ITEM_HEIGHT = 280;
 
   // Derived backend service name for the selected UI category.
   const serviceName = category
@@ -217,21 +218,15 @@ export default function ServiceProvidersPage() {
         {error && <p className="text-red-600">{error}</p>}
         {!loading && artists.length === 0 && <p>No service providers found.</p>}
 
-        <List
-          height={Math.min(ITEM_HEIGHT * artists.length, ITEM_HEIGHT * 10)}
-          itemCount={artists.length}
-          itemSize={ITEM_HEIGHT}
-          width="100%"
-        >
-          {({ index, style }: ListChildComponentProps) => {
-            const a = artists[index];
-            const user = a.user;
-            const name =
-              serviceName === 'DJ'
-                ? a.business_name!
-                : a.business_name || `${user.first_name} ${user.last_name}`;
-            return (
-              <div style={style} className="p-1">
+        {artists.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-4 sm:justify-start">
+            {artists.map((a) => {
+              const user = a.user;
+              const name =
+                serviceName === 'DJ'
+                  ? a.business_name!
+                  : a.business_name || `${user.first_name} ${user.last_name}`;
+              return (
                 <ServiceProviderCardCompact
                   key={a.id}
                   serviceProviderId={a.id}
@@ -253,11 +248,12 @@ export default function ServiceProvidersPage() {
                   location={a.location}
                   categories={a.service_categories}
                   href={qs ? `/service-providers/${a.id}?${qs}` : `/service-providers/${a.id}`}
+                  className="w-40"
                 />
-              </div>
-            );
-          }}
-        </List>
+              );
+            })}
+          </div>
+        )}
 
         {hasMore && !loading && (
           <div className="flex justify-center mt-4">
