@@ -6,6 +6,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { getMyClientQuotes } from '@/lib/api';
 import { formatStatus } from '@/lib/utils';
+import { statusChipClass } from '@/components/ui/status';
 import { Spinner } from '@/components/ui';
 import type { Quote } from '@/types';
 
@@ -65,20 +66,7 @@ export default function ClientQuotesPage() {
     );
   }
 
-  const badgeClasses = (status: string) => {
-    switch (status) {
-      case 'accepted_by_client':
-        return 'bg-green-100 text-green-800';
-      case 'rejected_by_client':
-        return 'bg-red-100 text-red-800';
-      case 'confirmed_by_artist':
-        return 'bg-brand-light text-brand-dark';
-      case 'withdrawn_by_artist':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-yellow-100 text-yellow-800';
-    }
-  };
+  // statusChipClass provides consistent soft badge styling
 
   return (
     <MainLayout>
@@ -105,20 +93,18 @@ export default function ClientQuotesPage() {
         ) : (
           <ul className="space-y-3">
             {quotes.map((q) => (
-              <li key={q.id} className="bg-white p-4 shadow rounded-lg">
-                <div className="font-medium text-gray-900">{q.quote_details}</div>
-                <div className="mt-2 flex justify-between items-center">
-                  <span
-                    className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${badgeClasses(q.status)}`}
-                  >
-                    {formatStatus(q.status)}
-                  </span>
-                  <Link
-                    href={`/quotes/${q.id}`}
-                    className="text-brand-dark hover:underline text-sm"
-                  >
-                    View
-                  </Link>
+              <li key={q.id} className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm transition hover:shadow-md">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">{q.quote_details}</div>
+                    <div className="mt-1 text-xs text-gray-500">{formatStatus(q.status)}</div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(q.status)}`}>{formatStatus(q.status)}</span>
+                    <div className="mt-2">
+                      <Link href={`/quotes/${q.id}`} className="text-brand-dark hover:underline text-sm">View</Link>
+                    </div>
+                  </div>
                 </div>
               </li>
             ))}

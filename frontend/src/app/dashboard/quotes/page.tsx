@@ -10,6 +10,7 @@ import {
   confirmQuoteBooking,
 } from '@/lib/api';
 import { formatStatus } from '@/lib/utils';
+import { statusChipClass } from '@/components/ui/status';
 import type { Quote } from '@/types';
 import EditQuoteModal from '@/components/booking/EditQuoteModal';
 import { Spinner } from '@/components/ui';
@@ -126,10 +127,17 @@ export default function ArtistQuotesPage() {
         ) : (
           <ul className="space-y-3">
             {quotes.map((q) => (
-              <li key={q.id} className="bg-white p-4 shadow rounded-lg">
-                <div className="font-medium text-gray-900">{q.quote_details}</div>
-                <div className="text-sm text-gray-500">{formatStatus(q.status)}</div>
-                <div className="mt-2 flex space-x-4">
+              <li key={q.id} className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm transition hover:shadow-md">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">{q.quote_details}</div>
+                    <div className="mt-1 text-xs text-gray-500">{formatStatus(q.status)}</div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(q.status)}`}>{formatStatus(q.status)}</span>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-4">
                   {q.status === 'pending_client_action' && (
                     <>
                       <button

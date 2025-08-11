@@ -28,6 +28,7 @@ import {
 import "./dashboard.css";
 import { BookingRequest, ServiceProviderProfile } from "@/types";
 import { formatStatus } from "@/lib/utils";
+import { statusChipClass } from "@/components/ui/status";
 import { Avatar } from "../ui";
 import Button from "../ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -128,29 +129,6 @@ export function AddServiceCategorySelector({
 // ---------------------------------------------------------------------------
 // BookingRequestCard
 
-const getBadgeClass = (status: string): string => {
-  if (
-    status.includes("declined") ||
-    status.includes("rejected") ||
-    status.includes("withdrawn")
-  ) {
-    return "status-badge-declined";
-  }
-  if (status.includes("confirmed") || status.includes("accepted")) {
-    return "status-badge-confirmed";
-  }
-  if (status === "pending_quote") {
-    return "status-badge-pending-quote";
-  }
-  if (status.includes("quote")) {
-    return "status-badge-quote-provided";
-  }
-  if (status.includes("pending")) {
-    return "status-badge-pending-action";
-  }
-  return "status-badge-pending-quote";
-};
-
 export interface BookingRequestCardProps {
   req: BookingRequest;
 }
@@ -169,41 +147,32 @@ export function BookingRequestCard({ req }: BookingRequestCardProps) {
       req.artist_profile?.business_name ||
       req.artist?.first_name ||
       "Unknown Service Provider";
-  const ServiceIcon =
-    req.service?.title === "Live Musiek" ? MicrophoneIcon : MusicalNoteIcon;
   const formattedDate = format(new Date(req.created_at), "dd MMM yyyy");
 
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-lg bg-gray-50 border border-gray-200 shadow-sm">
-      <div className="flex gap-4 items-center">
-        <Avatar
-          src={avatarSrc}
-          initials={displayName.charAt(0)}
-          size={48}
-          className="bg-blue-100 w-12 h-12"
-        />
-        <div>
-          <div className="font-bold text-gray-800">{displayName}</div>
-          <div className="flex items-center gap-1 text-sm text-gray-600">
-            <ServiceIcon className="w-4 h-4" />
-            <span>{req.service?.title || "—"}</span>
-          </div>
-          <div className="flex items-center gap-1 text-sm text-gray-600">
-            <CalendarIcon className="w-4 h-4" />
-            <span>{formattedDate}</span>
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm transition hover:shadow-md">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4 min-w-0">
+          <Avatar src={avatarSrc} initials={displayName.charAt(0)} size={48} className="w-12 h-12" />
+          <div className="min-w-0">
+            <div className="text-sm font-medium text-gray-900 truncate">{displayName}</div>
+            <div className="mt-0.5 text-sm text-gray-600 truncate">{req.service?.title || "—"}</div>
+            <div className="mt-1 text-xs text-gray-500">Requested {formattedDate}</div>
           </div>
         </div>
-      </div>
-      <div className="flex flex-col items-end gap-2 mt-3 sm:mt-0">
-        <span className={getBadgeClass(req.status)}>{
-          formatStatus(req.status)
-        }</span>
-        <Link
-          href={`/booking-requests/${req.id}`}
-          className="inline-flex items-center gap-1 px-4 py-2 text-sm rounded-md bg-brand-primary hover:opacity-90 text-white font-semibold transition shadow-md"
-        >
-          Manage
-        </Link>
+        <div className="shrink-0 text-right">
+          <span data-testid="status-chip" className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(req.status)}`}>
+            {formatStatus(req.status)}
+          </span>
+          <div className="mt-2">
+            <Link
+              href={`/booking-requests/${req.id}`}
+              className="inline-flex items-center rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Manage
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -223,14 +192,54 @@ interface DashboardTabsProps {
   tabs?: Tab[];
   active: "bookings" | "services" | "requests";
   onChange: (id: "bookings" | "services" | "requests") => void;
+  variant?: "underline" | "segmented";
 }
 
 export function DashboardTabs({
   tabs = [],
   active,
   onChange,
+  variant = "underline",
 }: DashboardTabsProps) {
   if (tabs.length === 0) return null;
+
+  if (variant === "segmented") {
+    return (
+      <div className="sticky top-0 z-30 bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+        <div className="mx-auto w-full">
+          <div className="mx-auto inline-flex rounded-xl border border-gray-200 bg-white p-1 shadow-sm">
+            {tabs.map((tab) => {
+              const isActive = active === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => onChange(tab.id)}
+                  className={clsx(
+                    "relative inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm",
+                    isActive
+                      ? "bg-gray-900 text-white shadow"
+                      : "text-gray-600 hover:text-gray-900",
+                  )}
+                >
+                  {tab.icon && <span className="h-4 w-4">{tab.icon}</span>}
+                  <span>{tab.label}</span>
+                  {typeof tab.count === "number" && (
+                    <span className={clsx(
+                      "ml-1 inline-flex items-center justify-center rounded-full px-2 text-xs",
+                      isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-600",
+                    )}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="sticky top-0 z-30 bg-gray-50 border-b">
@@ -626,4 +635,3 @@ export function UpdateRequestModal({
     </div>
   );
 }
-

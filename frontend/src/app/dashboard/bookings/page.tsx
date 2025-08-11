@@ -13,6 +13,7 @@ import {
 } from '@/lib/api';
 import { Booking } from '@/types';
 import { formatCurrency, formatStatus } from '@/lib/utils';
+import { statusChipClass } from '@/components/ui/status';
 import { Spinner } from '@/components/ui';
 
 export default function ArtistBookingsPage() {
@@ -117,31 +118,19 @@ export default function ArtistBookingsPage() {
         ) : (
           <ul className="space-y-3">
             {bookings.map((b) => (
-              <li key={b.id} className="bg-white p-4 shadow rounded-lg">
-                <div className="font-medium text-gray-900">
-                  {b.client?.first_name || 'Unknown'} {b.client?.last_name || ''}
-                </div>
-                <div className="text-sm text-gray-500">{b.service?.title || '—'}</div>
-                <div className="text-sm text-gray-500">
-                  {format(new Date(b.start_time), 'MMM d, yyyy h:mm a')}
-                </div>
-                <div className="mt-2 flex justify-between items-center">
-                  <span
-                    className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                      b.status === 'completed'
-                        ? 'bg-green-100 text-green-800'
-                        : b.status === 'cancelled'
-                        ? 'bg-red-100 text-red-800'
-                        : b.status === 'confirmed'
-                        ? 'bg-brand-light text-brand-dark'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}
-                  >
-                    {formatStatus(b.status)}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    {formatCurrency(Number(b.total_price))}
-                  </span>
+              <li key={b.id} className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm transition hover:shadow-md">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">
+                      {b.client?.first_name || 'Unknown'} {b.client?.last_name || ''}
+                    </div>
+                    <div className="mt-0.5 text-sm text-gray-600 truncate">{b.service?.title || '—'}</div>
+                    <div className="mt-1 text-xs text-gray-500">{format(new Date(b.start_time), 'MMM d, yyyy h:mm a')}</div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(b.status)}`}>{formatStatus(b.status)}</span>
+                    <div className="mt-2 text-sm font-semibold text-gray-900">{formatCurrency(Number(b.total_price))}</div>
+                  </div>
                 </div>
                 {b.source_quote && (
                   <Link
@@ -151,7 +140,7 @@ export default function ArtistBookingsPage() {
                     View Quote
                   </Link>
                 )}
-                <div className="mt-2 space-x-4">
+                <div className="mt-3 space-x-4">
                   {b.status !== 'completed' && b.status !== 'cancelled' && (
                     <>
                       <button
