@@ -9,6 +9,7 @@ import {
   generateQuoteNumber,
   applyDisplayOrder,
   getStreetFromAddress,
+  getCityFromAddress,
 } from '../utils';
 import { DEFAULT_CURRENCY } from '../constants';
 import api from '../api';
@@ -180,6 +181,18 @@ describe('getStreetFromAddress', () => {
 
   it('returns original when no comma is present', () => {
     expect(getStreetFromAddress('Cape Town')).toBe('Cape Town');
+  });
+});
+
+describe('getCityFromAddress', () => {
+  it('returns the city portion of a full address', () => {
+    expect(
+      getCityFromAddress('123 Main St, Suburb, Cape Town, Western Cape, South Africa'),
+    ).toBe('Cape Town');
+  });
+
+  it('handles addresses without country or province', () => {
+    expect(getCityFromAddress('123 Main St, Suburb, Durban')).toBe('Durban');
   });
 });
 

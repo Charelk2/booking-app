@@ -108,6 +108,40 @@ export const getStreetFromAddress = (address: string): string => {
   return street.trim();
 };
 
+/**
+ * Extract the city or town portion from a full address string.
+ * Known country and province segments are stripped from the end so
+ * that only the most relevant location name is returned.
+ */
+export const getCityFromAddress = (address: string): string => {
+  if (!address) return '';
+  const parts = address
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const countries = ['south africa'];
+  const provinces = [
+    'eastern cape',
+    'western cape',
+    'northern cape',
+    'gauteng',
+    'kwazulu-natal',
+    'limpopo',
+    'mpumalanga',
+    'north west',
+    'free state',
+  ];
+  while (parts.length > 1) {
+    const last = parts[parts.length - 1].toLowerCase();
+    if (countries.includes(last) || provinces.includes(last)) {
+      parts.pop();
+    } else {
+      break;
+    }
+  }
+  return parts[parts.length - 1] ?? '';
+};
+
 export const normalizeQuoteTemplate = (
   tmpl: QuoteTemplate,
 ): QuoteTemplate => ({
