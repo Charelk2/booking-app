@@ -58,6 +58,8 @@ const API_V1 = '/api/v1';
 const TEN_MINUTES_MS = 10 * 60 * 1000;
 const MIN_SCROLL_OFFSET = 20;
 const MAX_TEXTAREA_LINES = 10;
+const isImageAttachment = (url?: string | null) =>
+  !!url && /\.(jpe?g|png|gif|webp)$/i.test(url);
 
 // Normalize backend-provided message types for case-insensitive comparisons.
 const normalizeType = (t?: string | null) => (t ?? '').toUpperCase();
@@ -165,6 +167,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
     const [textareaLineHeight, setTextareaLineHeight] = useState(0);
+    const [sendQueue, setSendQueue] = useState<{ tempId: number; payload: MessageCreate }[]>(() => {
+      if (typeof window !== 'undefined') {
+        try {
+          return JSON.parse(localStorage.getItem('offlineSendQueue') || '[]');
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    });
+    const [typingUsers, setTypingUsers] = useState<number[]>([]);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [revealedImages, setRevealedImages] = useState<Set<number>>(new Set());
 
     // Refs
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -172,6 +187,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const prevMessageCountRef = useRef(0);
     const firstUnreadMessageRef = useRef<HTMLDivElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    useEffect(() => {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('offlineSendQueue', JSON.stringify(sendQueue));
+      }
+    }, [sendQueue]);
 
     // Derived values
     const computedServiceName = serviceName ?? bookingDetails?.service?.title;
@@ -206,6 +226,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       () => messages.some((m) => Number(m.quote_id) > 0),
       [messages],
     );
+    const typingIndicator = useMemo(() => {
+      const names = typingUsers.map((id) =>
+        id === currentArtistId ? artistName : id === currentClientId ? clientName : 'Participant',
+      );
+      if (isSystemTyping) names.push('System');
+      if (names.length === 0) return null;
+      const verb = names.length > 1 ? 'are' : 'is';
+      return `${names.join(' and ')} ${verb} typing...`;
+    }, [typingUsers, isSystemTyping, currentArtistId, currentClientId, artistName, clientName]);
 
 
     // Payment Modal Hook
@@ -354,6 +383,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       }
     }, [bookingRequestId, user?.id, initialNotes, onBookingDetailsParsed, ensureQuoteLoaded, setMessages, setThreadError, setLoading]);
 
+    const flushQueue = useCallback(async () => {
+      if (!navigator.onLine || sendQueue.length === 0) return;
+      for (const item of [...sendQueue]) {
+        try {
+          const res = await postMessageToBookingRequest(bookingRequestId, item.payload);
+          setMessages((prev) =>
+            prev.map((m) => (m.id === item.tempId ? { ...res.data, status: 'sent' } : m)),
+          );
+          setSendQueue((prev) => prev.filter((q) => q.tempId !== item.tempId));
+        } catch {
+          break;
+        }
+      }
+    }, [sendQueue, bookingRequestId, setMessages]);
+
     useImperativeHandle(ref, () => ({
       refreshMessages: fetchMessages,
     }));
@@ -361,6 +405,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     useEffect(() => {
       fetchMessages();
     }, [bookingRequestId, fetchMessages]);
+
+    useEffect(() => {
+      void flushQueue();
+      const handleOnline = () => {
+        void flushQueue();
+      };
+      window.addEventListener('online', handleOnline);
+      return () => window.removeEventListener('online', handleOnline);
+    }, [flushQueue]);
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') || sessionStorage.getItem('token') || '' : '';
     const { onMessage: onSocketMessage } = useWebSocket(
@@ -377,15 +430,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     useEffect(
       () =>
         onSocketMessage((event) => {
-          const incomingMsg = JSON.parse(event.data) as Message;
-
+          const incoming = JSON.parse(event.data) as any;
+          if (incoming.type === 'typing' && Array.isArray(incoming.users)) {
+            setTypingUsers(incoming.users.filter((id: number) => id !== user?.id));
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = setTimeout(() => setTypingUsers([]), 2000);
+            return;
+          }
+          const incomingMsg = incoming as Message;
           if (normalizeType(incomingMsg.message_type) === 'SYSTEM' && incomingMsg.content.startsWith(BOOKING_DETAILS_PREFIX)) {
             if (onBookingDetailsParsed) {
               onBookingDetailsParsed(parseBookingDetailsFromMessage(incomingMsg.content));
             }
             return;
           }
-
           setMessages((prevMessages) => {
             if (
               prevMessages.some((prevMsg) => prevMsg.id === incomingMsg.id) ||
@@ -395,7 +453,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             }
             return [...prevMessages.slice(-199), incomingMsg];
           });
-
           const incomingQuoteId = Number(incomingMsg.quote_id);
           const isQuoteMsg =
             incomingQuoteId > 0 &&
@@ -406,7 +463,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             void ensureQuoteLoaded(incomingQuoteId);
           }
         }),
-      [onSocketMessage, ensureQuoteLoaded, initialNotes, onBookingDetailsParsed, setMessages],
+      [onSocketMessage, ensureQuoteLoaded, initialNotes, onBookingDetailsParsed, setMessages, user?.id],
     );
 
     useEffect(() => {
@@ -426,7 +483,7 @@ useEffect(() => {
   const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
   const atBottom = scrollHeight - scrollTop - clientHeight <= MIN_SCROLL_OFFSET;
 
-  const shouldAutoScroll = (messages.length > prevMessageCountRef.current || isSystemTyping) && (atBottom || !isUserScrolledUp);
+  const shouldAutoScroll = (messages.length > prevMessageCountRef.current || typingIndicator) && (atBottom || !isUserScrolledUp);
 
   if (shouldAutoScroll) {
     messagesContainerRef.current.scrollTo({
@@ -436,7 +493,7 @@ useEffect(() => {
   }
 
   prevMessageCountRef.current = messages.length;
-}, [messages, isSystemTyping, isUserScrolledUp]);
+}, [messages, typingIndicator, isUserScrolledUp]);
 
     const handleScroll = useCallback(() => {
       if (!messagesContainerRef.current) return;
@@ -550,6 +607,11 @@ useEffect(() => {
         e.preventDefault();
         if (!newMessageContent.trim() && !attachmentFile) return;
 
+        if (attachmentFile && !navigator.onLine) {
+          setThreadError('Cannot send attachments while offline.');
+          return;
+        }
+
         let attachment_url: string | undefined;
         const tempId = Date.now();
 
@@ -573,7 +635,6 @@ useEffect(() => {
             attachment_url,
           };
 
-          // Optimistically append the message
           const optimistic: Message = {
             id: tempId,
             booking_request_id: bookingRequestId,
@@ -594,21 +655,45 @@ useEffect(() => {
           };
           setMessages((prev) => [...prev, optimistic]);
 
-          const res = await postMessageToBookingRequest(bookingRequestId, payload);
-          setMessages((prev) =>
-            prev.map((m) => (m.id === tempId ? { ...res.data, status: 'sent' } : m)),
-          );
+          const resetInput = () => {
+            setNewMessageContent('');
+            setAttachmentFile(null);
+            setAttachmentPreviewUrl(null);
+            setUploadingProgress(0);
+            setIsUploadingAttachment(false);
+            if (textareaRef.current) {
+              textareaRef.current.style.height = 'auto';
+              textareaRef.current.rows = 1;
+            }
+          };
 
-          setNewMessageContent('');
-          setAttachmentFile(null);
-          setAttachmentPreviewUrl(null);
-          setUploadingProgress(0);
-          setIsUploadingAttachment(false);
-          if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.rows = 1;
+          if (!navigator.onLine) {
+            setMessages((prev) =>
+              prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' } : m)),
+            );
+            setSendQueue((prev) => [...prev, { tempId, payload }]);
+            resetInput();
+            return;
           }
-          if (onMessageSent) onMessageSent();
+
+          try {
+            const res = await postMessageToBookingRequest(bookingRequestId, payload);
+            setMessages((prev) =>
+              prev.map((m) => (m.id === tempId ? { ...res.data, status: 'sent' } : m)),
+            );
+            if (onMessageSent) onMessageSent();
+          } catch (err: unknown) {
+            console.error('Failed to send message:', err);
+            setMessages((prev) =>
+              prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' } : m)),
+            );
+            setSendQueue((prev) => [...prev, { tempId, payload }]);
+            setThreadError(
+              `Failed to send message. ${(err as Error).message || 'Please try again later.'}`,
+            );
+          }
+
+          resetInput();
         } catch (err: unknown) {
           console.error('Failed to send message:', err);
           setMessages((prev) =>
@@ -635,6 +720,7 @@ useEffect(() => {
         setNewMessageContent,
         setThreadError,
         setMessages,
+        setSendQueue,
       ],
     );
 
@@ -953,14 +1039,36 @@ useEffect(() => {
                               msg.content
                             )}
                             {msg.attachment_url && (
-                              <a
-                                href={msg.attachment_url}
-                                target="_blank"
-                                className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
-                                rel="noopener noreferrer"
-                              >
-                                View attachment
-                              </a>
+                              isImageAttachment(msg.attachment_url) ? (
+                                revealedImages.has(msg.id) ? (
+                                  <Image
+                                    src={getFullImageUrl(msg.attachment_url) as string}
+                                    alt="Image attachment"
+                                    width={200}
+                                    height={200}
+                                    className="mt-1 rounded"
+                                  />
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setRevealedImages((prev) => new Set(prev).add(msg.id))
+                                    }
+                                    className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
+                                  >
+                                    View image
+                                  </button>
+                                )
+                              ) : (
+                                <a
+                                  href={msg.attachment_url}
+                                  target="_blank"
+                                  className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
+                                  rel="noopener noreferrer"
+                                >
+                                  View attachment
+                                </a>
+                              )
                             )}
                           </div>
                           {/* Timestamp and Read Receipts - positioned absolutely within the bubble */}
@@ -993,20 +1101,8 @@ useEffect(() => {
             );
           })}
 
-          {/* System Typing Indicator */}
-          {isSystemTyping && (
-            <div className="flex items-end gap-2 self-start">
-              <div className="h-7 w-7 rounded-full bg-gray-300 flex items-center justify-center text-xs font-medium shadow-sm">
-                {user?.user_type === 'service_provider' ? clientName?.charAt(0) : artistName?.charAt(0)}
-              </div>
-              <div className="bg-gray-200 rounded-2xl px-3 py-1.5 shadow-sm">
-                <div className="flex space-x-0.5 animate-pulse">
-                  <span className="block w-2 h-2 bg-gray-500 rounded-full" />
-                  <span className="block w-2 h-2 bg-gray-500 rounded-full" />
-                  <span className="block w-2 h-2 bg-gray-500 rounded-full" />
-                </div>
-              </div>
-            </div>
+          {typingIndicator && (
+            <p className="text-xs text-gray-500" aria-live="polite">{typingIndicator}</p>
           )}
           <div ref={messagesEndRef} />
         </div>
