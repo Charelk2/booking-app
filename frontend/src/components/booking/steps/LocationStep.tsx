@@ -4,8 +4,12 @@
 import { Controller, Control } from 'react-hook-form';
 import dynamic from 'next/dynamic';
 import { loadPlaces } from '@/lib/loadPlaces';
-import LocationInput from '../../ui/LocationInput'; // Assuming correct path
+import LocationInput from '../../ui/LocationInput';
 import clsx from 'clsx';
+import { useRef, useState, useEffect } from 'react';
+import { Button, Tooltip, CollapsibleSection } from '../../ui';
+import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
+
 const GoogleMap = dynamic(
   () => import('@react-google-maps/api').then((m) => m.GoogleMap),
   { ssr: false },
@@ -14,12 +18,9 @@ const Marker = dynamic(
   () => import('@react-google-maps/api').then((m) => m.Marker),
   { ssr: false },
 );
-import { useRef, useState, useEffect } from 'react';
-import { Button, Tooltip, CollapsibleSection } from '../../ui';
-import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
 
 // Import EventDetails if your actual WizardNav uses it for deeper checks
-import { EventDetails } from '@/contexts/BookingContext'; // Added EventDetails
+import { EventDetails } from '@/contexts/BookingContext';
 
 
 interface Props {
@@ -28,6 +29,26 @@ interface Props {
   setWarning: (w: string | null) => void;
   open?: boolean;
   onToggle?: () => void;
+}
+
+interface MapProps {
+  isLoaded: boolean;
+  marker: LatLng | null;
+}
+
+function Map({ isLoaded, marker }: MapProps) {
+  if (!marker) return null;
+  if (!isLoaded) return <div className="h-full w-full" />;
+  return (
+    <GoogleMap
+      center={marker}
+      zoom={14}
+      mapContainerStyle={{ width: '100%', height: '100%' }}
+      data-testid="map"
+    >
+      <Marker position={marker} />
+    </GoogleMap>
+  );
 }
 
 function GoogleMapsLoader({
@@ -91,21 +112,6 @@ export default function LocationStep({
     })();
   }, [artistLocation, marker, setWarning]);
 
-  function Map({ isLoaded }: { isLoaded: boolean }) {
-    if (!marker) return null;
-    if (!isLoaded) return <div className="h-full w-full" />;
-    return (
-      <GoogleMap
-        center={marker}
-        zoom={14}
-        mapContainerStyle={{ width: '100%', height: '100%' }}
-        data-testid="map"
-      >
-        <Marker position={marker} />
-      </GoogleMap>
-    );
-  }
-
   return (
     <CollapsibleSection
       title="Location"
@@ -146,7 +152,7 @@ export default function LocationStep({
                   )}
                   data-testid="map-container"
                 >
-                  <Map isLoaded={loaded} />
+                  <Map isLoaded={loaded} marker={marker} />
                 </div>
               </>
             )}
