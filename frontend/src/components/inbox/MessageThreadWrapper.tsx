@@ -240,7 +240,7 @@ export default function MessageThreadWrapper({
       <div className="flex flex-1 min-h-0 flex-col md:flex-row relative w-full">
         <div
           data-testid="thread-container"
-          className={`flex-1 min-w-0 min-h-0 w-full p-4 transition-[width] duration-300 ease-in-out] ${
+          className={`flex-1 min-w-0 min-h-0 w-full transition-[width] duration-300 ease-in-out] ${
             showSidePanel ? 'md:w-[calc(100%-300px)] lg:w-[calc(100%-360px)]' : 'md:w-full'
           }`}
         >

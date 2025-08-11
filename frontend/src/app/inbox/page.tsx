@@ -131,7 +131,7 @@ export default function InboxPage() {
       {/* Lock inbox to viewport to prevent page scroll; headers stay visible */}
       <div
         className="fixed inset-x-0 bottom-0 flex flex-col md:flex-row overflow-hidden bg-white"
-        style={{ top: 'var(--app-header-height, 64px)' }}
+        style={{ top: isMobile && !showList ? 0 : 'var(--app-header-height, 64px)', zIndex: isMobile && !showList ? 60 : undefined }}
       >
         {(!isMobile || showList) && (
           <div

@@ -892,7 +892,7 @@ useEffect(() => {
           onScroll={handleScroll}
           className="relative flex-1 flex-grow overflow-y-auto flex flex-col gap-3 bg-white px-4 pt-4"
           style={{
-            paddingBottom: composerHeight ? `${composerHeight}px` : undefined,
+            paddingBottom: '7px',
             WebkitOverflowScrolling: 'touch',
           }}
         >
@@ -1273,7 +1273,7 @@ useEffect(() => {
             {/* Message Input Form */}
             <div
               ref={composerRef}
-              className="sticky sm:bottom-0 max-sm:fixed max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:z-20 bg-white border-t border-gray-100 shadow-lg pb-safe relative"
+              className="sticky bottom-0 max-sm:sticky max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:z-20 bg-white border-t border-gray-100 shadow-lg pb-safe relative"
               style={{ bottom: 'var(--mobile-bottom-nav-offset, var(--mobile-bottom-nav-height,56px))' }}
             >
               {showEmojiPicker && (
@@ -1285,7 +1285,7 @@ useEffect(() => {
                   />
                 </div>
               )}
-              <form onSubmit={handleSendMessage} className="flex items-center gap-x-2 px-3 pt-2">
+              <form onSubmit={handleSendMessage} className="flex items-center gap-x-2 px-3 pt-2 pb-2">
                 <input
                   id="file-upload"
                   type="file"
