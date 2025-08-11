@@ -194,6 +194,11 @@ describe('getCityFromAddress', () => {
   it('handles addresses without country or province', () => {
     expect(getCityFromAddress('123 Main St, Suburb, Durban')).toBe('Durban');
   });
+
+  it('removes trailing postal codes and returns the city', () => {
+    const addr = '123 Main St, Suburb, Worcester, 6850, Western Cape, South Africa';
+    expect(getCityFromAddress(addr)).toBe('Worcester');
+  });
 });
 
 describe('generateQuoteNumber', () => {
