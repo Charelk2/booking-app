@@ -2,6 +2,11 @@
 
 This document outlines key friction points in the current booking wizard and proposes adjustments to achieve a smoother mobile flow.
 
+## Responsive Layouts
+* Breakpoints and container queries ensure components reflow within any parent container.
+* Multi-column forms now stack into single columns on smaller screens.
+* Typography and spacing scale fluidly using CSS `clamp()` for better legibility.
+
 ## Date & Time
 * **Pain Points:** Calendar occupies the entire viewport on small screens and "Next" sits above the keyboard when picking time.
 * **Improvements:**
