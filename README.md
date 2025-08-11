@@ -1140,7 +1140,7 @@ The dashboard brings common actions to the surface with a tidy layout:
 * Cache keys include all relevant query parameters so each combination is stored separately.
 * Fallback to the database or external API if Redis is unavailable.
 * Connections close cleanly on API shutdown.
-* The frontend service worker pre-caches local icons and Google Fonts using Next-PWA.
+* The frontend service worker pre-caches the app shell, critical CSS, local icons, and Google Fonts using Next-PWA. A manifest at `/manifest.json` enables install prompts, and offline booking steps and chat messages are retried with exponential backoff when connectivity returns.
 
 ### Artist Listing Filters
 

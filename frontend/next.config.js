@@ -20,6 +20,24 @@ const withPWA = require('next-pwa')({
       },
     },
     {
+      // Cache the application shell for offline navigation
+      urlPattern: ({ request }) => request.mode === 'navigate',
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'app-shell',
+        networkTimeoutSeconds: 3,
+      },
+    },
+    {
+      // Cache critical CSS assets
+      urlPattern: ({ url }) =>
+        url.origin === self.location.origin && /\.(?:css)$/.test(url.pathname),
+      handler: 'StaleWhileRevalidate',
+      options: {
+        cacheName: 'styles',
+      },
+    },
+    {
       urlPattern: /^https:\/\/fonts\.(?:gstatic|googleapis)\.com\/.*/i,
       handler: 'CacheFirst',
       options: {
