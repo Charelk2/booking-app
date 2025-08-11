@@ -15,6 +15,18 @@ if [ "${FAST:-}" = 1 ]; then
   exit $?
 fi
 
+if [ "${SMOKE:-}" = 1 ] && [ -z "${IN_DOCKER:-}" ]; then
+  echo "Running smoke tests via Docker…"
+  TEST_SCRIPT=./scripts/test-smoke.sh ./scripts/docker-test.sh
+  exit $?
+fi
+
+if [ "${E2E:-}" = 1 ] && [ -z "${IN_DOCKER:-}" ]; then
+  echo "Running end-to-end tests via Docker…"
+  TEST_SCRIPT=./scripts/test-e2e.sh ./scripts/docker-test.sh
+  exit $?
+fi
+
 # Ensure Node and npm are available
 if ! command -v node >/dev/null; then
   echo "❌ node not found in PATH" >&2
