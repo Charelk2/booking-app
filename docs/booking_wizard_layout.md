@@ -44,3 +44,5 @@ The stepper text is bright red for the active step and muted gray for the rest. 
 Navigation controls live in a sticky footer so the primary actions remain visible even when the form scrolls. Each button has a minimum tap area of 44×44 px to satisfy mobile accessibility guidelines. Heavy widgets such as the map preview and calendar picker are loaded lazily once their sections expand, keeping the initial payload light on mobile connections.
 
 To reduce visual distraction, the map preview now expands instantly without a height transition, and step changes avoid re-triggering the modal's open animation, resulting in a smoother experience.
+
+The progress stepper is rendered as a plain `nav` element with no layout animations so it no longer collapses and re-expands between steps.
