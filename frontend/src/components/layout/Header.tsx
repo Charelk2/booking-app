@@ -320,7 +320,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                           <Menu.Item>
                             {({ active }) => (
                               <Link
-                                href="/messages"
+                                href="/inbox"
                                 className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
                               >
                                 Messages
