@@ -92,7 +92,7 @@ For setup instructions see [README.md](README.md).
 * **Purpose:** Delivers real-time or async chat, manages unread notifications, logs chat history.
 * **Frontend:** `MessageThread.tsx` and related components handle sending and displaying messages.
 * **Backend:** `api_message.py` stores messages and `api_ws.py` pushes updates via WebSocket.
-* **Features:** Auto-scroll, mobile-friendly input with an emoji picker, avatars, batched typing indicator, adaptive heartbeats for mobile or background tabs, coalesced presence updates, offline send queue with exponential backoff, and image previews that load only when tapped.
+* **Features:** Auto-scroll, mobile-friendly input, avatars, batched typing indicator, adaptive heartbeats for mobile or background tabs, coalesced presence updates, offline send queue with exponential backoff, and image previews that load only when tapped.
 ### 10. Caching Agent
 
 * **Purpose:** Cache heavy artist list responses using Redis.

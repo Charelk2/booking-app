@@ -70,10 +70,6 @@ Service categories are fetched from the backend. A generic "Service Providers" e
 accessible loading states. They apply `role="status"` and `aria-busy` attributes
 so screen readers announce when data is in flight.
 
-### Emoji Picker
-
-The chat composer now includes an emoji button that toggles a searchable picker powered by `emoji-mart` and `@emoji-mart/data`. The picker appears above the input so it never obscures the textarea, and the trigger button provides an accessible `aria-label`.
-
 ### Customizing Brand Colors
 
 Brand colors are declared in `tailwind.config.js` and exposed as CSS variables in

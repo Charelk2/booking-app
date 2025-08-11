@@ -16,7 +16,7 @@ import {
 } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
-import { DocumentIcon, DocumentTextIcon, FaceSmileIcon } from '@heroicons/react/24/outline';
+import { DocumentIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import {
   Booking,
   Review,
@@ -48,13 +48,9 @@ import useWebSocket from '@/hooks/useWebSocket';
 import { format, isValid } from 'date-fns';
 import { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
-import data from '@emoji-mart/data';
 
 const MemoQuoteBubble = React.memo(QuoteBubble);
 const MemoInlineQuoteForm = React.memo(InlineQuoteForm);
-
-const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
 
 
 // Constants
@@ -173,7 +169,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
     const [textareaLineHeight, setTextareaLineHeight] = useState(0);
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const { enqueue: enqueueMessage } = useOfflineQueue<{
       tempId: number;
       payload: MessageCreate;
@@ -193,7 +188,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const prevMessageCountRef = useRef(0);
     const firstUnreadMessageRef = useRef<HTMLDivElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const emojiPickerRef = useRef<HTMLDivElement | null>(null);
 
     // Derived values
     const computedServiceName = serviceName ?? bookingDetails?.service?.title;
@@ -293,21 +287,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     useEffect(() => {
       autoResizeTextarea();
     }, [newMessageContent, autoResizeTextarea]);
-
-    // Close emoji picker when clicking outside of it
-    useEffect(() => {
-      const handleClickOutside = (e: MouseEvent) => {
-        if (
-          showEmojiPicker &&
-          emojiPickerRef.current &&
-          !emojiPickerRef.current.contains(e.target as Node)
-        ) {
-          setShowEmojiPicker(false);
-        }
-      };
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [showEmojiPicker]);
 
 
     const firstUnreadIndex = useMemo(
@@ -607,14 +586,6 @@ useEffect(() => {
 
 
     // --- Event Handlers ---
-
-    const handleEmojiSelect = (emoji: { native?: string }) => {
-      if (emoji?.native) {
-        setNewMessageContent((prev) => `${prev}${emoji.native}`);
-      }
-      setShowEmojiPicker(false);
-      textareaRef.current?.focus();
-    };
 
     const handleSendMessage = useCallback(
       async (e: React.FormEvent) => {
@@ -1208,83 +1179,69 @@ useEffect(() => {
             )}
 
             {/* Message Input Form */}
-            <div
-              className="sticky sm:bottom-0 bg-white border-t border-gray-100 shadow-lg pb-safe relative"
+            <form
+              onSubmit={handleSendMessage}
+              className="sticky sm:bottom-0 bg-white border-t border-gray-100 flex items-center gap-x-2 px-3 py-1.5 shadow-lg pb-safe"
               style={{ bottom: 'var(--mobile-bottom-nav-height,56px)' }}
             >
-              {showEmojiPicker && (
-                <div ref={emojiPickerRef} className="absolute bottom-14 left-0 z-50">
-                  <EmojiPicker data={data} onEmojiSelect={handleEmojiSelect} />
+              <input
+                id="file-upload"
+                type="file"
+                className="hidden"
+                onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                accept="image/*,application/pdf"
+              />
+              <label
+                htmlFor="file-upload"
+                aria-label="Upload attachment"
+                className="flex-shrink-0 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </label>
+              {/* Textarea for auto-expansion and scrolling */}
+              <textarea
+                ref={textareaRef}
+                value={newMessageContent}
+                onChange={(e) => {
+                  setNewMessageContent(e.target.value);
+                }}
+                onInput={autoResizeTextarea}
+                rows={1}
+                className="flex-grow rounded-xl px-3.5 py-1.5 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm resize-none overflow-y-auto text-xs font-medium"
+                placeholder="Type your message..."
+                aria-label="New message input"
+                disabled={isUploadingAttachment}
+              />
+              {isUploadingAttachment && (
+                <div
+                  className="flex items-center gap-1.5"
+                  role="progressbar"
+                  aria-label="Upload progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={uploadingProgress}
+                  aria-valuetext={`${uploadingProgress}%`}
+                >
+                  <div className="w-12 bg-gray-200 rounded-full h-1.5">
+                    <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${uploadingProgress}%` }} />
+                  </div>
+                  <span className="text-xs text-gray-600">{uploadingProgress}%</span>
                 </div>
               )}
-              <form onSubmit={handleSendMessage} className="flex items-center gap-x-2 px-3 py-1.5">
-                <input
-                  id="file-upload"
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
-                  accept="image/*,application/pdf"
-                />
-                <label
-                  htmlFor="file-upload"
-                  aria-label="Upload attachment"
-                  className="flex-shrink-0 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-7 h-7">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowEmojiPicker((prev) => !prev)}
-                  aria-label="Add emoji"
-                  className="flex-shrink-0 w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors"
-                >
-                  <FaceSmileIcon className="w-7 h-7" />
-                </button>
-                {/* Textarea for auto-expansion and scrolling */}
-                <textarea
-                  ref={textareaRef}
-                  value={newMessageContent}
-                  onChange={(e) => {
-                    setNewMessageContent(e.target.value);
-                  }}
-                  onInput={autoResizeTextarea}
-                  rows={1}
-                  className="flex-grow rounded-xl px-3.5 py-1.5 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 shadow-sm resize-none overflow-y-auto text-xs font-medium"
-                  placeholder="Type your message..."
-                  aria-label="New message input"
-                  disabled={isUploadingAttachment}
-                />
-                {isUploadingAttachment && (
-                  <div
-                    className="flex items-center gap-1.5"
-                    role="progressbar"
-                    aria-label="Upload progress"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={uploadingProgress}
-                    aria-valuetext={`${uploadingProgress}%`}
-                  >
-                    <div className="w-12 bg-gray-200 rounded-full h-1.5">
-                      <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${uploadingProgress}%` }} />
-                    </div>
-                    <span className="text-xs text-gray-600">{uploadingProgress}%</span>
-                  </div>
-                )}
-                {/* Send Button: Circular arrow icon, make it smaller */}
-                <Button
-                  type="submit"
-                  aria-label="Send message"
-                  className="flex-shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md w-11 h-11 min-w-[44px] min-h-[44px] p-2"
-                  disabled={isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile)}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                  </svg>
-                </Button>
-              </form>
-            </div>
+              {/* Send Button: Circular arrow icon, make it smaller */}
+              <Button
+                type="submit"
+                aria-label="Send message"
+                className="flex-shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-md w-11 h-11 min-w-[44px] min-h-[44px] p-2"
+                disabled={isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+              </Button>
+            </form>
 
             {/* Leave Review Button (Client only, after booking completed) */}
             {user?.user_type === 'client' &&
@@ -1320,4 +1277,3 @@ useEffect(() => {
 
 MessageThread.displayName = 'MessageThread';
 export default React.memo(MessageThread);
-
