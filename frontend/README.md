@@ -33,6 +33,9 @@ form fields share consistent spacing and focus styles.
 The `Stepper` progress bar highlights the active step with `bg-brand` and `text-brand-dark` to reinforce the brand palette.
 
 Primary, secondary and outline buttons now use the brand color for borders and background with a subtle shadow hover transition.
+Icon-only actions should use the `IconButton` component, which requires an
+`aria-label` and respects the user's `prefers-reduced-motion` setting to keep
+animations subtle for motion-sensitive users.
 
 See [../docs/design_guidelines.md](../docs/design_guidelines.md) for a summary of spacing, typography and component styles.
 
