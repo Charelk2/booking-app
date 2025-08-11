@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useRef, Fragment, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Dialog, Transition } from '@headlessui/react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
 
@@ -98,13 +97,6 @@ const steps = [
 ];
 
 
-// --- Animation Variants ---
-const stepVariants = {
-  initial: { opacity: 0, x: 50 },
-  animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: -50 },
-  transition: { duration: 0.3, ease: [0.42, 0, 0.58, 1] as const },
-};
 
 // --- BookingWizard Props ---
 interface BookingWizardProps {
@@ -669,28 +661,17 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 onKeyDown={handleKeyDown}
                 className="flex-1 overflow-y-scroll p-6 space-y-6"
               >
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={step}
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    variants={stepVariants}
-                    transition={stepVariants.transition}
-                    className="overscroll-contain"
-                    style={{ willChange: 'transform, opacity' }}
-                  >
-                    {renderStep()}
+                <div className="overscroll-contain">
+                  {renderStep()}
 
-                    {warning && <p className="text-orange-600 text-sm mt-4">{warning}</p>}
-                    {Object.keys(errors).length > 0 && (
-                      <p className="text-red-600 text-sm mt-4">
-                        Please fix the highlighted errors above to continue.
-                      </p>
-                    )}
-                    {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}
-                  </motion.div>
-                </AnimatePresence>
+                  {warning && <p className="text-orange-600 text-sm mt-4">{warning}</p>}
+                  {Object.keys(errors).length > 0 && (
+                    <p className="text-red-600 text-sm mt-4">
+                      Please fix the highlighted errors above to continue.
+                    </p>
+                  )}
+                  {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}
+                </div>
               </form>
 
               {/* Navigation controls - Adjusted for ReviewStep */}
