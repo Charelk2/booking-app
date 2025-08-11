@@ -99,6 +99,7 @@ Structured JSON logs and OpenTelemetry traces are enabled for both the FastAPI b
 - Backend now defines a unified `BookingStatus` enum in `backend/app/models/booking_status.py` shared by bookings and booking requests.
 - Error fallback messages now detect authentication failures and prompt users to log in.
 - Booking request API responses now include `last_message_content` and `last_message_timestamp` so inbox conversations sort by recent chats.
+- Chat message timestamps are stored in GMT+2 to provide consistent send times across regions.
 - Messages now include a `message_type` (`USER`, `QUOTE`, `SYSTEM`) and `visible_to`
   (`artist`, `client`, `both`) field so threads render and filter correctly for
   each participant. The API also accepts the legacy values `text`, `quote`, and
