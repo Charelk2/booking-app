@@ -19,7 +19,7 @@ For setup instructions see [README.md](README.md).
 | **Review** | Manages star ratings and comments for completed bookings | `backend/app/api/api_review.py`<br>`frontend/src/app/service-providers/[id]/page.tsx` | After a booking is marked completed |
 | **Payment** | Handles deposit or full payments via `/api/v1/payments` | `backend/app/api/api_payment.py` | After quote acceptance |
 | **Notification** | Sends emails, chat alerts, and booking status updates | `backend/app/api/api_notification.py`<br>`backend/app/utils/notifications.py`<br>`frontend/hooks/useNotifications.ts` | On status changes, messages, actions |
-| **Chat** | Manages client–artist chat and WebSocket updates | `backend/app/api/api_message.py`<br>`backend/app/api/api_ws.py`<br>`frontend/src/components/booking/MessageThread.tsx` | Always on for active bookings |
+| **Chat** | Manages client–artist chat and WebSocket updates; queues offline messages, batches typing indicators, and defers image previews until opened | `backend/app/api/api_message.py`<br>`backend/app/api/api_ws.py`<br>`frontend/src/components/booking/MessageThread.tsx` | Always on for active bookings |
 | **Caching** | Caches artist lists using Redis | `backend/app/utils/redis_cache.py`<br>`backend/app/api/v1/api_service_provider.py` | On artist list requests |
 | **Personalized Video** | Automates Q&A for custom video requests | `frontend/src/components/booking/PersonalizedVideoFlow.tsx`<br>`frontend/src/lib/videoFlow.ts` | When `service_type` is Personalized Video |
 | **Availability** | Checks artist/service availability in real time | `backend/app/api/v1/api_service_provider.py`<br>`frontend/src/components/booking/BookingWizard.tsx` | On date selection and booking start |
@@ -91,7 +91,7 @@ For setup instructions see [README.md](README.md).
 * **Purpose:** Delivers real-time or async chat, manages unread notifications, logs chat history.
 * **Frontend:** `MessageThread.tsx` and related components handle sending and displaying messages.
 * **Backend:** `api_message.py` stores messages and `api_ws.py` pushes updates via WebSocket.
-* **Features:** Auto-scroll, mobile-friendly input, avatars, image previews, and typing indicator.
+* **Features:** Auto-scroll, mobile-friendly input, avatars, batched typing indicator, offline send queue, and image previews that load only when tapped.
 ### 10. Caching Agent
 
 * **Purpose:** Cache heavy artist list responses using Redis.
