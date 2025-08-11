@@ -7,6 +7,11 @@ created whenever a new chat message is sent. The card subtitle includes a short
 snippet of the latest message so clients can quickly decide whether they need to
 open the conversation.
 
+Notification WebSocket connections send periodic `ping` heartbeats. The
+frontend now replies with `pong` and ignores these control messages so they do
+not appear in the drawer. All notification timestamps are formatted for the
+South African time zone (GMT+2).
+
 SMS alerts and other external deliveries are now dispatched through an
 in-process background worker. Each send operation is retried up to three times
 with exponential backoff; failures are appended to a dead-letter queue for

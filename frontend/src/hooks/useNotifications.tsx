@@ -110,18 +110,31 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     ? `${wsHost}/api/v1/ws/notifications?token=${encodeURIComponent(token)}`
     : null;
 
-  const handleMessage = useCallback((event: MessageEvent) => {
-    try {
-      const data = JSON.parse(event.data) as Omit<Notification, 'is_read'>;
-      const newNotif: Notification = { ...data, is_read: false };
-      setNotifications((prev) => [newNotif, ...prev]);
-      setUnreadCount((c) => c + 1);
-    } catch (e) {
-      console.error('Failed to parse notification message', e);
-    }
-  }, []);
+  const { send, onMessage } = useWebSocket(wsUrl);
 
-  const { onMessage } = useWebSocket(wsUrl);
+  const handleMessage = useCallback(
+    (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data) as { type?: string } & Partial<Notification>;
+        if (data.type === 'ping') {
+          send(JSON.stringify({ type: 'pong' }));
+          return;
+        }
+        if (data.type === 'reconnect') {
+          return;
+        }
+        if (!data.id || !data.timestamp) {
+          return;
+        }
+        const newNotif: Notification = { ...(data as Notification), is_read: false };
+        setNotifications((prev) => [newNotif, ...prev]);
+        setUnreadCount((c) => c + 1);
+      } catch (e) {
+        console.error('Failed to parse notification message', e);
+      }
+    },
+    [send],
+  );
 
   useEffect(() => onMessage(handleMessage), [onMessage, handleMessage]);
 
