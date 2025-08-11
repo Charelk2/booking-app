@@ -14,6 +14,7 @@ import {
 import { Spinner } from "@/components/ui";
 import { format } from "date-fns";
 import { formatCurrency, formatStatus } from "@/lib/utils";
+import { statusChipClass } from "@/components/ui/status";
 import Link from "next/link";
 
 export default function ClientDashboardPage() {
@@ -112,31 +113,19 @@ export default function ClientDashboardPage() {
                 data={upcomingBookings}
                 emptyState={<span>No bookings yet</span>}
                 renderItem={(booking) => (
-                  <div key={booking.id} className="bg-white p-4 shadow rounded-lg">
-                    <div className="font-medium text-gray-900">
-                      {booking.artist?.first_name || "Unknown"} {booking.artist?.last_name || ""}
-                    </div>
-                    <div className="text-sm text-gray-500">{booking.service?.title || "—"}</div>
-                    <div className="text-sm text-gray-500">
-                      {format(new Date(booking.start_time), "MMM d, yyyy h:mm a")}
-                    </div>
-                    <div className="mt-2 flex justify-between items-center">
-                      <span
-                        className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                          booking.status === "completed"
-                            ? "bg-green-100 text-green-800"
-                            : booking.status === "cancelled"
-                            ? "bg-red-100 text-red-800"
-                            : booking.status === "confirmed"
-                            ? "bg-brand-light text-brand-dark"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {formatStatus(booking.status)}
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {formatCurrency(Number(booking.total_price))}
-                      </span>
+                  <div key={booking.id} className="rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm transition hover:shadow-md">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {booking.artist?.first_name || "Unknown"} {booking.artist?.last_name || ""}
+                        </div>
+                        <div className="mt-0.5 text-sm text-gray-600 truncate">{booking.service?.title || "—"}</div>
+                        <div className="mt-1 text-xs text-gray-500">{format(new Date(booking.start_time), "MMM d, yyyy h:mm a")}</div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(booking.status)}`}>{formatStatus(booking.status)}</span>
+                        <div className="mt-2 text-sm font-semibold text-gray-900">{formatCurrency(Number(booking.total_price))}</div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -155,4 +144,3 @@ export default function ClientDashboardPage() {
     </MainLayout>
   );
 }
-

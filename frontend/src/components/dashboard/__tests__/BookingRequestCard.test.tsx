@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import { BookingRequestCard } from '..';
+import { formatStatus } from '@/lib/utils';
 import type { BookingRequest, Service, User, ServiceProviderProfile } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -131,15 +132,15 @@ describe('BookingRequestCard', () => {
     expect(container.textContent).toContain('The Band');
   });
 
-  it('applies status badge classes based on status', () => {
-    const cases: [string, string][] = [
-      ['pending_quote', 'status-badge-pending-quote'],
-      ['pending_artist_confirmation', 'status-badge-pending-action'],
-      ['quote_provided', 'status-badge-quote-provided'],
-      ['request_confirmed', 'status-badge-confirmed'],
-      ['request_declined', 'status-badge-declined'],
+  it('shows a status chip with formatted text for each status', () => {
+    const statuses = [
+      'pending_quote',
+      'pending_artist_confirmation',
+      'quote_provided',
+      'request_confirmed',
+      'request_declined',
     ];
-    cases.forEach(([status, expected]) => {
+    statuses.forEach((status) => {
       act(() => {
         root.render(
           React.createElement(BookingRequestCard, {
@@ -147,8 +148,9 @@ describe('BookingRequestCard', () => {
           }),
         );
       });
-      const badge = container.querySelector('span[class*="status-badge"]') as HTMLSpanElement;
-      expect(badge?.className).toContain(expected);
+      const badge = container.querySelector('[data-testid="status-chip"]') as HTMLSpanElement;
+      expect(badge).not.toBeNull();
+      expect(badge.textContent).toBe(formatStatus(status));
     });
   });
 });

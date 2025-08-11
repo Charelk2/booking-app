@@ -66,28 +66,4 @@
   animation: progress-indeterminate 1.5s infinite;
 }
 
-.status-badge {
-  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
-}
-
-.status-badge-quote-provided {
-  @apply status-badge text-[var(--color-accent)];
-
-  background-color: var(--color-accent-10);
-}
-
-.status-badge-pending-quote {
-  @apply status-badge bg-yellow-100 text-yellow-800;
-}
-
-.status-badge-confirmed {
-  @apply status-badge bg-brand-light text-brand-dark;
-}
-
-.status-badge-pending-action {
-  @apply status-badge bg-orange-100 text-orange-800;
-}
-
-.status-badge-declined {
-  @apply status-badge bg-red-100 text-red-800;
-}
+/* legacy status-badge-* classes removed in favor of statusChipClass() */
