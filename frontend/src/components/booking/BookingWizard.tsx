@@ -40,6 +40,19 @@ const SoundStep = dynamic(() => import('./steps/SoundStep'));
 const NotesStep = dynamic(() => import('./steps/NotesStep'));
 const ReviewStep = dynamic(() => import('./steps/ReviewStep'));
 
+// Maintain an ordered array of step components for prefetching
+const stepComponents = [
+  EventDescriptionStep,
+  LocationStep,
+  DateTimeStep,
+  EventTypeStep,
+  GuestsStep,
+  VenueStep,
+  SoundStep,
+  NotesStep,
+  ReviewStep,
+];
+
 // --- EventDetails Type & Schema ---
 type EventDetails = {
   eventType?: string;
@@ -159,6 +172,27 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   useEffect(() => {
     setMaxStepCompleted((prev) => Math.max(prev, step));
     setValidationError(null);
+  }, [step]);
+
+  // Prefetch the next step component when the browser is idle
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (step >= stepComponents.length - 1) return;
+
+    const nextComponent = stepComponents[step + 1] as any;
+    const preloadNext = () => {
+      if (typeof nextComponent?.preload === 'function') {
+        nextComponent.preload();
+      }
+    };
+
+    if ('requestIdleCallback' in window) {
+      const id = (window as any).requestIdleCallback(preloadNext);
+      return () => (window as any).cancelIdleCallback(id);
+    }
+
+    const timeoutId = setTimeout(preloadNext, 0);
+    return () => clearTimeout(timeoutId);
   }, [step]);
 
   // Ensure inputs have appropriate attributes and stay visible when focused
