@@ -54,6 +54,13 @@ This document outlines key friction points in the current booking wizard and pro
 * Keep the hamburger menu visible so the main navigation drawer is always accessible. ✅ Implemented July 2025.
 * Simplify the hamburger menu by deduplicating links and grouping related items under clear section headings. ✅ Implemented July 2025.
 
+## Accessibility Audit
+* Verified color contrast remains readable on the smallest breakpoints.
+* Guarantee a minimum 44×44&nbsp;px tap target for all interactive buttons.
+* Confirmed focus order follows the visual flow on each wizard step.
+* Animations are wrapped with `prefers-reduced-motion` fallbacks.
+* Icon-only CTAs now require an `aria-label` so screen readers announce their purpose.
+
 ## JavaScript Optimization
 * Converted static layout pieces like `Footer` and `NavLink` into server components to eliminate unnecessary client-side bundles.
 * Deferred the home page category carousel with a dynamic import so non-critical widgets load after the main content.
