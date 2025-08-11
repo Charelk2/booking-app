@@ -167,7 +167,7 @@ export default function MainLayout({ children, headerAddon, headerFilter, fullWi
   useEffect(() => {
     if (isArtistDetail || isArtistView) return; // No scroll listener on artist detail pages or artist view
 
-    window.addEventListener('scroll', optimizedScrollHandler);
+    window.addEventListener('scroll', optimizedScrollHandler, { passive: true });
     if (window.scrollY > 0) {
       handleScroll();
     }

@@ -507,7 +507,7 @@ useEffect(() => {
       handleScroll();
       const container = messagesContainerRef.current;
       if (container) {
-        container.addEventListener('scroll', handleScroll);
+        container.addEventListener('scroll', handleScroll, { passive: true });
         return () => container.removeEventListener('scroll', handleScroll);
       }
       return () => {};

@@ -74,7 +74,7 @@ export default function ArtistsSection({
     updateScrollButton();
     const el = scrollRef.current;
     if (!el) return;
-    el.addEventListener('scroll', updateScrollButton);
+    el.addEventListener('scroll', updateScrollButton, { passive: true });
     window.addEventListener('resize', updateScrollButton);
     return () => {
       el.removeEventListener('scroll', updateScrollButton);
