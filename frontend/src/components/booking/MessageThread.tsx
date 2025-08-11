@@ -39,6 +39,7 @@ import {
   updateBookingRequestArtist,
   useAuth,
 } from '@/lib/api';
+import useOfflineQueue from '@/hooks/useOfflineQueue';
 import Button from '../ui/Button';
 import usePaymentModal from '@/hooks/usePaymentModal';
 import QuoteBubble from './QuoteBubble';
@@ -167,15 +168,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
     const [textareaLineHeight, setTextareaLineHeight] = useState(0);
-    const [sendQueue, setSendQueue] = useState<{ tempId: number; payload: MessageCreate }[]>(() => {
-      if (typeof window !== 'undefined') {
-        try {
-          return JSON.parse(localStorage.getItem('offlineSendQueue') || '[]');
-        } catch {
-          return [];
-        }
-      }
-      return [];
+    const { enqueue: enqueueMessage } = useOfflineQueue<{
+      tempId: number;
+      payload: MessageCreate;
+    }>('offlineSendQueue', async ({ tempId, payload }) => {
+      const res = await postMessageToBookingRequest(bookingRequestId, payload);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...res.data, status: 'sent' } : m)),
+      );
     });
     const [typingUsers, setTypingUsers] = useState<number[]>([]);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -187,11 +187,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const prevMessageCountRef = useRef(0);
     const firstUnreadMessageRef = useRef<HTMLDivElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    useEffect(() => {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('offlineSendQueue', JSON.stringify(sendQueue));
-      }
-    }, [sendQueue]);
 
     // Derived values
     const computedServiceName = serviceName ?? bookingDetails?.service?.title;
@@ -383,21 +378,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       }
     }, [bookingRequestId, user?.id, initialNotes, onBookingDetailsParsed, ensureQuoteLoaded, setMessages, setThreadError, setLoading]);
 
-    const flushQueue = useCallback(async () => {
-      if (!navigator.onLine || sendQueue.length === 0) return;
-      for (const item of [...sendQueue]) {
-        try {
-          const res = await postMessageToBookingRequest(bookingRequestId, item.payload);
-          setMessages((prev) =>
-            prev.map((m) => (m.id === item.tempId ? { ...res.data, status: 'sent' } : m)),
-          );
-          setSendQueue((prev) => prev.filter((q) => q.tempId !== item.tempId));
-        } catch {
-          break;
-        }
-      }
-    }, [sendQueue, bookingRequestId, setMessages]);
-
     useImperativeHandle(ref, () => ({
       refreshMessages: fetchMessages,
     }));
@@ -405,15 +385,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     useEffect(() => {
       fetchMessages();
     }, [bookingRequestId, fetchMessages]);
-
-    useEffect(() => {
-      void flushQueue();
-      const handleOnline = () => {
-        void flushQueue();
-      };
-      window.addEventListener('online', handleOnline);
-      return () => window.removeEventListener('online', handleOnline);
-    }, [flushQueue]);
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') || sessionStorage.getItem('token') || '' : '';
     const { onMessage: onSocketMessage, updatePresence } = useWebSocket(
@@ -684,7 +655,7 @@ useEffect(() => {
             setMessages((prev) =>
               prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' } : m)),
             );
-            setSendQueue((prev) => [...prev, { tempId, payload }]);
+            enqueueMessage({ tempId, payload });
             resetInput();
             return;
           }
@@ -700,7 +671,7 @@ useEffect(() => {
             setMessages((prev) =>
               prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' } : m)),
             );
-            setSendQueue((prev) => [...prev, { tempId, payload }]);
+            enqueueMessage({ tempId, payload });
             setThreadError(
               `Failed to send message. ${(err as Error).message || 'Please try again later.'}`,
             );
@@ -733,7 +704,7 @@ useEffect(() => {
         setNewMessageContent,
         setThreadError,
         setMessages,
-        setSendQueue,
+        enqueueMessage,
       ],
     );
 
