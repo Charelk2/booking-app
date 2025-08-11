@@ -2,6 +2,7 @@
 import Image from 'next/image';
 import clsx from 'clsx';
 import { getFullImageUrl } from '@/lib/utils';
+import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 
 interface AvatarProps {
   src?: string | null;
@@ -35,6 +36,10 @@ export default function Avatar({
           alt={alt}
           width={size}
           height={size}
+          sizes={`${size}px`}
+          placeholder="blur"
+          blurDataURL={BLUR_PLACEHOLDER}
+          loading="lazy"
           className="object-cover rounded-full"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
@@ -50,6 +55,10 @@ export default function Avatar({
           alt={alt}
           width={size}
           height={size}
+          sizes={`${size}px`}
+          placeholder="blur"
+          blurDataURL={BLUR_PLACEHOLDER}
+          loading="lazy"
           className="object-cover rounded-full"
         />
       )}

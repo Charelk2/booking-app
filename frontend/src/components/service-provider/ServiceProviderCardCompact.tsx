@@ -9,6 +9,7 @@ import {
 import clsx from 'clsx';
 import { getFullImageUrl, getCityFromAddress } from '@/lib/utils';
 import { BREAKPOINT_MD } from '@/lib/breakpoints';
+import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 
 export interface ServiceProviderCardCompactProps
   extends LinkProps,
@@ -56,12 +57,16 @@ export default function ServiceProviderCardCompact({
         {!loaded && (
           <div className="absolute inset-0 animate-pulse bg-gray-200" />
         )}
-        {imageUrl ? (
+          {imageUrl ? (
           <Image
             src={imageUrl}
             alt={name}
             fill
             sizes={`(max-width:${BREAKPOINT_MD}px) 50vw, 33vw`}
+            placeholder="blur"
+            blurDataURL={BLUR_PLACEHOLDER}
+            loading="lazy"
+            quality={60}
             className="object-cover w-full h-full group-hover:scale-105 transition-transform"
             onLoad={() => setLoaded(true)}
             onError={(e) => {
@@ -74,6 +79,10 @@ export default function ServiceProviderCardCompact({
             alt={name}
             fill
             sizes={`(max-width:${BREAKPOINT_MD}px) 0vw, 33vw`}
+            placeholder="blur"
+            blurDataURL={BLUR_PLACEHOLDER}
+            loading="lazy"
+            quality={60}
             className="object-cover w-full h-full"
             onLoad={() => setLoaded(true)}
           />
