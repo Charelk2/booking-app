@@ -10,4 +10,10 @@ describe('uploadMessageAttachment', () => {
     const config = spy.mock.calls[0][2];
     expect(config?.headers?.['Content-Type']).toBeUndefined();
   });
+
+  it('throws an error when file is missing', async () => {
+    await expect(
+      uploadMessageAttachment(1, undefined as unknown as File),
+    ).rejects.toThrow('Attachment file is required');
+  });
 });

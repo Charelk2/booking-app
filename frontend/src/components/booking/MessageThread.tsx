@@ -46,6 +46,7 @@ import QuoteBubble from './QuoteBubble';
 import InlineQuoteForm from './InlineQuoteForm';
 import useWebSocket from '@/hooks/useWebSocket';
 import { format, isValid } from 'date-fns';
+import { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 
 const MemoQuoteBubble = React.memo(QuoteBubble);
@@ -683,9 +684,11 @@ useEffect(() => {
           setMessages((prev) =>
             prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)),
           );
-          setThreadError(
-            `Failed to send message. ${(err as Error).message || 'Please try again later.'}`,
-          );
+          const message =
+            err instanceof AxiosError && err.response?.status === 422
+              ? 'Attachment file missing. Please select a file before sending.'
+              : (err as Error).message || 'Please try again later.';
+          setThreadError(`Failed to send message. ${message}`);
           setIsUploadingAttachment(false);
         }
       },
