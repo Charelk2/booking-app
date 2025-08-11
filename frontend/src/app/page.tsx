@@ -1,6 +1,11 @@
 import MainLayout from '@/components/layout/MainLayout'
 import ArtistsSection from '@/components/home/ArtistsSection'
-import CategoriesCarousel from '@/components/home/CategoriesCarousel'
+import dynamic from 'next/dynamic'
+
+const CategoriesCarousel = dynamic(
+  () => import('@/components/home/CategoriesCarousel'),
+  { ssr: false },
+)
 
 export default function HomePage() {
   return (
