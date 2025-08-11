@@ -1,5 +1,4 @@
 'use client';
-import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { CheckIcon } from '@heroicons/react/24/solid'; // Still include, though it won't be used if noCircles is true
 
@@ -34,8 +33,7 @@ export default function Stepper({
     typeof maxStepCompleted === 'number' ? maxStepCompleted + 1 : currentStep;
 
   return (
-    <motion.nav
-      layout
+    <nav
       role="list"
       aria-label={ariaLabel || 'Booking progress'}
       className={clsx(
@@ -166,6 +164,6 @@ export default function Stepper({
           </div>
         );
       })}
-    </motion.nav>
+    </nav>
   );
 }
