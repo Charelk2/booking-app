@@ -44,7 +44,10 @@ export default function TimeAgo({
   }
 
   const iso = date.toISOString();
-  const full = date.toLocaleString();
+  // Display full timestamp in South Africa's GMT+2 timezone.
+  const full = date.toLocaleString('en-ZA', {
+    timeZone: 'Africa/Johannesburg',
+  });
 
   return (
     <time dateTime={iso} title={full} className={className}>
