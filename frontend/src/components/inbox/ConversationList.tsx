@@ -90,10 +90,10 @@ export default function ConversationList({
             }}
             // Apply hover and active states clearly
             className={clsx(
-              'flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors duration-150 ease-in-out',
+              'flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors duration-150 ease-in-out rounded-lg',
               isActive
-                ? 'bg-gray-100' // Active state: light gray background
-                : 'hover:bg-gray-50' // Hover state: slightly lighter gray
+                ? 'bg-gray-100 rounded-full' // Active state: light gray background
+                : 'hover:bg-gray-50 rounded-full' // Hover state: slightly lighter gray
             )}
           >
             {/* Avatar Handling */}

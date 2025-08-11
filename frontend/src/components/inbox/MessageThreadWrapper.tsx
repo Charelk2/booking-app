@@ -121,10 +121,10 @@ export default function MessageThreadWrapper({
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-white shadow-xl border border-gray-100 relative">
+    <div className="flex flex-col h-full w-full bg-white shadow-xl border-l border-gray-100 relative">
       {/* Unified Header */}
-      <header className="sticky top-0 z-10 bg-gradient-to-r from-red-600 to-indigo-700 text-white px-4 py-2 flex items-center  md:min-h-[64px]">
-        <div className="flex items-center transition-all duration-300 ease-in-out">
+      <header className="sticky top-0 z-10 bg-white text-black px-4 py-3 flex items-center justify-between border-b border-gray-100 md:min-h-[64px]">
+        <div className="flex items-center gap-3">
           {/* Avatar on left */}
           {isUserArtist ? (
             bookingRequest.client?.profile_picture_url ? (
@@ -134,14 +134,14 @@ export default function MessageThreadWrapper({
                 width={40}
                 height={40}
                 loading="lazy"
-                className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm flex-shrink-0"
+                className="h-10 w-10 rounded-full object-cover"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src =
                     getFullImageUrl('/static/default-avatar.svg') as string;
                 }}
               />
             ) : (
-              <div className="h-10 w-10 rounded-full bg-red-400 flex items-center justify-center text-base font-medium border-2 border-white shadow-sm flex-shrink-0">
+              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-base font-medium text-gray-600">
                 {bookingRequest.client?.first_name?.charAt(0) || 'U'}
               </div>
             )
@@ -157,7 +157,7 @@ export default function MessageThreadWrapper({
                 width={40}
                 height={40}
                 loading="lazy"
-                className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm"
+                className="h-10 w-10 rounded-full object-cover"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src =
                     getFullImageUrl('/static/default-avatar.svg') as string;
@@ -165,13 +165,13 @@ export default function MessageThreadWrapper({
               />
             </Link>
           ) : (
-            <div className="h-10 w-10 rounded-full bg-red-400 flex items-center justify-center text-base font-medium border-2 border-white shadow-sm flex-shrink-0">
+            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-base font-medium text-gray-600">
               {(bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'U').charAt(0)}
             </div>
           )}
 
           {/* Name next to avatar */}
-          <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis ml-2">
+          <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
             Chat with {
               isUserArtist
                 ? bookingRequest.client?.first_name || 'User'
@@ -180,56 +180,19 @@ export default function MessageThreadWrapper({
                   'User'
             }
           </span>
-
-          {/* Separator for desktop when panel is visible */}
         </div>
 
-        {showSidePanel && (
-          <div className="hidden md:block border-l border-white/20 h-8 mx-4 flex-shrink-0"></div>
-        )}
-
-        {/* Reservation Header Right Section (Desktop) */}
-        {showSidePanel && (
-          <div className="hidden md:flex items-center flex-auto justify-between transition-opacity duration-300 ease-in-out">
-            <h2 className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
-              Reservation
-            </h2>
-            <button
-              type="button"
-              onClick={() => setShowSidePanel(false)}
-              aria-label="Hide details panel"
-              className="p-1 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white flex items-center space-x-1 text-sm font-medium"
-            >
-              Hide Details <InformationCircleIcon className="h-5 w-5" />
-            </button>
-          </div>
-        )}
-
-        {/* Show Details button for desktop (when panel is hidden) */}
-        {!showSidePanel && (
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 px-4">
           <button
             type="button"
-            onClick={() => setShowSidePanel(true)}
-            aria-label="Show booking details"
-            className="ml-auto p-1 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white flex items-center space-x-1 text-sm font-medium hidden md:flex"
+            onClick={() => setShowSidePanel((s) => !s)}
+            aria-label={showSidePanel ? 'Hide details' : 'Show details'}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
           >
-            Show Details <InformationCircleIcon className="h-5 w-5" />
+            <InformationCircleIcon className="h-6 w-6 text-gray-600" />
           </button>
-        )}
-
-        {/* Mobile View/Hide Details Button */}
-        <button
-          type="button"
-          onClick={() => setShowSidePanel((s) => !s)}
-          aria-label={showSidePanel ? 'Hide details' : 'Show details'}
-          className="ml-auto p-1 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white flex items-center space-x-1 text-sm font-medium md:hidden"
-        >
-          {showSidePanel ? (
-            <>Hide Details <InformationCircleIcon className="h-5 w-5" /></>
-          ) : (
-            <>Show Details <InformationCircleIcon className="h-5 w-5" /></>
-          )}
-        </button>
+        </div>
       </header>
 
       {/* Alert Banners */}
@@ -277,7 +240,7 @@ export default function MessageThreadWrapper({
       <div className="flex flex-1 min-h-0 flex-col md:flex-row relative w-full">
         <div
           data-testid="thread-container"
-          className={`flex-1 min-w-0 w-full p-4 transition-[width] duration-300 ease-in-out ${
+          className={`flex-1 min-w-0 min-h-0 w-full p-4 transition-[width] duration-300 ease-in-out] ${
             showSidePanel ? 'md:w-[calc(100%-300px)] lg:w-[calc(100%-360px)]' : 'md:w-full'
           }`}
         >
@@ -314,8 +277,8 @@ export default function MessageThreadWrapper({
         <section
           id="reservation-panel-desktop"
           role="complementary"
-          className={`hidden md:flex flex-col border-l border-gray-200 transform transition-all duration-300 ease-in-out flex-shrink-0 md:static md:translate-x-0 md:overflow-y-auto ${
-            showSidePanel ? 'md:w-[300px] lg:w-[360px] md:p-4' : 'md:w-0 md:p-0 md:overflow-hidden'
+          className={`hidden md:flex flex-col transform transition-all duration-300 ease-in-out flex-shrink-0 md:static md:translate-x-0 md:overflow-y-auto ${
+            showSidePanel ? 'border-l border-gray-200 md:w-[300px] lg:w-[360px] md:p-4' : 'md:w-0 md:p-0 md:overflow-hidden'
           }`}
         >
           <BookingDetailsPanel
