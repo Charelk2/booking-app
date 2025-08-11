@@ -68,7 +68,7 @@ const isImageAttachment = (url?: string | null) =>
   !!url && /\.(jpe?g|png|gif|webp)$/i.test(url);
 
 // Generate an ISO timestamp in GMT+2 regardless of client locale
-const gmt2ISOString = ()
+const gmt2ISOString = () => 
   new Date(Date.now() + 2 * 60 * 60 * 1000)
     .toISOString()
     .replace('Z', '+02:00');
