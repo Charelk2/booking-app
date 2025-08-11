@@ -1,6 +1,10 @@
 const colors = require("tailwindcss/colors");
 const defaultTheme = require("tailwindcss/defaultTheme");
-const { BREAKPOINT_SM } = require("./breakpoints.config");
+const {
+  BREAKPOINT_SM,
+  BREAKPOINT_MD,
+  BREAKPOINT_LG,
+} = require("./breakpoints.config");
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
@@ -14,6 +18,8 @@ module.exports = {
     screens: {
       ...defaultTheme.screens,
       sm: `${BREAKPOINT_SM}px`,
+      md: `${BREAKPOINT_MD}px`,
+      lg: `${BREAKPOINT_LG}px`,
     },
     extend: {
       fontFamily: {
@@ -59,5 +65,8 @@ module.exports = {
       },
     },
   },
-  plugins: [require("@tailwindcss/line-clamp")],
+  plugins: [
+    require("@tailwindcss/line-clamp"),
+    require("@tailwindcss/container-queries"),
+  ],
 };
