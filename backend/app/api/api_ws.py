@@ -45,6 +45,8 @@ class ConnectionManager:
         self.typing_buffers: Dict[int, Set[int]] = {}
         self.typing_tasks: Dict[int, asyncio.Task] = {}
         self.redis_tasks: Dict[int, asyncio.Task] = {}
+        self.presence_buffers: Dict[int, Dict[int, str]] = {}
+        self.presence_tasks: Dict[int, asyncio.Task] = {}
 
     async def _redis_subscribe(self, request_id: int) -> None:
         assert redis
@@ -117,6 +119,21 @@ class ConnectionManager:
         if users:
             await self.broadcast(request_id, {"type": "typing", "users": users})
 
+    async def add_presence(self, request_id: int, user_id: int, status: str) -> None:
+        buf = self.presence_buffers.setdefault(request_id, {})
+        buf[user_id] = status
+        if request_id not in self.presence_tasks:
+            self.presence_tasks[request_id] = asyncio.create_task(
+                self._flush_presence(request_id)
+            )
+
+    async def _flush_presence(self, request_id: int) -> None:
+        await asyncio.sleep(1)
+        updates = self.presence_buffers.pop(request_id, {})
+        self.presence_tasks.pop(request_id, None)
+        if updates:
+            await self.broadcast(request_id, {"type": "presence", "updates": updates})
+
 
 manager = ConnectionManager()
 
@@ -164,6 +181,7 @@ async def booking_request_ws(
     request_id: int,
     token: str | None = Query(None),
     attempt: int = Query(0),
+    heartbeat: int = Query(PING_INTERVAL),
     db: Session = Depends(get_db),
 ):
     """WebSocket endpoint for booking-specific chat rooms."""
@@ -202,11 +220,12 @@ async def booking_request_ws(
 
     await manager.connect(request_id, websocket)
     reconnect_delay = min(2**attempt, 30)
+    websocket.ping_interval = max(heartbeat, PING_INTERVAL)
     await websocket.send_json({"type": "reconnect_hint", "delay": reconnect_delay})
 
     async def ping_loop() -> None:
         while True:
-            await asyncio.sleep(PING_INTERVAL)
+            await asyncio.sleep(websocket.ping_interval)
             try:
                 await websocket.send_json({"type": "ping"})
             except Exception:  # pragma: no cover - connection closed
@@ -246,6 +265,15 @@ async def booking_request_ws(
                 user_id = data.get("user_id")
                 if isinstance(user_id, int):
                     await manager.add_typing(request_id, user_id)
+            elif msg_type == "presence":
+                user_id = data.get("user_id")
+                status = data.get("status")
+                if isinstance(user_id, int) and isinstance(status, str):
+                    await manager.add_presence(request_id, user_id, status)
+            elif msg_type == "heartbeat":
+                interval = data.get("interval")
+                if isinstance(interval, (int, float)) and interval >= PING_INTERVAL:
+                    websocket.ping_interval = float(interval)
             else:
                 await manager.broadcast(request_id, data)
     except WebSocketDisconnect:
@@ -260,6 +288,7 @@ async def notifications_ws(
     websocket: WebSocket,
     token: str | None = Query(None),
     attempt: int = Query(0),
+    heartbeat: int = Query(PING_INTERVAL),
     db: Session = Depends(get_db),
 ):
     """WebSocket endpoint pushing real-time notifications to a user."""
@@ -283,11 +312,12 @@ async def notifications_ws(
 
     await notifications_manager.connect(user.id, websocket)
     reconnect_delay = min(2**attempt, 30)
+    websocket.ping_interval = max(heartbeat, PING_INTERVAL)
     await websocket.send_json({"type": "reconnect_hint", "delay": reconnect_delay})
 
     async def ping_loop() -> None:
         while True:
-            await asyncio.sleep(PING_INTERVAL)
+            await asyncio.sleep(websocket.ping_interval)
             try:
                 await websocket.send_json({"type": "ping"})
             except Exception:  # pragma: no cover
@@ -319,8 +349,13 @@ async def notifications_ws(
                 data = json.loads(text)
             except json.JSONDecodeError:
                 continue
-            if data.get("type") == "pong":
+            msg_type = data.get("type")
+            if msg_type == "pong":
                 websocket.last_pong = time.time()
+            elif msg_type == "heartbeat":
+                interval = data.get("interval")
+                if isinstance(interval, (int, float)) and interval >= PING_INTERVAL:
+                    websocket.ping_interval = float(interval)
     except WebSocketDisconnect:
         pass
     finally:

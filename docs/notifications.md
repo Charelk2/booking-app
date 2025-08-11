@@ -8,8 +8,10 @@ snippet of the latest message so clients can quickly decide whether they need to
 open the conversation.
 
 Notification WebSocket connections send periodic `ping` heartbeats. The
-frontend now replies with `pong` and ignores these control messages so they do
-not appear in the drawer. All notification timestamps are formatted for the
+frontend now replies with `pong`, automatically lengthens the heartbeat on
+mobile or when the tab is hidden, and ignores these control messages so they do
+not appear in the drawer. Presence updates are batched so backgrounded tabs
+avoid extra wakeups. All notification timestamps are formatted for the
 South African time zone (GMT+2).
 
 SMS alerts and other external deliveries are now dispatched through an
