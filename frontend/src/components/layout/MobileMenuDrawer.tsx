@@ -32,27 +32,22 @@ const useMobileNavItems = (user: User | null): NavItem[] => {
         { name: 'Sign up', href: '/register' },
       ];
     }
-    const accountLinks: NavItem[] = [
-      {
-        name: 'Dashboard',
-        href: user.user_type === 'service_provider' ? '/dashboard/artist' : '/dashboard/client',
-      },
-      { name: 'Sign out', href: '#' },
-    ];
     if (user.user_type === 'service_provider') {
-      accountLinks.splice(1, 0,
+      return [
+        { name: 'Dashboard', href: '/dashboard/artist' },
         { name: 'Edit Profile', href: '/dashboard/profile/edit' },
         { name: 'Quotes', href: '/dashboard/quotes' },
-        { name: 'Quote Templates', href: '/dashboard/profile/quote-templates' }
-      );
-    } else if (user.user_type === 'client') {
-      accountLinks.splice(1, 0,
-        { name: 'My Bookings', href: '/dashboard/client/bookings' },
-        { name: 'My Quotes', href: '/dashboard/client/quotes' },
-        { name: 'Account', href: '/account' }
-      );
+        { name: 'Quote Templates', href: '/dashboard/profile/quote-templates' },
+        { name: 'Sign out', href: '#' },
+      ];
     }
-    return accountLinks;
+    // client
+    return [
+      { name: 'Events', href: '/dashboard/client' },
+      { name: 'Messages', href: '/messages' },
+      { name: 'Edit Profile', href: '/account' },
+      { name: 'Sign out', href: '#' },
+    ];
   }, [user]);
 };
 

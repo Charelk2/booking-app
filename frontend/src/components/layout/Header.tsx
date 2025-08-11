@@ -282,29 +282,69 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   </Menu.Button>
                   <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="transition ease-in duration-75" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
                     <Menu.Items className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
+                      {user.user_type === 'service_provider' ? (
+                        <>
+                          <Menu.Item>
+                            {({ active }) => (
+                              <Link
+                                href="/dashboard/artist"
+                                className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
+                              >
+                                Dashboard
+                              </Link>
+                            )}
+                          </Menu.Item>
+                          <Menu.Item>
+                            {({ active }) => (
+                              <Link
+                                href="/dashboard/profile/edit"
+                                className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
+                              >
+                                Edit Profile
+                              </Link>
+                            )}
+                          </Menu.Item>
+                        </>
+                      ) : (
+                        <>
+                          <Menu.Item>
+                            {({ active }) => (
+                              <Link
+                                href="/dashboard/client"
+                                className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
+                              >
+                                Events
+                              </Link>
+                            )}
+                          </Menu.Item>
+                          <Menu.Item>
+                            {({ active }) => (
+                              <Link
+                                href="/messages"
+                                className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
+                              >
+                                Messages
+                              </Link>
+                            )}
+                          </Menu.Item>
+                          <Menu.Item>
+                            {({ active }) => (
+                              <Link
+                                href="/account"
+                                className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
+                              >
+                                Edit Profile
+                              </Link>
+                            )}
+                          </Menu.Item>
+                        </>
+                      )}
                       <Menu.Item>
                         {({ active }) => (
-                      <Link
-                        href={user.user_type === 'service_provider' ? '/dashboard/artist' : '/dashboard/client'}
-                        className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
-                      >
-                        Dashboard
-                      </Link>
-                        )}
-                      </Menu.Item>
-                      <Menu.Item>
-                        {({ active }) => (
-                          <Link
-                            href={user.user_type === 'service_provider' ? '/dashboard/profile/edit' : '/account'}
-                            className={clsx('block px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
+                          <button
+                            onClick={logout}
+                            className={clsx('block w-full text-left px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}
                           >
-                            Edit Profile
-                          </Link>
-                        )}
-                      </Menu.Item>
-                      <Menu.Item>
-                        {({ active }) => (
-                          <button onClick={logout} className={clsx('block w-full text-left px-4 py-2 text-sm text-gray-700', { 'bg-gray-100': active })}>
                             Sign out
                           </button>
                         )}
