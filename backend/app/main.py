@@ -226,11 +226,30 @@ async def catch_exceptions(request: Request, call_next):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Return 422 errors with details and log them for debugging."""
-    logger.warning("Validation error at %s: %s", request.url.path, exc.errors())
+    """Return validation errors with details and log them for debugging.
+
+    Provides a clearer message when an attachment upload omits the required
+    file field so clients can display a helpful error.
+    """
+    errors = exc.errors()
+    logger.warning("Validation error at %s: %s", request.url.path, errors)
+
+    # Customize missing file errors for attachment uploads
+    for err in errors:
+        if err.get("loc") == ("body", "file"):
+            return JSONResponse(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                content={
+                    "detail": {
+                        "message": "No file provided",
+                        "field_errors": {"file": "required"},
+                    }
+                },
+            )
+
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": exc.errors()},
+        content={"detail": errors},
     )
 
 
