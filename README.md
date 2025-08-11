@@ -933,7 +933,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
   the order is **Next**, **Save Draft**, **Back** but remains **Back**, **Save Draft**,
   **Next** on larger screens.
 * Next step components preload when the browser is idle for smoother navigation.
-* Quote estimates are cached locally to avoid redundant preview requests.
+* Quote estimates are cached locally for up to 5 minutes with least-recently-used
+  eviction after 50 entries to avoid redundant preview requests.
 * Guests step now matches the others with Back, Save Draft, and Next buttons.
 * Attachment uploads in the notes step display a progress bar and disable the Next button until finished.
 * Collapsible sections ensure only the active step is expanded on phones.

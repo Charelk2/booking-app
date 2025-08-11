@@ -527,8 +527,21 @@ export const addArtistSoundPreference = (
     data);
 
 // ─── QUOTE CALCULATOR ───────────────────────────────────────────────────────
-// Cache quote calculation responses to avoid duplicate network requests during review
-const quoteCache = new Map<string, QuoteCalculationResponse>();
+// Cache quote calculation responses to avoid duplicate network requests during review.
+// Entries expire after a TTL and the cache evicts the least recently used
+// item when the maximum size is exceeded. Use `clearQuoteCache` to manually
+// reset the cache (e.g., between tests or on logout).
+
+interface QuoteCacheEntry {
+  value: QuoteCalculationResponse;
+  timestamp: number;
+}
+
+const QUOTE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const QUOTE_CACHE_MAX_ENTRIES = 50;
+const quoteCache = new Map<string, QuoteCacheEntry>();
+
+export const clearQuoteCache = () => quoteCache.clear();
 
 export const calculateQuote = async (params: {
   base_fee: number;
@@ -537,19 +550,33 @@ export const calculateQuote = async (params: {
   accommodation_cost?: number;
 }): Promise<QuoteCalculationResponse> => {
   const cacheKey = JSON.stringify(params);
-  if (quoteCache.has(cacheKey)) {
-    return quoteCache.get(cacheKey)!;
+  const now = Date.now();
+  const cached = quoteCache.get(cacheKey);
+
+  if (cached && now - cached.timestamp < QUOTE_CACHE_TTL_MS) {
+    // Refresh LRU order by re-inserting the entry.
+    quoteCache.delete(cacheKey);
+    quoteCache.set(cacheKey, { value: cached.value, timestamp: now });
+    return cached.value;
   }
+
   const res = await api.post<QuoteCalculationResponse>(
     `${API_V1}/quotes/calculate`,
     params,
   );
-  quoteCache.set(cacheKey, res.data);
+
+  quoteCache.set(cacheKey, { value: res.data, timestamp: now });
+
+  // Enforce max cache size with LRU eviction.
+  if (quoteCache.size > QUOTE_CACHE_MAX_ENTRIES) {
+    const oldestKey = quoteCache.keys().next().value as string | undefined;
+    if (oldestKey) {
+      quoteCache.delete(oldestKey);
+    }
+  }
+
   return res.data;
 };
-
-// Exposed for tests to clear the cache between runs
-export const __clearQuoteCache = () => quoteCache.clear();
 
 // ─── PAYMENTS ───────────────────────────────────────────────────────────────
 export const createPayment = (data: {
