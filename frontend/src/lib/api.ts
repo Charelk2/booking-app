@@ -444,12 +444,15 @@ export const uploadMessageAttachment = (
   file: File,
   onUploadProgress?: (event: AxiosProgressEvent) => void,
 ) => {
+  if (!file || file.size === 0) {
+    return Promise.reject(new Error('Attachment file is required'));
+  }
   const formData = new FormData();
   formData.append('file', file);
   return api.post<{ url: string }>(
     `${API_V1}/booking-requests/${bookingRequestId}/attachments`,
     formData,
-    { onUploadProgress }
+    { onUploadProgress },
   );
 };
 
