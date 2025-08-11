@@ -32,6 +32,7 @@ module.exports = {
         35: "8.75rem",
       },
       colors: {
+        beige: "#F5F5DC",
         brand: {
           DEFAULT: "var(--brand-color)",
           dark: "var(--brand-color-dark)",
@@ -40,6 +41,7 @@ module.exports = {
         wizard: {
           step: "var(--color-primary)",
           pending: "#e5e7eb",
+          
         },
         primary: {
           DEFAULT: "var(--color-primary)",

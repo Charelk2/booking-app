@@ -172,7 +172,7 @@ export default function MessageThreadWrapper({
 
           {/* Name next to avatar */}
           <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
-            Chat with {
+            {
               isUserArtist
                 ? bookingRequest.client?.first_name || 'User'
                 : bookingRequest.artist_profile?.business_name ||
