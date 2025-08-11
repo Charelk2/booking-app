@@ -12,6 +12,9 @@ OpenTelemetry is configured with a console exporter. Spans include a `service.na
 ## Service Level Objectives
 - **Error rate**: <1% of requests fail with 5xx responses.
 - **Latency**: 95th percentile response time under 300ms.
+- **Mobile LCP**: <2.5s largest contentful paint on coarse pointers.
+- **Mobile INP**: <200ms interaction to next paint on coarse pointers.
 
 ## Alerts
 When SLOs are breached, alerts should be sent to the on-call channel. Integration with a monitoring platform (e.g. Grafana or PagerDuty) is recommended.
+Mobile web vitals events include viewport width and device pixel ratio to segment trends across devices. Tap errors and rage taps are tracked as additional quality signals, and any SLO regression generates a dedicated alert event.
