@@ -616,7 +616,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   // Render a plain dialog without Headless UI's Transition wrapper so the
   // wizard does not animate in between steps.
   return (
-    <Dialog as="div" className="fixed inset-0 z-50" onClose={onClose}>
+    <Dialog
+      as="div"
+      className="fixed inset-0 z-50"
+      open={isOpen}
+      onClose={onClose}
+    >
       <div className="fixed inset-0 bg-gray-500/75 z-40" />
 
       <div className="fixed inset-0 flex items-center justify-center p-4 z-50">

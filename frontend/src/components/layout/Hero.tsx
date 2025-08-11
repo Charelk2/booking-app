@@ -65,7 +65,12 @@ export default function Hero() {
 
       {/* ✨ This modal opens on click and contains your SearchBar */}
       <Transition.Root show={isModalOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={setModalOpen}>
+        <Dialog
+          as="div"
+          className="relative z-50"
+          open={isModalOpen}
+          onClose={setModalOpen}
+        >
           {/* Overlay */}
           <Transition.Child
             as={Fragment}

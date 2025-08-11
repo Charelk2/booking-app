@@ -205,7 +205,12 @@ export default function BaseServiceWizard<T extends FieldValues>({
 
   return (
     <Transition show={isOpen} as={Fragment}>
-      <Dialog as="div" className="fixed inset-0 z-50" onClose={handleCancel}>
+      <Dialog
+        as="div"
+        className="fixed inset-0 z-50"
+        open={isOpen}
+        onClose={handleCancel}
+      >
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"

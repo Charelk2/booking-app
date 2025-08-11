@@ -308,7 +308,12 @@ export default function AddServiceModalMusician({
 
   return (
     <Transition show={isOpen} as={Fragment}>
-      <Dialog as="div" className="fixed inset-0 z-50" onClose={handleCancel}>
+      <Dialog
+        as="div"
+        className="fixed inset-0 z-50"
+        open={isOpen}
+        onClose={handleCancel}
+      >
         {/* Overlay: this needs to be behind the modal content */}
         <Transition.Child
           as={Fragment}
