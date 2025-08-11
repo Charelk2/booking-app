@@ -123,6 +123,14 @@ components are wrapped with `React.memo` to minimize re-renders. Service and
 profile requests in the wizard use App Router caching (`force-cache`) where
 safe to reduce network traffic.
 
+### Images & Media
+
+Responsive images use `next/image` with explicit `sizes` so sub-640px screens
+receive smaller sources. Images below the fold lazy-load with a low-quality
+placeholder to improve perceived performance. Profile picture uploads are
+compressed in the browser before being sent to the server to conserve
+bandwidth.
+
 ### Booking Wizard URL Parameters
 
 The `/booking` page requires an `artist_id` query parameter (the service provider's ID) and accepts an optional `service_id` to pre-select a service.

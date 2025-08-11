@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { type Crop, type PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { centerAspectCrop, getCroppedImage } from '@/lib/imageCrop';
+import imageCompression from 'browser-image-compression';
 
 const ReactCrop = dynamic(() => import('react-image-crop').then((m) => m.ReactCrop), {
   ssr: false,
@@ -52,7 +53,13 @@ export default function ProfilePicturePage() {
     try {
       const cropped = await getCroppedImage(originalSrc, completedCrop, fileName);
       if (!cropped) throw new Error('Failed to crop image');
-      await uploadMyProfilePicture(cropped);
+      // Compress the cropped image on the client before upload to save bandwidth
+      const compressed = await imageCompression(cropped, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1024,
+        useWebWorker: true,
+      });
+      await uploadMyProfilePicture(compressed);
       setSuccess('Profile picture uploaded!');
       await refreshUser?.();
       setOriginalSrc(null);
