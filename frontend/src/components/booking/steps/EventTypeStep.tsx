@@ -76,7 +76,7 @@ export default function EventTypeStep({ control, open = true, onToggle = () => {
                 </BottomSheet>
               </>
             ) : (
-              <fieldset className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <fieldset className="grid grid-cols-1 gap-[clamp(0.5rem,2vw,1rem)] @md:grid-cols-2 @lg:grid-cols-4">
                 {options.map((opt) => (
                   <div key={opt}>
                     <input
