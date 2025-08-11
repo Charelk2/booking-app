@@ -72,7 +72,7 @@ so screen readers announce when data is in flight.
 
 ### Emoji Picker
 
-The chat composer now includes an emoji button that toggles a searchable picker powered by `emoji-mart` and `@emoji-mart/data`. The picker appears above the input so it never obscures the textarea, and the trigger button provides an accessible `aria-label`.
+The chat composer now includes an emoji button that toggles a searchable picker powered by `emoji-mart` and `@emoji-mart/data`. The picker appears above the input so it never obscures the textarea, and the trigger button provides an accessible `aria-label`. The preview pane has been disabled for a cleaner selection experience.
 
 ### Customizing Brand Colors
 
@@ -156,7 +156,7 @@ The `/inbox` page accepts a `requestId` to open a specific conversation. Service
 /inbox?requestId=42
 ```
 
-On small screens the inbox initially displays only the conversation list. Tapping a conversation opens the chat thread and hides the list, and a back button returns to the conversation list.
+On small screens the inbox initially displays only the conversation list. Tapping a conversation opens the chat thread and hides the list, and a back button returns to the conversation list. Selecting a conversation updates the URL using the History API so the page no longer reloads.
 
 Quote messages within the thread now render as full-width cards showing booking details alongside an itemized quote summary. Clients can accept or reject the quote directly from this bubble without opening a separate modal.
 

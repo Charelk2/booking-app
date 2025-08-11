@@ -1278,7 +1278,11 @@ useEffect(() => {
             >
               {showEmojiPicker && (
                 <div ref={emojiPickerRef} className="absolute bottom-14 left-0 z-50">
-                  <EmojiPicker data={data} onEmojiSelect={handleEmojiSelect} />
+                  <EmojiPicker
+                    data={data}
+                    onEmojiSelect={handleEmojiSelect}
+                    previewPosition="none"
+                  />
                 </div>
               )}
               <form onSubmit={handleSendMessage} className="flex items-center gap-x-2 px-3 pt-2">
