@@ -1,11 +1,17 @@
 // NotificationListItem.tsx
 'use client';
 
-import { format } from 'date-fns';
 import clsx from 'clsx';
 import TimeAgo from '../ui/TimeAgo';
 import { Avatar } from '../ui';
 import type { UnifiedNotification } from '@/types';
+
+const formatDate = (date: Date) =>
+  new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
 
 export interface ParsedNotification {
   title: string;
@@ -59,7 +65,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     const dateStr = content.match(/Date:\s*(\d{4}-\d{2}-\d{2})/)?.[1];
     const metadataParts: string[] = [];
     if (loc) metadataParts.push(`📍 ${loc}`);
-    if (dateStr) metadataParts.push(`📅 ${format(new Date(dateStr), 'MMM d, yyyy')}`);
+    if (dateStr) metadataParts.push(`📅 ${formatDate(new Date(dateStr))}`);
 
     return {
       ...base,
@@ -102,7 +108,7 @@ export function parseItem(n: UnifiedNotification): ParsedNotification {
     if (m) {
       const [, amt, by] = m;
       const parts = [`R${amt}`];
-      if (by) parts.push(`due by ${format(new Date(by), 'MMM d, yyyy')}`);
+      if (by) parts.push(`due by ${formatDate(new Date(by))}`);
       if (celebration) {
         return {
           ...base,
