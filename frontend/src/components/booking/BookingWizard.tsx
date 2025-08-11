@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import dynamic from 'next/dynamic';
 import { Dialog } from '@headlessui/react';
 import { useRouter } from 'next/navigation';
 import * as yup from 'yup';
@@ -30,28 +29,15 @@ import ProgressBar from '../ui/ProgressBar';
 import toast from '../ui/Toast';
 
 // --- Step Components ---
-const EventDescriptionStep = dynamic(() => import('./steps/EventDescriptionStep'));
-const LocationStep = dynamic(() => import('./steps/LocationStep'));
-const DateTimeStep = dynamic(() => import('./steps/DateTimeStep'));
-const EventTypeStep = dynamic(() => import('./steps/EventTypeStep'));
-const GuestsStep = dynamic(() => import('./steps/GuestsStep'));
-const VenueStep = dynamic(() => import('./steps/VenueStep'));
-const SoundStep = dynamic(() => import('./steps/SoundStep'));
-const NotesStep = dynamic(() => import('./steps/NotesStep'));
-const ReviewStep = dynamic(() => import('./steps/ReviewStep'));
-
-// Maintain an ordered array of step components for prefetching
-const stepComponents = [
-  EventDescriptionStep,
-  LocationStep,
-  DateTimeStep,
-  EventTypeStep,
-  GuestsStep,
-  VenueStep,
-  SoundStep,
-  NotesStep,
-  ReviewStep,
-];
+import EventDescriptionStep from './steps/EventDescriptionStep';
+import LocationStep from './steps/LocationStep';
+import DateTimeStep from './steps/DateTimeStep';
+import EventTypeStep from './steps/EventTypeStep';
+import GuestsStep from './steps/GuestsStep';
+import VenueStep from './steps/VenueStep';
+import SoundStep from './steps/SoundStep';
+import NotesStep from './steps/NotesStep';
+import ReviewStep from './steps/ReviewStep';
 
 // --- EventDetails Type & Schema ---
 type EventDetails = {
@@ -195,27 +181,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   useEffect(() => {
     setMaxStepCompleted((prev) => Math.max(prev, step));
     setValidationError(null);
-  }, [step]);
-
-  // Prefetch the next step component when the browser is idle
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (step >= stepComponents.length - 1) return;
-
-    const nextComponent = stepComponents[step + 1] as any;
-    const preloadNext = () => {
-      if (typeof nextComponent?.preload === 'function') {
-        nextComponent.preload();
-      }
-    };
-
-    if ('requestIdleCallback' in window) {
-      const id = (window as any).requestIdleCallback(preloadNext);
-      return () => (window as any).cancelIdleCallback(id);
-    }
-
-    const timeoutId = setTimeout(preloadNext, 0);
-    return () => clearTimeout(timeoutId);
   }, [step]);
 
   // Ensure inputs have appropriate attributes and stay visible when focused
