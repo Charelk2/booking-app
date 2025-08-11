@@ -9,6 +9,18 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body {
+  overscroll-behavior: none;
+}
+
+@media (max-width: 640px) {
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xl {
+    box-shadow: none !important;
+  }
+}
+
 :root {
   --font-sans: var(--font-inter);
   --color-primary: #ff5a5f;

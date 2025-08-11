@@ -625,6 +625,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                     exit="exit"
                     variants={stepVariants}
                     transition={stepVariants.transition}
+                    className="overscroll-contain"
+                    style={{ willChange: 'transform, opacity' }}
                   >
                     {renderStep()}
 
