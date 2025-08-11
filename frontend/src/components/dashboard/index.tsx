@@ -72,7 +72,11 @@ export function AddServiceCategorySelector({
 }: AddServiceCategorySelectorProps) {
   return (
     <Transition show={isOpen} as={Fragment}>
-      <Dialog onClose={onClose} className="fixed inset-0 z-50">
+      <Dialog
+        open={isOpen}
+        onClose={onClose}
+        className="fixed inset-0 z-50"
+      >
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"

@@ -47,6 +47,7 @@ export default function BottomSheet({
       <Dialog
         as="div"
         className="fixed inset-0 z-50 overflow-hidden"
+        open={open}
         onClose={handleClose}
         initialFocus={initialFocus}
         data-testid={testId}
