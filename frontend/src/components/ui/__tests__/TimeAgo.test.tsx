@@ -1,16 +1,16 @@
-import { createRoot } from 'react-dom/client';
-import React from 'react';
-import { act } from 'react-dom/test-utils';
-import TimeAgo from '../TimeAgo';
+import { createRoot } from "react-dom/client";
+import React from "react";
+import { act } from "react-dom/test-utils";
+import TimeAgo from "../TimeAgo";
 
-describe('TimeAgo component', () => {
+describe("TimeAgo component", () => {
   let container: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
   beforeEach(() => {
     jest.useFakeTimers();
-    jest.setSystemTime(new Date('2025-01-01T12:00:00Z'));
-    container = document.createElement('div');
+    jest.setSystemTime(new Date("2025-01-01T12:00:00Z"));
+    container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
   });
@@ -23,13 +23,13 @@ describe('TimeAgo component', () => {
     container.remove();
   });
 
-  it('updates relative time periodically', () => {
+  it("updates relative time periodically", () => {
     act(() => {
       root.render(
         <TimeAgo timestamp="2025-01-01T11:59:00Z" intervalMs={60000} />,
       );
     });
-    const timeEl = container.querySelector('time') as HTMLElement;
+    const timeEl = container.querySelector("time") as HTMLElement;
     const firstText = timeEl.textContent;
 
     act(() => {
@@ -38,5 +38,13 @@ describe('TimeAgo component', () => {
 
     const secondText = timeEl.textContent;
     expect(secondText).not.toBe(firstText);
+  });
+
+  it("renders a fallback for invalid timestamps", () => {
+    act(() => {
+      root.render(<TimeAgo timestamp="not-a-date" />);
+    });
+    const timeEl = container.querySelector("time") as HTMLElement;
+    expect(timeEl.textContent).toBe("Invalid date");
   });
 });
