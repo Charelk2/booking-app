@@ -39,7 +39,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ? 'px-3 py-1.5 text-sm'
         : 'px-4 py-2 text-sm';
     const base =
-      'inline-flex items-center justify-center rounded-lg font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 transition-transform transition-colors active:scale-95 min-h-12 min-w-12';
+      'inline-flex items-center justify-center rounded-lg font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 motion-safe:transition-transform motion-safe:transition-colors motion-safe:active:scale-95 motion-reduce:transition-none motion-reduce:transform-none min-h-12 min-w-12';
     const variantClass = buttonVariants[variant];
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
       if (analyticsEvent) trackEvent(analyticsEvent, analyticsProps);
