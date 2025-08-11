@@ -6,9 +6,14 @@ export default defineConfig({
     { name: 'chromium', use: { browserName: 'chromium' } },
     { name: 'firefox',  use: { browserName: 'firefox'  } },
     { name: 'webkit',   use: { browserName: 'webkit'   } },
+    // Mobile emulation projects for iOS and Android
     {
-      name: 'mobile',
+      name: 'mobile-ios',
       use: { ...devices['iPhone 14 Pro'] },
+    },
+    {
+      name: 'mobile-android',
+      use: { ...devices['Pixel 5'] },
     },
   ],
   workers: 2,
