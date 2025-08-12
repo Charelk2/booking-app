@@ -1,97 +1,96 @@
 # backend/app/main.py
 
-import os
-import logging
 import asyncio
+import logging
+import os
 from datetime import datetime, timedelta
+
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
-from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse, ORJSONResponse
+from fastapi.staticfiles import StaticFiles
+from routes import distance
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
-from .middleware.security_headers import SecurityHeadersMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, FileResponse, ORJSONResponse
-from fastapi.exceptions import RequestValidationError
-
-from .database import engine, Base
-from .database import SessionLocal
-from .db_utils import (
-    ensure_message_type_column,
-    ensure_attachment_url_column,
-    ensure_message_is_read_column,
-    ensure_visible_to_column,
-    ensure_message_action_column,
-    ensure_message_expires_at_column,
-    ensure_service_type_column,
-    ensure_display_order_column,
-    ensure_notification_link_column,
-    ensure_custom_subtitle_column,
-    ensure_price_visible_column,
-    ensure_portfolio_image_urls_column,
-    ensure_currency_column,
-    ensure_media_url_column,
-    ensure_service_travel_columns,
-    ensure_mfa_columns,
-    ensure_request_attachment_column,
-    ensure_booking_simple_columns,
-    ensure_calendar_account_email_column,
-    ensure_user_profile_picture_column,
-    ensure_booking_request_travel_columns,
-    ensure_legacy_artist_user_type,
-    ensure_service_category_id_column,
-    seed_service_categories,
-)
-from .models.user import User
-from .models.service_provider_profile import ServiceProviderProfile
-from .models.service import Service
-from .models.service_category import ServiceCategory
-from .models.booking import Booking
-from .models.review import Review
-from .models.request_quote import BookingRequest, Quote
-from .models.notification import Notification
 from . import models
 
 # Routers under app/api/
-from .api import auth
-from .api import api_oauth
 from .api import (
-    api_service,
     api_booking,
-    api_review,
     api_booking_request,
-    api_quote,
-    api_quote_v2,
-    api_ws,
+    api_calendar,
+    api_flight,
+    api_invoice,
     api_message,
     api_notification,
+    api_oauth,
     api_payment,
-    api_invoice,
-    api_user,
-    api_calendar,
+    api_quote,
     api_quote_template,
-    api_settings,
-    api_weather,
-    api_flight,
+    api_quote_v2,
+    api_review,
+    api_service,
     api_service_category,
+    api_settings,
     api_sound_outreach,
+    api_user,
+    api_weather,
+    api_ws,
+    auth,
 )
-from routes import distance
 
 # The “service-provider-profiles” router lives under app/api/v1/
 from .api.v1 import api_service_provider as api_service_provider_profiles
-
 from .core.config import settings
-from .utils.redis_cache import close_redis_client
+from .core.observability import setup_logging, setup_tracer
 from .crud import crud_quote_v2
+from .database import Base, SessionLocal, engine
+from .db_utils import (
+    ensure_attachment_url_column,
+    ensure_booking_event_city_column,
+    ensure_booking_request_travel_columns,
+    ensure_booking_simple_columns,
+    ensure_calendar_account_email_column,
+    ensure_currency_column,
+    ensure_custom_subtitle_column,
+    ensure_display_order_column,
+    ensure_legacy_artist_user_type,
+    ensure_media_url_column,
+    ensure_message_action_column,
+    ensure_message_expires_at_column,
+    ensure_message_is_read_column,
+    ensure_message_type_column,
+    ensure_mfa_columns,
+    ensure_notification_link_column,
+    ensure_portfolio_image_urls_column,
+    ensure_price_visible_column,
+    ensure_request_attachment_column,
+    ensure_service_category_id_column,
+    ensure_service_travel_columns,
+    ensure_service_type_column,
+    ensure_user_profile_picture_column,
+    ensure_visible_to_column,
+    seed_service_categories,
+)
+from .middleware.security_headers import SecurityHeadersMiddleware
+from .models.booking import Booking
+from .models.notification import Notification
+from .models.request_quote import BookingRequest, Quote
+from .models.review import Review
+from .models.service import Service
+from .models.service_category import ServiceCategory
+from .models.service_provider_profile import ServiceProviderProfile
+from .models.user import User
 from .utils.notifications import (
+    alert_scheduler_failure,
     notify_quote_expired,
     notify_quote_expiring,
-    alert_scheduler_failure,
 )
+from .utils.redis_cache import close_redis_client
 from .utils.status_logger import register_status_listeners
-from .core.observability import setup_logging, setup_tracer
 
 # Configure logging before creating any loggers
 setup_logging()
@@ -121,8 +120,8 @@ ensure_mfa_columns(engine)
 ensure_booking_simple_columns(engine)
 ensure_calendar_account_email_column(engine)
 ensure_user_profile_picture_column(engine)
-    ensure_booking_request_travel_columns(engine)
-    ensure_booking_event_city_column(engine)
+ensure_booking_request_travel_columns(engine)
+ensure_booking_event_city_column(engine)
 ensure_legacy_artist_user_type(engine)
 ensure_service_category_id_column(engine)
 seed_service_categories(engine)
