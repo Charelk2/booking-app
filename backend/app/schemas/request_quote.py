@@ -127,6 +127,10 @@ class QuoteCalculationResponse(BaseModel):
     travel_mode: str
     travel_estimates: List[TravelEstimate]
     accommodation_cost: Decimal
+    sound_cost: Decimal
+    sound_mode: str
+    sound_mode_overridden: bool = False
+    sound_provider_id: Optional[int] = None
     total: Decimal
 
 
@@ -135,5 +139,7 @@ class QuoteCalculationParams(BaseModel):
 
     base_fee: Decimal
     distance_km: float
+    service_id: int
+    event_city: str
     accommodation_cost: Optional[Decimal] = None
 

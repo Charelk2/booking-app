@@ -120,6 +120,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [isLoadingReviewData, setIsLoadingReviewData] = useState(false);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
   const [baseServicePrice, setBaseServicePrice] = useState<number>(0); // New state for base service price
+  const [soundCost, setSoundCost] = useState(0);
+  const [soundMode, setSoundMode] = useState<string | null>(null);
+  const [soundModeOverridden, setSoundModeOverridden] = useState(false);
 
   const { enqueue: enqueueBooking } = useOfflineQueue<{
     action: 'draft' | 'submit';
@@ -334,8 +337,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const quote = await calculateQuote({
         base_fee: basePrice, // Use the fetched base price
         distance_km: directDistanceKm,
+        service_id: serviceId,
+        event_city: details.location,
       });
       setCalculatedPrice(Number(quote.total));
+      setSoundCost(quote.sound_cost);
+      setSoundMode(quote.sound_mode);
+      setSoundModeOverridden(quote.sound_mode_overridden);
 
       const travelModeResult = await calculateTravelMode({
         artistLocation: artistLocation,
@@ -570,6 +578,9 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           travelResult={travelResult}
           submitLabel="Submit Request"
           baseServicePrice={baseServicePrice}
+          soundCost={soundCost}
+          soundMode={soundMode}
+          soundModeOverridden={soundModeOverridden}
         />
       );
       default: return null;

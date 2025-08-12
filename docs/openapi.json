@@ -6585,6 +6585,14 @@
             "type": "number",
             "title": "Distance Km"
           },
+          "service_id": {
+            "type": "integer",
+            "title": "Service Id"
+          },
+          "event_city": {
+            "type": "string",
+            "title": "Event City"
+          },
           "accommodation_cost": {
             "anyOf": [
               {
@@ -6603,7 +6611,9 @@
         "type": "object",
         "required": [
           "base_fee",
-          "distance_km"
+          "distance_km",
+          "service_id",
+          "event_city"
         ],
         "title": "QuoteCalculationParams",
         "description": "Schema for the /quotes/calculate request body."
@@ -6633,6 +6643,29 @@
             "type": "string",
             "title": "Accommodation Cost"
           },
+          "sound_cost": {
+            "type": "string",
+            "title": "Sound Cost"
+          },
+          "sound_mode": {
+            "type": "string",
+            "title": "Sound Mode"
+          },
+          "sound_mode_overridden": {
+            "type": "boolean",
+            "title": "Sound Mode Overridden"
+          },
+          "sound_provider_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sound Provider Id"
+          },
           "total": {
             "type": "string",
             "title": "Total"
@@ -6645,6 +6678,9 @@
           "travel_mode",
           "travel_estimates",
           "accommodation_cost",
+          "sound_cost",
+          "sound_mode",
+          "sound_mode_overridden",
           "total"
         ],
         "title": "QuoteCalculationResponse",
