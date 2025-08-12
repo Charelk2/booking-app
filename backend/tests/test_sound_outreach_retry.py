@@ -43,11 +43,8 @@ def setup_app():
     return Session
 
 
-def test_retry_outreach_reads_body_event_city():
-    Session = setup_app()
-    db = Session()
-    client_api = TestClient(app)
-
+def seed_data(db):
+    """Seed database with basic booking, service and users."""
     artist = User(
         email="artist@test.com",
         password="x",
@@ -122,6 +119,16 @@ def test_retry_outreach_reads_body_event_city():
     db.commit()
     db.refresh(booking)
 
+    return booking, artist, supplier_service
+
+
+def test_retry_outreach_reads_body_event_city():
+    Session = setup_app()
+    db = Session()
+    client_api = TestClient(app)
+
+    booking, artist, supplier_service = seed_data(db)
+
     token = create_access_token({"sub": artist.email})
     res = client_api.post(
         f"/api/v1/bookings/{booking.id}/sound/retry",
@@ -135,3 +142,24 @@ def test_retry_outreach_reads_body_event_city():
     rows = db.query(SoundOutreachRequest).all()
     assert len(rows) == 1
     assert rows[0].supplier_service_id == supplier_service.id
+
+
+def test_retry_outreach_without_city_returns_422():
+    Session = setup_app()
+    db = Session()
+    client_api = TestClient(app)
+
+    booking, artist, _ = seed_data(db)
+
+    token = create_access_token({"sub": artist.email})
+    res = client_api.post(
+        f"/api/v1/bookings/{booking.id}/sound/retry",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert res.status_code == 422
+    data = res.json()
+    assert (
+        data["detail"]["message"]
+        == "Booking %s missing event city. Provide ?event_city=<city> or include event_city in the JSON body." % booking.id
+    )
+    assert data["detail"]["field_errors"] == {"event_city": "required"}
