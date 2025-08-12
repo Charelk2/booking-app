@@ -333,8 +333,8 @@ export default function AddServiceModalMusician({
     { value: "Other", label: "Other" },
   ];
 
-  // Load available Event Service providers for external selection
-  const [eventServices, setEventServices] = useState<Service[]>([]);
+  // Load available Sound Service providers for external selection
+  const [soundServices, setSoundServices] = useState<Service[]>([]);
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -344,11 +344,11 @@ export default function AddServiceModalMusician({
         // the numeric `service_category_id` to a known slug.
         const services = (res.data || []).filter(
           (s) =>
-            s.service_category_slug === "event_service" ||
+            s.service_category_slug === "sound_service" ||
             ID_TO_UI_CATEGORY[(s as any).service_category_id || 0] ===
-              "event_service",
+              "sound_service",
         );
-        if (!cancelled) setEventServices(services);
+        if (!cancelled) setSoundServices(services);
       } catch (e) {
         // non-fatal; keep empty list
       }
@@ -621,7 +621,7 @@ export default function AddServiceModalMusician({
                             >
                               <div className="space-y-3">
                                 {(watch("sound_city_prefs") || []).map((row, idx) => {
-                                  const providersForCity = eventServices.filter((s: any) =>
+                                  const providersForCity = soundServices.filter((s: any) =>
                                     Array.isArray((s as any).details?.coverage_areas)
                                       ? (s as any).details.coverage_areas.includes(row.city)
                                       : true,

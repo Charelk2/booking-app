@@ -50,7 +50,7 @@ Structured JSON logs and OpenTelemetry traces are enabled for both the FastAPI b
 - Service categories are assigned when adding services; service providers no longer choose a category during onboarding. The `/api/v1/service-categories` endpoint lists the seeded categories.
 - Newly registered service providers start with no default category, ensuring they aren't automatically labeled (e.g., as photographers) until they add a service.
 - Frontend components now fetch service categories dynamically via the `useServiceCategories` hook rather than relying on a static map.
-- Seeded categories include Musician, DJ, Photographer, Videographer, Speaker, Event Service, Wedding Venue, Caterer, Bartender, and MC & Host.
+- Seeded categories include Musician, DJ, Photographer, Videographer, Speaker, Sound Service, Wedding Venue, Caterer, Bartender, and MC & Host.
 - Services may optionally include a `service_category_id` and JSON `details` object for category-specific attributes, enabling tailored service data.
 - Artist profile responses now include a `service_categories` array listing all categories the artist offers.
 - Artist search results clear their Redis cache whenever services change so new offerings appear immediately in category searches.
@@ -1062,8 +1062,8 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 * Service deletion now requires confirmation to prevent mistakes.
 * **Add Service** button now opens a full-screen wizard. Steps appear in a coral-accented stepper with keyboard focus trapping. Pricing is captured directly on the **Details** step, removing the previous **Packages** step. The final review mirrors earlier steps with image thumbnails before publishing.
 * Add Service wizard validates fields on each keystroke with dynamic hints like "Need 3 more characters" and the **Next** button enables automatically once inputs are valid.
-* A shared **BaseServiceWizard** powers category wizards for Musician, DJ, Photographer, Videographer, Speaker, Event Service, Wedding Venue, Caterer, Bartender and MC & Host, providing consistent navigation, media uploads and API submission with image-only validation, thumbnail previews and removable selections.
-* Dedicated add-service wizards for **DJ** and **Event Service** now ship with the base flow, capturing genre and service descriptions respectively.
+* A shared **BaseServiceWizard** powers category wizards for Musician, DJ, Photographer, Videographer, Speaker, Sound Service, Wedding Venue, Caterer, Bartender and MC & Host, providing consistent navigation, media uploads and API submission with image-only validation, thumbnail previews and removable selections.
+* Dedicated add-service wizards for **DJ** and **Sound Service** now ship with the base flow, capturing genre and service descriptions respectively.
 * Selecting **Live Performance** now reveals travel-related fields beneath the duration input. Artists can specify a travel rate in Rand per km (default R2.5) and the number of members travelling.
 * This travel rate now also factors into airport transfer costs when flying so estimates remain consistent.
 * The **Edit Service** modal now includes these travel fields so artists can update their rate per km and members travelling from the dashboard. These values are stored server-side so edits persist.

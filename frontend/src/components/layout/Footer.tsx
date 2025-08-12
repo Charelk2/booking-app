@@ -46,7 +46,7 @@ const navigation = [
   {
     title: 'Services',
     links: [
-      { name: 'Event services', href: '#' },
+      { name: 'Sound services', href: '#' },
       { name: 'Unique services', href: '#' },
       { name: 'Wedding services', href: '#' },
     ],

@@ -68,7 +68,7 @@ describe("AddServiceCategorySelector", () => {
     container.remove();
   });
 
-  it("handles selecting Event Service category", async () => {
+  it("handles selecting Sound Service category", async () => {
     const onSelect = jest.fn();
     const onClose = jest.fn();
     const container = document.createElement("div");
@@ -86,14 +86,14 @@ describe("AddServiceCategorySelector", () => {
     });
 
     const button = document.body.querySelector(
-      'button[data-testid="category-event_service"]'
+      'button[data-testid="category-sound_service"]'
     ) as HTMLButtonElement;
 
     await act(async () => {
       button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    expect(onSelect).toHaveBeenCalledWith("event_service");
+    expect(onSelect).toHaveBeenCalledWith("sound_service");
     expect(onClose).toHaveBeenCalled();
 
     act(() => root.unmount());
