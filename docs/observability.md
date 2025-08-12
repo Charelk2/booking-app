@@ -5,6 +5,7 @@ This project emits structured logs and OpenTelemetry traces for both the FastAPI
 ## Logging
 - **Backend**: Python logs are formatted as JSON using `python-json-logger`.
 - **Frontend**: Uses the `pino` logger for structured output.
+- HTTP 422 responses include detailed field errors to simplify debugging (e.g. missing `event_city`).
 
 ## Tracing
 OpenTelemetry is configured with a console exporter. Spans include a `service.name` of either `booking-api` or `booking-frontend`.
