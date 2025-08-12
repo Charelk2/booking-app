@@ -19,10 +19,11 @@ import type { Service } from "@/types";
 import {
   createService as apiCreateService,
   updateService as apiUpdateService,
+  getAllServices,
 } from "@/lib/api";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import Button from "@/components/ui/Button";
-import { Stepper, TextInput, TextArea } from "@/components/ui";
+import { Stepper, TextInput, TextArea, CollapsibleSection } from "@/components/ui";
 
 const serviceTypeIcons: Record<Service["service_type"], ElementType> = {
   "Live Performance": MusicalNoteIcon,
@@ -73,6 +74,10 @@ interface ServiceFormData {
   travel_members?: number | "";
   car_rental_price?: number | "";
   flight_price?: number | "";
+  // Sound provisioning for Live Performance
+  sound_mode?: "own_sound_drive_only" | "artist_arranged_flat" | "external_providers";
+  sound_flat_price?: number | "";
+  sound_city_prefs?: { city: string; provider_ids: number[] }[];
 }
 
 const emptyDefaults: ServiceFormData = {
@@ -86,6 +91,9 @@ const emptyDefaults: ServiceFormData = {
   travel_members: 1,
   car_rental_price: 1000,
   flight_price: 2780,
+  sound_mode: "own_sound_drive_only",
+  sound_flat_price: "",
+  sound_city_prefs: [],
 };
 
 export default function AddServiceModalMusician({
@@ -158,6 +166,7 @@ export default function AddServiceModalMusician({
   const watchTitle = watch("title");
   const watchDescription = watch("description");
   const watchServiceType = watch("service_type");
+  const watchSoundMode = watch("sound_mode");
 
   const thumbnails = useImageThumbnails(mediaFiles);
 
@@ -244,7 +253,7 @@ export default function AddServiceModalMusician({
     setServerError(null);
     setPublishing(true);
     try {
-      const serviceData = {
+      const serviceData: any = {
         ...data,
         price: Number(data.price || 0),
         duration_minutes: Number(data.duration_minutes || 0),
@@ -258,6 +267,23 @@ export default function AddServiceModalMusician({
           : undefined,
         flight_price: data.flight_price ? Number(data.flight_price) : undefined,
       };
+      // Attach sound provisioning details when Live Performance
+      if (data.service_type === "Live Performance") {
+        serviceData.details = {
+          ...(service?.details as any),
+          sound_provisioning: {
+            mode: data.sound_mode,
+            flat_price_zar:
+              data.sound_mode === "artist_arranged_flat"
+                ? Number(data.sound_flat_price || 0)
+                : undefined,
+            city_preferences:
+              data.sound_mode === "external_providers"
+                ? (data.sound_city_prefs || [])
+                : undefined,
+          },
+        };
+      }
       let media_url = existingMediaUrl || "";
       if (mediaFiles[0]) {
         media_url = await new Promise<string>((resolve, reject) => {
@@ -305,6 +331,56 @@ export default function AddServiceModalMusician({
     { value: "Custom Song", label: "Custom Song" },
     { value: "Other", label: "Other" },
   ];
+
+  // Load available Event Service providers for external selection
+  const [eventServices, setEventServices] = useState<Service[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await getAllServices();
+        const services = (res.data || []).filter(
+          (s) => s.service_category_slug === "event_service",
+        );
+        if (!cancelled) setEventServices(services);
+      } catch (e) {
+        // non-fatal; keep empty list
+      }
+    }
+    if (isOpen) load();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
+  // Helpers for provider selection per city
+  const CITY_CODES = ["CPT", "JNB", "DBN", "PLZ", "GRJ", "ELS", "MQP", "BFN", "KIM"];
+  const addCityPref = () => {
+    const cur = watch("sound_city_prefs") || [];
+    setValue("sound_city_prefs", [...cur, { city: "", provider_ids: [] }], {
+      shouldDirty: true,
+    });
+  };
+  const removeCityPref = (idx: number) => {
+    const cur = (watch("sound_city_prefs") || []).slice();
+    cur.splice(idx, 1);
+    setValue("sound_city_prefs", cur, { shouldDirty: true });
+  };
+  const updateCityAt = (idx: number, city: string) => {
+    const cur = (watch("sound_city_prefs") || []).slice();
+    cur[idx] = { ...(cur[idx] || { provider_ids: [] }), city };
+    setValue("sound_city_prefs", cur, { shouldDirty: true });
+  };
+  const toggleProviderAt = (idx: number, providerId: number) => {
+    const cur = (watch("sound_city_prefs") || []).slice();
+    const entry = cur[idx] || { city: "", provider_ids: [] };
+    const set = new Set<number>(entry.provider_ids || []);
+    if (set.has(providerId)) set.delete(providerId);
+    else if (set.size < 3) set.add(providerId); // limit to 3
+    entry.provider_ids = Array.from(set);
+    cur[idx] = entry;
+    setValue("sound_city_prefs", cur, { shouldDirty: true });
+  };
 
   return (
     <Transition show={isOpen} as={Fragment}>
@@ -494,8 +570,114 @@ export default function AddServiceModalMusician({
                             })}
                             error={errors.price?.message}
                           />
-                          {watchServiceType === "Live Performance" && (
-                            <div className="space-y-2">
+                      {watchServiceType === "Live Performance" && (
+                        <div className="space-y-2">
+                          <h3 className="text-base font-semibold">Sound Provisioning</h3>
+                          <p className="text-xs text-gray-600">Choose how sound is handled for live shows.</p>
+                          <div className="flex flex-wrap gap-2 text-sm">
+                            {[
+                              { v: "own_sound_drive_only", l: "I provide my own sound (driving only)" },
+                              { v: "artist_arranged_flat", l: "I arrange sound (flat price)" },
+                              { v: "external_providers", l: "Use external providers" },
+                            ].map((o) => (
+                              <button
+                                key={o.v}
+                                type="button"
+                                className={clsx(
+                                  "rounded-full border px-3 py-1",
+                                  watchSoundMode === o.v
+                                    ? "border-[var(--brand-color)] bg-[var(--brand-color)]/10"
+                                    : "border-gray-200 hover:border-gray-300",
+                                )}
+                                onClick={() => setValue("sound_mode", o.v as any, { shouldDirty: true })}
+                              >
+                                {o.l}
+                              </button>
+                            ))}
+                          </div>
+
+                          {watchSoundMode === "artist_arranged_flat" && (
+                            <TextInput
+                              label={`Flat sound price (${DEFAULT_CURRENCY})`}
+                              type="number"
+                              step="0.01"
+                              placeholder="e.g., 2500"
+                              {...register("sound_flat_price", { valueAsNumber: true })}
+                            />
+                          )}
+
+                          {watchSoundMode === "external_providers" && (
+                            <CollapsibleSection
+                              title="Preferred external providers per city"
+                              open
+                              onToggle={() => {}}
+                              className="border"
+                            >
+                              <div className="space-y-3">
+                                {(watch("sound_city_prefs") || []).map((row, idx) => {
+                                  const providersForCity = eventServices.filter((s: any) =>
+                                    Array.isArray((s as any).details?.coverage_areas)
+                                      ? (s as any).details.coverage_areas.includes(row.city)
+                                      : true,
+                                  );
+                                  return (
+                                    <div key={idx} className="rounded-md border p-2">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex gap-2">
+                                          <label className="text-sm text-gray-700">City</label>
+                                          <select
+                                            aria-label={`City ${idx + 1}`}
+                                            value={row.city || ""}
+                                            onChange={(e) => updateCityAt(idx, e.target.value)}
+                                            className="rounded border px-2 py-1 text-sm"
+                                          >
+                                            <option value="">Select city</option>
+                                            {CITY_CODES.map((c) => (
+                                              <option key={c} value={c}>
+                                                {c}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          className="text-xs text-red-600"
+                                          onClick={() => removeCityPref(idx)}
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
+                                      <div className="mt-2 text-xs text-gray-600">
+                                        Pick up to 3 providers. We’ll use 2 and 3 as backups.
+                                      </div>
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        {providersForCity.map((s) => (
+                                          <label key={s.id} className="flex items-center gap-1 text-sm">
+                                            <input
+                                              type="checkbox"
+                                              checked={(row.provider_ids || []).includes(s.id)}
+                                              onChange={() => toggleProviderAt(idx, s.id)}
+                                              disabled={
+                                                !(row.provider_ids || []).includes(s.id) &&
+                                                (row.provider_ids || []).length >= 3
+                                              }
+                                            />
+                                            <span>{s.title}</span>
+                                          </label>
+                                        ))}
+                                        {providersForCity.length === 0 && (
+                                          <span className="text-xs text-gray-500">No providers match this city yet.</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                <button type="button" className="text-sm text-brand" onClick={addCityPref}>
+                                  + Add city
+                                </button>
+                              </div>
+                            </CollapsibleSection>
+                          )}
                               <TextInput
                                 label="Travelling (Rand per km)"
                                 type="number"
@@ -637,12 +819,12 @@ export default function AddServiceModalMusician({
                               <h3 className="font-medium">Price</h3>
                               <p>{watch("price") || 0}</p>
                             </div>
-                            {watchServiceType === "Live Performance" && (
-                              <>
-                                <div className="rounded-md border p-2">
-                                  <h3 className="font-medium">
-                                    Travelling (Rand per km)
-                                  </h3>
+                          {watchServiceType === "Live Performance" && (
+                            <>
+                              <div className="rounded-md border p-2">
+                                <h3 className="font-medium">
+                                  Travelling (Rand per km)
+                                </h3>
                                   <p>{watch("travel_rate") || 0}</p>
                                 </div>
                                 <div className="rounded-md border p-2">
@@ -729,4 +911,3 @@ export default function AddServiceModalMusician({
     </Transition>
   );
 }
-

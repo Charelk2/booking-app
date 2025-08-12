@@ -5,7 +5,7 @@ import AddServiceModalEventService from "../AddServiceModalEventService";
 import { flushPromises } from "@/test/utils/flush";
 
 describe("AddServiceModalEventService", () => {
-  it("follows step flow and sends details payload", async () => {
+  it("follows expanded step flow and sends details payload", async () => {
     const user = userEvent.setup();
     const createSpy = jest
       .spyOn(api, "createService")
@@ -19,17 +19,26 @@ describe("AddServiceModalEventService", () => {
       />,
     );
 
+    // Step 1: Basics
+    expect(screen.getAllByText(/Basics/i).length).toBeGreaterThan(0);
+    await user.type(screen.getByLabelText(/Service Name/i), "Setup");
+    await user.type(screen.getByLabelText(/Short Summary/i), "Lighting");
+    await user.type(screen.getByLabelText(/List Price/i), "150");
     await user.click(screen.getByTestId("next"));
-    expect(screen.getByText(/Event Service Details/)).toBeTruthy();
 
-    await user.type(screen.getByLabelText(/Title/i), "Setup");
-    await user.type(screen.getByLabelText(/Price/i), "150");
-    await user.type(screen.getByLabelText(/Description/i), "Lighting");
-    await user.click(screen.getByTestId("next"));
-
+    // Step 2: Media
     const file = new File(["hello"], "event.jpg", { type: "image/jpeg" });
-    await user.upload(screen.getByLabelText(/Media/i), file);
+    await user.upload(screen.getByTestId("media-input"), file);
     await flushPromises();
+    await user.click(screen.getByTestId("next"));
+
+    // Step 3: Coverage & Logistics
+    await user.click(screen.getByTestId("next"));
+    // Step 4: Capabilities & Inventory
+    await user.click(screen.getByTestId("next"));
+    // Step 5: Packages & Pricing
+    await user.click(screen.getByTestId("next"));
+    // Step 6: SLAs & Availability
     await user.click(screen.getByTestId("next"));
 
     await user.click(screen.getByRole("button", { name: /Publish/i }));
@@ -40,11 +49,10 @@ describe("AddServiceModalEventService", () => {
         title: "Setup",
         price: 150,
         service_type: "Other",
-        details: { description: "Lighting" },
+        details: expect.objectContaining({ short_summary: "Lighting" }),
         media_url: expect.stringContaining("base64"),
         service_category_slug: "event_service",
       }),
     );
   });
 });
-
