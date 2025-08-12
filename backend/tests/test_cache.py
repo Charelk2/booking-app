@@ -4,7 +4,6 @@ import fakeredis
 from app.utils import redis_cache
 from app.services import weather_service
 from app.api.v1 import api_service_provider
-from app.api import api_sound_provider
 
 
 def test_cache_artist_list(monkeypatch):
@@ -283,43 +282,3 @@ def test_cache_artist_availability(monkeypatch):
     assert first == second
 
 
-def test_cache_provider_list(monkeypatch):
-    fake = fakeredis.FakeStrictRedis()
-    monkeypatch.setattr(redis_cache, "get_redis_client", lambda: fake)
-
-    providers = [SimpleNamespace(id=1, name="P1"), SimpleNamespace(id=2, name="P2")]
-
-    class PDB:
-        def __init__(self, data):
-            self.data = data
-
-        def query(self, model):
-            class Q:
-                def __init__(self, data):
-                    self.data = data
-
-                def offset(self, skip):
-                    return self
-
-                def limit(self, limit):
-                    return self
-
-                def all(self):
-                    return self.data
-
-            return Q(self.data)
-
-    db = PDB(providers)
-    first = api_sound_provider.list_providers(db=db)
-    expected = [
-        {"id": p.id, "name": p.name} if not isinstance(p, dict) else p
-        for p in first
-    ]
-
-    def fail_query(model):
-        raise AssertionError("db should not be accessed")
-
-    db_fail = PDB(providers)
-    db_fail.query = fail_query
-    second = api_sound_provider.list_providers(db=db_fail)
-    assert second == expected

@@ -873,13 +873,11 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 
 ## New Features
 
-### Sound Providers & Quick Quotes
+### Quick Quotes
 
-* **Endpoints** under `/api/v1/sound-providers` and `/api/v1/quotes/calculate`.
-* Frontend pages: `/sound-providers`, `/quote-calculator`.
-* These pages now appear in the artist navigation menu.
-* Quote API factors travel distance, provider fees, and accommodation.
-* Providers can now be edited and artists may rank preferred providers via `/sound-providers`.
+* **Endpoint** under `/api/v1/quotes/calculate`.
+* Frontend page: `/quote-calculator`.
+* Quote API factors travel distance and accommodation.
 * New quote endpoints: `POST /api/v1/quotes`, `GET /api/v1/quotes/{id}`, and
   `POST /api/v1/quotes/{id}/accept` create simplified bookings when a client
   accepts.
@@ -1139,7 +1137,6 @@ The dashboard brings common actions to the surface with a tidy layout:
 
 * Caches heavy endpoints using Redis:
   * `/api/v1/service-provider-profiles/` artist lists (60 s TTL).
-  * `/api/v1/sound-providers/` provider lists (10 min TTL).
   * `/api/v1/travel-forecast` 3‑day weather by location (30 min TTL).
   * `/api/v1/service-provider-profiles/{id}/availability` results (5 min TTL).
   * `/api/v1/service-categories/` responses include `Cache-Control: public, max-age=3600`.
@@ -1230,17 +1227,6 @@ keeps the current view, e.g.
 ---
 
 ## API Endpoints
-
-### Sound Providers
-
-```
-GET    /api/v1/sound-providers/
-POST   /api/v1/sound-providers/
-PUT    /api/v1/sound-providers/{id}
-DELETE /api/v1/sound-providers/{id}
-GET    /api/v1/sound-providers/artist/{artist_id}
-POST   /api/v1/sound-providers/artist/{artist_id}
-```
 
 ### Booking Requests
 

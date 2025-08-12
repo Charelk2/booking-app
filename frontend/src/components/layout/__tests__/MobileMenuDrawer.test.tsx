@@ -8,7 +8,6 @@ import type { User } from '@/types';
 import {
   HomeIcon,
   UsersIcon,
-  SpeakerWaveIcon,
   CalculatorIcon,
   DocumentDuplicateIcon,
   QuestionMarkCircleIcon,
@@ -23,7 +22,6 @@ jest.mock('next/link', () => ({
 const nav = [
   { name: 'Home', href: '/', icon: HomeIcon },
   { name: 'Service Providers', href: '/service-providers', icon: UsersIcon },
-  { name: 'Sound Providers', href: '/sound-providers', icon: SpeakerWaveIcon },
   { name: 'Quote Calculator', href: '/quote-calculator', icon: CalculatorIcon },
   {
     name: 'Quote Templates',
@@ -66,7 +64,6 @@ describe('MobileMenuDrawer', () => {
     const bodyText = document.body.textContent || '';
     expect(bodyText).toContain('Home');
     expect(bodyText).toContain('Service Providers');
-    expect(bodyText).toContain('Sound Providers');
     expect(bodyText).toContain('Quote Calculator');
     expect(bodyText).toContain('Quote Templates');
   });
@@ -196,7 +193,6 @@ describe('MobileMenuDrawer', () => {
     await flushPromises();
     const body = document.body.textContent || '';
     expect(body).toContain('Quotes');
-    expect(body).toContain('Sound Providers');
     expect(body).toContain('Quote Calculator');
     expect(body).toContain('Quote Templates');
   });

@@ -215,7 +215,6 @@ export default function DashboardPage() {
                 <QuickActionButton label="Request Review" />
                 <QuickActionButton label="Boost a Service" />
                 <QuickActionButton href="/dashboard/quotes" label="View All Quotes" />
-                <QuickActionButton href="/sound-providers" label="Sound Providers" />
                 <QuickActionButton href="/quote-calculator" label="Quote Calculator" />
               </div>
             </Section>

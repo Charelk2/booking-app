@@ -20,7 +20,6 @@ def get_redis_client() -> redis.Redis:
 
 
 ARTIST_LIST_KEY_PREFIX = "artist_profiles:list"
-PROVIDER_LIST_KEY_PREFIX = "sound_providers:list"
 WEATHER_KEY_PREFIX = "weather:3day"
 AVAILABILITY_KEY_PREFIX = "availability"
 
@@ -103,53 +102,6 @@ def invalidate_artist_list_cache() -> None:
         logging.warning("Could not clear artist list cache: %s", exc)
     return None
 
-
-def _provider_key(skip: int, limit: int, fields: Optional[str]) -> str:
-    fields_part = fields or ""
-    return f"{PROVIDER_LIST_KEY_PREFIX}:{skip}:{limit}:{fields_part}"
-
-
-def get_cached_provider_list(
-    skip: int = 0, *, limit: int = 100, fields: Optional[str] = None
-) -> List[dict] | None:
-    client = get_redis_client()
-    key = _provider_key(skip, limit, fields)
-    try:
-        data = client.get(key)
-    except redis.exceptions.ConnectionError as exc:
-        logging.warning("Redis unavailable: %s", exc)
-        return None
-    if data:
-        return json.loads(data)
-    return None
-
-
-def cache_provider_list(
-    data: List[dict],
-    skip: int = 0,
-    *,
-    limit: int = 100,
-    fields: Optional[str] = None,
-    expire: int = 600,
-) -> None:
-    client = get_redis_client()
-    key = _provider_key(skip, limit, fields)
-    ttl = _apply_jitter(expire)
-    try:
-        client.setex(key, ttl, dumps(data))
-    except redis.exceptions.ConnectionError as exc:
-        logging.warning("Could not cache provider list: %s", exc)
-    return None
-
-
-def invalidate_provider_list_cache() -> None:
-    client = get_redis_client()
-    try:
-        for key in client.scan_iter(f"{PROVIDER_LIST_KEY_PREFIX}:*"):
-            client.delete(key)
-    except redis.exceptions.ConnectionError as exc:
-        logging.warning("Could not clear provider list cache: %s", exc)
-    return None
 
 
 def _weather_key(location: str) -> str:

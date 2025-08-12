@@ -58,9 +58,3 @@ class ServiceProviderProfile(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    # Preferred sound providers for this artist
-    sound_preferences = relationship(
-        "ArtistSoundPreference",
-        back_populates="artist",
-        cascade="all, delete-orphan",
-    )
