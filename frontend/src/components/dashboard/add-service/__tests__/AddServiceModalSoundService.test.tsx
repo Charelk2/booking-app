@@ -1,10 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import * as api from "@/lib/api";
-import AddServiceModalEventService from "../AddServiceModalEventService";
+import AddServiceModalSoundService from "../AddServiceModalSoundService";
 import { flushPromises } from "@/test/utils/flush";
 
-describe("AddServiceModalEventService", () => {
+describe("AddServiceModalSoundService", () => {
   it("follows expanded step flow and sends details payload", async () => {
     const user = userEvent.setup();
     const createSpy = jest
@@ -12,7 +12,7 @@ describe("AddServiceModalEventService", () => {
       .mockResolvedValue({ data: {} } as any);
 
     render(
-      <AddServiceModalEventService
+      <AddServiceModalSoundService
         isOpen
         onClose={() => {}}
         onServiceSaved={() => {}}
@@ -51,7 +51,7 @@ describe("AddServiceModalEventService", () => {
         service_type: "Other",
         details: expect.objectContaining({ short_summary: "Lighting" }),
         media_url: expect.stringContaining("base64"),
-        service_category_slug: "event_service",
+        service_category_slug: "sound_service",
       }),
     );
   });

@@ -52,7 +52,7 @@ const categories: Category[] = [
   { id: "photographer", label: "Photographer", Icon: CameraIcon },
   { id: "videographer", label: "Videographer", Icon: VideoCameraIcon },
   { id: "speaker", label: "Speaker", Icon: MegaphoneIcon },
-  { id: "event_service", label: "Event Service", Icon: SparklesIcon },
+  { id: "sound_service", label: "Sound Service", Icon: SparklesIcon },
   { id: "wedding_venue", label: "Wedding Venue", Icon: HomeModernIcon },
   { id: "caterer", label: "Caterer", Icon: CakeIcon },
   { id: "bartender", label: "Bartender", Icon: BeakerIcon },

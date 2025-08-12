@@ -85,7 +85,7 @@ def seed_service_categories(engine: Engine) -> None:
         "Photographer",
         "Videographer",
         "Speaker",
-        "Event Service",
+        "Sound Service",
         "Wedding Venue",
         "Caterer",
         "Bartender",
