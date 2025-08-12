@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { Service } from "@/types";
 import { deleteService } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
-import { ID_TO_UI_CATEGORY } from "@/lib/categoryMap";
+import { categorySlug } from "@/lib/categoryMap";
 import { AddServiceCategorySelector, UpdateRequestModal, DashboardTabs, QuickActionButton } from "@/components/dashboard";
 import { Spinner } from "@/components/ui";
 import StatGrid from "@/components/ui/StatGrid";
@@ -278,7 +278,9 @@ export default function DashboardPage() {
                     setEditingService(s);
                     const slug =
                       s.service_category_slug ||
-                      (s.service_category_id ? ID_TO_UI_CATEGORY[s.service_category_id] : null) ||
+                      (s.service_category?.name
+                        ? categorySlug(s.service_category.name)
+                        : null) ||
                       ((s as any)?.details?.travel_fee_policy ? 'sound_service' : null);
                     if (slug) {
                       setWizardCategory(slug);

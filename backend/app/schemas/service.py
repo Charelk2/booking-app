@@ -4,6 +4,7 @@ from pydantic import BaseModel, model_validator
 
 from ..models.service import ServiceType
 from .artist import ArtistProfileNested
+from .service_category import ServiceCategoryResponse
 from decimal import Decimal
 from datetime import datetime
 
@@ -60,9 +61,19 @@ class ServiceResponse(ServiceBase):
     id: int
     artist_id: int  # Foreign key to the artist (user_id of artist)
     artist: Optional[ArtistProfileNested] = None
+    service_category: Optional[ServiceCategoryResponse] = None
     display_order: int
     created_at: datetime
     updated_at: datetime
     media_url: str
+
+    @model_validator(mode="after")
+    def derive_category_slug(cls, model: "ServiceResponse") -> "ServiceResponse":
+        """Populate ``service_category_slug`` from the related category."""
+        if model.service_category and not model.service_category_slug:
+            model.service_category_slug = (
+                model.service_category.name.lower().replace(" ", "_")
+            )
+        return model
 
     model_config = {"from_attributes": True}
