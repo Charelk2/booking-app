@@ -479,3 +479,73 @@ def test_payment_confirms_booking_and_creates_messages(monkeypatch):
         app.dependency_overrides[get_current_active_client] = prev_client
     else:
         app.dependency_overrides.pop(get_current_active_client, None)
+
+
+def test_payment_triggers_sound_outreach(monkeypatch):
+    """Payment should initiate sound supplier outreach when required."""
+    Session = setup_app()
+    client_user, br_id, Session = create_records(Session)
+    prev_db = app.dependency_overrides.get(get_db)
+    prev_client = app.dependency_overrides.get(get_current_active_client)
+    app.dependency_overrides[get_current_active_client] = override_client(client_user)
+
+    db = Session()
+    br = db.query(BookingRequest).filter(BookingRequest.id == br_id).first()
+    br.travel_breakdown = {
+        "sound_required": True,
+        "event_city": "Pretoria",
+        "selected_sound_service_id": 42,
+    }
+    db.add(br)
+    db.commit()
+    db.close()
+
+    called = {}
+
+    def fake_kickoff(
+        booking_id,
+        *,
+        event_city,
+        request_timeout_hours,
+        mode,
+        selected_service_id,
+        db,
+        current_artist,
+    ):
+        called["booking_id"] = booking_id
+        called["event_city"] = event_city
+        called["selected_service_id"] = selected_service_id
+        return {"status": "ok"}
+
+    monkeypatch.setattr(api_payment, "kickoff_sound_outreach", fake_kickoff)
+
+    def fake_post(url, json, timeout=10):
+        class Resp:
+            status_code = 201
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return {"id": "ch_test", "status": "succeeded"}
+
+        return Resp()
+
+    monkeypatch.setattr(api_payment.httpx, "post", fake_post)
+    client = TestClient(app)
+    res = client.post(
+        "/api/v1/payments/",
+        json={"booking_request_id": br_id, "amount": 50},
+    )
+    assert res.status_code == 201
+    assert called["event_city"] == "Pretoria"
+    assert called["selected_service_id"] == 42
+
+    if prev_db is not None:
+        app.dependency_overrides[get_db] = prev_db
+    else:
+        app.dependency_overrides.pop(get_db, None)
+    if prev_client is not None:
+        app.dependency_overrides[get_current_active_client] = prev_client
+    else:
+        app.dependency_overrides.pop(get_current_active_client, None)
