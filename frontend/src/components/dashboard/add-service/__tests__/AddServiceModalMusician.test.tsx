@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import * as api from "@/lib/api";
 import AddServiceModalMusician from "../AddServiceModalMusician";
 import { flushPromises } from "@/test/utils/flush";
+import { UI_CATEGORY_TO_ID } from "@/lib/categoryMap";
 
 describe("AddServiceModalMusician", () => {
   it.skip("validates required fields and submits payload", async () => {
@@ -53,5 +54,39 @@ describe("AddServiceModalMusician", () => {
         service_category_slug: "musician",
       }),
     );
+  });
+
+  it("lists available event services by city", async () => {
+    const user = userEvent.setup();
+    const eventSvc = {
+      id: 1,
+      title: "Mega Sound",
+      service_category_id: UI_CATEGORY_TO_ID.event_service,
+      details: { coverage_areas: ["CPT", "JNB"] },
+    } as any;
+    jest.spyOn(api, "getAllServices").mockResolvedValue({ data: [eventSvc] } as any);
+
+    render(
+      <AddServiceModalMusician
+        isOpen
+        onClose={() => {}}
+        onServiceSaved={() => {}}
+      />,
+    );
+
+    // Step 0: select service type and proceed
+    await user.click(
+      await screen.findByRole("button", { name: /Live Performance/i }),
+    );
+    await user.click(screen.getByTestId("next"));
+
+    // Choose external providers and add a city preference
+    await user.click(screen.getByText(/Use external providers/i));
+    await user.click(screen.getByText(/\+ Add city/i));
+    const citySelect = screen.getByLabelText(/City 1/i);
+    await user.selectOptions(citySelect, "CPT");
+
+    // Provider matching the city should appear
+    await screen.findByText("Mega Sound");
   });
 });
