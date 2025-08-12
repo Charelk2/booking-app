@@ -25,6 +25,9 @@ interface ReviewStepProps {
   calculatedPrice: number | null; // This prop will still be passed but its value for display will be overridden
   travelResult: TravelResult | null;
   baseServicePrice: number;
+  soundCost: number;
+  soundMode?: string | null;
+  soundModeOverridden?: boolean;
   open?: boolean;
   onToggle?: () => void;
 }
@@ -38,12 +41,13 @@ export default function ReviewStep({
   onNext,
   submitLabel = 'Submit Request',
   baseServicePrice,
+  soundCost,
+  soundMode,
+  soundModeOverridden,
   open = true,
   onToggle = () => {},
 }: ReviewStepProps) {
-  const { details } = useBooking();
-
-  const soundCost = details.sound === 'yes' ? 250 : 0;
+  useBooking(); // Ensure SummarySidebar has context
 
   const subtotalBeforeTaxes = baseServicePrice + (travelResult?.totalCost || 0) + soundCost;
   const estimatedTaxesFees = subtotalBeforeTaxes * 0.15; // Now explicitly 15% of subtotalBeforeTaxes
@@ -137,12 +141,16 @@ export default function ReviewStep({
             </span>
             <span>{formatCurrency(travelResult?.totalCost || 0)}</span>
           </div>
-          {details.sound === 'yes' && (
+          {soundCost > 0 && (
             <div className="flex items-center justify-between">
               <span className="flex items-center">
                 Sound Equipment
                 <InfoPopover label="Sound equipment details" className="ml-1.5">
-                  Standard package for events up to 150 guests.
+                  {soundModeOverridden
+                    ? 'External provider selected due to flight travel.'
+                    : soundMode === 'artist_arranged_flat'
+                      ? 'Flat price arranged by artist for sound.'
+                      : 'External provider cost estimate.'}
                 </InfoPopover>
               </span>
               <span>{formatCurrency(soundCost)}</span>

@@ -325,6 +325,10 @@ export interface QuoteCalculationResponse {
   travel_mode: string;
   travel_estimates: TravelEstimate[];
   accommodation_cost: number;
+  sound_cost: number;
+  sound_mode: string;
+  sound_mode_overridden: boolean;
+  sound_provider_id?: number | null;
   total: number;
 }
 

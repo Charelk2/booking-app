@@ -515,11 +515,23 @@ def confirm_quote_and_create_booking(
 )
 def calculate_quote_endpoint(
     params: schemas.QuoteCalculationParams,
+    db: Session = Depends(get_db),
 ):
     """Return a quick quote estimation used during booking flow."""
+    service = crud.service.get_service(db, params.service_id)
+    if not service:
+        raise error_response(
+            "Service not found",
+            {"service_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+
     breakdown = calculate_quote_breakdown(
         params.base_fee,
         params.distance_km,
         params.accommodation_cost,
+        service=service,
+        event_city=params.event_city,
+        db=db,
     )
     return breakdown

@@ -17,6 +17,16 @@ Returns a list of mode-cost pairs:
 
 `booking_quote.calculate_quote_breakdown` selects the cheapest mode for the quote total and exposes all estimates via the `/api/v1/quotes/calculate` endpoint.
 
+## Sound Provisioning
+
+The quote calculator also estimates sound equipment costs based on the musician's service settings:
+
+- **Own sound (driving only):** adds no charge when driving. If flying is cheaper, the calculator switches to the artist's external providers and marks the override.
+- **Artist-arranged flat:** includes the artist's `sound_flat_price`.
+- **External providers:** picks the artist's preferred provider for the event city and uses that service's price.
+
+The response now includes `sound_cost`, `sound_mode`, and `sound_mode_overridden` fields.
+
 Weather forecasts for destinations are fetched asynchronously. The `/api/v1/travel-forecast`
 endpoint now returns a task identifier; clients call `/api/v1/travel-forecast/{task_id}` to
 retrieve the result once ready. The worker retries failed requests and stores
