@@ -887,7 +887,10 @@ useEffect(() => {
           const freshQuote = await getQuoteV2(quote.id);
           setQuotes((prev) => ({ ...prev, [quote.id]: freshQuote.data }));
 
-          const bookingId = bookingSimple?.id || freshQuote.data.booking_id;
+          // Use the full booking_id returned by the refreshed quote rather than the
+          // BookingSimple id, which refers to a different table and would cause a
+          // 404 when fetching booking details.
+          const bookingId = freshQuote.data.booking_id;
           if (!bookingId) {
             throw new Error('Booking not found after accepting quote');
           }

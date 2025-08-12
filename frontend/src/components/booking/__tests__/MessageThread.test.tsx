@@ -48,6 +48,7 @@ describe('MessageThread quote actions', () => {
         subtotal: 100,
         total: 100,
         status: 'pending',
+        booking_id: 99,
       },
     });
     (api.acceptQuoteV2 as jest.Mock).mockResolvedValue({ data: { id: 1 } });
@@ -76,6 +77,7 @@ describe('MessageThread quote actions', () => {
     await act(async () => { await flushPromises(); });
 
     expect(api.acceptQuoteV2).toHaveBeenCalledWith(42, undefined);
+    expect(api.getBookingDetails).toHaveBeenCalledWith(99);
 
     act(() => root.unmount());
     container.remove();
