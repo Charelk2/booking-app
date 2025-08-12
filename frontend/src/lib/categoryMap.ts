@@ -39,7 +39,33 @@ export const ID_TO_UI_CATEGORY: Record<number, string> = Object.fromEntries(
   Object.entries(UI_CATEGORY_TO_ID).map(([slug, id]) => [id, slug]),
 );
 
-// Convert a backend category name to a URL-friendly slug. This mirrors the
-// previous hard-coded mapping but works for future categories as well.
-export const categorySlug = (name: string): string =>
-  name.toLowerCase().replace(/&/g, '').replace(/\s+/g, '_');
+// Mapping from backend category names to canonical frontend slugs. This
+// accounts for punctuation and pluralization so that dynamic categories
+// consistently route to the correct homepage sections (e.g., "DJ's" →
+// "dj", "Sound Services" → "sound_service").
+const NAME_TO_SLUG: Record<string, string> = {
+  Musician: 'musician',
+  DJ: 'dj',
+  "DJ's": 'dj',
+  Photographer: 'photographer',
+  Videographer: 'videographer',
+  Speaker: 'speaker',
+  'Sound Service': 'sound_service',
+  'Sound Services': 'sound_service',
+  'Wedding Venue': 'wedding_venue',
+  Caterer: 'caterer',
+  Bartender: 'bartender',
+  'MC & Host': 'mc_host',
+  'MC & Hosts': 'mc_host',
+};
+
+// Convert a backend category name to a URL-friendly slug. Known categories
+// are looked up via NAME_TO_SLUG; others fall back to a sanitized slug.
+export const categorySlug = (name: string): string => {
+  const mapped = NAME_TO_SLUG[name];
+  if (mapped) return mapped;
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
+};
