@@ -90,20 +90,38 @@ def _estimate_sound_cost(
         return Decimal("0"), "none", None, False
 
     def provider_cost() -> Tuple[Decimal, Optional[int]]:
+        """Resolve a provider's service cost for the event city.
+
+        Attempts to match a provider in the requested ``event_city``. If no
+        explicit match is found, falls back to the first configured provider in
+        the musician's preferences. The lookup ignores providers without a
+        stored price.
+        """
+
         city_prefs = sound.get("city_preferences", [])
-        provider_id = None
+
+        def first_cost(ids: list[int]) -> Tuple[Decimal, Optional[int]]:
+            for pid in ids:
+                provider_service = crud_service.service.get_service(db, pid)
+                if provider_service and provider_service.price:
+                    return Decimal(str(provider_service.price)), pid
+            return Decimal("0"), None
+
+        # Try exact city match first
         for pref in city_prefs:
             if pref.get("city", "").lower() == event_city.lower():
-                ids = pref.get("provider_ids") or []
-                if ids:
-                    provider_id = ids[0]
+                cost, pid = first_cost(pref.get("provider_ids") or [])
+                if pid:
+                    return cost, pid
                 break
-        cost = Decimal("0")
-        if provider_id:
-            provider_service = crud_service.service.get_service(db, provider_id)
-            if provider_service and provider_service.price:
-                cost = Decimal(str(provider_service.price))
-        return cost, provider_id
+
+        # Fallback to the first provider in the list with a price
+        for pref in city_prefs:
+            cost, pid = first_cost(pref.get("provider_ids") or [])
+            if pid:
+                return cost, pid
+
+        return Decimal("0"), None
 
     if mode == "own_sound_drive_only":
         if travel_mode == "flight":
