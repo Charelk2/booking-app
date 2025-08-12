@@ -82,6 +82,7 @@ Structured JSON logs and OpenTelemetry traces are enabled for both the FastAPI b
 - Clients can leave a star rating and comment once a booking is marked completed. Service detail pages now display these reviews.
 - A **Leave Review** button now appears in chat when a completed booking has no review.
 - After accepting a quote, clients see quick links in the chat to view that booking, pay the deposit, and add it to a calendar.
+- In test environments, accepting a quote instantly triggers supplier outreach, marks the deposit as paid, and provides a mock receipt link for download.
 - Inbox conversations feature a **Show Details** button that opens a slide-out booking details panel. On mobile the panel overlays the chat, while on desktop it appears side-by-side with smooth Tailwind transitions.
 - The chat thread now expands or contracts horizontally as the side panel is toggled, keeping date divider lines perfectly aligned across both sections.
 - Chat WebSocket connections send periodic ping/pong heartbeats that lengthen on mobile and pause when tabs are hidden, batch typing indicators, coalesce presence updates, and close slow clients after a one-second send timeout. A `reconnect_hint` message guides exponential retries and Redis pub/sub is used when `WEBSOCKET_REDIS_URL` is set.
