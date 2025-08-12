@@ -515,26 +515,11 @@ def confirm_quote_and_create_booking(
 )
 def calculate_quote_endpoint(
     params: schemas.QuoteCalculationParams,
-    db: Session = Depends(get_db),
 ):
     """Return a quick quote estimation used during booking flow."""
-    provider = None
-    if params.provider_id is not None:
-        provider = (
-            db.query(models.SoundProvider)
-            .filter(models.SoundProvider.id == params.provider_id)
-            .first()
-        )
-        if not provider:
-            raise error_response(
-                "Provider not found",
-                {"provider_id": "Not found"},
-                status.HTTP_404_NOT_FOUND,
-            )
     breakdown = calculate_quote_breakdown(
         params.base_fee,
         params.distance_km,
-        provider,
         params.accommodation_cost,
     )
     return breakdown

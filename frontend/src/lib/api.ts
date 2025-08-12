@@ -19,8 +19,6 @@ import {
   BookingSimple,
   Message,
   MessageCreate,
-  SoundProvider,
-  ArtistSoundPreference,
   QuoteCalculationResponse,
   QuoteTemplate,
   Notification,
@@ -509,34 +507,9 @@ export const deleteQuoteTemplate = (id: number) =>
   api.delete(`${API_V1}/quote-templates/${id}`);
 
 
-// ─── SOUND PROVIDERS ─────────────────────────────────────────────────────────
-export const getSoundProviders = () =>
-  api.get<SoundProvider[]>(`${API_V1}/sound-providers/`);
-
 // ─── SERVICE CATEGORIES ───────────────────────────────────────────────────────
 export const getServiceCategories = () =>
   api.get<ServiceCategory[]>(`${API_V1}/service-categories/`);
-
-export const createSoundProvider = (data: Partial<SoundProvider>) =>
-  api.post<SoundProvider>(`${API_V1}/sound-providers/`, data);
-
-export const updateSoundProvider = (
-  id: number,
-  data: Partial<SoundProvider>
-) => api.put<SoundProvider>(`${API_V1}/sound-providers/${id}`, data);
-
-export const deleteSoundProvider = (id: number) =>
-  api.delete(`${API_V1}/sound-providers/${id}`);
-
-export const getSoundProvidersForArtist = (artistId: number) =>
-  api.get<ArtistSoundPreference[]>(`${API_V1}/sound-providers/artist/${artistId}`);
-
-export const addArtistSoundPreference = (
-  artistId: number,
-  data: { provider_id: number; priority?: number }
-) =>
-  api.post<ArtistSoundPreference>(`${API_V1}/sound-providers/artist/${artistId}`,
-    data);
 
 // ─── QUOTE CALCULATOR ───────────────────────────────────────────────────────
 // Cache quote calculation responses to avoid duplicate network requests during review.
@@ -558,7 +531,6 @@ export const clearQuoteCache = () => quoteCache.clear();
 export const calculateQuote = async (params: {
   base_fee: number;
   distance_km: number;
-  provider_id?: number;
   accommodation_cost?: number;
 }): Promise<QuoteCalculationResponse> => {
   const cacheKey = JSON.stringify(params);

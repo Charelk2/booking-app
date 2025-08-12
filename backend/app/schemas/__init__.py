@@ -3,14 +3,6 @@ from .artist import ArtistProfileBase, ArtistProfileCreate, ArtistProfileUpdate,
 from .service import ServiceBase, ServiceCreate, ServiceUpdate, ServiceResponse
 from .booking import BookingBase, BookingCreate, BookingUpdate, BookingResponse
 from .review import ReviewBase, ReviewCreate, ReviewResponse, ReviewDetails
-from .sound_provider import (
-    SoundProviderBase,
-    SoundProviderCreate,
-    SoundProviderUpdate,
-    SoundProviderResponse,
-    ArtistSoundPreferenceBase,
-    ArtistSoundPreferenceResponse,
-)
 from .request_quote import (
     BookingRequestBase,
     BookingRequestCreate,
@@ -91,12 +83,6 @@ __all__ = [
     "NotificationResponse",
     "BookingDetailsSummary",
     "ThreadNotificationResponse",
-    "SoundProviderBase",
-    "SoundProviderCreate",
-    "SoundProviderUpdate",
-    "SoundProviderResponse",
-    "ArtistSoundPreferenceBase",
-    "ArtistSoundPreferenceResponse",
     "InvoiceRead",
     "InvoiceMarkPaid",
     "BookingParseRequest",

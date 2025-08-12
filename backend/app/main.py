@@ -63,7 +63,6 @@ from .api import (
     api_booking_request,
     api_quote,
     api_quote_v2,
-    api_sound_provider,
     api_ws,
     api_message,
     api_notification,
@@ -329,13 +328,6 @@ app.include_router(
     api_notification.router,
     prefix=f"{api_prefix}",
     tags=["notifications"],
-)
-
-# ─── SOUND PROVIDER ROUTES (under /api/v1/sound-providers) ───────────────
-app.include_router(
-    api_sound_provider.router,
-    prefix=f"{api_prefix}/sound-providers",
-    tags=["sound-providers"],
 )
 
 # ─── CALENDAR ROUTES (under /api/v1/google-calendar) ─────────────────────────

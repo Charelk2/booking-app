@@ -3,28 +3,23 @@
 from decimal import Decimal
 from typing import Optional, Dict, Any
 
-from ..models import SoundProvider
 from .travel_estimator import estimate_travel
 
 
 def calculate_quote(
     base_fee: Decimal,
     distance_km: float,
-    provider: Optional[SoundProvider] = None,
     accommodation_cost: Optional[Decimal] = None,
 ) -> Decimal:
     """Aggregate various cost components into a final quote."""
 
-    breakdown = calculate_quote_breakdown(
-        base_fee, distance_km, provider, accommodation_cost
-    )
+    breakdown = calculate_quote_breakdown(base_fee, distance_km, accommodation_cost)
     return breakdown["total"]
 
 
 def calculate_quote_breakdown(
     base_fee: Decimal,
     distance_km: float,
-    provider: Optional[SoundProvider] = None,
     accommodation_cost: Optional[Decimal] = None,
 ) -> Dict[str, Any]:
     """Return a detailed cost breakdown including the grand total.
@@ -40,12 +35,9 @@ def calculate_quote_breakdown(
     travel_cost = best["cost"]
     travel_mode = best["mode"]
 
-    provider_cost = (
-        provider.price_per_event if provider and provider.price_per_event else Decimal("0.00")
-    )
     accommodation = accommodation_cost or Decimal("0.00")
 
-    total = base_fee + travel_cost + provider_cost + accommodation
+    total = base_fee + travel_cost + accommodation
 
     return {
         "base_fee": base_fee.quantize(Decimal("0.01")),
@@ -55,7 +47,6 @@ def calculate_quote_breakdown(
             {"mode": e["mode"], "cost": e["cost"].quantize(Decimal("0.01"))}
             for e in estimates
         ],
-        "provider_cost": provider_cost.quantize(Decimal("0.01")),
         "accommodation_cost": accommodation.quantize(Decimal("0.01")),
         "total": total.quantize(Decimal("0.01")),
     }
