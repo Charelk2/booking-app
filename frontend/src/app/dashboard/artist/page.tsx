@@ -276,8 +276,15 @@ export default function DashboardPage() {
                   }}
                   onEdit={(s) => {
                     setEditingService(s);
-                    const slug = s.service_category_slug || (s.service_category_id ? ID_TO_UI_CATEGORY[s.service_category_id] : null);
-                    setWizardCategory(slug || 'musician');
+                    const slug =
+                      s.service_category_slug ||
+                      (s.service_category_id ? ID_TO_UI_CATEGORY[s.service_category_id] : null) ||
+                      ((s as any)?.details?.travel_fee_policy ? 'event_service' : null);
+                    if (slug) {
+                      setWizardCategory(slug);
+                    } else {
+                      setSelectorOpen(true);
+                    }
                   }}
                   onDelete={handleDeleteService}
                 />
