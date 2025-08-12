@@ -126,7 +126,6 @@ class QuoteCalculationResponse(BaseModel):
     travel_cost: Decimal
     travel_mode: str
     travel_estimates: List[TravelEstimate]
-    provider_cost: Decimal
     accommodation_cost: Decimal
     total: Decimal
 
@@ -136,6 +135,5 @@ class QuoteCalculationParams(BaseModel):
 
     base_fee: Decimal
     distance_km: float
-    provider_id: Optional[int] = None
     accommodation_cost: Optional[Decimal] = None
 

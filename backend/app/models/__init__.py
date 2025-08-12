@@ -8,8 +8,6 @@ from .request_quote import BookingRequest, Quote, QuoteStatus
 from .quote_v2 import QuoteV2, QuoteStatusV2
 from .quote_template import QuoteTemplate
 from .booking_simple import BookingSimple
-from .sound_provider import SoundProvider
-from .artist_sound_preference import ArtistSoundPreference
 from .service_category import ServiceCategory
 from .message import Message, SenderType, MessageType, VisibleTo, MessageAction
 from .notification import Notification, NotificationType
@@ -30,8 +28,6 @@ __all__ = [
     "QuoteTemplate",
     "BookingSimple",
     "Message",
-    "SoundProvider",
-    "ArtistSoundPreference",
     "ServiceCategory",
     "UserType",
     "BookingStatus",

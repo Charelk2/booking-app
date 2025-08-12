@@ -2,12 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Artist Booking API",
-    "description": "API for managing artist bookings, payments, and notifications.",
-    "contact": {
-      "name": "Artist Booking Support",
-      "email": "support@example.com"
-    },
-    "version": "1.0.0"
+    "version": "0.1.0"
   },
   "paths": {
     "/auth/register": {
@@ -469,7 +464,7 @@
         ],
         "summary": "Read Current Artist Profile",
         "description": "GET /api/v1/service-provider-profiles/me\nReturns the profile of the currently authenticated artist.",
-        "operationId": "read_current_artist_profile_api_v1_artist_profiles_me_get",
+        "operationId": "read_current_artist_profile_api_v1_service_provider_profiles_me_get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -494,7 +489,7 @@
         ],
         "summary": "Update current artist's profile",
         "description": "Update fields of the currently authenticated artist's profile.",
-        "operationId": "update_current_artist_profile_api_v1_artist_profiles_me_put",
+        "operationId": "update_current_artist_profile_api_v1_service_provider_profiles_me_put",
         "requestBody": {
           "content": {
             "application/json": {
@@ -541,12 +536,12 @@
         ],
         "summary": "Upload or update current artist's profile picture",
         "description": "Uploads a new profile picture for the currently authenticated artist, replacing any existing one.",
-        "operationId": "upload_artist_profile_picture_me_api_v1_artist_profiles_me_profile_picture_post",
+        "operationId": "upload_artist_profile_picture_me_api_v1_service_provider_profiles_me_profile_picture_post",
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_artist_profile_picture_me_api_v1_artist_profiles_me_profile_picture_post"
+                "$ref": "#/components/schemas/Body_upload_artist_profile_picture_me_api_v1_service_provider_profiles_me_profile_picture_post"
               }
             }
           },
@@ -588,12 +583,12 @@
         ],
         "summary": "Upload or update current artist's cover photo",
         "description": "Uploads a new cover photo for the currently authenticated artist, replacing any existing one.",
-        "operationId": "upload_artist_cover_photo_me_api_v1_artist_profiles_me_cover_photo_post",
+        "operationId": "upload_artist_cover_photo_me_api_v1_service_provider_profiles_me_cover_photo_post",
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_artist_cover_photo_me_api_v1_artist_profiles_me_cover_photo_post"
+                "$ref": "#/components/schemas/Body_upload_artist_cover_photo_me_api_v1_service_provider_profiles_me_cover_photo_post"
               }
             }
           },
@@ -635,7 +630,7 @@
         ],
         "summary": "Update portfolio image order",
         "description": "Replace portfolio_image_urls with the provided list to reorder images.",
-        "operationId": "update_portfolio_images_order_me_api_v1_artist_profiles_me_portfolio_images_put",
+        "operationId": "update_portfolio_images_order_me_api_v1_service_provider_profiles_me_portfolio_images_put",
         "requestBody": {
           "content": {
             "application/json": {
@@ -680,12 +675,12 @@
         ],
         "summary": "Upload portfolio images",
         "description": "Upload one or more portfolio images and append them to the artist's portfolio_image_urls list.",
-        "operationId": "upload_artist_portfolio_images_me_api_v1_artist_profiles_me_portfolio_images_post",
+        "operationId": "upload_artist_portfolio_images_me_api_v1_service_provider_profiles_me_portfolio_images_post",
         "requestBody": {
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/Body_upload_artist_portfolio_images_me_api_v1_artist_profiles_me_portfolio_images_post"
+                "$ref": "#/components/schemas/Body_upload_artist_portfolio_images_me_api_v1_service_provider_profiles_me_portfolio_images_post"
               }
             }
           },
@@ -913,7 +908,7 @@
           "service-provider-profiles"
         ],
         "summary": "Read Artist Profile By Id",
-        "operationId": "read_artist_profile_by_id_api_v1_artist_profiles__artist_id__get",
+        "operationId": "read_artist_profile_by_id_api_v1_service_provider_profiles__artist_id__get",
         "parameters": [
           {
             "name": "artist_id",
@@ -956,7 +951,7 @@
         ],
         "summary": "Read Artist Availability",
         "description": "Return dates the artist is unavailable.",
-        "operationId": "read_artist_availability_api_v1_artist_profiles__artist_id__availability_get",
+        "operationId": "read_artist_availability_api_v1_service_provider_profiles__artist_id__availability_get",
         "parameters": [
           {
             "name": "artist_id",
@@ -1708,23 +1703,23 @@
         }
       }
     },
-    "/api/v1/reviews/service-provider-profiles/{artist_id}/reviews": {
+    "/api/v1/reviews/service-provider-profiles/{service_provider_id}/reviews": {
       "get": {
         "tags": [
           "reviews",
           "Reviews"
         ],
-        "summary": "List Reviews For Artist",
-        "description": "List all reviews for a specific artist.\nThis requires joining through Bookings and Services or directly if Review had artist_id.\nFor now, let's assume reviews are primarily linked to bookings.",
-        "operationId": "list_reviews_for_artist_api_v1_reviews_artist_profiles__artist_id__reviews_get",
+        "summary": "List Reviews For Service Provider",
+        "description": "List all reviews for a specific service provider.\nThis requires joining through Bookings and Services or directly if Review had artist_id.\nFor now, let's assume reviews are primarily linked to bookings.",
+        "operationId": "list_reviews_for_service_provider_api_v1_reviews_service_provider_profiles__service_provider_id__reviews_get",
         "parameters": [
           {
-            "name": "artist_id",
+            "name": "service_provider_id",
             "in": "path",
             "required": true,
             "schema": {
               "type": "integer",
-              "title": "Artist Id"
+              "title": "Service Provider Id"
             }
           }
         ],
@@ -1738,7 +1733,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ReviewDetails"
                   },
-                  "title": "Response List Reviews For Artist Api V1 Reviews Artist Profiles  Artist Id  Reviews Get"
+                  "title": "Response List Reviews For Service Provider Api V1 Reviews Service Provider Profiles  Service Provider Id  Reviews Get"
                 }
               }
             }
@@ -1852,7 +1847,7 @@
           "Booking Requests"
         ],
         "summary": "Parse Booking Text",
-        "description": "Parse free-form text and extract event details.",
+        "description": "Queue NLP parsing and return a task identifier.",
         "operationId": "parse_booking_text_api_v1_booking_requests_parse_post",
         "requestBody": {
           "content": {
@@ -1864,6 +1859,48 @@
           },
           "required": true
         },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/booking-requests/parse/{task_id}": {
+      "get": {
+        "tags": [
+          "booking-requests",
+          "Booking Requests"
+        ],
+        "summary": "Get Parsed Booking",
+        "description": "Retrieve the NLP parsing result for a previously queued task.",
+        "operationId": "get_parsed_booking_api_v1_booking_requests_parse__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2087,39 +2124,6 @@
               "type": "integer",
               "title": "Request Id"
             }
-          },
-          {
-            "name": "skip",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "title": "Skip",
-              "default": 0,
-              "minimum": 0
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "title": "Limit",
-              "default": 100,
-              "minimum": 1,
-              "maximum": 100
-            }
-          },
-          {
-            "name": "fields",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "title": "Fields"
-            },
-            "description": "Comma-separated fields to include in the response"
           }
         ],
         "responses": {
@@ -2160,50 +2164,17 @@
             "OAuth2PasswordBearer": []
           }
         ],
-          "parameters": [
-            {
-              "name": "request_id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "integer",
-                "title": "Request Id"
-              }
-            },
-            {
-              "name": "skip",
-              "in": "query",
-              "required": false,
-              "schema": {
-                "type": "integer",
-                "title": "Skip",
-                "default": 0,
-                "minimum": 0
-              }
-            },
-            {
-              "name": "limit",
-              "in": "query",
-              "required": false,
-              "schema": {
-                "type": "integer",
-                "title": "Limit",
-                "default": 100,
-                "minimum": 1,
-                "maximum": 100
-              }
-            },
-            {
-              "name": "fields",
-              "in": "query",
-              "required": false,
-              "schema": {
-                "type": "string",
-                "title": "Fields"
-              },
-              "description": "Comma-separated fields to include in the response"
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Request Id"
             }
-          ],
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2642,39 +2613,6 @@
               "type": "integer",
               "title": "Request Id"
             }
-          },
-          {
-            "name": "skip",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "title": "Skip",
-              "default": 0,
-              "minimum": 0
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "title": "Limit",
-              "default": 100,
-              "minimum": 1,
-              "maximum": 100
-            }
-          },
-          {
-            "name": "fields",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "title": "Fields"
-            },
-            "description": "Comma-separated fields to include in the response"
           }
         ],
         "responses": {
@@ -3198,63 +3136,71 @@
         }
       }
     },
-      "/api/v1/booking-requests/{request_id}/messages": {
-        "get": {
-          "tags": [
-            "messages",
-            "messages"
-          ],
-          "summary": "Read Messages",
-          "operationId": "read_messages_api_v1_booking_requests__request_id__messages_get",
-          "security": [
-            {
-              "OAuth2PasswordBearer": []
+    "/api/v1/booking-requests/{request_id}/messages": {
+      "get": {
+        "tags": [
+          "messages",
+          "messages"
+        ],
+        "summary": "Read Messages",
+        "operationId": "read_messages_api_v1_booking_requests__request_id__messages_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Request Id"
             }
-          ],
-          "parameters": [
-            {
-              "name": "request_id",
-              "in": "path",
-              "required": true,
-              "schema": {
-                "type": "integer",
-                "title": "Request Id"
-              }
-            },
-            {
-              "name": "skip",
-              "in": "query",
-              "required": false,
-              "schema": {
-                "type": "integer",
-                "title": "Skip",
-                "default": 0,
-                "minimum": 0
-              }
-            },
-            {
-              "name": "limit",
-              "in": "query",
-              "required": false,
-              "schema": {
-                "type": "integer",
-                "title": "Limit",
-                "default": 100,
-                "minimum": 1,
-                "maximum": 100
-              }
-            },
-            {
-              "name": "fields",
-              "in": "query",
-              "required": false,
-              "schema": {
-                "type": "string",
-                "title": "Fields"
-              },
-              "description": "Comma-separated fields to include in the response"
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
             }
-          ],
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "fields",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Comma-separated fields to include in the response",
+              "title": "Fields"
+            },
+            "description": "Comma-separated fields to include in the response"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3658,297 +3604,6 @@
             "OAuth2PasswordBearer": []
           }
         ]
-      }
-    },
-    "/api/v1/sound-providers/": {
-      "get": {
-        "tags": [
-          "sound-providers",
-          "sound-providers"
-        ],
-        "summary": "List Providers",
-        "operationId": "list_providers_api_v1_sound_providers__get",
-        "parameters": [
-          {
-            "name": "skip",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "title": "Skip",
-              "default": 0,
-              "minimum": 0
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "title": "Limit",
-              "default": 100,
-              "minimum": 1,
-              "maximum": 100
-            }
-          },
-          {
-            "name": "fields",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "title": "Fields"
-            },
-            "description": "Comma-separated fields to include in the response"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SoundProviderResponse"
-                  },
-                  "type": "array",
-                  "title": "Response List Providers Api V1 Sound Providers  Get"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "sound-providers",
-          "sound-providers"
-        ],
-        "summary": "Create Provider",
-        "operationId": "create_provider_api_v1_sound_providers__post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SoundProviderCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SoundProviderResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sound-providers/{provider_id}": {
-      "put": {
-        "tags": [
-          "sound-providers",
-          "sound-providers"
-        ],
-        "summary": "Update Provider",
-        "operationId": "update_provider_api_v1_sound_providers__provider_id__put",
-        "parameters": [
-          {
-            "name": "provider_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Provider Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SoundProviderUpdate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SoundProviderResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "sound-providers",
-          "sound-providers"
-        ],
-        "summary": "Delete Provider",
-        "operationId": "delete_provider_api_v1_sound_providers__provider_id__delete",
-        "parameters": [
-          {
-            "name": "provider_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Provider Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sound-providers/artist/{artist_id}": {
-      "get": {
-        "tags": [
-          "sound-providers",
-          "sound-providers"
-        ],
-        "summary": "Get Artist Preferences",
-        "operationId": "get_artist_preferences_api_v1_sound_providers_artist__artist_id__get",
-        "parameters": [
-          {
-            "name": "artist_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Artist Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ArtistSoundPreferenceResponse"
-                  },
-                  "title": "Response Get Artist Preferences Api V1 Sound Providers Artist  Artist Id  Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "sound-providers",
-          "sound-providers"
-        ],
-        "summary": "Add Artist Preference",
-        "operationId": "add_artist_preference_api_v1_sound_providers_artist__artist_id__post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "artist_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Artist Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ArtistSoundPreferenceBase"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ArtistSoundPreferenceResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/api/v1/google-calendar/status": {
@@ -4461,7 +4116,7 @@
           "travel-forecast"
         ],
         "summary": "Travel Forecast",
-        "description": "Return a 3-day weather forecast for the destination.",
+        "description": "Queue a weather forecast fetch and return a task identifier.",
         "operationId": "travel_forecast_api_v1_travel_forecast_get",
         "parameters": [
           {
@@ -4472,6 +4127,48 @@
               "type": "string",
               "minLength": 1,
               "title": "Location"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/travel-forecast/{task_id}": {
+      "get": {
+        "tags": [
+          "travel-forecast",
+          "travel-forecast"
+        ],
+        "summary": "Travel Forecast Result",
+        "description": "Return the queued weather forecast result.",
+        "operationId": "travel_forecast_result_api_v1_travel_forecast__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
             }
           }
         ],
@@ -5047,8 +4744,7 @@
               "type": "string"
             },
             "type": "array",
-            "title": "Service Categories",
-            "default": []
+            "title": "Service Categories"
           },
           "user": {
             "anyOf": [
@@ -5217,81 +4913,6 @@
         "type": "object",
         "title": "ArtistProfileUpdate"
       },
-      "ArtistSoundPreferenceBase": {
-        "properties": {
-          "provider_id": {
-            "type": "integer",
-            "title": "Provider Id"
-          },
-          "priority": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Priority"
-          }
-        },
-        "type": "object",
-        "required": [
-          "provider_id"
-        ],
-        "title": "ArtistSoundPreferenceBase"
-      },
-      "ArtistSoundPreferenceResponse": {
-        "properties": {
-          "provider_id": {
-            "type": "integer",
-            "title": "Provider Id"
-          },
-          "priority": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Priority"
-          },
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "provider": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SoundProviderResponse"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "provider_id",
-          "id",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "ArtistSoundPreferenceResponse"
-      },
       "Body_login_auth_login_post": {
         "properties": {
           "grant_type": {
@@ -5349,7 +4970,7 @@
         ],
         "title": "Body_login_auth_login_post"
       },
-      "Body_upload_artist_cover_photo_me_api_v1_artist_profiles_me_cover_photo_post": {
+      "Body_upload_artist_cover_photo_me_api_v1_service_provider_profiles_me_cover_photo_post": {
         "properties": {
           "file": {
             "type": "string",
@@ -5361,9 +4982,9 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_artist_cover_photo_me_api_v1_artist_profiles_me_cover_photo_post"
+        "title": "Body_upload_artist_cover_photo_me_api_v1_service_provider_profiles_me_cover_photo_post"
       },
-      "Body_upload_artist_portfolio_images_me_api_v1_artist_profiles_me_portfolio_images_post": {
+      "Body_upload_artist_portfolio_images_me_api_v1_service_provider_profiles_me_portfolio_images_post": {
         "properties": {
           "files": {
             "items": {
@@ -5378,9 +4999,9 @@
         "required": [
           "files"
         ],
-        "title": "Body_upload_artist_portfolio_images_me_api_v1_artist_profiles_me_portfolio_images_post"
+        "title": "Body_upload_artist_portfolio_images_me_api_v1_service_provider_profiles_me_portfolio_images_post"
       },
-      "Body_upload_artist_profile_picture_me_api_v1_artist_profiles_me_profile_picture_post": {
+      "Body_upload_artist_profile_picture_me_api_v1_service_provider_profiles_me_profile_picture_post": {
         "properties": {
           "file": {
             "type": "string",
@@ -5392,7 +5013,7 @@
         "required": [
           "file"
         ],
-        "title": "Body_upload_artist_profile_picture_me_api_v1_artist_profiles_me_profile_picture_post"
+        "title": "Body_upload_artist_profile_picture_me_api_v1_service_provider_profiles_me_profile_picture_post"
       },
       "Body_upload_attachment_api_v1_booking_requests__request_id__attachments_post": {
         "properties": {
@@ -6964,17 +6585,6 @@
             "type": "number",
             "title": "Distance Km"
           },
-          "provider_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider Id"
-          },
           "accommodation_cost": {
             "anyOf": [
               {
@@ -7019,10 +6629,6 @@
             "type": "array",
             "title": "Travel Estimates"
           },
-          "provider_cost": {
-            "type": "string",
-            "title": "Provider Cost"
-          },
           "accommodation_cost": {
             "type": "string",
             "title": "Accommodation Cost"
@@ -7038,7 +6644,6 @@
           "travel_cost",
           "travel_mode",
           "travel_estimates",
-          "provider_cost",
           "accommodation_cost",
           "total"
         ],
@@ -7863,7 +7468,14 @@
             "title": "Service Category Id"
           },
           "service_category_slug": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Service Category Slug"
           },
           "details": {
@@ -7885,8 +7497,7 @@
           "media_url",
           "duration_minutes",
           "price",
-          "service_type",
-          "service_category_slug"
+          "service_type"
         ],
         "title": "ServiceCreate"
       },
@@ -8066,8 +7677,12 @@
           },
           "service_category_slug": {
             "anyOf": [
-              {"type": "string"},
-              {"type": "null"}
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
             "title": "Service Category Slug"
           },
@@ -8294,8 +7909,12 @@
           },
           "service_category_slug": {
             "anyOf": [
-              {"type": "string"},
-              {"type": "null"}
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
             "title": "Service Category Slug"
           },
@@ -8314,144 +7933,6 @@
         },
         "type": "object",
         "title": "ServiceUpdate"
-      },
-      "SoundProviderCreate": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "contact_info": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Info"
-          },
-          "price_per_event": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price Per Event"
-          }
-        },
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "SoundProviderCreate"
-      },
-      "SoundProviderResponse": {
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "contact_info": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Info"
-          },
-          "price_per_event": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price Per Event"
-          },
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "updated_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Updated At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "SoundProviderResponse"
-      },
-      "SoundProviderUpdate": {
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "contact_info": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Contact Info"
-          },
-          "price_per_event": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price Per Event"
-          }
-        },
-        "type": "object",
-        "title": "SoundProviderUpdate"
       },
       "ThreadNotificationResponse": {
         "properties": {

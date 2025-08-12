@@ -313,14 +313,6 @@ export interface MessageCreate {
   expires_at?: string;
 }
 
-export interface SoundProvider {
-  id: number;
-  name: string;
-  contact_info?: string | null;
-  price_per_event?: number | null;
-  created_at?: string;
-  updated_at?: string;
-}
 
 export interface TravelEstimate {
   mode: string;
@@ -332,18 +324,8 @@ export interface QuoteCalculationResponse {
   travel_cost: number;
   travel_mode: string;
   travel_estimates: TravelEstimate[];
-  provider_cost: number;
   accommodation_cost: number;
   total: number;
-}
-export interface ArtistSoundPreference {
-  id: number;
-  artist_id: number;
-  provider_id: number;
-  priority?: number | null;
-  provider?: SoundProvider;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export interface Notification {
