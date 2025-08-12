@@ -9,7 +9,7 @@ import { Service } from "@/types";
 jest.mock("@/lib/api");
 jest.mock("@/contexts/AuthContext");
 
-test("editing an event service opens the event service wizard", async () => {
+test("editing a sound service opens the sound service wizard", async () => {
   useRouter.mockReturnValue({ push: jest.fn(), replace: jest.fn() });
   usePathname.mockReturnValue("/dashboard/artist");
   useSearchParams.mockReturnValue({ get: (key: string) => (key === "tab" ? "services" : null) });
@@ -28,7 +28,7 @@ test("editing an event service opens the event service wizard", async () => {
   });
   (api.getMyArtistBookings as jest.Mock).mockResolvedValue({ data: [] });
   (api.getServiceCategories as jest.Mock).mockResolvedValue({ data: [] });
-  const eventService = {
+  const soundService = {
     id: 1,
     artist_id: 1,
     title: "PA Rental",
@@ -40,7 +40,7 @@ test("editing an event service opens the event service wizard", async () => {
     display_order: 0,
     details: { travel_fee_policy: "flat" },
   } as Service;
-  (api.getServiceProviderServices as jest.Mock).mockResolvedValue({ data: [eventService] });
+  (api.getServiceProviderServices as jest.Mock).mockResolvedValue({ data: [soundService] });
   (api.getServiceProviderProfileMe as jest.Mock).mockResolvedValue({ data: {} });
   (api.getBookingRequestsForArtist as jest.Mock).mockResolvedValue({ data: [] });
   (api.getDashboardStats as jest.Mock).mockResolvedValue({ data: {} });

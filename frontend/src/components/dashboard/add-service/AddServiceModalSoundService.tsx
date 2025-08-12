@@ -25,7 +25,7 @@ interface ServicePackage {
   notes?: string;
 }
 
-interface EventServiceForm {
+interface SoundServiceForm {
   // Basics
   title: string; // Service Name (public)
   short_summary: string; // <= 120 chars
@@ -70,7 +70,7 @@ interface EventServiceForm {
   auto_accept_threshold: boolean;
 }
 
-const DEFAULTS: EventServiceForm = {
+const DEFAULTS: SoundServiceForm = {
   title: "",
   short_summary: "",
   price: "",
@@ -126,7 +126,7 @@ const BACKLINE_PRESETS = [
 const CITY_CODES = ["CPT", "JNB", "DBN", "PLZ", "GRJ", "ELS", "MQP", "BFN", "KIM"];
 const TAG_PRESETS = ["weddings", "corporate", "festivals", "birthday", "conference", "club", "church"];
 
-export default function AddServiceModalEventService({
+export default function AddServiceModalSoundService({
   isOpen,
   onClose,
   onServiceSaved,
@@ -143,7 +143,7 @@ export default function AddServiceModalEventService({
   const [paOpen, setPaOpen] = useState(true);
   const [monitoringOpen, setMonitoringOpen] = useState(false);
   const [backlineOpen, setBacklineOpen] = useState(false);
-  const defaults: EventServiceForm = useMemo(
+  const defaults: SoundServiceForm = useMemo(
     () =>
       service
         ? {
@@ -158,7 +158,7 @@ export default function AddServiceModalEventService({
     [service],
   );
 
-  const steps: WizardStep<EventServiceForm>[] = [
+  const steps: WizardStep<SoundServiceForm>[] = [
     {
       label: "Basics",
       fields: ["title", "short_summary", "price"],
@@ -425,7 +425,7 @@ export default function AddServiceModalEventService({
       label: "Capabilities & Inventory",
       fields: ["console_brands", "pa_types", "audience_tier"],
       render: ({ form }) => {
-        const toggleArray = (name: keyof EventServiceForm, val: string) => {
+        const toggleArray = (name: keyof SoundServiceForm, val: string) => {
           const arr = new Set<string>((form.getValues(name as any) as any[]) || []);
           if (arr.has(val)) arr.delete(val); else arr.add(val);
           form.setValue(name as any, Array.from(arr), { shouldDirty: true });
@@ -758,7 +758,7 @@ export default function AddServiceModalEventService({
     },
   ];
 
-  const toPayload = (data: EventServiceForm, mediaUrl: string | null): Partial<Service> => {
+  const toPayload = (data: SoundServiceForm, mediaUrl: string | null): Partial<Service> => {
     // Map to a backend-friendly payload. Extended fields go under `details`.
     const details: any = {
       short_summary: data.short_summary,
@@ -827,7 +827,7 @@ export default function AddServiceModalEventService({
       steps={steps}
       defaultValues={defaults}
       toPayload={toPayload}
-      serviceCategorySlug="event_service"
+      serviceCategorySlug="sound_service"
     />
   );
 }

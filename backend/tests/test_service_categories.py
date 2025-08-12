@@ -70,7 +70,7 @@ def test_list_categories(monkeypatch):
         "Photographer",
         "Videographer",
         "Speaker",
-        "Event Service",
+        "Sound Service",
         "Wedding Venue",
         "Caterer",
         "Bartender",

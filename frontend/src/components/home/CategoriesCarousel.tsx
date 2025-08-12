@@ -55,7 +55,7 @@
     dj: "DJ's",
     videographer: 'Videographers',
     speaker: 'Speakers',
-    event_service: 'Event Services',
+    sound_service: 'Sound Services',
     wedding_venue: 'Wedding Venues',
     bartender: 'Bartending',
     mc_host: 'MC & Hosts',
