@@ -62,3 +62,9 @@ name *and* lack any profile details (e.g., description or profile picture).
 This keeps legacy imports from appearing while allowing real DJs who perform
 under their own names to show up in search results.
 
+### Booking detail endpoint
+
+The `/api/v1/bookings/{booking_id}` endpoint logs a warning when a requested
+booking is missing and returns a descriptive `404` message. This makes it easier
+to diagnose why a booking failed to load in development and production logs.
+
