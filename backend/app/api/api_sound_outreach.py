@@ -247,7 +247,8 @@ def retry_outreach(
     """Retry outreach to remaining backups if none are active or accepted.
 
     ``event_city`` may be supplied via query or JSON body. If omitted,
-    falls back to the booking.event_city.
+    falls back to the booking.event_city. Returns HTTP 422 if no
+    event city can be determined.
     """
     booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()
     if not booking:
@@ -268,7 +269,15 @@ def retry_outreach(
     body_city = body.event_city if body else None
     city = event_city or body_city or booking.event_city or ""
     if not city:
-        raise error_response("Missing event city", {"event_city": "required"}, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        msg = (
+            f"Booking {booking_id} missing event city. Provide ?event_city=<city> "
+            "or include event_city in the JSON body."
+        )
+        raise error_response(
+            msg,
+            {"event_city": "required"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
 
     preferred = _preferred_suppliers_for_city(service=service, event_city=city)
     if len(preferred) < 3:
