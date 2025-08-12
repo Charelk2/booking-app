@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 
-export const navItemClasses = 'inline-flex items-center text-sm font-medium no-underline hover:no-underline';
+export const navItemClasses =
+  'inline-flex items-center text-sm font-medium no-underline hover:no-underline min-w-[44px] min-h-[44px]';
 
 export const navLinkClasses = (isActive?: boolean) =>
   clsx(
