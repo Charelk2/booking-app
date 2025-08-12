@@ -68,6 +68,7 @@ from .db_utils import (
     ensure_portfolio_image_urls_column,
     ensure_price_visible_column,
     ensure_request_attachment_column,
+    ensure_sound_outreach_columns,
     ensure_service_category_id_column,
     ensure_service_travel_columns,
     ensure_service_type_column,
@@ -121,6 +122,7 @@ ensure_booking_simple_columns(engine)
 ensure_calendar_account_email_column(engine)
 ensure_user_profile_picture_column(engine)
 ensure_booking_request_travel_columns(engine)
+ensure_sound_outreach_columns(engine)
 ensure_booking_event_city_column(engine)
 ensure_legacy_artist_user_type(engine)
 ensure_service_category_id_column(engine)
