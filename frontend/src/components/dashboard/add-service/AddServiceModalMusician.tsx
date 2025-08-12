@@ -21,6 +21,7 @@ import {
   updateService as apiUpdateService,
   getAllServices,
 } from "@/lib/api";
+import { ID_TO_UI_CATEGORY } from "@/lib/categoryMap";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import Button from "@/components/ui/Button";
 import { Stepper, TextInput, TextArea, CollapsibleSection } from "@/components/ui";
@@ -339,8 +340,13 @@ export default function AddServiceModalMusician({
     async function load() {
       try {
         const res = await getAllServices();
+        // Some backends omit `service_category_slug`; fall back to mapping
+        // the numeric `service_category_id` to a known slug.
         const services = (res.data || []).filter(
-          (s) => s.service_category_slug === "event_service",
+          (s) =>
+            s.service_category_slug === "event_service" ||
+            ID_TO_UI_CATEGORY[(s as any).service_category_id || 0] ===
+              "event_service",
         );
         if (!cancelled) setEventServices(services);
       } catch (e) {
