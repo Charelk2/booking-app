@@ -50,4 +50,31 @@ describe('ReviewStep summary', () => {
     expect(container.textContent).toContain('Sound Equipment');
     expect(container.textContent).toContain('Estimated Total');
   });
+
+  it('computes totals when costs are strings', async () => {
+    (useBooking as jest.Mock).mockReturnValue({ details: {} });
+
+    await act(async () => {
+      root.render(
+        <ReviewStep
+          isLoadingReviewData={false}
+          reviewDataError={null}
+          step={0}
+          steps={['Review']}
+          onBack={() => {}}
+          onSaveDraft={async () => {}}
+          onNext={async () => {}}
+          submitting={false}
+          baseServicePrice={'100' as unknown as number}
+          travelResult={{ mode: 'drive', totalCost: '50' as unknown as number, breakdown: { drive: { estimate: 50 } } }}
+          soundCost={'20' as unknown as number}
+          soundMode="external_providers"
+          soundModeOverridden={false}
+        />,
+      );
+    });
+
+    expect(container.textContent).not.toContain('NaN');
+    expect(container.textContent).toContain('R 195,50');
+  });
 });

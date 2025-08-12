@@ -343,7 +343,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           event_city: details.location,
         });
         setCalculatedPrice(Number(quote.total));
-        setSoundCost(quote.sound_cost);
+        // Ensure sound cost is numeric to avoid NaN totals downstream
+        setSoundCost(Number(quote.sound_cost));
         setSoundMode(quote.sound_mode);
         setSoundModeOverridden(quote.sound_mode_overridden);
       } else {
