@@ -50,6 +50,7 @@ Structured JSON logs and OpenTelemetry traces are enabled for both the FastAPI b
 - Service categories are assigned when adding services; service providers no longer choose a category during onboarding. The `/api/v1/service-categories` endpoint lists the seeded categories.
 - Newly registered service providers start with no default category, ensuring they aren't automatically labeled (e.g., as photographers) until they add a service.
 - Frontend components now fetch service categories dynamically via the `useServiceCategories` hook rather than relying on a static map.
+- The `categorySlug` helper normalizes irregular names (e.g., "DJ's", "Sound Services") to canonical slugs so newly added services route to the correct homepage categories.
 - Seeded categories include Musician, DJ, Photographer, Videographer, Speaker, Sound Service, Wedding Venue, Caterer, Bartender, and MC & Host.
 - Services may optionally include a `service_category_id` and JSON `details` object for category-specific attributes, enabling tailored service data.
 - Artist profile responses now include a `service_categories` array listing all categories the artist offers.
