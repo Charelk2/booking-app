@@ -39,7 +39,7 @@ export default function DashboardPage() {
     musician: () => import("@/components/dashboard/add-service/AddServiceModalMusician"),
     photographer: () => import("@/components/dashboard/add-service/AddServiceModalPhotographer"),
     dj: () => import("@/components/dashboard/add-service/AddServiceModalDJ"),
-    event_service: () => import("@/components/dashboard/add-service/AddServiceModalEventService"),
+    sound_service: () => import("@/components/dashboard/add-service/AddServiceModalSoundService"),
     videographer: () => import("@/components/dashboard/add-service/AddServiceModalVideographer"),
     speaker: () => import("@/components/dashboard/add-service/AddServiceModalSpeaker"),
     wedding_venue: () => import("@/components/dashboard/add-service/AddServiceModalWeddingVenue"),
@@ -279,7 +279,7 @@ export default function DashboardPage() {
                     const slug =
                       s.service_category_slug ||
                       (s.service_category_id ? ID_TO_UI_CATEGORY[s.service_category_id] : null) ||
-                      ((s as any)?.details?.travel_fee_policy ? 'event_service' : null);
+                      ((s as any)?.details?.travel_fee_policy ? 'sound_service' : null);
                     if (slug) {
                       setWizardCategory(slug);
                     } else {
