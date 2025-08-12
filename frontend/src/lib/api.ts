@@ -573,6 +573,33 @@ export const createPayment = (data: {
 
 // ─── NOTIFICATIONS ───────────────────────────────────────────────────────────
 // Notifications endpoints live under /api/v1
+
+// ─── SOUND OUTREACH ─────────────────────────────────────────────────────────
+export const kickoffSoundOutreach = (
+  bookingId: number,
+  data: { event_city: string; request_timeout_hours?: number; mode?: 'sequential' | 'simultaneous'; selected_service_id?: number }
+) => api.post(`${API_V1}/bookings/${bookingId}/sound/outreach`, data);
+
+export const supplierRespondToOutreach = (
+  bookingId: number,
+  serviceId: number,
+  data: { action: 'ACCEPT' | 'DECLINE'; price?: number; lock_token: string }
+) => api.post(`${API_V1}/bookings/${bookingId}/service/${serviceId}/respond`, data);
+
+export const getSoundOutreach = (bookingId: number) =>
+  api.get<{
+    id: number;
+    supplier_service_id: number;
+    supplier_public_name: string | null;
+    status: string;
+    expires_at: string | null;
+    responded_at: string | null;
+  }[]>(`${API_V1}/bookings/${bookingId}/sound/outreach`);
+
+export const retrySoundOutreach = (
+  bookingId: number,
+  data?: { event_city?: string }
+) => api.post(`${API_V1}/bookings/${bookingId}/sound/retry`, data || {});
 const API_NOTIFICATIONS = API_V1;
 
 export const getNotifications = (skip = 0, limit = 20) =>

@@ -19,6 +19,7 @@ from ..crud.crud_booking import (
 from ..services.booking_quote import calculate_quote_breakdown, calculate_quote
 from decimal import Decimal
 from ..utils import error_response
+from .api_sound_outreach import kickoff_sound_outreach
 from ..utils.notifications import notify_user_new_message
 
 router = APIRouter(
@@ -303,12 +304,78 @@ def update_quote_by_client(
         )
 
     try:
-        return crud.crud_quote.update_quote(
+        updated = crud.crud_quote.update_quote(
             db=db,
             db_quote=db_quote,
             quote_update=quote_update,
             actor_is_artist=False,
         )
+        # If client accepted, immediately create a booking (bypass artist confirm)
+        if quote_update.status == models.QuoteStatus.ACCEPTED_BY_CLIENT:
+            booking_request = updated.booking_request
+            if booking_request and booking_request.service_id and booking_request.proposed_datetime_1:
+                from datetime import timedelta
+
+                related_service = (
+                    db.query(models.Service)
+                    .filter(models.Service.id == booking_request.service_id)
+                    .first()
+                )
+                if related_service:
+                    end_time = booking_request.proposed_datetime_1 + timedelta(
+                        minutes=related_service.duration_minutes
+                    )
+                    # Capture event city from the BookingRequest travel_breakdown if present
+                    tb = booking_request.travel_breakdown or {}
+                    event_city = tb.get("event_city") if isinstance(tb, dict) else None
+
+                    booking_data = schemas.BookingCreate(
+                        artist_id=updated.artist_id,
+                        service_id=booking_request.service_id,
+                        start_time=booking_request.proposed_datetime_1,
+                        end_time=end_time,
+                        notes=f"Booking created from client-accepted quote ID: {updated.id}.",
+                    )
+                    new_booking = create_booking_from_quote(
+                        db=db,
+                        booking_create=booking_data,
+                        quote=updated,
+                        client_id=booking_request.client_id,
+                    )
+                    if event_city:
+                        new_booking.event_city = event_city
+                        db.add(new_booking)
+                        db.commit()
+                        db.refresh(new_booking)
+                    # Auto-kickoff sound outreach if client indicated sound is required
+                    try:
+                        tb = booking_request.travel_breakdown or {}
+                        if bool(tb.get("sound_required")):
+                            event_city = tb.get("event_city") or ""
+                            selected_sid = tb.get("selected_sound_service_id")
+                            if isinstance(selected_sid, str):
+                                try:
+                                    selected_sid = int(selected_sid)
+                                except Exception:
+                                    selected_sid = None
+                            if event_city:
+                                kickoff_sound_outreach(
+                                    new_booking.id,
+                                    event_city=event_city,
+                                    request_timeout_hours=24,
+                                    mode="sequential",
+                                    selected_service_id=selected_sid,
+                                    db=db,
+                                    current_artist=db.query(models.User).filter(models.User.id == updated.artist_id).first(),
+                                )
+                    except Exception as exc:  # pragma: no cover
+                        logger.warning(
+                            "Auto outreach failed after client acceptance for booking %s: %s",
+                            new_booking.id,
+                            exc,
+                        )
+            # else: missing info to create a booking; keep quote accepted only
+        return updated
     except ValueError as e:
         raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
 
@@ -491,6 +558,31 @@ def confirm_quote_and_create_booking(
             quote=updated_quote,
             client_id=booking_request.client_id,
         )
+        # Auto-kickoff sound outreach if the original request indicated sound_required
+        try:
+            tb = booking_request.travel_breakdown or {}
+            if bool(tb.get("sound_required")):
+                event_city = tb.get("event_city") or ""
+                selected_sid = tb.get("selected_sound_service_id")
+                if isinstance(selected_sid, str):
+                    try:
+                        selected_sid = int(selected_sid)
+                    except Exception:
+                        selected_sid = None
+                if event_city:
+                    # Sequential by default; contact selected supplier first if provided
+                    kickoff_sound_outreach(
+                        new_booking.id,
+                        event_city=event_city,
+                        request_timeout_hours=24,
+                        mode="sequential",
+                        selected_service_id=selected_sid,
+                        db=db,
+                        current_artist=current_artist,
+                    )
+        except Exception as exc:
+            logger.warning("Auto outreach failed for booking %s: %s", new_booking.id, exc)
+
         return new_booking
     except ValueError as e:
         logger.error("Failed booking creation from quote %s: %s", quote_id, e)

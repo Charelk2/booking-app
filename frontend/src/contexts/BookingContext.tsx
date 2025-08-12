@@ -12,6 +12,8 @@ export interface EventDetails {
   guests: string;
   venueType: 'indoor' | 'outdoor' | 'hybrid';
   sound: 'yes' | 'no';
+  /** Optional selection of a preferred sound supplier service ID */
+  soundSupplierServiceId?: number;
   notes?: string;
   attachment_url?: string;
 }
@@ -44,6 +46,7 @@ const initialDetails: EventDetails = {
   guests: '',
   venueType: 'indoor',
   sound: 'yes',
+  soundSupplierServiceId: undefined,
   attachment_url: '',
 };
 

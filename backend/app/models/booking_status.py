@@ -15,3 +15,6 @@ class BookingStatus(str, enum.Enum):
     REQUEST_DECLINED = "request_declined"
     REQUEST_WITHDRAWN = "request_withdrawn"
     QUOTE_REJECTED = "quote_rejected"
+    # Sound supplier orchestration states
+    PENDING_SOUND = "pending_sound"
+    FAILED_NO_SOUND = "failed_no_sound"

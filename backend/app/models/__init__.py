@@ -15,6 +15,7 @@ from .calendar_account import CalendarAccount, CalendarProvider
 from .email_token import EmailToken
 from .invoice import Invoice, InvoiceStatus
 from .profile_view import ArtistProfileView
+from .sound_outreach import SoundOutreachRequest, OutreachStatus
 
 __all__ = [
     "User",
@@ -45,4 +46,6 @@ __all__ = [
     "Invoice",
     "InvoiceStatus",
     "ArtistProfileView",
+    "SoundOutreachRequest",
+    "OutreachStatus",
 ]

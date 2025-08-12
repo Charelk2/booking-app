@@ -18,6 +18,7 @@ class Booking(BaseModel):
     status     = Column(Enum(BookingStatus), default=BookingStatus.PENDING, index=True)
     total_price= Column(Numeric(10, 2), nullable=False)  # ← Numeric is now imported
     notes      = Column(String)
+    event_city = Column(String, nullable=True)
     quote_id   = Column(Integer, ForeignKey("quotes.id"), nullable=True)
     
     # Relationships

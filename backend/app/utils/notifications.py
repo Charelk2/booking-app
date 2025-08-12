@@ -798,3 +798,51 @@ except Exception:  # pragma: no cover - fallback for circular import during test
             return None
 
     notifications_manager = _DummyManager()
+
+
+# ─── Sound supplier outreach helpers ──────────────────────────────────────────
+def notify_service_request(service: "models.Service", booking: "models.Booking", expires_at: "datetime | None", lock_url: str) -> None:  # type: ignore[name-defined]
+    """Stub for notifying a sound supplier of a new request.
+
+    In production this would email/SMS the supplier. We log to stdout and rely
+    on WebSocket notifications if the supplier has a session.
+    """
+    try:
+        supplier_id = service.artist_id
+        message = f"New sound request for booking {booking.id}. Respond: {lock_url}"
+        # Broadcast to supplier if connected (best effort)
+        asyncio.create_task(
+            notifications_manager.broadcast(
+                {
+                    "type": "service_request",
+                    "supplier_id": supplier_id,
+                    "booking_id": booking.id,
+                    "expires_at": expires_at.isoformat() if expires_at else None,
+                    "lock_url": lock_url,
+                    "service_id": service.id,
+                }
+            )
+        )
+        logger.info("Notify supplier %s: %s", supplier_id, message)
+    except Exception as exc:  # pragma: no cover - best effort only
+        logger.warning("notify_service_request failed: %s", exc)
+
+
+def notify_service_nudge(service: "models.Service", booking: "models.Booking") -> None:  # type: ignore[name-defined]
+    """Stub reminder to supplier about pending request."""
+    try:
+        supplier_id = service.artist_id
+        message = f"Reminder: pending sound request for booking {booking.id}"
+        asyncio.create_task(
+            notifications_manager.broadcast(
+                {
+                    "type": "service_nudge",
+                    "supplier_id": supplier_id,
+                    "booking_id": booking.id,
+                    "service_id": service.id,
+                }
+            )
+        )
+        logger.info("Nudge supplier %s: %s", supplier_id, message)
+    except Exception as exc:  # pragma: no cover - best effort only
+        logger.warning("notify_service_nudge failed: %s", exc)
