@@ -1,6 +1,8 @@
 from decimal import Decimal
 from datetime import datetime, timedelta
 from typing import Optional
+import uuid
+import os
 
 from sqlalchemy.orm import Session
 import logging
@@ -12,11 +14,11 @@ from ..models.service import ServiceType
 from ..utils.notifications import (
     notify_quote_accepted,
     notify_new_booking,
-    notify_deposit_due,
 )
 from ..utils import error_response
 from .crud_booking import create_booking_from_quote_v2
 from . import crud_invoice, crud_message
+from ..api.api_sound_outreach import kickoff_sound_outreach
 
 logger = logging.getLogger(__name__)
 
@@ -249,13 +251,66 @@ def accept_quote(
     artist = db_quote.artist
     client = db_quote.client or db.query(models.User).get(db_quote.client_id)
     notify_quote_accepted(db, artist, db_quote.id, db_quote.booking_request_id)
-    if db_booking is not None:
-        notify_deposit_due(
-            db,
-            client,
-            db_booking.id,
-            float(booking.deposit_amount or 0),
-            booking.deposit_due_by,
+
+    # Kick off sound outreach if required
+    try:
+        tb = booking_request.travel_breakdown or {}
+        if bool(tb.get("sound_required")) and db_booking is not None:
+            event_city = tb.get("event_city") or ""
+            selected_sid = tb.get("selected_sound_service_id")
+            if isinstance(selected_sid, str):
+                try:
+                    selected_sid = int(selected_sid)
+                except Exception:
+                    selected_sid = None
+            if event_city:
+                kickoff_sound_outreach(
+                    db_booking.id,
+                    event_city=event_city,
+                    request_timeout_hours=24,
+                    mode="sequential",
+                    selected_service_id=selected_sid,
+                    db=db,
+                    current_artist=artist,
+                )
+    except Exception as exc:  # pragma: no cover - best effort only
+        logger.warning(
+            "Auto outreach failed after client acceptance for booking %s: %s",
+            db_booking.id if db_booking else "unknown",
+            exc,
+        )
+
+    # Simulate payment and issue a mock receipt for testing
+    try:
+        payment_id = f"test_{uuid.uuid4().hex}"
+        booking.payment_status = "deposit_paid"
+        booking.deposit_paid = True
+        booking.payment_id = payment_id
+
+        receipt_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "static", "receipts")
+        )
+        os.makedirs(receipt_dir, exist_ok=True)
+        receipt_path = os.path.join(receipt_dir, f"{payment_id}.pdf")
+        with open(receipt_path, "wb") as f:
+            f.write(b"%PDF-1.4 test receipt\n%%EOF")
+
+        crud_message.create_message(
+            db=db,
+            booking_request_id=db_quote.booking_request_id,
+            sender_id=db_quote.client_id,
+            sender_type=models.SenderType.CLIENT,
+            content=(
+                f"Deposit received. Receipt: /api/v1/payments/{payment_id}/receipt"
+            ),
+            message_type=models.MessageType.SYSTEM,
+        )
+
+        notify_new_booking(db, artist, booking.id)
+        notify_new_booking(db, client, booking.id)
+    except Exception as exc:  # pragma: no cover - best effort only
+        logger.warning(
+            "Failed to simulate payment for booking %s: %s", booking.id, exc
         )
 
     return booking

@@ -103,11 +103,11 @@ def test_create_and_accept_quote():
     assert booking.artist_id == artist.id
     assert booking.client_id == client.id
     assert booking.confirmed is True
-    assert booking.payment_status == "pending"
+    assert booking.payment_status == "deposit_paid"
     assert booking.deposit_amount == quote.total * Decimal("0.5")
 
     assert before + timedelta(days=7) <= booking.deposit_due_by <= after + timedelta(days=7)
-    assert booking.deposit_paid is False
+    assert booking.deposit_paid is True
 
     db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
     assert db_booking is not None
@@ -476,7 +476,7 @@ def test_accept_quote_value_error_logs(monkeypatch, caplog):
     assert any("quote_id=10" in r.getMessage() for r in caplog.records)
 
 
-def test_accept_quote_creates_deposit_notification():
+def test_accept_quote_creates_booking_notification():
     db = setup_db()
     artist = User(
         email="artist4@test.com",
@@ -540,10 +540,10 @@ def test_accept_quote_creates_deposit_notification():
 
     notifs = crud_notification.get_notifications_for_user(db, client.id)
     assert len(notifs) == 2
-    assert any(n.type == NotificationType.DEPOSIT_DUE for n in notifs)
+    assert any(n.type == NotificationType.NEW_BOOKING for n in notifs)
 
 
-def test_accept_quote_deposit_notification_link():
+def test_accept_quote_booking_notification_link():
     db = setup_db()
     artist = User(
         email="artist5@test.com",
@@ -606,10 +606,10 @@ def test_accept_quote_deposit_notification_link():
     from app.models import NotificationType
 
     notifs = crud_notification.get_notifications_for_user(db, client.id)
-    deposit = next(n for n in notifs if n.type == NotificationType.DEPOSIT_DUE)
+    booking_notif = next(n for n in notifs if n.type == NotificationType.NEW_BOOKING)
     from app.models import Booking
     db_booking = db.query(Booking).filter(Booking.quote_id == quote.id).first()
-    assert deposit.link == f"/dashboard/client/bookings/{db_booking.id}?pay=1"
+    assert booking_notif.link == f"/dashboard/client/bookings/{db_booking.id}"
 
 
 def test_accept_quote_supplies_missing_service_id():
