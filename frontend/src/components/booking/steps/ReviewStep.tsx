@@ -49,7 +49,12 @@ export default function ReviewStep({
 }: ReviewStepProps) {
   useBooking(); // Ensure SummarySidebar has context
 
-  const subtotalBeforeTaxes = baseServicePrice + (travelResult?.totalCost || 0) + soundCost;
+  // Coerce all cost inputs to numbers to prevent NaN in totals
+  const baseFee = Number(baseServicePrice) || 0;
+  const travelCost = Number(travelResult?.totalCost) || 0;
+  const soundFee = Number(soundCost) || 0;
+
+  const subtotalBeforeTaxes = baseFee + travelCost + soundFee;
   const estimatedTaxesFees = subtotalBeforeTaxes * 0.15; // Now explicitly 15% of subtotalBeforeTaxes
 
   // Calculate the estimated total based on the visible amounts
@@ -61,7 +66,7 @@ export default function ReviewStep({
   const getTravelPopoverContent = () => {
     if (!travelResult)
       return (
-        <>Travel cost calculated based on artist's location and event venue distance.</>
+        <>Travel cost calculated based on artist&rsquo;s location and event venue distance.</>
       );
 
     const { mode, breakdown } = travelResult;
