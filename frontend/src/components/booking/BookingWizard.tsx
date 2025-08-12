@@ -334,16 +334,24 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const directDistanceKm = metrics.distanceKm;
       const drivingEstimateCost = directDistanceKm * travelRate * 2;
 
-      const quote = await calculateQuote({
-        base_fee: basePrice, // Use the fetched base price
-        distance_km: directDistanceKm,
-        service_id: serviceId,
-        event_city: details.location,
-      });
-      setCalculatedPrice(Number(quote.total));
-      setSoundCost(quote.sound_cost);
-      setSoundMode(quote.sound_mode);
-      setSoundModeOverridden(quote.sound_mode_overridden);
+      let quote: Awaited<ReturnType<typeof calculateQuote>> | null = null;
+      if (details.sound === 'yes') {
+        quote = await calculateQuote({
+          base_fee: basePrice, // Use the fetched base price
+          distance_km: directDistanceKm,
+          service_id: serviceId,
+          event_city: details.location,
+        });
+        setCalculatedPrice(Number(quote.total));
+        setSoundCost(quote.sound_cost);
+        setSoundMode(quote.sound_mode);
+        setSoundModeOverridden(quote.sound_mode_overridden);
+      } else {
+        setCalculatedPrice(basePrice);
+        setSoundCost(0);
+        setSoundMode(null);
+        setSoundModeOverridden(false);
+      }
 
       const travelModeResult = await calculateTravelMode({
         artistLocation: artistLocation,
@@ -365,7 +373,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     } finally {
       setIsLoadingReviewData(false);
     }
-  }, [serviceId, artistLocation, details.location, details.date, setTravelResult]);
+  }, [serviceId, artistLocation, details.location, details.date, details.sound, setTravelResult]);
 
   // Trigger the calculation when approaching the Review step to prefetch data
   const hasPrefetched = useRef(false);
@@ -375,6 +383,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       void calculateReviewData();
     }
   }, [step, calculateReviewData]);
+
+  // Recalculate when the user edits location, date, or sound preference on the Review step
+  useEffect(() => {
+    if (step === steps.length - 1) {
+      void calculateReviewData();
+    }
+  }, [details.location, details.date, details.sound, step, calculateReviewData]);
 
   // --- Navigation & Submission Handlers ---
 
