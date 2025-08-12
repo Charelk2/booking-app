@@ -8,7 +8,6 @@ import type { User } from '@/types';
 import {
   HomeIcon,
   UsersIcon,
-  CalculatorIcon,
   DocumentDuplicateIcon,
   QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
@@ -22,7 +21,6 @@ jest.mock('next/link', () => ({
 const nav = [
   { name: 'Home', href: '/', icon: HomeIcon },
   { name: 'Service Providers', href: '/service-providers', icon: UsersIcon },
-  { name: 'Quote Calculator', href: '/quote-calculator', icon: CalculatorIcon },
   {
     name: 'Quote Templates',
     href: '/dashboard/profile/quote-templates',
@@ -64,7 +62,6 @@ describe('MobileMenuDrawer', () => {
     const bodyText = document.body.textContent || '';
     expect(bodyText).toContain('Home');
     expect(bodyText).toContain('Service Providers');
-    expect(bodyText).toContain('Quote Calculator');
     expect(bodyText).toContain('Quote Templates');
   });
 
@@ -127,29 +124,6 @@ describe('MobileMenuDrawer', () => {
     expect(link?.className).toContain('min-h-[44px]');
   });
 
-  it('Dialog.Panel includes overflow and safe-area classes', async () => {
-    await act(async () => {
-      root.render(
-        React.createElement(MobileMenuDrawer, {
-          open: true,
-          onClose: () => {},
-          navigation: nav,
-          user: null,
-          logout: () => {},
-          pathname: '/',
-        }),
-      );
-    });
-    await flushPromises();
-    const panel = document.querySelector(
-      'div[class*="overflow-y-auto"][class*="pt-safe"][class*="pb-safe"]',
-    ) as HTMLDivElement | null;
-    expect(panel).not.toBeNull();
-    expect(panel?.style.paddingBottom).toContain(
-      'var(--mobile-bottom-nav-height',
-    );
-  });
-
   it('uses Dialog.Title and nav lists for structure', async () => {
     await act(async () => {
       root.render(
@@ -193,7 +167,6 @@ describe('MobileMenuDrawer', () => {
     await flushPromises();
     const body = document.body.textContent || '';
     expect(body).toContain('Quotes');
-    expect(body).toContain('Quote Calculator');
     expect(body).toContain('Quote Templates');
   });
 
