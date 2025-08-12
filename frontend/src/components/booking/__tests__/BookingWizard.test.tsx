@@ -116,5 +116,48 @@ describe('BookingWizard instructions', () => {
     expect(screen.queryByText('Location')).toBeNull();
     expect(Number(progress.getAttribute('aria-valuenow'))).toBeCloseTo(11.11, 2);
   });
+
+  it('recalculates estimates when location changes on review step', async () => {
+    render(<Wrapper />);
+
+    await act(async () => {});
+
+    await act(async () => {
+      (window as unknown as { __setDetails: (d: any) => void }).__setDetails({
+        eventType: 'Party',
+        eventDescription: 'Fun',
+        date: new Date(),
+        time: '18:00',
+        location: 'Cape Town',
+        guests: '10',
+        venueType: 'indoor',
+        sound: 'yes',
+        notes: '',
+        attachment_url: '',
+      });
+      (window as unknown as { __setStep: (s: number) => void }).__setStep(8);
+    });
+
+    expect(api.calculateQuote).toHaveBeenCalledTimes(1);
+    expect(travel.calculateTravelMode).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      (window as unknown as { __setDetails: (d: any) => void }).__setDetails({
+        eventType: 'Party',
+        eventDescription: 'Fun',
+        date: new Date(),
+        time: '18:00',
+        location: 'Johannesburg',
+        guests: '10',
+        venueType: 'indoor',
+        sound: 'yes',
+        notes: '',
+        attachment_url: '',
+      });
+    });
+
+    expect(api.calculateQuote).toHaveBeenCalledTimes(2);
+    expect(travel.calculateTravelMode).toHaveBeenCalledTimes(2);
+  });
 });
 
