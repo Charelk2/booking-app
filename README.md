@@ -1484,6 +1484,9 @@ NEXT_PUBLIC_DEFAULT_CURRENCY=EUR
   authentication token is valid. The chat connection now checks both
   `localStorage` and `sessionStorage` for the token, and stops reconnecting if
   the server closes with code `4401`.
+* **Sound outreach schema mismatch**: If you see `sqlalchemy.exc.OperationalError`
+  complaining about `sound_outreach_requests.supplier_booking_request_id`,
+  restart the server so it can auto-add the missing columns.
 
 ---
 

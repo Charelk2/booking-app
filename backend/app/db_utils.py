@@ -419,6 +419,23 @@ def ensure_booking_request_travel_columns(engine: Engine) -> None:
     )
 
 
+def ensure_sound_outreach_columns(engine: Engine) -> None:
+    """Add link columns to ``sound_outreach_requests`` if missing."""
+
+    add_column_if_missing(
+        engine,
+        "sound_outreach_requests",
+        "supplier_booking_request_id",
+        "supplier_booking_request_id INTEGER",
+    )
+    add_column_if_missing(
+        engine,
+        "sound_outreach_requests",
+        "supplier_quote_id",
+        "supplier_quote_id INTEGER",
+    )
+
+
 def ensure_booking_event_city_column(engine: Engine) -> None:
     """Ensure the ``event_city`` column exists on the ``bookings`` table."""
 
