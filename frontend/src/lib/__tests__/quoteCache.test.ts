@@ -6,10 +6,10 @@ describe('calculateQuote cache', () => {
   });
 
   it('reuses cached responses for identical params', async () => {
-    const params = { base_fee: 100, distance_km: 10 };
+    const params = { base_fee: 100, distance_km: 10, service_id: 1, event_city: 'CPT' };
     const spy = jest
       .spyOn(api, 'post')
-      .mockResolvedValue({ data: { total: 123 } });
+      .mockResolvedValue({ data: { total: 123, base_fee: 100, travel_cost: 0, travel_mode: 'driving', travel_estimates: [], accommodation_cost: 0, sound_cost: 0, sound_mode: 'none', sound_mode_overridden: false } });
 
     const first = await calculateQuote(params);
     const second = await calculateQuote(params);
@@ -23,10 +23,10 @@ describe('calculateQuote cache', () => {
   it('expires cache entries after TTL', async () => {
     jest.useFakeTimers();
 
-    const params = { base_fee: 100, distance_km: 10 };
+    const params = { base_fee: 100, distance_km: 10, service_id: 1, event_city: 'CPT' };
     const spy = jest
       .spyOn(api, 'post')
-      .mockResolvedValue({ data: { total: 123 } });
+      .mockResolvedValue({ data: { total: 123, base_fee: 100, travel_cost: 0, travel_mode: 'driving', travel_estimates: [], accommodation_cost: 0, sound_cost: 0, sound_mode: 'none', sound_mode_overridden: false } });
 
     await calculateQuote(params);
     jest.advanceTimersByTime(5 * 60 * 1000 + 1);
@@ -43,11 +43,11 @@ describe('calculateQuote cache', () => {
       .spyOn(api, 'post')
       .mockResolvedValue({ data: { total: 123 } });
 
-    const baseParams = { base_fee: 100, distance_km: 10 };
+    const baseParams = { base_fee: 100, distance_km: 10, service_id: 1, event_city: 'CPT' };
     await calculateQuote(baseParams);
 
     for (let i = 0; i < 50; i += 1) {
-      await calculateQuote({ base_fee: i, distance_km: i });
+      await calculateQuote({ base_fee: i, distance_km: i, service_id: 1, event_city: `city${i}` });
     }
 
     await calculateQuote(baseParams);

@@ -52,7 +52,17 @@ describe('BookingWizard instructions', () => {
             };
       return Promise.resolve({ json: () => Promise.resolve(response) }) as any;
     });
-    (api.calculateQuote as jest.Mock).mockResolvedValue({ total: 100 });
+    (api.calculateQuote as jest.Mock).mockResolvedValue({
+      total: 100,
+      base_fee: 100,
+      travel_cost: 0,
+      travel_mode: 'driving',
+      travel_estimates: [],
+      accommodation_cost: 0,
+      sound_cost: 0,
+      sound_mode: 'none',
+      sound_mode_overridden: false,
+    });
     (geo.geocodeAddress as jest.Mock).mockResolvedValue({ lat: 0, lng: 0 });
     (travel.getDrivingMetrics as jest.Mock).mockResolvedValue({
       distanceKm: 10,

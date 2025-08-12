@@ -531,6 +531,8 @@ export const clearQuoteCache = () => quoteCache.clear();
 export const calculateQuote = async (params: {
   base_fee: number;
   distance_km: number;
+  service_id: number;
+  event_city: string;
   accommodation_cost?: number;
 }): Promise<QuoteCalculationResponse> => {
   const cacheKey = JSON.stringify(params);
