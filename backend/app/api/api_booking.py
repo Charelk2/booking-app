@@ -300,8 +300,14 @@ def read_booking_details(
         .first()
     )
     if not booking_row:
+        logger.warning(
+            "Booking %s not found for user %s",
+            booking_id,
+            getattr(current_user, "id", "anonymous"),
+        )
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Booking not found."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Booking with id {booking_id} not found.",
         )
 
     (
