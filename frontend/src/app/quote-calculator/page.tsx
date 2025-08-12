@@ -1,26 +1,15 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import MainLayout from '@/components/layout/MainLayout';
-import { calculateQuote, getSoundProviders } from '@/lib/api';
+import { calculateQuote } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils';
-import { QuoteCalculationResponse, SoundProvider } from '@/types';
+import { QuoteCalculationResponse } from '@/types';
 
 export default function QuoteCalculatorPage() {
   const [baseFee, setBaseFee] = useState('');
   const [distance, setDistance] = useState('');
-  const [providerId, setProviderId] = useState('');
   const [accommodation, setAccommodation] = useState('');
   const [result, setResult] = useState<QuoteCalculationResponse | null>(null);
-  const [providers, setProviders] = useState<SoundProvider[]>([]);
-  const [loadingProviders, setLoadingProviders] = useState(false);
-
-  useEffect(() => {
-    setLoadingProviders(true);
-    getSoundProviders()
-      .then((res) => setProviders(res.data))
-      .catch(() => setProviders([]))
-      .finally(() => setLoadingProviders(false));
-  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +18,6 @@ export default function QuoteCalculatorPage() {
       const res = await calculateQuote({
         base_fee: Number(baseFee),
         distance_km: Number(distance),
-        provider_id: providerId ? Number(providerId) : undefined,
         accommodation_cost: accommodation ? Number(accommodation) : undefined,
       });
       setResult(res);
@@ -64,28 +52,6 @@ export default function QuoteCalculatorPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium">Sound Provider</label>
-            {loadingProviders ? (
-              <div
-                data-testid="provider-skeleton"
-                className="h-10 w-full rounded bg-gray-200 animate-pulse"
-              />
-            ) : (
-              <select
-                className="border p-2 rounded w-full"
-                value={providerId}
-                onChange={(e) => setProviderId(e.target.value)}
-              >
-                <option value="">None</option>
-                {providers.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-          <div>
             <label className="block text-sm font-medium">Accommodation Cost</label>
             <input
               type="number"
@@ -114,7 +80,6 @@ export default function QuoteCalculatorPage() {
                 ))}
               </ul>
             )}
-            <p>Provider Cost: {formatCurrency(Number(result.provider_cost))}</p>
             <p>Accommodation: {formatCurrency(Number(result.accommodation_cost))}</p>
             <p className="font-semibold">Total: {formatCurrency(Number(result.total))}</p>
           </div>
