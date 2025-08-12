@@ -25,7 +25,14 @@ The quote calculator also estimates sound equipment costs based on the musician'
 - **Artist-arranged flat:** includes the artist's `sound_flat_price`.
 - **External providers:** picks the artist's preferred provider for the event city and uses that service's price.
 
+If no provider is configured for the event city, the estimator falls back to
+the first preferred provider with a stored price.
+
 The response now includes `sound_cost`, `sound_mode`, and `sound_mode_overridden` fields.
+
+The Booking Wizard automatically recomputes travel mode and sound estimates on
+the review step whenever the user changes the event date or location, ensuring
+the displayed quote always reflects the latest inputs.
 
 Weather forecasts for destinations are fetched asynchronously. The `/api/v1/travel-forecast`
 endpoint now returns a task identifier; clients call `/api/v1/travel-forecast/{task_id}` to
