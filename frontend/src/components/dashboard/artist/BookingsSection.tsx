@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import type { Booking } from "@/types";
 import { formatCurrency, formatStatus } from "@/lib/utils";
 import Section from "@/components/ui/Section";
+import SoundOutreachSection from "./SoundOutreachSection";
 import IllustratedEmpty from "@/components/ui/IllustratedEmpty";
 import { statusChipClass } from "@/components/ui/status";
 
@@ -53,6 +54,10 @@ const BookingsSection: React.FC<Props> = ({ bookings, loading, error, onRetry })
                 <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusChipClass(booking.status)}`}>{formatStatus(booking.status)}</span>
                 <div className="mt-2 text-sm font-semibold text-gray-900">{formatCurrency(Number(booking.total_price))}</div>
               </div>
+            </div>
+            {/* Inline outreach block for quick status */}
+            <div className="mt-3">
+              <SoundOutreachSection bookingId={booking.id} eventCity={(booking as any).event_city || undefined} />
             </div>
           </div>
         ))}

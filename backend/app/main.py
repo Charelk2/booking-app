@@ -75,6 +75,7 @@ from .api import (
     api_weather,
     api_flight,
     api_service_category,
+    api_sound_outreach,
 )
 from routes import distance
 
@@ -120,7 +121,8 @@ ensure_mfa_columns(engine)
 ensure_booking_simple_columns(engine)
 ensure_calendar_account_email_column(engine)
 ensure_user_profile_picture_column(engine)
-ensure_booking_request_travel_columns(engine)
+    ensure_booking_request_travel_columns(engine)
+    ensure_booking_event_city_column(engine)
 ensure_legacy_artist_user_type(engine)
 ensure_service_category_id_column(engine)
 seed_service_categories(engine)
@@ -285,6 +287,9 @@ app.include_router(
 # ─── BOOKING ROUTES (under /api/v1/bookings) ────────────────────────────────────────
 app.include_router(
     api_booking.router, prefix=f"{api_prefix}/bookings", tags=["bookings"]
+)
+app.include_router(
+    api_sound_outreach.router, prefix=f"{api_prefix}", tags=["sound-outreach"]
 )
 
 

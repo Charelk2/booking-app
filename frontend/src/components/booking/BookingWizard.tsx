@@ -123,6 +123,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const [soundCost, setSoundCost] = useState(0);
   const [soundMode, setSoundMode] = useState<string | null>(null);
   const [soundModeOverridden, setSoundModeOverridden] = useState(false);
+  const [selectedSupplierName, setSelectedSupplierName] = useState<string | undefined>(undefined);
 
   const { enqueue: enqueueBooking } = useOfflineQueue<{
     action: 'draft' | 'submit';
@@ -263,6 +264,29 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   useEffect(() => {
     if (serviceId) setServiceIdInContext(serviceId);
   }, [serviceId, setServiceIdInContext]);
+
+  // Resolve selected supplier name for Review step
+  useEffect(() => {
+    const sid = (details as any).soundSupplierServiceId as number | undefined;
+    if (!sid) {
+      setSelectedSupplierName(undefined);
+      return;
+    }
+    const run = async () => {
+      try {
+        const svc = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/services/${sid}`,
+          { cache: 'force-cache' },
+        ).then((r) => r.json());
+        const publicName = svc?.details?.publicName || svc?.artist?.artist_profile?.business_name || svc?.title || undefined;
+        setSelectedSupplierName(publicName);
+      } catch (e) {
+        console.error('Failed to fetch selected supplier', e);
+        setSelectedSupplierName(undefined);
+      }
+    };
+    void run();
+  }, [details]);
 
   // Effect to calculate review data (price and travel mode) dynamically
   const calculateReviewData = useCallback(async () => {
@@ -459,7 +483,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       status: 'draft',
       travel_mode: travelResult?.mode,
       travel_cost: travelResult?.totalCost,
-      travel_breakdown: travelResult?.breakdown,
+      travel_breakdown: {
+        ...(travelResult?.breakdown || {}),
+        sound_required: vals.sound === 'yes',
+        selected_sound_service_id: (details as any).soundSupplierServiceId,
+        event_city: details.location,
+      },
     };
     if (!navigator.onLine) {
       enqueueBooking({ action: 'draft', payload, requestId });
@@ -504,7 +533,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       status: 'pending_quote',
       travel_mode: travelResult.mode,
       travel_cost: travelResult.totalCost,
-      travel_breakdown: travelResult.breakdown,
+      travel_breakdown: {
+        ...travelResult.breakdown,
+        sound_required: vals.sound === 'yes',
+        selected_sound_service_id: (details as any).soundSupplierServiceId,
+        event_city: details.location,
+      },
     };
     const message = `Booking details:\nEvent Type: ${
       vals.eventType || 'N/A'
@@ -576,7 +610,14 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       case 5:
         return <VenueStep control={control} />;
       case 6:
-        return <SoundStep control={control} />;
+        return (
+          <SoundStep
+            control={control}
+            serviceId={serviceId}
+            artistLocation={artistLocation}
+            eventLocation={details.location}
+          />
+        );
       case 7:
         return <NotesStep control={control} setValue={setValue} />;
       case 8:
@@ -597,6 +638,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           soundCost={soundCost}
           soundMode={soundMode}
           soundModeOverridden={soundModeOverridden}
+          selectedSupplierName={selectedSupplierName}
         />
       );
       default: return null;

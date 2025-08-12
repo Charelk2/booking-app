@@ -417,3 +417,14 @@ def ensure_booking_request_travel_columns(engine: Engine) -> None:
         "travel_breakdown",
         "travel_breakdown JSON",
     )
+
+
+def ensure_booking_event_city_column(engine: Engine) -> None:
+    """Ensure the ``event_city`` column exists on the ``bookings`` table."""
+
+    add_column_if_missing(
+        engine,
+        "bookings",
+        "event_city",
+        "event_city VARCHAR",
+    )

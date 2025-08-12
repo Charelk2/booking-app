@@ -28,6 +28,7 @@ interface ReviewStepProps {
   soundCost: number;
   soundMode?: string | null;
   soundModeOverridden?: boolean;
+  selectedSupplierName?: string;
   open?: boolean;
   onToggle?: () => void;
 }
@@ -44,6 +45,7 @@ export default function ReviewStep({
   soundCost,
   soundMode,
   soundModeOverridden,
+  selectedSupplierName,
   open = true,
   onToggle = () => {},
 }: ReviewStepProps) {
@@ -149,7 +151,7 @@ export default function ReviewStep({
           {soundCost > 0 && (
             <div className="flex items-center justify-between">
               <span className="flex items-center">
-                Sound Equipment
+                Sound Equipment {selectedSupplierName ? `· ${selectedSupplierName}` : ''}
                 <InfoPopover label="Sound equipment details" className="ml-1.5">
                   {soundModeOverridden
                     ? 'External provider selected due to flight travel.'
