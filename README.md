@@ -71,8 +71,8 @@ Structured JSON logs and OpenTelemetry traces are enabled for both the FastAPI b
 - Booking cards now show deposit and payment status with a simple progress timeline.
 - Booking request detail pages now display a step-by-step timeline from submission to quote acceptance.
 - Booking wizard includes a required **Guests** step.
-- Date picker and quote calculator show skeleton loaders while data fetches.
-- Quote calculator now predicts travel modes and costs using a regression-based estimator.
+- Date picker shows skeleton loaders while data fetches.
+- Travel mode and cost predictions use a regression-based estimator within booking flows.
 - Google Maps and large images load lazily once in view to reduce first paint time.
 - Client dashboards now include a bookings list with upcoming and past filters via `/api/v1/bookings/my-bookings?status=`.
 - Each booking item in this list now includes a `deposit_due_by` field when the booking was created from a quote. This due date is calculated one week from the moment the quote is accepted.
@@ -876,7 +876,7 @@ Logs now include `--- STARTING setup.sh ---` and `--- STARTING test-all.sh ---`.
 ### Quick Quotes
 
 * **Endpoint** under `/api/v1/quotes/calculate`.
-* Frontend page: `/quote-calculator`.
+* Quote calculations are integrated into the booking wizard and message threads.
 * Quote API factors travel distance and accommodation.
 * New quote endpoints: `POST /api/v1/quotes`, `GET /api/v1/quotes/{id}`, and
   `POST /api/v1/quotes/{id}/accept` create simplified bookings when a client
