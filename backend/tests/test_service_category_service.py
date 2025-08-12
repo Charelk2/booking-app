@@ -70,11 +70,14 @@ def test_create_and_retrieve_service_with_category():
     assert res.status_code == 201, res.text
     data = res.json()
     assert data["service_category_id"] == category.id
+    assert data["service_category_slug"] == category.name.lower().replace(" ", "_")
     assert data["details"] == {"genre": "rock"}
 
     res_get = client.get(f"/api/v1/services/{data['id']}")
     assert res_get.status_code == 200
-    assert res_get.json()["details"] == {"genre": "rock"}
+    data_get = res_get.json()
+    assert data_get["details"] == {"genre": "rock"}
+    assert data_get["service_category_slug"] == category.name.lower().replace(" ", "_")
 
     bad_payload = payload.copy()
     bad_payload["service_category_id"] = 9999
