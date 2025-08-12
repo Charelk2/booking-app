@@ -236,10 +236,18 @@ def list_sound_outreach(booking_id: int, db: Session = Depends(get_db), current_
 
 
 @router.post("/bookings/{booking_id}/sound/retry")
-def retry_outreach(booking_id: int, *, event_city: str | None = None, db: Session = Depends(get_db), current_artist: models.User = Depends(get_current_service_provider)):
+def retry_outreach(
+    booking_id: int,
+    *,
+    event_city: str | None = None,
+    body: SoundRetryIn | None = None,
+    db: Session = Depends(get_db),
+    current_artist: models.User = Depends(get_current_service_provider),
+):
     """Retry outreach to remaining backups if none are active or accepted.
 
-    If ``event_city`` is omitted, falls back to the booking.event_city.
+    ``event_city`` may be supplied via query or JSON body. If omitted,
+    falls back to the booking.event_city.
     """
     booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()
     if not booking:
@@ -257,7 +265,8 @@ def retry_outreach(booking_id: int, *, event_city: str | None = None, db: Sessio
     if not service:
         raise error_response("Service not found", {"service_id": "not_found"}, status.HTTP_404_NOT_FOUND)
 
-    city = event_city or booking.event_city or ""
+    body_city = body.event_city if body else None
+    city = event_city or body_city or booking.event_city or ""
     if not city:
         raise error_response("Missing event city", {"event_city": "required"}, status.HTTP_422_UNPROCESSABLE_ENTITY)
 
@@ -300,6 +309,12 @@ def retry_outreach(booking_id: int, *, event_city: str | None = None, db: Sessio
 
 
 from pydantic import BaseModel
+
+
+class SoundRetryIn(BaseModel):
+    """Payload for retrying sound outreach."""
+
+    event_city: str | None = None
 
 
 class SupplierRespondIn(BaseModel):
