@@ -24,7 +24,6 @@ from ..models import (
 from .dependencies import get_db, get_current_active_client
 from ..core.config import settings
 from ..utils import error_response
-from .api_sound_outreach import kickoff_sound_outreach
 
 logger = logging.getLogger(__name__)
 
@@ -144,32 +143,6 @@ def create_payment(
     db.refresh(booking)
 
     if br:
-        # Auto-kickoff sound outreach if the booking requires sound
-        try:
-            tb = br.travel_breakdown or {}
-            if bool(tb.get("sound_required")):
-                event_city = tb.get("event_city") or ""
-                selected_sid = tb.get("selected_sound_service_id")
-                if isinstance(selected_sid, str):
-                    try:
-                        selected_sid = int(selected_sid)
-                    except Exception:
-                        selected_sid = None
-                if event_city:
-                    kickoff_sound_outreach(
-                        booking.id,
-                        event_city=event_city,
-                        request_timeout_hours=24,
-                        mode="sequential",
-                        selected_service_id=selected_sid,
-                        db=db,
-                        current_artist=db.query(User).filter(User.id == booking.artist_id).first(),
-                    )
-        except Exception as exc:  # pragma: no cover
-            logger.warning(
-                "Auto outreach failed after payment for booking %s: %s", booking.id, exc
-            )
-
         # Notify both client and artist to view booking details
         crud.crud_message.create_message(
             db=db,
