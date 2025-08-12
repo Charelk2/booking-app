@@ -274,7 +274,10 @@ export interface BookingSimple {
   date?: string | null;
   location?: string | null;
   payment_status: string;
+  payment_id?: string | null;
+  deposit_amount?: number | null;
   deposit_due_by?: string | null;
+  deposit_paid: boolean;
   created_at: string;
   updated_at: string;
 }
