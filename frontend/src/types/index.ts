@@ -79,6 +79,7 @@ export interface Service {
   // services so the frontend does not depend on database-specific IDs.
   service_category_id?: number;
   service_category_slug?: string;
+  service_category?: ServiceCategory;
   travel_rate?: number;
   travel_members?: number;
   car_rental_price?: number;
