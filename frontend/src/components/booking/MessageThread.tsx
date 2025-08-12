@@ -20,6 +20,7 @@ import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
 import { DocumentIcon, DocumentTextIcon, FaceSmileIcon } from '@heroicons/react/24/outline';
 import {
   Booking,
+  BookingSimple,
   Review,
   Message,
   MessageCreate,
@@ -870,8 +871,10 @@ useEffect(() => {
 
     const handleAcceptQuote = useCallback(
       async (quote: QuoteV2) => {
+        let bookingSimple: BookingSimple | null = null;
         try {
-          await acceptQuoteV2(quote.id, serviceId);
+          const res = await acceptQuoteV2(quote.id, serviceId);
+          bookingSimple = res.data;
         } catch (err: unknown) {
           console.error('Failed to accept quote:', err);
           setThreadError(
@@ -884,7 +887,7 @@ useEffect(() => {
           const freshQuote = await getQuoteV2(quote.id);
           setQuotes((prev) => ({ ...prev, [quote.id]: freshQuote.data }));
 
-          const bookingId = freshQuote.data.booking_id;
+          const bookingId = bookingSimple?.id || freshQuote.data.booking_id;
           if (!bookingId) {
             throw new Error('Booking not found after accepting quote');
           }
@@ -897,18 +900,30 @@ useEffect(() => {
 
           setBookingDetails(details.data);
 
-          openPaymentModal({
-            bookingRequestId,
-            depositAmount: details.data.deposit_amount ?? undefined,
-            depositDueBy: details.data.deposit_due_by ?? undefined,
-          });
+          if (bookingSimple?.payment_id) {
+            window.open(
+              `/api/v1/payments/${bookingSimple.payment_id}/receipt`,
+              '_blank',
+            );
+          }
           void fetchMessages();
         } catch (err: unknown) {
           console.error('Failed to finalize quote acceptance process:', err);
-          setThreadError(`Quote accepted, but there was an issue setting up payment. ${(err as Error).message || 'Please try again.'}`);
+          setThreadError(
+            `Quote accepted, but there was an issue setting up payment. ${(err as Error).message || 'Please try again.'}`,
+          );
         }
       },
-      [bookingRequestId, fetchMessages, openPaymentModal, serviceId, setQuotes, setBookingConfirmed, setBookingDetails, setThreadError, onBookingConfirmedChange],
+      [
+        bookingRequestId,
+        fetchMessages,
+        serviceId,
+        setQuotes,
+        setBookingConfirmed,
+        setBookingDetails,
+        setThreadError,
+        onBookingConfirmedChange,
+      ],
     );
 
     const handleDeclineQuote = useCallback(
