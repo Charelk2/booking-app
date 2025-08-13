@@ -15,6 +15,7 @@ interface Props {
   initialBaseFee?: number;
   initialTravelCost?: number;
   initialSoundNeeded?: boolean;
+  initialSoundCost?: number;
   onDecline?: () => void;
   eventDetails?: EventDetails;
   calculationParams?: {
@@ -41,13 +42,16 @@ const InlineQuoteForm: React.FC<Props> = ({
   initialBaseFee,
   initialTravelCost,
   initialSoundNeeded,
+  initialSoundCost,
   onDecline,
   eventDetails,
   calculationParams,
 }) => {
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [serviceFee, setServiceFee] = useState(initialBaseFee ?? 0);
-  const [soundFee, setSoundFee] = useState(initialSoundNeeded ? 250 : 0);
+  const [soundFee, setSoundFee] = useState(
+    initialSoundCost ?? (initialSoundNeeded ? 1000 : 0),
+  );
   const [travelFee, setTravelFee] = useState(initialTravelCost ?? 0);
   const [accommodation, setAccommodation] = useState('');
   const [discount, setDiscount] = useState(0);
@@ -60,6 +64,10 @@ const InlineQuoteForm: React.FC<Props> = ({
   useEffect(() => {
     firstFieldRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    setSoundFee(initialSoundCost ?? (initialSoundNeeded ? 1000 : 0));
+  }, [initialSoundCost, initialSoundNeeded]);
 
   // Prefill using backend quote calculator when params provided
   useEffect(() => {
@@ -199,7 +207,7 @@ const InlineQuoteForm: React.FC<Props> = ({
                   <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
                     ⓘ
                     <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
-                      Standard package for events up to 150 guests.
+                      drive mode: R1000 (price when driving), flight mode: R7500 (price when flying)
                     </div>
                   </span>
                 </span>
