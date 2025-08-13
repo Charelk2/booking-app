@@ -128,3 +128,35 @@ def test_own_sound_flight_override():
     assert breakdown["sound_mode"] == "external_providers"
     assert breakdown["sound_mode_overridden"] is True
     assert breakdown["sound_provider_id"] == provider.id
+
+
+def test_artist_provides_variable():
+    db = setup_db()
+    service = create_service(
+        db,
+        details={
+            "sound_provisioning": {
+                "mode": "artist_provides_variable",
+                "price_driving_sound_zar": 1000,
+                "price_flying_sound_zar": 7500,
+            }
+        },
+    )
+
+    drive = calculate_quote_breakdown(
+        Decimal("100"),
+        50,
+        service=service,
+        event_city="JNB",
+        db=db,
+    )
+    fly = calculate_quote_breakdown(
+        Decimal("100"),
+        1000,
+        service=service,
+        event_city="JNB",
+        db=db,
+    )
+
+    assert drive["sound_cost"] == Decimal("1000")
+    assert fly["sound_cost"] == Decimal("7500")
