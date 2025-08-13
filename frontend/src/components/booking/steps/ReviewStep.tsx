@@ -112,7 +112,9 @@ export default function ReviewStep({
         className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-200/80 max-w-2xl mx-auto"
       >
         <p className="text-sm text-gray-600 mb-6">
-          This is an estimated cost. The artist will review your request and send a formal quote.
+          One checkout: we place an authorization for your booking. The artist must accept to confirm your date.
+          If sound is included, we’ll confirm a firm price with the top supplier (backups auto‑tried).
+          Any difference from this estimate will be adjusted automatically.
         </p>
 
         {isLoadingReviewData && (
@@ -153,11 +155,13 @@ export default function ReviewStep({
               <span className="flex items-center">
                 Sound Equipment {selectedSupplierName ? `· ${selectedSupplierName}` : ''}
                 <InfoPopover label="Sound equipment details" className="ml-1.5">
-                  {soundModeOverridden
-                    ? 'External provider selected due to flight travel.'
-                    : soundMode === 'artist_arranged_flat'
-                      ? 'Flat price arranged by artist for sound.'
-                      : 'External provider cost estimate.'}
+                  {soundMode === 'managed_by_artist'
+                    ? 'Managed by the artist with a simple markup policy.'
+                    : soundMode === 'provided_by_artist'
+                      ? 'Provided by the artist directly; price is firm on acceptance.'
+                      : soundMode === 'client_provided'
+                        ? 'You will provide sound equipment; no supplier outreach required.'
+                        : 'External provider estimate (drive‑only). A supplier will confirm a firm price.'}
                 </InfoPopover>
               </span>
               <span>{formatCurrency(soundCost)}</span>
@@ -204,6 +208,11 @@ export default function ReviewStep({
                 : 'Loading...'
               : submitLabel}
           </Button>
+          <p className="text-xs text-gray-500 mt-3">
+            Artist must accept this request. Once accepted, your artist booking is confirmed. Sound is usually
+            confirmed within a few hours; if the top pick declines we auto‑try backups. If all decline, you can
+            choose another option or we’ll refund the sound portion immediately.
+          </p>
         </div>
       </motion.div>
     </CollapsibleSection>

@@ -23,6 +23,7 @@ class ServiceBase(BaseModel):
     travel_members: Optional[int] = None
     car_rental_price: Optional[Decimal] = None
     flight_price: Optional[Decimal] = None
+    sound_managed_markup_percent: Optional[Decimal] = None
     service_category_id: Optional[int] = None
     # Allow the client to send a category slug like "dj". The API will
     # resolve this slug to a ``service_category_id`` to decouple the

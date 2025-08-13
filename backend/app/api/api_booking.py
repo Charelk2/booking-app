@@ -9,6 +9,7 @@ from typing import List, Any
 from decimal import Decimal
 
 from ..database import get_db
+from .. import models
 from ..models.user import User, UserType
 from ..models.service_provider_profile import ServiceProviderProfile
 from ..models.service import Service
@@ -22,6 +23,8 @@ from .dependencies import (
     get_current_service_provider,
 )
 from ..utils.redis_cache import invalidate_availability_cache
+from ..utils import error_response
+from .api_sound_outreach import kickoff_sound_outreach
 
 router = APIRouter(tags=["bookings"])
 logger = logging.getLogger(__name__)
@@ -248,6 +251,27 @@ def update_booking_status(
     db.commit()
     invalidate_availability_cache(booking.artist_id)
 
+    # If artist cancels while awaiting acceptance, release any authorized holds
+    if (
+        prev_status == BookingStatus.PENDING_ARTIST_CONFIRMATION
+        and booking.status == BookingStatus.CANCELLED
+    ):
+        try:
+            bs = (
+                db.query(BookingSimple)
+                .filter(BookingSimple.quote_id == booking.quote_id)
+                .first()
+            )
+            if bs:
+                if bs.artist_hold_status == "authorized":
+                    bs.artist_hold_status = "released"
+                if bs.sound_hold_status == "authorized":
+                    bs.sound_hold_status = "released"
+                db.add(bs)
+                db.commit()
+        except Exception:
+            pass
+
     reloaded = (
         db.query(Booking)
         .options(
@@ -388,3 +412,197 @@ def download_booking_calendar(
 
     headers = {"Content-Disposition": f"attachment; filename=booking-{booking_id}.ics"}
     return Response(ics, media_type="text/calendar", headers=headers)
+
+
+@router.post("/{booking_id}/artist/accept", response_model=BookingResponse)
+def artist_accept_booking(
+    *,
+    db: Session = Depends(get_db),
+    booking_id: int,
+    requires_sound: bool | None = None,
+    sound_mode: str | None = None,  # 'supplier' (default) | 'provided_by_artist' | 'client_provided' | 'managed_by_artist'
+    event_city: str | None = None,
+    current_artist: User = Depends(get_current_service_provider),
+):
+    """Artist accepts a booking and optionally starts sound outreach.
+
+    - If ``requires_sound`` resolves False → set CONFIRMED.
+    - If True → set PENDING_SOUND and kick off outreach sequentially.
+    - ``requires_sound`` is resolved from the booking request travel_breakdown when omitted.
+    """
+    booking = (
+        db.query(Booking)
+        .filter(Booking.id == booking_id, Booking.artist_id == current_artist.id)
+        .first()
+    )
+    if not booking:
+        raise error_response(
+            "Booking not found or forbidden",
+            {"booking_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    # Resolve requires_sound and sound_mode from the associated request if not provided
+    if requires_sound is None:
+        # Join via QuoteV2 linkage exposed in GET /bookings
+        row = (
+            db.query(Booking, QuoteV2.booking_request_id)
+            .outerjoin(BookingSimple, BookingSimple.quote_id == QuoteV2.id)
+            .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
+            .filter(Booking.id == booking_id)
+            .first()
+        )
+        br_id = row[1] if row else None
+        if br_id:
+            br = (
+                db.query(models.BookingRequest)
+                .filter(models.BookingRequest.id == br_id)
+                .first()
+            )
+            tb = br.travel_breakdown or {}
+            requires_sound = bool(tb.get("sound_required")) if isinstance(tb, dict) else False
+            if not event_city and isinstance(tb, dict):
+                event_city = tb.get("event_city")
+            if sound_mode is None and isinstance(tb, dict):
+                sound_mode = tb.get("sound_mode")
+
+    if not requires_sound or (sound_mode in {"client_provided", "provided_by_artist"}):
+        booking.status = BookingStatus.CONFIRMED
+        db.add(booking)
+        db.commit()
+        # Capture artist hold if present
+        simple = (
+            db.query(models.BookingSimple)
+            .filter(models.BookingSimple.quote_id == booking.quote_id)
+            .first()
+        )
+        if simple and simple.artist_hold_status == "authorized":
+            simple.artist_hold_status = "captured"
+            db.add(simple)
+            db.commit()
+        # If client_provided sound, release sound hold; if provided_by_artist, capture it as firm
+        if simple:
+            if sound_mode == "client_provided" and simple.sound_hold_status == "authorized":
+                simple.sound_hold_status = "released"
+                db.add(simple)
+                db.commit()
+            elif sound_mode == "provided_by_artist" and simple.sound_hold_status == "authorized":
+                simple.sound_hold_status = "captured"
+                db.add(simple)
+                db.commit()
+                # Mark quote sound as firm; set amount from provided estimate if present
+                qv2 = (
+                    db.query(QuoteV2)
+                    .filter(QuoteV2.id == simple.quote_id)
+                    .first()
+                )
+                if qv2:
+                    # Attempt to read provided estimate from booking request travel_breakdown
+                    br = db.query(models.BookingRequest).filter(models.BookingRequest.id == qv2.booking_request_id).first()
+                    est = None
+                    if br and isinstance(br.travel_breakdown, dict):
+                        try:
+                            est = float(br.travel_breakdown.get("provided_sound_estimate"))
+                        except Exception:
+                            est = None
+                    if est is not None and est >= 0:
+                        qv2.sound_fee = est
+                    qv2.sound_firm = "true"
+                    # Recompute totals
+                    service_sum = sum((item.get("price", 0) or 0) for item in (qv2.services or []))
+                    qv2.subtotal = service_sum + qv2.sound_fee + qv2.travel_fee
+                    if qv2.discount:
+                        qv2.total = qv2.subtotal - qv2.discount
+                    else:
+                        qv2.total = qv2.subtotal
+                    db.add(qv2)
+                    db.commit()
+        # Post timeline update to original thread
+        br_id = None
+        qv2 = (
+            db.query(QuoteV2)
+            .filter(QuoteV2.id == simple.quote_id)
+            .first() if simple else None
+        )
+        if qv2:
+            br_id = qv2.booking_request_id
+        if br_id:
+            crud.crud_message.create_message(
+                db=db,
+                booking_request_id=br_id,
+                sender_id=current_artist.id,
+                sender_type=models.SenderType.ARTIST,
+                content=(
+                    "Artist confirmed — your date is locked." if not sound_mode or sound_mode == "client_provided" else "Artist confirmed — sound provided by artist."
+                ),
+                message_type=models.MessageType.SYSTEM,
+                visible_to=models.VisibleTo.CLIENT,
+            )
+        return (
+            db.query(Booking)
+            .options(
+                selectinload(Booking.client),
+                selectinload(Booking.service),
+                selectinload(Booking.source_quote),
+            )
+            .filter(Booking.id == booking_id)
+            .first()
+        )
+
+    # Requires sound → start outreach
+    city = event_city or booking.event_city
+    if not city:
+        raise error_response(
+            "event_city required to start outreach",
+            {"event_city": "required"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+    res = kickoff_sound_outreach(
+        booking_id,
+        event_city=city,
+        request_timeout_hours=24,
+        mode="sequential",
+        selected_service_id=None,
+        db=db,
+        current_artist=current_artist,
+    )
+    # Capture artist hold if present since artist accepted
+    simple = (
+        db.query(models.BookingSimple)
+        .filter(models.BookingSimple.quote_id == booking.quote_id)
+        .first()
+    )
+    if simple and simple.artist_hold_status == "authorized":
+        simple.artist_hold_status = "captured"
+        db.add(simple)
+        db.commit()
+    # Post timeline update
+    br_id = None
+    qv2 = (
+        db.query(QuoteV2)
+        .filter(QuoteV2.id == simple.quote_id)
+        .first() if simple else None
+    )
+    if qv2:
+        br_id = qv2.booking_request_id
+    if br_id:
+        crud.crud_message.create_message(
+            db=db,
+            booking_request_id=br_id,
+            sender_id=current_artist.id,
+            sender_type=models.SenderType.ARTIST,
+            content="Artist confirmed — we’re confirming sound now.",
+            message_type=models.MessageType.SYSTEM,
+            visible_to=models.VisibleTo.CLIENT,
+        )
+    # Return updated booking state
+    return (
+        db.query(Booking)
+        .options(
+            selectinload(Booking.client),
+            selectinload(Booking.service),
+            selectinload(Booking.source_quote),
+        )
+        .filter(Booking.id == booking_id)
+        .first()
+    )

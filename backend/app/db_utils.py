@@ -361,6 +361,49 @@ def ensure_booking_simple_columns(engine: Engine) -> None:
         "deposit_paid",
         "deposit_paid BOOLEAN NOT NULL DEFAULT FALSE",
     )
+    # Authorization hold fields for one-flow booking
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "artist_hold_id",
+        "artist_hold_id VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "artist_hold_status",
+        "artist_hold_status VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "artist_hold_amount",
+        "artist_hold_amount NUMERIC(10, 2)",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "sound_hold_id",
+        "sound_hold_id VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "sound_hold_status",
+        "sound_hold_status VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "sound_hold_amount",
+        "sound_hold_amount NUMERIC(10, 2)",
+    )
+    add_column_if_missing(
+        engine,
+        "bookings_simple",
+        "charged_total_amount",
+        "charged_total_amount NUMERIC(10, 2)",
+    )
 
 
 def ensure_mfa_columns(engine: Engine) -> None:
@@ -438,10 +481,70 @@ def ensure_sound_outreach_columns(engine: Engine) -> None:
 
 def ensure_booking_event_city_column(engine: Engine) -> None:
     """Ensure the ``event_city`` column exists on the ``bookings`` table."""
+    add_column_if_missing(
+        engine,
+        "bookings",
+        "event_city",
+        "event_city VARCHAR",
+    )
+
+
+def ensure_booking_artist_deadline_column(engine: Engine) -> None:
+    """Ensure the ``artist_accept_deadline_at`` column exists on the ``bookings`` table."""
+    add_column_if_missing(
+        engine,
+        "bookings",
+        "artist_accept_deadline_at",
+        "artist_accept_deadline_at DATETIME",
+    )
+
+
+def ensure_quote_v2_sound_firm_column(engine: Engine) -> None:
+    """Ensure the ``sound_firm`` column exists on ``quotes_v2``."""
+    add_column_if_missing(
+        engine,
+        "quotes_v2",
+        "sound_firm",
+        "sound_firm VARCHAR",
+    )
+
+
+def ensure_rider_tables(engine: Engine) -> None:
+    """Ensure rider and supplier pricebook tables exist (created by Base.metadata)."""
+    # Tables are created via Base.metadata.create_all; this function exists as a hook if future column adds are needed.
+    return None
+
+
+def ensure_service_managed_markup_column(engine: Engine) -> None:
+    """Ensure the service has a managed-by-artist markup percent column."""
+    add_column_if_missing(
+        engine,
+        "services",
+        "sound_managed_markup_percent",
+        "sound_managed_markup_percent NUMERIC(6,2)",
+    )
+
+
+def ensure_booking_event_city_column(engine: Engine) -> None:
+    """Ensure the ``event_city`` column exists on the ``bookings`` table."""
 
     add_column_if_missing(
         engine,
         "bookings",
         "event_city",
         "event_city VARCHAR",
+    )
+
+
+def ensure_quote_v2_sound_firm_column(engine: Engine) -> None:
+    """Ensure the ``sound_firm`` column exists on ``quotes_v2``.
+
+    Stored as a nullable TEXT/STRING; when set to 'true' the sound line item is
+    considered firm. This avoids enum booleans for simpler cross-db support.
+    """
+    add_column_if_missing(
+        engine,
+        "quotes_v2",
+        "sound_firm",
+        "sound_firm VARCHAR",
     )

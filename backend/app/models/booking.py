@@ -19,6 +19,7 @@ class Booking(BaseModel):
     total_price= Column(Numeric(10, 2), nullable=False)  # ← Numeric is now imported
     notes      = Column(String)
     event_city = Column(String, nullable=True)
+    artist_accept_deadline_at = Column(DateTime, nullable=True)
     quote_id   = Column(Integer, ForeignKey("quotes.id"), nullable=True)
     
     # Relationships

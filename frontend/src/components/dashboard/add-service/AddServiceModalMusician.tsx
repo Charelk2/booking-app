@@ -76,8 +76,9 @@ interface ServiceFormData {
   car_rental_price?: number | "";
   flight_price?: number | "";
   // Sound provisioning for Live Performance
-  sound_mode?: "own_sound_drive_only" | "artist_arranged_flat" | "external_providers";
-  sound_flat_price?: number | "";
+  sound_mode?: "artist_provides_variable" | "external_providers";
+  price_driving_sound?: number | "";
+  price_flying_sound?: number | "";
   sound_city_prefs?: { city: string; provider_ids: number[] }[];
 }
 
@@ -92,8 +93,9 @@ const emptyDefaults: ServiceFormData = {
   travel_members: 1,
   car_rental_price: 1000,
   flight_price: 2780,
-  sound_mode: "own_sound_drive_only",
-  sound_flat_price: "",
+  sound_mode: "artist_provides_variable",
+  price_driving_sound: "",
+  price_flying_sound: "",
   sound_city_prefs: [],
 };
 
@@ -142,6 +144,7 @@ export default function AddServiceModalMusician({
   // Ensure service_type is registered so watch and validation work when selecting a category.
   useEffect(() => {
     register("service_type", { required: true });
+    register("sound_mode");
   }, [register]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -161,6 +164,27 @@ export default function AddServiceModalMusician({
       setMediaError(null);
       setStep(0);
       setMaxStep(0);
+      // Populate sound provisioning fields when editing
+      try {
+        const sp: any = (service as any)?.details?.sound_provisioning;
+        if (sp) {
+          const mode = sp.mode === "external_providers" ? "external_providers" : "artist_provides_variable";
+          setValue("sound_mode", mode as any, { shouldDirty: false });
+          setValue(
+            "price_driving_sound",
+            (sp.price_driving_sound_zar ?? sp.flat_price_zar ?? "") as any,
+            { shouldDirty: false },
+          );
+          setValue(
+            "price_flying_sound",
+            (sp.price_flying_sound_zar ?? "") as any,
+            { shouldDirty: false },
+          );
+          setValue("sound_city_prefs", (sp.city_preferences ?? []) as any, { shouldDirty: false });
+        }
+      } catch {
+        // ignore mapping issues
+      }
     }
   }, [isOpen, service, reset, editingDefaults]);
 
@@ -274,9 +298,13 @@ export default function AddServiceModalMusician({
           ...(service?.details as any),
           sound_provisioning: {
             mode: data.sound_mode,
-            flat_price_zar:
-              data.sound_mode === "artist_arranged_flat"
-                ? Number(data.sound_flat_price || 0)
+            price_driving_sound_zar:
+              data.sound_mode === "artist_provides_variable"
+                ? Number(data.price_driving_sound || 0)
+                : undefined,
+            price_flying_sound_zar:
+              data.sound_mode === "artist_provides_variable"
+                ? Number(data.price_flying_sound || 0)
                 : undefined,
             city_preferences:
               data.sound_mode === "external_providers"
@@ -582,8 +610,7 @@ export default function AddServiceModalMusician({
                           <p className="text-xs text-gray-600">Choose how sound is handled for live shows.</p>
                           <div className="flex flex-wrap gap-2 text-sm">
                             {[
-                              { v: "own_sound_drive_only", l: "I provide my own sound (driving only)" },
-                              { v: "artist_arranged_flat", l: "I arrange sound (flat price)" },
+                              { v: "artist_provides_variable", l: "I provide sound (pricing varies by travel)" },
                               { v: "external_providers", l: "Use external providers" },
                             ].map((o) => (
                               <button
@@ -602,14 +629,28 @@ export default function AddServiceModalMusician({
                             ))}
                           </div>
 
-                          {watchSoundMode === "artist_arranged_flat" && (
-                            <TextInput
-                              label={`Flat sound price (${DEFAULT_CURRENCY})`}
-                              type="number"
-                              step="0.01"
-                              placeholder="e.g., 2500"
-                              {...register("sound_flat_price", { valueAsNumber: true })}
-                            />
+                          {watchSoundMode === "artist_provides_variable" && (
+                            <>
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <TextInput
+                                  label={`Price when I can drive and provide sound myself (${DEFAULT_CURRENCY})`}
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="e.g., 1500"
+                                  {...register("price_driving_sound", { valueAsNumber: true })}
+                                />
+                                <TextInput
+                                  label={`Price when flying (includes sound hire) (${DEFAULT_CURRENCY})`}
+                                  type="number"
+                                  step="0.01"
+                                  placeholder="e.g., 3000"
+                                  {...register("price_flying_sound", { valueAsNumber: true })}
+                                />
+                              </div>
+                              <p className="text-xs text-gray-600">
+                                Typical cost; final quote may vary based on venue and requirements.
+                              </p>
+                            </>
                           )}
 
                           {watchSoundMode === "external_providers" && (
@@ -821,10 +862,22 @@ export default function AddServiceModalMusician({
                               <h3 className="font-medium">Duration</h3>
                               <p>{watch("duration_minutes") || 0} minutes</p>
                             </div>
-                            <div className="rounded-md border p-2">
-                              <h3 className="font-medium">Price</h3>
-                              <p>{watch("price") || 0}</p>
-                            </div>
+                          <div className="rounded-md border p-2">
+                            <h3 className="font-medium">Price</h3>
+                            <p>{watch("price") || 0}</p>
+                          </div>
+                          {watchServiceType === "Live Performance" && watchSoundMode === "artist_provides_variable" && (
+                            <>
+                              <div className="rounded-md border p-2">
+                                <h3 className="font-medium">Sound price when driving</h3>
+                                <p>{watch("price_driving_sound") || 0}</p>
+                              </div>
+                              <div className="rounded-md border p-2">
+                                <h3 className="font-medium">Sound price when flying (incl. hire)</h3>
+                                <p>{watch("price_flying_sound") || 0}</p>
+                              </div>
+                            </>
+                          )}
                           {watchServiceType === "Live Performance" && (
                             <>
                               <div className="rounded-md border p-2">

@@ -31,6 +31,10 @@ from .api import (
     api_quote,
     api_quote_template,
     api_quote_v2,
+    api_rider,
+    api_pricebook,
+    api_sound_prefs,
+    api_ops,
     api_review,
     api_service,
     api_service_category,
@@ -53,6 +57,7 @@ from .db_utils import (
     ensure_booking_event_city_column,
     ensure_booking_request_travel_columns,
     ensure_booking_simple_columns,
+    ensure_booking_artist_deadline_column,
     ensure_calendar_account_email_column,
     ensure_currency_column,
     ensure_custom_subtitle_column,
@@ -72,8 +77,11 @@ from .db_utils import (
     ensure_service_category_id_column,
     ensure_service_travel_columns,
     ensure_service_type_column,
+    ensure_service_managed_markup_column,
     ensure_user_profile_picture_column,
     ensure_visible_to_column,
+    ensure_quote_v2_sound_firm_column,
+    ensure_rider_tables,
     seed_service_categories,
 )
 from .middleware.security_headers import SecurityHeadersMiddleware
@@ -90,6 +98,7 @@ from .utils.notifications import (
     notify_quote_expired,
     notify_quote_expiring,
 )
+from .services.ops_scheduler import run_maintenance
 from .utils.redis_cache import close_redis_client
 from .utils.status_logger import register_status_listeners
 
@@ -117,6 +126,7 @@ ensure_portfolio_image_urls_column(engine)
 ensure_currency_column(engine)
 ensure_media_url_column(engine)
 ensure_service_travel_columns(engine)
+ensure_service_managed_markup_column(engine)
 ensure_mfa_columns(engine)
 ensure_booking_simple_columns(engine)
 ensure_calendar_account_email_column(engine)
@@ -124,6 +134,9 @@ ensure_user_profile_picture_column(engine)
 ensure_booking_request_travel_columns(engine)
 ensure_sound_outreach_columns(engine)
 ensure_booking_event_city_column(engine)
+ensure_booking_artist_deadline_column(engine)
+ensure_quote_v2_sound_firm_column(engine)
+ensure_rider_tables(engine)
 ensure_legacy_artist_user_type(engine)
 ensure_service_category_id_column(engine)
 seed_service_categories(engine)
@@ -316,6 +329,30 @@ app.include_router(
     tags=["quote-templates"],
 )
 
+# ─── OPS ROUTES (under /api/v1/ops) — testing/cron hooks ──────────────────────────
+app.include_router(
+    api_ops.router,
+    prefix=f"{api_prefix}",
+    tags=["ops"],
+)
+
+# Rider + Pricebook
+app.include_router(
+    api_rider.router,
+    prefix=f"{api_prefix}",
+    tags=["rider"],
+)
+app.include_router(
+    api_pricebook.router,
+    prefix=f"{api_prefix}",
+    tags=["pricebooks"],
+)
+app.include_router(
+    api_sound_prefs.router,
+    prefix=f"{api_prefix}",
+    tags=["sound-preferences"],
+)
+
 # ─── MESSAGE ROUTES (under /api/v1) ─────────────────────────────────────────
 app.include_router(
     api_message.router,
@@ -449,10 +486,23 @@ async def expire_quotes_loop() -> None:
             alert_scheduler_failure(exc)
 
 
+async def ops_maintenance_loop() -> None:
+    """Periodic operational tasks: reminders and outreach upkeep."""
+    while True:
+        # Run every 30 minutes for timely nudges/reminders without being noisy
+        await asyncio.sleep(1800)
+        try:
+            with SessionLocal() as db:
+                summary = run_maintenance(db)
+                logger.info("Maintenance summary: %s", summary)
+        except Exception as exc:  # pragma: no cover - continue running
+            alert_scheduler_failure(exc)
+
 @app.on_event("startup")
 async def start_background_tasks() -> None:
     """Launch background maintenance tasks."""
     asyncio.create_task(expire_quotes_loop())
+    asyncio.create_task(ops_maintenance_loop())
 
 
 # ─── A simple root check ─────────────────────────────────────────────────────────────

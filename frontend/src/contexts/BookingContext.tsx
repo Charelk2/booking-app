@@ -12,8 +12,12 @@ export interface EventDetails {
   guests: string;
   venueType: 'indoor' | 'outdoor' | 'hybrid';
   sound: 'yes' | 'no';
+  /** How sound will be handled when sound==='yes' */
+  soundMode?: 'supplier' | 'provided_by_artist' | 'managed_by_artist' | 'client_provided' | 'none';
   /** Optional selection of a preferred sound supplier service ID */
   soundSupplierServiceId?: number;
+  /** Estimated price when provided_by_artist path is selected */
+  providedSoundEstimate?: number;
   notes?: string;
   attachment_url?: string;
 }
@@ -46,6 +50,7 @@ const initialDetails: EventDetails = {
   guests: '',
   venueType: 'indoor',
   sound: 'yes',
+  soundMode: 'supplier',
   soundSupplierServiceId: undefined,
   attachment_url: '',
 };

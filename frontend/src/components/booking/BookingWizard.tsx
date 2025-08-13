@@ -49,6 +49,8 @@ type EventDetails = {
   guests?: string;
   venueType?: 'indoor' | 'outdoor' | 'hybrid';
   sound?: 'yes' | 'no';
+  soundMode?: 'supplier' | 'provided_by_artist' | 'managed_by_artist' | 'client_provided' | 'none';
+  soundSupplierServiceId?: number;
   notes?: string;
   attachment_url?: string;
 };
@@ -486,8 +488,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_breakdown: {
         ...(travelResult?.breakdown || {}),
         sound_required: vals.sound === 'yes',
+        sound_mode: (details as any).soundMode,
         selected_sound_service_id: (details as any).soundSupplierServiceId,
         event_city: details.location,
+        provided_sound_estimate: (details as any).providedSoundEstimate,
+        managed_by_artist_markup_percent: undefined,
       },
     };
     if (!navigator.onLine) {

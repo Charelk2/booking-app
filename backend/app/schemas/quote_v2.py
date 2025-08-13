@@ -32,6 +32,7 @@ class QuoteRead(QuoteCreate):
     subtotal: Decimal
     total: Decimal
     status: QuoteStatusV2
+    sound_firm: Optional[bool] = None
     created_at: datetime
     updated_at: datetime
 
@@ -55,4 +56,3 @@ class BookingSimpleRead(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
-

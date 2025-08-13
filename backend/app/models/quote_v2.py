@@ -30,6 +30,9 @@ class QuoteV2(BaseModel):
     client_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     services = Column(JSON, nullable=False)
     sound_fee = Column(Numeric(10, 2), nullable=False, default=0)
+    # When true (stored as 'true' string for compatibility), the sound line is firm
+    # Note: kept as a simple string column to avoid enum migrations in older DBs
+    sound_firm = Column(String, nullable=True)
     travel_fee = Column(Numeric(10, 2), nullable=False, default=0)
     accommodation = Column(String, nullable=True)
     subtotal = Column(Numeric(10, 2), nullable=False)
@@ -41,4 +44,3 @@ class QuoteV2(BaseModel):
     booking_request = relationship("BookingRequest")
     artist = relationship("User", foreign_keys=[artist_id])
     client = relationship("User", foreign_keys=[client_id])
-

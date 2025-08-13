@@ -133,6 +133,14 @@ def _estimate_sound_cost(
         flat = sound.get("flat_price_zar") or 0
         return Decimal(str(flat)), mode, None, False
 
+    if mode == "artist_provides_variable":
+        # New combined flow: artist provides sound with two prices based on travel mode
+        drv = Decimal(str(sound.get("price_driving_sound_zar") or 0))
+        fly = Decimal(str(sound.get("price_flying_sound_zar") or 0))
+        if travel_mode == "flight":
+            return fly, mode, None, False
+        return drv, mode, None, False
+
     if mode == "external_providers":
         cost, pid = provider_cost()
         return cost, mode, pid, False

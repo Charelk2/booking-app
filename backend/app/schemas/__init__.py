@@ -25,6 +25,8 @@ from .quote_template import (
     QuoteTemplateRead,
     ServiceItem as TemplateServiceItem,
 )
+from .rider import RiderCreate, RiderUpdate, RiderRead
+from .pricebook import PricebookCreate, PricebookUpdate, PricebookRead, EstimateIn, EstimateOut
 from .message import MessageCreate, MessageResponse
 from .notification import (
     NotificationCreate,
@@ -77,6 +79,14 @@ __all__ = [
     "QuoteTemplateUpdate",
     "QuoteTemplateRead",
     "TemplateServiceItem",
+    "RiderCreate",
+    "RiderUpdate",
+    "RiderRead",
+    "PricebookCreate",
+    "PricebookUpdate",
+    "PricebookRead",
+    "EstimateIn",
+    "EstimateOut",
     "MessageCreate",
     "MessageResponse",
     "NotificationCreate",
