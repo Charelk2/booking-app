@@ -16,6 +16,8 @@ from .email_token import EmailToken
 from .invoice import Invoice, InvoiceStatus
 from .profile_view import ArtistProfileView
 from .sound_outreach import SoundOutreachRequest, OutreachStatus
+from .rider import Rider
+from .supplier_pricebook import SupplierPricebook
 
 __all__ = [
     "User",
@@ -48,4 +50,6 @@ __all__ = [
     "ArtistProfileView",
     "SoundOutreachRequest",
     "OutreachStatus",
+    "Rider",
+    "SupplierPricebook",
 ]

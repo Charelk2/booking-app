@@ -17,6 +17,12 @@ from ..crud.crud_booking import (
     create_booking_from_quote,
 )  # Will be created later
 from ..services.booking_quote import calculate_quote_breakdown, calculate_quote
+from ..schemas.request_quote import (
+    QuoteCalculationParams as CalcParams,
+    QuoteCalculationResponse as CalcResponse,
+)
+from ..crud import crud_service
+from decimal import Decimal
 from decimal import Decimal
 from ..utils import error_response
 from .api_sound_outreach import kickoff_sound_outreach
@@ -231,6 +237,42 @@ def read_quotes_for_booking_request(
     for q in quotes:
         q.booking_request = None
     return quotes
+
+
+@router.post(
+    "/quotes/calculate",
+    response_model=CalcResponse,
+    response_model_exclude_none=True,
+)
+def calculate_quote_endpoint(
+    body: CalcParams,
+    db: Session = Depends(get_db),
+):
+    """Return a consistent quote breakdown for a given service and event.
+
+    Uses the same calculation helpers as booking flows so the UI can prefill
+    inline quotes with travel- and sound-aware pricing.
+    """
+    svc = crud_service.service.get_service(db, body.service_id)
+    if not svc:
+        raise error_response(
+            "Service not found",
+            {"service_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    accommodation = (
+        Decimal(str(body.accommodation_cost)) if body.accommodation_cost is not None else None
+    )
+    breakdown = calculate_quote_breakdown(
+        base_fee=Decimal(str(body.base_fee)),
+        distance_km=body.distance_km,
+        accommodation_cost=accommodation,
+        service=svc,
+        event_city=body.event_city,
+        db=db,
+    )
+    return breakdown
 
 
 @router.get(

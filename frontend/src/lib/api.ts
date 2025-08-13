@@ -506,6 +506,15 @@ export const updateQuoteTemplate = (
 export const deleteQuoteTemplate = (id: number) =>
   api.delete(`${API_V1}/quote-templates/${id}`);
 
+// ─── QUOTE CALCULATOR ─────────────────────────────────────────────────────────
+export const calculateQuoteBreakdown = (data: {
+  base_fee: number;
+  distance_km: number;
+  service_id: number;
+  event_city: string;
+  accommodation_cost?: number;
+}) => api.post<QuoteCalculationResponse>(`${API_V1}/quotes/calculate`, data);
+
 
 // ─── SERVICE CATEGORIES ───────────────────────────────────────────────────────
 export const getServiceCategories = () =>

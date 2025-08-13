@@ -64,6 +64,8 @@ class Service(BaseModel):
     # Additional optional travel cost inputs provided by artists
     car_rental_price = Column(Numeric(10, 2), nullable=True)
     flight_price = Column(Numeric(10, 2), nullable=True)
+    # Optional markup percent when artist manages external sound supplier
+    sound_managed_markup_percent = Column(Numeric(6, 2), nullable=True)
 
     # Link back to the ServiceProviderProfile
     artist = relationship("ServiceProviderProfile", back_populates="services")

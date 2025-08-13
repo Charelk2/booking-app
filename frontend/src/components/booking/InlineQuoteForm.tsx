@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
-import { ServiceItem, QuoteV2Create } from '@/types';
+import { ServiceItem, QuoteV2Create, QuoteCalculationResponse } from '@/types';
 import { formatCurrency, generateQuoteNumber } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 import type { EventDetails } from './QuoteBubble';
+import { calculateQuoteBreakdown } from '@/lib/api';
 
 interface Props {
   onSubmit: (data: QuoteV2Create) => Promise<void> | void;
@@ -16,6 +17,13 @@ interface Props {
   initialSoundNeeded?: boolean;
   onDecline?: () => void;
   eventDetails?: EventDetails;
+  calculationParams?: {
+    base_fee: number;
+    distance_km: number;
+    service_id: number;
+    event_city: string;
+    accommodation_cost?: number;
+  };
 }
 
 const expiryOptions = [
@@ -35,6 +43,7 @@ const InlineQuoteForm: React.FC<Props> = ({
   initialSoundNeeded,
   onDecline,
   eventDetails,
+  calculationParams,
 }) => {
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [serviceFee, setServiceFee] = useState(initialBaseFee ?? 0);
@@ -51,6 +60,27 @@ const InlineQuoteForm: React.FC<Props> = ({
   useEffect(() => {
     firstFieldRef.current?.focus();
   }, []);
+
+  // Prefill using backend quote calculator when params provided
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      try {
+        if (!calculationParams) return;
+        const { data } = await calculateQuoteBreakdown(calculationParams);
+        if (cancelled) return;
+        setServiceFee(calculationParams.base_fee);
+        setTravelFee(Number(data.travel_cost || 0));
+        setSoundFee(Number(data.sound_cost || 0));
+      } catch (e) {
+        // Non-fatal; leave defaults
+      }
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [calculationParams]);
 
   const { subtotal, taxesFees, estimatedTotal } = useMemo(() => {
     const calcSubtotal =
@@ -315,4 +345,3 @@ const InlineQuoteForm: React.FC<Props> = ({
 };
 
 export default InlineQuoteForm;
-

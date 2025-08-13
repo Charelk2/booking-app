@@ -75,23 +75,14 @@ def get_quote(db: Session, quote_id: int) -> Optional[models.QuoteV2]:
     """Return a quote along with the booking_id if one exists."""
     quote = db.query(models.QuoteV2).filter(models.QuoteV2.id == quote_id).first()
     if quote:
-        # Return the formal Booking id rather than the BookingSimple id so the
-        # frontend can fetch full booking details using `/api/v1/bookings/{id}`.
+        # Return the formal Booking id so the frontend can fetch full booking
+        # details using `/api/v1/bookings/{id}`.
         booking = (
             db.query(models.Booking)
             .filter(models.Booking.quote_id == quote_id)
             .first()
         )
-        if booking is None:
-            # Fallback to the simplified booking record for legacy data
-            simple = (
-                db.query(models.BookingSimple)
-                .filter(models.BookingSimple.quote_id == quote_id)
-                .first()
-            )
-            quote.booking_id = simple.id if simple else None
-        else:
-            quote.booking_id = booking.id
+        quote.booking_id = booking.id if booking is not None else None
     return quote
 
 

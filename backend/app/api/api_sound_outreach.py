@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import os
+import uuid
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, status
@@ -97,18 +99,45 @@ def kickoff_sound_outreach(
         )
 
     # Resolve candidates
-    preferred = _preferred_suppliers_for_city(service=service, event_city=event_city)
-    if len(preferred) < 3:
-        preferred = preferred + _fallback_sound_services(db, artist_id=service.artist_id, event_city=event_city)[: 3 - len(preferred)]
+    preferred_ids = _preferred_suppliers_for_city(service=service, event_city=event_city)
+    if len(preferred_ids) < 3:
+        preferred_ids = preferred_ids + _fallback_sound_services(db, artist_id=service.artist_id, event_city=event_city)[: 3 - len(preferred_ids)]
 
-    if selected_service_id and selected_service_id in preferred:
+    # Rank candidates: preferred weight → reliability (desc). Distance/estimate can be added when provided by client.
+    ranked: list[int] = []
+    candidates = []
+    for sid in preferred_ids:
+        ssvc = crud_service.service.get_service(db, sid)
+        if not ssvc:
+            continue
+        pb = (
+            db.query(models.SupplierPricebook)
+            .filter(models.SupplierPricebook.service_id == sid)
+            .first()
+        )
+        reliability = float(pb.reliability_score) if pb and pb.reliability_score is not None else 0.0
+        pref_weight = 0 if sid in preferred_ids[:1] else (0 if sid in preferred_ids else 1)
+        candidates.append((sid, pref_weight, -reliability))
+    for sid, _, _ in sorted(candidates, key=lambda t: (t[1], t[2])):
+        ranked.append(sid)
+
+    if selected_service_id and selected_service_id in ranked:
         # If explicitly selected, contact only that supplier first
-        preferred = [selected_service_id]
+        ranked = [selected_service_id]
 
-    if not preferred:
-        # Nothing to contact; fail fast
-        booking.status = models.BookingStatus.FAILED_NO_SOUND
-        db.add(booking)
+    if not ranked:
+        # Nothing to contact; keep artist booking intact and release sound hold if any
+        try:
+            bs = (
+                db.query(models.BookingSimple)
+                .filter(models.BookingSimple.quote_id == booking.quote_id)
+                .first()
+            )
+            if bs and bs.sound_hold_status == "authorized":
+                bs.sound_hold_status = "released"
+                db.add(bs)
+        except Exception:
+            pass
         db.commit()
         return {"status": "no_candidates"}
 
@@ -123,7 +152,7 @@ def kickoff_sound_outreach(
 
     # Create rows
     created: List[models.sound_outreach.SoundOutreachRequest] = []  # type: ignore[attr-defined]
-    for sid in preferred[:3]:
+    for sid in ranked[:3]:
         supplier_service = crud_service.service.get_service(db, sid)
         if not supplier_service:
             continue
@@ -403,66 +432,139 @@ def supplier_respond(
         db.add(booking)
         db.commit()
 
-        # Write a system message to the original chat timeline (if any)
+        # Update the original QuoteV2 sound fee to firm using the accepted amount
         try:
-            # Find a booking_request via quote if present
+            # Resolve the booking_request_id via legacy quote link or supplier thread
+            br_id = None
             if booking.quote_id:
-                q = db.query(models.Quote).filter(models.Quote.id == booking.quote_id).first()
-                if q and q.booking_request_id:
-                    content = f"Sound confirmed: {winner.supplier_public_name} at price R{float(winner.accepted_amount):.2f}."
-                    db_msg = models.Message(
-                        booking_request_id=q.booking_request_id,
+                legacy_q = db.query(models.Quote).filter(models.Quote.id == booking.quote_id).first()
+                if legacy_q:
+                    br_id = legacy_q.booking_request_id
+            if br_id is None and row.supplier_booking_request_id:
+                br_id = row.supplier_booking_request_id
+
+            if br_id is not None:
+                # Find the most recent QuoteV2 for this request
+                qv2 = (
+                    db.query(models.QuoteV2)
+                    .filter(models.QuoteV2.booking_request_id == br_id)
+                    .order_by(models.QuoteV2.id.desc())
+                    .first()
+                )
+                if qv2 is not None:
+                    # Recalculate totals with firm sound
+                    sound_amount = float(winner.accepted_amount or 0)
+                    # Apply managed-by-artist markup if configured
+                    try:
+                        br = db.query(models.BookingRequest).filter(models.BookingRequest.id == br_id).first()
+                        sound_mode = None
+                        if br and isinstance(br.travel_breakdown, dict):
+                            sound_mode = br.travel_breakdown.get("sound_mode")
+                        if sound_mode == "managed_by_artist":
+                            svc = db.query(models.Service).filter(models.Service.id == booking.service_id).first()
+                            if svc and getattr(svc, "sound_managed_markup_percent", None):
+                                pct = float(svc.sound_managed_markup_percent or 0)
+                                sound_amount = sound_amount * (1 + pct / 100.0)
+                    except Exception:
+                        pass
+                    qv2.sound_fee = sound_amount
+                    qv2.sound_firm = "true"
+                    # recompute subtotal/total
+                    service_sum = sum((item.get("price", 0) or 0) for item in (qv2.services or []))
+                    qv2.subtotal = service_sum + qv2.sound_fee + qv2.travel_fee
+                    if qv2.discount:
+                        qv2.total = qv2.subtotal - qv2.discount
+                    else:
+                        qv2.total = qv2.subtotal
+                    db.add(qv2)
+                    db.commit()
+
+                    # Post timeline updates to the original thread (client-visible)
+                    content = (
+                        f"Sound confirmed: {winner.supplier_public_name} at price R{sound_amount:.2f}."
+                    )
+                    msg = models.Message(
+                        booking_request_id=br_id,
                         sender_id=booking.artist_id,
                         sender_type=models.SenderType.ARTIST,
                         content=content,
                         message_type=models.MessageType.SYSTEM,
                     )
-                    db.add(db_msg)
+                    db.add(msg)
                     db.commit()
-            # Create a final client-facing sound-only quote for records/payment later
-            try:
-                # Resolve booking_request_id for QuoteV2 linkage
-                br_id = None
-                if booking.quote_id:
-                    legacy_q = db.query(models.Quote).filter(models.Quote.id == booking.quote_id).first()
-                    if legacy_q:
-                        br_id = legacy_q.booking_request_id
-                if br_id is None and row.supplier_booking_request_id:
-                    br_id = row.supplier_booking_request_id
-                if br_id is not None:
-                    from ..schemas import QuoteV2Create  # type: ignore
-                    from ..crud import crud_quote_v2
-                    quote_in = QuoteV2Create(
-                        booking_request_id=br_id,
-                        artist_id=booking.artist_id,
-                        client_id=booking.client_id,
-                        services=[],
-                        sound_fee=float(winner.accepted_amount or 0),
-                        travel_fee=0,
-                        accommodation=None,
-                        discount=None,
-                        expires_at=None,
-                    )
-                    v2 = crud_quote_v2.create_quote(db, quote_in)
-                    # Notify through the original thread, if available
-                    if booking.quote_id:
-                        legacy_q = db.query(models.Quote).filter(models.Quote.id == booking.quote_id).first()
-                        if legacy_q and legacy_q.booking_request_id:
-                            content2 = (
-                                f"Sound fee finalized at R{float(winner.accepted_amount):.2f}. "
-                                f"Quote available at /quotes/{v2.id}. Payment to follow."
-                            )
-                            msg = models.Message(
-                                booking_request_id=legacy_q.booking_request_id,
-                                sender_id=booking.artist_id,
-                                sender_type=models.SenderType.ARTIST,
-                                content=content2,
-                                message_type=models.MessageType.SYSTEM,
-                            )
-                            db.add(msg)
+        except Exception:
+            pass
+
+        # Capture sound hold if authorized; reconcile full-charge totals (refund/top-up)
+        try:
+            bs = (
+                db.query(models.BookingSimple)
+                .filter(models.BookingSimple.quote_id == booking.quote_id)
+                .first()
+            )
+            if bs and bs.sound_hold_status == "authorized":
+                bs.sound_hold_status = "captured"
+                db.add(bs)
+                db.commit()
+            if bs and bs.payment_status == "paid" and bs.charged_total_amount is not None:
+                qv2_new = db.query(models.QuoteV2).filter(models.QuoteV2.id == bs.quote_id).first()
+                if qv2_new:
+                    new_total = float(qv2_new.total or 0)
+                    charged = float(bs.charged_total_amount or 0)
+                    delta = round(new_total - charged, 2)
+                    if abs(delta) >= 0.01:
+                        if delta < 0:
+                            refund_id = f"refund_{uuid.uuid4().hex}"
+                            try:
+                                path = os.path.join(os.path.dirname(__file__), "..", "static", "receipts", f"{refund_id}.pdf")
+                                path = os.path.abspath(path)
+                                os.makedirs(os.path.dirname(path), exist_ok=True)
+                                with open(path, "wb") as f:
+                                    f.write(b"%PDF-1.4 refund\n%%EOF")
+                            except Exception:
+                                pass
+                            bs.charged_total_amount = qv2_new.total
+                            db.add(bs)
                             db.commit()
-            except Exception:
-                pass
+                            try:
+                                br_id2 = qv2_new.booking_request_id
+                                msg2 = models.Message(
+                                    booking_request_id=br_id2,
+                                    sender_id=booking.artist_id,
+                                    sender_type=models.SenderType.ARTIST,
+                                    content=f"Sound finalized below estimate. Refund issued: R{abs(delta):.2f}.",
+                                    message_type=models.MessageType.SYSTEM,
+                                )
+                                db.add(msg2)
+                                db.commit()
+                            except Exception:
+                                pass
+                        else:
+                            topup_id = f"topup_{uuid.uuid4().hex}"
+                            try:
+                                path = os.path.join(os.path.dirname(__file__), "..", "static", "receipts", f"{topup_id}.pdf")
+                                path = os.path.abspath(path)
+                                os.makedirs(os.path.dirname(path), exist_ok=True)
+                                with open(path, "wb") as f:
+                                    f.write(b"%PDF-1.4 topup\n%%EOF")
+                            except Exception:
+                                pass
+                            bs.charged_total_amount = qv2_new.total
+                            db.add(bs)
+                            db.commit()
+                            try:
+                                br_id2 = qv2_new.booking_request_id
+                                msg2 = models.Message(
+                                    booking_request_id=br_id2,
+                                    sender_id=booking.artist_id,
+                                    sender_type=models.SenderType.ARTIST,
+                                    content=f"Sound finalized above estimate. Additional charge R{delta:.2f} captured.",
+                                    message_type=models.MessageType.SYSTEM,
+                                )
+                                db.add(msg2)
+                                db.commit()
+                            except Exception:
+                                pass
         except Exception:
             pass
 
@@ -473,3 +575,88 @@ def supplier_respond(
         {"action": "invalid"},
         status.HTTP_422_UNPROCESSABLE_ENTITY,
     )
+
+
+class ToggleSoundIn(BaseModel):
+    requires_sound: bool
+    event_city: Optional[str] = None
+    selected_service_id: Optional[int] = None
+    sound_mode: Optional[str] = None  # supplier|provided_by_artist|client_provided|managed_by_artist
+
+
+@router.post("/bookings/{booking_id}/toggle-sound")
+def toggle_sound(
+    booking_id: int,
+    body: ToggleSoundIn,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Flip requires_sound and (re)start outreach when turning on.
+
+    - Allowed by the client or the artist involved in the booking.
+    - If turning off: expire active outreach and set status to CONFIRMED if previously pending sound.
+    - If turning on: set status to PENDING_SOUND and call outreach using the booking's artist.
+    """
+    booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()
+    if not booking:
+        raise error_response("Booking not found", {"booking_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+
+    if current_user.id not in (booking.client_id, booking.artist_id):
+        raise error_response("Forbidden", {"booking_id": "forbidden"}, status.HTTP_403_FORBIDDEN)
+
+    if not body.requires_sound:
+        # Expire any active outreach
+        rows = crud_sound.sound_orchestrator.get_active_outreach_for_booking(db, booking_id)
+        for r in rows:
+            crud_sound.sound_orchestrator.mark_expired(db, r)
+        if booking.status == models.BookingStatus.PENDING_SOUND:
+            booking.status = models.BookingStatus.CONFIRMED
+            db.add(booking)
+            db.commit()
+        return {"status": "sound_disabled"}
+
+    # Turning on: handle special modes (client_provided/provided_by_artist)
+    if body.sound_mode in {"client_provided", "provided_by_artist"}:
+        # Confirm booking and handle holds appropriately; no outreach
+        booking.status = models.BookingStatus.CONFIRMED
+        db.add(booking)
+        db.commit()
+        bs = (
+            db.query(models.BookingSimple)
+            .filter(models.BookingSimple.quote_id == booking.quote_id)
+            .first()
+        )
+        if bs:
+            if body.sound_mode == "client_provided" and bs.sound_hold_status == "authorized":
+                bs.sound_hold_status = "released"
+            elif body.sound_mode == "provided_by_artist" and bs.sound_hold_status == "authorized":
+                bs.sound_hold_status = "captured"
+            db.add(bs)
+            db.commit()
+        return {"status": body.sound_mode}
+
+    # Turning on supplier/managed_by_artist: must know event city
+    city = body.event_city or booking.event_city or ""
+    if not city:
+        raise error_response(
+            "event_city required to start outreach",
+            {"event_city": "required"},
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+    # Start outreach as the artist
+    artist = db.query(models.User).filter(models.User.id == booking.artist_id).first()
+    if not artist:
+        raise error_response("Artist not found", {"artist_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+
+    # Use sequential default
+    res = kickoff_sound_outreach(
+        booking_id,
+        event_city=city,
+        request_timeout_hours=24,
+        mode="sequential",
+        selected_service_id=body.selected_service_id,
+        db=db,
+        current_artist=artist,
+    )
+    return res

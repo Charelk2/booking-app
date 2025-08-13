@@ -800,6 +800,23 @@ except Exception:  # pragma: no cover - fallback for circular import during test
     notifications_manager = _DummyManager()
 
 
+def _safe_broadcast(payload: dict) -> None:
+    """Fire-and-forget broadcast that works with or without a running loop.
+
+    - If a running event loop exists, schedule via ``create_task``.
+    - If no loop is running (e.g., during sync test calls), run the coroutine
+      to completion in a temporary loop to avoid RuntimeError.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(notifications_manager.broadcast(payload))
+    except RuntimeError:
+        try:
+            asyncio.run(notifications_manager.broadcast(payload))
+        except Exception as exc:  # pragma: no cover - best effort only
+            logger.warning("broadcast fallback failed: %s", exc)
+
+
 # ─── Sound supplier outreach helpers ──────────────────────────────────────────
 def notify_service_request(service: "models.Service", booking: "models.Booking", expires_at: "datetime | None", lock_url: str) -> None:  # type: ignore[name-defined]
     """Stub for notifying a sound supplier of a new request.
@@ -810,18 +827,15 @@ def notify_service_request(service: "models.Service", booking: "models.Booking",
     try:
         supplier_id = service.artist_id
         message = f"New sound request for booking {booking.id}. Respond: {lock_url}"
-        # Broadcast to supplier if connected (best effort)
-        asyncio.create_task(
-            notifications_manager.broadcast(
-                {
-                    "type": "service_request",
-                    "supplier_id": supplier_id,
-                    "booking_id": booking.id,
-                    "expires_at": expires_at.isoformat() if expires_at else None,
-                    "lock_url": lock_url,
-                    "service_id": service.id,
-                }
-            )
+        _safe_broadcast(
+            {
+                "type": "service_request",
+                "supplier_id": supplier_id,
+                "booking_id": booking.id,
+                "expires_at": expires_at.isoformat() if expires_at else None,
+                "lock_url": lock_url,
+                "service_id": service.id,
+            }
         )
         logger.info("Notify supplier %s: %s", supplier_id, message)
     except Exception as exc:  # pragma: no cover - best effort only
@@ -833,15 +847,13 @@ def notify_service_nudge(service: "models.Service", booking: "models.Booking") -
     try:
         supplier_id = service.artist_id
         message = f"Reminder: pending sound request for booking {booking.id}"
-        asyncio.create_task(
-            notifications_manager.broadcast(
-                {
-                    "type": "service_nudge",
-                    "supplier_id": supplier_id,
-                    "booking_id": booking.id,
-                    "service_id": service.id,
-                }
-            )
+        _safe_broadcast(
+            {
+                "type": "service_nudge",
+                "supplier_id": supplier_id,
+                "booking_id": booking.id,
+                "service_id": service.id,
+            }
         )
         logger.info("Nudge supplier %s: %s", supplier_id, message)
     except Exception as exc:  # pragma: no cover - best effort only
