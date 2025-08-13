@@ -244,6 +244,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [baseFee, setBaseFee] = useState(initialBaseFee ?? 0);
     const [travelFee, setTravelFee] = useState(initialTravelCost ?? 0);
     const [initialSound, setInitialSound] = useState<boolean | undefined>(initialSoundNeeded);
+    const [initialSoundCost, setInitialSoundCost] = useState<number | undefined>(undefined);
     const [calculationParams, setCalculationParams] = useState<
       | {
           base_fee: number;
@@ -304,6 +305,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
           setTravelFee(Number(br.travel_cost) || 0);
           if (typeof initialSound === 'undefined') {
             setInitialSound(Boolean(tb.sound_required));
+          }
+          const soundProv = (br.service?.details || {}).sound_provisioning;
+          if (tb.sound_required && soundProv?.mode === 'artist_provides_variable') {
+            const drive = Number(soundProv.price_driving_sound_zar || soundProv.price_driving_sound || 0);
+            const fly = Number(soundProv.price_flying_sound_zar || soundProv.price_flying_sound || 0);
+            const mode = tb.travel_mode || tb.mode;
+            setInitialSoundCost(mode === 'fly' ? fly : drive);
+          } else if (tb.sound_required && tb.sound_cost) {
+            setInitialSoundCost(Number(tb.sound_cost));
+          } else {
+            setInitialSoundCost(undefined);
           }
           const distance = Number(tb.distance_km ?? tb.distanceKm);
           const eventCity = tb.event_city || parsedBookingDetails?.location || '';
@@ -1065,19 +1077,20 @@ useEffect(() => {
 
           {user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && (
             <div className="mb-4" data-testid="artist-inline-quote">
-              <MemoInlineQuoteForm
-                artistId={currentArtistId}
-                clientId={currentClientId}
-                bookingRequestId={bookingRequestId}
-                serviceName={computedServiceName}
-                initialBaseFee={baseFee}
-                initialTravelCost={travelFee}
-                initialSoundNeeded={initialSound}
-                calculationParams={calculationParams}
-                onSubmit={handleSendQuote}
-                onDecline={handleDeclineRequest}
-                eventDetails={eventDetails}
-              />
+      <MemoInlineQuoteForm
+        artistId={currentArtistId}
+        clientId={currentClientId}
+        bookingRequestId={bookingRequestId}
+        serviceName={computedServiceName}
+        initialBaseFee={baseFee}
+        initialTravelCost={travelFee}
+        initialSoundNeeded={initialSound}
+        initialSoundCost={initialSoundCost}
+        calculationParams={calculationParams}
+        onSubmit={handleSendQuote}
+        onDecline={handleDeclineRequest}
+        eventDetails={eventDetails}
+      />
             </div>
           )}
 
