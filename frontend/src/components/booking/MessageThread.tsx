@@ -245,6 +245,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
     const [travelFee, setTravelFee] = useState(initialTravelCost ?? 0);
     const [initialSound, setInitialSound] = useState<boolean | undefined>(initialSoundNeeded);
     const [initialSoundCost, setInitialSoundCost] = useState<number | undefined>(undefined);
+    const [driveSoundCost, setDriveSoundCost] = useState<number | undefined>(undefined);
+    const [flySoundCost, setFlySoundCost] = useState<number | undefined>(undefined);
     const [calculationParams, setCalculationParams] = useState<
       | {
           base_fee: number;
@@ -311,11 +313,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
             const drive = Number(soundProv.price_driving_sound_zar || soundProv.price_driving_sound || 0);
             const fly = Number(soundProv.price_flying_sound_zar || soundProv.price_flying_sound || 0);
             const mode = tb.travel_mode || tb.mode;
+            setDriveSoundCost(drive);
+            setFlySoundCost(fly);
             setInitialSoundCost(mode === 'fly' ? fly : drive);
           } else if (tb.sound_required && tb.sound_cost) {
             setInitialSoundCost(Number(tb.sound_cost));
+            setDriveSoundCost(undefined);
+            setFlySoundCost(undefined);
           } else {
             setInitialSoundCost(undefined);
+            setDriveSoundCost(undefined);
+            setFlySoundCost(undefined);
           }
           const distance = Number(tb.distance_km ?? tb.distanceKm);
           const eventCity = tb.event_city || parsedBookingDetails?.location || '';
@@ -1086,6 +1094,8 @@ useEffect(() => {
         initialTravelCost={travelFee}
         initialSoundNeeded={initialSound}
         initialSoundCost={initialSoundCost}
+        drivingSoundCost={driveSoundCost}
+        flyingSoundCost={flySoundCost}
         calculationParams={calculationParams}
         onSubmit={handleSendQuote}
         onDecline={handleDeclineRequest}

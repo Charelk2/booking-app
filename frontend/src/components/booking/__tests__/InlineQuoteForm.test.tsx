@@ -3,6 +3,7 @@ import React from 'react';
 import { act } from 'react-dom/test-utils';
 import InlineQuoteForm from '../InlineQuoteForm';
 import type { QuoteV2Create } from '@/types';
+import { formatCurrency } from '@/lib/utils';
 
 jest.mock('@/lib/api', () => ({
   ...(jest.requireActual('@/lib/api')),
@@ -121,6 +122,33 @@ describe('InlineQuoteForm', () => {
 
     expect(travelInput?.value).toBe('111');
     expect(soundInput?.value).toBe('222');
+
+    root.unmount();
+    div.remove();
+  });
+
+  it('displays sound cost tooltip with provided prices', async () => {
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(
+        <InlineQuoteForm
+          artistId={1}
+          clientId={2}
+          bookingRequestId={3}
+          drivingSoundCost={1000}
+          flyingSoundCost={7500}
+          onSubmit={jest.fn()}
+        />,
+      );
+    });
+
+    const soundSpan = Array.from(div.querySelectorAll('span')).find((s) =>
+      s.textContent?.includes('Sound Equipment'),
+    );
+    const tooltip = soundSpan?.querySelector('.tooltip');
+    expect(tooltip?.textContent).toContain(formatCurrency(1000));
+    expect(tooltip?.textContent).toContain(formatCurrency(7500));
 
     root.unmount();
     div.remove();
