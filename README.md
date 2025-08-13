@@ -75,6 +75,7 @@ Structured JSON logs and OpenTelemetry traces are enabled for both the FastAPI b
 - Date picker shows skeleton loaders while data fetches.
 - Travel mode and cost predictions use a regression-based estimator within booking flows.
 - Sound provisioning selections now influence quote estimates; driving-only setups automatically fall back to external providers when flying.
+- The chat's inline quote composer now auto-prefills service, travel, and sound fees using `/api/v1/quotes/calculate` when sound equipment is required.
 - Google Maps and large images load lazily once in view to reduce first paint time.
 - Client dashboards now include a bookings list with upcoming and past filters via `/api/v1/bookings/my-bookings?status=`.
 - Each booking item in this list now includes a `deposit_due_by` field when the booking was created from a quote. This due date is calculated one week from the moment the quote is accepted.
