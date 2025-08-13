@@ -16,6 +16,8 @@ interface Props {
   initialTravelCost?: number;
   initialSoundNeeded?: boolean;
   initialSoundCost?: number;
+  drivingSoundCost?: number;
+  flyingSoundCost?: number;
   onDecline?: () => void;
   eventDetails?: EventDetails;
   calculationParams?: {
@@ -43,6 +45,8 @@ const InlineQuoteForm: React.FC<Props> = ({
   initialTravelCost,
   initialSoundNeeded,
   initialSoundCost,
+  drivingSoundCost,
+  flyingSoundCost,
   onDecline,
   eventDetails,
   calculationParams,
@@ -102,6 +106,15 @@ const InlineQuoteForm: React.FC<Props> = ({
       estimatedTotal: calcEstimatedTotal,
     };
   }, [services, serviceFee, soundFee, travelFee, discount]);
+
+  const soundTooltipText = useMemo(() => {
+    if (typeof drivingSoundCost === 'number' || typeof flyingSoundCost === 'number') {
+      const drive = formatCurrency(drivingSoundCost ?? 0);
+      const fly = formatCurrency(flyingSoundCost ?? 0);
+      return `drive mode: ${drive} (price when driving), flight mode: ${fly} (price when flying)`;
+    }
+    return 'Sound equipment cost varies with travel mode';
+  }, [drivingSoundCost, flyingSoundCost]);
 
   const addService = () => setServices([...services, { description: '', price: 0 }]);
   const removeService = (idx: number) => setServices(services.filter((_, i) => i !== idx));
@@ -207,7 +220,7 @@ const InlineQuoteForm: React.FC<Props> = ({
                   <span className="has-tooltip relative ml-1.5 text-blue-500 cursor-pointer">
                     ⓘ
                     <div className="tooltip absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 text-center z-10 hidden group-hover:block">
-                      drive mode: R1000 (price when driving), flight mode: R7500 (price when flying)
+                      {soundTooltipText}
                     </div>
                   </span>
                 </span>
