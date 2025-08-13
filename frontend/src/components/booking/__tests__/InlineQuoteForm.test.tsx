@@ -4,6 +4,13 @@ import { act } from 'react-dom/test-utils';
 import InlineQuoteForm from '../InlineQuoteForm';
 import type { QuoteV2Create } from '@/types';
 
+jest.mock('@/lib/api', () => ({
+  ...(jest.requireActual('@/lib/api')),
+  calculateQuoteBreakdown: jest
+    .fn()
+    .mockResolvedValue({ data: { travel_cost: 111, sound_cost: 222 } }),
+}));
+
 describe('InlineQuoteForm', () => {
   it('submits quote data with defaults', async () => {
     const onSubmit = jest.fn();
@@ -74,6 +81,46 @@ describe('InlineQuoteForm', () => {
     });
 
     expect(onDecline).toHaveBeenCalledTimes(1);
+
+    root.unmount();
+    div.remove();
+  });
+
+  it('prefills fees using calculation params', async () => {
+    const div = document.createElement('div');
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(
+        <InlineQuoteForm
+          artistId={1}
+          clientId={2}
+          bookingRequestId={3}
+          calculationParams={{
+            base_fee: 100,
+            distance_km: 10,
+            service_id: 1,
+            event_city: 'CPT',
+          }}
+          onSubmit={jest.fn()}
+        />,
+      );
+    });
+
+    // Allow useEffect to run
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const spans = Array.from(div.querySelectorAll('span'));
+    const travelInput = spans
+      .find((s) => s.textContent?.includes('Travel'))
+      ?.parentElement?.querySelector('input') as HTMLInputElement;
+    const soundInput = spans
+      .find((s) => s.textContent?.includes('Sound Equipment'))
+      ?.parentElement?.querySelector('input') as HTMLInputElement;
+
+    expect(travelInput?.value).toBe('111');
+    expect(soundInput?.value).toBe('222');
 
     root.unmount();
     div.remove();
