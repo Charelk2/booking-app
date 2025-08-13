@@ -37,6 +37,7 @@ import {
   acceptQuoteV2,
   declineQuoteV2,
   getBookingDetails,
+  getBookingRequestById,
   markMessagesRead,
   updateBookingRequestArtist,
   useAuth,
@@ -240,9 +241,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       messages.find((m) => m.sender_type === 'client')?.sender_id ||
       0;
     const currentArtistId = propArtistId || bookingDetails?.artist_id || user?.id || 0;
-
-    const baseFee = initialBaseFee ?? 0;
-    const travelFee = initialTravelCost ?? 0;
+    const [baseFee, setBaseFee] = useState(initialBaseFee ?? 0);
+    const [travelFee, setTravelFee] = useState(initialTravelCost ?? 0);
+    const [initialSound, setInitialSound] = useState<boolean | undefined>(initialSoundNeeded);
+    const [calculationParams, setCalculationParams] = useState<
+      | {
+          base_fee: number;
+          distance_km: number;
+          service_id: number;
+          event_city: string;
+          accommodation_cost?: number;
+        }
+      | undefined
+    >(undefined);
 
     const eventDetails = useMemo(
       () => ({
@@ -278,6 +289,64 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(
       () => messages.some((m) => Number(m.quote_id) > 0),
       [messages],
     );
+
+    // Prefill quote form using backend calculation when sound is required
+    useEffect(() => {
+      let cancelled = false;
+      async function load() {
+        try {
+          const res = await getBookingRequestById(bookingRequestId);
+          if (cancelled) return;
+          const br = res.data;
+          const tb = (br.travel_breakdown || {}) as any;
+          const svcPrice = Number(br.service?.price) || 0;
+          setBaseFee(svcPrice);
+          setTravelFee(Number(br.travel_cost) || 0);
+          if (typeof initialSound === 'undefined') {
+            setInitialSound(Boolean(tb.sound_required));
+          }
+          const distance = Number(tb.distance_km ?? tb.distanceKm);
+          const eventCity = tb.event_city || parsedBookingDetails?.location || '';
+          const svcId = br.service_id || serviceId || 0;
+          if (distance && eventCity && svcId && tb.sound_required) {
+            const params: {
+              base_fee: number;
+              distance_km: number;
+              service_id: number;
+              event_city: string;
+              accommodation_cost?: number;
+            } = {
+              base_fee: svcPrice,
+              distance_km: distance,
+              service_id: svcId,
+              event_city: eventCity,
+            };
+            if (tb.accommodation_cost) {
+              params.accommodation_cost = Number(tb.accommodation_cost);
+            }
+            setCalculationParams(params);
+          } else {
+            setCalculationParams(undefined);
+          }
+        } catch (err) {
+          console.error('Failed to load quote calculation params:', err);
+        }
+      }
+      if (user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote) {
+        void load();
+      }
+      return () => {
+        cancelled = true;
+      };
+    }, [
+      bookingRequestId,
+      serviceId,
+      user?.user_type,
+      bookingConfirmed,
+      hasSentQuote,
+      parsedBookingDetails,
+      initialSound,
+    ]);
     const typingIndicator = useMemo(() => {
       const names = typingUsers.map((id) =>
         id === currentArtistId ? artistName : id === currentClientId ? clientName : 'Participant',
@@ -1003,7 +1072,8 @@ useEffect(() => {
                 serviceName={computedServiceName}
                 initialBaseFee={baseFee}
                 initialTravelCost={travelFee}
-                initialSoundNeeded={initialSoundNeeded}
+                initialSoundNeeded={initialSound}
+                calculationParams={calculationParams}
                 onSubmit={handleSendQuote}
                 onDecline={handleDeclineRequest}
                 eventDetails={eventDetails}
@@ -1519,8 +1589,10 @@ useEffect(() => {
                             <span>Total estimate</span>
                             <span>{formatCurrency(Number(baseFee || 0) + Number(travelFee || 0))}</span>
                           </div>
-                          {typeof initialSoundNeeded !== 'undefined' && (
-                            <div className="text-xs text-gray-500 mt-1">Sound equipment: {initialSoundNeeded ? 'Yes' : 'No'} (if required, may be quoted separately)</div>
+                          {typeof initialSound !== 'undefined' && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Sound equipment: {initialSound ? 'Yes' : 'No'} (if required, may be quoted separately)
+                            </div>
                           )}
                         </div>
                         {allowInstantBooking && (
