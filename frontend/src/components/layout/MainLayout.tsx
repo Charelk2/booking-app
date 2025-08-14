@@ -8,6 +8,7 @@ import MobileBottomNav from './MobileBottomNav';
 import clsx from 'clsx';
 import { usePathname } from 'next/navigation';
 import Footer from './Footer';
+import useIsMobile from '@/hooks/useIsMobile';
 
 const SCROLL_THRESHOLD_DOWN = 60; // Scroll down past this to compact
 const SCROLL_THRESHOLD_UP = 10;   // Scroll up before this to expand (must be < SCROLL_THRESHOLD_DOWN)
@@ -35,11 +36,21 @@ export default function MainLayout({
   const isArtistsRoot = pathname === '/service-providers';
   const isArtistsPage = pathname.startsWith('/service-providers');
   const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
+  const isMobile = useIsMobile();
 
-  // Header state
-  const [headerState, setHeaderState] = useState<HeaderState>(
-    isArtistView ? 'initial' : isArtistsRoot ? 'compacted' : 'initial',
-  );
+  // Header state – start compact to avoid flash on mobile
+  const [headerState, setHeaderState] = useState<HeaderState>('compacted');
+
+  // Decide initial state after knowing viewport
+  useEffect(() => {
+    if (isArtistView) {
+      setHeaderState('initial');
+    } else if (!isMobile && !isArtistsRoot) {
+      setHeaderState('initial');
+    } else {
+      setHeaderState('compacted');
+    }
+  }, [isArtistView, isMobile, isArtistsRoot]);
 
   // Refs for scroll logic
   const prevScrollY = useRef(0);
@@ -82,6 +93,12 @@ export default function MainLayout({
     (state: HeaderState, scrollTarget?: number) => {
       if (headerRef.current?.dataset.lockCompact === 'true') return; // ignore while locked by mobile search
 
+      // On mobile the header should stay compact unless explicitly expanded
+      if (isMobile) {
+        setHeaderState(state === 'expanded-from-compact' ? 'expanded-from-compact' : 'compacted');
+        return;
+      }
+
       // Lock the header in its initial state on service provider profile pages or artist view
       if (isArtistDetail || isArtistView) {
         setHeaderState('initial');
@@ -106,7 +123,7 @@ export default function MainLayout({
         }, TRANSITION_DURATION + 150);
       }
     },
-    [headerState, isArtistDetail, isArtistView],
+    [headerState, isArtistDetail, isArtistView, isMobile],
   );
 
   // Compensate content scroll after header height transitions (ORIGINAL)
@@ -129,7 +146,7 @@ export default function MainLayout({
 
   // Main scroll handler
   const handleScroll = useCallback(() => {
-    if (isArtistView) return; // No compaction in artist view
+    if (isMobile || isArtistView) return; // No compaction in artist view or on mobile
     const headerIsLocked = headerRef.current?.dataset.lockCompact === 'true';
     if (headerIsLocked) return; // bail if mobile search is open
 
@@ -177,7 +194,7 @@ export default function MainLayout({
         }
       }
     }
-  }, [headerState, isArtistsPage, isArtistView]);
+  }, [headerState, isArtistsPage, isArtistView, isMobile]);
 
   // rAF-optimized scroll listener
   const optimizedScrollHandler = useCallback(() => {
@@ -187,7 +204,7 @@ export default function MainLayout({
 
   // Attach/detach scroll listener
   useEffect(() => {
-    if (isArtistDetail || isArtistView) return;
+    if (isArtistDetail || isArtistView || isMobile) return;
 
     window.addEventListener('scroll', optimizedScrollHandler, { passive: true });
     if (typeof window !== 'undefined' && window.scrollY > 0) {
@@ -197,7 +214,7 @@ export default function MainLayout({
       window.removeEventListener('scroll', optimizedScrollHandler);
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
     };
-  }, [isArtistDetail, isArtistView, optimizedScrollHandler, handleScroll]);
+  }, [isArtistDetail, isArtistView, isMobile, optimizedScrollHandler, handleScroll]);
 
   // Body scroll lock for desktop expanded overlay only
   useEffect(() => {
