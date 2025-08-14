@@ -73,7 +73,7 @@
   <div
   ref={scrollRef}
   data-testid="categories-scroll"
-  className="flex gap-4 overflow-x-auto scroll-smooth pb-2 scrollbar-hide"
+  className="flex gap-2 overflow-x-auto scroll-smooth pb-2 scrollbar-hide"
   >
   {categories.map((cat) => (
   <Link

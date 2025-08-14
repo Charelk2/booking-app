@@ -47,13 +47,13 @@ export default function ServiceProviderCardCompact({
     <Link
       href={href}
       className={clsx(
-        'group block rounded-xl overflow-hidden bg-gray-50 hover:shadow-md transition',
+        'group block rounded-xl overflow-hidden',
         'no-underline hover:no-underline',
         className,
       )}
       {...props}
     >
-      <div className="relative aspect-[4/4] bg-gray-100 overflow-hidden">
+      <div className="relative aspect-[4/4] rounded-xl bg-gray-100 overflow-hidden">
         {!loaded && (
           <div className="absolute inset-0 animate-pulse bg-gray-200" />
         )}
@@ -67,7 +67,7 @@ export default function ServiceProviderCardCompact({
             blurDataURL={BLUR_PLACEHOLDER}
             loading="lazy"
             quality={60}
-            className="object-cover w-full h-full group-hover:scale-105 transition-transform"
+            className="object-cover w-full h-full  transition-transform"
             onLoad={() => setLoaded(true)}
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;

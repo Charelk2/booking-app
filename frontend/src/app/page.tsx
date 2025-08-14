@@ -12,19 +12,54 @@ export default function HomePage() {
     <MainLayout>
       <CategoriesCarousel />
       <ArtistsSection
-        title="Popular Musicians"
+        title="Musicians"
         query={{ category: 'musician', sort: 'most_booked' }}
         hideIfEmpty
       />
       <ArtistsSection
-        title="Top Rated"
-        query={{ sort: 'top_rated' }}
+        title="Photography"
+        query={{ category: 'photographer', sort: 'most_booked' }}
         hideIfEmpty
       />
       <ArtistsSection
-        title="New on Booka"
-        query={{ sort: 'newest' }}
-        limit={100}
+        title="Videographers"
+        query={{ category: 'videographer', sort: 'most_booked' }}
+        hideIfEmpty
+      />
+      <ArtistsSection
+        title="Catering"
+        query={{ category: 'caterer', sort: 'most_booked' }}
+        hideIfEmpty
+      />
+      <ArtistsSection
+        title="DJs"
+        query={{ category: 'dj', sort: 'most_booked' }}
+        hideIfEmpty
+      />
+      <ArtistsSection
+        title="Speakers"
+        query={{ category: 'speaker', sort: 'most_booked' }}
+        hideIfEmpty
+      />
+      <ArtistsSection
+        title="Sound Services"
+        query={{ category: 'sound_service', sort: 'most_booked' }}
+        hideIfEmpty
+      />
+      <ArtistsSection
+        title="Wedding Venues"
+        query={{ category: 'wedding_venue', sort: 'most_booked' }}
+        hideIfEmpty
+      />
+      <ArtistsSection
+        title="Bartending"
+        query={{ category: 'bartender', sort: 'most_booked' }}
+        hideIfEmpty
+      />
+      <ArtistsSection
+        title="MC & Hosts"
+        query={{ category: 'mc_host', sort: 'most_booked' }}
+        hideIfEmpty
       />
     </MainLayout>
   )

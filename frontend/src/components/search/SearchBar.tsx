@@ -1,5 +1,4 @@
-// src/components/search/SearchBar.tsx
-"use client";
+'use client';
 
 import {
   Fragment,
@@ -10,18 +9,14 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-} from "react";
-import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import clsx from "clsx";
-import {
-  SearchFields,
-  type Category,
-  type SearchFieldId,
-} from "./SearchFields";
-import useClickOutside from "@/hooks/useClickOutside";
-import { Transition } from "@headlessui/react";
-import dynamic from "next/dynamic";
-import { createPortal } from "react-dom"; // NEW: Import createPortal
+} from 'react';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import clsx from 'clsx';
+import { SearchFields, type Category, type SearchFieldId } from './SearchFields';
+import useClickOutside from '@/hooks/useClickOutside';
+import { Transition } from '@headlessui/react';
+import dynamic from 'next/dynamic';
+import { createPortal } from 'react-dom';
 
 export type ActivePopup = SearchFieldId | null;
 
@@ -32,26 +27,15 @@ export interface SearchBarProps {
   setLocation: (l: string) => void;
   when: Date | null;
   setWhen: (d: Date | null) => void;
-  onSearch: (params: {
-    category?: string;
-    location?: string;
-    when?: Date | null;
-  }) => void | Promise<void>;
-  onCancel?: () => void; // This prop is for the Header to tell THIS SearchBar to cancel/dismiss itself
-  compact?: boolean; // This should always be 'false' when used in the Header for the 'full' search bar
+  onSearch: (params: { category?: string; location?: string; when?: Date | null }) => void | Promise<void>;
+  onCancel?: () => void;  // Will be invoked when popup closes to collapse header overlay
+  compact?: boolean;
 }
 
-const DynamicSearchPopupContent = dynamic(
-  () => import("./SearchPopupContent"),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="p-4 text-center text-gray-500">
-        Loading search options...
-      </div>
-    ),
-  },
-);
+const DynamicSearchPopupContent = dynamic(() => import('./SearchPopupContent'), {
+  ssr: false,
+  loading: () => <div className="p-4 text-center text-slate-600">Loading search options…</div>,
+});
 
 export default function SearchBar({
   category,
@@ -61,74 +45,62 @@ export default function SearchBar({
   when,
   setWhen,
   onSearch,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onCancel,
   compact = false,
 }: SearchBarProps) {
-  const formRef = useRef<HTMLFormElement>(null); // Ref for the whole SearchBar form
+  const formRef = useRef<HTMLFormElement>(null);
   const [isSubmitting, setSubmitting] = useState(false);
   const [activeField, setActiveField] = useState<ActivePopup>(null);
   const [showInternalPopup, setShowInternalPopup] = useState(false);
-  const [locationPredictions, setLocationPredictions] = useState<
-    google.maps.places.AutocompletePrediction[]
-  >([]);
+  const [locationPredictions, setLocationPredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
 
-  // NEW: State to store the position and size of the popup
-  const [popupPosition, setPopupPosition] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    height?: number;
-  } | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ top: number; left: number; width: number; height?: number } | null>(null);
 
   const lastActiveButtonRef = useRef<HTMLElement | null>(null);
-
   const locationInputRef = useRef<HTMLInputElement>(null);
   const categoryListboxOptionsRef = useRef<HTMLUListElement>(null);
   const popupContainerRef = useRef<HTMLDivElement>(null);
 
-  // UseLayoutEffect to calculate position before browser paints
   useLayoutEffect(() => {
     if (showInternalPopup && formRef.current) {
-      const formRect = formRef.current.getBoundingClientRect(); // Coords of the whole search bar
+      const formRect = formRef.current.getBoundingClientRect();
+      const top = formRect.bottom + window.scrollY + 6;
+      let left = formRect.left + window.scrollX;
+      let width = formRect.width;
 
-      const top = formRect.bottom + window.scrollY + 4; // Uniform 8px gap below SearchBar
-      let left = formRect.left + window.scrollX; // Default align with SearchBar's left edge
-      let width = formRect.width; // Default popup width equals SearchBar width
-      let height: number | undefined;
-
-      if (activeField === "category") {
-        width = formRect.width / 2; // Half width anchored left
-      } else if (activeField === "location") {
-        width = formRect.width / 2; // Half width anchored right
+      if (activeField === 'category') {
+        width = formRect.width / 2;
+      } else if (activeField === 'location') {
+        width = formRect.width / 2;
         left = formRect.left + window.scrollX + formRect.width / 2;
       }
-      // The 'when' popup spans the entire SearchBar width without taking over the screen
-
-      setPopupPosition({ top, left, width, height });
+      setPopupPosition({ top, left, width });
     } else {
-      setPopupPosition(null); // Clear position when popup is not visible
+      setPopupPosition(null);
     }
-  }, [showInternalPopup, activeField]); // Recalculate if popup state or active field changes
+  }, [showInternalPopup, activeField]);
 
-  // Store timeout ID so we can cancel pending state resets when switching fields quickly
   const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Helper: only tell the Header to collapse if the global overlay is actually shown.
+  const collapseHeaderIfOverlayVisible = useCallback(() => {
+    if (document.getElementById('expanded-search-overlay')) {
+      onCancel?.();
+    }
+  }, [onCancel]);
 
   const closeThisSearchBarsInternalPopups = useCallback(() => {
     setShowInternalPopup(false);
 
-    // Clear any previous timeout before starting a new one
-    if (resetTimeoutRef.current) {
-      clearTimeout(resetTimeoutRef.current);
-    }
+    // Inform Header to exit expanded-from-compact immediately so scrolling is restored.
+    collapseHeaderIfOverlayVisible();
 
+    // Keep previous focus behavior & small delay for animation parity
+    if (resetTimeoutRef.current) clearTimeout(resetTimeoutRef.current);
     resetTimeoutRef.current = setTimeout(() => {
       setActiveField(null);
       if (lastActiveButtonRef.current) {
-        if (activeField === "location" && locationInputRef.current) {
-          // Blurring prevents the onFocus handler from immediately
-          // re-opening the location popup, which previously required a
-          // second outside click to dismiss.
+        if (activeField === 'location' && locationInputRef.current) {
           locationInputRef.current.blur();
         } else {
           lastActiveButtonRef.current.focus();
@@ -136,44 +108,27 @@ export default function SearchBar({
         lastActiveButtonRef.current = null;
       }
       resetTimeoutRef.current = null;
-    }, 200);
-  }, [activeField]);
+    }, 180);
+  }, [activeField, collapseHeaderIfOverlayVisible]);
 
-  const handleLocationChange = useCallback(
-    (value: string) => {
-      setLocation(value);
-    },
-    [setLocation],
-  );
+  const handleLocationChange = useCallback((value: string) => setLocation(value), [setLocation]);
 
-  const handleFieldClick = useCallback(
-    (fieldId: SearchFieldId, element: HTMLElement) => {
-      // Cancel any pending reset to avoid clearing the new active field
-      if (resetTimeoutRef.current) {
-        clearTimeout(resetTimeoutRef.current);
-        resetTimeoutRef.current = null;
-      }
-      setActiveField(fieldId);
-      setShowInternalPopup(true);
-      // Store the element that triggered the popup so we can restore focus later
-      lastActiveButtonRef.current = element;
-      // Position is calculated in useLayoutEffect
-    },
-    [],
-  );
+  const handleFieldClick = useCallback((fieldId: SearchFieldId, element: HTMLElement) => {
+    if (resetTimeoutRef.current) {
+      clearTimeout(resetTimeoutRef.current);
+      resetTimeoutRef.current = null;
+    }
+    setActiveField(fieldId);
+    setShowInternalPopup(true);
+    lastActiveButtonRef.current = element;
+  }, []);
 
-  // Close popups when clicking outside the search form or its floating content
-  useClickOutside(
-    [formRef, popupContainerRef] as Array<RefObject<HTMLElement | null>>,
-    () => {
-      if (showInternalPopup) {
-        closeThisSearchBarsInternalPopups();
-      }
-    },
-  );
+  useClickOutside([formRef, popupContainerRef] as Array<RefObject<HTMLElement | null>>, () => {
+    if (showInternalPopup) closeThisSearchBarsInternalPopups();
+  });
 
   const handleKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
-    if (e.key === "Escape") {
+    if (e.key === 'Escape') {
       e.preventDefault();
       closeThisSearchBarsInternalPopups();
     }
@@ -182,14 +137,9 @@ export default function SearchBar({
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
-    closeThisSearchBarsInternalPopups();
-
+    closeThisSearchBarsInternalPopups(); // also collapses header if overlay visible
     try {
-      await onSearch({
-        category: category?.value,
-        location: location || undefined,
-        when,
-      });
+      await onSearch({ category: category?.value, location: location || undefined, when });
     } finally {
       setSubmitting(false);
     }
@@ -202,13 +152,14 @@ export default function SearchBar({
         onKeyDown={handleKeyDown}
         onSubmit={handleSubmit}
         autoComplete="off"
-        className={clsx(
-          "relative z-[45] flex items-stretch rounded-full bg-white shadow-lg transition-all duration-200 ease-out",
-          compact ? "text-sm" : "text-base",
-          showInternalPopup ? "shadow-xl" : "shadow-md hover:shadow-lg",
-        )}
         role="search"
         aria-label="Service Provider booking search"
+        className={clsx(
+          'relative flex items-stretch rounded-full transition-all duration-200 ease-out',
+          'bg-white border border-black/10 ring-1 ring-white/20 backdrop-blur-2xl',
+          'shadow-sm',
+          compact ? 'text-sm' : 'text-base',
+        )}
       >
         <SearchFields
           category={category}
@@ -222,62 +173,47 @@ export default function SearchBar({
           locationInputRef={locationInputRef}
           compact={compact}
           onPredictionsChange={setLocationPredictions}
+          classNameOverrides={{
+            fieldBase: 'px-4 py-3 first:pl-5 last:pr-0 text-slate-800/90 placeholder:text-slate-600/60',
+            divider: 'w-px self-stretch bg-white/30',
+          }}
         />
+
+        {/* Right-side round action (search) */}
         <button
           type="submit"
-          className={clsx(
-            "hover:bg-[var(--color-accent)]/90 flex items-center justify-center rounded-r-full bg-[var(--color-accent)] px-5 py-3 text-white transition-all duration-200 ease-out",
-            isSubmitting && "cursor-not-allowed opacity-70",
-            !isSubmitting && "active:scale-95",
-          )}
           aria-label="Search now"
           disabled={isSubmitting}
+          className={clsx(
+            'mx-2 my-2 mt-2 h-12 w-12 rounded-full flex items-center justify-center',
+            'bg-white/70 hover:bg-gray-100',
+            'border border-white/60 ring-1 ring-white/40 backdrop-blur-md',
+            'transition-all duration-150',
+            isSubmitting && 'cursor-not-allowed opacity-80',
+          )}
         >
           {isSubmitting ? (
-            <svg
-              className="h-5 w-5 animate-spin text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
+            <svg className="h-5 w-5 animate-spin text-slate-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
           ) : (
-            <MagnifyingGlassIcon className="h-5 w-5" />
+            <MagnifyingGlassIcon className="h-5 w-5 text-slate-900/80" />
           )}
           <span className="sr-only">Search</span>
         </button>
       </form>
 
-      {/* NEW: Render the internal popup content using a portal */}
+      {/* Floating popups rendered via portal */}
       {showInternalPopup &&
         popupPosition &&
         createPortal(
           <>
-            {/* Overlay for SearchBar's internal popups (dims the page area around the popup)
-             Use a z-index lower than the header (z-50) so the active search field
-             remains visible above the overlay while the rest of the page is dimmed. */}
-            <div
-              className="pointer-events-none animate-fadeIn fixed inset-0 z-40 bg-black bg-opacity-30"
-              aria-hidden="true"
-            />
-
+            <div className="pointer-events-none fixed inset-0 z-40 bg-black/30" aria-hidden="true" />
             <Transition
               show={showInternalPopup}
               as={Fragment}
-              key={activeField} // Forces re-animation when the active field changes
+              key={activeField}
               enter="transition ease-out duration-300"
               enterFrom="opacity-0 -translate-y-2"
               enterTo="opacity-100 translate-y-0"
@@ -288,15 +224,13 @@ export default function SearchBar({
               <div
                 ref={popupContainerRef}
                 className={clsx(
-                  // z-50 is reserved for the header; raise above it and the overlay (z-40)
-                  "absolute z-[60] rounded-xl bg-white p-4 shadow-xl",
-                  "origin-top-left",
+                  'absolute z-[60] rounded-2xl p-4',
+                  'bg-white border border-white/40 ring-1 ring-white/30 backdrop-blur-2xl shadow-xl',
+                  'origin-top-left',
                 )}
                 role="dialog"
                 aria-modal="true"
-                aria-labelledby={
-                  activeField ? `search-popup-label-${activeField}` : undefined
-                }
+                aria-labelledby={activeField ? `search-popup-label-${activeField}` : undefined}
                 style={{
                   top: popupPosition.top,
                   left: popupPosition.left,
@@ -304,7 +238,7 @@ export default function SearchBar({
                   height: popupPosition.height,
                 }}
               >
-                {activeField && ( // Ensure activeField is set before rendering content
+                {activeField && (
                   <DynamicSearchPopupContent
                     activeField={activeField}
                     category={category}
@@ -322,7 +256,7 @@ export default function SearchBar({
               </div>
             </Transition>
           </>,
-          document.body, // Render into document.body
+          document.body,
         )}
     </>
   );

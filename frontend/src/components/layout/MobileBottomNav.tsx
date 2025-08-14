@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
-  UsersIcon,
   ChatBubbleLeftRightIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
@@ -12,8 +12,6 @@ import type { User } from '@/types';
 import useNotifications from '@/hooks/useNotifications';
 import type { UnifiedNotification } from '@/types';
 import useScrollDirection from '@/hooks/useScrollDirection';
-import NavLink from './NavLink';
-import { navItemClasses } from './navStyles';
 import clsx from 'clsx';
 
 interface MobileBottomNavProps {
@@ -28,21 +26,17 @@ interface Item {
 }
 
 export default function MobileBottomNav({ user }: MobileBottomNavProps) {
-  const router = useRouter();
+  const pathname = usePathname();
   const { items } = useNotifications();
   const notificationItems = items;
   const scrollDir = useScrollDirection();
   const navRef = useRef<HTMLElement>(null);
 
-  // Expose the nav's actual height via CSS vars and a dynamic offset that
-  // becomes 0 when the nav is hidden (scrolling down), so composers can slide down.
+  // Expose nav height + offset for other fixed elements
   useEffect(() => {
     const updateVars = () => {
       const height = navRef.current?.offsetHeight ?? 56;
-      document.documentElement.style.setProperty(
-        '--mobile-bottom-nav-height',
-        `${height}px`,
-      );
+      document.documentElement.style.setProperty('--mobile-bottom-nav-height', `${height}px`);
       document.documentElement.style.setProperty(
         '--mobile-bottom-nav-offset',
         scrollDir === 'down' ? '0px' : `${height}px`,
@@ -56,22 +50,20 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
       document.documentElement.style.removeProperty('--mobile-bottom-nav-offset');
     };
   }, [scrollDir]);
+
+  if (!user) return null;
+
   const navItems: Item[] = [
     { name: 'Home', href: '/', icon: HomeIcon },
-    { name: 'Service Providers', href: '/service-providers', icon: UsersIcon },
     { name: 'Messages', href: '/inbox', icon: ChatBubbleLeftRightIcon, auth: true },
     {
       name: 'Dashboard',
-      href: user?.user_type === 'service_provider' ? '/dashboard/artist' : '/dashboard/client',
+      href: user.user_type === 'service_provider' ? '/dashboard/artist' : '/dashboard/client',
       icon: UserCircleIcon,
       auth: true,
     },
   ];
-  if (!user) {
-    return null;
-  }
-  // Next.js App Router doesn’t expose pathname in its types, so we use a type assertion
-  const pathname = (router as unknown as { pathname?: string }).pathname || '';
+
   const unreadMessages = notificationItems
     .filter((i: UnifiedNotification) => i.type === 'message')
     .reduce((sum, t: UnifiedNotification) => sum + (t.unread_count || 0), 0);
@@ -81,43 +73,66 @@ export default function MobileBottomNav({ user }: MobileBottomNavProps) {
     <nav
       ref={navRef}
       className={clsx(
-        'fixed bottom-0 w-full h-[56px] py-1 bg-background border-t shadow z-50 sm:hidden transition-transform pb-safe',
+        // container
+        'fixed inset-x-0 bottom-0 z-50 sm:hidden',
+        // visual style (subtle glass)
+        'bg-white/85 backdrop-blur supports-[backdrop-filter]:backdrop-blur-md',
+        'border-t border-black/5 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]',
+        // sizing + safe area
+        'h-14 pt-1',
+        'pb-[max(env(safe-area-inset-bottom,0),0.25rem)]',
+        // show/hide on scroll
+        'transition-transform duration-200',
         scrollDir === 'down' ? 'translate-y-full pointer-events-none' : 'translate-y-0 pointer-events-auto',
       )}
       aria-label="Mobile navigation"
     >
-      <ul className="flex justify-around h-full">
+      {/* 3 equal columns; prevents uneven spacing */}
+      <ul className="grid grid-cols-3 h-full">
         {navItems.map((item) => {
           const active = pathname === item.href;
           const showBadge = item.name === 'Messages' && unreadMessages > 0;
 
           return (
-            <li key={item.name} className="flex-1">
-              <NavLink
+            <li key={item.name} className="min-w-0">
+              <Link
                 href={item.href}
-                isActive={active}
                 aria-current={active ? 'page' : undefined}
                 aria-label={item.name}
                 className={clsx(
-                  navItemClasses,
-                  'flex flex-col items-center justify-center gap-1 h-full',
-                  active
-                    ? 'text-brand-dark border-brand-dark'
-                    : 'text-gray-500 hover:text-gray-700',
+                  // full-height tap target, centered
+                  'flex h-full flex-col items-center justify-center gap-1',
+                  // neutralize any inherited paddings/margins from shared link styles
+                  '!p-0 !m-0',
+                  // typography
+                  'text-[11px] font-medium tracking-tight',
+                  'no-underline hover:no-underline',
+                  active ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800',
                 )}
               >
-                <div className="relative flex items-center justify-center">
-                  <item.icon className="h-6 w-6" aria-hidden="true" />
+                <span className="relative inline-flex items-center justify-center">
+                  <item.icon
+                    className={clsx(
+                      'h-6 w-6 shrink-0',
+                      active ? 'stroke-[1.8] text-slate-900' : 'stroke-[1.6] text-slate-700',
+                    )}
+                    aria-hidden="true"
+                  />
                   {showBadge && (
                     <span
-                      className="absolute top-0 right-0 inline-flex translate-x-1/2 -translate-y-1/2 items-center justify-center px-1.5 py-0.5 text-[11px] font-bold leading-none text-white bg-red-600 rounded-full ring-2 ring-white"
+                      className={clsx(
+                        'absolute -top-1 -right-1',
+                        'inline-flex min-w-[18px] h-[18px] items-center justify-center',
+                        'rounded-full px-1.5 text-[10px] font-bold leading-none',
+                        'text-white bg-red-600 ring-2 ring-white',
+                      )}
                     >
                       {badgeCount}
                     </span>
                   )}
-                </div>
-                <span className="text-[11px]">{item.name}</span>
-              </NavLink>
+                </span>
+                <span className="leading-none">{item.name}</span>
+              </Link>
             </li>
           );
         })}

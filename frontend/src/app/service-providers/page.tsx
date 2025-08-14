@@ -195,7 +195,7 @@ export default function ServiceProvidersPage() {
           minPrice: min,
           maxPrice: max,
         });
-      }}
+      } }
       onFilterClear={() => {
         setSort(undefined);
         setMinPrice(SLIDER_MIN);
@@ -205,8 +205,9 @@ export default function ServiceProvidersPage() {
           location,
           when,
         });
-      }}
-    />
+      } } onSearchEdit={function (params: { category?: string | undefined; location?: string | undefined; when?: Date | null | undefined; }): void {
+        throw new Error('Function not implemented.');
+      } }    />
   );
   const qs = searchParams.toString();
 
