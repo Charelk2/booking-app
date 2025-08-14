@@ -90,7 +90,7 @@ export default function ArtistsSection({
   const showSeeAll = artists.length === limit;
 
   return (
-    <section className="full-width mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <section className="full-width mx-auto px-4 sm:px-6 lg:px-8 py-5">
       <div className="flex items-end justify-between mb-4">
         <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
         {showSeeAll && (
@@ -133,7 +133,7 @@ export default function ArtistsSection({
                   location={a.location}
                   categories={a.service_categories}
                   href={`/service-providers/${a.id}`}
-                  className="w-40 flex-shrink-0"
+                  className="w-56 flex-shrink-0"
                 />
               );
             })}

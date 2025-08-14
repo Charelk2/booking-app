@@ -169,7 +169,7 @@ export default function ServiceProviderProfilePage() {
         {profilePictureUrl && <meta property="og:image" content={profilePictureUrl} />}
       </Head>
       <MainLayout hideFooter>
-        <div className="md:flex bg-white">
+        <div className="md:flex px-6 bg-white">
           {/* Left Panel: image and host details */}
           <aside
             className="md:w-2/5 md:flex md:flex-col bg-white p-6 md:sticky md:self-start"

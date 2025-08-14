@@ -1,165 +1,145 @@
 /* src/styles/datepicker.css */
 /* Custom styles for react-datepicker */
 
-/* Ensures the date picker popover is on top of other content */
+/* Popper (for any non-inline uses) above other content */
 .react-datepicker-popper {
-    z-index: 50; /* Ensure this is always higher than other overlays if it's a popper */
-  }
-  
-  /* Base styles for the date picker container */
+  z-index: 50;
+}
+
+/* Base calendar container */
+.react-datepicker {
+  font-family: inherit;
+  border: none;
+  border-radius: 0.75rem; /* rounded-lg */
+  background-color: var(--color-background);
+  box-shadow: 0 10px 25px rgb(0 0 0 / 6%);
+  padding: 0.5rem;
+  width: auto;
+  max-width: 100%;
+  animation: fadeIn 0.2s ease-out;
+  box-sizing: border-box;
+  display: block;
+  overflow: visible;
+}
+
+/* When we apply our custom calendar class, force it to fill its parent card */
+.react-datepicker-custom-calendar.react-datepicker {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 0.75rem;
+  padding: 0.5rem;
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
   .react-datepicker {
-    font-family: inherit;
-    border: none;
-    border-radius: 0.75rem; /* Equivalent to Tailwind's rounded-lg */
-    background-color: var(--color-background);
-    box-shadow: 0 10px 25px rgb(0 0 0 / 6%); /* Custom shadow for depth */
-    padding: 0.5rem;
-    /* Fit the calendar to its content while respecting the popup width */
-    width: auto;
-    max-width: 100%;
-    animation: fadeIn 0.2s ease-out; /* Smooth fade-in animation */
-    /* Added to debug potential clipping: */
-    box-sizing: border-box; /* Ensure padding doesn't push it out of parent */
-    display: block; /* Ensure it's a block element */
-    overflow: visible; /* Ensure nothing is clipped within it */
+    animation: none;
   }
-  
-  @media (prefers-reduced-motion: reduce) {
-    .react-datepicker {
-      animation: none;
-    }
-  }
-  
-  /* Keyframe animation for fade-in effect */
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: scale(0.98);
-    }
-  
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-  
-  /* Hides the default triangle indicator */
-  .react-datepicker__triangle {
-    display: none;
-  }
-  
-  /* Styles for the header section of the date picker */
-  .react-datepicker__header {
-    background-color: var(--color-background);
-    border: none;
-    padding-bottom: 0.5rem;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-  }
-  
-  /* Hides the default current month display within the header */
-  .react-datepicker__current-month {
-    display: none !important;
-  }
-  
-  /* IMPORTANT: Hides the ARIA live region which often displays month/year for accessibility */
-  .react-datepicker__aria-live {
-    display: none !important;
-  }
-  
-  /* Styles for the navigation buttons (prev/next month) */
-  .react-datepicker__navigation {
-    top: 1.25rem;
-    background: transparent;
-    border: none;
+}
+
+/* Fade-in */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Hide default caret */
+.react-datepicker__triangle { display: none; }
+
+/* Header */
+.react-datepicker__header {
+  background-color: var(--color-background);
+  border: none;
+  padding: 0 0.5rem 0.5rem 0.5rem;
+}
+
+/* We show month in our custom header, keep default hidden */
+.react-datepicker__current-month,
+.react-datepicker__aria-live { display: none !important; }
+
+/* Prev/Next buttons */
+.react-datepicker__navigation {
+  top: 1.25rem;
+  background: transparent;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  z-index: 2;
+}
+.react-datepicker__navigation:hover {
+  background-color: var(--color-gray-100);
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+
+/* Month container should fill parent */
+.react-datepicker__month-container {
+  display: block;
+  width: 100%;
+}
+
+/* Make the calendar grid fluid so it never overflows on mobile */
+.react-datepicker__day-names,
+.react-datepicker__week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.5rem; /* space between cells */
+  padding: 0 0.5rem;
+}
+
+/* Day name & day cell — rely on grid column width (no fixed width) */
+.react-datepicker__day-name,
+.react-datepicker__day {
+  width: auto;                 /* override any fixed width */
+  height: 2.25rem;
+  line-height: 2.25rem;
+  font-size: 0.875rem;         /* text-sm */
+  text-align: center;
+  color: var(--color-gray-700);
+  border-radius: 0.5rem;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+/* Focus/hover/selected states */
+.react-datepicker__day:focus-visible {
+  outline: 2px solid var(--brand-color-dark);
+  outline-offset: 2px;
+}
+.react-datepicker__day:hover {
+  background-color: var(--color-gray-100);
+}
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background-color: var(--color-accent);
+  color: var(--color-background);
+  font-weight: 600;
+  transition: background-color 0.2s ease;
+}
+
+/* Disabled & outside-month */
+.react-datepicker__day--disabled {
+  color: var(--color-gray-400);
+  cursor: not-allowed;
+}
+.react-datepicker__day--disabled:hover { background-color: transparent; }
+.react-datepicker__day--outside-month { color: var(--color-gray-500); }
+
+/* ---------- Mobile tweaks ---------- */
+@media (max-width: 480px) {
+  .react-datepicker-custom-calendar.react-datepicker {
     padding: 0.25rem;
-    cursor: pointer;
-    z-index: 2; /* Ensure buttons are clickable above other elements */
   }
-  
-  /* Hover effect for navigation buttons */
-  .react-datepicker__navigation:hover {
-    background-color: var(--color-gray-100);
-    border-radius: 9999px;
-    transition: background-color 0.2s ease;
-  }
-  
-  /* Grid layout for day names (Su, Mo, Tu, etc.) and calendar weeks */
   .react-datepicker__day-names,
   .react-datepicker__week {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr); /* 7 columns for days of the week */
-    gap: 0.5rem; /* Increased from 0.25rem for more space */
-    padding: 0 0.5rem;
+    gap: 0.25rem;              /* tighter spacing on small screens */
+    padding: 0 0.25rem;
   }
-  
-  /* Styles for individual day names and day numbers */
   .react-datepicker__day-name,
   .react-datepicker__day {
-    width: 2.25rem; /* Increased from 2.25rem */
-    height: 2.25rem; /* Increased from 2.25rem */
-    line-height: 2.25rem; /* Centers text vertically, matches new height */
-    font-size: 0.875rem; /* Equivalent to Tailwind's text-sm (keep this) */
-    text-align: center;
-    color: var(--color-gray-700);
-    border-radius: 0.5rem; /* Slight rounding for day cells (keep this) */
-    transition: background-color 0.2s ease;
-    cursor: pointer;
-    /* Added to debug potential clipping */
-    box-sizing: border-box; 
+    height: 2rem;
+    line-height: 2rem;
+    font-size: 0.8125rem;      /* slightly smaller to fit cleanly */
   }
-  
-  /* Accessible focus style for day cells */
-  .react-datepicker__day:focus-visible {
-    outline: 2px solid var(--brand-color-dark);
-    outline-offset: 2px;
-  }
-  
-  /* Hover effect for individual day numbers */
-  .react-datepicker__day:hover {
-    background-color: var(--color-gray-100);
-  }
-  
-  /* Styles for the selected day or keyboard-selected day */
-  .react-datepicker__day--selected,
-  .react-datepicker__day--keyboard-selected {
-    background-color: var(--color-accent);
-    color: var(--color-background); /* Using --color-background for text on accent background */
-    font-weight: 600;
-    transition: background-color 0.2s ease;
-  }
-  
-  /* Styles for disabled days (e.g., days outside the min/max date range) */
-  .react-datepicker__day--disabled {
-    color: var(--color-gray-400);
-    cursor: not-allowed;
-  }
-  
-  .react-datepicker__day--disabled:hover {
-    background-color: transparent; /* No hover effect on disabled days */
-  }
-  
-  /* Styles for days of the previous or next month that are visible */
-  .react-datepicker__day--outside-month {
-    color: var(--color-gray-500);
-  }
-  
-  /* Ensure the month container itself is not hidden or too small */
-  .react-datepicker__month-container {
-      display: block; /* Ensure it's not display:none by some other rule */
-      /* Often float is used, but if display:grid or flex is on parent, remove float */
-      /* float: left; */ 
-      width: 100%; /* Ensure it fills parent */
-      /* If debugging, add: border: 1px dashed red; */
-  }
-  
-  .react-datepicker__month {
-      /* If debugging, add: border: 1px dashed blue; */
-  }
-  
-  /* If the problem persists, you might need to target even higher ancestors like this,
-     though it's less common for an inline datepicker. */
-  /* .react-datepicker-wrapper, .react-datepicker__input-container {
-    display: block;
-    width: 100%;
-  } */
+}

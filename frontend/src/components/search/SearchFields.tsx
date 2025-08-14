@@ -39,9 +39,11 @@ export interface SearchFieldsProps {
    * Made optional so callers that do not need prediction data do not have to provide a handler.
    * Typed as a React state dispatcher so callers can directly pass a `useState` setter.
    */
-  onPredictionsChange?: Dispatch<
-    SetStateAction<google.maps.places.AutocompletePrediction[]>
-  >;
+  onPredictionsChange?: Dispatch<SetStateAction<google.maps.places.AutocompletePrediction[]>>;
+  classNameOverrides?: {
+    fieldBase?: string;
+    divider?: string;
+  };
 }
 
 export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
@@ -96,11 +98,11 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             type="button"
             onClick={() => onFieldClick(id, buttonRef.current!)} // Pass the ID and the button element
             className={clsx(
-              'group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0',
-              compact ? 'px-4 py-2' : 'px-6 py-3',
+              'group relative z-10 w-full flex flex-col rounded-full justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0',
+              compact ? 'px-4 py-2' : 'px-6 py-4',
               isActive
-                ? 'bg-gray-100 shadow-md'
-                : 'hover:bg-gray-200 focus:bg-gray-50', // Removed rounded-l-full here
+                ? 'bg-gray-100 rounded-full'
+                : 'hover:bg-gray-100 focus:bg-gray-50', // Removed rounded-full here
               additionalClasses // Apply any additional classes passed in
             )}
             aria-expanded={isActive}
@@ -153,17 +155,17 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
     const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
-    <div ref={ref} className="flex flex-1 divide-x divide-gray-200 rounded-full">
+    <div ref={ref} className="flex flex-1 divide-x divide-gray-50 rounded-full">
       {renderField(
         'category',
         'Category',
         category ? category.label : 'Add artist',
         categoryButtonRef,
         () => setCategory(null),
-        'hover:rounded-l-full' // Pass rounded-l-full as an additional class
+        'hover:rounded-full' // Pass rounded-full as an additional class
       )}
 
-      <div className="border-l border-gray-200" />
+      <div className="border-l border-gray-100" />
 
       {renderField(
         'when',
@@ -173,17 +175,17 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         () => setWhen(null)
       )}
 
-      <div className="border-l border-gray-200" />
+      <div className="border-l rounded-full border-white-200" />
 
       {/* Location field now uses a direct input instead of a button */}
       <div
         ref={locationContainerRef}
         className={clsx(
           'relative min-w-0 transition-all duration-200 ease-out', 
-          compact ? 'px-4 py-2' : 'px-6 py-3',
+          compact ? 'px-4 py-2' : 'px-6 py-4',
           activeField === 'location'
-            ? 'bg-gray-100 shadow-md'
-            : 'hover:bg-gray-200 focus:bg-gray-50',
+            ? 'bg-gray-100 rounded-full '
+            : 'rounded-full hover:bg-gray-100 focus:bg-gray-50 ',
         )}
         onFocus={() => onFieldClick('location', locationContainerRef.current!)}
         onClick={() => locationInputRef.current?.focus()}

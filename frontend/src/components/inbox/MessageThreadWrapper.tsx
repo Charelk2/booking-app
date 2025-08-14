@@ -134,7 +134,7 @@ export default function MessageThreadWrapper({
   return (
     <div className="flex flex-col h-full w-full bg-white shadow-xl border-l border-gray-100 relative">
       {/* Unified Header */}
-      <header className="sticky top-0 z-10 bg-[#ece5da] text-gray-900 px-3 py-2 sm:px-5 sm:py-3 flex items-center justify-between border-b border-gray-200 md:min-h-[64px]">
+      <header className="sticky top-0 z-10 bg-white text-gray-900 px-3 py-2 sm:px-5 sm:py-3 flex items-center justify-between border-b border-gray-200 md:min-h-[64px]">
         <div className="flex items-center gap-3">
           {/* Avatar on left */}
           {isUserArtist ? (
