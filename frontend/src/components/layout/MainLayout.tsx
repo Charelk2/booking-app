@@ -37,9 +37,20 @@ export default function MainLayout({
   const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
 
   // Header state
-  const [headerState, setHeaderState] = useState<HeaderState>(
-    isArtistView ? 'initial' : isArtistsRoot ? 'compacted' : 'initial',
-  );
+  const [headerState, setHeaderState] = useState<HeaderState>(() => {
+    // On mobile, start in compact mode so the search pill stays beside the logo
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return 'compacted';
+    }
+    return isArtistView ? 'initial' : isArtistsRoot ? 'compacted' : 'initial';
+  });
+
+  // Ensure mobile starts in compact mode after hydration
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setHeaderState((prev) => (prev === 'compacted' ? prev : 'compacted'));
+    }
+  }, []);
 
   // Refs for scroll logic
   const prevScrollY = useRef(0);
@@ -81,6 +92,11 @@ export default function MainLayout({
   const forceHeaderState = useCallback(
     (state: HeaderState, scrollTarget?: number) => {
       if (headerRef.current?.dataset.lockCompact === 'true') return; // ignore while locked by mobile search
+
+      // On mobile we never show the full header, so ignore requests for 'initial'
+      if (typeof window !== 'undefined' && window.innerWidth < 768 && state === 'initial') {
+        state = 'compacted';
+      }
 
       // Lock the header in its initial state on service provider profile pages or artist view
       if (isArtistDetail || isArtistView) {
@@ -129,6 +145,7 @@ export default function MainLayout({
 
   // Main scroll handler
   const handleScroll = useCallback(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return; // mobile stays compact
     if (isArtistView) return; // No compaction in artist view
     const headerIsLocked = headerRef.current?.dataset.lockCompact === 'true';
     if (headerIsLocked) return; // bail if mobile search is open
@@ -187,7 +204,12 @@ export default function MainLayout({
 
   // Attach/detach scroll listener
   useEffect(() => {
-    if (isArtistDetail || isArtistView) return;
+    if (
+      isArtistDetail ||
+      isArtistView ||
+      (typeof window !== 'undefined' && window.innerWidth < 768)
+    )
+      return;
 
     window.addEventListener('scroll', optimizedScrollHandler, { passive: true });
     if (typeof window !== 'undefined' && window.scrollY > 0) {
