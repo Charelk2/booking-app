@@ -151,7 +151,11 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     if (isArtistsPage) {
       onForceHeaderState('compacted');
     } else {
-      onForceHeaderState(window.scrollY > 0 ? 'compacted' : 'initial', window.scrollY > 0 ? undefined : 0);
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      onForceHeaderState(
+        isMobile || window.scrollY > 0 ? 'compacted' : 'initial',
+        isMobile || window.scrollY > 0 ? undefined : 0,
+      );
     }
   }, [router, onForceHeaderState, isArtistsPage]);
 
@@ -160,7 +164,11 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     if (isArtistsPage) {
       onForceHeaderState('compacted');
     } else {
-      onForceHeaderState(window.scrollY > 0 ? 'compacted' : 'initial', window.scrollY > 0 ? undefined : 0);
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      onForceHeaderState(
+        isMobile || window.scrollY > 0 ? 'compacted' : 'initial',
+        isMobile || window.scrollY > 0 ? undefined : 0,
+      );
     }
   }, [onForceHeaderState, isArtistsPage]);
 
@@ -169,9 +177,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     if (mobileSearchOpen) {
       onForceHeaderState('expanded-from-compact', 0);
     } else if (headerState === 'expanded-from-compact') {
-      onForceHeaderState(isArtistsPage || window.scrollY > 0 ? 'compacted' : 'initial');
+      onForceHeaderState('compacted');
     }
-  }, [mobileSearchOpen, headerState, onForceHeaderState, isArtistsPage]);
+  }, [mobileSearchOpen, headerState, onForceHeaderState]);
 
   // If header compacts while mobile search is open, close it
   useEffect(() => {
