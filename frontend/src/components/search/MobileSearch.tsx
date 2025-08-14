@@ -13,6 +13,7 @@ import {
 } from 'react';
 import {
   ChevronDownIcon, // only for accordion headers
+  MagnifyingGlassIcon,
   CalendarIcon,
   MapPinIcon,
   MusicalNoteIcon,
@@ -46,6 +47,9 @@ type Props = {
   onSearch: (params: { category?: string; location?: string; when?: Date | null }) => void | Promise<void>;
   onCancel?: () => void;            // restore header right away
   onOpenChange?: (open: boolean) => void; // tells Header to lock/unlock compaction
+
+  /* control whether pill is shown when closed */
+  showPill?: boolean;
 };
 
 /** Accordion shell: only hides overflow when CLOSED to avoid clipping dropdowns/suggestions */
@@ -108,25 +112,19 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
     onSearch,
     onCancel,
     onOpenChange,
+    showPill = true,
   }: Props,
   ref
 ) {
-  // Track whether the mobile search panel is open
+  /** Pill open/close; pill is hidden while open */
   const [open, setOpen] = useState(false);
 
   /** expose imperative API */
-  useImperativeHandle(
-    ref,
-    () => ({
-      open: () => {
-        setActive(null); // reset accordion panels
-        setOpen(true);
-      },
-      close: () => setOpen(false),
-      isOpen: () => open,
-    }),
-    [open],
-  );
+  useImperativeHandle(ref, () => ({
+    open: () => setOpen(true),
+    close: () => setOpen(false),
+    isOpen: () => open,
+  }), [open]);
 
   /** Single-open accordion; all CLOSED when opening */
   const [active, setActive] = useState<PanelKey>(null);
@@ -260,6 +258,10 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
     prevBodyStylesRef.current = null;
   }, []);
 
+  const openPanel = useCallback(() => {
+    setOpen(true);
+    setActive(null); // all accordions closed on open
+  }, []);
   const closeAndReset = useCallback(() => {
     // Proactively signal "closed" and unlock body BEFORE state/effects flush
     onOpenChange?.(false);
@@ -321,15 +323,35 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
     return () => window.removeEventListener('keydown', onKey as any);
   }, [open, closeAndReset]);
 
-  return open ? (
+  /** Pill (no chevron; hides once open) — respects showPill */
+  const Pill = showPill && !open && (
+    <button
+      type="button"
+      onClick={openPanel}
+      aria-expanded={false}
+      className={clsx(
+        'w-full flex items-center justify-start gap-3 md:hidden',
+        'rounded-full border border-black/10 bg-white/100 backdrop-blur',
+        'px-4 py-3 shadow-sm active:scale-[0.99] transition'
+      )}
+    >
+      <MagnifyingGlassIcon className="h-5 w-5 text-slate-800" />
+      <span className="text-sm font-medium text-slate-800">Start your search</span>
+    </button>
+  );
+
+  return (
     <div className="md:hidden">
-      <>
-        {/* Backdrop (clicking outside closes + restores header immediately) */}
-        <div
-          className="fixed inset-0 z-40"
-          aria-hidden="true"
-          onClick={closeAndReset}
-        />
+      {Pill}
+
+      {open && (
+        <>
+          {/* Backdrop (clicking outside closes + restores header immediately) */}
+          <div
+            className="fixed inset-0 z-40"
+            aria-hidden="true"
+            onClick={closeAndReset}
+          />
 
           {/* Panel (above backdrop) */}
           <div className="relative z-50 mt-3 space-y-3">
@@ -584,7 +606,7 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
         </>
       )}
     </div>
-  ) : null;
+  );
 });
 
 export default MobileSearch;
