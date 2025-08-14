@@ -171,7 +171,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     handleSubmit,
     setValue,
     watch,
-    errors, // Directly destructure errors, assuming useBookingForm returns it at top level
   } = useBookingForm(schema, details, setDetails);
 
   const watchedValues = watch();
@@ -699,11 +698,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               {renderStep()}
 
               {warning && <p className="text-orange-600 text-sm mt-4">{warning}</p>}
-              {Object.keys(errors).length > 0 && (
-                <p className="text-red-600 text-sm mt-4">
-                  Please fix the highlighted errors above to continue.
-                </p>
-              )}
               {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}
             </div>
           </form>
