@@ -211,20 +211,26 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       <div className="mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Row */}
         <div className="grid grid-cols-[auto,1fr,auto] items-center py-2">
-          {/* Left: Menu + Logo */}
+          {/* Left: Menu + Logo + (mobile compact search button) */}
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setMenuOpen(true)}
-              aria-label="Open menu"
-              className={clsx('md:hidden p-2 rounded-lg hover:bg-white/60')}
-            >
+            <button type="button" onClick={() => setMenuOpen(true)} aria-label="Open menu" className={clsx('md:hidden p-2 rounded-lg hover:bg-white/60')}>
               <Bars3Icon className="h-6 w-6" />
             </button>
 
-            <Link href="/" className="text-2xl font-bold text-brand-dark no-underline">
-              Booka
-            </Link>
+            <Link href="/" className="text-2xl font-bold text-brand-dark no-underline">Booka</Link>
+
+            {/* Mobile compact search button appears NEXT to Booka when compacted */}
+            {!isArtistView && showSearchBar && headerState === 'compacted' && (
+              <button
+                type="button"
+                onClick={() => { onForceHeaderState('expanded-from-compact', 0); mobileSearchRef.current?.open?.(); }}
+                className="ml-2 md:hidden inline-flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-full border border-black/10 bg-white/90 shadow-sm"
+                aria-label="Open search"
+              >
+                <MagnifyingGlassIcon className="h-3.5 w-3.5 text-slate-700" />
+                <span className="font-medium text-slate-800">Search</span>
+              </button>
+            )}
           </div>
 
           {/* Center: Nav (md+), compact summary (md+) */}
@@ -339,27 +345,8 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         {/* Search area */}
         {!isArtistView && showSearchBar && (
           <div className={clsx('max-w-2xl mx-auto relative', headerState === 'compacted' ? 'mt-0 mb-0 md:mt-3 md:mb-4' : 'mt-3 mb-4')}>
-            {/* Mobile compact search bar that triggers overlay */}
+            {/* Mobile overlay search */}
             <div className="md:hidden">
-              <button
-                type="button"
-                onClick={() => {
-                  onForceHeaderState('expanded-from-compact', 0);
-                  mobileSearchRef.current?.open?.();
-                }}
-                className="w-full flex items-center bg-white justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm text-sm"
-                aria-label="Open search options"
-              >
-                <div className="flex-1 flex divide-x divide-gray-300">
-                  <div className="flex-1 px-2 truncate">{category ? category.label : 'Add service'}</div>
-                  <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
-                    {location ? getStreetFromAddress(location) : 'Add location'}
-                  </div>
-                  <div className="flex-1 px-2 truncate">{when ? dateFormatter.format(when) : 'Add dates'}</div>
-                </div>
-                <MagnifyingGlassIcon className="ml-2 h-5 w-5 text-gray-500 flex-shrink-0" />
-              </button>
-
               <MobileSearch
                 ref={mobileSearchRef}
                 category={category}
@@ -371,6 +358,8 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 onSearch={handleSearch}
                 onCancel={handleSearchBarCancel}
                 onOpenChange={setMobileSearchOpen}
+                // Hide internal pill when header is COMPACT (we use the tiny header button)
+                showPill={headerState !== 'compacted'}
               />
             </div>
 
