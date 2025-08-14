@@ -219,8 +219,8 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
             <Link href="/" className="text-2xl font-bold text-brand-dark no-underline">Booka</Link>
 
-            {/* Mobile compact search button always visible on mobile */}
-            {!isArtistView && showSearchBar && !mobileSearchOpen && (
+            {/* Mobile compact search button appears NEXT to Booka when compacted */}
+            {!isArtistView && showSearchBar && headerState === 'compacted' && (
               <button
                 type="button"
                 onClick={() => { onForceHeaderState('expanded-from-compact', 0); mobileSearchRef.current?.open?.(); }}
