@@ -5,8 +5,9 @@ import { act } from 'react';
 import Header from '../Header';
 import { useSearchParams } from '@/tests/mocks/next-navigation';
 
-jest.mock('next/link', () => ({ __esModule: true, default: (props: Record<string, unknown>) => <a {...props} /> }));
+jest.mock('next/link', () => ({ __esModule: true, default: (props: any) => require('react').createElement('a', props) }));
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: jest.fn(() => ({ user: null, logout: jest.fn() })) }));
+jest.mock('@/hooks/useServiceCategories', () => ({ __esModule: true, default: jest.fn(() => ([{ id: 1, value: 'live-performance', label: 'Musician / Band' }])) }));
 
 
 function render() {
@@ -83,9 +84,10 @@ describe('Header', () => {
       );
     });
     await flushPromises();
-    expect(div.textContent).toContain('Musician / Band');
-    expect(div.textContent).toContain('Cape Town');
-    expect(div.textContent).toContain('Dec');
+    const trigger = div.querySelector('button[aria-label="Open search options"]') as HTMLButtonElement;
+    expect(trigger.textContent).toContain('Musician / Band');
+    expect(trigger.textContent).toContain('Cape Town');
+    expect(trigger.textContent).toContain('Dec');
     act(() => root.unmount());
     div.remove();
     useSearchParams.mockReturnValue(new URLSearchParams());
@@ -119,7 +121,7 @@ describe('Header', () => {
       );
     });
     await flushPromises();
-    const trigger = div.querySelector('#compact-search-trigger') as HTMLButtonElement;
+    const trigger = div.querySelector('button[aria-label="Open search options"]') as HTMLButtonElement;
     expect(trigger.textContent).toContain('123 Main St');
     expect(trigger.textContent).not.toContain('Cape Town');
     act(() => root.unmount());

@@ -2,8 +2,9 @@
 
 exports[`Header hides search bar when disabled 1`] = `
 <header
-  class="app-header sticky top-0 z-50 bg-white transition-all duration-50 ease-in-out"
+  class="relative sticky top-0 z-50 transition-all duration-200 ease-out bg-gradient-to-br from-[#F6F3EF]/100 via-[#F7FAFF]/100 to-[#EEF3FA]/100 supports-[backdrop-filter]:backdrop-blur-[1px]"
   data-header-state="initial"
+  data-lock-compact="false"
   id="app-header"
 >
   <div
@@ -12,13 +13,12 @@ exports[`Header hides search bar when disabled 1`] = `
     <div
       class="grid grid-cols-[auto,1fr,auto] items-center py-2"
     >
-       
       <div
         class="flex items-center gap-2"
       >
         <button
           aria-label="Open menu"
-          class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline md:hidden"
+          class="md:hidden p-2 rounded-lg hover:bg-white/60"
           type="button"
         >
           <svg
@@ -39,7 +39,7 @@ exports[`Header hides search bar when disabled 1`] = `
           </svg>
         </button>
         <a
-          class="text-4xl font-bold text-brand-dark no-underline"
+          class="text-2xl font-bold text-brand-dark no-underline"
           href="/"
         >
           Booka
@@ -55,25 +55,13 @@ exports[`Header hides search bar when disabled 1`] = `
             class="flex gap-6"
           >
             <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
-              href="/service-providers"
-            >
-              Service Providers
-            </a>
-            <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
+              class="inline-flex items-center text-sm font-medium no-underline hover:no-underline min-w-[44px] min-h-[44px] border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
               href="/services"
             >
               Services
             </a>
             <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
-              href="/faq"
-            >
-              FAQ
-            </a>
-            <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
+              class="inline-flex items-center text-sm font-medium no-underline hover:no-underline min-w-[44px] min-h-[44px] border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
               href="/contact"
             >
               Contact
@@ -88,13 +76,13 @@ exports[`Header hides search bar when disabled 1`] = `
           class="flex gap-2"
         >
           <a
-            class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline text-gray-600"
+            class="px-3 py-2 text-sm rounded-lg hover:bg-white/60 text-gray-600"
             href="/login"
           >
             Sign in
           </a>
           <a
-            class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline bg-brand-dark text-white rounded"
+            class="px-3 py-2 text-sm rounded-lg bg-brand-dark text-white"
             href="/register"
           >
             Sign up
@@ -108,8 +96,9 @@ exports[`Header hides search bar when disabled 1`] = `
 
 exports[`Header matches compact snapshot with filter control 1`] = `
 <header
-  class="app-header sticky top-0 z-50 bg-white transition-all duration-50 ease-in-out compacted"
+  class="relative sticky top-0 z-50 transition-all duration-200 ease-out bg-gradient-to-br from-[#F6F3EF]/100 via-[#F7FAFF]/100 to-[#EEF3FA]/100 supports-[backdrop-filter]:backdrop-blur-[1px]"
   data-header-state="compacted"
+  data-lock-compact="false"
   id="app-header"
 >
   <div
@@ -118,13 +107,12 @@ exports[`Header matches compact snapshot with filter control 1`] = `
     <div
       class="grid grid-cols-[auto,1fr,auto] items-center py-2"
     >
-       
       <div
         class="flex items-center gap-2"
       >
         <button
           aria-label="Open menu"
-          class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline md:hidden"
+          class="md:hidden p-2 rounded-lg hover:bg-white/60"
           type="button"
         >
           <svg
@@ -145,7 +133,7 @@ exports[`Header matches compact snapshot with filter control 1`] = `
           </svg>
         </button>
         <a
-          class="text-4xl font-bold text-brand-dark no-underline"
+          class="text-2xl font-bold text-brand-dark no-underline"
           href="/"
         >
           Booka
@@ -161,25 +149,13 @@ exports[`Header matches compact snapshot with filter control 1`] = `
             class="flex gap-6"
           >
             <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
-              href="/service-providers"
-            >
-              Service Providers
-            </a>
-            <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
+              class="inline-flex items-center text-sm font-medium no-underline hover:no-underline min-w-[44px] min-h-[44px] border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
               href="/services"
             >
               Services
             </a>
             <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
-              href="/faq"
-            >
-              FAQ
-            </a>
-            <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
+              class="inline-flex items-center text-sm font-medium no-underline hover:no-underline min-w-[44px] min-h-[44px] border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
               href="/contact"
             >
               Contact
@@ -190,7 +166,7 @@ exports[`Header matches compact snapshot with filter control 1`] = `
           class="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex items-center justify-center gap-2 opacity-100 pointer-events-auto transition-opacity duration-100 delay-100"
         >
           <button
-            class="flex-1 w-full max-w-xl flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
+            class="flex-1 w-full max-w-xl flex items-center bg-white justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
             id="compact-search-trigger"
             type="button"
           >
@@ -246,13 +222,13 @@ exports[`Header matches compact snapshot with filter control 1`] = `
           class="flex gap-2"
         >
           <a
-            class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline text-gray-600"
+            class="px-3 py-2 text-sm rounded-lg hover:bg-white/60 text-gray-600"
             href="/login"
           >
             Sign in
           </a>
           <a
-            class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline bg-brand-dark text-white rounded"
+            class="px-3 py-2 text-sm rounded-lg bg-brand-dark text-white"
             href="/register"
           >
             Sign up
@@ -261,152 +237,38 @@ exports[`Header matches compact snapshot with filter control 1`] = `
       </div>
     </div>
     <div
-      class="content-area-wrapper header-full-search-bar mt-3 mb-4 max-w-2xl mx-auto relative opacity-0 scale-y-0 h-0 pointer-events-none"
+      class="max-w-2xl mx-auto relative mt-0 mb-0 md:mt-3 md:mb-4"
     >
-      <form
-        aria-label="Service Provider booking search"
-        autocomplete="off"
-        class="relative z-[45] flex items-stretch rounded-full bg-white shadow-lg transition-all duration-200 ease-out text-base shadow-md hover:shadow-lg"
-        role="search"
+      <div
+        class="md:hidden"
       >
-        <div
-          class="flex flex-1 divide-x divide-gray-200 rounded-full"
+        <button
+          aria-label="Open search options"
+          class="w-full flex items-center bg-white justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm text-sm"
+          type="button"
         >
           <div
-            class="relative flex-1 min-w-0"
+            class="flex-1 flex divide-x divide-gray-300"
           >
-            <button
-              aria-controls="category-popup"
-              aria-expanded="false"
-              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 px-6 py-3 hover:bg-gray-200 focus:bg-gray-50 hover:rounded-l-full"
-              id="category-search-button"
-              type="button"
-            >
-              <span
-                class="flex items-center text-sm font-semibold pointer-events-none select-none text-gray-700"
-              >
-                <svg
-                  aria-hidden="true"
-                  class="mr-1 h-4 w-4"
-                  data-slot="icon"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-                Category
-              </span>
-              <span
-                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
-              >
-                Add artist
-              </span>
-            </button>
-          </div>
-          <div
-            class="border-l border-gray-200"
-          />
-          <div
-            class="relative flex-1 min-w-0"
-          >
-            <button
-              aria-controls="when-popup"
-              aria-expanded="false"
-              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 px-6 py-3 hover:bg-gray-200 focus:bg-gray-50"
-              id="when-search-button"
-              type="button"
-            >
-              <span
-                class="flex items-center text-sm font-semibold pointer-events-none select-none text-gray-700"
-              >
-                <svg
-                  aria-hidden="true"
-                  class="mr-1 h-4 w-4"
-                  data-slot="icon"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-                When
-              </span>
-              <span
-                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
-              >
-                Add dates
-              </span>
-            </button>
-          </div>
-          <div
-            class="border-l border-gray-200"
-          />
-          <div
-            class="relative min-w-0 transition-all duration-200 ease-out px-6 py-3 hover:bg-gray-200 focus:bg-gray-50"
-          >
-            <span
-              class="flex items-center text-sm font-semibold pointer-events-none select-none text-gray-700"
-            >
-              <svg
-                aria-hidden="true"
-                class="mr-1 h-4 w-4"
-                data-slot="icon"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <path
-                  d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              Where
-            </span>
             <div
-              class="relative w-full w-full"
+              class="flex-1 px-2 truncate"
             >
-              <input
-                aria-autocomplete="list"
-                aria-controls="autocomplete-options"
-                aria-expanded="false"
-                class="w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none block truncate p-0 bg-transparent text-gray-500 text-base text-xs"
-                placeholder="Add location"
-                role="combobox"
-                type="text"
-                value=""
-              />
+              Add service
+            </div>
+            <div
+              class="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis"
+            >
+              Add location
+            </div>
+            <div
+              class="flex-1 px-2 truncate"
+            >
+              Add dates
             </div>
           </div>
-        </div>
-        <button
-          aria-label="Search now"
-          class="hover:bg-[var(--color-accent)]/90 flex items-center justify-center rounded-r-full bg-[var(--color-accent)] px-5 py-3 text-white transition-all duration-200 ease-out active:scale-95"
-          type="submit"
-        >
           <svg
             aria-hidden="true"
-            class="h-5 w-5"
+            class="ml-2 h-5 w-5 text-gray-500 flex-shrink-0"
             data-slot="icon"
             fill="none"
             stroke="currentColor"
@@ -420,13 +282,176 @@ exports[`Header matches compact snapshot with filter control 1`] = `
               stroke-linejoin="round"
             />
           </svg>
-          <span
-            class="sr-only"
-          >
-            Search
-          </span>
         </button>
-      </form>
+      </div>
+      <div
+        class="hidden md:block opacity-0 scale-y-0 h-0 pointer-events-none"
+      >
+        <form
+          aria-label="Service Provider booking search"
+          autocomplete="off"
+          class="relative flex items-stretch rounded-full transition-all duration-200 ease-out bg-white border border-black/10 ring-1 ring-white/20 backdrop-blur-2xl shadow-sm text-base"
+          role="search"
+        >
+          <div
+            class="flex flex-1 divide-x divide-gray-50 rounded-full"
+          >
+            <div
+              class="relative flex-1 min-w-0"
+            >
+              <button
+                aria-controls="category-popup"
+                aria-expanded="false"
+                class="group relative z-10 w-full flex flex-col rounded-full justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 px-6 py-4 hover:bg-gray-100 focus:bg-gray-50 hover:rounded-full"
+                id="category-search-button"
+                type="button"
+              >
+                <span
+                  class="flex items-center text-sm font-semibold pointer-events-none select-none text-gray-700"
+                >
+                  <svg
+                    aria-hidden="true"
+                    class="mr-1 h-4 w-4"
+                    data-slot="icon"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  Category
+                </span>
+                <span
+                  class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
+                >
+                  Add artist
+                </span>
+              </button>
+            </div>
+            <div
+              class="border-l border-gray-100"
+            />
+            <div
+              class="relative flex-1 min-w-0"
+            >
+              <button
+                aria-controls="when-popup"
+                aria-expanded="false"
+                class="group relative z-10 w-full flex flex-col rounded-full justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 px-6 py-4 hover:bg-gray-100 focus:bg-gray-50"
+                id="when-search-button"
+                type="button"
+              >
+                <span
+                  class="flex items-center text-sm font-semibold pointer-events-none select-none text-gray-700"
+                >
+                  <svg
+                    aria-hidden="true"
+                    class="mr-1 h-4 w-4"
+                    data-slot="icon"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  When
+                </span>
+                <span
+                  class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
+                >
+                  Add dates
+                </span>
+              </button>
+            </div>
+            <div
+              class="border-l rounded-full border-white-200"
+            />
+            <div
+              class="relative min-w-0 transition-all duration-200 ease-out px-6 py-4 rounded-full hover:bg-gray-100 focus:bg-gray-50 "
+            >
+              <span
+                class="flex items-center text-sm font-semibold pointer-events-none select-none text-gray-700"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="mr-1 h-4 w-4"
+                  data-slot="icon"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                Where
+              </span>
+              <div
+                class="relative w-full w-full"
+              >
+                <input
+                  aria-autocomplete="list"
+                  aria-controls="autocomplete-options"
+                  aria-expanded="false"
+                  class="w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none block truncate p-0 bg-transparent text-gray-500 text-base text-xs"
+                  placeholder="Add location"
+                  role="combobox"
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+          <button
+            aria-label="Search now"
+            class="mx-2 my-2 mt-2 h-12 w-12 rounded-full flex items-center justify-center bg-white/70 hover:bg-gray-100 border border-white/60 ring-1 ring-white/40 backdrop-blur-md transition-all duration-150"
+            type="submit"
+          >
+            <svg
+              aria-hidden="true"
+              class="h-5 w-5 text-slate-900/80"
+              data-slot="icon"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span
+              class="sr-only"
+            >
+              Search
+            </span>
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </header>
@@ -434,8 +459,9 @@ exports[`Header matches compact snapshot with filter control 1`] = `
 
 exports[`Header renders extraBar when provided 1`] = `
 <header
-  class="app-header sticky top-0 z-50 bg-white transition-all duration-50 ease-in-out"
+  class="relative sticky top-0 z-50 transition-all duration-200 ease-out bg-gradient-to-br from-[#F6F3EF]/100 via-[#F7FAFF]/100 to-[#EEF3FA]/100 supports-[backdrop-filter]:backdrop-blur-[1px]"
   data-header-state="initial"
+  data-lock-compact="false"
   id="app-header"
 >
   <div
@@ -444,13 +470,12 @@ exports[`Header renders extraBar when provided 1`] = `
     <div
       class="grid grid-cols-[auto,1fr,auto] items-center py-2"
     >
-       
       <div
         class="flex items-center gap-2"
       >
         <button
           aria-label="Open menu"
-          class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline md:hidden"
+          class="md:hidden p-2 rounded-lg hover:bg-white/60"
           type="button"
         >
           <svg
@@ -471,7 +496,7 @@ exports[`Header renders extraBar when provided 1`] = `
           </svg>
         </button>
         <a
-          class="text-4xl font-bold text-brand-dark no-underline"
+          class="text-2xl font-bold text-brand-dark no-underline"
           href="/"
         >
           Booka
@@ -487,25 +512,13 @@ exports[`Header renders extraBar when provided 1`] = `
             class="flex gap-6"
           >
             <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
-              href="/service-providers"
-            >
-              Service Providers
-            </a>
-            <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
+              class="inline-flex items-center text-sm font-medium no-underline hover:no-underline min-w-[44px] min-h-[44px] border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
               href="/services"
             >
               Services
             </a>
             <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
-              href="/faq"
-            >
-              FAQ
-            </a>
-            <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
+              class="inline-flex items-center text-sm font-medium no-underline hover:no-underline min-w-[44px] min-h-[44px] border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
               href="/contact"
             >
               Contact
@@ -520,13 +533,13 @@ exports[`Header renders extraBar when provided 1`] = `
           class="flex gap-2"
         >
           <a
-            class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline text-gray-600"
+            class="px-3 py-2 text-sm rounded-lg hover:bg-white/60 text-gray-600"
             href="/login"
           >
             Sign in
           </a>
           <a
-            class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline bg-brand-dark text-white rounded"
+            class="px-3 py-2 text-sm rounded-lg bg-brand-dark text-white"
             href="/register"
           >
             Sign up
@@ -547,8 +560,9 @@ exports[`Header renders extraBar when provided 1`] = `
 
 exports[`Header renders search bar when enabled 1`] = `
 <header
-  class="app-header sticky top-0 z-50 bg-white transition-all duration-50 ease-in-out"
+  class="relative sticky top-0 z-50 transition-all duration-200 ease-out bg-gradient-to-br from-[#F6F3EF]/100 via-[#F7FAFF]/100 to-[#EEF3FA]/100 supports-[backdrop-filter]:backdrop-blur-[1px]"
   data-header-state="initial"
+  data-lock-compact="false"
   id="app-header"
 >
   <div
@@ -557,13 +571,12 @@ exports[`Header renders search bar when enabled 1`] = `
     <div
       class="grid grid-cols-[auto,1fr,auto] items-center py-2"
     >
-       
       <div
         class="flex items-center gap-2"
       >
         <button
           aria-label="Open menu"
-          class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline md:hidden"
+          class="md:hidden p-2 rounded-lg hover:bg-white/60"
           type="button"
         >
           <svg
@@ -584,7 +597,7 @@ exports[`Header renders search bar when enabled 1`] = `
           </svg>
         </button>
         <a
-          class="text-4xl font-bold text-brand-dark no-underline"
+          class="text-2xl font-bold text-brand-dark no-underline"
           href="/"
         >
           Booka
@@ -600,25 +613,13 @@ exports[`Header renders search bar when enabled 1`] = `
             class="flex gap-6"
           >
             <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
-              href="/service-providers"
-            >
-              Service Providers
-            </a>
-            <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
+              class="inline-flex items-center text-sm font-medium no-underline hover:no-underline min-w-[44px] min-h-[44px] border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
               href="/services"
             >
               Services
             </a>
             <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
-              href="/faq"
-            >
-              FAQ
-            </a>
-            <a
-              class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
+              class="inline-flex items-center text-sm font-medium no-underline hover:no-underline min-w-[44px] min-h-[44px] border-b-2 transition-colors border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300"
               href="/contact"
             >
               Contact
@@ -629,7 +630,7 @@ exports[`Header renders search bar when enabled 1`] = `
           class="compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex items-center justify-center gap-2 opacity-0 pointer-events-none"
         >
           <button
-            class="flex-1 w-full max-w-xl flex items-center justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
+            class="flex-1 w-full max-w-xl flex items-center bg-white justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
             id="compact-search-trigger"
             type="button"
           >
@@ -678,13 +679,13 @@ exports[`Header renders search bar when enabled 1`] = `
           class="flex gap-2"
         >
           <a
-            class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline text-gray-600"
+            class="px-3 py-2 text-sm rounded-lg hover:bg-white/60 text-gray-600"
             href="/login"
           >
             Sign in
           </a>
           <a
-            class="inline-flex items-center min-h-[44px] min-w-[44px] text-sm font-medium no-underline hover:no-underline bg-brand-dark text-white rounded"
+            class="px-3 py-2 text-sm rounded-lg bg-brand-dark text-white"
             href="/register"
           >
             Sign up
@@ -693,152 +694,38 @@ exports[`Header renders search bar when enabled 1`] = `
       </div>
     </div>
     <div
-      class="content-area-wrapper header-full-search-bar mt-3 mb-4 max-w-2xl mx-auto relative opacity-100 scale-y-100 pointer-events-auto"
+      class="max-w-2xl mx-auto relative mt-3 mb-4"
     >
-      <form
-        aria-label="Service Provider booking search"
-        autocomplete="off"
-        class="relative z-[45] flex items-stretch rounded-full bg-white shadow-lg transition-all duration-200 ease-out text-base shadow-md hover:shadow-lg"
-        role="search"
+      <div
+        class="md:hidden"
       >
-        <div
-          class="flex flex-1 divide-x divide-gray-200 rounded-full"
+        <button
+          aria-label="Open search options"
+          class="w-full flex items-center bg-white justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm text-sm"
+          type="button"
         >
           <div
-            class="relative flex-1 min-w-0"
+            class="flex-1 flex divide-x divide-gray-300"
           >
-            <button
-              aria-controls="category-popup"
-              aria-expanded="false"
-              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 px-6 py-3 hover:bg-gray-200 focus:bg-gray-50 hover:rounded-l-full"
-              id="category-search-button"
-              type="button"
-            >
-              <span
-                class="flex items-center text-sm font-semibold pointer-events-none select-none text-gray-700"
-              >
-                <svg
-                  aria-hidden="true"
-                  class="mr-1 h-4 w-4"
-                  data-slot="icon"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-                Category
-              </span>
-              <span
-                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
-              >
-                Add artist
-              </span>
-            </button>
-          </div>
-          <div
-            class="border-l border-gray-200"
-          />
-          <div
-            class="relative flex-1 min-w-0"
-          >
-            <button
-              aria-controls="when-popup"
-              aria-expanded="false"
-              class="group relative z-10 w-full flex flex-col justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 px-6 py-3 hover:bg-gray-200 focus:bg-gray-50"
-              id="when-search-button"
-              type="button"
-            >
-              <span
-                class="flex items-center text-sm font-semibold pointer-events-none select-none text-gray-700"
-              >
-                <svg
-                  aria-hidden="true"
-                  class="mr-1 h-4 w-4"
-                  data-slot="icon"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-                When
-              </span>
-              <span
-                class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
-              >
-                Add dates
-              </span>
-            </button>
-          </div>
-          <div
-            class="border-l border-gray-200"
-          />
-          <div
-            class="relative min-w-0 transition-all duration-200 ease-out px-6 py-3 hover:bg-gray-200 focus:bg-gray-50"
-          >
-            <span
-              class="flex items-center text-sm font-semibold pointer-events-none select-none text-gray-700"
-            >
-              <svg
-                aria-hidden="true"
-                class="mr-1 h-4 w-4"
-                data-slot="icon"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <path
-                  d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              Where
-            </span>
             <div
-              class="relative w-full w-full"
+              class="flex-1 px-2 truncate"
             >
-              <input
-                aria-autocomplete="list"
-                aria-controls="autocomplete-options"
-                aria-expanded="false"
-                class="w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none block truncate p-0 bg-transparent text-gray-500 text-base text-xs"
-                placeholder="Add location"
-                role="combobox"
-                type="text"
-                value=""
-              />
+              Add service
+            </div>
+            <div
+              class="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis"
+            >
+              Add location
+            </div>
+            <div
+              class="flex-1 px-2 truncate"
+            >
+              Add dates
             </div>
           </div>
-        </div>
-        <button
-          aria-label="Search now"
-          class="hover:bg-[var(--color-accent)]/90 flex items-center justify-center rounded-r-full bg-[var(--color-accent)] px-5 py-3 text-white transition-all duration-200 ease-out active:scale-95"
-          type="submit"
-        >
           <svg
             aria-hidden="true"
-            class="h-5 w-5"
+            class="ml-2 h-5 w-5 text-gray-500 flex-shrink-0"
             data-slot="icon"
             fill="none"
             stroke="currentColor"
@@ -852,13 +739,176 @@ exports[`Header renders search bar when enabled 1`] = `
               stroke-linejoin="round"
             />
           </svg>
-          <span
-            class="sr-only"
-          >
-            Search
-          </span>
         </button>
-      </form>
+      </div>
+      <div
+        class="hidden md:block opacity-100 scale-y-100 pointer-events-auto"
+      >
+        <form
+          aria-label="Service Provider booking search"
+          autocomplete="off"
+          class="relative flex items-stretch rounded-full transition-all duration-200 ease-out bg-white border border-black/10 ring-1 ring-white/20 backdrop-blur-2xl shadow-sm text-base"
+          role="search"
+        >
+          <div
+            class="flex flex-1 divide-x divide-gray-50 rounded-full"
+          >
+            <div
+              class="relative flex-1 min-w-0"
+            >
+              <button
+                aria-controls="category-popup"
+                aria-expanded="false"
+                class="group relative z-10 w-full flex flex-col rounded-full justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 px-6 py-4 hover:bg-gray-100 focus:bg-gray-50 hover:rounded-full"
+                id="category-search-button"
+                type="button"
+              >
+                <span
+                  class="flex items-center text-sm font-semibold pointer-events-none select-none text-gray-700"
+                >
+                  <svg
+                    aria-hidden="true"
+                    class="mr-1 h-4 w-4"
+                    data-slot="icon"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  Category
+                </span>
+                <span
+                  class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
+                >
+                  Add artist
+                </span>
+              </button>
+            </div>
+            <div
+              class="border-l border-gray-100"
+            />
+            <div
+              class="relative flex-1 min-w-0"
+            >
+              <button
+                aria-controls="when-popup"
+                aria-expanded="false"
+                class="group relative z-10 w-full flex flex-col rounded-full justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 px-6 py-4 hover:bg-gray-100 focus:bg-gray-50"
+                id="when-search-button"
+                type="button"
+              >
+                <span
+                  class="flex items-center text-sm font-semibold pointer-events-none select-none text-gray-700"
+                >
+                  <svg
+                    aria-hidden="true"
+                    class="mr-1 h-4 w-4"
+                    data-slot="icon"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  When
+                </span>
+                <span
+                  class="block truncate pointer-events-none select-none text-gray-500 text-base text-xs"
+                >
+                  Add dates
+                </span>
+              </button>
+            </div>
+            <div
+              class="border-l rounded-full border-white-200"
+            />
+            <div
+              class="relative min-w-0 transition-all duration-200 ease-out px-6 py-4 rounded-full hover:bg-gray-100 focus:bg-gray-50 "
+            >
+              <span
+                class="flex items-center text-sm font-semibold pointer-events-none select-none text-gray-700"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="mr-1 h-4 w-4"
+                  data-slot="icon"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                Where
+              </span>
+              <div
+                class="relative w-full w-full"
+              >
+                <input
+                  aria-autocomplete="list"
+                  aria-controls="autocomplete-options"
+                  aria-expanded="false"
+                  class="w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none block truncate p-0 bg-transparent text-gray-500 text-base text-xs"
+                  placeholder="Add location"
+                  role="combobox"
+                  type="text"
+                  value=""
+                />
+              </div>
+            </div>
+          </div>
+          <button
+            aria-label="Search now"
+            class="mx-2 my-2 mt-2 h-12 w-12 rounded-full flex items-center justify-center bg-white/70 hover:bg-gray-100 border border-white/60 ring-1 ring-white/40 backdrop-blur-md transition-all duration-150"
+            type="submit"
+          >
+            <svg
+              aria-hidden="true"
+              class="h-5 w-5 text-slate-900/80"
+              data-slot="icon"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span
+              class="sr-only"
+            >
+              Search
+            </span>
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </header>
