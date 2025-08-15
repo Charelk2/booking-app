@@ -176,39 +176,47 @@ export default function ServiceProvidersPage() {
     setPage(next);
     fetchArtists({ append: true, pageNumber: next });
   };
-  const filterControl = (
-    <ServiceProvidersPageHeader
-      iconOnly
-      initialSort={sort}
-      initialMinPrice={minPrice}
-      initialMaxPrice={maxPrice}
-      priceDistribution={priceDistribution}
-      onFilterApply={({ sort: s, minPrice: min, maxPrice: max }) => {
-        setSort(s || undefined);
-        setMinPrice(min);
-        setMaxPrice(max);
-        updateQueryParams(router, pathname, {
-          category: serviceName,
-          location,
-          when,
-          sort: s,
-          minPrice: min,
-          maxPrice: max,
-        });
-      } }
-      onFilterClear={() => {
-        setSort(undefined);
-        setMinPrice(SLIDER_MIN);
-        setMaxPrice(SLIDER_MAX);
-        updateQueryParams(router, pathname, {
-          category: serviceName,
-          location,
-          when,
-        });
-      } } onSearchEdit={function (params: { category?: string | undefined; location?: string | undefined; when?: Date | null | undefined; }): void {
-        throw new Error('Function not implemented.');
-      } }    />
-  );
+  const hasQuery =
+    searchParams.get('category') ||
+    searchParams.get('location') ||
+    searchParams.get('when');
+  const categoryPath = /\/(?:service-providers\/category|category)\//.test(pathname);
+  const showFilter = Boolean(hasQuery || categoryPath);
+
+  const filterControl =
+    showFilter ? (
+      <ServiceProvidersPageHeader
+        iconOnly
+        initialSort={sort}
+        initialMinPrice={minPrice}
+        initialMaxPrice={maxPrice}
+        priceDistribution={priceDistribution}
+        onFilterApply={({ sort: s, minPrice: min, maxPrice: max }) => {
+          setSort(s || undefined);
+          setMinPrice(min);
+          setMaxPrice(max);
+          updateQueryParams(router, pathname, {
+            category: serviceName,
+            location,
+            when,
+            sort: s,
+            minPrice: min,
+            maxPrice: max,
+          });
+        }}
+        onFilterClear={() => {
+          setSort(undefined);
+          setMinPrice(SLIDER_MIN);
+          setMaxPrice(SLIDER_MAX);
+          updateQueryParams(router, pathname, {
+            category: serviceName,
+            location,
+            when,
+          });
+        }}
+        onSearchEdit={() => {}}
+      />
+    ) : null;
   const qs = searchParams.toString();
 
   return (
