@@ -573,7 +573,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             className={clsx(
               'relative mx-auto',
               'max-w-2xl',
-              headerState === 'compacted' ? 'mt-0 mb-0 md:mb-2' : 'mb-2'
+              headerState === 'compacted' ? 'mt-0 mb-0' : 'mb-0'
             )}
           >
             {/* MOBILE overlay (pill lives in top row) */}

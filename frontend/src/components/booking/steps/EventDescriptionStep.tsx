@@ -113,7 +113,7 @@ export default function EventDescriptionStep({
             <textarea
               id="event-description"
               rows={3}
-              className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black focus:ring-2 focus:ring-black"
+              className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black"
               {...field}
               value={field.value || ''}
               autoFocus={!isMobile}
@@ -123,14 +123,14 @@ export default function EventDescriptionStep({
               <button
                 type="button"
                 onClick={() => handleParse(field.value || '')}
-                className="inline-flex items-center justify-center rounded-xl bg-black text-white px-3 py-2 text-sm hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                className="inline-flex items-center justify-center rounded-xl bg-black text-white px-3 py-2 text-sm hover:bg-black/90 focus-visible:outline-none"
               >
                 Fill with AI
               </button>
               <button
                 type="button"
                 onClick={listening ? stopListening : startListening}
-                className="inline-flex items-center justify-center rounded-xl bg-white text-black px-3 py-2 text-sm border border-black/20 hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                className="inline-flex items-center justify-center rounded-xl bg-white text-black px-3 py-2 text-sm border border-black/20 hover:bg-black/[0.04] focus-visible:outline-none"
               >
                 {listening ? 'Stop' : '🎤 Voice'}
               </button>
@@ -152,14 +152,14 @@ export default function EventDescriptionStep({
             <button
               type="button"
               onClick={applyParsed}
-              className="inline-flex items-center justify-center rounded-xl bg-black text-white px-3 py-2 text-sm hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+              className="inline-flex items-center justify-center rounded-xl bg-black text-white px-3 py-2 text-sm hover:bg-black/90 focus-visible:outline-none"
             >
               Apply
             </button>
             <button
               type="button"
               onClick={() => setParsed(null)}
-              className="inline-flex items-center justify-center rounded-xl bg-white text-black px-3 py-2 text-sm border border-black/20 hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+              className="inline-flex items-center justify-center rounded-xl bg-white text-black px-3 py-2 text-sm border border-black/20 hover:bg-black/[0.04] focus-visible:outline-none"
             >
               Dismiss
             </button>

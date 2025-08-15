@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Uses your Tailwind tokens & CSS vars (paper/ink/line/subtle) */
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3
+           text-sm font-semibold tracking-[-0.01em]
+           transition-all duration-150
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ink
+           disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-black { @apply bg-ink text-white hover:opacity-90 active:opacity-80 ring-offset-white; }
+  .btn-ghost { @apply bg-paper text-ink border border-ink/20 hover:border-ink/40 active:border-ink/60 ring-offset-white; }
+
+  /* Surfaces */
+  .card { @apply bg-paper text-ink rounded-2xl shadow-card border border-line; }
+  .divider { @apply border-t border-line; }
+
+  /* Form fields */
+  .field-label   { @apply block text-xs font-medium text-ink/70 mb-1; }
+  .field-input   { @apply w-full rounded-xl border border-line bg-paper px-4 py-3 text-sm text-ink placeholder:text-ink/40 focus:outline-none focus:ring-ink; }
+  .field-textarea{ @apply field-input min-h-[120px]; }
+
+  /* Progress */
+  .progress-track { @apply h-2 w-full rounded-full bg-subtle; }
+  .progress-fill  { @apply h-2 rounded-full bg-ink; }
+
+  /* Small info chips / step hints */
+  .pill { @apply inline-flex items-center gap-2 rounded-full border border-line bg-paper px-3 py-1.5 text-xs text-ink; }
+}
+
+/* Optional: auto-style inputs inside the wizard form */
+@layer base {
+  form.wizard label    { @apply field-label; }
+  form.wizard input    { @apply field-input; }
+  form.wizard select   { @apply field-input; }
+  form.wizard textarea { @apply field-textarea; }
+}

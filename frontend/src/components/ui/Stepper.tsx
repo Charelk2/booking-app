@@ -57,10 +57,10 @@ export default function Stepper({
             className={clsx(
               // Consistent font weight for all step labels as per image
               'font-semibold',
-              // Active step text is red-600 (or brand-color-dark if 'brand' variant was chosen)
+            
               // Inactive/completed steps are gray-500
               isActive
-                ? 'text-red-600' // Use red-600 for active state as per image
+                ? 'text-black' 
                 : 'text-gray-500',
               // Adjust font size for larger screens if in vertical orientation
               orientation === 'vertical' && 'lg:text-base' // A bit larger text for desktop sidebar

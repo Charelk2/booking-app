@@ -717,7 +717,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             <button
               type="button" // Ensure it's a button, not a submit
               onClick={handleBack}
-              className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 w-32 min-h-[44px] min-w-[44px]"
+              className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-300 focus:outline-none focus:ring-gray-400 w-32 min-h-[44px] min-w-[44px]"
             >
               {step === 0 ? 'Cancel' : 'Back'}
             </button>
@@ -727,7 +727,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               <button
                 type="button" // Ensure it's a button, not a submit
                 onClick={next}
-                className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 w-32 min-h-[44px] min-w-[44px]"
+                className="bg-black text-white font-bold py-2 px-4 rounded-lg  transition-colors duration-300 focus:outline-none w-32 min-h-[44px] min-w-[44px]"
               >
                 Next
               </button>

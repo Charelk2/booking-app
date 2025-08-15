@@ -175,11 +175,11 @@ export default function ReviewStep({
             <input
               type="checkbox"
               id="terms"
-              className="mt-1 h-4 w-4 rounded border-black/30 text-black focus:ring-black focus:ring-2"
+              className="mt-1 h-3 w-3 bg-black rounded border-black/30 text-black"
             />
             <label htmlFor="terms" className="text-sm text-neutral-700">
               I have reviewed my details and agree to the{' '}
-              <a href="#" className="text-black hover:underline underline-offset-4">
+              <a href="#" className="text-black underline hover:underline underline-offset-4">
                 terms of service
               </a>
               .
@@ -195,7 +195,7 @@ export default function ReviewStep({
               trackEvent('booking_submit');
               void onNext(e);
             }}
-            className="rounded-xl bg-black text-white hover:bg-black/90 focus-visible:ring-2 focus-visible:ring-black"
+            className="rounded-xl bg-black text-white hover:bg-black/90"
           >
             {isProcessing
               ? submitLabel === 'Submit Request'
