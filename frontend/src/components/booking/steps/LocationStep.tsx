@@ -9,6 +9,7 @@ import clsx from 'clsx';
 import { useRef, useState, useEffect } from 'react';
 import { Button, Tooltip, CollapsibleSection } from '../../ui';
 import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
+import { EventDetails } from '@/contexts/BookingContext';
 
 const GoogleMap = dynamic(
   () => import('@react-google-maps/api').then((m) => m.GoogleMap),
@@ -18,10 +19,6 @@ const Marker = dynamic(
   () => import('@react-google-maps/api').then((m) => m.Marker),
   { ssr: false },
 );
-
-// Import EventDetails if your actual WizardNav uses it for deeper checks
-import { EventDetails } from '@/contexts/BookingContext';
-
 
 interface Props {
   control: Control<EventDetails>;
@@ -51,11 +48,7 @@ function Map({ isLoaded, marker }: MapProps) {
   );
 }
 
-function GoogleMapsLoader({
-  children,
-}: {
-  children: (isLoaded: boolean) => JSX.Element;
-}) {
+function GoogleMapsLoader({ children }: { children: (isLoaded: boolean) => JSX.Element }) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -72,7 +65,6 @@ function GoogleMapsLoader({
   return children(loaded);
 }
 
-
 export default function LocationStep({
   control,
   artistLocation,
@@ -87,8 +79,7 @@ export default function LocationStep({
 
   useEffect(() => {
     const target = containerRef.current;
-    if (!target) return;
-    if (shouldLoadMap) return;
+    if (!target || shouldLoadMap) return;
     const observer = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) {
         setShouldLoadMap(true);
@@ -118,9 +109,9 @@ export default function LocationStep({
       description="Where is the show?"
       open={open}
       onToggle={onToggle}
-      className="wizard-step-container"
+      className="wizard-step-container rounded-2xl border border-black/10 bg-white p-6 shadow-sm"
     >
-      <div ref={containerRef}>
+      <div ref={containerRef} className="space-y-3">
         {shouldLoadMap ? (
           <GoogleMapsLoader>
             {(loaded) => (
@@ -141,14 +132,14 @@ export default function LocationStep({
                         }
                       }}
                       placeholder="Search address"
-                      inputClassName="input-base"
+                      inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black focus:ring-2 focus:ring-black"
                     />
                   )}
                 />
                 <div
                   className={clsx(
-                    'map-container',
-                    marker ? 'map-container-expanded' : 'map-container-collapsed',
+                    'map-container ring-1 ring-black/10 rounded-2xl overflow-hidden transition-all',
+                    marker ? 'map-container-expanded' : 'map-container-collapsed'
                   )}
                   data-testid="map-container"
                 >
@@ -175,24 +166,25 @@ export default function LocationStep({
                     }
                   }}
                   placeholder="Search address"
-                  inputClassName="input-base"
+                  inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black focus:ring-2 focus:ring-black"
                 />
               )}
             />
             <div
               className={clsx(
-                'map-container',
-                marker ? 'map-container-expanded' : 'map-container-collapsed',
+                'map-container ring-1 ring-black/10 rounded-2xl overflow-hidden transition-all',
+                marker ? 'map-container-expanded' : 'map-container-collapsed'
               )}
               data-testid="map-container"
             />
           </>
         )}
       </div>
+
       <Button
         type="button"
         variant="link"
-        className="mt-2 text-sm inline-block min-h-[44px]"
+        className="mt-2 text-sm inline-block min-h-[44px] px-0 text-black hover:underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-black"
         onClick={() => {
           navigator.geolocation.getCurrentPosition(
             (pos) => {
@@ -208,12 +200,8 @@ export default function LocationStep({
       >
         Use my location
       </Button>
-      <Tooltip
-        text="A warning appears if this address is over 100km from the artist."
-        className="ml-1"
-      />
-      {geoError && <p className="text-red-600 text-sm">{geoError}</p>}
-
+      <Tooltip text="A warning appears if this address is over 100km from the artist." className="ml-1" />
+      {geoError && <p className="text-sm text-black/80">{geoError}</p>}
     </CollapsibleSection>
   );
 }

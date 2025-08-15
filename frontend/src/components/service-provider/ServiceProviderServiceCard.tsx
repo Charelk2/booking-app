@@ -87,9 +87,9 @@ export default function ServiceProviderServiceCard({ service, onBook }: ServiceP
           )}
           <div className="mt-2">
             <Button
-              type="button"
               onClick={() => onBook(currentService)}
               fullWidth={false}
+              className=" inline-flex items-center justify-center rounded-xl px-2 py-3 text-base font-semibold bg-gray-900 text-white shadow-sm active:scale-[0.99] transition disabled:opacity-50"
               title="The service provider will respond with a quote"
             >
               Request Booking

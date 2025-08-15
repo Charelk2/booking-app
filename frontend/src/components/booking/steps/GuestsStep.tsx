@@ -3,10 +3,7 @@
 import { Controller, Control } from 'react-hook-form';
 import useIsMobile from '@/hooks/useIsMobile';
 import { TextInput, CollapsibleSection } from '../../ui';
-
-// Import EventDetails if your actual WizardNav uses it for deeper checks
-import { EventDetails } from '@/contexts/BookingContext'; // Added EventDetails
-
+import { EventDetails } from '@/contexts/BookingContext';
 
 interface Props {
   control: Control<EventDetails>;
@@ -16,13 +13,14 @@ interface Props {
 
 export default function GuestsStep({ control, open = true, onToggle = () => {} }: Props) {
   const isMobile = useIsMobile();
+
   return (
     <CollapsibleSection
       title="Guests"
       description="How many people?"
       open={open}
       onToggle={onToggle}
-      className="wizard-step-container"
+      className="wizard-step-container rounded-2xl border border-black/10 bg-white p-6 shadow-sm"
     >
       <Controller<EventDetails, 'guests'> // Explicitly type Controller
         name="guests"
@@ -31,10 +29,10 @@ export default function GuestsStep({ control, open = true, onToggle = () => {} }
           <TextInput
             type="number"
             min={1}
-            className="input-base text-lg"
             {...field}
-            value={field.value ? String(field.value) : ''} // Ensure value is string
+            value={field.value ? String(field.value) : ''}
             autoFocus={!isMobile}
+            className="input-base text-lg rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black focus:ring-2 focus:ring-black"
           />
         )}
       />

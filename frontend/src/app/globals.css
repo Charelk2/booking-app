@@ -23,14 +23,24 @@ html, body {
 
 :root {
   --font-sans: var(--font-inter);
-  --color-primary: #ff5a5f;
-  --color-secondary: #e04852;
+  --color-primary:#000;
+  --color-secondary:#fff;
   --color-accent: #ff7a85;
-  --color-border: #ffd0d3;
+  --color-border:rgba(0,0,0,.10);
   --color-background: #fff;
   --color-foreground: #111827;
+  --color-black-button: #111827;
   --brand-color: var(--color-primary);
   --brand-color-dark: var(--color-secondary);
+  --serviceprovider-button-black: var(--color-black-button);
+    --paper:#fff;
+    --ink:#000;
+    --line:rgba(0,0,0,.10);
+    --subtle:rgba(0,0,0,.04);
+    --brand:#000;
+    --brand-foreground:#fff;
+    --ring:#000;
+
 
   /* lighter tint used for subtle page gradients */
   --brand-color-light: #ffeaea;

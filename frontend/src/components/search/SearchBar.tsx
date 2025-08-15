@@ -28,7 +28,7 @@ export interface SearchBarProps {
   when: Date | null;
   setWhen: (d: Date | null) => void;
   onSearch: (params: { category?: string; location?: string; when?: Date | null }) => void | Promise<void>;
-  onCancel?: () => void;  // Will be invoked when popup closes to collapse header overlay
+  onCancel?: () => void;
   compact?: boolean;
 }
 
@@ -82,20 +82,19 @@ export default function SearchBar({
 
   const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Helper: only tell the Header to collapse if the global overlay is actually shown.
   const collapseHeaderIfOverlayVisible = useCallback(() => {
-    if (document.getElementById('expanded-search-overlay')) {
+    if (showInternalPopup && document.getElementById('expanded-search-overlay')) {
       onCancel?.();
     }
-  }, [onCancel]);
+  }, [showInternalPopup, onCancel]);
 
   const closeThisSearchBarsInternalPopups = useCallback(() => {
+    if (!showInternalPopup) return;
     setShowInternalPopup(false);
 
-    // Inform Header to exit expanded-from-compact immediately so scrolling is restored.
+    // Collapse desktop overlay only when it exists
     collapseHeaderIfOverlayVisible();
 
-    // Keep previous focus behavior & small delay for animation parity
     if (resetTimeoutRef.current) clearTimeout(resetTimeoutRef.current);
     resetTimeoutRef.current = setTimeout(() => {
       setActiveField(null);
@@ -109,7 +108,7 @@ export default function SearchBar({
       }
       resetTimeoutRef.current = null;
     }, 180);
-  }, [activeField, collapseHeaderIfOverlayVisible]);
+  }, [activeField, showInternalPopup, collapseHeaderIfOverlayVisible]);
 
   const handleLocationChange = useCallback((value: string) => setLocation(value), [setLocation]);
 
@@ -137,7 +136,7 @@ export default function SearchBar({
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
-    closeThisSearchBarsInternalPopups(); // also collapses header if overlay visible
+    closeThisSearchBarsInternalPopups();
     try {
       await onSearch({ category: category?.value, location: location || undefined, when });
     } finally {
@@ -179,7 +178,6 @@ export default function SearchBar({
           }}
         />
 
-        {/* Right-side round action (search) */}
         <button
           type="submit"
           aria-label="Search now"
@@ -204,7 +202,6 @@ export default function SearchBar({
         </button>
       </form>
 
-      {/* Floating popups rendered via portal */}
       {showInternalPopup &&
         popupPosition &&
         createPortal(

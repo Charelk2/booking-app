@@ -1,10 +1,9 @@
 'use client';
-import { Controller, Control } from 'react-hook-form'; // Removed FieldValues
+import { Controller, Control } from 'react-hook-form';
 import { useState, useRef } from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
 import { BottomSheet, Button, CollapsibleSection } from '../../ui';
-
-import { EventDetails } from '@/contexts/BookingContext'; // For correct Control typing
+import { EventDetails } from '@/contexts/BookingContext';
 
 interface Props {
   control: Control<EventDetails>;
@@ -12,11 +11,7 @@ interface Props {
   onToggle?: () => void;
 }
 
-export default function VenueStep({
-  control,
-  open = true,
-  onToggle = () => {},
-}: Props) {
+export default function VenueStep({ control, open = true, onToggle = () => {} }: Props) {
   const isMobile = useIsMobile();
   const [sheetOpen, setSheetOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -34,7 +29,7 @@ export default function VenueStep({
       description="What type of venue is it?"
       open={open}
       onToggle={onToggle}
-      className="wizard-step-container"
+      className="wizard-step-container rounded-2xl border border-black/10 bg-white p-6 shadow-sm"
     >
       <Controller<EventDetails, 'venueType'>
         name="venueType"
@@ -47,7 +42,7 @@ export default function VenueStep({
                   type="button"
                   onClick={() => setSheetOpen(true)}
                   variant="secondary"
-                  className="w-full text-left min-h-[44px]"
+                  className="w-full text-left min-h-[44px] rounded-xl border border-black/20 bg-white text-black hover:bg-black/[0.04] focus-visible:ring-2 focus-visible:ring-black"
                   ref={buttonRef}
                 >
                   {field.value
@@ -77,10 +72,7 @@ export default function VenueStep({
                             setSheetOpen(false);
                           }}
                         />
-                        <label
-                          htmlFor={`venue-${opt.value}-mobile`}
-                          className="selectable-card"
-                        >
+                        <label htmlFor={`venue-${opt.value}-mobile`} className="selectable-card">
                           {opt.label}
                         </label>
                       </div>
@@ -111,7 +103,6 @@ export default function VenueStep({
           </>
         )}
       />
-
     </CollapsibleSection>
   );
 }

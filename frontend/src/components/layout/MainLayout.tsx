@@ -1,4 +1,3 @@
-// src/components/layout/MainLayout.tsx
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -13,7 +12,6 @@ const SCROLL_THRESHOLD_DOWN = 60; // desktop scroll behavior only
 const SCROLL_THRESHOLD_UP = 10;
 const TRANSITION_DURATION = 500;
 
-// Simple hook to detect mobile viewport (client-only)
 function useIsMobile(breakpointPx = 768) {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -48,28 +46,42 @@ export default function MainLayout({
   const isArtistDetail =
     /^\/service-providers\//.test(pathname) && pathname.split('/').length > 2;
   const isArtistsRoot = pathname === '/service-providers';
-  // Treat category listings the same as the service providers page
   const isArtistsPage =
     pathname.startsWith('/service-providers') || pathname.startsWith('/category');
   const isArtistView =
     user?.user_type === 'service_provider' && artistViewActive;
 
-  // Header state:
-  // MOBILE: always 'initial' (we never compact on mobile)
-  // DESKTOP: initial unless on /service-providers root (then start compacted)
   const [headerState, setHeaderState] = useState<HeaderState>('initial');
 
-  // Refs for scroll logic
+  // Scroll/transition refs
   const prevScrollY = useRef(0);
-  const isAdjustingScroll = useRef(false);
+  const isAdjustingScroll = useRef(false); // also used as our short-term "manual expand guard"
   const animationFrameId = useRef<number | null>(null);
   const headerRef = useRef<HTMLElement>(null);
   const prevHeaderHeight = useRef(0);
 
-  // Track whether Header has locked compaction (mobile search open)
   const [headerLocked, setHeaderLocked] = useState(false);
 
-  // Set initial header state when viewport or route changes
+  // Overlay arming — prevents initial open click from closing immediately
+  const [overlayArmed, setOverlayArmed] = useState(false);
+  const showSearchOverlay =
+    headerState === 'expanded-from-compact' &&
+    !isArtistDetail &&
+    !isArtistView &&
+    !headerLocked &&
+    !isMobile;
+
+  useEffect(() => {
+    if (!showSearchOverlay) {
+      setOverlayArmed(false);
+      return;
+    }
+    setOverlayArmed(false);
+    const t = setTimeout(() => setOverlayArmed(true), 180);
+    return () => clearTimeout(t);
+  }, [showSearchOverlay]);
+
+  // Initial header state
   useEffect(() => {
     if (isArtistView) {
       setHeaderState('initial');
@@ -83,19 +95,15 @@ export default function MainLayout({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobile, isArtistsRoot, isArtistView, pathname]);
 
-  // Keep a live view of the header lock via MutationObserver on data-lock-compact
+  // Watch data-lock-compact from Header (mobile search)
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
 
     setHeaderLocked(el.dataset.lockCompact === 'true');
 
-    const observer = new MutationObserver((muts) => {
-      for (const m of muts) {
-        if (m.type === 'attributes' && m.attributeName === 'data-lock-compact') {
-          setHeaderLocked(el.dataset.lockCompact === 'true');
-        }
-      }
+    const observer = new MutationObserver(() => {
+      setHeaderLocked(el.dataset.lockCompact === 'true');
     });
     observer.observe(el, {
       attributes: true,
@@ -105,7 +113,7 @@ export default function MainLayout({
     return () => observer.disconnect();
   }, []);
 
-  // Ensure header is shown whenever the mobile search is open/locked
+  // Ensure header is shown whenever mobile search is open
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
@@ -114,25 +122,17 @@ export default function MainLayout({
     }
   }, [headerLocked]);
 
-  // Optional: also reveal header on route change (prevents hidden header after nav)
+  // Reveal header on route change
   useEffect(() => {
     headerRef.current?.removeAttribute('data-hide-on-mobile');
   }, [pathname]);
 
-  // Only show the global overlay for the desktop expanded search (not for mobile)
-  const showSearchOverlay =
-    headerState === 'expanded-from-compact' &&
-    !isArtistDetail &&
-    !isArtistView &&
-    !headerLocked &&
-    !isMobile;
-
-  // Force header state from children (Header/Search)
+  // Force header state (called from Header)
   const forceHeaderState = useCallback(
     (state: HeaderState, scrollTarget?: number) => {
-      if (headerRef.current?.dataset.lockCompact === 'true') return; // ignore while locked by mobile search
+      const headerIsLocked = headerRef.current?.dataset.lockCompact === 'true';
+      if (headerIsLocked) return;
 
-      // Lock the header in its initial state on service provider profile pages or artist view
       if (isArtistDetail || isArtistView) {
         setHeaderState('initial');
         return;
@@ -143,8 +143,23 @@ export default function MainLayout({
         state = 'initial';
       }
 
+      // Capture height for possible compensation
+      if (headerRef.current) {
+        prevHeaderHeight.current = headerRef.current.offsetHeight;
+      }
+
+      // **Key fix**: when expanding from compact -> full, guard scroll handler briefly
+      if (state === 'expanded-from-compact') {
+        isAdjustingScroll.current = true;
+        prevScrollY.current = window.scrollY; // resync direction baseline
+        setHeaderState('expanded-from-compact');
+        setTimeout(() => {
+          isAdjustingScroll.current = false;
+        }, TRANSITION_DURATION + 150); // ~650ms guard
+        return;
+      }
+
       if (headerState === state) {
-        // Optionally still handle scrollTarget even if state unchanged
         if (typeof scrollTarget === 'number') {
           isAdjustingScroll.current = true;
           window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
@@ -155,14 +170,8 @@ export default function MainLayout({
         return;
       }
 
-      // Capture header height before change for later scroll compensation
-      if (headerRef.current) {
-        prevHeaderHeight.current = headerRef.current.offsetHeight;
-      }
-
       setHeaderState(state);
 
-      // Optional programmatic scroll
       if (typeof scrollTarget === 'number') {
         isAdjustingScroll.current = true;
         window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
@@ -174,7 +183,7 @@ export default function MainLayout({
     [headerState, isArtistDetail, isArtistView, isMobile],
   );
 
-  // Compensate content scroll after header height transitions (ORIGINAL)
+  // Adjust scroll after header height change
   const adjustScrollAfterHeaderChange = useCallback(() => {
     if (isAdjustingScroll.current) return;
 
@@ -196,18 +205,18 @@ export default function MainLayout({
     }
   }, []);
 
-  // Main scroll handler:
-  // - MOBILE: hide header on scroll down, show on scroll up/near top
-  // - DESKTOP: keep your existing compact/expand logic
+  // Main scroll handler
   const handleScroll = useCallback(() => {
-    if (isArtistView) return; // No compaction in artist view
+    if (isArtistView) return;
 
-    // MOBILE path first
+    // Guard period after manual expand
+    if (isAdjustingScroll.current) return;
+
+    // MOBILE path
     if (isMobile) {
       const el = headerRef.current;
       if (!el) return;
 
-      // don't hide while mobile search is open/locked
       const headerIsLocked = el.dataset.lockCompact === 'true';
       if (headerIsLocked) return;
 
@@ -215,33 +224,29 @@ export default function MainLayout({
       const delta = y - prevScrollY.current;
       prevScrollY.current = y;
 
-      // small hysteresis so it doesn't flicker
-      const DOWN_HIDE_THRESHOLD = 8; // px
-      const UP_SHOW_THRESHOLD = 4; // px
-      const TOP_SHOW_Y = 24; // keep visible near top
+      const DOWN_HIDE_THRESHOLD = 8;
+      const UP_SHOW_THRESHOLD = 4;
+      const TOP_SHOW_Y = 24;
 
       if (y <= TOP_SHOW_Y || delta < -UP_SHOW_THRESHOLD) {
-        // show when near top or scrolling up
         el.removeAttribute('data-hide-on-mobile');
       } else if (delta > DOWN_HIDE_THRESHOLD) {
-        // hide when scrolling down
         el.setAttribute('data-hide-on-mobile', 'true');
       }
-      return; // stop here; desktop compaction logic below is not used on mobile
+      return;
     }
 
-    // DESKTOP logic
+    // DESKTOP path
     const headerIsLocked = headerRef.current?.dataset.lockCompact === 'true';
-    if (headerIsLocked) return; // bail if search is open
+    if (headerIsLocked) return;
 
     const currentScrollY = window.scrollY;
     const scrollDirection = currentScrollY > prevScrollY.current ? 'down' : 'up';
     prevScrollY.current = currentScrollY;
 
-    // If manually expanded or during programmatic scroll, do nothing
-    if (headerState === 'expanded-from-compact' || isAdjustingScroll.current) return;
+    // Do nothing while expanded (manual mode)
+    if (headerState === 'expanded-from-compact') return;
 
-    // Hysteresis + snapping (DESKTOP ONLY)
     if (scrollDirection === 'down') {
       if (currentScrollY > SCROLL_THRESHOLD_DOWN) {
         setHeaderState('compacted');
@@ -259,7 +264,6 @@ export default function MainLayout({
         }
       }
     } else {
-      // scrolling up
       if (!isArtistsPage) {
         if (currentScrollY < SCROLL_THRESHOLD_UP) {
           setHeaderState('initial');
@@ -280,7 +284,7 @@ export default function MainLayout({
     }
   }, [headerState, isArtistsPage, isArtistView, isMobile]);
 
-  // rAF-optimized scroll listener
+  // rAF scroll listener
   const optimizedScrollHandler = useCallback(() => {
     if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
     animationFrameId.current = requestAnimationFrame(handleScroll);
@@ -309,7 +313,7 @@ export default function MainLayout({
     }
   }, [showSearchOverlay]);
 
-  // Keep CSS var with header height in sync; adjust after transitions (ORIGINAL listener)
+  // Keep CSS var with header height in sync; adjust after transitions
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
@@ -352,19 +356,26 @@ export default function MainLayout({
 
   return (
     <div className="flex min-h-screen flex-col bg-white bg-gradient-to-b from-brand-light/50 to-gray-50">
-      {/* Desktop expanded overlay (suppressed when header is locked by mobile search) */}
+      {/* Desktop expanded overlay */}
       {showSearchOverlay && (
         <div
           id="expanded-search-overlay"
-          className="fixed inset-0 bg-black bg-opacity-90 z-40 animate-fadeIn"
-          onClick={() => {
+          className={clsx(
+            'fixed inset-0 bg-black bg-opacity-90 z-40 animate-fadeIn',
+            !overlayArmed && 'pointer-events-none',
+          )}
+          onMouseDown={(e) => {
+            if (!overlayArmed) return;
             if (headerRef.current?.dataset.lockCompact === 'true') return;
+            e.stopPropagation();
+
             const targetState =
               isArtistsPage || window.scrollY > SCROLL_THRESHOLD_DOWN
                 ? 'compacted'
                 : 'initial';
             const scrollTarget =
               !isArtistsPage && window.scrollY === 0 ? 0 : undefined;
+
             forceHeaderState(targetState, scrollTarget);
           }}
         />
@@ -391,13 +402,11 @@ export default function MainLayout({
             className="fixed inset-0 z-40 bg-gradient-to-br from-[#EEF3FA]/100 via-[#F7FAFF]/100 to-[#F6F3EF]/100 md:hidden transition-opacity"
             aria-hidden="true"
             onClick={() => {
-              // Tell MobileSearch to close when the overlay is tapped
               window.dispatchEvent(new CustomEvent('mobile-search:backdrop'));
             }}
           />
         )}
 
-        {/* CONTENT (has a stable id so we can set inert while mobile search is open) */}
         <main
           className={clsx('', {})}
           style={{ paddingBottom: 'var(--mobile-bottom-nav-height, 0px)' }}

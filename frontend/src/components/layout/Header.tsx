@@ -1,7 +1,13 @@
+// src/components/layout/Header.tsx
 // ──────────────────────────────────────────────────────────────────────────────
-// FILE: src/components/layout/Header.tsx
-// Purpose: Visual header. MOBILE: show a static "Start your search" pill NEXT
-//          to "Booka" (no compact mode on scroll). DESKTOP unchanged.
+// MOBILE: static pill next to "Booka". Hamburger is WHITE.
+// DESKTOP: compact -> full expands on first interaction; overlay arming handled
+//          in MainLayout; auto-focus SearchBar after expand.
+// Styling goals:
+//  - No red hover anywhere (nav, menu, drawer trigger, links)
+//  - No underline on hover
+//  - Mobile hamburger icon visible (white) on dark header
+//  - Text in light surfaces = black, dark surfaces = white
 // ──────────────────────────────────────────────────────────────────────────────
 'use client';
 
@@ -23,13 +29,19 @@ import {
   ArrowRightOnRectangleIcon,
   CalendarDaysIcon,
   ChatBubbleLeftEllipsisIcon,
+  // Entertainment wave icons (unused here but kept for parity)
+  FilmIcon,
+  MusicalNoteIcon,
+  VideoCameraIcon,
+  MicrophoneIcon,
+  TicketIcon,
+  FaceSmileIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
 
 import { useAuth } from '@/contexts/AuthContext';
-import NavLink from './NavLink';
 import NotificationBell from './NotificationBell';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import SearchBar from '../search/SearchBar';
@@ -39,7 +51,6 @@ import { Avatar } from '../ui';
 import { parseISO, isValid } from 'date-fns';
 import { getStreetFromAddress } from '@/lib/utils';
 
-/** Header state must match MainLayout expectations */
 export type HeaderState = 'initial' | 'compacted' | 'expanded-from-compact';
 
 type SearchParamsShape = {
@@ -48,19 +59,42 @@ type SearchParamsShape = {
   when?: Date | null;
 };
 
+// Feature flag for "Services" & "Contact"
+const SHOW_CLIENT_TOP_NAV = true;
+
 const clientNav = [
   { name: 'Services', href: '/services' },
   { name: 'Contact', href: '/contact' },
 ];
 
+// Shared classes to *ensure* no red/underline on hover
+const hoverNeutralLink =
+  'no-underline hover:no-underline hover:text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
+  
+  const hoverNeutralLink2 =
+  'no-underline hover:no-underline hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
+
 function ClientNav({ pathname }: { pathname: string }) {
   return (
     <>
-      {clientNav.map((item) => (
-        <NavLink key={item.name} href={item.href} isActive={pathname === item.href}>
-          {item.name}
-        </NavLink>
-      ))}
+      {clientNav.map((item) => {
+        const isActive = pathname === item.href;
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            className={clsx(
+              'px-2 py-1 text-sm transition',
+              // Desktop header is dark → make links white; on hover, keep neutral
+              'text-white/90 hover:text-white',
+              hoverNeutralLink,
+              isActive && 'font-semibold text-white'
+            )}
+          >
+            {item.name}
+          </Link>
+        );
+      })}
     </>
   );
 }
@@ -74,11 +108,23 @@ function ArtistNav({ user, pathname }: { user: { id: number }; pathname: string 
   ];
   return (
     <>
-      {items.map((item) => (
-        <NavLink key={item.name} href={item.href} isActive={pathname === item.href}>
-          {item.name}
-        </NavLink>
-      ))}
+      {items.map((item) => {
+        const isActive = pathname === item.href;
+        return (
+          <Link
+            key={item.name}
+            href={item.href}
+            className={clsx(
+              'px-2 py-1 text-sm transition',
+              'text-white/90 hover:text-white',
+              hoverNeutralLink,
+              isActive && 'font-semibold text-white'
+            )}
+          >
+            {item.name}
+          </Link>
+        );
+      })}
     </>
   );
 }
@@ -92,7 +138,7 @@ interface HeaderProps {
 }
 
 const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
-  { extraBar, headerState, onForceHeaderState, showSearchBar = true, filterControl }: HeaderProps,
+  { extraBar, headerState, onForceHeaderState, showSearchBar = true, filterControl },
   ref,
 ) {
   const { user, logout, artistViewActive, toggleArtistView } = useAuth();
@@ -100,45 +146,44 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const isArtistsPage =
-    pathname.startsWith('/service-providers') || pathname.startsWith('/category');
-  const [menuOpen, setMenuOpen] = useState(false);
   const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
 
-  // Search params state (shared Mobile + Desktop)
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Search state
   const categories = useServiceCategories();
   const [category, setCategory] = useState<CategoryType | null>(null);
   const [location, setLocation] = useState<string>('');
   const [when, setWhen] = useState<Date | null>(null);
 
-  // MobileSearch control
+  // Mobile search overlay
   const mobileSearchRef = useRef<MobileSearchHandle>(null);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+
+  // Desktop SearchBar mount (for focus)
+  const desktopSearchMountRef = useRef<HTMLDivElement>(null);
 
   // Hydrate from URL
   useEffect(() => {
     if (!categories.length) return;
+
     const serviceCat = searchParams.get('category');
-    let uiCategory: CategoryType | null = null;
+    let nextCategory: CategoryType | null = null;
+
     if (serviceCat) {
-      uiCategory = categories.find((c) => c.value === serviceCat) || null;
+      nextCategory = categories.find((c) => c.value === serviceCat) || null;
     } else {
       const match = pathname.match(/^\/category\/([^/?]+)/);
-      if (match) {
-        uiCategory = categories.find((c) => c.value === match[1]) || null;
-      }
+      if (match) nextCategory = categories.find((c) => c.value === match[1]) || null;
     }
-    setCategory(uiCategory);
+
+    setCategory(nextCategory);
     setLocation(searchParams.get('location') || '');
 
     const w = searchParams.get('when');
     if (w) {
-      try {
-        const parsed = parseISO(w);
-        setWhen(isValid(parsed) ? parsed : null);
-      } catch {
-        setWhen(null);
-      }
+      const parsed = parseISO(w);
+      setWhen(isValid(parsed) ? parsed : null);
     } else {
       setWhen(null);
     }
@@ -146,9 +191,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   const dateFormatter = useMemo(
     () =>
-      new Intl.DateTimeFormat('en-US', {
-        month: 'short',
+      new Intl.DateTimeFormat('en-ZA', {
         day: 'numeric',
+        month: 'short',
         year: 'numeric',
       }),
     [],
@@ -160,28 +205,23 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       const params = new URLSearchParams();
       if (location) params.set('location', location);
       if (when) params.set('when', when.toISOString());
+
       const path = category ? `/category/${category}` : '/service-providers';
       const qs = params.toString();
       router.push(qs ? `${path}?${qs}` : path);
-
-      // DESKTOP behavior unchanged is handled in MainLayout; here we keep header as-is for mobile.
-      if (isArtistsPage) {
-        // On desktop, MainLayout may compact; on mobile we ignore compaction.
-        onForceHeaderState('initial');
-      } else {
-        onForceHeaderState(window.scrollY > 0 ? 'initial' : 'initial',  // always initial on mobile
-          window.scrollY > 0 ? undefined : 0);
-      }
+      onForceHeaderState('initial');
     },
-    [router, onForceHeaderState, isArtistsPage],
+    [router, onForceHeaderState],
   );
 
-  // Desktop cancel → snap header appropriately (desktop logic handled in MainLayout overlay)
   const handleSearchBarCancel = useCallback(() => {
-    onForceHeaderState('initial', window.scrollY === 0 ? 0 : undefined);
+    onForceHeaderState(
+      'initial',
+      typeof window !== 'undefined' && window.scrollY === 0 ? 0 : undefined,
+    );
   }, [onForceHeaderState]);
 
-  // While MOBILE search open: keep header expanded and at top; when close → return to initial
+  // MOBILE: lock header while mobile search open
   useEffect(() => {
     if (mobileSearchOpen) {
       onForceHeaderState('expanded-from-compact', 0);
@@ -190,12 +230,12 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     }
   }, [mobileSearchOpen, headerState, onForceHeaderState]);
 
-  // If header compacts while mobile search is open, close it (safety)
+  // If header compacts externally, close mobile overlay
   useEffect(() => {
     if (headerState === 'compacted') mobileSearchRef.current?.close?.();
   }, [headerState]);
 
-  // Lock home content taps/focus while mobile search is open (MainLayout sets #app-content)
+  // Disable background when mobile overlay open
   useEffect(() => {
     const content = document.getElementById('app-content');
     if (!content) return;
@@ -210,11 +250,29 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     }
   }, [mobileSearchOpen]);
 
+  // Expand from compact (desktop)
+  const openDesktopSearchFromCompact = useCallback(() => {
+    if (isArtistView) return;
+    if (headerState === 'expanded-from-compact') return;
+
+    onForceHeaderState('expanded-from-compact');
+
+    const focusSoon = () => {
+      const root = desktopSearchMountRef.current;
+      if (!root) return;
+      const el = root.querySelector<HTMLElement>(
+        'input,button,select,textarea,[tabindex]:not([tabindex="-1"])',
+      );
+      el?.focus();
+    };
+    requestAnimationFrame(() => requestAnimationFrame(focusSoon));
+  }, [headerState, isArtistView, onForceHeaderState]);
+
+  // Visual style
   const headerClasses = clsx(
-    'relative sticky top-0 z-50',
-    'transition-all duration-200 ease-out',
-    'bg-gradient-to-br from-[#F6F3EF]/100 via-[#F7FAFF]/100 to-[#EEF3FA]/100',
-    'supports-[backdrop-filter]:backdrop-blur-[1px]',
+    'sticky top-0 z-50',
+    'bg-black supports-[backdrop-filter]:backdrop-blur-md',
+    'border-b border-black/5'
   );
 
   return (
@@ -225,80 +283,100 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       data-header-state={headerState}
       data-lock-compact={mobileSearchOpen ? 'true' : 'false'}
     >
-      <div className="mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1400px] px-2 sm:px-4 lg:px-6">
         {/* Top Row */}
-        <div className="grid grid-cols-[auto,1fr,auto] items-center py-2">
-          {/* Left: Menu + Logo + (mobile static search pill) */}
-          <div className="col-span-3 md:col-auto flex items-center gap-2 w-full min-w-0">
+        <div className="grid px-2 bg-black grid-cols-[auto,1fr,auto] items-center gap-2">
+          {/* Left cluster: menu + brand + (mobile pill) */}
+          <div className="col-span-3 md:col-span-1 flex items-center gap-2 w-full min-w-0">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-label="Open menu"
-              className={clsx('md:hidden p-2 rounded-lg hover:bg-white/60')}
+              className={clsx(
+                'md:hidden p-2 rounded-xl transition',
+                'hover:bg-white/10 active:bg-white/15',
+                hoverNeutralLink
+              )}
             >
-              <Bars3Icon className="h-6 w-6" />
+              {/* WHITE hamburger on dark header */}
+              <Bars3Icon className="h-6 w-6 text-white" />
             </button>
 
-            <Link href="/" className="text-2xl font-bold text-brand-dark no-underline">
+            <Link
+              href="/"
+              className={clsx(
+                'text-4xl font-bold pr-3 tracking-tight',
+                'text-white',
+                hoverNeutralLink2
+              )}
+              aria-label="Booka home"
+            >
               Booka
             </Link>
 
-            {/* MOBILE: always show the pill next to Booka (no compact mode) */}
+            {/* MOBILE: static pill (light surface → black text) */}
             {!isArtistView && showSearchBar && (
               <button
                 type="button"
                 onClick={() => mobileSearchRef.current?.open?.()}
-                className="ml-2 md:hidden inline-flex items-center gap-2 px-3 py-2 text-xs rounded-full border border-black/10 bg-white/90 shadow-sm flex-1 min-w-0 justify-start"
                 aria-label="Open search"
+                className={clsx(
+                  'ml-2 md:hidden inline-flex items-center gap-2 px-3 py-2 text-xs rounded-full',
+                  'border border-black/10 bg-white shadow-sm',
+                  'flex-1 min-w-0 overflow-hidden',
+                  hoverNeutralLink,
+                  'text-black'
+                )}
               >
-                <MagnifyingGlassIcon className="h-4 w-4 text-slate-700" />
-                <span className="font-medium text-slate-800">Start your search</span>
+                <MagnifyingGlassIcon className="h-4 w-4 text-black shrink-0" />
+                <span className="font-medium truncate">Start your search</span>
               </button>
             )}
           </div>
 
-          {/* Center: Nav (md+), compact summary (md+) */}
-          <div className="hidden md:flex justify-center flex-grow relative">
-            {/* Nav links */}
-            <div
-              className={clsx('content-area-wrapper header-nav-links', {
-                'opacity-0 pointer-events-none':
-                  headerState === 'compacted' && !isArtistView,
-                'opacity-100 pointer-events-auto transition-opacity duration-100 delay-100':
-                  headerState !== 'compacted' || isArtistView,
+          {/* Center: nav + compact pill (desktop) */}
+          <div className="hidden md:flex items-center justify-center relative">
+            <nav
+              className={clsx('flex gap-6 transition-opacity', {
+                'opacity-0 pointer-events-none': headerState === 'compacted' && !isArtistView,
+                'opacity-100 pointer-events-auto': headerState !== 'compacted' || isArtistView,
               })}
             >
-              <nav className="flex gap-6">
-                {user?.user_type === 'service_provider' && artistViewActive ? (
-                  <ArtistNav user={user} pathname={pathname} />
-                ) : (
-                  <ClientNav pathname={pathname} />
-                )}
-              </nav>
-            </div>
+              {user?.user_type === 'service_provider' && artistViewActive ? (
+                <ArtistNav user={user} pathname={pathname} />
+              ) : SHOW_CLIENT_TOP_NAV ? (
+                <ClientNav pathname={pathname} />
+              ) : null}
+            </nav>
 
-            {/* Desktop compact pill summary */}
             {!isArtistView && showSearchBar && (
               <div
                 className={clsx(
-                  'compact-pill-wrapper absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full flex items-center justify-center gap-2',
-                  {
-                    'opacity-0 pointer-events-none': headerState !== 'compacted',
-                    'opacity-100 pointer-events-auto transition-opacity duration-100 delay-100':
-                      headerState === 'compacted',
-                  },
+                  'absolute inset-0 flex items-center justify-center px-4',
+                  headerState === 'compacted'
+                    ? 'opacity-100 pointer-events-auto'
+                    : 'opacity-0 pointer-events-none',
+                  'transition-opacity'
                 )}
               >
                 <button
                   id="compact-search-trigger"
                   type="button"
-                  onClick={(e) => {
+                  aria-expanded={headerState === 'expanded-from-compact'}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
-                    onForceHeaderState('expanded-from-compact');
+                    openDesktopSearchFromCompact();
                   }}
-                  className="flex-1 w-full max-w-xl flex items-center bg-white justify-between px-4 py-2 border border-gray-300 rounded-full shadow-sm hover:shadow-md text-sm"
+                  className={clsx(
+                    'w-full max-w-2xl flex items-center justify-between rounded-full',
+                    'border border-black/10 bg-white/95 shadow-sm hover:shadow-md',
+                    'px-4 py-2 text-sm',
+                    hoverNeutralLink,
+                    'text-black'
+                  )}
                 >
-                  <div className="flex flex-1 divide-x divide-gray-300">
+                  <div className="flex flex-1 divide-x divide-slate-200">
                     <div className="flex-1 px-2 truncate">
                       {category ? category.label : 'Add service'}
                     </div>
@@ -309,34 +387,30 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                       {when ? dateFormatter.format(when) : 'Add dates'}
                     </div>
                   </div>
-                  <MagnifyingGlassIcon className="ml-2 h-5 w-5 text-gray-500 flex-shrink-0" />
+                  <MagnifyingGlassIcon className="ml-3 h-5 w-5 text-slate-600 shrink-0" />
                 </button>
-                {filterControl && <div className="shrink-0">{filterControl}</div>}
+                {filterControl && <div className="ml-2 shrink-0">{filterControl}</div>}
               </div>
             )}
           </div>
 
-          {/* Right: Auth / Actions (sm+) */}
-          <div className="hidden sm:flex items-center gap-2">
+          {/* Right actions */}
+          <div className="hidden sm:flex items-center justify-end gap-2">
             {user ? (
               <>
-                {user.user_type === 'service_provider' && (
-                  <button
-                    onClick={toggleArtistView}
-                    className="px-3 py-2 rounded-lg hover:bg-white/60 text-gray-800"
-                  >
-                    {artistViewActive
-                      ? 'Switch to Booking'
-                      : 'Switch to Service Provider View'}
-                  </button>
-                )}
-                <div className="p-1 rounded-lg hover:bg-white/60">
+         {user.user_type === 'service_provider' && ( <button onClick={toggleArtistView} className="px-3 py-2 text-sm rounded-lg hover:bg-gray-900 active:gray-100 text-white" > {artistViewActive ? 'Switch to Booking' : 'Switch to Service Provider View'} </button> )}
+
+                <div className="p-1 rounded-lg hover:bg-white/10 active:bg-white/15">
                   <NotificationBell />
                 </div>
+
                 <Menu as="div" className="relative">
                   <Menu.Button
                     aria-label="Account menu"
-                    className="rounded-full bg-gray-100 text-sm focus:outline-none p-1"
+                    className={clsx(
+                      'rounded-full bg-white/90 hover:bg-white p-1 transition',
+                      hoverNeutralLink
+                    )}
                   >
                     <Avatar
                       src={user.profile_picture_url || null}
@@ -353,7 +427,8 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     leaveFrom="opacity-100 scale-100"
                     leaveTo="opacity-0 scale-95"
                   >
-                    <Menu.Items className="absolute right-0 mt-2 w-64 origin-top-right bg-white rounded-xl shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none divide-y divide-gray-100">
+                    {/* Light menu surface → black text */}
+                    <Menu.Items className="absolute right-0 mt-2 w-64 origin-top-right bg-white rounded-xl shadow-lg ring-1 ring-black/5 focus:outline-none divide-y divide-slate-100">
                       <div className="py-1">
                         {user.user_type === 'service_provider' ? (
                           <>
@@ -362,11 +437,13 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                 <Link
                                   href="/dashboard/artist"
                                   className={clsx(
-                                    'group flex items-center px-4 py-2 text-sm text-gray-700',
-                                    { 'bg-gray-100 text-gray-900': active },
+                                    'group flex items-center px-4 py-2 text-sm',
+                                    'text-black',
+                                    active && 'bg-slate-100',
+                                    hoverNeutralLink
                                   )}
                                 >
-                                  <CalendarDaysIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />{' '}
+                                  <CalendarDaysIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
                                   Dashboard
                                 </Link>
                               )}
@@ -376,11 +453,13 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                 <Link
                                   href="/dashboard/profile/edit"
                                   className={clsx(
-                                    'group flex items-center px-4 py-2 text-sm text-gray-700',
-                                    { 'bg-gray-100 text-gray-900': active },
+                                    'group flex items-center px-4 py-2 text-sm',
+                                    'text-black',
+                                    active && 'bg-slate-100',
+                                    hoverNeutralLink
                                   )}
                                 >
-                                  <UserCircleIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />{' '}
+                                  <UserCircleIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
                                   Edit Profile
                                 </Link>
                               )}
@@ -393,11 +472,13 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                 <Link
                                   href="/dashboard/client"
                                   className={clsx(
-                                    'group flex items-center px-4 py-2 text-sm text-gray-700',
-                                    { 'bg-gray-100 text-gray-900': active },
+                                    'group flex items-center px-4 py-2 text-sm',
+                                    'text-black',
+                                    active && 'bg-slate-100',
+                                    hoverNeutralLink
                                   )}
                                 >
-                                  <CalendarDaysIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />{' '}
+                                  <CalendarDaysIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
                                   Events
                                 </Link>
                               )}
@@ -407,11 +488,13 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                 <Link
                                   href="/inbox"
                                   className={clsx(
-                                    'group flex items-center px-4 py-2 text-sm text-gray-700',
-                                    { 'bg-gray-100 text-gray-900': active },
+                                    'group flex items-center px-4 py-2 text-sm',
+                                    'text-black',
+                                    active && 'bg-slate-100',
+                                    hoverNeutralLink
                                   )}
                                 >
-                                  <ChatBubbleLeftEllipsisIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />{' '}
+                                  <ChatBubbleLeftEllipsisIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
                                   Messages
                                 </Link>
                               )}
@@ -421,28 +504,35 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                 <Link
                                   href="/account"
                                   className={clsx(
-                                    'group flex items-center px-4 py-2 text-sm text-gray-700',
-                                    { 'bg-gray-100 text-gray-900': active },
+                                    'group flex items-center px-4 py-2 text-sm',
+                                    'text-black',
+                                    active && 'bg-slate-100',
+                                    hoverNeutralLink
                                   )}
                                 >
-                                  <UserCircleIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />{' '}
+                                  <UserCircleIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
                                   Edit Profile
                                 </Link>
                               )}
                             </Menu.Item>
                           </>
                         )}
-                        <div className="border-t border-gray-200 my-1" />
+
+                        <div className="border-t border-slate-200 my-1" />
+
+                        {/* Sign out (kept exactly neutral) */}
                         <Menu.Item>
                           {({ active }) => (
                             <button
                               onClick={logout}
                               className={clsx(
-                                'group flex w-full items-center px-4 py-2 text-sm text-gray-700',
-                                { 'bg-gray-100 text-gray-900': active },
+                                'group flex w-full items-center px-4 py-2 text-sm',
+                                'text-black',
+                                active && 'bg-slate-100',
+                                hoverNeutralLink
                               )}
                             >
-                              <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-gray-500" />{' '}
+                              <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
                               Sign out
                             </button>
                           )}
@@ -456,13 +546,19 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               <div className="flex gap-2">
                 <Link
                   href="/login"
-                  className="px-3 py-2 text-sm rounded-lg hover:bg-white/60 text-gray-600"
+                  className={clsx(
+                    'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 active:gray-100 ',
+                    hoverNeutralLink2
+                  )}
                 >
                   Sign in
                 </Link>
                 <Link
                   href="/register"
-                  className="px-3 py-2 text-sm rounded-lg bg-brand-dark text-white"
+                  className={clsx(
+                    'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 active:gray-100 ',
+                    hoverNeutralLink2
+                  )}
                 >
                   Sign up
                 </Link>
@@ -471,15 +567,16 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
           </div>
         </div>
 
-        {/* Search area */}
+        {/* Search Area */}
         {!isArtistView && showSearchBar && (
           <div
             className={clsx(
-              'max-w-2xl mx-auto relative',
-              headerState === 'compacted' ? 'mt-0 mb-0 md:mt-3 md:mb-4' : 'mt-3 mb-4',
+              'relative mx-auto',
+              'max-w-2xl',
+              headerState === 'compacted' ? 'mt-0 mb-0 md:mb-2' : 'mb-2'
             )}
           >
-            {/* MOBILE overlay search — pill is in the top row now, so hide internal pill */}
+            {/* MOBILE overlay (pill lives in top row) */}
             <div className="md:hidden">
               <MobileSearch
                 ref={mobileSearchRef}
@@ -492,17 +589,18 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 onSearch={handleSearch}
                 onCancel={handleSearchBarCancel}
                 onOpenChange={setMobileSearchOpen}
-                showPill={false} // IMPORTANT: pill lives next to Booka
+                showPill={false}
               />
             </div>
 
-            {/* Desktop full SearchBar (unchanged) */}
+            {/* DESKTOP full SearchBar (light → black text) */}
             <div
+              ref={desktopSearchMountRef}
               className={clsx(
-                'hidden md:block',
+                'hidden md:block transition-all',
                 headerState === 'compacted'
                   ? 'opacity-0 scale-y-0 h-0 pointer-events-none'
-                  : 'opacity-100 scale-y-100 pointer-events-auto',
+                  : 'opacity-100 scale-y-100 pointer-events-auto'
               )}
             >
               <SearchBar
@@ -526,10 +624,11 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         )}
       </div>
 
+      {/* Mobile drawer */}
       <MobileMenuDrawer
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
-        navigation={clientNav}
+        navigation={SHOW_CLIENT_TOP_NAV ? clientNav : []}
         user={user}
         logout={logout}
         pathname={pathname}
