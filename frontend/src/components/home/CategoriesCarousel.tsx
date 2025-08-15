@@ -81,7 +81,7 @@
   href={`/category/${encodeURIComponent(cat.value)}`}
   className="flex-shrink-0 flex flex-col hover:no-underline"
   >
-  <div className="relative h-40 w-40 overflow-hidden rounded-lg bg-gray-100">
+  <div className="relative h-36 w-36 overflow-hidden rounded-lg bg-gray-100">
   <Image
   src={CATEGORY_IMAGES[cat.value] || '/bartender.png'}
   alt={DISPLAY_LABELS[cat.value] || cat.label}
