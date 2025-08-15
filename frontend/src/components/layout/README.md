@@ -9,7 +9,9 @@
 - `fullWidthContent?: boolean` – allow content to span the full width.
 
 The search bar and mobile search pill automatically appear on the homepage and on
-service provider or category listing pages.
+service provider or category listing pages. When visiting a category route such as
+`/category/dj`, the search bar pre-selects that category so users can easily
+refine their search.
 
 `MainLayout` uses CSS custom properties to ensure content isn't obscured by
 fixed navigation elements:

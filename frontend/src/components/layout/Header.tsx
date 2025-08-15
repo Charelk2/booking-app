@@ -119,7 +119,15 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   useEffect(() => {
     if (!categories.length) return;
     const serviceCat = searchParams.get('category');
-    const uiCategory = serviceCat ? categories.find((c) => c.value === serviceCat) || null : null;
+    let uiCategory: CategoryType | null = null;
+    if (serviceCat) {
+      uiCategory = categories.find((c) => c.value === serviceCat) || null;
+    } else {
+      const match = pathname.match(/^\/category\/([^/?]+)/);
+      if (match) {
+        uiCategory = categories.find((c) => c.value === match[1]) || null;
+      }
+    }
     setCategory(uiCategory);
     setLocation(searchParams.get('location') || '');
 
@@ -134,7 +142,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
     } else {
       setWhen(null);
     }
-  }, [searchParams, categories]);
+  }, [searchParams, categories, pathname]);
 
   const dateFormatter = useMemo(
     () =>

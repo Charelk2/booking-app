@@ -3,10 +3,14 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import Header from '../Header';
-import { useSearchParams } from '@/tests/mocks/next-navigation';
+import { useSearchParams, usePathname } from '@/tests/mocks/next-navigation';
+import useServiceCategories from '@/hooks/useServiceCategories';
 
 jest.mock('next/link', () => ({ __esModule: true, default: (props: Record<string, unknown>) => <a {...props} /> }));
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: jest.fn(() => ({ user: null, logout: jest.fn() })) }));
+jest.mock('@/hooks/useServiceCategories');
+
+const mockedUseServiceCategories = useServiceCategories as jest.Mock;
 
 
 function render() {
@@ -17,6 +21,14 @@ function render() {
 }
 
 describe('Header', () => {
+  beforeEach(() => {
+    mockedUseServiceCategories.mockReturnValue([
+      { id: 1, value: 'musician', label: 'Musician / Band' },
+      { id: 2, value: 'dj', label: 'DJ' },
+    ]);
+    usePathname.mockReturnValue('/');
+    useSearchParams.mockReturnValue(new URLSearchParams());
+  });
   afterEach(() => {
     jest.clearAllMocks();
     document.body.innerHTML = '';
@@ -89,6 +101,25 @@ describe('Header', () => {
     act(() => root.unmount());
     div.remove();
     useSearchParams.mockReturnValue(new URLSearchParams());
+  });
+
+  it('derives category from /category path', async () => {
+    useSearchParams.mockReturnValue(new URLSearchParams());
+    usePathname.mockReturnValue('/category/dj');
+    mockedUseServiceCategories.mockReturnValue([
+      { id: 1, value: 'dj', label: 'DJ' },
+    ]);
+    const { div, root } = render();
+    await act(async () => {
+      root.render(
+        <Header headerState="initial" onForceHeaderState={jest.fn()} />,
+      );
+    });
+    await flushPromises();
+    expect(div.textContent).toContain('DJ');
+    act(() => root.unmount());
+    div.remove();
+    usePathname.mockReturnValue('/');
   });
 
   it('matches compact snapshot with filter control', async () => {
