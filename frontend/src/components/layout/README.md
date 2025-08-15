@@ -8,6 +8,9 @@
 - `headerFilter?: React.ReactNode` – optional filter control rendered to the right of the full search bar.
 - `fullWidthContent?: boolean` – allow content to span the full width.
 
+The search bar and mobile search pill automatically appear on the homepage and on
+service provider or category listing pages.
+
 `MainLayout` uses CSS custom properties to ensure content isn't obscured by
 fixed navigation elements:
 
