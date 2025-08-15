@@ -48,7 +48,9 @@ export default function MainLayout({
   const isArtistDetail =
     /^\/service-providers\//.test(pathname) && pathname.split('/').length > 2;
   const isArtistsRoot = pathname === '/service-providers';
-  const isArtistsPage = pathname.startsWith('/service-providers');
+  // Treat category listings the same as the service providers page
+  const isArtistsPage =
+    pathname.startsWith('/service-providers') || pathname.startsWith('/category');
   const isArtistView =
     user?.user_type === 'service_provider' && artistViewActive;
 
@@ -346,7 +348,7 @@ export default function MainLayout({
   const showSearchBar =
     !isArtistDetail &&
     !isArtistView &&
-    (pathname === '/' || pathname.startsWith('/service-providers'));
+    (pathname === '/' || pathname.startsWith('/service-providers') || pathname.startsWith('/category'));
 
   return (
     <div className="flex min-h-screen flex-col bg-white bg-gradient-to-b from-brand-light/50 to-gray-50">
