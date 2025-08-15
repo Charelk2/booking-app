@@ -110,7 +110,7 @@ export default function ConversationList({
                 }}
               />
             ) : (
-              <div className="h-10 w-10 rounded-full bg-indigo-500 text-white flex-shrink-0 flex items-center justify-center font-medium text-lg">
+              <div className="h-10 w-10 rounded-full bg-black text-white flex-shrink-0 flex items-center justify-center font-medium text-lg">
                 {otherName.charAt(0)}
               </div>
             )}

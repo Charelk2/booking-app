@@ -90,7 +90,7 @@
   className="object-cover"
   />
   </div>
-  <p className="mt-2 text-sm text-left text-black font-semibold whitespace-nowrap">
+  <p className="mt-2 text-xs text-left text-black font-semibold whitespace-nowrap">
   {DISPLAY_LABELS[cat.value] || cat.label}
   </p>
   </Link>

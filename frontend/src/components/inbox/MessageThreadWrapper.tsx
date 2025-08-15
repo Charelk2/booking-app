@@ -152,7 +152,7 @@ export default function MessageThreadWrapper({
                 }}
               />
             ) : (
-              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-base font-medium text-gray-600">
+              <div className="h-10 w-10 rounded-full bg-black flex items-center justify-center text-base font-medium text-white">
                 {bookingRequest.client?.first_name?.charAt(0) || 'U'}
               </div>
             )

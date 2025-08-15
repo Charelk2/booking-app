@@ -44,9 +44,7 @@ export default function EventDescriptionStep({
   onToggle = () => {},
 }: Props) {
   const isMobile = useIsMobile();
-  type ParsedDetails = Omit<ParsedBookingDetails, 'event_type'> & {
-    eventType?: string;
-  };
+  type ParsedDetails = Omit<ParsedBookingDetails, 'event_type'> & { eventType?: string };
   const [parsed, setParsed] = useState<ParsedDetails | null>(null);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<WebSpeechRecognition | null>(null);
@@ -102,64 +100,66 @@ export default function EventDescriptionStep({
       description="Tell us a little bit more about your event."
       open={open}
       onToggle={onToggle}
-      className="wizard-step-container"
+      className="wizard-step-container rounded-2xl border border-black/10 bg-white p-6 shadow-sm"
     >
       <Controller<EventDetails, 'eventDescription'>
         name="eventDescription"
         control={control}
         render={({ field }) => (
-          <div>
-            <label htmlFor="event-description" className="block font-medium">
-              
+          <div className="space-y-2">
+            <label htmlFor="event-description" className="block text-sm font-medium text-neutral-900">
+              Describe your event
             </label>
             <textarea
               id="event-description"
               rows={3}
-              className="input-base"
+              className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black focus:ring-2 focus:ring-black"
               {...field}
               value={field.value || ''}
               autoFocus={!isMobile}
+              placeholder="Add date, venue, city, number of guests, vibe, special notes…"
             />
-            <div className="flex gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => handleParse(field.value || '')}
-                className="bg-blue-600 text-white px-3 py-1 rounded"
+                className="inline-flex items-center justify-center rounded-xl bg-black text-white px-3 py-2 text-sm hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
               >
                 Fill with AI
               </button>
               <button
                 type="button"
                 onClick={listening ? stopListening : startListening}
-                className="bg-gray-200 px-3 py-1 rounded"
+                className="inline-flex items-center justify-center rounded-xl bg-white text-black px-3 py-2 text-sm border border-black/20 hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
               >
-                {listening ? 'Stop' : '🎤'}
+                {listening ? 'Stop' : '🎤 Voice'}
               </button>
             </div>
           </div>
         )}
       />
+
       {parsed && (
-        <div className="mt-4 mb-4 border p-2 rounded bg-gray-50">
-          <p className="mb-2">AI Suggestions:</p>
-          <ul className="mb-2 text-sm">
-            {parsed.eventType && <li>Event Type: {parsed.eventType}</li>}
-            {parsed.date && <li>Date: {parsed.date}</li>}
-            {parsed.location && <li>Location: {parsed.location}</li>}
-            {parsed.guests !== undefined && <li>Guests: {parsed.guests}</li>}
+        <div className="mt-4 mb-2 rounded-2xl border border-black/10 bg-black/[0.04] p-4">
+          <p className="mb-2 font-medium text-neutral-900">AI Suggestions</p>
+          <ul className="mb-3 text-sm text-neutral-800 space-y-1">
+            {parsed.eventType && <li><span className="text-neutral-600">Event Type:</span> {parsed.eventType}</li>}
+            {parsed.date && <li><span className="text-neutral-600">Date:</span> {parsed.date}</li>}
+            {parsed.location && <li><span className="text-neutral-600">Location:</span> {parsed.location}</li>}
+            {parsed.guests !== undefined && <li><span className="text-neutral-600">Guests:</span> {parsed.guests}</li>}
           </ul>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={applyParsed}
-              className="bg-green-600 text-white px-2 py-1 rounded"
+              className="inline-flex items-center justify-center rounded-xl bg-black text-white px-3 py-2 text-sm hover:bg-black/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
             >
               Apply
             </button>
             <button
               type="button"
               onClick={() => setParsed(null)}
-              className="bg-gray-200 px-2 py-1 rounded"
+              className="inline-flex items-center justify-center rounded-xl bg-white text-black px-3 py-2 text-sm border border-black/20 hover:bg-black/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
             >
               Dismiss
             </button>
@@ -169,4 +169,3 @@ export default function EventDescriptionStep({
     </CollapsibleSection>
   );
 }
-
