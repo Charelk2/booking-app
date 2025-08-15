@@ -80,6 +80,21 @@ describe('MainLayout header behavior', () => {
     div.remove();
   });
 
+  it('shows search pill on category pages', async () => {
+      usePathname.mockReturnValue('/category/dj');
+    (useAuth as jest.Mock).mockReturnValue({ user: { id: 11, email: 'cat@test.com', user_type: 'client' } as User, logout: jest.fn() });
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+    const root = createRoot(div);
+    await act(async () => {
+      root.render(React.createElement(MainLayout, null, React.createElement('div')));
+    });
+    await flushPromises();
+    expect(div.querySelector('#compact-search-trigger')).toBeTruthy();
+    act(() => { root.unmount(); });
+    div.remove();
+  });
+
   it('expands search bar when compact pill is clicked on artists listing page', async () => {
       usePathname.mockReturnValue('/service-providers');
     (useAuth as jest.Mock).mockReturnValue({ user: { id: 5, email: 'e@test.com', user_type: 'client' } as User, logout: jest.fn() });
