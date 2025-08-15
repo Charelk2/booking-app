@@ -32,7 +32,7 @@ export default function WizardNav({
               type="button"
               variant="secondary"
               onClick={onBack}
-              className="order-3 sm:order-1 w-full sm:w-auto min-h-[44px] min-w-[44px] rounded-xl border border-black/20 bg-white text-black hover:bg-black/[0.04] focus-visible:ring-2 focus-visible:ring-black"
+              className="order-3 sm:order-1 w-full sm:w-auto min-h-[44px] min-w-[44px] rounded-xl border border-black/20 bg-white text-black hover:bg-black/[0.04]"
             >
               Back
             </Button>
@@ -42,7 +42,7 @@ export default function WizardNav({
             type="button"
             variant="secondary"
             onClick={onSaveDraft}
-            className="order-2 w-full sm:w-auto min-h-[44px] min-w-[44px] rounded-xl border border-black/15 bg-white text-black hover:bg-black/[0.04] focus-visible:ring-2 focus-visible:ring-black"
+            className="order-2 w-full sm:w-auto min-h-[44px] min-w-[44px] rounded-xl border border-black/15 bg-white text-black hover:bg-black/[0.04]"
           >
             Save Draft
           </Button>
@@ -52,7 +52,7 @@ export default function WizardNav({
             onClick={onNext}
             isLoading={submitting}
             className={clsx(
-              'order-1 sm:order-3 w-full sm:w-auto min-h-[44px] min-w-[44px] rounded-xl bg-black text-white hover:bg-black/90 focus-visible:ring-2 focus-visible:ring-black shadow-sm',
+              'order-1 sm:order-3 w-full sm:w-auto min-h-[44px] min-w-[44px] rounded-xl bg-black text-white hover:bg-black/90 shadow-sm',
               submitting && 'opacity-80'
             )}
           >

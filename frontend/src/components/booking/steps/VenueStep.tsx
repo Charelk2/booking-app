@@ -42,7 +42,7 @@ export default function VenueStep({ control, open = true, onToggle = () => {} }:
                   type="button"
                   onClick={() => setSheetOpen(true)}
                   variant="secondary"
-                  className="w-full text-left min-h-[44px] rounded-xl border border-black/20 bg-white text-black hover:bg-black/[0.04] focus-visible:ring-2 focus-visible:ring-black"
+                  className="w-full text-left min-h-[44px] rounded-xl border border-black/20 bg-white text-black hover:bg-black/[0.04]"
                   ref={buttonRef}
                 >
                   {field.value

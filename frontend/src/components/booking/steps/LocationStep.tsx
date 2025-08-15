@@ -132,7 +132,7 @@ export default function LocationStep({
                         }
                       }}
                       placeholder="Search address"
-                      inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black focus:ring-2 focus:ring-black"
+                      inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black"
                     />
                   )}
                 />
@@ -166,7 +166,7 @@ export default function LocationStep({
                     }
                   }}
                   placeholder="Search address"
-                  inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black focus:ring-2 focus:ring-black"
+                  inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black"
                 />
               )}
             />
@@ -184,7 +184,7 @@ export default function LocationStep({
       <Button
         type="button"
         variant="link"
-        className="mt-2 text-sm inline-block min-h-[44px] px-0 text-black hover:underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-black"
+        className="mt-2 text-sm inline-block min-h-[44px] px-0 text-black hover:underline underline-offset-4"
         onClick={() => {
           navigator.geolocation.getCurrentPosition(
             (pos) => {

@@ -64,7 +64,7 @@ export default function NotesStep({
             {...field}
             value={field.value ? String(field.value) : ''}
             autoFocus={!isMobile}
-            className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black focus:ring-2 focus:ring-black min-h-[120px]"
+            className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black min-h-[120px]"
           />
         )}
       />
@@ -77,7 +77,7 @@ export default function NotesStep({
       <input
         type="file"
         aria-label="Upload attachment"
-        className="block w-full rounded-xl border border-black/20 bg-white px-3 py-2 text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-white hover:bg-black/[0.02] focus:outline-none focus:ring-2 focus:ring-black"
+        className="block w-full rounded-xl border border-black/20 bg-white px-3 py-2 text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-white hover:bg-black/[0.02] focus:outline-none"
         onChange={handleFileChange}
       />
       {uploading && (

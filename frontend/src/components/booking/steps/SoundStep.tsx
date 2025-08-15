@@ -197,7 +197,7 @@ export default function SoundStep({
                   type="button"
                   variant="secondary"
                   onClick={() => setSheetOpen(true)}
-                  className="w-full text-left min-h-[44px] rounded-xl border border-black/20 bg-white text-black hover:bg-black/[0.04] focus-visible:ring-2 focus-visible:ring-black"
+                  className="w-full text-left min-h-[44px] rounded-xl border border-black/20 bg-white text-black hover:bg-black/[0.04]"
                   ref={buttonRef}
                 >
                   {field.value ? `Sound: ${field.value === 'yes' ? 'Yes' : 'No'}` : 'Select sound preference'}
@@ -303,7 +303,7 @@ export default function SoundStep({
                       type="checkbox"
                       checked={backlineRequired}
                       onChange={(e) => setBacklineRequired(e.target.checked)}
-                      className="h-4 w-4 rounded border-black/30 text-black focus:ring-black focus:ring-2"
+                      className="h-4 w-4 rounded border-black/30 text-black"
                     />
                     Backline required
                   </label>
@@ -312,7 +312,7 @@ export default function SoundStep({
                       type="checkbox"
                       checked={lightingEvening}
                       onChange={(e) => setLightingEvening(e.target.checked)}
-                      className="h-4 w-4 rounded border-black/30 text-black focus:ring-black focus:ring-2"
+                      className="h-4 w-4 rounded border-black/30 text-black"
                     />
                     Lighting (evening show)
                   </label>
@@ -321,13 +321,13 @@ export default function SoundStep({
                       type="checkbox"
                       checked={stageNeeded}
                       onChange={(e) => setStageNeeded(e.target.checked)}
-                      className="h-4 w-4 rounded border-black/30 text-black focus:ring-black focus:ring-2"
+                      className="h-4 w-4 rounded border-black/30 text-black"
                     />
                     Stage needed
                   </label>
                   {stageNeeded && (
                     <select
-                      className="mt-2 w-full rounded-lg border border-black/20 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                      className="mt-2 w-full rounded-lg border border-black/20 bg-white p-2 text-sm focus:outline-none"
                       value={stageSize}
                       onChange={(e) => setStageSize(e.target.value)}
                     >

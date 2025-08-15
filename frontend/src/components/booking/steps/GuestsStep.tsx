@@ -32,7 +32,7 @@ export default function GuestsStep({ control, open = true, onToggle = () => {} }
             {...field}
             value={field.value ? String(field.value) : ''}
             autoFocus={!isMobile}
-            className="input-base text-lg rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black focus:ring-2 focus:ring-black"
+            className="input-base text-lg rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black"
           />
         )}
       />
