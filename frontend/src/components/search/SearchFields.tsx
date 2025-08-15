@@ -115,7 +115,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
                 isValuePresent ? 'text-gray-800' : 'text-gray-700',
               )}
             >
-              <Icon className="mr-1 h-4 w-4" />
+              <Icon className="mr-1 h-4 w-4 hidden "aria-hidden="true"/>
               {label}
             </span>
             <span
@@ -196,7 +196,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             location ? 'text-gray-800' : 'text-gray-700',
           )}
         >
-          <MapPinIcon className="mr-1 h-4 w-4" />
+          <MapPinIcon className="mr-1 h-4 w-4 hidden "aria-hidden="true" />
           Where
         </span>
         <LocationInput

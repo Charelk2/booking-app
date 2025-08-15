@@ -13,12 +13,12 @@ import {
 } from 'react';
 import {
   ChevronDownIcon, // only for accordion headers
-  MagnifyingGlassIcon,
   CalendarIcon,
   MapPinIcon,
   MusicalNoteIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon as MagnifyingGlassIconSolid } from '@heroicons/react/24/solid';
 import clsx from 'clsx';
 import useServiceCategories, { type Category as CategoryType } from '@/hooks/useServiceCategories';
 import LocationInput, { type PlaceResult } from '../ui/LocationInput';
@@ -335,8 +335,8 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
         'px-4 py-3 shadow-sm active:scale-[0.99] transition'
       )}
     >
-      <MagnifyingGlassIcon className="h-5 w-5 text-slate-800" />
-      <span className="text-sm font-medium text-slate-800">Start your search</span>
+      <MagnifyingGlassIconSolid className="h-5 w-5 text-slate-900" />
+      <span className="text-sm font-medium text-slate-900">Start your search</span>
     </button>
   );
 
@@ -357,7 +357,7 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
           <div className="relative z-50 mt-3 space-y-3">
             {/* CATEGORY / ARTIST */}
             <CardShell
-              icon={<MusicalNoteIcon className="h-5 w-5 text-slate-700 hidden" aria-hidden="true" />}
+              icon={<MusicalNoteIcon className="h-5 w-5 text-slate-700 hidden "aria-hidden="true" />}
               title={
                 category ? (
                   <>
