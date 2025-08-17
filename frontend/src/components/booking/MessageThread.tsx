@@ -13,8 +13,6 @@ import React, {
 import Image from 'next/image';
 import {
   getFullImageUrl,
-  formatCurrency,
-  buildReceiptUrl,
 } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
@@ -55,11 +53,11 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import data from '@emoji-mart/data';
 import { createPortal } from 'react-dom';
+import BookingSummaryCard from './BookingSummaryCard';
 import { t } from '@/lib/i18n';
 
 const MemoQuoteBubble = React.memo(QuoteBubble);
 const MemoInlineQuoteForm = React.memo(InlineQuoteForm);
-
 const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
 
 // Constants
@@ -78,17 +76,15 @@ const gmt2ISOString = () =>
     .toISOString()
     .replace('Z', '+02:00');
 
-// Normalize backend-provided message types for case-insensitive comparisons.
 const normalizeType = (t?: string | null) => (t ?? '').toUpperCase();
 
-// Human-friendly day label for separators
 const daySeparatorLabel = (date: Date) => {
   const now = new Date();
   const days = differenceInCalendarDays(startOfDay(now), startOfDay(date));
-  if (days === 0) return format(date, 'EEEE');      // Today → weekday
-  if (days === 1) return 'yesterday';               // Yesterday
-  if (days < 7) return format(date, 'EEEE');        // Past week → weekday
-  return format(date, 'EEE, d LLL');                // Else → Mon, 29 Jun
+  if (days === 0) return format(date, 'EEEE');
+  if (days === 1) return 'yesterday';
+  if (days < 7) return format(date, 'EEEE');
+  return format(date, 'EEE, d LLL');
 };
 
 // Interfaces
@@ -124,12 +120,19 @@ interface MessageThreadProps {
   initialTravelCost?: number;
   initialSoundNeeded?: boolean;
   onBookingConfirmedChange?: (isConfirmed: boolean, booking: Booking | null) => void;
-  onPaymentStatusChange?: (status: string | null, amount: number | null, receiptUrl: string | null) => void;
+  onPaymentStatusChange?: (
+    status: string | null,
+    amount: number | null,
+    receiptUrl: string | null
+  ) => void;
   onShowReviewModal?: (show: boolean) => void;
   onOpenDetailsPanel?: () => void;
   artistCancellationPolicy?: string | null;
   allowInstantBooking?: boolean;
   instantBookingPrice?: number;
+
+  /** NEW: hide composer on mobile when the details panel is open */
+  isDetailsPanelOpen?: boolean;
 }
 
 // SVG Checkmark Icons
@@ -165,6 +168,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     artistCancellationPolicy,
     allowInstantBooking,
     instantBookingPrice,
+    isDetailsPanelOpen = false, // NEW
   }: MessageThreadProps,
   ref,
 ) {
@@ -212,7 +216,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
 
-  // iOS scroll-unlock refs/handlers
+  // iOS scroll unlock
   const touchStartYRef = useRef(0);
   const handleTouchStartOnList = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     touchStartYRef.current = e.touches?.[0]?.clientY ?? 0;
@@ -272,7 +276,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [clientName, parsedBookingDetails],
   );
 
-  // Focus textarea on mount and when switching conversations
+  /** Focus textarea on mount and when switching threads */
   useEffect(() => {
     textareaRef.current?.focus();
   }, []);
@@ -280,7 +284,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     textareaRef.current?.focus();
   }, [bookingRequestId]);
 
-  // Ensure portal mounts only on client to avoid hydration mismatch
+  /** Portal is client-only */
   useEffect(() => {
     setIsPortalReady(true);
   }, []);
@@ -290,7 +294,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [messages],
   );
 
-  // Prefill quote form using backend calculation when sound is required
+  // Prefill quote form (artist side)
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -367,7 +371,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return `${names.join(' and ')} ${verb} typing...`;
   }, [typingUsers, isSystemTyping, currentArtistId, currentClientId, artistName, clientName]);
 
-  // Payment Modal Hook
+  // Payment modal (thread local for details portal)
   const [paymentInfo, setPaymentInfo] = useState<{ status: string | null; amount: number | null; receiptUrl: string | null }>({ status: null, amount: null, receiptUrl: null });
   const { openPaymentModal, paymentModal } = usePaymentModal(
     useCallback(({ status, amount, receiptUrl: url }) => {
@@ -377,7 +381,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     useCallback(() => {}, []),
   );
 
-  // Calculate textarea line height once on mount
+  // Calculate textarea line height once
   useEffect(() => {
     if (textareaRef.current && textareaLineHeight === 0) {
       const tempDiv = document.createElement('div');
@@ -412,19 +416,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const newH = Math.min(ta.scrollHeight, maxH);
     ta.style.height = `${newH}px`;
 
-    // Keep the latest messages visible when textarea grows (unless user scrolled up)
+    // Keep latest messages visible when textarea grows (unless user scrolled up)
     const diff = newH - prevH;
     if (container && diff !== 0 && !isUserScrolledUp) {
       container.scrollTop += diff;
     }
   }, [textareaLineHeight, isUserScrolledUp]);
 
-  // Resize textarea on content change
   useEffect(() => {
     autoResizeTextarea();
   }, [newMessageContent, autoResizeTextarea]);
 
-  // Close emoji picker when clicking outside
+  // Clicking outside emoji picker closes it
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (showEmojiPicker && emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
@@ -465,7 +468,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [quotes, bookingDetails],
   );
 
-  // Track composer height (for bottom padding on list)
+  // Track composer height (for list bottom padding)
   const [composerHeight, setComposerHeight] = useState(0);
   useEffect(() => {
     const el = composerRef.current;
@@ -498,8 +501,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           parsedDetails = parseBookingDetailsFromMessage(msg.content);
           return false;
         }
-        if (type === 'USER' && msg.content.startsWith('Requesting ')) return false;
-        if (initialNotes && type === 'USER' && msg.content.trim() === initialNotes.trim()) return false;
+        if (type === 'USER' && initialNotes && msg.content.trim() === initialNotes.trim()) return false;
         return true;
       });
 
@@ -521,9 +523,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           quoteId > 0 &&
           (normalizeType(msg.message_type) === 'QUOTE' ||
             (normalizeType(msg.message_type) === 'SYSTEM' && msg.action === 'review_quote'));
-        if (isQuote) {
-          void ensureQuoteLoaded(quoteId);
-        }
+        if (isQuote) void ensureQuoteLoaded(quoteId);
       });
 
       if (parsedDetails && onBookingDetailsParsed) onBookingDetailsParsed(parsedDetails);
@@ -738,13 +738,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return groups;
   }, [visibleMessages, shouldShowTimestampGroup]);
 
-  // Actions
+  // Emoji select
   const handleEmojiSelect = (emoji: { native?: string }) => {
     if (emoji?.native) setNewMessageContent((prev) => `${prev}${emoji.native}`);
     setShowEmojiPicker(false);
     textareaRef.current?.focus();
   };
 
+  // Send message
   const handleSendMessage = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -851,6 +852,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     ],
   );
 
+  // Send/decline/accept quotes
   const handleSendQuote = useCallback(
     async (quoteData: QuoteV2Create) => {
       try {
@@ -927,6 +929,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [],
   );
 
+  /** NEW: when the details panel opens on mobile, blur textarea & close emoji */
+  useEffect(() => {
+    if (isDetailsPanelOpen) {
+      textareaRef.current?.blur();
+      setShowEmojiPicker(false);
+    }
+  }, [isDetailsPanelOpen]);
+
+  /** Compute bottom padding so nothing is obscured */
+  const effectiveBottomPadding = isDetailsPanelOpen
+    ? 'calc(var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom))'
+    : `calc(${composerHeight || 0}px + var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom))`;
+
   return (
     <div className="flex flex-col rounded-b-2xl overflow-hidden w-full bg-white h-full min-h-0">
       {/* Messages Container */}
@@ -940,7 +955,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         style={{
           WebkitOverflowScrolling: 'touch',
           touchAction: 'pan-y',
-          paddingBottom: `calc(${composerHeight || 0}px + var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom))`,
+          paddingBottom: effectiveBottomPadding,
         }}
       >
         {loading ? (
@@ -961,7 +976,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     <button
                       type="button"
                       className="text-xs font-medium text-gray-600 underline underline-offset-2"
-                      onClick={() => setShowDetailsCard(true)}
+                      onClick={() => onOpenDetailsPanel?.()}
                     >
                       {t('chat.empty.viewDetails', 'View details')}
                     </button>
@@ -1002,7 +1017,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           </div>
         )}
 
-        {/* Render Grouped Messages */}
+        {/* Grouped messages */}
         {groupedMessages.map((group, idx) => {
           const firstMsgInGroup = group.messages[0];
           const isSystemMessage = normalizeType(firstMsgInGroup.message_type) === 'SYSTEM';
@@ -1113,7 +1128,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                       <div
                         key={msg.id}
                         id={`quote-${quoteId}`}
-                        className="mb-0.5 w-full"
+                        className="mb-0.5 w/full"
                         ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                       >
                         {isClient && quoteData.status === 'pending' && !bookingConfirmed && (
@@ -1259,7 +1274,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           )
                         )}
                       </div>
-                      {/* Timestamp and Read Receipts */}
+                      {/* Timestamp & status */}
                       <div className="absolute bottom-0.5 right-1.5 flex items-center space-x-0.5 text-[10px] text-right text-gray-500">
                         <time dateTime={msg.timestamp} title={new Date(msg.timestamp).toLocaleString()}>
                           {messageTime}
@@ -1288,8 +1303,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         <div ref={messagesEndRef} className="absolute bottom-0 left-0 w-0 h-0" aria-hidden="true" />
       </div>
 
-      {/* Scroll to Bottom Button (Mobile Only) */}
-      {showScrollButton && (
+      {/* Scroll-to-bottom (mobile only) — hidden while details panel is open */}
+      {showScrollButton && !isDetailsPanelOpen && (
         <button
           type="button"
           aria-label="Scroll to latest message"
@@ -1308,10 +1323,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         </button>
       )}
 
-      {/* Live Region for New Message Announcements */}
-      <div aria-live="polite" className="sr-only">{announceNewMessage}</div>
-
-      {/* Details Card Modal (Portal to escape stacking contexts) */}
+      {/* Details Card Modal (portal) */}
       {showDetailsCard && isPortalReady && createPortal(
         (
           <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4">
@@ -1330,229 +1342,75 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   </svg>
                 </button>
               </div>
-              <div className="px-4 pt-3 text-sm text-gray-600">Here’s a summary of your request.</div>
-              <div className="px-4 mt-3 flex items-center gap-3">
-                <div className="relative h-16 w-16 rounded-xl overflow-hidden flex-shrink-0">
-                  {artistAvatarUrl ? (
-                    <Image src={getFullImageUrl(artistAvatarUrl) as string} alt="Artist" fill className="object-cover" sizes="64px" />
-                  ) : (
-                    <div className="absolute inset-0 bg-gray-200" aria-hidden="true" />
-                  )}
-                </div>
-                <div>
-                  <div className="text-base font-semibold">{computedServiceName || 'Service'}</div>
-                  <div className="text-sm text-gray-600">{artistName || 'Service Provider'}</div>
-                </div>
-              </div>
-              <div className="my-4 mt-4 border-t border-gray-200" />
-              <div className="px-4 pb-4 overflow-y-auto max-h-[60vh] text-sm leading-6">
-                {/* Booking details list */}
-                <ul className="divide-y divide-gray-100">
-                  {parsedBookingDetails?.eventType && (<li className="py-2"><span className="font-semibold">Event Type:</span> {parsedBookingDetails.eventType}</li>)}
-                  {parsedBookingDetails?.date && (
-                    <li className="py-2">
-                      <span className="font-semibold">Date:</span>{' '}
-                      {isValid(new Date(parsedBookingDetails.date)) ? format(new Date(parsedBookingDetails.date), 'PPP p') : parsedBookingDetails.date}
-                    </li>
-                  )}
-                  {parsedBookingDetails?.location && (<li className="py-2"><span className="font-semibold">Location:</span> {parsedBookingDetails.location}</li>)}
-                  {parsedBookingDetails?.guests && (<li className="py-2"><span className="font-semibold">Guests:</span> {parsedBookingDetails.guests}</li>)}
-                  {parsedBookingDetails?.venueType && (<li className="py-2"><span className="font-semibold">Venue Type:</span> {parsedBookingDetails.venueType}</li>)}
-                  {parsedBookingDetails?.notes && (<li className="py-2"><span className="font-semibold">Notes:</span> {parsedBookingDetails.notes}</li>)}
-                </ul>
-
-                {/* Order & receipt */}
-                {(bookingConfirmed || paymentInfo.status) && (
-                  <div className="mt-4">
-                    <div className="font-semibold mb-1">Order</div>
-                    <div className="rounded-lg bg-gray-50 border border-gray-100 p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-700">Order number</span>
-                        <span className="font-medium">{bookingDetails?.id ?? '—'}</span>
-                      </div>
-                      {(() => {
-                        const url = buildReceiptUrl(paymentInfo.receiptUrl, bookingDetails?.payment_id ?? null);
-                        return url ? (
-                          <div className="mt-2 text-right">
-                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium underline text-gray-700">View receipt</a>
-                          </div>
-                        ) : null;
-                      })()}
-                    </div>
-                  </div>
-                )}
-
-                {/* Estimate or Quote Totals */}
-                {(() => {
-                  const quoteList = Object.values(quotes || {});
-                  const accepted = quoteList.find((q) => q.status === 'accepted');
-                  const pending = quoteList.filter((q) => q.status === 'pending');
-                  const latestPending = pending.sort((a,b) => (a.id||0) - (b.id||0)).slice(-1)[0];
-                  const best = accepted || latestPending;
-                  if (best) {
-                    return (
-                      <div className="mt-4">
-                        <div className="font-semibold mb-1">Quote total</div>
-                        <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-1">
-                          {best.services?.[0]?.description && (
-                            <div className="flex justify-between text-gray-700">
-                              <span>{best.services[0].description}</span>
-                              <span>{formatCurrency(Number(best.services[0].price||0))}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between text-gray-700">
-                            <span>Sound</span>
-                            <span>{formatCurrency(Number(best.sound_fee||0))}</span>
-                          </div>
-                          <div className="flex justify-between text-gray-700">
-                            <span>Travel</span>
-                            <span>{formatCurrency(Number(best.travel_fee||0))}</span>
-                          </div>
-                          {best.accommodation && (
-                            <div className="flex justify-between text-gray-700">
-                              <span>Accommodation</span>
-                              <span>{best.accommodation}</span>
-                            </div>
-                          )}
-                          {Number(best.discount||0) > 0 && (
-                            <div className="flex justify-between text-gray-700">
-                              <span>Discount</span>
-                              <span>-{formatCurrency(Number(best.discount||0))}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
-                            <span>Total</span>
-                            <span>{formatCurrency(Number(best.total||0))}</span>
-                          </div>
-                        </div>
-                        {allowInstantBooking && !accepted && (
-                          <div className="mt-3 text-right">
-                            <Button
-                              type="button"
-                              onClick={() => openPaymentModal({ bookingRequestId, amount: Number(best.total||0) })}
-                              className="bg-gray-900 text-white hover:bg-black"
-                            >
-                              Reserve now
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                  return (
-                    <div className="mt-4">
-                      <div className="font-semibold mb-1">Estimated total</div>
-                      <div className="rounded-lg bg-gray-50 border border-gray-100 p-3">
-                        <div className="flex justify-between text-gray-700">
-                          <span>Base fee</span>
-                          <span>{formatCurrency(Number(baseFee || 0))}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-700 mt-1">
-                          <span>Travel</span>
-                          <span>{formatCurrency(Number(travelFee || 0))}</span>
-                        </div>
-                        <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
-                          <span>Total estimate</span>
-                          <span>{formatCurrency(Number(baseFee || 0) + Number(travelFee || 0))}</span>
-                        </div>
-                        {typeof initialSound !== 'undefined' && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            Sound equipment: {initialSound ? 'Yes' : 'No'} (if required, may be quoted separately)
-                          </div>
-                        )}
-                      </div>
-                      {allowInstantBooking && (
-                        <div className="mt-3 text-right">
-                          <Button
-                            type="button"
-                            onClick={() =>
-                              openPaymentModal({
-                                bookingRequestId,
-                                amount: Number(instantBookingPrice ?? (Number(baseFee||0)+Number(travelFee||0))),
-                              })
-                            }
-                            className="bg-gray-900 text-white hover:bg-black"
-                          >
-                            Reserve now
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Policy */}
-                <div className="mt-5">
-                  <div className="font-semibold mb-1">Cancellation policy</div>
-                  <p className="text-gray-600 text-sm">
-                    {artistCancellationPolicy?.trim() ||
-                      'Free cancellation within 48 hours of booking. 50% refund up to 7 days before the event. Policies may vary by provider.'}
-                  </p>
-                </div>
-
-                {/* Links */}
-                <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <a
-                    href={currentArtistId ? `/service-providers/${currentArtistId}` : '#'}
-                    className="block text-center rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 font-medium"
-                  >
-                    View service provider
-                  </a>
-                  <a
-                    href="/support"
-                    className="block text-center rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 font-medium"
-                  >
-                    Get support
-                  </a>
-                </div>
-              </div>
+              <BookingSummaryCard
+                parsedBookingDetails={parsedBookingDetails}
+                imageUrl={bookingDetails?.service?.media_url}
+                serviceName={computedServiceName}
+                artistName={artistName}
+                bookingConfirmed={bookingConfirmed}
+                paymentInfo={paymentInfo}
+                bookingDetails={bookingDetails}
+                quotes={quotes}
+                allowInstantBooking={allowInstantBooking}
+                openPaymentModal={openPaymentModal}
+                bookingRequestId={bookingRequestId}
+                baseFee={baseFee}
+                travelFee={travelFee}
+                initialSound={initialSound}
+                artistCancellationPolicy={artistCancellationPolicy}
+                currentArtistId={currentArtistId}
+                instantBookingPrice={instantBookingPrice}
+              />
             </div>
           </div>
         ),
         document.body
       )}
 
-      {/* Message Input and Action Bar */}
+      {/* Attachment preview — hide on mobile while details panel open */}
+      {attachmentPreviewUrl && (
+        <div className={isDetailsPanelOpen ? 'hidden md:flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner' : 'flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner'}>
+          {attachmentFile && attachmentFile.type.startsWith('image/') ? (
+            <Image
+              src={attachmentPreviewUrl}
+              alt="Attachment preview"
+              width={40}
+              height={40}
+              loading="lazy"
+              className="w-10 h-10 object-cover rounded-md border border-gray-200"
+            />
+          ) : (
+            <>
+              {attachmentFile?.type === 'application/pdf' ? (
+                <DocumentIcon className="w-8 h-8 text-red-600" />
+              ) : (
+                <DocumentTextIcon className="w-8 h-8 text-gray-600" />
+              )}
+              <span className="text-xs text-gray-700 font-medium">{attachmentFile?.name}</span>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setAttachmentFile(null)}
+            className="text-xs text-red-600 hover:text-red-700 font-medium"
+            aria-label="Remove attachment"
+          >
+            Remove
+          </button>
+        </div>
+      )}
+
+      {/* Composer — hidden on mobile while details panel is open */}
       {user && (
         <>
-          {/* Attachment Preview */}
-          {attachmentPreviewUrl && (
-            <div className="flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner">
-              {attachmentFile && attachmentFile.type.startsWith('image/') ? (
-                <Image
-                  src={attachmentPreviewUrl}
-                  alt="Attachment preview"
-                  width={40}
-                  height={40}
-                  loading="lazy"
-                  className="w-10 h-10 object-cover rounded-md border border-gray-200"
-                />
-              ) : (
-                <>
-                  {attachmentFile?.type === 'application/pdf' ? (
-                    <DocumentIcon className="w-8 h-8 text-red-600" />
-                  ) : (
-                    <DocumentTextIcon className="w-8 h-8 text-gray-600" />
-                  )}
-                  <span className="text-xs text-gray-700 font-medium">{attachmentFile?.name}</span>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={() => setAttachmentFile(null)}
-                className="text-xs text-red-600 hover:text-red-700 font-medium"
-                aria-label="Remove attachment"
-              >
-                Remove
-              </button>
-            </div>
-          )}
-
-          {/* Composer (sticky, compact) */}
           <div
             ref={composerRef}
             data-testid="composer-container"
-            className="sticky bottom-0 z-[60] bg-white border-t border-gray-100 shadow pb-safe flex-shrink-0 relative"
+            className={
+              isDetailsPanelOpen
+                ? 'hidden md:block sticky bottom-0 z-[60] bg-white border-t border-gray-100 shadow pb-safe flex-shrink-0 relative'
+                : 'block sticky bottom-0 z-[60] bg-white border-t border-gray-100 shadow pb-safe flex-shrink-0 relative'
+            }
           >
             {showEmojiPicker && (
               <div ref={emojiPickerRef} className="absolute bottom-12 left-0 z-50">
@@ -1587,7 +1445,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 <FaceSmileIcon className="w-5 h-5" />
               </button>
 
-              {/* Textarea (compact but 16px to avoid iOS zoom) */}
+              {/* Textarea (16px font to avoid iOS zoom) */}
               <textarea
                 ref={textareaRef}
                 value={newMessageContent}
@@ -1632,18 +1490,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             </form>
           </div>
 
-          {/* Leave Review Button */}
+          {/* Leave Review (hidden on mobile when panel open) */}
           {user?.user_type === 'client' &&
             bookingDetails &&
             bookingDetails.status === 'completed' &&
             !(bookingDetails as Booking & { review?: Review }).review && (
-              <Button
-                type="button"
-                onClick={() => onShowReviewModal?.(true)}
-                className="mt-1.5 text-xs text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
-              >
-                Leave Review
-              </Button>
+              <div className={isDetailsPanelOpen ? 'hidden md:block' : 'block'}>
+                <Button
+                  type="button"
+                  onClick={() => onShowReviewModal?.(true)}
+                  className="mt-1.5 text-xs text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
+                >
+                  Leave Review
+                </Button>
+              </div>
             )}
 
           {paymentModal}

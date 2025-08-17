@@ -222,6 +222,33 @@ export default function ServiceProvidersPage() {
   return (
     <MainLayout headerFilter={filterControl}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {serviceName && (
+          <div className="flex items-center space-x-2 mb-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-8 w-8 text-brand"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+            <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
+              Explore {serviceName}
+            </h1>
+          </div>
+        )}
         {/* Artists grid */}
         {loading && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}

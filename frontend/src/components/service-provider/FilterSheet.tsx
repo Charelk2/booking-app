@@ -1,4 +1,5 @@
 "use client";
+
 import { useRef, useEffect, useState } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -36,15 +37,13 @@ export default function FilterSheet({
   onClear: parentOnClear,
   priceDistribution,
 }: FilterSheetProps) {
-  const firstRef = useRef<HTMLInputElement>(null);
+  const firstRef = useRef<HTMLDivElement>(null);
   const isDesktop = useMediaQuery(`(min-width:${BREAKPOINT_MD}px)`);
   const [mounted, setMounted] = useState(false);
   const [localSort, setLocalSort] = useState(initialSort || "");
 
   useEffect(() => {
-    if (open) {
-      setLocalSort(initialSort || "");
-    }
+    if (open) setLocalSort(initialSort || "");
   }, [open, initialSort]);
 
   useEffect(() => {
@@ -68,30 +67,7 @@ export default function FilterSheet({
         </button>
       </div>
 
-      {/* !!! START OF LINES TO PHYSICALLY DELETE !!! */}
-      {/* Delete this entire block from your FilterSheet.tsx file. */}
-      {/*
-      <div>
-        <label htmlFor="sheet-sort" className="block text-sm font-medium">
-          Sort
-        </label>
-        <select
-          id="sheet-sort"
-          value={localSort}
-          onChange={(e) => setLocalSort(e.target.value)}
-          className="w-full border border-gray-200 rounded-md px-4 py-2 mt-2"
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      */}
-      {/* !!! END OF LINES TO PHYSICALLY DELETE !!! */}
-
-
+      {/* PriceFilter handles its own modal content; we just pass props */}
       <PriceFilter
         open={open}
         initialMinPrice={initialMinPrice}
@@ -115,17 +91,22 @@ export default function FilterSheet({
   if (isDesktop) {
     return createPortal(
       <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-2xl w-full max-w-md p-6 mx-auto space-y-6" ref={firstRef}>
+        <div className="bg-white rounded-2xl w-full max-w-md p-6 mx-auto" ref={firstRef}>
           {content}
         </div>
       </div>,
-      document.getElementById('modal-root')!
+      document.getElementById("modal-root")!
     );
   }
 
+  // BottomSheet implementations sometimes steal touch gestures.
+  // PriceFilter internally stops touch propagation on the slider area,
+  // plus uses touch-action: none on handles.
   return (
     <BottomSheet open={open} onClose={onClose} initialFocus={firstRef}>
-      <div className="p-4 pb-32 space-y-6" ref={firstRef}>{content}</div>
+      <div className="p-4 pb-32" ref={firstRef}>
+        {content}
+      </div>
     </BottomSheet>
   );
 }
