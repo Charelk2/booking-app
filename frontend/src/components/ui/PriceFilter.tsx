@@ -5,7 +5,6 @@ import "rheostat/initialize";
 import "rheostat/css/rheostat.css";
 import Rheostat from "rheostat";
 import type { PublicState } from "rheostat";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import clsx from "clsx";
 import { SLIDER_MIN, SLIDER_MAX } from "@/lib/filter-constants";
 
@@ -28,6 +27,22 @@ export interface PriceFilterProps {
   onSortChange: (sortValue: string) => void;
 }
 
+function clamp(n: number, lo: number, hi: number) {
+  return Math.min(hi, Math.max(lo, n));
+}
+function digitsOnly(s: string) {
+  return s.replace(/\D+/g, "");
+}
+function parseNum(s: string): number | null {
+  const d = digitsOnly(s);
+  if (!d) return null;
+  const n = parseInt(d, 10);
+  return Number.isFinite(n) ? n : null;
+}
+function formatZA(n: number) {
+  return n.toLocaleString("en-ZA");
+}
+
 export default function PriceFilter({
   open,
   initialMinPrice,
@@ -40,115 +55,119 @@ export default function PriceFilter({
   initialSort,
   onSortChange,
 }: PriceFilterProps) {
-  // ALL HOOKS MUST BE CALLED AT THE TOP LEVEL, UNCONDITIONALLY
-  // State for Price Range
+  // ────────────────────────────────────────────────────────────────────────────
+  // State
+  // ────────────────────────────────────────────────────────────────────────────
   const [localMinPrice, setLocalMinPrice] = useState(initialMinPrice);
   const [localMaxPrice, setLocalMaxPrice] = useState(initialMaxPrice);
+
+  // Draft text states (so typing doesn’t fight you)
+  const [minDraft, setMinDraft] = useState(formatZA(initialMinPrice));
+  const [maxDraft, setMaxDraft] = useState(formatZA(initialMaxPrice));
+  const [editingMin, setEditingMin] = useState(false);
+  const [editingMax, setEditingMax] = useState(false);
+
   const [activeHandle, setActiveHandle] = useState<number | null>(null);
 
-  // State for Custom Sort Dropdown
   const [localSortValue, setLocalSortValue] = useState(initialSort || "");
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
+
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Routers
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  // Initialize states when the filter modal opens or initial values change
+  // Re-init when opened or initial values change
   useEffect(() => {
     if (open) {
       setLocalMinPrice(initialMinPrice);
       setLocalMaxPrice(initialMaxPrice);
+      setMinDraft(formatZA(initialMinPrice));
+      setMaxDraft(formatZA(initialMaxPrice));
+      setEditingMin(false);
+      setEditingMax(false);
+
       setLocalSortValue(initialSort || "");
       setIsSortDropdownOpen(false);
+
       previouslyFocused.current = document.activeElement as HTMLElement;
       closeButtonRef.current?.focus();
-    }
-    if (!open && previouslyFocused.current) {
+    } else if (!open && previouslyFocused.current) {
       previouslyFocused.current.focus();
     }
   }, [open, initialMinPrice, initialMaxPrice, initialSort]);
 
   const maxCount = priceDistribution.reduce((m, b) => Math.max(m, b.count), 0);
 
-  // Function to update URL parameters (price and sort)
-  const updateUrl = useCallback(
-    (min: number, max: number, sort?: string) => {
-      const search = new URLSearchParams(searchParams.toString());
-      if (min > SLIDER_MIN) search.set("price_min", String(min));
-      else search.delete("price_min");
-      if (max < SLIDER_MAX) search.set("price_max", String(max));
-      else search.delete("price_max");
-
-      if (sort) search.set("sort", sort);
-      else search.delete("sort");
-
-      router.push(`${pathname}?${search.toString()}`);
-    },
-    [pathname, router, searchParams],
-  );
-
-  // Handle Apply button click
   const handleApplyClick = useCallback(() => {
     onApply({ minPrice: localMinPrice, maxPrice: localMaxPrice });
     onSortChange(localSortValue);
-    updateUrl(localMinPrice, localMaxPrice, localSortValue);
     onClose();
-  }, [
-    localMinPrice,
-    localMaxPrice,
-    localSortValue,
-    onApply,
-    onSortChange,
-    onClose,
-    updateUrl,
-  ]);
+  }, [localMinPrice, localMaxPrice, localSortValue, onApply, onSortChange, onClose]);
 
-  // Handle Clear all button click
   const handleClearClick = useCallback(() => {
     setLocalMinPrice(SLIDER_MIN);
     setLocalMaxPrice(SLIDER_MAX);
+    setMinDraft(formatZA(SLIDER_MIN));
+    setMaxDraft(formatZA(SLIDER_MAX));
+    setEditingMin(false);
+    setEditingMax(false);
+
     setLocalSortValue("");
     onClear();
     onSortChange("");
-    updateUrl(SLIDER_MIN, SLIDER_MAX, "");
     onClose();
-  }, [onClear, onSortChange, onClose, updateUrl]);
+  }, [onClear, onSortChange, onClose]);
 
-  // Handle input change for min price field
-  const handleMinPriceChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = parseInt(e.target.value.replace(/[^0-9]/g, "")); // Remove non-numeric characters
-      if (isNaN(value)) {
-        setLocalMinPrice(SLIDER_MIN);
-      } else {
-        setLocalMinPrice(Math.max(SLIDER_MIN, Math.min(value, localMaxPrice)));
-      }
-    },
-    [localMaxPrice],
-  );
+  // ────────────────────────────────────────────────────────────────────────────
+  // Draft input helpers (commit on blur/Enter only)
+  // ────────────────────────────────────────────────────────────────────────────
+  const commitMin = useCallback(() => {
+    setEditingMin(false);
+    const parsed = parseNum(minDraft);
+    const next = parsed == null ? SLIDER_MIN : clamp(parsed, SLIDER_MIN, SLIDER_MAX);
+    // Only after commit, ensure min <= max
+    if (next > localMaxPrice) setLocalMaxPrice(next);
+    setLocalMinPrice(next);
+    setMinDraft(formatZA(next));
+  }, [minDraft, localMaxPrice]);
 
-  // Handle input change for max price field
-  const handleMaxPriceChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = parseInt(e.target.value.replace(/[^0-9]/g, "")); // Remove non-numeric characters
-      if (isNaN(value)) {
-        setLocalMaxPrice(SLIDER_MAX);
-      } else {
-        setLocalMaxPrice(Math.min(SLIDER_MAX, Math.max(value, localMinPrice)));
-      }
-    },
-    [localMinPrice],
-  );
+  const commitMax = useCallback(() => {
+    setEditingMax(false);
+    const parsed = parseNum(maxDraft);
+    const next = parsed == null ? SLIDER_MAX : clamp(parsed, SLIDER_MIN, SLIDER_MAX);
+    // Only after commit, ensure max >= min
+    if (next < localMinPrice) setLocalMinPrice(next);
+    setLocalMaxPrice(next);
+    setMaxDraft(formatZA(next));
+  }, [maxDraft, localMinPrice]);
 
-  // Click outside to close the dropdown
+  const onMinKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitMin();
+    }
+  };
+  const onMaxKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitMax();
+    }
+  };
+
+  // Inputs (no clamping while typing)
+  const handleMinPriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingMin(true);
+    setMinDraft(digitsOnly(e.target.value));
+  }, []);
+  const handleMaxPriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingMax(true);
+    setMaxDraft(digitsOnly(e.target.value));
+  }, []);
+
+  // Close sort dropdown on outside click
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const onDocDown = (event: MouseEvent) => {
       if (
         sortDropdownRef.current &&
         !sortDropdownRef.current.contains(event.target as Node)
@@ -156,12 +175,11 @@ export default function PriceFilter({
         setIsSortDropdownOpen(false);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    document.addEventListener("mousedown", onDocDown);
+    return () => document.removeEventListener("mousedown", onDocDown);
   }, []);
 
+  // Focus trap inside modal
   useEffect(() => {
     if (!open) return;
     const container = containerRef.current;
@@ -186,12 +204,10 @@ export default function PriceFilter({
       }
     };
     container?.addEventListener("keydown", handleTrap);
-    return () => {
-      container?.removeEventListener("keydown", handleTrap);
-    };
+    return () => container?.removeEventListener("keydown", handleTrap);
   }, [open]);
 
-  // Handle keyboard navigation for the custom dropdown
+  // Keyboard nav for dropdown
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (!isSortDropdownOpen) return;
@@ -245,53 +261,61 @@ export default function PriceFilter({
     } else {
       document.removeEventListener("keydown", handleKeyDown);
     }
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isSortDropdownOpen, handleKeyDown, sortOptions]);
 
-  // Rheostat Custom Components
-  const Handle = (
-    props: React.HTMLAttributes<HTMLButtonElement> & {
-      "data-handle-key": string;
-    },
-  ) => {
-    const idx = Number(props["data-handle-key"]);
+  // ────────────────────────────────────────────────────────────────────────────
+  // Rheostat: big tap targets + touch fixes
+  // ────────────────────────────────────────────────────────────────────────────
+  type HandleProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    "data-handle-key": string;
+    handleRef?: (el: HTMLButtonElement | null) => void; // provided by Rheostat
+  };
+
+  const Handle = (props: HandleProps) => {
+    const { handleRef, ...rest } = props; // keep handleRef off DOM
+    const idx = Number(rest["data-handle-key"]);
+
     return (
       <button
+        ref={handleRef}
         type="button"
         aria-label={idx === 0 ? "Minimum price handle" : "Maximum price handle"}
-        {...props}
+        {...rest}
         onMouseDown={(e) => {
           setActiveHandle(idx);
-          props.onMouseDown?.(e);
+          rest.onMouseDown?.(e);
         }}
         onTouchStart={(e) => {
+          // Don’t let parents steal the gesture
+          e.stopPropagation();
           setActiveHandle(idx);
-          props.onTouchStart?.(e);
+          rest.onTouchStart?.(e);
         }}
         onBlur={(e) => {
           setActiveHandle(null);
-          props.onBlur?.(e);
+          rest.onBlur?.(e);
         }}
+        // 44x44 + halo for easy tapping; prevent scroll-from-drag on mobile
         className={clsx(
-          "absolute -top-2.5 h-5 w-5 rounded-full border border-gray-300 bg-white transition-shadow duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]",
-          props.className,
-          {
-            "ring-[var(--color-accent)]/50 shadow-lg ring-4":
-              activeHandle === idx,
-          },
+          "absolute -top-3 h-7 w-7 rounded-full border-2 border-gray-300 bg-white shadow",
+          "before:content-[''] before:absolute before:-inset-3 before:rounded-full before:bg-transparent",
+          "focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]",
+          "active:scale-105 touch-none select-none",
+          rest.className,
+          { "ring-[var(--color-accent)]/40 ring-4": activeHandle === idx },
         )}
         style={{
-          ...props.style,
+          ...rest.style,
           zIndex:
             activeHandle === idx
-              ? 30
+              ? 50
               : idx === 0
-                ? localMinPrice === localMaxPrice
-                  ? 30
-                  : 10
-                : 20,
+              ? localMinPrice === localMaxPrice
+                ? 40
+                : 20
+              : 30,
+          touchAction: "none",
         }}
       />
     );
@@ -308,12 +332,19 @@ export default function PriceFilter({
     <div className="absolute inset-x-0 bottom-0 h-2 rounded bg-gray-200" />
   );
 
-  // IMPORTANT FIX: CONDITIONAL RENDERING AFTER ALL HOOKS ARE CALLED
+  // Prevent sheet/scroll containers from hijacking touch
+  const stopTouchBubble = (e: React.TouchEvent) => {
+    e.stopPropagation();
+  };
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Render
+  // ────────────────────────────────────────────────────────────────────────────
   if (!open) return null;
 
   return (
     <div
-      className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50"
+      className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-gray-600/50"
       role="dialog"
       aria-modal="true"
       ref={containerRef}
@@ -338,24 +369,14 @@ export default function PriceFilter({
               aria-hidden="true"
               className="h-6 w-6"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18 18 6M6 6l12 12"
-              ></path>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Sort By Section */}
-        <div
-          className="relative border-t border-gray-200 pt-6"
-          ref={sortDropdownRef}
-        >
-          <label
-            id="sort-label"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
+        {/* Sort By */}
+        <div className="relative border-t border-gray-200 pt-6" ref={sortDropdownRef}>
+          <label id="sort-label" className="mb-2 block text-sm font-medium text-gray-700">
             Sort by
           </label>
           <div className="relative">
@@ -366,17 +387,15 @@ export default function PriceFilter({
               aria-expanded={isSortDropdownOpen}
               aria-labelledby="sort-label sort-dropdown-button"
               className="flex w-full cursor-pointer items-center justify-between rounded-lg border border-gray-300 bg-white py-2 pl-4 pr-10 text-gray-800 transition-all duration-200 focus:border-[var(--color-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
-              onClick={() => setIsSortDropdownOpen(!isSortDropdownOpen)}
+              onClick={() => setIsSortDropdownOpen((v) => !v)}
             >
               <span>
-                {sortOptions.find((opt) => opt.value === localSortValue)
-                  ?.label || "Sort"}
+                {sortOptions.find((opt) => opt.value === localSortValue)?.label || "Sort"}
               </span>
               <svg
-                className={clsx(
-                  "h-5 w-5 text-gray-500 transition-transform duration-200",
-                  { "rotate-180": isSortDropdownOpen },
-                )}
+                className={clsx("h-5 w-5 text-gray-500 transition-transform duration-200", {
+                  "rotate-180": isSortDropdownOpen,
+                })}
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 20 20"
                 fill="currentColor"
@@ -421,7 +440,6 @@ export default function PriceFilter({
                       tabIndex={0}
                     >
                       {opt.label}
-                      {opt.value === localSortValue}
                     </li>
                   ))}
               </ul>
@@ -429,15 +447,12 @@ export default function PriceFilter({
           </div>
         </div>
 
-        {/* Price Range Section */}
+        {/* Price Range */}
         <div className="border-t border-gray-200 pt-6">
-          <label className="block text-sm font-medium text-gray-700">
-            Price range
-          </label>
-          <p className="mb-4 mt-1 text-xs text-gray-500">
-            Trip price, includes all fees.
-          </p>
+          <label className="block text-sm font-medium text-gray-700">Price range</label>
+          <p className="mb-4 mt-1 text-xs text-gray-500">Trip price, includes all fees.</p>
 
+          {/* Histogram */}
           <div className="relative mb-4 h-10 w-full">
             <div className="absolute inset-0 flex items-end justify-between px-1">
               {priceDistribution.map((b, i) => (
@@ -449,14 +464,26 @@ export default function PriceFilter({
               ))}
             </div>
           </div>
-          <div className="relative mb-4 h-10 w-full">
+
+          {/* Slider */}
+          <div
+            className="relative mb-4 w-full select-none"
+            onTouchStart={stopTouchBubble}
+            onTouchMove={stopTouchBubble}
+            onTouchEnd={stopTouchBubble}
+          >
             <Rheostat
+              className="touch-none"
               min={SLIDER_MIN}
               max={SLIDER_MAX}
               values={[localMinPrice, localMaxPrice]}
               onValuesUpdated={({ values }: PublicState) => {
+                // live while dragging
                 setLocalMinPrice(values[0]);
                 setLocalMaxPrice(values[1]);
+                // keep drafts in sync when NOT editing
+                if (!editingMin) setMinDraft(formatZA(values[0]));
+                if (!editingMax) setMaxDraft(formatZA(values[1]));
               }}
               handle={Handle}
               progressBar={Progress}
@@ -464,44 +491,55 @@ export default function PriceFilter({
             />
           </div>
 
+          {/* Inputs */}
           <div className="mt-6 flex items-center justify-between gap-4">
             <div className="flex-1">
-              <label
-                htmlFor="min-price"
-                className="mb-1 block text-xs font-medium text-gray-500"
-              >
+              <label htmlFor="min-price" className="mb-1 block text-xs font-medium text-gray-500">
                 Minimum
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-medium text-gray-900">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-medium text-gray-900">
                   R
                 </span>
                 <input
                   type="text"
                   id="min-price"
-                  value={localMinPrice.toLocaleString()}
+                  inputMode="numeric"
+                  value={editingMin ? minDraft : formatZA(localMinPrice)}
                   onChange={handleMinPriceChange}
+                  onFocus={() => {
+                    setEditingMin(true);
+                    setMinDraft(digitsOnly(String(localMinPrice)));
+                  }}
+                  onBlur={commitMin}
+                  onKeyDown={onMinKeyDown}
                   className="w-full rounded-lg border border-gray-300 py-2 pl-8 pr-3 font-medium text-gray-900 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent)]"
                 />
               </div>
             </div>
+
             <div className="mt-6 font-semibold text-gray-400">–</div>
+
             <div className="flex-1">
-              <label
-                htmlFor="max-price"
-                className="mb-1 block text-xs font-medium text-gray-500"
-              >
+              <label htmlFor="max-price" className="mb-1 block text-xs font-medium text-gray-500">
                 Maximum
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-medium text-gray-900">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-medium text-gray-900">
                   R
                 </span>
                 <input
                   type="text"
                   id="max-price"
-                  value={localMaxPrice.toLocaleString()}
+                  inputMode="numeric"
+                  value={editingMax ? maxDraft : formatZA(localMaxPrice)}
                   onChange={handleMaxPriceChange}
+                  onFocus={() => {
+                    setEditingMax(true);
+                    setMaxDraft(digitsOnly(String(localMaxPrice)));
+                  }}
+                  onBlur={commitMax}
+                  onKeyDown={onMaxKeyDown}
                   className="w-full rounded-lg border border-gray-300 py-2 pl-8 pr-3 font-medium text-gray-900 focus:border-[var(--color-accent)] focus:ring-[var(--color-accent)]"
                 />
               </div>
@@ -509,7 +547,7 @@ export default function PriceFilter({
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Actions */}
         <div className="mt-6 flex justify-between border-t border-gray-200 pt-6">
           <button
             type="button"
@@ -520,7 +558,7 @@ export default function PriceFilter({
           </button>
           <button
             type="button"
-            className="hover:bg-[var(--color-accent)]/90 rounded-lg bg-[var(--color-accent)] px-6 py-2 font-semibold text-white shadow-md transition-colors"
+            className="rounded-lg bg-[var(--color-accent)] px-6 py-2 font-semibold text-white shadow-md transition-colors hover:bg-[var(--color-accent)]/90"
             onClick={handleApplyClick}
           >
             Apply

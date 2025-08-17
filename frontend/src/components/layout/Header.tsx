@@ -1,13 +1,13 @@
 // src/components/layout/Header.tsx
 // ──────────────────────────────────────────────────────────────────────────────
 // MOBILE: static pill next to "Booka". Hamburger is WHITE.
-// DESKTOP: compact -> full expands on first interaction; overlay arming handled
+// DESKTOP: compact -> full expands on interaction; overlay arming handled
 //          in MainLayout; auto-focus SearchBar after expand.
 // Styling goals:
 //  - No red hover anywhere (nav, menu, drawer trigger, links)
 //  - No underline on hover
 //  - Mobile hamburger icon visible (white) on dark header
-//  - Text in light surfaces = black, dark surfaces = white
+//  - Text: light surfaces = black, dark surfaces = white
 // ──────────────────────────────────────────────────────────────────────────────
 'use client';
 
@@ -29,7 +29,7 @@ import {
   ArrowRightOnRectangleIcon,
   CalendarDaysIcon,
   ChatBubbleLeftEllipsisIcon,
-  // Entertainment wave icons (unused here but kept for parity)
+  // kept for parity (unused here)
   FilmIcon,
   MusicalNoteIcon,
   VideoCameraIcon,
@@ -59,7 +59,6 @@ type SearchParamsShape = {
   when?: Date | null;
 };
 
-// Feature flag for "Services" & "Contact"
 const SHOW_CLIENT_TOP_NAV = true;
 
 const clientNav = [
@@ -70,9 +69,31 @@ const clientNav = [
 // Shared classes to *ensure* no red/underline on hover
 const hoverNeutralLink =
   'no-underline hover:no-underline hover:text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
-  
-  const hoverNeutralLink2 =
+const hoverNeutralLink2 =
   'no-underline hover:no-underline hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
+
+// Filter icon overlay: forces white icon/text and supports placing it *outside* on the right
+function FilterSlot({
+  children,
+  className = '',
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={clsx(
+        'pointer-events-none absolute top-1/2 -translate-y-1/2 z-20',
+        // force white for icon/text regardless of nested component defaults
+        'text-white [&_svg]:!text-white [&_svg]:!stroke-white [&_*]:!text-white',
+        className
+      )}
+      aria-hidden="false"
+    >
+      <div className="pointer-events-auto">{children}</div>
+    </div>
+  );
+}
 
 function ClientNav({ pathname }: { pathname: string }) {
   return (
@@ -85,7 +106,6 @@ function ClientNav({ pathname }: { pathname: string }) {
             href={item.href}
             className={clsx(
               'px-2 py-1 text-sm transition',
-              // Desktop header is dark → make links white; on hover, keep neutral
               'text-white/90 hover:text-white',
               hoverNeutralLink,
               isActive && 'font-semibold text-white'
@@ -298,7 +318,6 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 hoverNeutralLink
               )}
             >
-              {/* WHITE hamburger on dark header */}
               <Bars3Icon className="h-6 w-6 text-white" />
             </button>
 
@@ -314,7 +333,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               Booka
             </Link>
 
-            {/* MOBILE: static pill (light surface → black text) */}
+            {/* MOBILE: search pill (light surface → black text) */}
             {!isArtistView && showSearchBar && (
               <button
                 type="button"
@@ -331,6 +350,13 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 <MagnifyingGlassIcon className="h-4 w-4 text-black shrink-0" />
                 <span className="font-medium truncate">Start your search</span>
               </button>
+            )}
+
+            {/* MOBILE: filter icon (inline, forced white) */}
+            {filterControl && (
+              <div className="md:hidden ml-2 shrink-0 text-white [&_svg]:!text-white [&_svg]:!stroke-white [&_*]:!text-white">
+                {filterControl}
+              </div>
             )}
           </div>
 
@@ -349,6 +375,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               ) : null}
             </nav>
 
+            {/* DESKTOP: compact state pill + filter icon OUTSIDE on the right */}
             {!isArtistView && showSearchBar && (
               <div
                 className={clsx(
@@ -359,37 +386,46 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   'transition-opacity'
                 )}
               >
-                <button
-                  id="compact-search-trigger"
-                  type="button"
-                  aria-expanded={headerState === 'expanded-from-compact'}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    openDesktopSearchFromCompact();
-                  }}
-                  className={clsx(
-                    'w-full max-w-2xl flex items-center justify-between rounded-full',
-                    'border border-black/10 bg-white/95 shadow-sm hover:shadow-md',
-                    'px-4 py-2 text-sm',
-                    hoverNeutralLink,
-                    'text-black'
+                <div className="relative w-full max-w-2xl">
+                  <button
+                    id="compact-search-trigger"
+                    type="button"
+                    aria-expanded={headerState === 'expanded-from-compact'}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openDesktopSearchFromCompact();
+                    }}
+                    className={clsx(
+                      'w-full flex items-center justify-between rounded-full',
+                      'border border-black/10 bg-white/95 shadow-sm hover:shadow-md',
+                      // extra right padding is not needed since icon is *outside*
+                      'px-4 py-2 text-sm',
+                      hoverNeutralLink,
+                      'text-black'
+                    )}
+                  >
+                    <div className="flex flex-1 divide-x divide-slate-200">
+                      <div className="flex-1 px-2 truncate">
+                        {category ? category.label : 'Add service'}
+                      </div>
+                      <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
+                        {location ? getStreetFromAddress(location) : 'Add location'}
+                      </div>
+                      <div className="flex-1 px-2 truncate">
+                        {when ? dateFormatter.format(when) : 'Add dates'}
+                      </div>
+                    </div>
+                    <MagnifyingGlassIcon className="ml-3 h-5 w-5 text-slate-600 shrink-0" />
+                  </button>
+
+                  {/* Outside-right white filter icon */}
+                  {filterControl && (
+                    <FilterSlot className="hidden md:block right-[-44px]">
+                      {filterControl}
+                    </FilterSlot>
                   )}
-                >
-                  <div className="flex flex-1 divide-x divide-slate-200">
-                    <div className="flex-1 px-2 truncate">
-                      {category ? category.label : 'Add service'}
-                    </div>
-                    <div className="flex-1 px-2 whitespace-nowrap overflow-hidden text-ellipsis">
-                      {location ? getStreetFromAddress(location) : 'Add location'}
-                    </div>
-                    <div className="flex-1 px-2 truncate">
-                      {when ? dateFormatter.format(when) : 'Add dates'}
-                    </div>
-                  </div>
-                  <MagnifyingGlassIcon className="ml-3 h-5 w-5 text-slate-600 shrink-0" />
-                </button>
-                {filterControl && <div className="ml-2 shrink-0">{filterControl}</div>}
+                </div>
               </div>
             )}
           </div>
@@ -398,7 +434,14 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
           <div className="hidden sm:flex items-center justify-end gap-2">
             {user ? (
               <>
-         {user.user_type === 'service_provider' && ( <button onClick={toggleArtistView} className="px-3 py-2 text-sm rounded-lg hover:bg-gray-900 active:gray-100 text-white" > {artistViewActive ? 'Switch to Booking' : 'Switch to Service Provider View'} </button> )}
+                {user.user_type === 'service_provider' && (
+                  <button
+                    onClick={toggleArtistView}
+                    className="px-3 py-2 text-sm rounded-lg hover:bg-gray-900 text-white"
+                  >
+                    {artistViewActive ? 'Switch to Booking' : 'Switch to Service Provider View'}
+                  </button>
+                )}
 
                 <div className="p-1 rounded-lg hover:bg-white/10 active:bg-white/15">
                   <NotificationBell />
@@ -427,7 +470,6 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     leaveFrom="opacity-100 scale-100"
                     leaveTo="opacity-0 scale-95"
                   >
-                    {/* Light menu surface → black text */}
                     <Menu.Items className="absolute right-0 mt-2 w-64 origin-top-right bg-white rounded-xl shadow-lg ring-1 ring-black/5 focus:outline-none divide-y divide-slate-100">
                       <div className="py-1">
                         {user.user_type === 'service_provider' ? (
@@ -520,7 +562,6 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
                         <div className="border-t border-slate-200 my-1" />
 
-                        {/* Sign out (kept exactly neutral) */}
                         <Menu.Item>
                           {({ active }) => (
                             <button
@@ -547,7 +588,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 <Link
                   href="/login"
                   className={clsx(
-                    'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 active:gray-100 ',
+                    'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900',
                     hoverNeutralLink2
                   )}
                 >
@@ -556,7 +597,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 <Link
                   href="/register"
                   className={clsx(
-                    'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 active:gray-100 ',
+                    'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900',
                     hoverNeutralLink2
                   )}
                 >
@@ -593,11 +634,11 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               />
             </div>
 
-            {/* DESKTOP full SearchBar (light → black text) */}
+            {/* DESKTOP full SearchBar (white filter icon OUTSIDE right) */}
             <div
               ref={desktopSearchMountRef}
               className={clsx(
-                'hidden md:block transition-all',
+                'hidden md:block transition-all relative',
                 headerState === 'compacted'
                   ? 'opacity-0 scale-y-0 h-0 pointer-events-none'
                   : 'opacity-100 scale-y-100 pointer-events-auto'
@@ -614,6 +655,13 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 onCancel={handleSearchBarCancel}
                 compact={false}
               />
+
+              {/* Outside-right white filter icon */}
+              {filterControl && (
+                <FilterSlot className="hidden md:block right-[-44px]">
+                  {filterControl}
+                </FilterSlot>
+              )}
             </div>
           </div>
         )}

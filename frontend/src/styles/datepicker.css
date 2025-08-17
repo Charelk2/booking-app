@@ -1,16 +1,11 @@
-/* src/styles/datepicker.css */
-/* Custom styles for react-datepicker */
-
 /* Popper (for any non-inline uses) above other content */
-.react-datepicker-popper {
-  z-index: 50;
-}
+.react-datepicker-popper { z-index: 50; }
 
 /* Base calendar container */
 .react-datepicker {
   font-family: inherit;
   border: none;
-  border-radius: 0.75rem; /* rounded-lg */
+  border-radius: 0.75rem;
   background-color: var(--color-background);
   box-shadow: 0 10px 25px rgb(0 0 0 / 6%);
   padding: 0.5rem;
@@ -22,7 +17,7 @@
   overflow: visible;
 }
 
-/* When we apply our custom calendar class, force it to fill its parent card */
+/* Fill parent in our card */
 .react-datepicker-custom-calendar.react-datepicker {
   width: 100%;
   max-width: 100%;
@@ -31,69 +26,44 @@
 }
 
 /* Reduce motion */
-@media (prefers-reduced-motion: reduce) {
-  .react-datepicker {
-    animation: none;
-  }
-}
+@media (prefers-reduced-motion: reduce) { .react-datepicker { animation: none; } }
 
 /* Fade-in */
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.98); }
-  to   { opacity: 1; transform: scale(1); }
-}
+@keyframes fadeIn { from {opacity:0; transform:scale(0.98);} to {opacity:1; transform:scale(1);} }
 
 /* Hide default caret */
 .react-datepicker__triangle { display: none; }
 
-/* Header */
+/* Default header styles (we override with custom header) */
 .react-datepicker__header {
   background-color: var(--color-background);
   border: none;
   padding: 0 0.5rem 0.5rem 0.5rem;
 }
 
-/* We show month in our custom header, keep default hidden */
+/* You previously hid the month label. Keep hidden (we draw our own). */
 .react-datepicker__current-month,
 .react-datepicker__aria-live { display: none !important; }
 
-/* Prev/Next buttons */
-.react-datepicker__navigation {
-  top: 1.25rem;
-  background: transparent;
-  border: none;
-  padding: 0.25rem;
-  cursor: pointer;
-  z-index: 2;
-}
-.react-datepicker__navigation:hover {
-  background-color: var(--color-gray-100);
-  border-radius: 9999px;
-  transition: background-color 0.2s ease;
-}
-
 /* Month container should fill parent */
-.react-datepicker__month-container {
-  display: block;
-  width: 100%;
-}
+.react-datepicker__month-container { display: block; width: 100%; }
 
-/* Make the calendar grid fluid so it never overflows on mobile */
+/* Grid */
 .react-datepicker__day-names,
 .react-datepicker__week {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.5rem; /* space between cells */
+  gap: 0.5rem;
   padding: 0 0.5rem;
 }
 
-/* Day name & day cell — rely on grid column width (no fixed width) */
+/* Day cells */
 .react-datepicker__day-name,
 .react-datepicker__day {
-  width: auto;                 /* override any fixed width */
+  width: auto;
   height: 2.25rem;
   line-height: 2.25rem;
-  font-size: 0.875rem;         /* text-sm */
+  font-size: 0.875rem;
   text-align: center;
   color: var(--color-gray-700);
   border-radius: 0.5rem;
@@ -102,14 +72,9 @@
   box-sizing: border-box;
 }
 
-/* Focus/hover/selected states */
-.react-datepicker__day:focus-visible {
-  outline: 2px solid var(--brand-color-dark);
-  outline-offset: 2px;
-}
-.react-datepicker__day:hover {
-  background-color: var(--color-gray-100);
-}
+/* States */
+.react-datepicker__day:focus-visible { outline: 2px solid var(--brand-color-dark); outline-offset: 2px; }
+.react-datepicker__day:hover { background-color: var(--color-gray-100); }
 .react-datepicker__day--selected,
 .react-datepicker__day--keyboard-selected {
   background-color: var(--color-accent);
@@ -118,28 +83,59 @@
   transition: background-color 0.2s ease;
 }
 
-/* Disabled & outside-month */
-.react-datepicker__day--disabled {
-  color: var(--color-gray-400);
-  cursor: not-allowed;
-}
+/* Disabled/outside */
+.react-datepicker__day--disabled { color: var(--color-gray-400); cursor: not-allowed; }
 .react-datepicker__day--disabled:hover { background-color: transparent; }
 .react-datepicker__day--outside-month { color: var(--color-gray-500); }
 
-/* ---------- Mobile tweaks ---------- */
+/* ---------- Mobile-only improvements ---------- */
 @media (max-width: 480px) {
-  .react-datepicker-custom-calendar.react-datepicker {
-    padding: 0.25rem;
+  .react-datepicker-custom-calendar.react-datepicker { padding: 0.25rem; }
+
+  /* Make our custom header sticky and touch-friendly */
+  .rdp-mobile .react-datepicker__header { padding: 0; }
+
+  .rdp-mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: 40px 1fr 40px;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.25rem;
+    background: var(--color-background, #fff);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
   }
+
+  .rdp-month-label {
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #0f172a; /* slate-900 */
+  }
+
+  .rdp-nav-btn {
+    height: 40px;
+    width: 40px;
+    border-radius: 9999px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(0,0,0,0.08);
+    background: #fff;
+    touch-action: manipulation;
+  }
+  .rdp-nav-btn:disabled { opacity: 0.5; }
+
   .react-datepicker__day-names,
   .react-datepicker__week {
-    gap: 0.25rem;              /* tighter spacing on small screens */
+    gap: 0.25rem;
     padding: 0 0.25rem;
   }
   .react-datepicker__day-name,
   .react-datepicker__day {
     height: 2rem;
     line-height: 2rem;
-    font-size: 0.8125rem;      /* slightly smaller to fit cleanly */
+    font-size: 0.8125rem;
   }
 }
