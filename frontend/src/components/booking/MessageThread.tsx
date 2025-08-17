@@ -49,12 +49,14 @@ import usePaymentModal from '@/hooks/usePaymentModal';
 import QuoteBubble from './QuoteBubble';
 import InlineQuoteForm from './InlineQuoteForm';
 import useWebSocket from '@/hooks/useWebSocket';
+import useIsMobile from '@/hooks/useIsMobile';
 import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
 import { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import data from '@emoji-mart/data';
 import { createPortal } from 'react-dom';
+import BookingSummaryCard from './BookingSummaryCard';
 import { t } from '@/lib/i18n';
 
 const MemoQuoteBubble = React.memo(QuoteBubble);
@@ -170,6 +172,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 ) {
   const { user } = useAuth();
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   // State
   const [messages, setMessages] = useState<Message[]>([]);
@@ -1330,182 +1333,25 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   </svg>
                 </button>
               </div>
-              <div className="px-4 pt-3 text-sm text-gray-600">Here’s a summary of your request.</div>
-              <div className="px-4 mt-3 flex items-center gap-3">
-                <div className="relative h-16 w-16 rounded-xl overflow-hidden flex-shrink-0">
-                  {artistAvatarUrl ? (
-                    <Image src={getFullImageUrl(artistAvatarUrl) as string} alt="Artist" fill className="object-cover" sizes="64px" />
-                  ) : (
-                    <div className="absolute inset-0 bg-gray-200" aria-hidden="true" />
-                  )}
-                </div>
-                <div>
-                  <div className="text-base font-semibold">{computedServiceName || 'Service'}</div>
-                  <div className="text-sm text-gray-600">{artistName || 'Service Provider'}</div>
-                </div>
-              </div>
-              <div className="my-4 mt-4 border-t border-gray-200" />
-              <div className="px-4 pb-4 overflow-y-auto max-h-[60vh] text-sm leading-6">
-                {/* Booking details list */}
-                <ul className="divide-y divide-gray-100">
-                  {parsedBookingDetails?.eventType && (<li className="py-2"><span className="font-semibold">Event Type:</span> {parsedBookingDetails.eventType}</li>)}
-                  {parsedBookingDetails?.date && (
-                    <li className="py-2">
-                      <span className="font-semibold">Date:</span>{' '}
-                      {isValid(new Date(parsedBookingDetails.date)) ? format(new Date(parsedBookingDetails.date), 'PPP p') : parsedBookingDetails.date}
-                    </li>
-                  )}
-                  {parsedBookingDetails?.location && (<li className="py-2"><span className="font-semibold">Location:</span> {parsedBookingDetails.location}</li>)}
-                  {parsedBookingDetails?.guests && (<li className="py-2"><span className="font-semibold">Guests:</span> {parsedBookingDetails.guests}</li>)}
-                  {parsedBookingDetails?.venueType && (<li className="py-2"><span className="font-semibold">Venue Type:</span> {parsedBookingDetails.venueType}</li>)}
-                  {parsedBookingDetails?.notes && (<li className="py-2"><span className="font-semibold">Notes:</span> {parsedBookingDetails.notes}</li>)}
-                </ul>
-
-                {/* Order & receipt */}
-                {(bookingConfirmed || paymentInfo.status) && (
-                  <div className="mt-4">
-                    <div className="font-semibold mb-1">Order</div>
-                    <div className="rounded-lg bg-gray-50 border border-gray-100 p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-gray-700">Order number</span>
-                        <span className="font-medium">{bookingDetails?.id ?? '—'}</span>
-                      </div>
-                      {(() => {
-                        const url = buildReceiptUrl(paymentInfo.receiptUrl, bookingDetails?.payment_id ?? null);
-                        return url ? (
-                          <div className="mt-2 text-right">
-                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium underline text-gray-700">View receipt</a>
-                          </div>
-                        ) : null;
-                      })()}
-                    </div>
-                  </div>
-                )}
-
-                {/* Estimate or Quote Totals */}
-                {(() => {
-                  const quoteList = Object.values(quotes || {});
-                  const accepted = quoteList.find((q) => q.status === 'accepted');
-                  const pending = quoteList.filter((q) => q.status === 'pending');
-                  const latestPending = pending.sort((a,b) => (a.id||0) - (b.id||0)).slice(-1)[0];
-                  const best = accepted || latestPending;
-                  if (best) {
-                    return (
-                      <div className="mt-4">
-                        <div className="font-semibold mb-1">Quote total</div>
-                        <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-1">
-                          {best.services?.[0]?.description && (
-                            <div className="flex justify-between text-gray-700">
-                              <span>{best.services[0].description}</span>
-                              <span>{formatCurrency(Number(best.services[0].price||0))}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between text-gray-700">
-                            <span>Sound</span>
-                            <span>{formatCurrency(Number(best.sound_fee||0))}</span>
-                          </div>
-                          <div className="flex justify-between text-gray-700">
-                            <span>Travel</span>
-                            <span>{formatCurrency(Number(best.travel_fee||0))}</span>
-                          </div>
-                          {best.accommodation && (
-                            <div className="flex justify-between text-gray-700">
-                              <span>Accommodation</span>
-                              <span>{best.accommodation}</span>
-                            </div>
-                          )}
-                          {Number(best.discount||0) > 0 && (
-                            <div className="flex justify-between text-gray-700">
-                              <span>Discount</span>
-                              <span>-{formatCurrency(Number(best.discount||0))}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
-                            <span>Total</span>
-                            <span>{formatCurrency(Number(best.total||0))}</span>
-                          </div>
-                        </div>
-                        {allowInstantBooking && !accepted && (
-                          <div className="mt-3 text-right">
-                            <Button
-                              type="button"
-                              onClick={() => openPaymentModal({ bookingRequestId, amount: Number(best.total||0) })}
-                              className="bg-gray-900 text-white hover:bg-black"
-                            >
-                              Reserve now
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                  return (
-                    <div className="mt-4">
-                      <div className="font-semibold mb-1">Estimated total</div>
-                      <div className="rounded-lg bg-gray-50 border border-gray-100 p-3">
-                        <div className="flex justify-between text-gray-700">
-                          <span>Base fee</span>
-                          <span>{formatCurrency(Number(baseFee || 0))}</span>
-                        </div>
-                        <div className="flex justify-between text-gray-700 mt-1">
-                          <span>Travel</span>
-                          <span>{formatCurrency(Number(travelFee || 0))}</span>
-                        </div>
-                        <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
-                          <span>Total estimate</span>
-                          <span>{formatCurrency(Number(baseFee || 0) + Number(travelFee || 0))}</span>
-                        </div>
-                        {typeof initialSound !== 'undefined' && (
-                          <div className="text-xs text-gray-500 mt-1">
-                            Sound equipment: {initialSound ? 'Yes' : 'No'} (if required, may be quoted separately)
-                          </div>
-                        )}
-                      </div>
-                      {allowInstantBooking && (
-                        <div className="mt-3 text-right">
-                          <Button
-                            type="button"
-                            onClick={() =>
-                              openPaymentModal({
-                                bookingRequestId,
-                                amount: Number(instantBookingPrice ?? (Number(baseFee||0)+Number(travelFee||0))),
-                              })
-                            }
-                            className="bg-gray-900 text-white hover:bg-black"
-                          >
-                            Reserve now
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Policy */}
-                <div className="mt-5">
-                  <div className="font-semibold mb-1">Cancellation policy</div>
-                  <p className="text-gray-600 text-sm">
-                    {artistCancellationPolicy?.trim() ||
-                      'Free cancellation within 48 hours of booking. 50% refund up to 7 days before the event. Policies may vary by provider.'}
-                  </p>
-                </div>
-
-                {/* Links */}
-                <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <a
-                    href={currentArtistId ? `/service-providers/${currentArtistId}` : '#'}
-                    className="block text-center rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 font-medium"
-                  >
-                    View service provider
-                  </a>
-                  <a
-                    href="/support"
-                    className="block text-center rounded-lg border border-gray-200 px-3 py-2 hover:bg-gray-50 font-medium"
-                  >
-                    Get support
-                  </a>
-                </div>
-              </div>
+              <BookingSummaryCard
+                parsedBookingDetails={parsedBookingDetails}
+                imageUrl={bookingDetails?.service?.media_url}
+                serviceName={computedServiceName}
+                artistName={artistName}
+                bookingConfirmed={bookingConfirmed}
+                paymentInfo={paymentInfo}
+                bookingDetails={bookingDetails}
+                quotes={quotes}
+                allowInstantBooking={allowInstantBooking}
+                openPaymentModal={openPaymentModal}
+                bookingRequestId={bookingRequestId}
+                baseFee={baseFee}
+                travelFee={travelFee}
+                initialSound={initialSound}
+                artistCancellationPolicy={artistCancellationPolicy}
+                currentArtistId={currentArtistId}
+                instantBookingPrice={instantBookingPrice}
+              />
             </div>
           </div>
         ),
@@ -1515,122 +1361,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       {/* Message Input and Action Bar */}
       {user && (
         <>
-          {/* Attachment Preview */}
-          {attachmentPreviewUrl && (
-            <div className="flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner">
-              {attachmentFile && attachmentFile.type.startsWith('image/') ? (
-                <Image
-                  src={attachmentPreviewUrl}
-                  alt="Attachment preview"
-                  width={40}
-                  height={40}
-                  loading="lazy"
-                  className="w-10 h-10 object-cover rounded-md border border-gray-200"
-                />
-              ) : (
-                <>
-                  {attachmentFile?.type === 'application/pdf' ? (
-                    <DocumentIcon className="w-8 h-8 text-red-600" />
-                  ) : (
-                    <DocumentTextIcon className="w-8 h-8 text-gray-600" />
-                  )}
-                  <span className="text-xs text-gray-700 font-medium">{attachmentFile?.name}</span>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={() => setAttachmentFile(null)}
-                className="text-xs text-red-600 hover:text-red-700 font-medium"
-                aria-label="Remove attachment"
-              >
-                Remove
-              </button>
-            </div>
-          )}
-
-          {/* Composer (sticky, compact) */}
-          <div
-            ref={composerRef}
-            data-testid="composer-container"
-            className="sticky bottom-0 z-[60] bg-white border-t border-gray-100 shadow pb-safe flex-shrink-0 relative"
-          >
-            {showEmojiPicker && (
-              <div ref={emojiPickerRef} className="absolute bottom-12 left-0 z-50">
-                <EmojiPicker data={data} onEmojiSelect={handleEmojiSelect} previewPosition="none" />
-              </div>
-            )}
-
-            <form onSubmit={handleSendMessage} className="flex items-center gap-x-1.5 px-2 pt-1.5 pb-1.5">
-              <input
-                id="file-upload"
-                type="file"
-                className="hidden"
-                onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
-                accept="image/*,application/pdf"
-              />
-              <label
-                htmlFor="file-upload"
-                aria-label="Upload attachment"
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-              </label>
-
-              <button
-                type="button"
-                onClick={() => setShowEmojiPicker((prev) => !prev)}
-                aria-label="Add emoji"
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-500 rounded-full hover:bg-gray-100 transition-colors"
-              >
-                <FaceSmileIcon className="w-5 h-5" />
-              </button>
-
-              {/* Textarea (compact but 16px to avoid iOS zoom) */}
-              <textarea
-                ref={textareaRef}
-                value={newMessageContent}
-                onChange={(e) => setNewMessageContent(e.target.value)}
-                onInput={autoResizeTextarea}
-                autoFocus
-                rows={1}
-                className="flex-grow rounded-xl px-3 py-1 border border-gray-300 shadow-sm resize-none
-                           text-base ios-no-zoom font-medium focus:outline-none min-h-[36px]"
-                placeholder="Type your message..."
-                aria-label="New message input"
-                disabled={isUploadingAttachment}
-              />
-
-              {isUploadingAttachment && (
-                <div
-                  className="flex items-center gap-1"
-                  role="progressbar"
-                  aria-label="Upload progress"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={uploadingProgress}
-                  aria-valuetext={`${uploadingProgress}%`}
-                >
-                  <div className="w-10 bg-gray-200 rounded-full h-1">
-                    <div className="h-1 rounded-full bg-indigo-500" style={{ width: `${uploadingProgress}%` }} />
-                  </div>
-                  <span className="text-[11px] text-gray-600">{uploadingProgress}%</span>
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                aria-label="Send message"
-                className="flex-shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center w-9 h-9 p-2"
-                disabled={isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile)}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                </svg>
-              </Button>
-            </form>
-          </div>
 
           {/* Leave Review Button */}
           {user?.user_type === 'client' &&

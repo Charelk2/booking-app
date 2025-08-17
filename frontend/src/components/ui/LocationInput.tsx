@@ -1,4 +1,3 @@
-// src/components/ui/LocationInput.tsx
 "use client";
 
 import React, {
@@ -13,26 +12,25 @@ import { MapPinIcon } from "@heroicons/react/24/outline";
 import clsx from "clsx";
 import { loadPlaces } from "@/lib/loadPlaces";
 
-// Define the type alias for Google's PlaceResult here for local clarity
-// This ensures compatibility with the `google.maps.places.PlaceResult` type
-// provided by @types/google.maps.
+// Keep a handy alias for Google's PlaceResult
 export type PlaceResult = google.maps.places.PlaceResult;
 
-interface LocationInputProps {
+export interface LocationInputProps {
   value: string;
   onValueChange: (value: string) => void;
   onPlaceSelect: (place: PlaceResult) => void;
   placeholder?: string;
-  className?: string; // For the outer div container
-  inputClassName?: string; // For the input element itself
+  className?: string; // wrapper div
+  inputClassName?: string; // input element
   onPredictionsChange?: (
-    predictions: google.maps.places.AutocompletePrediction[],
+    predictions: google.maps.places.AutocompletePrediction[]
   ) => void;
   showDropdown?: boolean;
+  /** NEW: bubble input focus to parent if needed */
+  onFocus?: React.FocusEventHandler<HTMLInputElement>;
 }
 
-// Use forwardRef to allow parent components to pass a ref to the internal input element
-export const AUTOCOMPLETE_LISTBOX_ID = 'autocomplete-options';
+export const AUTOCOMPLETE_LISTBOX_ID = "autocomplete-options";
 
 const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
   (
@@ -45,49 +43,47 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       inputClassName,
       onPredictionsChange,
       showDropdown = true,
+      onFocus, // NEW
     },
-    ref,
+    ref
   ) => {
-
     const [predictions, setPredictions] =
       useState<google.maps.places.AutocompletePrediction[]>([]);
-
     const [isDropdownVisible, setDropdownVisible] = useState(false);
     const [userLocation, setUserLocation] =
       useState<google.maps.LatLngLiteral | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
     const [isPlacesReady, setIsPlacesReady] = useState(false);
-    const [liveMessage, setLiveMessage] = useState('');
-    const containerRef = useRef<HTMLDivElement>(null); // For detecting outside clicks for the entire component
-    const inputInternalRef = useRef<HTMLInputElement>(null); // Internal ref for the input element
+    const [liveMessage, setLiveMessage] = useState("");
 
-    // Expose the internal input ref's direct DOM element methods (like .focus()) to the outside world
+    const containerRef = useRef<HTMLDivElement>(null);
+    const inputInternalRef = useRef<HTMLInputElement>(null);
+
+    // Expose <input> to parents
     useImperativeHandle(
       ref,
       () => inputInternalRef.current as HTMLInputElement,
-      [],
+      []
     );
 
     const listboxId = AUTOCOMPLETE_LISTBOX_ID;
 
-
     const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
     if (!googleMapsApiKey) {
       console.error(
-        "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set. Location autocomplete will be disabled.",
+        "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is not set. Location autocomplete will be disabled."
       );
     }
 
     const placesServiceRef = useRef<google.maps.places.PlacesService | null>(
-      null,
+      null
     );
     const autocompleteServiceRef =
       useRef<google.maps.places.AutocompleteService | null>(null);
     const sessionTokenRef =
       useRef<google.maps.places.AutocompleteSessionToken | null>(null);
 
-    // Load Google Places API once and initialise services
+    // Load Google Places API once
     useEffect(() => {
       let mounted = true;
       (async () => {
@@ -95,7 +91,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
         if (!mounted || !places) return;
         autocompleteServiceRef.current = new places.AutocompleteService();
         placesServiceRef.current = new places.PlacesService(
-          document.createElement("div"),
+          document.createElement("div")
         );
         sessionTokenRef.current = new places.AutocompleteSessionToken();
         setIsPlacesReady(true);
@@ -105,7 +101,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       };
     }, []);
 
-    // 🌍 Get user's current location once
+    // Get user geolocation once (soft optional)
     useEffect(() => {
       if (typeof window !== "undefined" && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -114,14 +110,10 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
               lat: position.coords.latitude,
               lng: position.coords.longitude,
             });
-            console.log("User location obtained:", {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            });
           },
           (error) => {
             console.warn("Geolocation error:", error);
-          },
+          }
         );
       }
     }, []);
@@ -136,7 +128,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       }
     }, [value, onPredictionsChange]);
 
-    // 🎯 Trigger new predictions from user input (debounced)
+    // Debounced predictions fetch
     useEffect(() => {
       if (value.trim().length === 0 || !isPlacesReady) return;
       const handler = setTimeout(() => {
@@ -147,9 +139,9 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
             ...(userLocation && {
               location: new google.maps.LatLng(
                 userLocation.lat,
-                userLocation.lng,
+                userLocation.lng
               ),
-              radius: 30000, // 30km radius
+              radius: 30000,
             }),
             sessionToken: sessionTokenRef.current || undefined,
           },
@@ -159,13 +151,13 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
             onPredictionsChange?.(preds);
             setDropdownVisible(preds.length > 0);
             if (preds.length > 0) setHighlightedIndex(-1);
-          },
+          }
         );
       }, 300);
       return () => clearTimeout(handler);
     }, [value, userLocation, isPlacesReady, onPredictionsChange]);
 
-    // 🖱 Close dropdown on outside click
+    // Close dropdown on outside click
     useEffect(() => {
       const handleClickOutside = (event: MouseEvent | TouchEvent) => {
         if (
@@ -177,21 +169,23 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
         }
       };
       document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("touchstart", handleClickOutside, { passive: true });
+      document.addEventListener("touchstart", handleClickOutside, {
+        passive: true,
+      });
       return () => {
         document.removeEventListener("mousedown", handleClickOutside);
         document.removeEventListener("touchstart", handleClickOutside);
       };
     }, []);
 
-    // 📝 Handle input change
+    // Input change
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       onValueChange(e.target.value);
       setDropdownVisible(true);
       setHighlightedIndex(-1);
     };
 
-    // ⌨️ Handle keyboard selection for accessibility
+    // Keyboard accessibility
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
       if (!isDropdownVisible || predictions.length === 0) return;
 
@@ -201,7 +195,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setHighlightedIndex(
-          (prev) => (prev - 1 + predictions.length) % predictions.length,
+          (prev) => (prev - 1 + predictions.length) % predictions.length
         );
       } else if (e.key === "Enter") {
         e.preventDefault();
@@ -224,9 +218,9 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       }
     };
 
-    // ✅ Handle selecting a place (from click or keyboard Enter)
+    // Select a prediction
     const handleSelect = (
-      prediction: google.maps.places.AutocompletePrediction,
+      prediction: google.maps.places.AutocompletePrediction
     ) => {
       setPredictions([]);
       setDropdownVisible(false);
@@ -234,7 +228,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       const service = placesServiceRef.current;
       if (!service) {
         console.error(
-          "Google Places Service not available. Check API key and script loading.",
+          "Google Places Service not available. Check API key and script loading."
         );
         onPlaceSelect({
           name: prediction.description,
@@ -252,7 +246,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
           },
           (
             placeDetails: google.maps.places.PlaceResult | null,
-            status: google.maps.places.PlacesServiceStatus,
+            status: google.maps.places.PlacesServiceStatus
           ) => {
             if (
               status === google.maps.places.PlacesServiceStatus.OK &&
@@ -262,16 +256,14 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
               onValueChange(
                 placeDetails.formatted_address ||
                   placeDetails.name ||
-                  prediction.description,
-
+                  prediction.description
               );
               setLiveMessage(
                 `Location selected: ${
                   placeDetails.formatted_address ||
                   placeDetails.name ||
                   prediction.description
-                }`,
-
+                }`
               );
             } else {
               console.error("PlacesService.getDetails failed:", status);
@@ -282,7 +274,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
               onValueChange(prediction.description);
               setLiveMessage(`Location selected: ${prediction.description}`);
             }
-          },
+          }
         );
       } else {
         onPlaceSelect({
@@ -302,15 +294,18 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
           value={value}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          onFocus={() => {
+          onFocus={(e) => {
+            // Keep current behavior: open dropdown if we have content…
             if (predictions.length > 0 || value.length > 0) {
               setDropdownVisible(true);
             }
+            // …and bubble to parent if provided
+            onFocus?.(e);
           }}
           placeholder={placeholder}
           className={clsx(
             "w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none",
-            inputClassName,
+            inputClassName
           )}
           role="combobox"
           aria-expanded={isDropdownVisible}
@@ -347,7 +342,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
                   onMouseDown={() => handleSelect(prediction)}
                   className={clsx(
                     "flex min-h-[44px] cursor-pointer items-center px-4 py-2 text-sm",
-                    isActive ? "bg-gray-100" : "hover:bg-gray-50",
+                    isActive ? "bg-gray-100" : "hover:bg-gray-50"
                   )}
                   data-testid="location-option"
                 >
@@ -365,6 +360,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
             })}
           </div>
         )}
+
         {liveMessage && (
           <div aria-live="polite" className="sr-only">
             {liveMessage}
@@ -372,7 +368,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
         )}
       </div>
     );
-  },
+  }
 );
 
 LocationInput.displayName = "LocationInput";

@@ -1,4 +1,3 @@
-// src/components/search/MobileSearch.tsx
 'use client';
 
 import {
@@ -10,9 +9,12 @@ import {
   useState,
   forwardRef,
   useImperativeHandle,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import {
-  ChevronDownIcon, // only for accordion headers
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   CalendarIcon,
   MapPinIcon,
   MusicalNoteIcon,
@@ -23,6 +25,8 @@ import clsx from 'clsx';
 import useServiceCategories, { type Category as CategoryType } from '@/hooks/useServiceCategories';
 import LocationInput, { type PlaceResult } from '../ui/LocationInput';
 import ReactDatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import '@/styles/datepicker.css';
 import { getServiceProviders } from '@/lib/api';
 import type { ServiceProviderProfile } from '@/types';
 
@@ -35,24 +39,28 @@ export type MobileSearchHandle = {
 };
 
 type Props = {
-  /* external search state (from Header) */
   category: CategoryType | null;
   setCategory: (c: CategoryType | null) => void;
   location?: string;
   setLocation?: (l: string) => void;
   when?: Date | null;
   setWhen?: (d: Date | null) => void;
-
-  /* actions */
   onSearch: (params: { category?: string; location?: string; when?: Date | null }) => void | Promise<void>;
-  onCancel?: () => void;            // restore header right away
-  onOpenChange?: (open: boolean) => void; // tells Header to lock/unlock compaction
-
-  /* control whether pill is shown when closed */
+  onCancel?: () => void;
+  onOpenChange?: (open: boolean) => void;
   showPill?: boolean;
 };
 
-/** Accordion shell: only hides overflow when CLOSED to avoid clipping dropdowns/suggestions */
+/** Local fallback for react-datepicker's custom header props */
+type ReactDatePickerCustomHeaderProps = {
+  date: Date;
+  decreaseMonth: () => void;
+  increaseMonth: () => void;
+  prevMonthButtonDisabled?: boolean;
+  nextMonthButtonDisabled?: boolean;
+};
+
+/** Accordion shell */
 const CardShell = memo(function CardShell({
   icon,
   title,
@@ -62,7 +70,7 @@ const CardShell = memo(function CardShell({
   children,
 }: {
   icon: JSX.Element;
-  title: React.ReactNode; // label/value can style independently
+  title: React.ReactNode;
   subtitle?: string;
   isOpen: boolean;
   onToggle: () => void;
@@ -79,7 +87,6 @@ const CardShell = memo(function CardShell({
         <div className="flex items-center gap-3">
           {icon}
           <div className="text-left">
-            {/* inner spans decide weights */}
             <div className="text-[15px] text-slate-900">{title}</div>
             {subtitle && <div className="text-xs text-slate-600">{subtitle}</div>}
           </div>
@@ -116,33 +123,28 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
   }: Props,
   ref
 ) {
-  /** Pill open/close; pill is hidden while open */
   const [open, setOpen] = useState(false);
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: () => setOpen(true),
+      close: () => setOpen(false),
+      isOpen: () => open,
+    }),
+    [open]
+  );
 
-  /** expose imperative API */
-  useImperativeHandle(ref, () => ({
-    open: () => setOpen(true),
-    close: () => setOpen(false),
-    isOpen: () => open,
-  }), [open]);
-
-  /** Single-open accordion; all CLOSED when opening */
   const [active, setActive] = useState<PanelKey>(null);
-
-  /** Data */
   const categories = useServiceCategories();
 
-  /** Artist search (keep focus; 16px to stop iOS zoom) */
   const [artistQuery, setArtistQuery] = useState('');
   const [artistResults, setArtistResults] = useState<ServiceProviderProfile[]>([]);
   const artistInputRef = useRef<HTMLInputElement>(null);
 
-  /** Location predictions for inline rendering */
   const [locationPredictions, setLocationPredictions] = useState<
     google.maps.places.AutocompletePrediction[]
   >([]);
 
-  /** iOS zoom mitigation (ensure computed font-size >= 16px) */
   const force16 = { fontSize: 16 };
 
   useEffect(() => {
@@ -155,22 +157,21 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
         const res = await getServiceProviders({ artist: artistQuery, limit: 5 });
         setArtistResults(res.data || []);
       } catch (e) {
-        // eslint-disable-next-line no-console
         console.error(e);
       }
     }, 300);
     return () => clearTimeout(t);
   }, [artistQuery]);
 
-  /** Always enabled for now */
   const canSearch = true;
 
-  const dateFormatter = useMemo(
+  const dateFmt = useMemo(
     () => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    [],
+    []
   );
+  const monthFmt = useMemo(() => new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }), []);
 
-  // Track scroll position + previous body styles so we can restore synchronously
+  // Body lock
   const scrollYRef = useRef(0);
   const prevBodyStylesRef = useRef<{
     position: string;
@@ -181,7 +182,6 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
     width: string;
   } | null>(null);
 
-  /** Lock body scroll + tell Header while open; restore on cleanup */
   useEffect(() => {
     if (!open) return;
 
@@ -228,14 +228,12 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
     };
   }, [open, onOpenChange]);
 
-  // Also close if the outside overlay dispatches our custom event
   useEffect(() => {
     const handler = () => closeAndReset();
     window.addEventListener('mobile-search:backdrop', handler as EventListener);
     return () => window.removeEventListener('mobile-search:backdrop', handler as EventListener);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Synchronous unlock so Cancel immediately restores scrolling (no extra tap)
   const unlockBodyNow = useCallback(() => {
     const prev = prevBodyStylesRef.current;
     const { style } = document.body;
@@ -260,23 +258,21 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
 
   const openPanel = useCallback(() => {
     setOpen(true);
-    setActive(null); // all accordions closed on open
+    setActive(null);
   }, []);
   const closeAndReset = useCallback(() => {
-    // Proactively signal "closed" and unlock body BEFORE state/effects flush
     onOpenChange?.(false);
     unlockBodyNow();
     setOpen(false);
-    onCancel?.(); // Header returns to normal immediately
+    onCancel?.();
   }, [onCancel, onOpenChange, unlockBodyNow]);
 
-  /** Handlers */
   const handlePickCategory = useCallback(
     (c: CategoryType) => {
       setCategory(c);
-      setActive('when'); // move to date
+      setActive('when');
     },
-    [setCategory],
+    [setCategory]
   );
 
   const handleArtistClick = useCallback((p: ServiceProviderProfile) => {
@@ -289,7 +285,7 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
       setWhen?.(d);
       setActive('location');
     },
-    [setWhen],
+    [setWhen]
   );
 
   const handlePickLocation = useCallback(
@@ -298,7 +294,7 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
       setLocation?.(name);
       setActive(null);
     },
-    [setLocation],
+    [setLocation]
   );
 
   const handleSubmit = useCallback(async () => {
@@ -306,16 +302,15 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
     closeAndReset();
   }, [onSearch, category, location, when, closeAndReset]);
 
-  /** Keep the right accordion open while inputs are focused (prevents collapse & blur) */
   const keepCategoryOpenOnFocus = useCallback(() => setActive('category'), []);
   const keepLocationOpenOnFocus = useCallback(() => setActive('location'), []);
 
-  /** Close on ESC */
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
+    const onKey = (e: ReactKeyboardEvent | KeyboardEvent) => {
+      const key = (e as any).key as string | undefined;
+      if (key === 'Escape') {
+        (e as any).preventDefault?.();
         closeAndReset();
       }
     };
@@ -323,7 +318,6 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
     return () => window.removeEventListener('keydown', onKey as any);
   }, [open, closeAndReset]);
 
-  /** Pill (no chevron; hides once open) — respects showPill */
   const Pill = showPill && !open && (
     <button
       type="button"
@@ -346,18 +340,11 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
 
       {open && (
         <>
-          {/* Backdrop (clicking outside closes + restores header immediately) */}
-          <div
-            className="fixed inset-0 z-40"
-            aria-hidden="true"
-            onClick={closeAndReset}
-          />
-
-          {/* Panel (above backdrop) */}
+          <div className="fixed inset-0 z-40" aria-hidden="true" onClick={closeAndReset} />
           <div className="relative z-50 mt-3 space-y-3">
             {/* CATEGORY / ARTIST */}
             <CardShell
-              icon={<MusicalNoteIcon className="h-5 w-5 text-slate-700 hidden "aria-hidden="true" />}
+              icon={<MusicalNoteIcon className="h-5 w-5 text-slate-700" aria-hidden="true" />}
               title={
                 category ? (
                   <>
@@ -372,7 +359,6 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
               isOpen={active === 'category'}
               onToggle={() => setActive(active === 'category' ? null : 'category')}
             >
-              {/* Artist input — 16px to prevent iOS zoom */}
               <div className="space-y-2">
                 <input
                   ref={artistInputRef}
@@ -389,7 +375,9 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
                 {!!artistResults.length && (
                   <ul className="max-h-40 overflow-y-auto rounded-lg border border-gray-100">
                     {artistResults.map((a) => {
-                      const name = a.business_name || `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`.trim();
+                      const name =
+                        a.business_name ||
+                        `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`.trim();
                       return (
                         <li key={a.user_id} className="border-b last:border-b-0">
                           <button
@@ -406,7 +394,6 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
                 )}
               </div>
 
-              {/* Vertical category list */}
               <ul className="mt-3 max-h-[45vh] overflow-y-auto divide-y divide-gray-100">
                 {categories.map((c) => (
                   <li key={c.value}>
@@ -445,12 +432,12 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
 
             {/* WHEN */}
             <CardShell
-              icon={<CalendarIcon className="h-5 w-5 text-slate-700 hidden" aria-hidden="true" />}
+              icon={<CalendarIcon className="h-5 w-5 text-slate-700" aria-hidden="true" />}
               title={
                 when ? (
                   <>
                     <span className="font-semibold">When:</span>{' '}
-                    <span className="font-normal">{dateFormatter.format(when)}</span>
+                    <span className="font-normal">{dateFmt.format(when)}</span>
                   </>
                 ) : (
                   'When'
@@ -463,9 +450,40 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
               <div className="w-full overflow-x-hidden">
                 <ReactDatePicker
                   selected={when}
-                  onChange={d => setWhen?.(d)}
+                  onChange={(d: Date | null) => handlePickDate(d)}  
                   inline
-                  calendarClassName="react-datepicker-custom-calendar"
+                  calendarClassName="react-datepicker-custom-calendar rdp-mobile"
+                  renderCustomHeader={({
+                    date,
+                    decreaseMonth,
+                    increaseMonth,
+                    prevMonthButtonDisabled,
+                    nextMonthButtonDisabled,
+                  }: ReactDatePickerCustomHeaderProps) => (
+                    <div className="rdp-mobile-header">
+                      <button
+                        type="button"
+                        onClick={decreaseMonth}
+                        disabled={prevMonthButtonDisabled}
+                        aria-label="Previous month"
+                        className="rdp-nav-btn"
+                      >
+                        <ChevronLeftIcon className="h-5 w-5" />
+                      </button>
+                      <div className="rdp-month-label" aria-live="polite">
+                        {monthFmt.format(date)}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={increaseMonth}
+                        disabled={nextMonthButtonDisabled}
+                        aria-label="Next month"
+                        className="rdp-nav-btn"
+                      >
+                        <ChevronRightIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  )}
                 />
               </div>
 
@@ -494,7 +512,7 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
 
             {/* LOCATION */}
             <CardShell
-              icon={<MapPinIcon className="h-5 w-5 text-slate-700 hidden" aria-hidden="true" />}
+              icon={<MapPinIcon className="h-5 w-5 text-slate-700" aria-hidden="true" />}
               title={
                 location ? (
                   <>
@@ -513,13 +531,9 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
                 <LocationInput
                   value={location}
                   onValueChange={(v) => setLocation?.(v)}
-                  onPlaceSelect={(place) => {
-                    const name = place.formatted_address || place.name || '';
-                    setLocation?.(name);
-                    setActive(null);
-                  }}
-                  onFocus={() => setActive('location')}
-                  onPredictionsChange={setLocationPredictions}
+                  onPlaceSelect={handlePickLocation}
+                  onFocus={keepLocationOpenOnFocus}                  
+                  onPredictionsChange={(preds) => setLocationPredictions(preds)} /* safe wrapper */
                   placeholder="Search location"
                   className="w-full"
                   inputClassName="w-full rounded-lg border border-gray-200 px-3 py-2 text-[16px] outline-none"
@@ -532,9 +546,7 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
                       <li key={p.place_id || p.description}>
                         <button
                           type="button"
-                          onClick={() =>
-                            (setLocation?.(p.description), setActive(null))
-                          }
+                          onClick={() => (setLocation?.(p.description), setActive(null))}
                           className="w-full text-left px-3 py-2 text-[15px] hover:bg-gray-100"
                         >
                           <div className="font-medium">
@@ -578,7 +590,7 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
               </div>
             </CardShell>
 
-            {/* Footer */}
+            {/* FOOTER */}
             <div className="flex items-center justify-between pt-1">
               <button
                 type="button"
@@ -594,9 +606,7 @@ const MobileSearch = forwardRef<MobileSearchHandle, Props>(function MobileSearch
                 onClick={handleSubmit}
                 className={clsx(
                   'text-sm px-4 py-2 rounded-lg active:scale-[0.99]',
-                  canSearch
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  canSearch ? 'bg-slate-900 text-white' : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 )}
               >
                 Search
