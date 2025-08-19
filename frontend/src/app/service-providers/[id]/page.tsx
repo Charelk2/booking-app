@@ -125,6 +125,23 @@ export default function ServiceProviderProfilePage() {
       .finally(() => setReviewsLoading(false));
   }, [serviceProviderId]);
 
+  // Demo fallback: if this is Spoegwolf and no reviews returned, show 6 sample reviews (5×4★, 1×1★)
+  const displayReviews = useMemo(() => {
+    const name = (serviceProvider?.business_name || '').toLowerCase();
+    if (name.includes('spoegwolf') && reviews.length === 0) {
+      const samples: ReviewType[] = Array.from({ length: 6 }).map((_, i) => ({
+        id: 10000 + i,
+        booking_id: 0,
+        rating: i === 0 ? 1 : 4,
+        comment: i === 0 ? 'Had some issues on the day, but overall okay.' : 'Great experience! Professional and on time.',
+        created_at: new Date(Date.now() - (i + 1) * 86400000).toISOString(),
+        updated_at: new Date(Date.now() - (i + 1) * 86400000).toISOString(),
+      } as any));
+      return samples;
+    }
+    return reviews;
+  }, [serviceProvider?.business_name, reviews]);
+
   const averageRating = useMemo(() => {
     if (!reviews.length) return null;
     return (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1);
@@ -140,6 +157,7 @@ export default function ServiceProviderProfilePage() {
       const res = await createBookingRequest({
         artist_id: serviceProviderId,
         service_id: service.id,
+        service_provider_id: 0
       });
       router.push(`/booking-requests/${res.data.id}`);
     } catch (err) {

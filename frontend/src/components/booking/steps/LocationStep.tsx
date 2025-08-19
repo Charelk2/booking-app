@@ -76,6 +76,8 @@ export default function LocationStep({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [marker, setMarker] = useState<LatLng | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
+  // Hidden form field setter for venue/place name
+  const locationNameSetterRef = useRef<((val: string) => void) | null>(null);
 
   useEffect(() => {
     const target = containerRef.current;
@@ -116,6 +118,16 @@ export default function LocationStep({
           <GoogleMapsLoader>
             {(loaded) => (
               <>
+                {/* Hidden controller for venue/place name so we can set it on selection */}
+                <Controller<EventDetails, 'locationName'>
+                  name="locationName"
+                  control={control}
+                  render={({ field }) => {
+                    locationNameSetterRef.current = field.onChange;
+                    return null;
+                  }}
+                />
+
                 <Controller<EventDetails, 'location'> // Explicitly type Controller
                   name="location"
                   control={control}
@@ -129,6 +141,11 @@ export default function LocationStep({
                             lat: place.geometry.location.lat(),
                             lng: place.geometry.location.lng(),
                           });
+                        }
+                        // Capture a human-friendly name when available
+                        const nm = (place.name || '').toString();
+                        if (locationNameSetterRef.current) {
+                          locationNameSetterRef.current(nm);
                         }
                       }}
                       placeholder="Search address"
@@ -150,6 +167,15 @@ export default function LocationStep({
           </GoogleMapsLoader>
         ) : (
           <>
+            {/* Hidden controller for venue/place name */}
+            <Controller<EventDetails, 'locationName'>
+              name="locationName"
+              control={control}
+              render={({ field }) => {
+                locationNameSetterRef.current = field.onChange;
+                return null;
+              }}
+            />
             <Controller<EventDetails, 'location'> // Explicitly type Controller
               name="location"
               control={control}
@@ -163,6 +189,10 @@ export default function LocationStep({
                         lat: place.geometry.location.lat(),
                         lng: place.geometry.location.lng(),
                       });
+                    }
+                    const nm = (place.name || '').toString();
+                    if (locationNameSetterRef.current) {
+                      locationNameSetterRef.current(nm);
                     }
                   }}
                   placeholder="Search address"

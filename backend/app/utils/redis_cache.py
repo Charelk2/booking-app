@@ -19,7 +19,7 @@ def get_redis_client() -> redis.Redis:
     return _redis_client
 
 
-ARTIST_LIST_KEY_PREFIX = "artist_profiles:list"
+ARTIST_LIST_KEY_PREFIX = "service_provider_profiles:list"
 WEATHER_KEY_PREFIX = "weather:3day"
 AVAILABILITY_KEY_PREFIX = "availability"
 

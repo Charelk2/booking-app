@@ -42,7 +42,7 @@ const EditQuoteModal: React.FC<EditQuoteModalProps> = ({ open, onClose, onSubmit
             price: Number(data.get('price') ?? 0),
           });
         }}
-        className="flex h-screen sm:h-auto flex-col p-4"
+        className="flex flex-col p-4 max-h-[90vh] md:max-h-none min-h-0"
       >
         <h2 className="text-lg font-medium mb-2">Edit Quote</h2>
         <div className="space-y-2 flex-1 overflow-y-auto">
@@ -79,4 +79,3 @@ const EditQuoteModal: React.FC<EditQuoteModalProps> = ({ open, onClose, onSubmit
 };
 
 export default EditQuoteModal;
-

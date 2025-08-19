@@ -4,6 +4,9 @@ from typing import List, Optional
 
 from .. import models
 from .. import schemas
+from . import crud_message
+from ..utils.messages import preview_label_for_message
+from ..utils.messages import BOOKING_DETAILS_PREFIX
 
 # --- BookingRequest CRUD ---_REQUEST
 
@@ -18,8 +21,6 @@ def create_booking_request(
         status=booking_request.status or models.BookingStatus.PENDING_QUOTE,
     )
     db.add(db_booking_request)
-    db.commit()
-    db.refresh(db_booking_request)
     return db_booking_request
 
 def get_booking_request(db: Session, request_id: int) -> Optional[models.BookingRequest]:
@@ -103,8 +104,6 @@ def update_booking_request(
     update_data = request_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_booking_request, key, value)
-    db.commit()
-    db.refresh(db_booking_request)
     return db_booking_request
 
 # Potentially a delete function if needed, though usually requests are archived or status changed
@@ -193,8 +192,40 @@ def get_booking_requests_with_last_message(
     )
 
     results: List[models.BookingRequest] = []
+    def _state_from_status(status: "models.BookingStatus") -> str:
+        if status in [models.BookingStatus.DRAFT, models.BookingStatus.PENDING_QUOTE, models.BookingStatus.PENDING]:
+            return "requested"
+        if status in [models.BookingStatus.QUOTE_PROVIDED]:
+            return "quoted"
+        if status in [models.BookingStatus.CONFIRMED, models.BookingStatus.REQUEST_CONFIRMED]:
+            return "confirmed"
+        if status in [models.BookingStatus.COMPLETED, models.BookingStatus.REQUEST_COMPLETED]:
+            return "completed"
+        if status in [
+            models.BookingStatus.CANCELLED,
+            models.BookingStatus.REQUEST_DECLINED,
+            models.BookingStatus.REQUEST_WITHDRAWN,
+            models.BookingStatus.QUOTE_REJECTED,
+        ]:
+            return "cancelled"
+        return "requested"
+
     for br, content, timestamp in rows:
-        setattr(br, "last_message_content", content)
+        # Compute preview via centralized helper for consistency
+        last_m = crud_message.get_last_message_for_request(db, br.id)
+        state = _state_from_status(br.status)
+        # Prefer counterparty display name when QUOTE
+        sender_display = None
+        if last_m and last_m.sender_id:
+            if last_m.sender_id == br.artist_id and br.artist:
+                if br.artist.artist_profile and br.artist.artist_profile.business_name:
+                    sender_display = br.artist.artist_profile.business_name
+                else:
+                    sender_display = f"{br.artist.first_name} {br.artist.last_name}"
+            elif last_m.sender_id == br.client_id and br.client:
+                sender_display = f"{br.client.first_name} {br.client.last_name}"
+        preview = preview_label_for_message(last_m, thread_state=state, sender_display=sender_display)
+        setattr(br, "last_message_content", preview)
         setattr(br, "last_message_timestamp", timestamp)
         if br.artist and br.artist.artist_profile:
             setattr(br, "artist_profile", br.artist.artist_profile)

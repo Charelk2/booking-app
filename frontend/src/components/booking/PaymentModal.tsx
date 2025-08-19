@@ -18,8 +18,7 @@ interface PaymentModalProps {
   bookingRequestId: number;
   onSuccess: (result: PaymentSuccess) => void;
   onError: (msg: string) => void;
-  depositAmount?: number;
-  depositDueBy?: string;
+  amount: number;
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -28,27 +27,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   bookingRequestId,
   onSuccess,
   onError,
-  depositAmount,
-  depositDueBy,
+  amount,
 }) => {
   // Check the environment variable at runtime so tests can override it
   const FAKE_PAYMENTS = process.env.NEXT_PUBLIC_FAKE_PAYMENTS === '1';
-  const [amount, setAmount] = useState<number>(depositAmount ?? 0);
-  const [amountInput, setAmountInput] = useState(
-    depositAmount !== undefined ? formatCurrency(depositAmount) : '',
-  );
-  const [full, setFull] = useState(false);
+  const [full] = useState(true); // always full amount
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLFormElement | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      const initial = depositAmount ?? 0;
-      setAmount(initial);
-      setAmountInput(formatCurrency(initial));
-    }
-  }, [depositAmount, open]);
+  useEffect(() => {}, [open]);
 
   useEffect(() => {
     if (!open || !modalRef.current) return undefined;
@@ -88,7 +76,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     setError(null);
     if (FAKE_PAYMENTS) {
       onSuccess({
-        status: full ? 'paid' : 'deposit_paid',
+        status: 'paid',
         amount: Number(amount),
       });
       setLoading(false);
@@ -98,14 +86,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       const res = await createPayment({
         booking_request_id: bookingRequestId,
         amount: Number(amount),
-        full,
+        full: true,
       });
       const paymentId = (res.data as { payment_id?: string }).payment_id;
       const receiptUrl = paymentId
         ? `/api/v1/payments/${paymentId}/receipt`
         : undefined;
       onSuccess({
-        status: full ? 'paid' : 'deposit_paid',
+        status: 'paid',
         amount: Number(amount),
         receiptUrl,
         paymentId,
@@ -121,7 +109,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center overflow-y-auto z-50">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center overflow-y-auto z-[200]">
       <form
         ref={modalRef}
         onSubmit={(e) => {
@@ -130,46 +118,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         }}
         className="bg-white rounded-lg shadow-lg w-full max-w-sm p-4 mx-2 max-h-[90vh] overflow-y-auto"
       >
-        <h2 className="text-lg font-medium mb-2">
-          Pay Deposit
-          {depositDueBy && (
-            <span className="block text-sm font-normal text-gray-600" data-testid="deposit-due">
-              Due by {format(new Date(depositDueBy), 'PPP')}
-            </span>
-          )}
-        </h2>
+        <h2 className="text-lg font-medium mb-2">Pay Now</h2>
         <div className="space-y-2">
-          <TextInput
-            id="deposit-amount"
-            type="text"
-            label="Amount"
-            placeholder="Amount"
-            value={amountInput}
-            onChange={(e) => {
-              const raw = e.target.value;
-              setAmountInput(raw);
-              const num = parseFloat(raw.replace(/[^0-9.]/g, ''));
-              if (!Number.isNaN(num)) setAmount(num);
-            }}
-          />
-          {depositAmount !== undefined && (
-            <p className="text-sm text-gray-600">
-              Deposit of {formatCurrency(depositAmount)}
-            </p>
-          )}
-          <p className="text-sm text-gray-600">
-            {full
-              ? 'You are paying the full amount.'
-              : 'You are paying the deposit.'}
-          </p>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={full}
-              onChange={(e) => setFull(e.target.checked)}
-            />
-            Pay full amount
-          </label>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-700">Amount</span>
+            <span className="text-base font-semibold">{formatCurrency(amount)}</span>
+          </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
         <div className="flex justify-end gap-2 mt-4">

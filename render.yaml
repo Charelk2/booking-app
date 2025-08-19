@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: booka-backend
+    env: python
+    region: frankfurt
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r backend/requirements.txt
+    startCommand: |
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir backend
+    plan: starter
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: SQLALCHEMY_DATABASE_URL
+        sync: false  # e.g. postgresql+psycopg://USER:PASSWORD@HOST:PORT/DB
+      - key: REDIS_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://booka.co.za
+      - key: CORS_ORIGINS
+        value: '["https://booka.co.za","https://www.booka.co.za"]'
+      - key: CORS_ALLOW_ALL
+        value: "false"
+

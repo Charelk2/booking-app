@@ -42,7 +42,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
 
 import { useAuth } from '@/contexts/AuthContext';
-import NotificationBell from './NotificationBell';
+// import NotificationBell from './NotificationBell';
+import useUnreadThreadsCount from '@/hooks/useUnreadThreadsCount';
 import MobileMenuDrawer from './MobileMenuDrawer';
 import SearchBar from '../search/SearchBar';
 import MobileSearch, { type MobileSearchHandle } from '../search/MobileSearch';
@@ -50,6 +51,10 @@ import useServiceCategories, { type Category as CategoryType } from '@/hooks/use
 import { Avatar } from '../ui';
 import { parseISO, isValid } from 'date-fns';
 import { getStreetFromAddress } from '@/lib/utils';
+// Link already imported above
+import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/solid';
+import { ChatBubbleLeftRightIcon as ChatOutline } from '@heroicons/react/24/outline';
+import React from 'react';
 
 export type HeaderState = 'initial' | 'compacted' | 'expanded-from-compact';
 
@@ -124,7 +129,6 @@ function ArtistNav({ user, pathname }: { user: { id: number }; pathname: string 
     { name: 'Today', href: '/dashboard/today' },
     { name: 'View Profile', href: `/service-providers/${user.id}` },
     { name: 'Services', href: '/dashboard?tab=services' },
-    { name: 'Messages', href: '/inbox' },
   ];
   return (
     <>
@@ -146,6 +150,78 @@ function ArtistNav({ user, pathname }: { user: { id: number }; pathname: string 
         );
       })}
     </>
+  );
+}
+
+// Lightweight messages link with unread badge, defined once, used in header.
+function HeaderMessagesLink() {
+  const { count } = useUnreadThreadsCount(30000);
+  const router = useRouter();
+  return (
+    <Link
+      href="/inbox"
+      className="relative inline-flex items-center gap-2 px-3 py-2 rounded-lg text-white hover:bg-gray-900 hover:text-white hover:no-underline"
+      aria-label={count > 0 ? `Messages (${count} unread)` : 'Messages'}
+      onMouseEnter={() => router.prefetch?.('/inbox')}
+      onFocus={() => router.prefetch?.('/inbox')}
+    >
+      {count > 0 ? (
+        <ChatBubbleLeftRightIcon className="h-5 w-5" />
+      ) : (
+        <ChatOutline className="h-5 w-5" />
+      )}
+      <span className="text-sm">Messages</span>
+      {count > 0 && (
+        <span
+          className="ml-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-red-600 text-[10px] font-semibold leading-none px-1"
+          aria-label={`${count} unread messages`}
+        >
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+// Placeholder to attach any global styles or preloading if needed later
+HeaderMessagesLink.Definition = function Definition() {
+  const router = useRouter();
+  useEffect(() => {
+    const idle = (cb: () => void) => (
+      'requestIdleCallback' in window
+        ? (window as any).requestIdleCallback(cb)
+        : setTimeout(cb, 300)
+    );
+    idle(() => router.prefetch?.('/inbox'));
+  }, [router]);
+  return null;
+};
+
+function HeaderMessagesLinkMobile() {
+  const { count } = useUnreadThreadsCount(30000);
+  const router = useRouter();
+  return (
+    <Link
+      href="/inbox"
+      className="md:hidden p-2 rounded-xl transition text-white relative hover:bg-gray-900 hover:text-white hover:no-underline"
+      aria-label={count > 0 ? `Messages (${count} unread)` : 'Messages'}
+      onMouseEnter={() => router.prefetch?.('/inbox')}
+      onFocus={() => router.prefetch?.('/inbox')}
+    >
+      {count > 0 ? (
+        <ChatBubbleLeftRightIcon className="h-6 w-6" />
+      ) : (
+        <ChatOutline className="h-6 w-6" />
+      )}
+      {count > 0 && (
+        <span
+          className="absolute -top-1 -right-1 inline-flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-red-600 text-[10px] font-semibold leading-none px-1"
+          aria-label={`${count} unread messages`}
+        >
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </Link>
   );
 }
 
@@ -303,7 +379,8 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
       data-header-state={headerState}
       data-lock-compact={mobileSearchOpen ? 'true' : 'false'}
     >
-      <div className="mx-auto max-w-[1400px] px-2 sm:px-4 lg:px-6">
+      <HeaderMessagesLink.Definition />
+      <div className="mx-auto full-width px-2 sm:px-4 lg:px-6">
         {/* Top Row */}
         <div className="grid px-2 bg-black grid-cols-[auto,1fr,auto] items-center gap-2">
           {/* Left cluster: menu + brand + (mobile pill) */}
@@ -321,10 +398,13 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               <Bars3Icon className="h-6 w-6 text-white" />
             </button>
 
+            {/* MOBILE: messages shortcut with non-flicker unread badge */}
+            <HeaderMessagesLinkMobile />
+
             <Link
               href="/"
               className={clsx(
-                'text-4xl font-bold pr-3 tracking-tight',
+                'text-4xl font-bold tracking-tight',
                 'text-white',
                 hoverNeutralLink2
               )}
@@ -437,15 +517,13 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 {user.user_type === 'service_provider' && (
                   <button
                     onClick={toggleArtistView}
-                    className="px-3 py-2 text-sm rounded-lg hover:bg-gray-900 text-white"
+                    className="px-3 py-2 text-sm rounded-lg font-bold hover:bg-gray-900 text-white"
                   >
-                    {artistViewActive ? 'Switch to Booking' : 'Switch to Service Provider View'}
+                    {artistViewActive ? 'Switch to Booking' : 'Switch to Hosting'}
                   </button>
                 )}
-
-                <div className="p-1 rounded-lg hover:bg-white/10 active:bg-white/15">
-                  <NotificationBell />
-                </div>
+                {/* Messages link with unread badge (no flicker) */}
+                <HeaderMessagesLink />
 
                 <Menu as="div" className="relative">
                   <Menu.Button

@@ -9,6 +9,8 @@ export interface EventDetails {
   /** Optional time string in HH:mm format */
   time?: string;
   location: string;
+  /** Optional human-friendly venue/place name from autocomplete */
+  locationName?: string;
   guests: string;
   venueType: 'indoor' | 'outdoor' | 'hybrid';
   sound: 'yes' | 'no';
@@ -47,6 +49,7 @@ const initialDetails: EventDetails = {
   date: new Date(),
   time: '',
   location: '',
+  locationName: '',
   guests: '',
   venueType: 'indoor',
   sound: 'yes',

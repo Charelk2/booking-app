@@ -82,6 +82,8 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       useRef<google.maps.places.AutocompleteService | null>(null);
     const sessionTokenRef =
       useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+    // Suppress immediate autocomplete reopen/fetch after a selection
+    const suppressAutocompleteRef = useRef(false);
 
     // Load Google Places API once
     useEffect(() => {
@@ -131,6 +133,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
     // Debounced predictions fetch
     useEffect(() => {
       if (value.trim().length === 0 || !isPlacesReady) return;
+      if (suppressAutocompleteRef.current) return;
       const handler = setTimeout(() => {
         autocompleteServiceRef.current?.getPlacePredictions(
           {
@@ -253,18 +256,13 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
               placeDetails
             ) {
               onPlaceSelect(placeDetails as PlaceResult);
-              onValueChange(
-                placeDetails.formatted_address ||
-                  placeDetails.name ||
-                  prediction.description
-              );
-              setLiveMessage(
-                `Location selected: ${
-                  placeDetails.formatted_address ||
-                  placeDetails.name ||
-                  prediction.description
-                }`
-              );
+              const combined = placeDetails.name
+                ? `${placeDetails.name}${placeDetails.formatted_address ? ", " + placeDetails.formatted_address : ""}`
+                : (placeDetails.formatted_address || prediction.description);
+              onValueChange(combined);
+              setLiveMessage(`Location selected: ${combined}`);
+              suppressAutocompleteRef.current = true;
+              setTimeout(() => { suppressAutocompleteRef.current = false; }, 600);
             } else {
               console.error("PlacesService.getDetails failed:", status);
               onPlaceSelect({
@@ -273,6 +271,8 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
               } as PlaceResult);
               onValueChange(prediction.description);
               setLiveMessage(`Location selected: ${prediction.description}`);
+              suppressAutocompleteRef.current = true;
+              setTimeout(() => { suppressAutocompleteRef.current = false; }, 600);
             }
           }
         );
@@ -283,6 +283,8 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
         } as PlaceResult);
         onValueChange(prediction.description);
         setLiveMessage(`Location selected: ${prediction.description}`);
+        suppressAutocompleteRef.current = true;
+        setTimeout(() => { suppressAutocompleteRef.current = false; }, 600);
       }
     };
 
@@ -296,7 +298,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
           onKeyDown={handleKeyDown}
           onFocus={(e) => {
             // Keep current behavior: open dropdown if we have content…
-            if (predictions.length > 0 || value.length > 0) {
+            if (predictions.length > 0) {
               setDropdownVisible(true);
             }
             // …and bubble to parent if provided

@@ -3,7 +3,7 @@
 export interface User {
   id: number;
   email: string;
-  user_type: "service_provider" | "client";
+  user_type: 'service_provider' | 'client';
   first_name: string;
   last_name: string;
   phone_number: string;
@@ -26,19 +26,19 @@ export interface ServiceProviderProfile {
   portfolio_urls?: string[] | null;
   portfolio_image_urls?: string[] | null;
   specialties?: string[] | null;
-  /** Optional cancellation policy text configured by the artist */
+  /** Optional cancellation policy text configured by the service provider */
   cancellation_policy?: string | null;
   /** Average star rating calculated from reviews */
   rating?: number;
   /** Number of reviews contributing to the rating */
   rating_count?: number;
-  /** Whether the artist has no active bookings on the chosen date */
+  /** Whether the service provider has no active bookings on the chosen date */
   is_available?: boolean;
   /** Controls if the hourly_rate should be displayed to users */
   price_visible?: boolean;
   /** Price of the selected service category when filtering */
   service_price?: number | string | null;
-  /** Names of service categories offered by the artist */
+  /** Names of service categories offered by the service provider */
   service_categories?: string[];
   user: User;
   created_at: string;
@@ -64,29 +64,48 @@ export interface SearchParams {
 
 export interface Service {
   id: number;
-  artist_id: number;
+
+  /** Canonical relationship field */
+  service_provider_id: number;
+  /** DEPRECATED alias kept during migration */
+  artist_id?: number;
+
   title: string;
   description: string;
+
+  /**
+   * Some parts of the UI read `.details.sound_provisioning.*`.
+   * Keep this flexible so we don't fight the compiler.
+   */
+  details?: Record<string, any> | null;
+
   media_url: string;
   service_type:
-    | "Live Performance"
-    | "Virtual Appearance"
-    | "Personalized Video"
-    | "Custom Song"
-    | "Other";
+    | 'Live Performance'
+    | 'Virtual Appearance'
+    | 'Personalized Video'
+    | 'Custom Song'
+    | 'Other';
   duration_minutes: number;
+
   // Optional linkage to a predefined category. The slug is used when creating
   // services so the frontend does not depend on database-specific IDs.
   service_category_id?: number;
   service_category_slug?: string;
   service_category?: ServiceCategory;
+
   travel_rate?: number;
   travel_members?: number;
   car_rental_price?: number;
   flight_price?: number;
+
   display_order: number;
   price: number;
-  artist: ServiceProviderProfile;
+
+  /** Canonical relation */
+  service_provider: ServiceProviderProfile;
+  /** DEPRECATED alias kept during migration */
+  artist?: ServiceProviderProfile;
 }
 
 export type BookingStatus =
@@ -97,7 +116,7 @@ export type BookingStatus =
   | 'draft'
   | 'pending_quote'
   | 'quote_provided'
-  | 'pending_artist_confirmation'
+  | 'pending_artist_confirmation' // legacy value possibly still emitted by API
   | 'request_confirmed'
   | 'request_completed'
   | 'request_declined'
@@ -106,7 +125,12 @@ export type BookingStatus =
 
 export interface Booking {
   id: number;
-  artist_id: number;
+
+  /** Canonical */
+  service_provider_id: number;
+  /** DEPRECATED */
+  artist_id?: number;
+
   client_id: number;
   service_id: number;
   start_time: string;
@@ -114,6 +138,7 @@ export interface Booking {
   status: BookingStatus;
   total_price: number;
   notes: string;
+
   /** Amount paid as a deposit toward this booking */
   deposit_amount?: number | null;
   /** Date when the deposit is due */
@@ -124,7 +149,12 @@ export interface Booking {
   payment_id?: string | null;
   /** Booking request associated with this booking */
   booking_request_id?: number;
-  artist: ServiceProviderProfile;
+
+  /** Canonical */
+  service_provider: ServiceProviderProfile;
+  /** DEPRECATED */
+  artist?: ServiceProviderProfile;
+
   client: User;
   service: Service;
   source_quote?: Quote;
@@ -142,9 +172,12 @@ export interface Review {
 
 // ─── BookingRequest / Quote Interfaces ─────────────────────────────────────────
 
-// This is the payload you send when creating a new booking request:
 export interface BookingRequestCreate {
-  artist_id: number;
+  /** Canonical */
+  service_provider_id: number;
+  /** DEPRECATED */
+  artist_id?: number;
+
   service_id?: number;
   message?: string;
   attachment_url?: string;
@@ -160,19 +193,24 @@ export interface ParsedBookingDetails {
   date?: string;
   location?: string;
   guests?: number;
-
   event_type?: string;
 }
 
 // This is what the backend returns when you GET a booking request:
 export interface BookingRequest {
+  artist: any;
   last_message_timestamp: string;
   is_unread_by_current_user: boolean;
   last_message_content: string | undefined;
   sound_required: undefined;
   id: number;
   client_id: number;
-  artist_id: number;
+
+  /** Canonical */
+  service_provider_id: number;
+  /** DEPRECATED */
+  artist_id?: number;
+
   service_id?: number;
   message?: string | null;
   attachment_url?: string | null;
@@ -184,26 +222,36 @@ export interface BookingRequest {
   status: BookingStatus;
   created_at: string;
   updated_at: string;
+
   // Optional expanded relations returned by the API
   client?: User;
-  artist?: User & {
-    /** Optional business name directly on the artist record */
+
+  /** Canonical */
+  service_provider?: (User & {
     business_name?: string | null;
-    /** Optional profile picture when artist_profile is absent */
     profile_picture_url?: string | null;
-    /** Some API responses nest the user inside the artist */
     user?: User | null;
-  };
-  /** Additional artist details including business name */
+  }) | null;
+
+  /** Canonical */
+  service_provider_profile?: ServiceProviderProfile;
+  /** DEPRECATED */
   artist_profile?: ServiceProviderProfile;
+
   service?: Service;
   quotes?: Quote[];
   accepted_quote_id?: number | null;
 }
 
-// If you need to handle Quotes (e.g. when the artist replies):
+// If you need to handle Quotes (e.g. when the service provider replies):
 export interface QuoteCreate {
   booking_request_id: number;
+
+  /** Canonical */
+  service_provider_id: number;
+  /** DEPRECATED */
+  artist_id?: number;
+
   quote_details: string;
   price: number;
   currency?: string; // defaults to "ZAR"
@@ -213,7 +261,12 @@ export interface QuoteCreate {
 export interface Quote {
   id: number;
   booking_request_id: number;
-  artist_id: number;
+
+  /** Canonical */
+  service_provider_id: number;
+  /** DEPRECATED */
+  artist_id?: number;
+
   quote_details: string;
   price: number;
   currency: string;
@@ -221,8 +274,6 @@ export interface Quote {
   status: string; // e.g. "pending_client_action", "accepted_by_client", etc.
   created_at: string;
   updated_at: string;
-  // booking_request?: BookingRequest;
-  // artist?: User;
 }
 
 export interface ServiceItem {
@@ -232,7 +283,12 @@ export interface ServiceItem {
 
 export interface QuoteTemplate {
   id: number;
-  artist_id: number;
+
+  /** Canonical */
+  service_provider_id: number;
+  /** DEPRECATED */
+  artist_id?: number;
+
   name: string;
   services: ServiceItem[];
   sound_fee: number;
@@ -245,7 +301,12 @@ export interface QuoteTemplate {
 
 export interface QuoteV2Create {
   booking_request_id: number;
-  artist_id: number;
+
+  /** Canonical */
+  service_provider_id: number;
+  /** DEPRECATED */
+  artist_id?: number;
+
   client_id: number;
   services: ServiceItem[];
   sound_fee: number;
@@ -268,7 +329,12 @@ export interface QuoteV2 extends QuoteV2Create {
 export interface BookingSimple {
   id: number;
   quote_id: number;
-  artist_id: number;
+
+  /** Canonical */
+  service_provider_id: number;
+  /** DEPRECATED */
+  artist_id?: number;
+
   client_id: number;
   confirmed: boolean;
   date?: string | null;
@@ -287,36 +353,47 @@ export interface Message {
   id: number;
   booking_request_id: number;
   sender_id: number;
-  sender_type: "client" | "artist";
+
+  /** Canonical sender roles */
+  sender_type: 'client' | 'service_provider';
+
   content: string;
   // message_type values are provided by the backend in uppercase.
   // Support both legacy lowercase and new uppercase forms for robustness.
-  message_type: "text" | "quote" | "system" | "USER" | "QUOTE" | "SYSTEM";
+  message_type: 'text' | 'quote' | 'system' | 'USER' | 'QUOTE' | 'SYSTEM';
   quote_id?: number | null;
   attachment_url?: string | null;
-  visible_to?: "artist" | "client" | "both";
+
+  /** Canonical visibility values */
+  visible_to?: 'service_provider' | 'client' | 'both';
+
   action?: string | null;
   avatar_url?: string | null;
   /** Optional expiration timestamp for system CTAs */
   expires_at?: string | null;
+
   /** Whether the message has been read by the current user */
   unread?: boolean;
+
   timestamp: string;
-  /** Client-side status for optimistic UI */
-  status?: 'sending' | 'sent' | 'failed';
+
+  /** Client-side status for optimistic UI (include 'queued' for offline-first) */
+  status?: 'queued' | 'sending' | 'sent' | 'failed';
 }
 
 export interface MessageCreate {
   content: string;
   // Allow either lowercase or uppercase message types when creating messages.
-  message_type?: "text" | "quote" | "system" | "USER" | "QUOTE" | "SYSTEM";
+  message_type?: 'text' | 'quote' | 'system' | 'USER' | 'QUOTE' | 'SYSTEM';
   quote_id?: number;
   attachment_url?: string;
-  visible_to?: "artist" | "client" | "both";
+
+  /** Canonical visibility values */
+  visible_to?: 'service_provider' | 'client' | 'both';
+
   action?: string;
   expires_at?: string;
 }
-
 
 export interface TravelEstimate {
   mode: string;
@@ -374,6 +451,19 @@ export interface ThreadNotification {
     venue_type?: string;
     notes?: string;
   } | null;
+}
+
+// Unified thread preview item returned by /message-threads/preview
+export interface ThreadPreview {
+  thread_id: number;
+  counterparty: { name: string; avatar_url?: string | null };
+  last_message_preview: string;
+  last_actor: 'system' | 'user' | 'artist' | 'client';
+  last_ts: string;
+  unread_count: number;
+  state: 'requested' | 'quoted' | 'confirmed' | 'completed' | 'cancelled' | string;
+  meta?: Record<string, any> | null;
+  pinned: boolean;
 }
 
 export interface UnifiedNotification {

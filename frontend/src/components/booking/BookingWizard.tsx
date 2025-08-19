@@ -46,6 +46,7 @@ type EventDetails = {
   date?: Date;
   time?: string;
   location?: string;
+  locationName?: string;
   guests?: string;
   venueType?: 'indoor' | 'outdoor' | 'hybrid';
   sound?: 'yes' | 'no';
@@ -61,6 +62,7 @@ const schema = yup.object<EventDetails>().shape({
   date: yup.date().required('Date is required.').min(new Date(), 'Date cannot be in the past.'),
   time: yup.string().optional(),
   location: yup.string().required('Location is required.'),
+  locationName: yup.string().optional(),
   guests: yup.string().required('Number of guests is required.').matches(/^\d+$/, 'Guests must be a number.'),
   venueType: yup
     .mixed<'indoor' | 'outdoor' | 'hybrid'>()
@@ -487,6 +489,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       travel_cost: travelResult?.totalCost,
       travel_breakdown: {
         ...(travelResult?.breakdown || {}),
+        venue_name: vals.locationName,
         sound_required: vals.sound === 'yes',
         sound_mode: (details as any).soundMode,
         selected_sound_service_id: (details as any).soundSupplierServiceId,
@@ -494,6 +497,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         provided_sound_estimate: (details as any).providedSoundEstimate,
         managed_by_artist_markup_percent: undefined,
       },
+      service_provider_id: 0
     };
     if (!navigator.onLine) {
       enqueueBooking({ action: 'draft', payload, requestId });
@@ -544,6 +548,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
         selected_sound_service_id: (details as any).soundSupplierServiceId,
         event_city: details.location,
       },
+      service_provider_id: 0
     };
     const message = `Booking details:\nEvent Type: ${
       vals.eventType || 'N/A'

@@ -1,6 +1,6 @@
 # backend/app/models/user.py
 
-from sqlalchemy import Boolean, Column, Integer, String, Enum
+from sqlalchemy import Boolean, Column, Integer, String, Enum, DateTime
 from sqlalchemy.orm import relationship
 from .base import BaseModel
 import enum
@@ -34,6 +34,9 @@ class User(BaseModel):
     mfa_enabled  = Column(Boolean, default=False)
     mfa_recovery_tokens = Column(String, nullable=True)
     profile_picture_url = Column(String, nullable=True)
+    # Session/refresh token hardening
+    refresh_token_hash = Column(String, nullable=True)
+    refresh_token_expires_at = Column(DateTime, nullable=True)
 
     # ↔–↔ If this user is a service provider, they get exactly one profile here:
     artist_profile = relationship(

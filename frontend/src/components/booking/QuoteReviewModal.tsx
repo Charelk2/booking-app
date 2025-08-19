@@ -48,7 +48,7 @@ const QuoteReviewModal: React.FC<Props> = ({
       role="dialog"
       aria-modal="true"
     >
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-xl font-semibold mb-4">Quote Review</h2>
           <ul className="space-y-2">

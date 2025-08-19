@@ -15,8 +15,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('bookings_simple', sa.Column('payment_id', sa.String(), nullable=True))
+    insp = sa.inspect(op.get_bind())
+    if 'bookings_simple' not in insp.get_table_names():
+        return
+    cols = {c['name'] for c in insp.get_columns('bookings_simple')}
+    if 'payment_id' not in cols:
+        op.add_column('bookings_simple', sa.Column('payment_id', sa.String(), nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column('bookings_simple', 'payment_id')
+    insp = sa.inspect(op.get_bind())
+    if 'bookings_simple' in insp.get_table_names():
+        cols = {c['name'] for c in insp.get_columns('bookings_simple')}
+        if 'payment_id' in cols:
+            op.drop_column('bookings_simple', 'payment_id')

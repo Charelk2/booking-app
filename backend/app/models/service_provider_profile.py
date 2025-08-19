@@ -18,7 +18,7 @@ from .base import BaseModel      # ← import BaseModel directly
 class ServiceProviderProfile(BaseModel):
     """ORM model representing a service provider's profile."""
 
-    __tablename__ = "artist_profiles"
+    __tablename__ = "service_provider_profiles"
 
     user_id = Column(
         Integer,
@@ -57,4 +57,3 @@ class ServiceProviderProfile(BaseModel):
         back_populates="artist",
         cascade="all, delete-orphan",
     )
-

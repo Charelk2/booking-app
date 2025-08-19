@@ -16,6 +16,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    dialect = bind.dialect.name
+    # On SQLite, there is no ENUM/TYPE support. Ensure values are normalized and exit.
+    if dialect == 'sqlite':
+        try:
+            # Normalize any legacy uppercase values to lowercase strings
+            op.execute("UPDATE booking_requests SET status = lower(status)")
+        except Exception:
+            pass
+        return
+
     new_values = [
         'draft',
         'pending_quote',
@@ -37,6 +48,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    if bind.dialect.name == 'sqlite':
+        return
     old_values = [
         'draft',
         'pending_quote',

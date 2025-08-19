@@ -7,6 +7,8 @@ from sqlalchemy import (
     ForeignKey,
     String,
     Boolean,
+    UniqueConstraint,
+    Index,
 )
 from sqlalchemy.orm import relationship, backref
 from datetime import datetime, timezone, timedelta
@@ -49,11 +51,34 @@ class MessageAction(str, enum.Enum):
 
 class Message(BaseModel):
     __tablename__ = "messages"
+    __table_args__ = (
+        # Ensure only one system message per key per booking thread
+        UniqueConstraint(
+            "booking_request_id",
+            "system_key",
+            name="uq_messages_request_system_key",
+        ),
+        # Helpful composite indexes for common filters and ordering
+        Index(
+            "ix_messages_request_time",
+            "booking_request_id",
+            "timestamp",
+        ),
+        Index(
+            "ix_messages_request_type_time",
+            "booking_request_id",
+            "message_type",
+            "timestamp",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     booking_request_id = Column(Integer, ForeignKey("booking_requests.id"), nullable=False)
     sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    sender_type = Column(Enum(SenderType), nullable=False)
+    # Normalize legacy uppercase values (e.g., 'CLIENT', 'ARTIST') seamlessly
+    sender_type = Column(
+        CaseInsensitiveEnum(SenderType, name="sendertype"), nullable=False
+    )
     message_type = Column(
         Enum(MessageType), nullable=False, default=MessageType.USER
     )
@@ -71,6 +96,8 @@ class Message(BaseModel):
     quote_id = Column(Integer, ForeignKey("quotes_v2.id"), nullable=True)
     attachment_url = Column(String, nullable=True)
     action = Column(Enum(MessageAction), nullable=True)
+    # Optional deterministic key for system messages to dedupe UPSERTs
+    system_key = Column(String, nullable=True, index=True)
     # Optional time after which this message should be considered expired
     expires_at = Column(DateTime, nullable=True)
     # Store message timestamps in GMT+2 for consistent chat chronology

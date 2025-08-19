@@ -30,7 +30,7 @@ class Service(BaseModel):
     id = Column(Integer, primary_key=True, index=True)
     artist_id = Column(
         Integer,
-        ForeignKey("artist_profiles.user_id", ondelete="CASCADE"),
+        ForeignKey("service_provider_profiles.user_id", ondelete="CASCADE"),
         nullable=False,
     )
     title = Column(String, index=True, nullable=False)

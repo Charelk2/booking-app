@@ -82,7 +82,7 @@ export default function BottomSheet({
             >
               <Dialog.Panel
                 className={clsx(
-                  "pointer-events-auto w-full rounded-t-lg bg-white shadow-xl",
+                  "pointer-events-auto w-full rounded-t-lg bg-white shadow-xl max-h-[90vh] md:max-h-[80vh] flex flex-col min-h-0",
                   desktopCenter && "md:rounded-lg",
                   panelClassName,
                 )}

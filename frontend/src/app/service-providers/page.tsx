@@ -14,6 +14,43 @@ import { SLIDER_MIN, SLIDER_MAX } from '@/lib/filter-constants';
 import { useDebounce } from '@/hooks/useDebounce';
 import { updateQueryParams } from '@/lib/urlParams';
 import { Spinner } from '@/components/ui';
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Pluralization helpers
+// ──────────────────────────────────────────────────────────────────────────────
+function pluralizeLastWord(label: string): string {
+  // Exact-name exceptions first
+  const exceptions: Record<string, string> = {
+    DJ: 'DJs',
+    MC: 'MCs',
+    'MC / Host': 'MCs / Hosts',
+    'MC/Host': 'MCs/Hosts',
+  };
+  if (exceptions[label]) return exceptions[label];
+
+  // Split so multi-word labels like "Sound Engineer" → "Sound Engineers"
+  const parts = label.split(' ');
+  const last = parts.pop()!;
+  const w = last;
+
+  const endsWith = (s: string) => w.toLowerCase().endsWith(s);
+  let plural = w;
+
+  if (/[sxz]$/i.test(w) || endsWith('ch') || endsWith('sh')) {
+    plural = w + 'es'; // e.g., "Coach" → "Coaches"
+  } else if (/[^\Waeiou]y$/i.test(w)) {
+    plural = w.slice(0, -1) + 'ies'; // consonant + y → ies
+  } else {
+    plural = w + 's'; // default
+  }
+
+  return [...parts, plural].join(' ');
+}
+
+function pluralizeServiceLabel(label?: string) {
+  return label ? pluralizeLastWord(label) : '';
+}
+
 // The category page previously used `react-window` to render each provider as a
 // full-width row. This looked inconsistent with the compact cards shown on the
 // homepage and resulted in a visually jarring full-screen layout. Since the
@@ -62,6 +99,7 @@ export default function ServiceProvidersPage() {
     // as a UI slug ("dj"). Normalize both forms to the UI slug so the rest of
     // the page logic can derive the backend name from the loaded categories.
     if (!categories.length) return;
+
     let value = searchParams.get('category') || undefined;
     if (!value) {
       const match = pathname.match(/\/(?:service-providers\/category|category)\/([^/?]+)/);
@@ -69,6 +107,7 @@ export default function ServiceProvidersPage() {
         value = match[1];
       }
     }
+
     let uiValue: string | undefined;
     if (value) {
       const bySlug = categories.find((c) => c.value === value);
@@ -79,8 +118,10 @@ export default function ServiceProvidersPage() {
         uiValue = byName?.value;
       }
     }
+
     setCategory(uiValue);
     setLocation(searchParams.get('location') || '');
+
     const w = searchParams.get('when');
     if (w) {
       try {
@@ -94,6 +135,7 @@ export default function ServiceProvidersPage() {
     } else {
       setWhen(null);
     }
+
     setSort(searchParams.get('sort') || undefined);
     setMinPrice(searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : SLIDER_MIN);
     setMaxPrice(searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : SLIDER_MAX);
@@ -101,12 +143,7 @@ export default function ServiceProvidersPage() {
   }, [searchParams, pathname, categories]);
 
   const fetchArtists = useCallback(
-    async (
-      {
-        append = false,
-        pageNumber,
-      }: { append?: boolean; pageNumber: number },
-    ) => {
+    async ({ append = false, pageNumber }: { append?: boolean; pageNumber: number }) => {
       setLoading(true);
       setError(null);
       try {
@@ -121,11 +158,12 @@ export default function ServiceProvidersPage() {
           limit: LIMIT,
           includePriceDistribution: true,
         });
+
         // Filter client-side to guard against any backend responses that
         // include artists from other service categories. For the DJ category,
         // only include profiles with a business name so personal artist names
         // never appear.
-        const filtered = res.data.filter((a) => {
+        const filtered = res.data.filter((a: ServiceProviderProfile) => {
           if (serviceName === 'DJ') {
             const business = a.business_name?.trim().toLowerCase();
             const fullName = `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`
@@ -135,6 +173,7 @@ export default function ServiceProvidersPage() {
           }
           return !!(a.business_name || a.user);
         });
+
         setHasMore(filtered.length === LIMIT);
         setArtists((prev) => (append ? [...prev, ...filtered] : filtered));
         setPriceDistribution(res.price_distribution || []);
@@ -146,7 +185,6 @@ export default function ServiceProvidersPage() {
       }
     },
     [
-      category,
       serviceName,
       location,
       when,
@@ -162,7 +200,7 @@ export default function ServiceProvidersPage() {
     fetchArtists({ pageNumber: 1 });
   }, [
     filtersReady,
-    category,
+    serviceName,
     location,
     when,
     sort,
@@ -176,47 +214,49 @@ export default function ServiceProvidersPage() {
     setPage(next);
     fetchArtists({ append: true, pageNumber: next });
   };
+
   const hasQuery =
     searchParams.get('category') ||
     searchParams.get('location') ||
     searchParams.get('when');
+
   const categoryPath = /\/(?:service-providers\/category|category)\//.test(pathname);
   const showFilter = Boolean(hasQuery || categoryPath);
 
-  const filterControl =
-    showFilter ? (
-      <ServiceProvidersPageHeader
-        iconOnly
-        initialSort={sort}
-        initialMinPrice={minPrice}
-        initialMaxPrice={maxPrice}
-        priceDistribution={priceDistribution}
-        onFilterApply={({ sort: s, minPrice: min, maxPrice: max }) => {
-          setSort(s || undefined);
-          setMinPrice(min);
-          setMaxPrice(max);
-          updateQueryParams(router, pathname, {
-            category: serviceName,
-            location,
-            when,
-            sort: s,
-            minPrice: min,
-            maxPrice: max,
-          });
-        }}
-        onFilterClear={() => {
-          setSort(undefined);
-          setMinPrice(SLIDER_MIN);
-          setMaxPrice(SLIDER_MAX);
-          updateQueryParams(router, pathname, {
-            category: serviceName,
-            location,
-            when,
-          });
-        }}
-        onSearchEdit={() => {}}
-      />
-    ) : null;
+  const filterControl = showFilter ? (
+    <ServiceProvidersPageHeader
+      iconOnly
+      initialSort={sort}
+      initialMinPrice={minPrice}
+      initialMaxPrice={maxPrice}
+      priceDistribution={priceDistribution}
+      onFilterApply={({ sort: s, minPrice: min, maxPrice: max }) => {
+        setSort(s || undefined);
+        setMinPrice(min);
+        setMaxPrice(max);
+        updateQueryParams(router, pathname, {
+          category: serviceName,
+          location,
+          when,
+          sort: s,
+          minPrice: min,
+          maxPrice: max,
+        });
+      }}
+      onFilterClear={() => {
+        setSort(undefined);
+        setMinPrice(SLIDER_MIN);
+        setMaxPrice(SLIDER_MAX);
+        updateQueryParams(router, pathname, {
+          category: serviceName,
+          location,
+          when,
+        });
+      }}
+      onSearchEdit={() => {}}
+    />
+  ) : null;
+
   const qs = searchParams.toString();
 
   return (
@@ -245,10 +285,12 @@ export default function ServiceProvidersPage() {
               />
             </svg>
             <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-              Explore {serviceName}
+              {/* e.g., "Musician" → "Explore Musicians", "DJ" → "Explore DJs" */}
+              Explore {pluralizeServiceLabel(serviceName)}
             </h1>
           </div>
         )}
+
         {/* Artists grid */}
         {loading && <Spinner className="my-4" />}
         {error && <p className="text-red-600">{error}</p>}
@@ -261,7 +303,8 @@ export default function ServiceProvidersPage() {
               const name =
                 serviceName === 'DJ'
                   ? a.business_name!
-                  : a.business_name || `${user.first_name} ${user.last_name}`;
+                  : a.business_name || `${user?.first_name ?? ''} ${user?.last_name ?? ''}`.trim();
+
               return (
                 <ServiceProviderCardCompact
                   key={a.id}

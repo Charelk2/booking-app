@@ -10,7 +10,7 @@ class Booking(BaseModel):
     __tablename__ = "bookings"
 
     id         = Column(Integer, primary_key=True, index=True)
-    artist_id  = Column(Integer, ForeignKey("artist_profiles.user_id"), index=True)
+    artist_id  = Column(Integer, ForeignKey("service_provider_profiles.user_id"), index=True)
     client_id  = Column(Integer, ForeignKey("users.id"))
     service_id = Column(Integer, ForeignKey("services.id", ondelete="CASCADE"))
     start_time = Column(DateTime, nullable=False, index=True)

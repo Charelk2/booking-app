@@ -1,4 +1,4 @@
-// MessageThread.tsx
+// frontend/src/components/booking/MessageThread.tsx
 'use client';
 
 import React, {
@@ -11,22 +11,31 @@ import React, {
   useCallback,
 } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+import { createPortal } from 'react-dom';
+import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
+import data from '@emoji-mart/data';
+import { DocumentIcon, DocumentTextIcon, FaceSmileIcon } from '@heroicons/react/24/outline';
+import { ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+
 import {
   getFullImageUrl,
 } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
-import { DocumentIcon, DocumentTextIcon, FaceSmileIcon } from '@heroicons/react/24/outline';
+
 import {
   Booking,
   BookingSimple,
   Review,
-  Message,
+  // DO NOT import Message — we use a thread-safe internal type here
   MessageCreate,
   QuoteV2,
   QuoteV2Create,
+  BookingRequest,
 } from '@/types';
-import { ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+
 import {
   getMessagesForBookingRequest,
   postMessageToBookingRequest,
@@ -38,29 +47,28 @@ import {
   getBookingDetails,
   getBookingRequestById,
   markMessagesRead,
+  markThreadRead,
   updateBookingRequestArtist,
   useAuth,
 } from '@/lib/api';
+
 import useOfflineQueue from '@/hooks/useOfflineQueue';
-import Button from '../ui/Button';
 import usePaymentModal from '@/hooks/usePaymentModal';
-import QuoteBubble from './QuoteBubble';
-import InlineQuoteForm from './InlineQuoteForm';
 import useWebSocket from '@/hooks/useWebSocket';
-import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
-import { AxiosError } from 'axios';
-import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
-import data from '@emoji-mart/data';
-import { createPortal } from 'react-dom';
+import useBookingView from '@/hooks/useBookingView';
+
+import Button from '../ui/Button';
+import QuoteBubble from './QuoteBubble';
+import QuoteDrawer from './QuoteDrawer';
+import InlineQuoteForm from './InlineQuoteForm';
 import BookingSummaryCard from './BookingSummaryCard';
 import { t } from '@/lib/i18n';
 
+const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
 const MemoQuoteBubble = React.memo(QuoteBubble);
 const MemoInlineQuoteForm = React.memo(InlineQuoteForm);
-const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
 
-// Constants
+// ===== Constants ==============================================================
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const WS_BASE = API_BASE.replace(/^http/, 'ws');
 const API_V1 = '/api/v1';
@@ -70,14 +78,10 @@ const MAX_TEXTAREA_LINES = 10;
 const isImageAttachment = (url?: string | null) =>
   !!url && /\.(jpe?g|png|gif|webp)$/i.test(url);
 
-// Generate an ISO timestamp in GMT+2 regardless of client locale
 const gmt2ISOString = () =>
-  new Date(Date.now() + 2 * 60 * 60 * 1000)
-    .toISOString()
-    .replace('Z', '+02:00');
+  new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().replace('Z', '+02:00');
 
-const normalizeType = (t?: string | null) => (t ?? '').toUpperCase();
-
+const normalizeType = (v?: string | null) => (v ?? '').toUpperCase();
 const daySeparatorLabel = (date: Date) => {
   const now = new Date();
   const days = differenceInCalendarDays(startOfDay(now), startOfDay(date));
@@ -87,10 +91,93 @@ const daySeparatorLabel = (date: Date) => {
   return format(date, 'EEE, d LLL');
 };
 
-// Interfaces
+// ===== Internal thread message shape =========================================
+// Keeps the UI happy even if backend or global types lag during the migration.
+type SenderTypeAny = 'client' | 'artist' | 'service_provider';
+type VisibleToAny = 'artist' | 'service_provider' | 'client' | 'both';
+type MessageStatus = 'queued' | 'sending' | 'sent' | 'failed';
+type MessageKind = 'text' | 'quote' | 'system' | 'USER' | 'QUOTE' | 'SYSTEM';
+
+type ThreadMessage = {
+  is_read: boolean;
+  id: number;
+  booking_request_id: number;
+  sender_id: number;
+  sender_type: 'client' | 'service_provider'; // normalized
+  content: string;
+  message_type: MessageKind;
+  quote_id?: number | null;
+  attachment_url?: string | null;
+  visible_to?: 'client' | 'service_provider' | 'both'; // normalized
+  action?: string | null;
+  avatar_url?: string | null;
+  expires_at?: string | null;
+  unread?: boolean;
+  timestamp: string;
+  status?: MessageStatus;
+};
+
+// Normalize mixed legacy/new fields into ThreadMessage
+function normalizeSenderType(raw: SenderTypeAny | string | null | undefined): 'client' | 'service_provider' {
+  if (raw === 'client') return 'client';
+  // Treat legacy 'artist' as 'service_provider'
+  return 'service_provider';
+}
+function normalizeVisibleTo(raw: VisibleToAny | string | null | undefined): 'client' | 'service_provider' | 'both' {
+  if (!raw) return 'both';
+  if (raw === 'both' || raw === 'client' || raw === 'service_provider') return raw;
+  // Legacy 'artist' -> 'service_provider'
+  return 'service_provider';
+}
+function normalizeMessage(raw: any): ThreadMessage {
+  return {
+    id: Number(raw.id),
+    booking_request_id: Number(raw.booking_request_id),
+    sender_id: Number(raw.sender_id),
+    sender_type: normalizeSenderType(raw.sender_type),
+    content: String(raw.content ?? ''),
+    message_type: (raw.message_type ?? 'text') as MessageKind,
+    quote_id: raw.quote_id == null ? null : Number(raw.quote_id),
+    attachment_url: raw.attachment_url ?? null,
+    visible_to: normalizeVisibleTo(raw.visible_to),
+    action: raw.action ?? null,
+    avatar_url: raw.avatar_url ?? null,
+    expires_at: raw.expires_at ?? null,
+    unread: Boolean(raw.unread),
+    is_read: Boolean(raw.is_read),
+    timestamp: raw.timestamp ?? new Date().toISOString(),
+    status: raw.status as MessageStatus | undefined,
+  };
+}
+
+// Merge-by-id helper; stable chronological sort; prefers newer timestamp
+function mergeMessages(existing: ThreadMessage[], incoming: ThreadMessage | ThreadMessage[]): ThreadMessage[] {
+  const list = Array.isArray(incoming) ? incoming : [incoming];
+
+  const map = new Map<number, ThreadMessage>();
+  for (const m of existing) map.set(m.id, m);
+
+  for (const m of list) {
+    const prev = map.get(m.id);
+    if (!prev) {
+      map.set(m.id, m);
+      continue;
+    }
+    const prevTs = new Date(prev.timestamp).getTime();
+    const curTs = new Date(m.timestamp).getTime();
+    map.set(m.id, curTs >= prevTs ? { ...prev, ...m } : { ...m, ...prev });
+  }
+
+  return [...map.values()].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+}
+
+// ===== Public API =============================================================
 export interface MessageThreadHandle {
   refreshMessages: () => void;
 }
+
 interface ParsedBookingDetails {
   eventType?: string;
   description?: string;
@@ -101,6 +188,7 @@ interface ParsedBookingDetails {
   soundNeeded?: string;
   notes?: string;
 }
+
 interface MessageThreadProps {
   bookingRequestId: number;
   onMessageSent?: () => void;
@@ -130,18 +218,17 @@ interface MessageThreadProps {
   artistCancellationPolicy?: string | null;
   allowInstantBooking?: boolean;
   instantBookingPrice?: number;
-
-  /** NEW: hide composer on mobile when the details panel is open */
   isDetailsPanelOpen?: boolean;
 }
 
-// SVG Checkmark Icons
+// SVG
 const DoubleCheckmarkIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M12.75 12.75L15 15 18.75 9.75" />
   </svg>
 );
 
+// ===== Component ==============================================================
 const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(function MessageThread(
   {
     bookingRequestId,
@@ -168,75 +255,69 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     artistCancellationPolicy,
     allowInstantBooking,
     instantBookingPrice,
-    isDetailsPanelOpen = false, // NEW
+    isDetailsPanelOpen = false,
   }: MessageThreadProps,
   ref,
 ) {
   const { user } = useAuth();
   const router = useRouter();
 
-  // State
-  const [messages, setMessages] = useState<Message[]>([]);
+  // ---- State
+  const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [quotes, setQuotes] = useState<Record<number, QuoteV2>>({});
   const [loading, setLoading] = useState(true);
   const [newMessageContent, setNewMessageContent] = useState('');
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
   const [bookingDetails, setBookingDetails] = useState<Booking | null>(null);
+  const [bookingRequest, setBookingRequest] = useState<BookingRequest | null>(null);
   const [parsedBookingDetails, setParsedBookingDetails] = useState<ParsedBookingDetails | undefined>();
   const [threadError, setThreadError] = useState<string | null>(null);
   const [wsFailed, setWsFailed] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [uploadingProgress, setUploadingProgress] = useState(0);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
-  const [announceNewMessage, setAnnounceNewMessage] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
   const [textareaLineHeight, setTextareaLineHeight] = useState(0);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showDetailsCard, setShowDetailsCard] = useState(false);
   const [isPortalReady, setIsPortalReady] = useState(false);
+  const [paymentInfo, setPaymentInfo] = useState<{ status: string | null; amount: number | null; receiptUrl: string | null }>({ status: null, amount: null, receiptUrl: null });
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [quoteDrawerOpen, setQuoteDrawerOpen] = useState(false);
+  const [quoteDrawerId, setQuoteDrawerId] = useState<number | null>(null);
+  const [quoteDrawerTopOffset, setQuoteDrawerTopOffset] = useState<number>(0);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  // ---- Offline queue
   const { enqueue: enqueueMessage } = useOfflineQueue<{
     tempId: number;
     payload: MessageCreate;
   }>('offlineSendQueue', async ({ tempId, payload }) => {
     const res = await postMessageToBookingRequest(bookingRequestId, payload);
-    setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...res.data, status: 'sent' } : m)));
+    setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...normalizeMessage(res.data), status: 'sent' } : m)));
   });
-  const [typingUsers, setTypingUsers] = useState<number[]>([]);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [revealedImages, setRevealedImages] = useState<Set<number>>(new Set());
 
-  // Refs
+  // ---- Refs
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLDivElement | null>(null);
   const prevMessageCountRef = useRef(0);
-  const firstUnreadMessageRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
-
-  // iOS scroll unlock
+  const firstUnreadMessageRef = useRef<HTMLDivElement | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const initialLoadedRef = useRef(false); // gate WS until first REST load
   const touchStartYRef = useRef(0);
-  const handleTouchStartOnList = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
-    touchStartYRef.current = e.touches?.[0]?.clientY ?? 0;
-  }, []);
-  const handleTouchMoveOnList = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
-    const y = e.touches?.[0]?.clientY ?? 0;
-    const dy = y - touchStartYRef.current;
-    if (dy > 6 && document.activeElement === textareaRef.current) {
-      textareaRef.current?.blur();
-      setShowEmojiPicker(false);
-    }
-  }, []);
-  const handleWheelOnList = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-    if (e.deltaY < 0 && document.activeElement === textareaRef.current) {
-      textareaRef.current?.blur();
-      setShowEmojiPicker(false);
-    }
-  }, []);
+  const stabilizingRef = useRef(true);
+  const stabilizeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchInFlightRef = useRef(false);
 
-  // Derived values
+  // ---- Presence
+  const [typingUsers, setTypingUsers] = useState<number[]>([]);
+
+  // ---- Derived
   const computedServiceName = serviceName ?? bookingDetails?.service?.title;
   const currentClientId =
     propClientId ||
@@ -260,41 +341,123 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     | undefined
   >(undefined);
 
-  const eventDetails = useMemo(
-    () => ({
+  const eventDetails = useMemo(() => {
+    // Prefer parsed date; otherwise fall back to proposed date from the booking request/booking
+    const rawDate = parsedBookingDetails?.date
+      ?? (bookingRequest as any)?.proposed_datetime_1
+      ?? (bookingRequest as any)?.proposed_datetime_2
+      ?? (bookingDetails as any)?.start_time
+      ?? undefined;
+    let dateLabel: string | undefined = undefined;
+    if (rawDate) {
+      const d = new Date(rawDate);
+      dateLabel = isValid(d) ? format(d, 'PPP') : String(rawDate);
+    }
+
+    // Location name/address fallbacks
+    const tb: any = (bookingRequest as any)?.travel_breakdown || {};
+    const locName = (parsedBookingDetails as any)?.location_name
+      || tb.venue_name
+      || tb.place_name
+      || tb.location_name
+      || undefined;
+    const locAddr = (parsedBookingDetails as any)?.location
+      || tb.address
+      || tb.event_city
+      || tb.event_town
+      || (bookingRequest as any)?.service?.service_provider?.location
+      || undefined;
+
+    return {
       from: clientName || 'Client',
       receivedAt: format(new Date(), 'PPP'),
-      event: parsedBookingDetails?.eventType,
-      date:
-        parsedBookingDetails?.date && isValid(new Date(parsedBookingDetails.date))
-          ? format(new Date(parsedBookingDetails.date), 'PPP')
-          : undefined,
-      guests: parsedBookingDetails?.guests,
-      venue: parsedBookingDetails?.venueType,
-      notes: parsedBookingDetails?.notes,
-    }),
-    [clientName, parsedBookingDetails],
+      event: (parsedBookingDetails as any)?.eventType || (parsedBookingDetails as any)?.event_type,
+      date: dateLabel,
+      guests: (parsedBookingDetails as any)?.guests,
+      venue: (parsedBookingDetails as any)?.venueType,
+      notes: (parsedBookingDetails as any)?.notes,
+      locationName: locName,
+      locationAddress: locAddr,
+    } as any;
+  }, [clientName, parsedBookingDetails, bookingRequest, bookingDetails]);
+
+  // ---- Payment modal
+  const { openPaymentModal, paymentModal } = usePaymentModal(
+    useCallback(({ status, amount, receiptUrl: url }) => {
+      setPaymentInfo({ status: status ?? null, amount: amount ?? null, receiptUrl: url ?? null });
+      if (status === 'paid') {
+        setBookingConfirmed(true);
+        onBookingConfirmedChange?.(true, bookingDetails);
+        // Add a reassuring system message on payment
+        const paidMsg: ThreadMessage = {
+          id: -Date.now() - 1,
+          booking_request_id: bookingRequestId,
+          sender_id: user?.id || 0,
+          sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
+          content: 'Payment received. Your booking is confirmed and the date is secured. A receipt is available in your booking details.',
+          message_type: 'SYSTEM',
+          quote_id: null,
+          attachment_url: null,
+          visible_to: 'both',
+          action: null,
+          avatar_url: undefined,
+          expires_at: null,
+          unread: false,
+          is_read: true,
+          timestamp: new Date().toISOString(),
+          status: 'sent',
+        };
+        setMessages((prev) => mergeMessages(prev, paidMsg));
+        // Also persist a backend message so the other party receives a header notification
+        (async () => {
+          try {
+            const text = url
+              ? 'Payment received. Your booking is confirmed and the date is secured. View your receipt from booking details.'
+              : 'Payment received. Your booking is confirmed and the date is secured.';
+            await postMessageToBookingRequest(bookingRequestId, { content: text });
+            // Nudge header unread counts to refresh
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('threads:updated'));
+            }
+          } catch (e) {
+            // non-fatal
+          }
+        })();
+      }
+      setIsPaymentOpen(false);
+      onPaymentStatusChange?.(status, amount, url ?? null);
+    }, [onPaymentStatusChange, bookingDetails, onBookingConfirmedChange]),
+    useCallback(() => { setIsPaymentOpen(false); }, []),
   );
 
-  /** Focus textarea on mount and when switching threads */
+  const { isClientView: isClientViewFlag, isProviderView: isProviderViewFlag, isPaid: isPaidFlag } = useBookingView(user, bookingDetails, paymentInfo, bookingConfirmed);
+
+  // ---- Focus textarea on mount & thread switch
+  useEffect(() => { textareaRef.current?.focus(); }, []);
+  useEffect(() => { textareaRef.current?.focus(); }, [bookingRequestId]);
+
+  // ---- Portal ready
+  useEffect(() => { setIsPortalReady(true); }, []);
+
+  // ---- Compute drawer top offset so it doesn't overlap the site header on web
   useEffect(() => {
-    textareaRef.current?.focus();
+    const compute = () => {
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      const top = rect ? Math.max(0, Math.round(rect.top)) : 0;
+      setQuoteDrawerTopOffset(top);
+    };
+    compute();
+    const handle = () => compute();
+    window.addEventListener('scroll', handle, { passive: true });
+    window.addEventListener('resize', handle);
+    return () => {
+      window.removeEventListener('scroll', handle as any);
+      window.removeEventListener('resize', handle as any);
+    };
   }, []);
-  useEffect(() => {
-    textareaRef.current?.focus();
-  }, [bookingRequestId]);
 
-  /** Portal is client-only */
-  useEffect(() => {
-    setIsPortalReady(true);
-  }, []);
-
-  const hasSentQuote = useMemo(
-    () => messages.some((m) => Number(m.quote_id) > 0),
-    [messages],
-  );
-
-  // Prefill quote form (artist side)
+  // ---- Prefill quote form (SP side)
+  const hasSentQuote = useMemo(() => messages.some((m) => Number(m.quote_id) > 0), [messages]);
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -302,6 +465,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         const res = await getBookingRequestById(bookingRequestId);
         if (cancelled) return;
         const br = res.data;
+        setBookingRequest(br);
+        setBookingRequest(br);
         const tb = (br.travel_breakdown || {}) as any;
         const svcPrice = Number(br.service?.price) || 0;
         setBaseFee(svcPrice);
@@ -345,12 +510,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         console.error('Failed to load quote calculation params:', err);
       }
     }
-    if (user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote) {
-      void load();
-    }
-    return () => {
-      cancelled = true;
-    };
+    void load();
+    return () => { cancelled = true; };
   }, [
     bookingRequestId,
     serviceId,
@@ -361,6 +522,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     initialSound,
   ]);
 
+  // ---- Typing indicator label
   const typingIndicator = useMemo(() => {
     const names = typingUsers.map((id) =>
       id === currentArtistId ? artistName : id === currentClientId ? clientName : 'Participant',
@@ -371,17 +533,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return `${names.join(' and ')} ${verb} typing...`;
   }, [typingUsers, isSystemTyping, currentArtistId, currentClientId, artistName, clientName]);
 
-  // Payment modal (thread local for details portal)
-  const [paymentInfo, setPaymentInfo] = useState<{ status: string | null; amount: number | null; receiptUrl: string | null }>({ status: null, amount: null, receiptUrl: null });
-  const { openPaymentModal, paymentModal } = usePaymentModal(
-    useCallback(({ status, amount, receiptUrl: url }) => {
-      setPaymentInfo({ status: status ?? null, amount: amount ?? null, receiptUrl: url ?? null });
-      onPaymentStatusChange?.(status, amount, url ?? null);
-    }, [onPaymentStatusChange]),
-    useCallback(() => {}, []),
-  );
-
-  // Calculate textarea line height once
+  // ---- Textarea metrics
   useEffect(() => {
     if (textareaRef.current && textareaLineHeight === 0) {
       const tempDiv = document.createElement('div');
@@ -400,7 +552,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
   }, [textareaRef, textareaLineHeight]);
 
-  // Auto-resize textarea
   const autoResizeTextarea = useCallback(() => {
     const ta = textareaRef.current;
     const container = messagesContainerRef.current;
@@ -416,18 +567,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const newH = Math.min(ta.scrollHeight, maxH);
     ta.style.height = `${newH}px`;
 
-    // Keep latest messages visible when textarea grows (unless user scrolled up)
-    const diff = newH - prevH;
-    if (container && diff !== 0 && !isUserScrolledUp) {
-      container.scrollTop += diff;
+    if (container && newH !== prevH && !isUserScrolledUp) {
+      container.scrollTop += (newH - prevH);
     }
   }, [textareaLineHeight, isUserScrolledUp]);
+  useEffect(() => { autoResizeTextarea(); }, [newMessageContent, autoResizeTextarea]);
 
-  useEffect(() => {
-    autoResizeTextarea();
-  }, [newMessageContent, autoResizeTextarea]);
-
-  // Clicking outside emoji picker closes it
+  // ---- Dismiss emoji picker if clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (showEmojiPicker && emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
@@ -443,6 +589,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [messages, user?.id],
   );
 
+  // ---- Quote hydration (used by REST & WS)
   const ensureQuoteLoaded = useCallback(
     async (quoteId: number) => {
       if (quotes[quoteId]) return;
@@ -468,7 +615,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [quotes, bookingDetails],
   );
 
-  // Track composer height (for list bottom padding)
+  // ---- Composer height for padding
   const [composerHeight, setComposerHeight] = useState(0);
   useEffect(() => {
     const el = composerRef.current;
@@ -488,58 +635,86 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     };
   }, [composerRef]);
 
-  // Fetch messages
+  // ---- Fetch messages (initial + refresh)
   const fetchMessages = useCallback(async () => {
-    setLoading(true);
+    if (fetchInFlightRef.current) return;
+    fetchInFlightRef.current = true;
+    if (!initialLoadedRef.current) setLoading(true);
     try {
       const res = await getMessagesForBookingRequest(bookingRequestId);
+
       let parsedDetails: ParsedBookingDetails | undefined;
+      // Filter meta booking-details system msg out of the visible list,
+      // but still parse it into booking details.
+      const normalized = res.data
+        .map((raw: any) => normalizeMessage(raw))
+        .filter((msg: ThreadMessage) => {
+          if (normalizeType(msg.message_type) === 'SYSTEM' && typeof msg.content === 'string' && msg.content.startsWith(BOOKING_DETAILS_PREFIX)) {
+            parsedDetails = parseBookingDetailsFromMessage(msg.content);
+            return false;
+          }
+          if (initialNotes && normalizeType(msg.message_type) === 'USER' && msg.content.trim() === initialNotes.trim()) {
+            return false;
+          }
+          return true;
+        });
 
-      const filteredMessages = res.data.filter((msg) => {
-        const type = normalizeType(msg.message_type);
-        if (type === 'SYSTEM' && msg.content.startsWith(BOOKING_DETAILS_PREFIX)) {
-          parsedDetails = parseBookingDetailsFromMessage(msg.content);
-          return false;
-        }
-        if (type === 'USER' && initialNotes && msg.content.trim() === initialNotes.trim()) return false;
-        return true;
-      });
-
-      setMessages(filteredMessages);
       setParsedBookingDetails(parsedDetails);
+      if (parsedDetails && onBookingDetailsParsed) onBookingDetailsParsed(parsedDetails);
 
-      const hasUnread = filteredMessages.some((msg) => msg.sender_id !== user?.id && !msg.is_read);
-      if (hasUnread) {
-        try {
+      // Mark as read (best effort). Also update thread unread counts.
+      try {
+        const hasUnread = normalized.some((m) => m.sender_id !== user?.id && !m.is_read);
+        if (hasUnread) {
           await markMessagesRead(bookingRequestId);
-        } catch (err) {
-          console.error('Failed to mark messages read:', err);
         }
+        try { await markThreadRead(bookingRequestId); } catch {}
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('threads:updated'));
+        }
+      } catch (err) {
+        console.error('Failed to mark messages read:', err);
       }
 
-      filteredMessages.forEach((msg) => {
-        const quoteId = Number(msg.quote_id);
+      // Ensure quotes referenced are hydrated
+      for (const m of normalized) {
+        const qid = Number(m.quote_id);
         const isQuote =
-          quoteId > 0 &&
-          (normalizeType(msg.message_type) === 'QUOTE' ||
-            (normalizeType(msg.message_type) === 'SYSTEM' && msg.action === 'review_quote'));
-        if (isQuote) void ensureQuoteLoaded(quoteId);
-      });
+          qid > 0 &&
+          (normalizeType(m.message_type) === 'QUOTE' ||
+            (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
+        if (isQuote) void ensureQuoteLoaded(qid);
+      }
 
-      if (parsedDetails && onBookingDetailsParsed) onBookingDetailsParsed(parsedDetails);
+      setMessages((prev) => mergeMessages(prev.length ? prev : [], normalized));
       setThreadError(null);
     } catch (err) {
       console.error('Failed to fetch messages:', err);
       setThreadError(`Failed to load messages. ${(err as Error).message || 'Please try again.'}`);
     } finally {
       setLoading(false);
+      initialLoadedRef.current = true; // <— gate opens: WS can merge now
+      // Stabilize: jump to bottom without smooth scrolling, then allow auto-scroll
+      try {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTo({
+            top: messagesContainerRef.current.scrollHeight,
+            behavior: 'auto',
+          });
+        }
+      } catch {}
+      stabilizingRef.current = true;
+      if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current);
+      stabilizeTimerRef.current = setTimeout(() => {
+        stabilizingRef.current = false;
+      }, 250);
+      fetchInFlightRef.current = false;
     }
   }, [bookingRequestId, user?.id, initialNotes, onBookingDetailsParsed, ensureQuoteLoaded]);
-
   useImperativeHandle(ref, () => ({ refreshMessages: fetchMessages }), [fetchMessages]);
   useEffect(() => { fetchMessages(); }, [bookingRequestId, fetchMessages]);
 
-  // WebSocket
+  // ---- WS connection
   const token = typeof window !== 'undefined'
     ? localStorage.getItem('token') || sessionStorage.getItem('token') || ''
     : '';
@@ -554,6 +729,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     },
   );
 
+  // ---- Presence updates
   useEffect(() => {
     if (!user?.id) return;
     updatePresence(user.id, 'online');
@@ -565,44 +741,65 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     };
   }, [updatePresence, user?.id]);
 
+  // ---- WS: merge (array or single), ignore until initial fetch completes
   useEffect(
     () =>
       onSocketMessage((event) => {
-        const incoming = JSON.parse(event.data) as Partial<Message> & {
-          type?: string;
-          users?: number[];
-        };
-        if (incoming.type === 'typing' && Array.isArray(incoming.users)) {
-          setTypingUsers(incoming.users.filter((id) => id !== user?.id));
+        let payload: any;
+        try { payload = JSON.parse(event.data); } catch { return; }
+
+        // Handle non-message events
+        if (payload?.type === 'typing' && Array.isArray(payload.users)) {
+          setTypingUsers(payload.users.filter((id: number) => id !== user?.id));
           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(() => setTypingUsers([]), 2000);
           return;
         }
-        const incomingMsg = incoming as Message;
-        if (normalizeType(incomingMsg.message_type) === 'SYSTEM' && incomingMsg.content.startsWith(BOOKING_DETAILS_PREFIX)) {
-          onBookingDetailsParsed?.(parseBookingDetailsFromMessage(incomingMsg.content));
+        if (payload?.type === 'presence' || payload?.type === 'reconnect' || payload?.type === 'reconnect_hint' || payload?.type === 'ping') {
+          // Presence/heartbeat/reconnect hints are not chat messages
           return;
         }
-        setMessages((prevMessages) => {
-          if (
-            prevMessages.some((prevMsg) => prevMsg.id === incomingMsg.id) ||
-            (initialNotes && normalizeType(incomingMsg.message_type) === 'USER' && incomingMsg.content.trim() === initialNotes.trim())
-          ) {
-            return prevMessages;
+
+        // Some backends send arrays or envelopes {messages:[...]}
+        const maybeList: any[] = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.messages)
+            ? payload.messages
+            : [payload];
+
+        if (!initialLoadedRef.current) {
+          // Ignore backlog until initial REST load is done to avoid flicker
+          return;
+        }
+
+        // Only accept items that look like real messages
+        const candidateItems = maybeList.filter((item: any) => typeof item?.id === 'number' && !Number.isNaN(item.id));
+        if (candidateItems.length === 0) return;
+        const normalized = candidateItems.map(normalizeMessage);
+        setMessages((prev) => mergeMessages(prev, normalized));
+
+        // Bump header unread badge when new inbound messages arrive
+        try {
+          const anyInbound = normalized.some((m) => m.sender_id !== user?.id);
+          if (anyInbound && typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('threads:updated'));
           }
-          return [...prevMessages.slice(-199), incomingMsg];
-        });
-        const incomingQuoteId = Number(incomingMsg.quote_id);
-        const isQuoteMsg =
-          incomingQuoteId > 0 &&
-          (normalizeType(incomingMsg.message_type) === 'QUOTE' ||
-            (normalizeType(incomingMsg.message_type) === 'SYSTEM' && incomingMsg.action === 'review_quote'));
-        if (isQuoteMsg) void ensureQuoteLoaded(incomingQuoteId);
+        } catch {}
+
+        // Ensure quotes are hydrated
+        for (const m of normalized) {
+          const qid = Number(m.quote_id);
+          const isQuote =
+            qid > 0 &&
+            (normalizeType(m.message_type) === 'QUOTE' ||
+              (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
+          if (isQuote) void ensureQuoteLoaded(qid);
+        }
       }),
-    [onSocketMessage, ensureQuoteLoaded, initialNotes, onBookingDetailsParsed, user?.id],
+    [onSocketMessage, ensureQuoteLoaded, user?.id]
   );
 
-  // Attachment preview URL
+  // ---- Attachment preview URL
   useEffect(() => {
     if (attachmentFile) {
       const url = URL.createObjectURL(attachmentFile);
@@ -613,9 +810,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return () => {};
   }, [attachmentFile]);
 
-  // Refined scrolling logic
+  // ---- Scrolling logic
   useEffect(() => {
     if (!messagesContainerRef.current || !messagesEndRef.current) return;
+    if (stabilizingRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
     const atBottom = scrollHeight - scrollTop - clientHeight <= MIN_SCROLL_OFFSET;
     const shouldAutoScroll =
@@ -631,13 +829,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   }, [messages, typingIndicator, isUserScrolledUp]);
 
   const handleScroll = useCallback(() => {
+    if (stabilizingRef.current) return;
     if (!messagesContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
     const atBottom = scrollHeight - scrollTop - clientHeight < MIN_SCROLL_OFFSET;
     setShowScrollButton(!atBottom);
     setIsUserScrolledUp(!atBottom);
   }, []);
-
   useEffect(() => {
     handleScroll();
     const container = messagesContainerRef.current;
@@ -648,58 +846,28 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return () => {};
   }, [handleScroll]);
 
-  // Close details card on Escape
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowDetailsCard(false); };
-    if (showDetailsCard) window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [showDetailsCard]);
-
-  useEffect(() => {
-    if (prevMessageCountRef.current && messages.length > prevMessageCountRef.current && showScrollButton) {
-      setAnnounceNewMessage('New messages available');
+  // ---- iOS scroll unlocks
+  const handleTouchStartOnList = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    touchStartYRef.current = e.touches?.[0]?.clientY ?? 0;
+  }, []);
+  const handleTouchMoveOnList = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    const y = e.touches?.[0]?.clientY ?? 0;
+    const dy = y - touchStartYRef.current;
+    if (dy > 6 && document.activeElement === textareaRef.current) {
+      textareaRef.current?.blur();
+      setShowEmojiPicker(false);
     }
-    prevMessageCountRef.current = messages.length;
-  }, [messages, showScrollButton]);
+  }, []);
+  const handleWheelOnList = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.deltaY < 0 && document.activeElement === textareaRef.current) {
+      textareaRef.current?.blur();
+      setShowEmojiPicker(false);
+    }
+  }, []);
 
-  // Visible messages & grouping
-  const visibleMessages = useMemo(() => {
-    const quoteIds = new Set<number>();
-    messages.forEach((m) => {
-      const qid = Number(m.quote_id);
-      if (normalizeType(m.message_type) === 'QUOTE' && !Number.isNaN(qid)) {
-        quoteIds.add(qid);
-      }
-    });
-
-    return messages.filter((msg) => {
-      const visibleToCurrentUser =
-        !msg.visible_to ||
-        msg.visible_to === 'both' ||
-        (user?.user_type === 'service_provider' && msg.visible_to === 'service_provider') ||
-        (user?.user_type === 'client' && msg.visible_to === 'client');
-
-      const qid = Number(msg.quote_id);
-      return (
-        visibleToCurrentUser &&
-        msg.content &&
-        msg.content.trim().length > 0 &&
-        !(normalizeType(msg.message_type) === 'SYSTEM' && msg.content.startsWith(BOOKING_DETAILS_PREFIX)) &&
-        !(normalizeType(msg.message_type) === 'SYSTEM' &&
-          msg.action === 'review_quote' &&
-          (Number.isNaN(qid) || qid <= 0)) &&
-        !(
-          normalizeType(msg.message_type) === 'SYSTEM' &&
-          msg.action === 'review_quote' &&
-          !Number.isNaN(qid) &&
-          quoteIds.has(qid)
-        )
-      );
-    });
-  }, [messages, user?.user_type]);
-
+  // ---- Grouping helpers
   const shouldShowTimestampGroup = useCallback(
-    (msg: Message, index: number, list: Message[]) => {
+    (msg: ThreadMessage, index: number, list: ThreadMessage[]) => {
       if (index === 0) return true;
       const prevMsg = list[index - 1];
       const prevTime = new Date(prevMsg.timestamp).getTime();
@@ -714,10 +882,50 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [],
   );
 
+  // ---- Visible messages (keep it simple; only hide booking-details meta)
+  const visibleMessages = useMemo(() => {
+    return messages.filter((msg) => {
+      const visibleToCurrentUser =
+        !msg.visible_to ||
+        msg.visible_to === 'both' ||
+        (user?.user_type === 'service_provider' && msg.visible_to === 'service_provider') ||
+        (user?.user_type === 'client' && msg.visible_to === 'client');
+
+      const isHiddenSystem =
+        normalizeType(msg.message_type) === 'SYSTEM' &&
+        typeof msg.content === 'string' &&
+        msg.content.startsWith(BOOKING_DETAILS_PREFIX);
+
+      // Hide redundant provider-side "Quote sent with total ..." style messages
+      const isRedundantQuoteSent =
+        normalizeType(msg.message_type) === 'SYSTEM' &&
+        typeof msg.content === 'string' &&
+        /^\s*quote\s+sent/i.test(msg.content.trim());
+
+      // Hide acceptance-only system notices; payment confirmation supersedes it
+      const isAcceptanceOnly =
+        normalizeType(msg.message_type) === 'SYSTEM' &&
+        typeof msg.content === 'string' &&
+        /\baccepted the quote\b/i.test(msg.content);
+
+      // Hide old deposit-style system notices; we use clearer payment copy now
+      const isDepositLegacy =
+        normalizeType(msg.message_type) === 'SYSTEM' &&
+        typeof msg.content === 'string' &&
+        /\bdeposit\b/i.test(msg.content);
+
+      return visibleToCurrentUser && !isHiddenSystem && !isRedundantQuoteSent && !isDepositLegacy && !isAcceptanceOnly;
+    });
+  }, [messages, user?.user_type]);
+
   const groupedMessages = useMemo(() => {
-    const groups: { sender_id: number | null; sender_type: string; messages: Message[]; showDayDivider: boolean }[] = [];
+    const groups: { sender_id: number | null; sender_type: string; messages: ThreadMessage[]; showDayDivider: boolean }[] = [];
     visibleMessages.forEach((msg, idx) => {
-      const isNewGroupNeeded = shouldShowTimestampGroup(msg, idx, visibleMessages);
+      const isNewGroupNeededBase = shouldShowTimestampGroup(msg, idx, visibleMessages);
+      const isSystemNow = normalizeType(msg.message_type) === 'SYSTEM';
+      const prev = idx > 0 ? visibleMessages[idx - 1] : null;
+      const wasSystemPrev = prev ? normalizeType(prev.message_type) === 'SYSTEM' : false;
+      const isNewGroupNeeded = isNewGroupNeededBase || isSystemNow || wasSystemPrev;
       const isNewDay =
         idx === 0 ||
         format(new Date(msg.timestamp), 'yyyy-MM-dd') !== format(new Date(visibleMessages[idx - 1].timestamp), 'yyyy-MM-dd');
@@ -738,14 +946,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return groups;
   }, [visibleMessages, shouldShowTimestampGroup]);
 
-  // Emoji select
+  // ---- Emoji select
   const handleEmojiSelect = (emoji: { native?: string }) => {
     if (emoji?.native) setNewMessageContent((prev) => `${prev}${emoji.native}`);
     setShowEmojiPicker(false);
     textareaRef.current?.focus();
   };
 
-  // Send message
+  // ---- Send message
   const handleSendMessage = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -757,7 +965,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
 
       let attachment_url: string | undefined;
-      const tempId = Date.now();
+      const tempId = -Date.now(); // negative to avoid collisions
 
       try {
         if (attachmentFile) {
@@ -777,15 +985,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           attachment_url,
         };
 
-        const optimistic: Message = {
+        // Optimistic
+        const optimistic: ThreadMessage = {
           id: tempId,
           booking_request_id: bookingRequestId,
           sender_id: user?.id || 0,
-          sender_type: user?.user_type === 'service_provider' ? 'artist' : 'client',
+          sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
           content: payload.content,
           message_type: 'USER',
           quote_id: null,
-          attachment_url,
+          attachment_url: attachment_url ?? null,
           visible_to: 'both',
           action: null,
           avatar_url: undefined,
@@ -793,9 +1002,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           unread: false,
           is_read: true,
           timestamp: gmt2ISOString(),
-          status: 'sending',
+          status: navigator.onLine ? 'sending' : 'queued',
         };
-        setMessages((prev) => [...prev, optimistic]);
+        setMessages((prev) => mergeMessages(prev, optimistic));
 
         const resetInput = () => {
           setNewMessageContent('');
@@ -811,7 +1020,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         };
 
         if (!navigator.onLine) {
-          setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' } : m)));
           enqueueMessage({ tempId, payload });
           resetInput();
           return;
@@ -819,11 +1027,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
         try {
           const res = await postMessageToBookingRequest(bookingRequestId, payload);
-          setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...res.data, status: 'sent' } : m)));
+          setMessages((prev) => {
+            const real = { ...normalizeMessage(res.data), status: 'sent' as const };
+            const swapped = prev.map((m) => (m.id === tempId ? real : m));
+            return mergeMessages(swapped, []);
+          });
           onMessageSent?.();
         } catch (err) {
           console.error('Failed to send message:', err);
-          setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' } : m)));
+          // keep optimistic but mark queued + enqueue
+          setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' as const } : m)));
           enqueueMessage({ tempId, payload });
           setThreadError(`Failed to send message. ${(err as Error).message || 'Please try again later.'}`);
         }
@@ -831,12 +1044,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         resetInput();
       } catch (err) {
         console.error('Failed to send message:', err);
-        setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m)));
-        const message =
-          err instanceof AxiosError && err.response?.status === 422
-            ? 'Attachment file missing. Please select a file before sending.'
-            : (err as Error).message || 'Please try again later.';
-        setThreadError(`Failed to send message. ${message}`);
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' as const } : m)));
+        setThreadError(
+          `Failed to send message. ${(err as Error).message || 'Please try again later.'}`
+        );
         setIsUploadingAttachment(false);
       }
     },
@@ -852,11 +1063,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     ],
   );
 
-  // Send/decline/accept quotes
+  // ---- Quote actions
   const handleSendQuote = useCallback(
     async (quoteData: QuoteV2Create) => {
       try {
-        await createQuoteV2(quoteData);
+        const res = await createQuoteV2(quoteData);
+        const created = res.data;
+        setQuotes((prev) => ({ ...prev, [created.id]: created }));
+        // No extra system line; the quote card communicates this already.
+        setQuoteDrawerId(created.id);
+        setQuoteDrawerOpen(true);
         void fetchMessages();
         onMessageSent?.();
         onQuoteSent?.();
@@ -865,7 +1081,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         setThreadError(`Failed to send quote. ${(err as Error).message || 'Please try again.'}`);
       }
     },
-    [fetchMessages, onMessageSent, onQuoteSent],
+    [fetchMessages, onMessageSent, onQuoteSent, bookingRequestId, user?.id, user?.user_type, clientName],
   );
 
   const handleDeclineRequest = useCallback(async () => {
@@ -899,20 +1115,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         if (!bookingId) throw new Error('Booking not found after accepting quote');
 
         const details = await getBookingDetails(bookingId);
-        setBookingConfirmed(true);
-        onBookingConfirmedChange?.(true, details.data);
+        // Store details, but only consider confirmed after payment completes
         setBookingDetails(details.data);
 
-        if (bookingSimple?.payment_id) {
-          window.open(`/api/v1/payments/${bookingSimple.payment_id}/receipt`, '_blank');
-        }
+        // Payment modal (triggered separately via onPayNow) will update status
         void fetchMessages();
       } catch (err) {
         console.error('Failed to finalize quote acceptance process:', err);
         setThreadError(`Quote accepted, but there was an issue setting up payment. ${(err as Error).message || 'Please try again.'}`);
       }
     },
-    [bookingRequestId, fetchMessages, serviceId, onBookingConfirmedChange],
+    [bookingRequestId, fetchMessages, serviceId, onBookingConfirmedChange, user?.id, user?.user_type, clientName],
   );
 
   const handleDeclineQuote = useCallback(
@@ -929,7 +1142,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     [],
   );
 
-  /** NEW: when the details panel opens on mobile, blur textarea & close emoji */
+  // ---- Request a new quote (client)
+  const handleRequestNewQuote = useCallback(async () => {
+    try {
+      const text = 'Hi! It looks like the quote expired. Could you please send a new quote?';
+      const res = await postMessageToBookingRequest(bookingRequestId, { content: text });
+      setMessages((prev) => mergeMessages(prev, normalizeMessage(res.data)));
+      setThreadError(null);
+    } catch (err) {
+      console.error('Failed to request new quote:', err);
+      setThreadError('Failed to request a new quote. Please try again.');
+    }
+  }, [bookingRequestId]);
+
+  // ---- Details panel blur on mobile
   useEffect(() => {
     if (isDetailsPanelOpen) {
       textareaRef.current?.blur();
@@ -937,14 +1163,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
   }, [isDetailsPanelOpen]);
 
-  /** Compute bottom padding so nothing is obscured */
   const effectiveBottomPadding = isDetailsPanelOpen
     ? 'calc(var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom))'
     : `calc(${composerHeight || 0}px + var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom))`;
 
+  // ===== Render ===============================================================
   return (
-    <div className="flex flex-col rounded-b-2xl overflow-hidden w-full bg-white h-full min-h-0">
-      {/* Messages Container */}
+    <div ref={wrapperRef} className="flex flex-col rounded-b-2xl overflow-hidden w-full bg-white h-full min-h-0">
+      {/* Messages */}
       <div
         ref={messagesContainerRef}
         onScroll={handleScroll}
@@ -952,11 +1178,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         onTouchMove={handleTouchMoveOnList}
         onWheel={handleWheelOnList}
         className="relative flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 bg-white px-3 pt-3"
-        style={{
-          WebkitOverflowScrolling: 'touch',
-          touchAction: 'pan-y',
-          paddingBottom: effectiveBottomPadding,
-        }}
+        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', paddingBottom: effectiveBottomPadding }}
       >
         {loading ? (
           <div className="flex justify-center py-6" aria-label="Loading messages">
@@ -967,10 +1189,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             <div className="text-center py-4">
               {user?.user_type === 'client' ? (
                 <p className="text-xs text-gray-600">
-                  {t(
-                    'chat.empty.client',
-                    'Your request is in - expect a quote soon. Add any notes or questions below.',
-                  )}
+                  {t('chat.empty.client', 'Your request is in - expect a quote soon. Add any notes or questions below.')}
                   <>
                     <span className="mx-1">·</span>
                     <button
@@ -984,10 +1203,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 </p>
               ) : user?.user_type === 'service_provider' ? (
                 <p className="text-xs text-gray-600">
-                  {t(
-                    'chat.empty.artist',
-                    'No messages yet—say hi or share details. You can send a quick quote when you’re ready.',
-                  )}
+                  {t('chat.empty.artist', 'No messages yet—say hi or share details. You can send a quick quote when you’re ready.')}
                 </p>
               ) : (
                 <p className="text-xs text-gray-600">
@@ -1020,8 +1236,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         {/* Grouped messages */}
         {groupedMessages.map((group, idx) => {
           const firstMsgInGroup = group.messages[0];
-          const isSystemMessage = normalizeType(firstMsgInGroup.message_type) === 'SYSTEM';
-          const isSenderSelf = firstMsgInGroup.sender_id === user?.id;
+          // Determine if the first non-system message is from the other party
+          const firstNonSystem = group.messages.find((m) => normalizeType(m.message_type) !== 'SYSTEM');
+          const showHeader = !!firstNonSystem && firstNonSystem.sender_id !== user?.id;
 
           return (
             <React.Fragment key={firstMsgInGroup.id}>
@@ -1034,10 +1251,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 </div>
               )}
 
-              {/* Message Group */}
+              {/* Sender header (show when first visible sender is not self and message is not purely system) */}
               <div className="flex flex-col w-full">
-                {/* Sender info (not system/self) */}
-                {!isSenderSelf && !isSystemMessage && (
+                {showHeader && (
                   <div className="flex items-center mb-1">
                     {user?.user_type === 'service_provider'
                       ? clientAvatarUrl
@@ -1084,13 +1300,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   </div>
                 )}
 
-                {/* Messages in group */}
+                {/* Bubbles */}
                 {group.messages.map((msg, msgIdx) => {
                   const isMsgFromSelf = msg.sender_id === user?.id;
                   const isLastInGroup = msgIdx === group.messages.length - 1;
 
+                  const isSystemMsg = normalizeType(msg.message_type) === 'SYSTEM';
+
                   let bubbleShape = 'rounded-xl';
-                  if (isSystemMessage) {
+                  if (isSystemMsg) {
                     bubbleShape = 'rounded-lg';
                   } else if (isMsgFromSelf) {
                     bubbleShape = isLastInGroup ? 'rounded-br-none rounded-xl' : 'rounded-xl';
@@ -1104,7 +1322,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     (normalizeType(msg.message_type) === 'QUOTE' ||
                       (normalizeType(msg.message_type) === 'SYSTEM' && msg.action === 'review_quote'));
 
-                  if (isSystemMessage) {
+                  // Plain system line (except for special actions handled below)
+                  if (isSystemMsg && msg.action !== 'view_booking_details' && msg.action !== 'review_quote') {
                     return (
                       <div
                         key={msg.id}
@@ -1123,7 +1342,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   if (isQuoteMessage) {
                     const quoteData = quotes[quoteId];
                     if (!quoteData) return null;
-                    const isClient = user?.user_type === 'client';
+                    const isClient = isClientViewFlag;
+                    const isPaid = isPaidFlag;
                     return (
                       <div
                         key={msg.id}
@@ -1131,7 +1351,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         className="mb-0.5 w/full"
                         ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                       >
-                        {isClient && quoteData.status === 'pending' && !bookingConfirmed && (
+                        {isClient && quoteData.status === 'pending' && !isPaid && (
                           <div className="my-2">
                             <div className="flex items-center gap-3 text-gray-500">
                               <div className="h-px flex-1 bg-gray-200" />
@@ -1144,6 +1364,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         )}
 
                         <MemoQuoteBubble
+                          quoteId={quoteId}
                           description={quoteData.services[0]?.description || ''}
                           price={Number(quoteData.services[0]?.price || 0)}
                           soundFee={Number(quoteData.sound_fee)}
@@ -1161,23 +1382,51 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   ? 'Rejected'
                                   : 'Pending'
                           }
+                          isClientView={isClientViewFlag}
+                          isPaid={isPaidFlag}
                           expiresAt={quoteData.expires_at || undefined}
-                          eventDetails={{
-                            from: clientName || 'Client',
-                            receivedAt: format(new Date(msg.timestamp), 'PPP'),
-                            event: parsedBookingDetails?.eventType,
-                            date: (() => {
-                              if (!parsedBookingDetails?.date) return undefined;
-                              const eventDate = new Date(parsedBookingDetails.date);
-                              return isValid(eventDate) ? format(eventDate, 'PPP') : undefined;
-                            })(),
-                            guests: parsedBookingDetails?.guests,
-                            venue: parsedBookingDetails?.venueType,
-                            notes: parsedBookingDetails?.notes,
+                          eventDetails={eventDetails}
+                          providerName={artistName || 'Service Provider'}
+                          providerAvatarUrl={artistAvatarUrl || undefined}
+                          providerId={currentArtistId}
+                          cancellationPolicy={artistCancellationPolicy || undefined}
+                          paymentTerms={'Pay the full amount now via Booka secure checkout'}
+                          providerRating={bookingDetails?.service?.service_provider?.rating as any}
+                          providerRatingCount={bookingDetails?.service?.service_provider?.rating_count as any}
+                          providerVerified={true}
+                          mapUrl={(() => {
+                            const tb: any = (bookingRequest as any)?.travel_breakdown || {};
+                            const name = (parsedBookingDetails as any)?.location_name || tb.venue_name || tb.place_name || tb.location_name || '';
+                            const addr = (parsedBookingDetails as any)?.location || tb.address || tb.event_city || tb.event_town || (bookingRequest as any)?.service?.service_provider?.location || '';
+                            const q = [name, addr].filter(Boolean).join(', ');
+                            return (q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : undefined) as any;
+                          })()}
+                          includes={(() => {
+                            const arr: string[] = [];
+                            if (Number(quoteData.sound_fee) > 0) arr.push('Sound equipment');
+                            if (Number(quoteData.travel_fee) > 0) arr.push('Travel to venue');
+                            arr.push('Performance as described');
+                            return arr;
+                          })()}
+                          excludes={(() => {
+                            const arr: string[] = [];
+                            if (!Number(quoteData.sound_fee)) arr.push('Sound equipment');
+                            arr.push('Venue/Power/Stage');
+                            return arr;
+                          })()}
+                          onViewDetails={() => {
+                            setQuoteDrawerId(quoteId);
+                            setQuoteDrawerOpen(true);
                           }}
+                          onAskQuestion={() => textareaRef.current?.focus()}
                           onAccept={
                             user?.user_type === 'client' && quoteData.status === 'pending' && !bookingConfirmed
                               ? () => handleAcceptQuote(quoteData)
+                              : undefined
+                          }
+                          onPayNow={
+                            user?.user_type === 'client' && (quoteData.status === 'pending' || quoteData.status === 'accepted') && !isPaid && !isPaymentOpen
+                              ? () => { setIsPaymentOpen(true); openPaymentModal({ bookingRequestId, amount: Number(quoteData.total || 0) } as any); }
                               : undefined
                           }
                           onDecline={
@@ -1197,7 +1446,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                     {t('quote.guidance.review', 'Review the itemized price and included services. Ask questions if anything looks off.')}
                                   </p>
                                   <p className="text-[11px] text-gray-600 mt-1">
-                                    {t('quote.guidance.acceptCta', 'Ready to go? Tap Accept to secure the date. You can pay the deposit right after.')}
+                                    {t('quote.guidance.acceptCta', 'Ready to go? Tap Accept & Pay to confirm your booking now.')}
                                   </p>
                                 </div>
                               </div>
@@ -1207,13 +1456,29 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             </div>
                           </>
                         )}
+
+                        {!isClient && quoteData.status === 'pending' && (
+                          <div className="mt-2 mb-2">
+                            <div className="flex items-start gap-2 rounded-lg bg-white/60 px-3 py-2 border border-gray-100">
+                              <InformationCircleIcon className="h-4 w-4 text-gray-400 mt-0.5" />
+                              <div>
+                                <p className="text-[11px] text-gray-600">
+                                  Pending client action — we’ll notify you when they respond.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   }
 
-                  if (normalizeType(msg.message_type) === 'SYSTEM' && msg.action === 'review_quote') {
+                  if (isSystemMsg && msg.action === 'review_quote') {
                     return null;
                   }
+
+                  // Reveal images lazily
+                  const [revealedImages, setRevealedImages] = [undefined, undefined] as any;
 
                   return (
                     <div
@@ -1222,10 +1487,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                       ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                     >
                       <div className="pr-9">
-                        {msg.sender_id !== user?.id && !msg.is_read && (
-                          <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" aria-label="Unread message" />
+                        {!isMsgFromSelf && !msg.is_read && (
+                          <span className="" aria-label="Unread message" />
                         )}
-                        {normalizeType(msg.message_type) === 'SYSTEM' && msg.action === 'view_booking_details' ? (
+
+                        {isSystemMsg && msg.action === 'view_booking_details' ? (
                           <Button
                             type="button"
                             onClick={() => {
@@ -1241,43 +1507,37 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             View Booking Details
                           </Button>
                         ) : (
-                          msg.content
-                        )}
-                        {msg.attachment_url && (
-                          isImageAttachment(msg.attachment_url) ? (
-                            revealedImages.has(msg.id) ? (
-                              <Image
-                                src={getFullImageUrl(msg.attachment_url) as string}
-                                alt="Image attachment"
-                                width={200}
-                                height={200}
-                                className="mt-1 rounded"
-                              />
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setRevealedImages((prev) => new Set(prev).add(msg.id))}
-                                className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
-                              >
-                                View image
-                              </button>
-                            )
-                          ) : (
-                            <a
-                              href={msg.attachment_url}
-                              target="_blank"
-                              className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
-                              rel="noopener noreferrer"
-                            >
-                              View attachment
-                            </a>
-                          )
+                          <>
+                            {msg.content}
+                            {msg.attachment_url && (
+                              isImageAttachment(msg.attachment_url) ? (
+                                <a
+                                  href={getFullImageUrl(msg.attachment_url) as string}
+                                  target="_blank"
+                                  className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
+                                  rel="noopener noreferrer"
+                                >
+                                  View image
+                                </a>
+                              ) : (
+                                <a
+                                  href={msg.attachment_url}
+                                  target="_blank"
+                                  className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
+                                  rel="noopener noreferrer"
+                                >
+                                  {/\/payments\//.test(msg.attachment_url) ? 'View receipt' : 'View attachment'}
+                                </a>
+                              )
+                            )}
+                          </>
                         )}
                       </div>
-                      {/* Timestamp & status */}
+
+                      {/* Time & status */}
                       <div className="absolute bottom-0.5 right-1.5 flex items-center space-x-0.5 text-[10px] text-right text-gray-500">
                         <time dateTime={msg.timestamp} title={new Date(msg.timestamp).toLocaleString()}>
-                          {messageTime}
+                          {format(new Date(msg.timestamp), 'HH:mm')}
                         </time>
                         {isMsgFromSelf && (
                           <div className="flex-shrink-0">
@@ -1351,7 +1611,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 paymentInfo={paymentInfo}
                 bookingDetails={bookingDetails}
                 quotes={quotes}
-                allowInstantBooking={allowInstantBooking}
+                allowInstantBooking={Boolean(allowInstantBooking && user?.user_type === 'client')}
                 openPaymentModal={openPaymentModal}
                 bookingRequestId={bookingRequestId}
                 baseFee={baseFee}
@@ -1445,7 +1705,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 <FaceSmileIcon className="w-5 h-5" />
               </button>
 
-              {/* Textarea (16px font to avoid iOS zoom) */}
+              {/* Textarea (16px to avoid iOS zoom) */}
               <textarea
                 ref={textareaRef}
                 value={newMessageContent}
@@ -1453,8 +1713,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 onInput={autoResizeTextarea}
                 autoFocus
                 rows={1}
-                className="flex-grow rounded-xl px-3 py-1 border border-gray-300 shadow-sm resize-none
-                           text-base ios-no-zoom font-medium focus:outline-none min-h-[36px]"
+                className="flex-grow rounded-xl px-3 py-1 border border-gray-300 shadow-sm resize-none text-base ios-no-zoom font-medium focus:outline-none min-h-[36px]"
                 placeholder="Type your message..."
                 aria-label="New message input"
                 disabled={isUploadingAttachment}
@@ -1509,6 +1768,66 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           {paymentModal}
         </>
       )}
+
+      {/* Slide-in Quote Drawer */}
+      <QuoteDrawer
+        isOpen={quoteDrawerOpen}
+        onClose={() => setQuoteDrawerOpen(false)}
+        quote={quoteDrawerId ? quotes[quoteDrawerId] : undefined}
+        booking={bookingDetails}
+        isClientView={isClientViewFlag}
+        isPaid={isPaidFlag}
+        onRequestNewQuote={isClientViewFlag ? handleRequestNewQuote : undefined}
+        topOffset={quoteDrawerTopOffset}
+        onAccept={(() => {
+          const q = quoteDrawerId ? quotes[quoteDrawerId] : undefined;
+          if (!q || !isClientViewFlag || q.status !== 'pending' || isPaidFlag) return undefined;
+          return () => handleAcceptQuote(q);
+        })()}
+        onPayNow={(() => {
+          const q = quoteDrawerId ? quotes[quoteDrawerId] : undefined;
+          if (!q || !isClientViewFlag || (q.status !== 'pending' && q.status !== 'accepted') || isPaidFlag || isPaymentOpen) return undefined;
+          return () => { setIsPaymentOpen(true); openPaymentModal({ bookingRequestId, amount: Number(q.total || 0) } as any); };
+        })()}
+        onDecline={(() => {
+          const q = quoteDrawerId ? quotes[quoteDrawerId] : undefined;
+          if (!q || !isClientViewFlag || q.status !== 'pending' || isPaidFlag) return undefined;
+          return () => handleDeclineQuote(q);
+        })()}
+        onOpenReceipt={(() => {
+          if (!bookingDetails?.payment_id) return undefined;
+          return () => window.open(`/api/v1/payments/${bookingDetails.payment_id}/receipt`, '_blank');
+        })()}
+        eventSummary={(() => {
+          const parts: string[] = [];
+          if (parsedBookingDetails?.eventType) parts.push(parsedBookingDetails.eventType);
+          if (parsedBookingDetails?.date) {
+            const d = new Date(parsedBookingDetails.date);
+            if (!isNaN(d.getTime())) parts.push(format(d, 'PPP'));
+          }
+          // Location: prefer name — address when available
+          const rawLoc = (parsedBookingDetails?.location || '').trim();
+          const locName = (parsedBookingDetails as any)?.location_name as string | undefined;
+          let name = (locName || '').trim();
+          let addr = '';
+          if (!name && rawLoc) {
+            const partsLoc = rawLoc.split(',');
+            const first = (partsLoc[0] || '').trim();
+            if (first && !/^\d/.test(first)) {
+              name = first;
+              addr = partsLoc.slice(1).join(',').trim();
+            } else {
+              addr = rawLoc;
+            }
+          } else if (name) {
+            addr = rawLoc;
+          }
+          const locLabel = name ? (addr ? `${name} — ${addr}` : name) : (addr || '');
+          if (locLabel) parts.push(locLabel);
+          if (parsedBookingDetails?.guests) parts.push(`${parsedBookingDetails.guests} guests`);
+          return parts.length ? parts.join(' – ') : null;
+        })()}
+      />
 
       {/* Errors */}
       {threadError && (

@@ -416,3 +416,215 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+
+/* === Service Details modal: v2 tweaks (narrower, better image, X on right) === */
+@media (min-width: 768px) {
+  /* 1) Narrower modal */
+  [role="dialog"][aria-label="Service details"] > .md\:max-w-lg {
+    max-width: 720px !important;   /* was 880px */
+    width: 720px !important;
+  }
+
+  /* 2) Close button guaranteed on the right (works with flex or grid) */
+  [role="dialog"][aria-label="Service details"] .sticky .flex.items-center.justify-between button {
+    margin-left: auto !important;
+    justify-self: end !important;
+  }
+
+  /* 3) Header row: fixed title width, tighter columns */
+  [role="dialog"][aria-label="Service details"] .sticky .flex.items-center.justify-between {
+    display: grid !important;
+    grid-template-columns: 34ch 1fr auto !important; /* title | spacer | close */
+    align-items: center !important;
+    gap: 0.75rem !important;
+    max-width: none !important; /* neutralize any max-w-* wrapper */
+  }
+  [role="dialog"][aria-label="Service details"] .sticky h3 {
+    width: 34ch !important;       /* was 40ch */
+    min-width: 0 !important;
+  }
+
+  /* 4) Image container: reduce vertical crop by using a taller aspect ratio */
+  /* (overrides h-40 / md:h-48 on the wrapper) */
+  [role="dialog"][aria-label="Service details"] .mb-4 > .relative.h-40.w-full {
+    height: auto !important;
+    aspect-ratio: 3 / 2 !important;   /* taller box -> less top/bottom crop */
+  }
+  /* Optional: bias the crop a touch higher (tweak 35% to taste) */
+  [role="dialog"][aria-label="Service details"] .mb-4 > .relative.h-40.w-full img {
+    object-position: 50% 35% !important; /* center-top */
+  }
+
+  /* 5) Overlay band: fixed title/price columns tightened for 720px width */
+  [role="dialog"][aria-label="Service details"] .absolute.inset-x-0.bottom-0 .flex.items-end.justify-between {
+    display: grid !important;
+    grid-template-columns: 34ch 1fr 9rem !important; /* title | spacer | price */
+    align-items: end !important;
+    gap: 0.75rem !important;
+  }
+  [role="dialog"][aria-label="Service details"] .absolute.inset-x-0.bottom-0 .min-w-0 {
+    width: 34ch !important;
+  }
+  [role="dialog"][aria-label="Service details"] .absolute.inset-x-0.bottom-0 .shrink-0 {
+    width: 9rem !important;
+    text-align: right !important;
+  }
+}
+/* === Service Details modal: premium polish === */
+@media (min-width: 768px) {
+  /* Modal: narrower & more elegant */
+  [role="dialog"][aria-label="Service details"] > .md\:max-w-lg {
+    max-width: 680px !important;
+    width: 680px !important;
+    border-radius: 1rem !important;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15) !important;
+  }
+
+  /* Hero image: taller, cinematic crop */
+  [role="dialog"][aria-label="Service details"] .mb-4 > .relative.h-40.w-full {
+    height: auto !important;
+    aspect-ratio: 16 / 10 !important;
+    overflow: hidden !important;
+    border-radius: 0.75rem !important;
+  }
+  [role="dialog"][aria-label="Service details"] .mb-4 > .relative img {
+    transition: transform 0.4s ease !important;
+  }
+  [role="dialog"][aria-label="Service details"] .mb-4 > .relative:hover img {
+    transform: scale(1.05) !important;
+  }
+
+  /* Overlay band: improved title & price */
+  [role="dialog"][aria-label="Service details"] .absolute.inset-x-0.bottom-0 .flex.items-end.justify-between {
+    grid-template-columns: 1fr auto !important; /* title | price */
+  }
+  [role="dialog"][aria-label="Service details"] .absolute.inset-x-0.bottom-0 .shrink-0 {
+    background: linear-gradient(135deg, #111 0%, #333 100%) !important;
+    padding: 0.25rem 0.75rem !important;
+    border-radius: 9999px !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* Body text: spacing + subtle divider */
+  [role="dialog"][aria-label="Service details"] .p-3.text-sm {
+    line-height: 1.6 !important;
+    margin-top: 0.75rem !important;
+    padding-top: 1rem !important;
+    border-top: 1px solid rgba(0,0,0,0.05) !important;
+  }
+
+  /* Buttons: gradient CTA */
+  [role="dialog"][aria-label="Service details"] .mt-auto button.bg-gray-900 {
+    background: linear-gradient(135deg, #111 0%, #444 100%) !important;
+    transition: all 0.3s ease !important;
+  }
+  [role="dialog"][aria-label="Service details"] .mt-auto button.bg-gray-900:hover {
+    background: linear-gradient(135deg, #000 0%, #222 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.25) !important;
+  }
+  [role="dialog"][aria-label="Service details"] .mt-auto button.border {
+    border: 1px solid #e5e7eb !important;
+    transition: background 0.2s ease !important;
+  }
+  [role="dialog"][aria-label="Service details"] .mt-auto button.border:hover {
+    background: #f9fafb !important;
+  }
+}
+
+/* === Primary CTA: solid black === */
+[role="dialog"][aria-label="Service details"] .mt-auto button.bg-gray-900 {
+  background: #000 !important;            /* pure black */
+  box-shadow: 0 6px 14px rgba(0,0,0,0.18) !important;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease !important;
+}
+[role="dialog"][aria-label="Service details"] .mt-auto button.bg-gray-900:hover {
+  background: #111 !important;            /* subtle hover */
+  transform: translateY(-1px) !important;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.24) !important;
+}
+[role="dialog"][aria-label="Service details"] .mt-auto button.bg-gray-900:active {
+  transform: translateY(0) scale(0.99) !important;
+}
+[role="dialog"][aria-label="Service details"] .mt-auto button.bg-gray-900:focus-visible {
+  outline: 2px solid #000 !important;
+  outline-offset: 2px !important;
+}
+
+/* === Mobile polish for the Service Details bottom sheet === */
+@media (max-width: 767px) {
+  /* Bottom sheet container: full width, nice radius */
+  [role="dialog"][aria-label="Service details"] > .absolute.inset-x-0.bottom-0 {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    border-top-left-radius: 16px !important;
+    border-top-right-radius: 16px !important;
+  }
+
+  /* Header: ensure X is far-right and title can use two lines */
+  [role="dialog"][aria-label="Service details"] .sticky .flex.items-center.justify-between button {
+    margin-left: auto !important;
+  }
+  [role="dialog"][aria-label="Service details"] .sticky h3 {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+
+  /* Hero image: comfortable aspect + gentle top bias */
+  [role="dialog"][aria-label="Service details"] .mb-4 > .relative.h-40.w-full {
+    height: auto !important;
+    aspect-ratio: 16 / 10 !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+  [role="dialog"][aria-label="Service details"] .mb-4 > .relative.h-40.w-full img {
+    object-position: 50% 38% !important;
+  }
+
+  /* Overlay band: simple two-column grid (title | price pill) */
+  [role="dialog"][aria-label="Service details"] .absolute.inset-x-0.bottom-0 .flex.items-end.justify-between {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    align-items: end !important;
+    gap: 0.5rem !important;
+  }
+  /* Slightly smaller price pill on mobile */
+  [role="dialog"][aria-label="Service details"] .absolute.inset-x-0.bottom-0 .shrink-0 {
+    background: #111 !important;
+    padding: 0.2rem 0.6rem !important;
+    border-radius: 9999px !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* Description: comfy reading height */
+  [role="dialog"][aria-label="Service details"] .p-3.text-sm {
+    max-height: 35vh !important;
+    overflow-y: auto !important;
+    line-height: 1.6 !important;
+    border-top: 1px solid rgba(0,0,0,0.05) !important;
+    margin-top: 0.5rem !important;
+    padding-top: 0.75rem !important;
+  }
+
+  /* Actions: sticky footer inside sheet, full-width stacked buttons */
+  [role="dialog"][aria-label="Service details"] .mt-auto {
+    position: sticky !important;
+    bottom: 0 !important;
+    background: linear-gradient(180deg, rgba(255,255,255,0) 0%, #fff 24%) !important;
+    padding-top: 0.75rem !important;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)) !important;
+    border-top: 1px solid rgba(0,0,0,0.06) !important;
+
+    display: grid !important;
+    grid-template-columns: 1fr !important; /* stack */
+    gap: 0.6rem !important;
+  }
+  [role="dialog"][aria-label="Service details"] .mt-auto button {
+    width: 100% !important;     /* full-width buttons */
+    min-height: 48px !important;/* big tap target */
+  }
+}

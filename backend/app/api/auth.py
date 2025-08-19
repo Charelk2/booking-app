@@ -6,7 +6,7 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Tuple
 import os
 import logging
 import secrets
@@ -50,6 +50,7 @@ router = APIRouter(tags=["auth"])
 SECRET_KEY = os.getenv("SECRET_KEY", "a_default_fallback_secret_key")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 30))
 
 # Login attempt throttling configured via settings
 
@@ -64,6 +65,26 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _create_refresh_token(email: str) -> Tuple[str, datetime]:
+    """Create a signed refresh token and its expiry."""
+    expires = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    jti = secrets.token_urlsafe(16)
+    token = jwt.encode({"sub": email, "typ": "refresh", "jti": jti, "exp": expires}, SECRET_KEY, algorithm=ALGORITHM)
+    return token, expires
+
+
+def _store_refresh_token(db: Session, user: User, token: str, exp: datetime) -> None:
+    user.refresh_token_hash = _hash_token(token)
+    user.refresh_token_expires_at = exp
+    db.add(user)
+    db.commit()
+    db.refresh(user)
 
 
 @router.post("/register", response_model=UserResponse)
@@ -195,6 +216,9 @@ def login(
         expires_delta=access_token_expires,
     )
 
+    refresh_token, r_exp = _create_refresh_token(user.email)
+    _store_refresh_token(db, user, refresh_token, r_exp)
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -206,6 +230,7 @@ def login(
             "user_type": user.user_type,
             "mfa_enabled": bool(user.mfa_secret),
         },
+        "refresh_token": refresh_token,
     }
 
 
@@ -371,4 +396,56 @@ def read_current_user(current_user: User = Depends(get_current_user)):
     """Return details for the authenticated user."""
     return current_user
 
+
+@router.post("/refresh")
+def refresh_token(
+    *,
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """Rotate refresh token and issue a new access token to prevent logouts.
+
+    Accepts a refresh ``token`` (body form or JSON). Verifies signature and
+    expiry, compares hash to the stored hash on the user, rotates to a fresh
+    refresh token, and returns both tokens.
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("typ") != "refresh":
+            raise HTTPException(status_code=400, detail="Invalid token type")
+        email = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = get_user_by_email(db, email)
+    if not user or not user.refresh_token_hash:
+        raise HTTPException(status_code=401, detail="Session expired")
+    if user.refresh_token_expires_at and user.refresh_token_expires_at < datetime.utcnow():
+        # Expired in DB
+        user.refresh_token_hash = None
+        db.commit()
+        raise HTTPException(status_code=401, detail="Session expired")
+
+    if _hash_token(token) != user.refresh_token_hash:
+        raise HTTPException(status_code=401, detail="Token has been rotated")
+
+    # Rotate refresh token
+    new_refresh, r_exp = _create_refresh_token(email)
+    _store_refresh_token(db, user, new_refresh, r_exp)
+
+    # Issue a fresh access token
+    access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    return {"access_token": access, "token_type": "bearer", "refresh_token": new_refresh}
+
+
+@router.post("/logout")
+def logout(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Invalidate the current session's refresh token."""
+    current_user.refresh_token_hash = None
+    current_user.refresh_token_expires_at = None
+    db.commit()
+    return {"message": "logged out"}
 

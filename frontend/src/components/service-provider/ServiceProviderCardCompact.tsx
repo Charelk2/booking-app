@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link, { LinkProps } from 'next/link';
 import type { AnchorHTMLAttributes } from 'react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   StarIcon,
 } from '@heroicons/react/24/solid';
@@ -41,6 +42,7 @@ export default function ServiceProviderCardCompact({
   ...props
 }: ServiceProviderCardCompactProps) {
   const [loaded, setLoaded] = useState(false);
+  const router = useRouter();
   void subtitle;
   void categories;
   return (
@@ -51,6 +53,8 @@ export default function ServiceProviderCardCompact({
         'no-underline hover:no-underline',
         className,
       )}
+      onMouseEnter={() => router.prefetch?.(href.toString())}
+      onFocus={() => router.prefetch?.(href.toString())}
       {...props}
     >
       <div className="relative aspect-[4/4] rounded-xl bg-gray-100 overflow-hidden">
