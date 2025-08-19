@@ -23,6 +23,7 @@ import {
   QuoteTemplate,
   Notification,
   ThreadNotification,
+  ThreadPreview,
   ParsedBookingDetails,
   ServiceCategory,
 } from '@/types';
@@ -630,6 +631,18 @@ export const getMessageThreads = () =>
 export const markThreadRead = (bookingRequestId: number) =>
   api.put(
     `${API_NOTIFICATIONS}/notifications/message-threads/${bookingRequestId}/read`,
+  );
+
+// ─── MESSAGE THREADS PREVIEW (atomic previews + unread counts) ─────────────
+export interface ThreadPreviewResponse {
+  items: ThreadPreview[];
+  next_cursor: string | null;
+}
+
+export const getMessageThreadsPreview = (role?: 'artist' | 'client', limit = 50) =>
+  api.get<ThreadPreviewResponse>(
+    `${API_V1}/message-threads/preview`,
+    { params: { role, limit } }
   );
 
 // ─── GOOGLE CALENDAR ─────────────────────────────────────────────────────────

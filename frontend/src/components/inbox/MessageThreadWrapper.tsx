@@ -7,12 +7,11 @@ import Image from 'next/image';
 
 import { Booking, BookingRequest, QuoteV2 } from '@/types';
 import * as api from '@/lib/api';
-import { formatCurrency, formatDepositReminder, getFullImageUrl } from '@/lib/utils';
+import { getFullImageUrl } from '@/lib/utils';
 
 import MessageThread from '../booking/MessageThread';
 import BookingDetailsPanel from './BookingDetailsPanel';
 import Spinner from '../ui/Spinner';
-import AlertBanner from '../ui/AlertBanner';
 import usePaymentModal from '@/hooks/usePaymentModal';
 
 import { InformationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -208,68 +207,7 @@ export default function MessageThreadWrapper({
         </div>
       </header>
 
-      {/* Alerts */}
-      {bookingConfirmed && confirmedBookingDetails && (
-        <AlertBanner variant="success" className="mx-4 mt-4 rounded-lg z-10">
-          🎉 Booking confirmed for{' '}
-          {bookingRequest.artist_profile?.business_name ||
-            bookingRequest.artist?.first_name ||
-            'Service Provider'}
-          ! {confirmedBookingDetails.service?.title} on{' '}
-          {new Date(confirmedBookingDetails.start_time).toLocaleString()}.{' '}
-          {formatDepositReminder(
-            confirmedBookingDetails.deposit_amount ?? 0,
-            confirmedBookingDetails.deposit_due_by ?? undefined,
-          )}
-          .
-          <div className="flex flex-wrap gap-3 mt-2">
-            <Link
-              href={`/dashboard/client/bookings/${confirmedBookingDetails.id}`}
-              className="inline-block text-indigo-600 hover:underline text-sm font-medium"
-            >
-              View booking
-            </Link>
-            <button
-              type="button"
-              onClick={() =>
-                openPaymentModal({
-                  bookingRequestId: bookingRequest.id,
-                  depositAmount: confirmedBookingDetails.deposit_amount ?? undefined,
-                  depositDueBy: confirmedBookingDetails.deposit_due_by ?? undefined,
-                } as any)
-              }
-              className="inline-block text-indigo-600 underline text-sm font-medium"
-            >
-              Pay deposit
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadCalendar}
-              className="inline-block text-indigo-600 underline text-sm font-medium"
-            >
-              Add to calendar
-            </button>
-          </div>
-        </AlertBanner>
-      )}
-
-      {paymentStatus && (
-        <AlertBanner variant="info" className="mx-4 mt-2 rounded-lg z-10">
-          {paymentStatus === 'paid'
-            ? 'Payment completed.'
-            : `Deposit of ${formatCurrency(paymentAmount ?? 0)} received.`}{' '}
-          {receiptUrl && (
-            <a
-              href={receiptUrl}
-              target="_blank"
-              rel="noopener"
-              className="ml-2 underline text-indigo-600"
-            >
-              View receipt
-            </a>
-          )}
-        </AlertBanner>
-      )}
+      {/* Alerts removed: system messages handle status updates; no deposits */}
 
       {/* Content */}
       <div className="flex flex-1 min-h-0 flex-col md:flex-row relative w-full">

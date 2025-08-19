@@ -18,21 +18,60 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Add indexes for common booking queries."""
-    op.create_index(op.f('ix_bookings_artist_id'), 'bookings', ['artist_id'])
-    op.create_index(op.f('ix_bookings_status'), 'bookings', ['status'])
-    op.create_index(op.f('ix_bookings_start_time'), 'bookings', ['start_time'])
-    op.create_index(op.f('ix_booking_requests_artist_id'), 'booking_requests', ['artist_id'])
-    op.create_index(op.f('ix_booking_requests_status'), 'booking_requests', ['status'])
-    op.create_index(op.f('ix_booking_requests_proposed_datetime_1'), 'booking_requests', ['proposed_datetime_1'])
-    op.create_index(op.f('ix_booking_requests_proposed_datetime_2'), 'booking_requests', ['proposed_datetime_2'])
+    """Add indexes for common booking queries (guarded for SQLite/missing tables)."""
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    tables = set(insp.get_table_names())
+
+    if 'bookings' in tables:
+        try:
+            op.create_index(op.f('ix_bookings_artist_id'), 'bookings', ['artist_id'])
+        except Exception:
+            pass
+        try:
+            op.create_index(op.f('ix_bookings_status'), 'bookings', ['status'])
+        except Exception:
+            pass
+        try:
+            op.create_index(op.f('ix_bookings_start_time'), 'bookings', ['start_time'])
+        except Exception:
+            pass
+
+    if 'booking_requests' in tables:
+        for idx_name, col in [
+            ('ix_booking_requests_artist_id', 'artist_id'),
+            ('ix_booking_requests_status', 'status'),
+            ('ix_booking_requests_proposed_datetime_1', 'proposed_datetime_1'),
+            ('ix_booking_requests_proposed_datetime_2', 'proposed_datetime_2'),
+        ]:
+            try:
+                op.create_index(op.f(idx_name), 'booking_requests', [col])
+            except Exception:
+                pass
 
 
 def downgrade() -> None:
-    op.drop_index(op.f('ix_booking_requests_proposed_datetime_2'), table_name='booking_requests')
-    op.drop_index(op.f('ix_booking_requests_proposed_datetime_1'), table_name='booking_requests')
-    op.drop_index(op.f('ix_booking_requests_status'), table_name='booking_requests')
-    op.drop_index(op.f('ix_booking_requests_artist_id'), table_name='booking_requests')
-    op.drop_index(op.f('ix_bookings_start_time'), table_name='bookings')
-    op.drop_index(op.f('ix_bookings_status'), table_name='bookings')
-    op.drop_index(op.f('ix_bookings_artist_id'), table_name='bookings')
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    # Drop quietly if present
+    if 'booking_requests' in insp.get_table_names():
+        for idx in [
+            op.f('ix_booking_requests_proposed_datetime_2'),
+            op.f('ix_booking_requests_proposed_datetime_1'),
+            op.f('ix_booking_requests_status'),
+            op.f('ix_booking_requests_artist_id'),
+        ]:
+            try:
+                op.drop_index(idx, table_name='booking_requests')
+            except Exception:
+                pass
+    if 'bookings' in insp.get_table_names():
+        for idx in [
+            op.f('ix_bookings_start_time'),
+            op.f('ix_bookings_status'),
+            op.f('ix_bookings_artist_id'),
+        ]:
+            try:
+                op.drop_index(idx, table_name='bookings')
+            except Exception:
+                pass

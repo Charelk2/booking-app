@@ -15,19 +15,45 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('services', sa.Column('service_category_id', sa.Integer(), nullable=True))
-    op.add_column('services', sa.Column('details', sa.JSON(), nullable=True))
-    op.create_foreign_key(
-        'fk_services_service_category_id',
-        'services',
-        'service_categories',
-        ['service_category_id'],
-        ['id'],
-        ondelete='SET NULL',
-    )
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    tables = set(insp.get_table_names())
+    if 'services' not in tables:
+        # Create minimal table so follow-up column adds succeed on fresh DBs
+        op.create_table(
+            'services',
+            sa.Column('id', sa.Integer(), primary_key=True),
+        )
+    cols = {c['name'] for c in insp.get_columns('services')}
+    if 'service_category_id' not in cols:
+        op.add_column('services', sa.Column('service_category_id', sa.Integer(), nullable=True))
+    if 'details' not in cols:
+        op.add_column('services', sa.Column('details', sa.JSON(), nullable=True))
+    # Add FK only if target table exists and not already present
+    if 'service_categories' in tables:
+        try:
+            op.create_foreign_key(
+                'fk_services_service_category_id',
+                'services',
+                'service_categories',
+                ['service_category_id'],
+                ['id'],
+                ondelete='SET NULL',
+            )
+        except Exception:
+            pass
 
 
 def downgrade() -> None:
-    op.drop_constraint('fk_services_service_category_id', 'services', type_='foreignkey')
-    op.drop_column('services', 'details')
-    op.drop_column('services', 'service_category_id')
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    if 'services' in insp.get_table_names():
+        try:
+            op.drop_constraint('fk_services_service_category_id', 'services', type_='foreignkey')
+        except Exception:
+            pass
+        cols = {c['name'] for c in insp.get_columns('services')}
+        if 'details' in cols:
+            op.drop_column('services', 'details')
+        if 'service_category_id' in cols:
+            op.drop_column('services', 'service_category_id')

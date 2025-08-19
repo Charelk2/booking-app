@@ -17,6 +17,7 @@ from ..utils.notifications import (
     notify_user_new_booking_request,
     VIDEO_FLOW_READY_MESSAGE,
 )
+from ..utils.messages import BOOKING_DETAILS_PREFIX
 from ..utils import error_response
 from .api_ws import manager
 import os
@@ -72,9 +73,30 @@ def read_messages(
     if hasattr(fields, "default"):
         fields = None
 
-    db_messages = crud.crud_message.get_messages_for_request(
-        db, request_id, viewer, skip=skip, limit=limit
-    )
+    try:
+        db_messages = crud.crud_message.get_messages_for_request(
+            db, request_id, viewer, skip=skip, limit=limit
+        )
+    except Exception as exc:
+        # Defensive logging to diagnose unexpected DB shape mismatches in the field
+        import logging
+        from sqlalchemy import inspect
+        logger = logging.getLogger(__name__)
+        try:
+            insp = inspect(db.get_bind())
+            cols = []
+            if 'messages' in insp.get_table_names():
+                cols = [c['name'] for c in insp.get_columns('messages')]
+            logger.exception(
+                "Failed to load messages for request %s; columns=%s error=%s",
+                request_id,
+                cols,
+                exc,
+            )
+        except Exception:
+            logger.exception("Failed to inspect messages table after error: %s", exc)
+        # Do not block the UI; return an empty list so the thread can render
+        return []
     include = None
     if fields:
         include = {
@@ -160,6 +182,14 @@ def create_message(
             {},
             status.HTTP_403_FORBIDDEN,
         )
+    # Validate: disallow empty content to avoid blank bubbles in UI
+    if not message_in.content or not message_in.content.strip():
+        raise error_response(
+            "Message content cannot be empty",
+            {"content": "required"},
+            status.HTTP_400_BAD_REQUEST,
+        )
+
     sender_type = (
         models.SenderType.CLIENT
         if current_user.id == booking_request.client_id
@@ -173,6 +203,15 @@ def create_message(
         sender_type = models.SenderType.ARTIST
         sender_id = booking_request.artist_id
 
+    # Auto-assign a stable system_key for booking details summaries
+    sys_key = None
+    if (
+        message_in.message_type == models.MessageType.SYSTEM
+        and isinstance(message_in.content, str)
+        and message_in.content.startswith(BOOKING_DETAILS_PREFIX)
+    ):
+        sys_key = "booking_details_v1"
+
     msg = crud.crud_message.create_message(
         db,
         booking_request_id=request_id,
@@ -184,6 +223,7 @@ def create_message(
         quote_id=message_in.quote_id,
         attachment_url=message_in.attachment_url,
         action=message_in.action,
+        system_key=message_in.system_key or sys_key,
         expires_at=message_in.expires_at,
     )
     other_user_id = (

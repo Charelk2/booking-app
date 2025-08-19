@@ -15,8 +15,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('bookings_simple', sa.Column('deposit_due_by', sa.DateTime(), nullable=True))
+    insp = sa.inspect(op.get_bind())
+    if 'bookings_simple' not in insp.get_table_names():
+        return
+    cols = {c['name'] for c in insp.get_columns('bookings_simple')}
+    if 'deposit_due_by' not in cols:
+        op.add_column('bookings_simple', sa.Column('deposit_due_by', sa.DateTime(), nullable=True))
 
 
 def downgrade() -> None:
-    op.drop_column('bookings_simple', 'deposit_due_by')
+    insp = sa.inspect(op.get_bind())
+    if 'bookings_simple' in insp.get_table_names():
+        cols = {c['name'] for c in insp.get_columns('bookings_simple')}
+        if 'deposit_due_by' in cols:
+            op.drop_column('bookings_simple', 'deposit_due_by')

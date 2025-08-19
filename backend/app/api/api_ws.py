@@ -221,7 +221,12 @@ async def booking_request_ws(
     await manager.connect(request_id, websocket)
     reconnect_delay = min(2**attempt, 30)
     websocket.ping_interval = max(heartbeat, PING_INTERVAL)
-    await websocket.send_json({"type": "reconnect_hint", "delay": reconnect_delay})
+    # Best effort hint; ignore if client closed immediately during mount/unmount
+    try:
+        await websocket.send_json({"type": "reconnect_hint", "delay": reconnect_delay})
+    except Exception:
+        manager.disconnect(request_id, websocket)
+        return
 
     async def ping_loop() -> None:
         while True:
@@ -266,10 +271,21 @@ async def booking_request_ws(
                 if isinstance(user_id, int):
                     await manager.add_typing(request_id, user_id)
             elif msg_type == "presence":
-                user_id = data.get("user_id")
-                status = data.get("status")
-                if isinstance(user_id, int) and isinstance(status, str):
-                    await manager.add_presence(request_id, user_id, status)
+                # Accept both single update {user_id, status} and
+                # batched updates {updates: {<user_id>: <status>, ...}}
+                if isinstance(data.get("updates"), dict):
+                    for uid_str, st in data.get("updates", {}).items():
+                        try:
+                            uid = int(uid_str)
+                        except (TypeError, ValueError):
+                            continue
+                        if isinstance(st, str):
+                            await manager.add_presence(request_id, uid, st)
+                else:
+                    user_id = data.get("user_id")
+                    status = data.get("status")
+                    if isinstance(user_id, int) and isinstance(status, str):
+                        await manager.add_presence(request_id, user_id, status)
             elif msg_type == "heartbeat":
                 interval = data.get("interval")
                 if isinstance(interval, (int, float)) and interval >= PING_INTERVAL:

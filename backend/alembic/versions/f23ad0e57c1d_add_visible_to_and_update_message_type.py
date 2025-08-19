@@ -17,10 +17,36 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    dialect = bind.dialect.name
+
+    # Ensure messages table exists on fresh DBs
+    if 'messages' not in insp.get_table_names():
+        op.create_table(
+            'messages',
+            sa.Column('id', sa.Integer(), primary_key=True),
+            sa.Column('message_type', sa.String(), nullable=False, server_default='USER'),
+        )
+
+    if dialect == 'sqlite':
+        # SQLite path: keep columns as TEXT and normalize values
+        cols = {c['name'] for c in insp.get_columns('messages')}
+        if 'visible_to' not in cols:
+            op.add_column('messages', sa.Column('visible_to', sa.String(), nullable=False, server_default='both'))
+        try:
+            op.execute("UPDATE messages SET message_type='USER' WHERE message_type='text'")
+            op.execute("UPDATE messages SET message_type=upper(message_type)")
+        except Exception:
+            pass
+        # Drop server defaults via ALTER are not supported on SQLite; leave as-is
+        return
+
+    # Postgres/others: use proper ENUMs and ALTERs
     visible_enum = sa.Enum("artist", "client", "both", name="visibleto")
     message_enum = sa.Enum("USER", "QUOTE", "SYSTEM", name="messagetype")
-    visible_enum.create(op.get_bind(), checkfirst=True)
-    message_enum.create(op.get_bind(), checkfirst=True)
+    visible_enum.create(bind, checkfirst=True)
+    message_enum.create(bind, checkfirst=True)
     op.add_column(
         "messages",
         sa.Column("visible_to", visible_enum, nullable=False, server_default="both"),
@@ -40,8 +66,24 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_column("messages", "visible_to")
-    op.execute("UPDATE messages SET message_type=lower(message_type)")
-    op.execute("DROP TYPE IF EXISTS visibleto")
-    op.execute("DROP TYPE IF EXISTS messagetype")
-
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    dialect = bind.dialect.name
+    if 'messages' in insp.get_table_names():
+        try:
+            op.drop_column('messages', 'visible_to')
+        except Exception:
+            pass
+        try:
+            op.execute("UPDATE messages SET message_type=lower(message_type)")
+        except Exception:
+            pass
+    if dialect != 'sqlite':
+        try:
+            op.execute("DROP TYPE IF EXISTS visibleto")
+        except Exception:
+            pass
+        try:
+            op.execute("DROP TYPE IF EXISTS messagetype")
+        except Exception:
+            pass

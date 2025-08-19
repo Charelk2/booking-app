@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = "no-reply@localhost"
 
+    # Feature flag: when creating a booking request, also emit a NEW_MESSAGE
+    # notification so unread thread counts increment for service providers who
+    # rely on message threads as the primary inbox surface. Disabled by default.
+    EMIT_NEW_MESSAGE_FOR_NEW_REQUEST: bool = False
+
     @field_validator("CORS_ORIGINS", mode="before")
     def split_origins(cls, v: Any) -> list[str]:
         """Parse comma-separated or JSON list of origins from environment."""

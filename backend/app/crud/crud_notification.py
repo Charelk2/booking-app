@@ -154,6 +154,32 @@ def get_message_thread_notifications(db: Session, user_id: int) -> List[dict]:
                     **parse_booking_details(details_msg.content),
                 }
 
+    # Batch fetch the earliest booking-details system message for all threads
+    if threads:
+        request_ids = list(threads.keys())
+        details = (
+            db.query(models.Message)
+            .filter(
+                models.Message.booking_request_id.in_(request_ids),
+                models.Message.message_type == models.MessageType.SYSTEM,
+                models.Message.content.startswith(BOOKING_DETAILS_PREFIX),
+            )
+            .order_by(
+                models.Message.booking_request_id.asc(),
+                models.Message.timestamp.asc(),
+            )
+            .all()
+        )
+        seen: set[int] = set()
+        for m in details:
+            rid = m.booking_request_id
+            if rid in threads and rid not in seen:
+                threads[rid]["booking_details"] = {
+                    "timestamp": m.timestamp,
+                    **parse_booking_details(m.content),
+                }
+                seen.add(rid)
+
     return sorted(threads.values(), key=lambda t: t["timestamp"], reverse=True)
 
 

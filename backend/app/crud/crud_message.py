@@ -2,6 +2,7 @@ from typing import List
 from datetime import datetime
 
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 
 from .. import models, schemas
 
@@ -17,8 +18,29 @@ def create_message(
     quote_id: int | None = None,
     attachment_url: str | None = None,
     action: models.MessageAction | None = None,
+    system_key: str | None = None,
     expires_at: datetime | None = None,
 ) -> models.Message:
+    """Create a message; for SYSTEM messages with ``system_key`` perform UPSERT.
+
+    If a system message with the same ``(booking_request_id, system_key)``
+    already exists, return the existing row to avoid duplicates. We keep the
+    earliest message stable (so summaries remain consistent) and do not update
+    content on subsequent calls.
+    """
+    if message_type == models.MessageType.SYSTEM and system_key:
+        existing = (
+            db.query(models.Message)
+            .filter(
+                models.Message.booking_request_id == booking_request_id,
+                models.Message.system_key == system_key,
+            )
+            .order_by(models.Message.timestamp.asc())
+            .first()
+        )
+        if existing:
+            return existing
+
     db_msg = models.Message(
         booking_request_id=booking_request_id,
         sender_id=sender_id,
@@ -29,6 +51,7 @@ def create_message(
         quote_id=quote_id,
         attachment_url=attachment_url,
         action=action,
+        system_key=system_key,
         expires_at=expires_at,
     )
     db.add(db_msg)
@@ -50,6 +73,8 @@ def get_messages_for_request(
             joinedload(models.Message.sender).joinedload(models.User.artist_profile)
         )
         .filter(models.Message.booking_request_id == booking_request_id)
+        .filter(models.Message.content.isnot(None))
+        .filter(func.length(func.trim(models.Message.content)) > 0)
     )
     if viewer:
         query = query.filter(

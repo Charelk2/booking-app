@@ -18,6 +18,7 @@ from ..utils.notifications import (
     notify_booking_status_update,
     notify_user_new_message,
 )
+from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
 from ..utils import error_response, background_worker
 from ..utils.redis_cache import invalidate_availability_cache
 import os
@@ -156,12 +157,41 @@ def create_booking_request(
     new_request = crud.crud_booking_request.create_booking_request(
         db=db, booking_request=request_in, client_id=current_user.id
     )
+    db.commit()
+    db.refresh(new_request)
     # Store the initial notes on the booking request but avoid posting them as
     # a separate chat message. The details system message posted later contains
     # these notes, so creating a text message here would duplicate the content.
     # The chat thread used to include a generic "Booking request sent" system
     # message immediately after creation. This extra message cluttered the
     # conversation view, so it has been removed.
+    crud.crud_message.create_message(
+        db=db,
+        booking_request_id=new_request.id,
+        sender_id=current_user.id,
+        sender_type=models.SenderType.CLIENT,
+        content="You have a new booking request.",
+        message_type=models.MessageType.SYSTEM,
+        visible_to=models.VisibleTo.ARTIST,
+    )
+    # Optional: also emit a NEW_MESSAGE notification so thread unread counts
+    # increment for service providers who rely on message threads as the sole
+    # source of truth (and may not surface the general notifications bell).
+    # Disabled by default to preserve existing behavior and tests; enable by
+    # setting EMIT_NEW_MESSAGE_FOR_NEW_REQUEST=1 in the environment.
+    try:
+        if os.getenv("EMIT_NEW_MESSAGE_FOR_NEW_REQUEST") == "1":
+            notify_user_new_message(
+                db,
+                user=artist_user,
+                sender=current_user,
+                booking_request_id=new_request.id,
+                content="You have a new booking request.",
+                message_type=models.MessageType.SYSTEM,
+            )
+    except Exception:
+        # Non-fatal; do not block request creation if notification fails
+        pass
     service = None
     if new_request.service_id:
         service = (
@@ -175,28 +205,8 @@ def create_booking_request(
         notify_user_new_booking_request(
             db, artist_user, new_request.id, sender_name, booking_type
         )
-    # Create a system message in the chat thread so the artist sees a clear
-    # prompt to review the request and prepare a quote. This keeps the chat
-    # history in sync with booking status changes.
-    date_str = (
-        request_in.proposed_datetime_1.strftime("%Y-%m-%d")
-        if request_in.proposed_datetime_1
-        else "unspecified date"
-    )
-    content = (
-        f"New booking request from {sender_name} for a {booking_type} on {date_str}. "
-        "Review details and send a formal quote."
-    )
-    crud.crud_message.create_message(
-        db=db,
-        booking_request_id=new_request.id,
-        sender_id=artist_user.id,
-        sender_type=models.SenderType.ARTIST,
-        content=content,
-        message_type=models.MessageType.SYSTEM,
-        visible_to=models.VisibleTo.ARTIST,
-        action=models.MessageAction.REVIEW_QUOTE,
-    )
+    # Do not auto-post a chat system message on create; the notification above
+    # is sufficient and avoids clutter/empty messages in the thread.
     invalidate_availability_cache(new_request.artist_id)
     return new_request
 
@@ -315,7 +325,27 @@ def read_booking_request(
         setattr(db_request, "accepted_quote_id", accepted.id)
     last_msg = crud.crud_message.get_last_message_for_request(db, db_request.id)
     if last_msg:
-        setattr(db_request, "last_message_content", last_msg.content)
+        # Derive display name to feed the preview helper for QUOTE messages
+        sender_display = None
+        if last_msg.sender_id == db_request.artist_id and db_request.artist:
+            if db_request.artist.artist_profile and db_request.artist.artist_profile.business_name:
+                sender_display = db_request.artist.artist_profile.business_name
+            else:
+                sender_display = f"{db_request.artist.first_name} {db_request.artist.last_name}"
+        elif last_msg.sender_id == db_request.client_id and db_request.client:
+            sender_display = f"{db_request.client.first_name} {db_request.client.last_name}"
+        # Map booking status to thread state
+        state = "requested"
+        if db_request.status in [models.BookingStatus.QUOTE_PROVIDED]:
+            state = "quoted"
+        elif db_request.status in [models.BookingStatus.CONFIRMED, models.BookingStatus.REQUEST_CONFIRMED]:
+            state = "confirmed"
+        elif db_request.status in [models.BookingStatus.COMPLETED, models.BookingStatus.REQUEST_COMPLETED]:
+            state = "completed"
+        elif db_request.status in [models.BookingStatus.CANCELLED, models.BookingStatus.REQUEST_DECLINED, models.BookingStatus.REQUEST_WITHDRAWN, models.BookingStatus.QUOTE_REJECTED]:
+            state = "cancelled"
+        content = preview_label_for_message(last_msg, thread_state=state, sender_display=sender_display)
+        setattr(db_request, "last_message_content", content)
         setattr(db_request, "last_message_timestamp", last_msg.timestamp)
     return db_request
 
@@ -429,6 +459,8 @@ def update_booking_request_by_client(
     updated = crud.crud_booking_request.update_booking_request(
         db=db, db_booking_request=db_request, request_update=request_update
     )
+    db.commit()
+    db.refresh(updated)
     invalidate_availability_cache(db_request.artist_id)
 
     if request_update.status and request_update.status != prev_status:
@@ -527,6 +559,8 @@ def update_booking_request_by_artist(
     updated = crud.crud_booking_request.update_booking_request(
         db=db, db_booking_request=db_request, request_update=request_update
     )
+    db.commit()
+    db.refresh(updated)
     invalidate_availability_cache(db_request.artist_id)
 
     if request_update.status and request_update.status != prev_status:

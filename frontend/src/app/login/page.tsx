@@ -37,7 +37,8 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      router.replace(next || '/dashboard');
+      const target = next || (user.user_type === 'service_provider' ? '/dashboard' : '/');
+      router.replace(target);
     }
   }, [user, next, router]);
 
@@ -56,7 +57,7 @@ export default function LoginPage() {
         setRememberState(data.remember);
         return;
       }
-      router.push(next || '/dashboard');
+      // Defer redirect to useEffect so we can route by role
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -71,7 +72,7 @@ export default function LoginPage() {
     try {
       setError('');
       await verifyMfa(mfaToken, code, rememberState);
-      router.push(next || '/dashboard');
+      // Defer redirect to useEffect to route by role
     } catch (err) {
       setError('Invalid verification code');
     }

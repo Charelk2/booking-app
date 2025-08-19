@@ -150,6 +150,76 @@ def ensure_message_type_column(engine: Engine) -> None:
     )
 
 
+def normalize_message_type_values(engine: Engine) -> None:
+    """Normalize legacy/lowercase message_type values to uppercase enums.
+
+    Ensures values like 'text', 'user', 'quote', 'system' are converted to
+    'USER', 'QUOTE', or 'SYSTEM'. 'TEXT' is normalized to 'USER' to match
+    current semantics.
+    """
+    inspector = inspect(engine)
+    if "messages" not in inspector.get_table_names():
+        return
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("UPDATE messages SET message_type='USER' WHERE lower(message_type)='text'"))
+            conn.execute(text("UPDATE messages SET message_type=upper(message_type)"))
+            conn.commit()
+        except Exception:
+            # Best-effort; don't block app startup if normalization fails
+            conn.rollback()
+
+
+def ensure_message_core_columns(engine: Engine) -> None:
+    """Ensure core columns on messages required by the chat API exist.
+
+    This covers deployments that started with a minimal messages table created
+    by earlier safe migrations. The chat endpoints require these fields:
+    - booking_request_id INTEGER
+    - sender_id INTEGER
+    - sender_type VARCHAR (client|artist)
+    - content TEXT
+    - timestamp DATETIME
+    - quote_id INTEGER (optional, for quote messages)
+    """
+    add_column_if_missing(
+        engine,
+        "messages",
+        "booking_request_id",
+        "booking_request_id INTEGER",
+    )
+    add_column_if_missing(
+        engine,
+        "messages",
+        "sender_id",
+        "sender_id INTEGER",
+    )
+    add_column_if_missing(
+        engine,
+        "messages",
+        "sender_type",
+        "sender_type VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "messages",
+        "content",
+        "content TEXT NOT NULL DEFAULT ''",
+    )
+    add_column_if_missing(
+        engine,
+        "messages",
+        "timestamp",
+        "timestamp DATETIME",
+    )
+    add_column_if_missing(
+        engine,
+        "messages",
+        "quote_id",
+        "quote_id INTEGER",
+    )
+
+
 def ensure_attachment_url_column(engine: Engine) -> None:
     """Add the ``attachment_url`` column if it's missing."""
 
@@ -205,6 +275,51 @@ def ensure_message_expires_at_column(engine: Engine) -> None:
     )
 
 
+def ensure_message_system_key_column(engine: Engine) -> None:
+    """Add the ``system_key`` column to ``messages`` if missing.
+
+    Used to dedupe system messages by a deterministic key (e.g., booking-details).
+    """
+    add_column_if_missing(
+        engine,
+        "messages",
+        "system_key",
+        "system_key VARCHAR",
+    )
+
+
+def cleanup_blank_messages(engine: Engine) -> int:
+    """Delete legacy blank messages to keep threads clean.
+
+    Removes rows where content is NULL or only whitespace and there is no
+    attachment_url. This preserves attachment-only messages while removing
+    truly empty entries that rendered as blank bubbles in the UI.
+    Returns the number of rows deleted (best-effort; 0 if table missing).
+    """
+    inspector = inspect(engine)
+    if "messages" not in inspector.get_table_names():
+        return 0
+    with engine.connect() as conn:
+        try:
+            res = conn.execute(
+                text(
+                    """
+                    DELETE FROM messages
+                    WHERE (content IS NULL OR trim(content) = '')
+                      AND (attachment_url IS NULL OR trim(attachment_url) = '')
+                    """
+                )
+            )
+            conn.commit()
+            try:
+                return res.rowcount or 0
+            except Exception:
+                return 0
+        except Exception:
+            conn.rollback()
+            return 0
+
+
 def ensure_request_attachment_column(engine: Engine) -> None:
     """Add the ``attachment_url`` column to ``booking_requests`` if missing."""
 
@@ -239,36 +354,39 @@ def ensure_notification_link_column(engine: Engine) -> None:
 
 
 def ensure_custom_subtitle_column(engine: Engine) -> None:
-    """Add the ``custom_subtitle`` column to ``artist_profiles`` if it's missing."""
+    """Add the ``custom_subtitle`` column to service provider profiles if missing."""
 
-    add_column_if_missing(
-        engine,
-        "artist_profiles",
-        "custom_subtitle",
-        "custom_subtitle VARCHAR",
-    )
+    for table in ("service_provider_profiles", "artist_profiles"):
+        add_column_if_missing(
+            engine,
+            table,
+            "custom_subtitle",
+            "custom_subtitle VARCHAR",
+        )
 
 
 def ensure_price_visible_column(engine: Engine) -> None:
-    """Add the ``price_visible`` column to ``artist_profiles`` if it's missing."""
+    """Add the ``price_visible`` column to service provider profiles if missing."""
 
-    add_column_if_missing(
-        engine,
-        "artist_profiles",
-        "price_visible",
-        "price_visible BOOLEAN NOT NULL DEFAULT TRUE",
-    )
+    for table in ("service_provider_profiles", "artist_profiles"):
+        add_column_if_missing(
+            engine,
+            table,
+            "price_visible",
+            "price_visible BOOLEAN NOT NULL DEFAULT TRUE",
+        )
 
 
 def ensure_portfolio_image_urls_column(engine: Engine) -> None:
-    """Add the ``portfolio_image_urls`` column to ``artist_profiles`` if missing."""
+    """Add the ``portfolio_image_urls`` column to service provider profiles if missing."""
 
-    add_column_if_missing(
-        engine,
-        "artist_profiles",
-        "portfolio_image_urls",
-        "portfolio_image_urls JSON",
-    )
+    for table in ("service_provider_profiles", "artist_profiles"):
+        add_column_if_missing(
+            engine,
+            table,
+            "portfolio_image_urls",
+            "portfolio_image_urls JSON",
+        )
 
 
 def ensure_currency_column(engine: Engine) -> None:
@@ -414,6 +532,24 @@ def ensure_mfa_columns(engine: Engine) -> None:
     )
     add_column_if_missing(
         engine, "users", "mfa_recovery_tokens", "mfa_recovery_tokens TEXT"
+    )
+
+
+def ensure_refresh_token_columns(engine: Engine) -> None:
+    """Add refresh token storage columns to ``users`` if missing.
+
+    Columns:
+    - refresh_token_hash TEXT (stores SHA-256 of refresh token)
+    - refresh_token_expires_at DATETIME
+    """
+    add_column_if_missing(
+        engine, "users", "refresh_token_hash", "refresh_token_hash VARCHAR"
+    )
+    add_column_if_missing(
+        engine,
+        "users",
+        "refresh_token_expires_at",
+        "refresh_token_expires_at DATETIME",
     )
 
 

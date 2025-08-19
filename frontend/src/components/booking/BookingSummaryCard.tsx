@@ -3,20 +3,16 @@
 import React from 'react';
 import Image from 'next/image';
 import { format, isValid } from 'date-fns';
-import {
-  getFullImageUrl,
-  formatCurrency,
-  buildReceiptUrl,
-} from '@/lib/utils';
+import { getFullImageUrl, formatCurrency, buildReceiptUrl } from '@/lib/utils';
 import { Booking, QuoteV2 } from '@/types';
 import Button from '../ui/Button';
-import { t } from '@/lib/i18n';
 
 interface ParsedBookingDetails {
   eventType?: string;
   description?: string;
   date?: string;
-  location?: string;
+  location?: string; // may be "Name, Address" after selection
+  location_name?: string; // optional explicit venue name if available
   guests?: string;
   venueType?: string;
   soundNeeded?: string;
@@ -37,10 +33,7 @@ interface BookingSummaryCardProps {
   bookingDetails: Booking | null;
   quotes: Record<number, QuoteV2>;
   allowInstantBooking?: boolean;
-  openPaymentModal: (args: {
-    bookingRequestId: number;
-    amount: number;
-  }) => void;
+  openPaymentModal: (args: { bookingRequestId: number; amount: number }) => void;
   bookingRequestId: number;
   baseFee: number;
   travelFee: number;
@@ -72,7 +65,7 @@ export default function BookingSummaryCard({
   return (
     <>
       <div className="px-4 mt-3 flex items-center gap-3">
-        <div className="relative h-16 w-16 rounded-xl overflow-hidden flex-shrink-0">
+        <div className="relative h-16 w-16 rounded-xl overflow-hidden shrink-0">
           {imageUrl ? (
             <Image
               src={getFullImageUrl(imageUrl) as string}
@@ -82,20 +75,21 @@ export default function BookingSummaryCard({
               sizes="64px"
             />
           ) : (
-            <div
-              className="absolute inset-0 bg-gray-200"
-              aria-hidden="true"
-            />
+            <div className="absolute inset-0 bg-gray-200" aria-hidden="true" />
           )}
         </div>
         <div>
-          <div className="text-base font-semibold">{serviceName || 'Service'}</div>
+          <div className="text-base font-semibold">
+            {serviceName || 'Service'}
+          </div>
           <div className="text-sm text-gray-600">
             {artistName || 'Service Provider'}
           </div>
         </div>
       </div>
+
       <div className="my-4 mt-4 border-t border-gray-200" />
+
       <div className="px-4 pb-4 overflow-y-auto max-h-[60vh] text-sm leading-6">
         {/* Booking details list */}
         <ul className="divide-y divide-gray-100">
@@ -113,12 +107,31 @@ export default function BookingSummaryCard({
                 : parsedBookingDetails.date}
             </li>
           )}
-          {parsedBookingDetails?.location && (
-            <li className="py-2">
-              <span className="font-semibold">Location:</span>{' '}
-              {parsedBookingDetails.location}
-            </li>
-          )}
+          {(() => {
+            const locName = (parsedBookingDetails as any)?.location_name as string | undefined;
+            const raw = (parsedBookingDetails?.location || '').trim();
+            let name = (locName || '').trim();
+            let addr = '';
+            if (!name && raw) {
+              const parts = raw.split(',');
+              const first = (parts[0] || '').trim();
+              if (first && !/^\d/.test(first)) {
+                name = first;
+                addr = parts.slice(1).join(',').trim();
+              } else {
+                addr = raw;
+              }
+            } else if (name) {
+              addr = raw;
+            }
+            const label = name ? (addr ? `${name} — ${addr}` : name) : (addr || '');
+            return label ? (
+              <li className="py-2">
+                <span className="font-semibold">Location:</span>{' '}
+                {label}
+              </li>
+            ) : null;
+          })()}
           {parsedBookingDetails?.guests && (
             <li className="py-2">
               <span className="font-semibold">Guests:</span>{' '}
@@ -131,16 +144,16 @@ export default function BookingSummaryCard({
               {parsedBookingDetails.venueType}
             </li>
           )}
-          {parsedBookingDetails?.notes && (
-            <li className="py-2">
-              <span className="font-semibold">Notes:</span>{' '}
-              {parsedBookingDetails.notes}
-            </li>
-          )}
           {parsedBookingDetails?.soundNeeded && (
             <li className="py-2">
               <span className="font-semibold">Sound:</span>{' '}
               {parsedBookingDetails.soundNeeded}
+            </li>
+          )}
+          {parsedBookingDetails?.notes && (
+            <li className="py-2">
+              <span className="font-semibold">Notes:</span>{' '}
+              {parsedBookingDetails.notes}
             </li>
           )}
         </ul>
@@ -181,10 +194,9 @@ export default function BookingSummaryCard({
           const quoteList = Object.values(quotes || {});
           const accepted = quoteList.find((q) => q.status === 'accepted');
           const pending = quoteList.filter((q) => q.status === 'pending');
-          const latestPending = pending
-            .sort((a, b) => (a.id || 0) - (b.id || 0))
-            .slice(-1)[0];
+          const latestPending = pending.sort((a, b) => (a.id || 0) - (b.id || 0)).slice(-1)[0];
           const best = accepted || latestPending;
+
           if (best) {
             return (
               <div className="mt-4">
@@ -193,9 +205,7 @@ export default function BookingSummaryCard({
                   {best.services?.[0]?.description && (
                     <div className="flex justify-between text-gray-700">
                       <span>{best.services[0].description}</span>
-                      <span>
-                        {formatCurrency(Number(best.services[0].price || 0))}
-                      </span>
+                      <span>{formatCurrency(Number(best.services[0].price || 0))}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-gray-700">
@@ -215,9 +225,7 @@ export default function BookingSummaryCard({
                   {Number(best.discount || 0) > 0 && (
                     <div className="flex justify-between text-gray-700">
                       <span>Discount</span>
-                      <span>
-                        -{formatCurrency(Number(best.discount || 0))}
-                      </span>
+                      <span>-{formatCurrency(Number(best.discount || 0))}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
@@ -225,6 +233,7 @@ export default function BookingSummaryCard({
                     <span>{formatCurrency(Number(best.total || 0))}</span>
                   </div>
                 </div>
+
                 {allowInstantBooking && !accepted && (
                   <div className="mt-3 text-right">
                     <Button
@@ -244,6 +253,7 @@ export default function BookingSummaryCard({
               </div>
             );
           }
+
           return (
             <div className="mt-4">
               <div className="font-semibold mb-1">Estimated total</div>
@@ -258,22 +268,15 @@ export default function BookingSummaryCard({
                 </div>
                 <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
                   <span>Total estimate</span>
-                  <span>
-                    {formatCurrency(
-                      Number(baseFee || 0) + Number(travelFee || 0)
-                    )}
-                  </span>
+                  <span>{formatCurrency(Number(baseFee || 0) + Number(travelFee || 0))}</span>
                 </div>
                 {typeof initialSound !== 'undefined' && (
                   <div className="text-xs text-gray-500 mt-1">
-                    Sound equipment:{' '}
-                    {initialSound
-                      ? 'Yes'
-                      : 'No'}{' '}
-                    (if required, may be quoted separately)
+                    Sound equipment: {initialSound ? 'Yes' : 'No'} (if required, may be quoted separately)
                   </div>
                 )}
               </div>
+
               {allowInstantBooking && (
                 <div className="mt-3 text-right">
                   <Button
@@ -281,10 +284,11 @@ export default function BookingSummaryCard({
                     onClick={() =>
                       openPaymentModal({
                         bookingRequestId,
-                        amount: Number(
-                          instantBookingPrice ??
-                            Number(baseFee || 0) + Number(travelFee || 0)
-                        ),
+                        amount:
+                          Number(
+                            instantBookingPrice ??
+                              Number(baseFee || 0) + Number(travelFee || 0)
+                          ),
                       })
                     }
                     className="bg-gray-900 text-white hover:bg-black"
@@ -310,13 +314,13 @@ export default function BookingSummaryCard({
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
           <a
             href={currentArtistId ? `/service-providers/${currentArtistId}` : '#'}
-            className="block text-center bg-black text-white font-semibold rounded-lg border border-gray-200 px-3 py-2 hover:bg-black hover:text-white hover:no-underline font-medium"
+            className="block text-center bg-black text-white font-semibold rounded-lg border border-gray-200 px-3 py-2 hover:bg-black hover:text-white hover:no-underline"
           >
             View service
           </a>
           <a
             href="/support"
-            className="block text-center bg-black text-white font-semibold rounded-lg border border-gray-200 px-3 py-2 hover:bg-black hover:text-white hover:no-underline font-medium"
+            className="block text-center bg-black text-white font-semibold rounded-lg border border-gray-200 px-3 py-2 hover:bg-black hover:text-white hover:no-underline"
           >
             Get support
           </a>

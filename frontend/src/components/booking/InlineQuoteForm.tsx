@@ -150,6 +150,15 @@ const InlineQuoteForm: React.FC<Props> = ({
             <ul className="space-y-1">
               {eventDetails?.event && <li>Event: {eventDetails.event}</li>}
               {eventDetails?.date && <li>Date: {eventDetails.date}</li>}
+              {(eventDetails?.locationName || eventDetails?.locationAddress) && (
+                <li>
+                  Location: {eventDetails.locationName ? (
+                    eventDetails.locationAddress ? `${eventDetails.locationName} — ${eventDetails.locationAddress}` : eventDetails.locationName
+                  ) : (
+                    eventDetails.locationAddress
+                  )}
+                </li>
+              )}
               {eventDetails?.guests && <li>Guests: {eventDetails.guests}</li>}
               {eventDetails?.venue && <li>Venue: {eventDetails.venue}</li>}
               {eventDetails?.notes && <li>Notes: &quot;{eventDetails.notes}&quot;</li>}

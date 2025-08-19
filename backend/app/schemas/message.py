@@ -12,6 +12,8 @@ class MessageCreate(BaseModel):
     quote_id: int | None = None
     attachment_url: str | None = None
     action: MessageAction | None = None
+    # For SYSTEM messages only; allows UPSERT by unique key
+    system_key: str | None = None
     expires_at: Optional[datetime] = None
 
     @field_validator("message_type", mode="before")
@@ -45,6 +47,7 @@ class MessageResponse(BaseModel):
     is_read: bool = False
     timestamp: datetime
     avatar_url: str | None = None
+    system_key: str | None = None
     expires_at: Optional[datetime] = None
 
     @field_validator("message_type", mode="before")

@@ -9,11 +9,7 @@ export interface PaymentSuccess {
   paymentId?: string;
 }
 
-interface OpenArgs {
-  bookingRequestId: number;
-  depositAmount?: number;
-  depositDueBy?: string;
-}
+interface OpenArgs { bookingRequestId: number; amount: number }
 
 export default function usePaymentModal(
   onSuccess: (res: PaymentSuccess) => void,
@@ -31,8 +27,7 @@ export default function usePaymentModal(
     <PaymentModal
       open={open}
       bookingRequestId={args.bookingRequestId}
-      depositAmount={args.depositAmount}
-      depositDueBy={args.depositDueBy}
+      amount={args.amount}
       onClose={() => setOpen(false)}
       onSuccess={(result) => {
         setOpen(false);

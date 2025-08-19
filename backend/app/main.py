@@ -26,6 +26,7 @@ from .api import (
     api_invoice,
     api_message,
     api_notification,
+    api_threads,
     api_oauth,
     api_payment,
     api_quote,
@@ -64,11 +65,15 @@ from .db_utils import (
     ensure_display_order_column,
     ensure_legacy_artist_user_type,
     ensure_media_url_column,
+    ensure_message_core_columns,
     ensure_message_action_column,
     ensure_message_expires_at_column,
+    ensure_message_system_key_column,
     ensure_message_is_read_column,
     ensure_message_type_column,
+    normalize_message_type_values,
     ensure_mfa_columns,
+    ensure_refresh_token_columns,
     ensure_notification_link_column,
     ensure_portfolio_image_urls_column,
     ensure_price_visible_column,
@@ -111,11 +116,22 @@ register_status_listeners()
 
 # ─── Ensure database schema is up-to-date ──────────────────────────────────
 ensure_message_type_column(engine)
+normalize_message_type_values(engine)
+ensure_message_core_columns(engine)
 ensure_attachment_url_column(engine)
 ensure_message_is_read_column(engine)
 ensure_visible_to_column(engine)
 ensure_message_action_column(engine)
 ensure_message_expires_at_column(engine)
+ensure_message_system_key_column(engine)
+# One-time cleanup of legacy blank messages (safe/idempotent)
+try:
+    from .db_utils import cleanup_blank_messages
+    deleted = cleanup_blank_messages(engine)
+    if deleted:
+        logger.info("Removed %s legacy blank messages", deleted)
+except Exception as _exc:
+    logger.warning("Blank message cleanup skipped: %s", _exc)
 ensure_request_attachment_column(engine)
 ensure_service_type_column(engine)
 ensure_display_order_column(engine)
@@ -128,6 +144,7 @@ ensure_media_url_column(engine)
 ensure_service_travel_columns(engine)
 ensure_service_managed_markup_column(engine)
 ensure_mfa_columns(engine)
+ensure_refresh_token_columns(engine)
 ensure_booking_simple_columns(engine)
 ensure_calendar_account_email_column(engine)
 ensure_user_profile_picture_column(engine)
@@ -237,6 +254,12 @@ async def catch_exceptions(request: Request, call_next):
         response.headers["Access-Control-Allow-Origin"] = "*"
 
     return response
+
+
+@app.get("/healthz", tags=["health"])
+async def healthz():
+    """Lightweight unauthenticated health check for load balancers."""
+    return {"status": "ok", "time": datetime.utcnow().isoformat()}
 
 
 @app.exception_handler(RequestValidationError)
@@ -371,6 +394,13 @@ app.include_router(
     api_notification.router,
     prefix=f"{api_prefix}",
     tags=["notifications"],
+)
+
+# ─── THREADS PREVIEW ROUTES (under /api/v1) ──────────────────────────────────
+app.include_router(
+    api_threads.router,
+    prefix=f"{api_prefix}",
+    tags=["threads"],
 )
 
 # ─── CALENDAR ROUTES (under /api/v1/google-calendar) ─────────────────────────

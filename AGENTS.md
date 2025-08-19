@@ -26,6 +26,7 @@ For setup instructions see [README.md](README.md).
 | **Form State** | Maintains booking progress across steps | `frontend/src/components/booking/BookingWizard.tsx`<br>`frontend/src/contexts/BookingContext.tsx` | Throughout the user session |
 | **Validation** | Validates user input and business logic | `frontend/src/components/booking/BookingWizard.tsx`<br>`backend/app/schemas/` | At every form step and backend endpoint |
 | **Calendar Sync** | Imports Google Calendar events and merges them into `read_artist_availability` | `backend/app/api/api_calendar.py`<br>`backend/app/services/calendar_service.py`<br>`frontend/src/app/dashboard/profile/edit/page.tsx` | When artists connect or disconnect Google Calendar |
+| **Inbox Guide** | Normalizes system messages for thread previews, emits thread notifications on new requests (flagged), and guides users via lightweight CTAs in the chat | `backend/app/crud/crud_booking_request.py`<br>`backend/app/api/api_booking_request.py`<br>`backend/app/utils/messages.py`<br>`backend/app/utils/notifications.py`<br>`frontend/src/components/booking/MessageThread.tsx` | On booking creation and key booking/chat events |
 
 ---
 
@@ -124,6 +125,21 @@ For setup instructions see [README.md](README.md).
 * **Purpose:** Parses natural language descriptions to pre-fill booking details like event type, date, location, and guest count.
 * **Frontend:** A text/voice input in `BookingWizard.tsx` sends the prompt and lets users apply or edit the AI-suggested values.
 * **Backend:** `nlp_booking.py` performs lightweight extraction and `/api/v1/booking-requests/parse` exposes the service.
+
+### 16. Inbox Guide Agent
+
+* **Purpose:** Make the inbox the source of truth by harmonizing “system messages” with thread previews and nudging users with concise, contextual guidance.
+* **Key behaviors:**
+  - Replace verbose booking-detail summaries in conversation previews with the label “New Booking Request”.
+  - Optionally emit a `new_message` notification whenever a booking is created so unread thread counts increment immediately (flag: `EMIT_NEW_MESSAGE_FOR_NEW_REQUEST=1`).
+  - Keep system messages deduped with `system_key` (e.g., `booking_details_v1`).
+  - Avoid noisy notifications for automated prompts (booking details, personalized video Q&A), while still rendering the messages inline.
+* **Frontend:** `MessageThread.tsx` renders system messages as centered gray lines; suppresses details summaries from the visible stream but parses them for the details card.
+* **Backend:**
+  - `crud_booking_request.get_booking_requests_with_last_message()` rewrites `last_message_content` to “New Booking Request” when the latest message is a details summary.
+  - `api_booking_request.create_booking_request()` creates the initial system line to the artist and, when flagged, also emits a `new_message` notification so thread unread counts update.
+  - `utils/messages.py` owns the `BOOKING_DETAILS_PREFIX` and parsing helpers.
+* **Outcome:** Thread list stays clean and actionable, and users are guided inside the chat without over-notifying.
 
 
 
