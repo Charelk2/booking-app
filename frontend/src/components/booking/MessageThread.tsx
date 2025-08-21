@@ -1807,11 +1807,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                               msg.reply_to_message_id &&
                               scrollToMessage(msg.reply_to_message_id)
                             }
-                            className="mb-1 block w-full rounded-md bg-gray-100 text-left text-[12px] text-gray-700 px-2 py-1 cursor-pointer"
+                            className="mb-1 w-full rounded bg-gray-200 text-left text-[12px] text-gray-700 px-2 py-1 border-l-2  border-gray-800 cursor-pointer "
                             title="View replied message"
                           >
                             <span className="line-clamp-2 break-words">
-                              {msg.reply_to_preview.replace(/^\s*↩[︎\uFE0F]?\s*/, '')}
+                              {msg.reply_to_preview}
                             </span>
                           </button>
                         )}
