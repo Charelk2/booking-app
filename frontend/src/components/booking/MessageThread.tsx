@@ -1249,18 +1249,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           attachment_url = res.data.url;
         }
 
-        const replyPrefix = replyTarget ? `${replyTarget.content.slice(0, 120)}\n` : '';
         // If sending an attachment without text, provide a minimal placeholder that the UI may hide
-        let baseContent = newMessageContent.trim();
-        if (!baseContent && attachment_url) {
+        let baseContent = newMessageContent;
+        if (!baseContent.trim() && attachment_url) {
           const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(attachmentFile?.name || attachment_url);
           baseContent = isAudio ? '[Voice note]' : '[Attachment]';
         }
         const payload: MessageCreate = {
-          content: `${replyPrefix}${baseContent}`,
+          content: baseContent,
           attachment_url,
-        } as any;
-        if (replyTarget?.id) (payload as any).reply_to_message_id = replyTarget.id;
+        };
+        if (replyTarget?.id) payload.reply_to_message_id = replyTarget.id;
 
         // Optimistic
         const optimistic: ThreadMessage = {
@@ -1268,7 +1267,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           booking_request_id: bookingRequestId,
           sender_id: user?.id || 0,
           sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
-          content: payload.content,
+          content: baseContent,
           message_type: 'USER',
           quote_id: null,
           attachment_url: attachment_url ?? null,
@@ -1280,6 +1279,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           is_read: true,
           timestamp: gmt2ISOString(),
           status: navigator.onLine ? 'sending' : 'queued',
+          reply_to_message_id: replyTarget?.id ?? null,
+          reply_to_preview: replyTarget ? replyTarget.content.slice(0, 120) : null,
         };
         setMessages((prev) => mergeMessages(prev, optimistic));
 
@@ -1638,7 +1639,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     );
                   }
 
-                  const bubbleBase = isMsgFromSelf ? 'bg-blue-50 text-gray-900' : 'bg-gray-50 text-gray-900';
+                  const bubbleBase = isMsgFromSelf
+                    ? 'bg-blue-50 text-gray-900 whitespace-pre-wrap break-words'
+                    : 'bg-gray-50 text-gray-900 whitespace-pre-wrap break-words';
                   const bubbleClasses = `${bubbleBase} ${bubbleShape}`;
                   const messageTime = format(new Date(msg.timestamp), 'HH:mm');
 

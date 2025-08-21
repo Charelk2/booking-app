@@ -379,6 +379,10 @@ export interface Message {
 
   /** Client-side status for optimistic UI (include 'queued' for offline-first) */
   status?: 'queued' | 'sending' | 'sent' | 'failed';
+
+  /** Reply metadata */
+  reply_to_message_id?: number | null;
+  reply_to_preview?: string | null;
 }
 
 export interface MessageCreate {
@@ -393,6 +397,9 @@ export interface MessageCreate {
 
   action?: string;
   expires_at?: string;
+
+  /** Optional reply target */
+  reply_to_message_id?: number;
 }
 
 export interface TravelEstimate {
