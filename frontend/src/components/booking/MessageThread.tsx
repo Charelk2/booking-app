@@ -1800,12 +1800,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         {msg.reply_to_preview && (
                           <button
                             type="button"
-                            onClick={() => msg.reply_to_message_id && scrollToMessage(msg.reply_to_message_id)}
-                            className={`mb-1 w-full block rounded-md bg-gray-50 text-left text-[12px] text-gray-700 px-2 py-1 border cursor-pointer hover:bg-gray-100 ${isMsgFromSelf ? 'border-r-2 border-indigo-200' : 'border-l-2 border-indigo-200'}`}
+                            onClick={() =>
+                              msg.reply_to_message_id &&
+                              scrollToMessage(msg.reply_to_message_id)
+                            }
+                            className="mb-1 block w-full rounded-md bg-gray-100 text-left text-[12px] text-gray-700 px-2 py-1 cursor-pointer"
                             title="View replied message"
                           >
                             <span className="line-clamp-2 break-words">
-                              {msg.reply_to_preview}
+                              {msg.reply_to_preview.replace(/^\s*↩[︎\uFE0F]?\s*/, '')}
                             </span>
                           </button>
                         )}
