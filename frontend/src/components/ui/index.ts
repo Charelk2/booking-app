@@ -24,3 +24,4 @@ export { default as LocationMapModal } from './LocationMapModal';
 export { default as ProgressBar } from './ProgressBar';
 export { default as DateInput } from './DateInput';
 export { default as TravelSummaryCard } from '../booking/TravelSummaryCard';
+export { default as ImagePreviewModal } from './ImagePreviewModal';
