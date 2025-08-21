@@ -69,6 +69,8 @@ from .db_utils import (
     ensure_message_action_column,
     ensure_message_expires_at_column,
     ensure_message_system_key_column,
+    ensure_message_reply_to_column,
+    ensure_message_reactions_table,
     ensure_message_is_read_column,
     ensure_message_type_column,
     normalize_message_type_values,
@@ -124,6 +126,8 @@ ensure_visible_to_column(engine)
 ensure_message_action_column(engine)
 ensure_message_expires_at_column(engine)
 ensure_message_system_key_column(engine)
+ensure_message_reply_to_column(engine)
+ensure_message_reactions_table(engine)
 # One-time cleanup of legacy blank messages (safe/idempotent)
 try:
     from .db_utils import cleanup_blank_messages

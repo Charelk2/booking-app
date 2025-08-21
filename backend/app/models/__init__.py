@@ -10,6 +10,7 @@ from .quote_template import QuoteTemplate
 from .booking_simple import BookingSimple
 from .service_category import ServiceCategory
 from .message import Message, SenderType, MessageType, VisibleTo, MessageAction
+from .message_reaction import MessageReaction
 from .notification import Notification, NotificationType
 from .calendar_account import CalendarAccount, CalendarProvider
 from .email_token import EmailToken
@@ -32,6 +33,7 @@ __all__ = [
     "QuoteTemplate",
     "BookingSimple",
     "Message",
+    "MessageReaction",
     "ServiceCategory",
     "UserType",
     "BookingStatus",

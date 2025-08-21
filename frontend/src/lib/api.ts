@@ -463,6 +463,18 @@ export const uploadMessageAttachment = (
   );
 };
 
+export const addMessageReaction = (
+  bookingRequestId: number,
+  messageId: number,
+  emoji: string,
+) => api.post(`${API_V1}/booking-requests/${bookingRequestId}/messages/${messageId}/reactions`, { emoji });
+
+export const removeMessageReaction = (
+  bookingRequestId: number,
+  messageId: number,
+  emoji: string,
+) => api.delete(`${API_V1}/booking-requests/${bookingRequestId}/messages/${messageId}/reactions`, { data: { emoji } });
+
 export const uploadBookingAttachment = (
   formData: FormData,
   onUploadProgress?: (event: AxiosProgressEvent) => void,

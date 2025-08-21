@@ -16,8 +16,9 @@ import dynamic from 'next/dynamic';
 import { createPortal } from 'react-dom';
 import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
 import data from '@emoji-mart/data';
-import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, TrashIcon, ReplyIcon, HandThumbUpIcon, MicrophoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { MicrophoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 import {
   getFullImageUrl,
@@ -52,6 +53,7 @@ import {
     markThreadRead,
     updateBookingRequestArtist,
     useAuth,
+    deleteMessageForBookingRequest,
   } from '@/lib/api';
 
 import useOfflineQueue from '@/hooks/useOfflineQueue';
@@ -60,6 +62,7 @@ import useWebSocket from '@/hooks/useWebSocket';
 import useBookingView from '@/hooks/useBookingView';
 
 import Button from '../ui/Button';
+import { addMessageReaction, removeMessageReaction } from '@/lib/api';
 import QuoteBubble from './QuoteBubble';
 import InlineQuoteForm from './InlineQuoteForm';
 import BookingSummaryCard from './BookingSummaryCard';
@@ -120,6 +123,13 @@ type ThreadMessage = {
   unread?: boolean;
   timestamp: string;
   status?: MessageStatus;
+  // Optional reaction fields coming from the API; we also keep a separate
+  // reactions state map for live updates & aggregates
+  reactions?: Record<string, number> | null;
+  my_reactions?: string[] | null;
+  // Reply metadata (if this message is a reply to another)
+  reply_to_message_id?: number | null;
+  reply_to_preview?: string | null;
 };
 
 // Normalize mixed legacy/new fields into ThreadMessage
@@ -153,6 +163,10 @@ function normalizeMessage(raw: any): ThreadMessage {
     is_read: Boolean(raw.is_read),
     timestamp: raw.timestamp ?? new Date().toISOString(),
     status: raw.status as MessageStatus | undefined,
+    reactions: (raw as any).reactions || null,
+    my_reactions: (raw as any).my_reactions || null,
+    reply_to_message_id: (raw as any).reply_to_message_id ?? null,
+    reply_to_preview: (raw as any).reply_to_preview ?? null,
   };
 }
 
@@ -325,6 +339,54 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
   const [reactions, setReactions] = useState<Record<number, Record<string, number>>>({});
   const [myReactions, setMyReactions] = useState<Record<number, Set<string>>>({});
+  const myReactionsRef = useRef<Record<number, Set<string>>>({});
+  useEffect(() => { myReactionsRef.current = myReactions; }, [myReactions]);
+  const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
+  const [actionMenuFor, setActionMenuFor] = useState<number | null>(null);
+  const reactionPickerRef = useRef<HTMLDivElement | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const [copiedFor, setCopiedFor] = useState<number | null>(null);
+  const [highlightFor, setHighlightFor] = useState<number | null>(null);
+
+  // Smooth-scroll to a message by id and briefly highlight it
+  const scrollToMessage = useCallback((mid: number) => {
+    const el = typeof document !== 'undefined' ? document.getElementById(`msg-${mid}`) : null;
+    if (!el) return;
+    try {
+      (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch {
+      (el as HTMLElement).scrollIntoView({ behavior: 'smooth' });
+    }
+    setHighlightFor(mid);
+    setTimeout(() => {
+      setHighlightFor((v) => (v === mid ? null : v));
+    }, 1500);
+  }, []);
+
+  // Close pickers/menus when clicking outside
+  useEffect(() => {
+    const onDocMouseDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (reactionPickerFor && reactionPickerRef.current && !reactionPickerRef.current.contains(t)) {
+        setReactionPickerFor(null);
+      }
+      if (actionMenuFor && actionMenuRef.current && !actionMenuRef.current.contains(t)) {
+        setActionMenuFor(null);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (reactionPickerFor) setReactionPickerFor(null);
+        if (actionMenuFor) setActionMenuFor(null);
+      }
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [reactionPickerFor, actionMenuFor]);
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -633,6 +695,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
 
       setMessages((prev) => mergeMessages(prev.length ? prev : [], normalized));
+      // hydrate reactions and my reactions from response if present
+      try {
+        const newReactions: Record<number, Record<string, number>> = {};
+        const newMine: Record<number, Set<string>> = {};
+        (normalized as any[]).forEach((m: any) => {
+          if (m.reactions) newReactions[m.id] = m.reactions;
+          if (m.my_reactions) newMine[m.id] = new Set<string>(m.my_reactions);
+        });
+        if (Object.keys(newReactions).length) setReactions((prev) => ({ ...prev, ...newReactions }));
+        if (Object.keys(newMine).length) setMyReactions((prev) => ({ ...prev, ...newMine }));
+      } catch {}
       setThreadError(null);
     } catch (err) {
       console.error('Failed to fetch messages:', err);
@@ -764,6 +837,48 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
         // Event prep updates are handled by the EventPrepCard subscriber
         if (payload?.type === 'event_prep_updated') {
+          return;
+        }
+
+        // Live reaction updates
+        if (payload?.type === 'reaction_added' && payload?.payload) {
+          const { message_id, emoji, user_id } = payload.payload as { message_id: number; emoji: string; user_id: number };
+          if (user_id === user?.id) {
+            const mine = myReactionsRef.current[message_id];
+            if (mine && mine.has(emoji)) return; // already applied optimistically
+          }
+          setReactions((prev) => {
+            const cur = { ...(prev[message_id] || {}) } as Record<string, number>;
+            cur[emoji] = (cur[emoji] || 0) + 1;
+            return { ...prev, [message_id]: cur };
+          });
+          if (user_id === user?.id) {
+            setMyReactions((m) => {
+              const set = new Set(m[message_id] || []);
+              set.add(emoji);
+              return { ...m, [message_id]: set };
+            });
+          }
+          return;
+        }
+        if (payload?.type === 'reaction_removed' && payload?.payload) {
+          const { message_id, emoji, user_id } = payload.payload as { message_id: number; emoji: string; user_id: number };
+          if (user_id === user?.id) {
+            const mine = myReactionsRef.current[message_id];
+            if (!mine || !mine.has(emoji)) return; // already applied optimistically
+          }
+          setReactions((prev) => {
+            const cur = { ...(prev[message_id] || {}) } as Record<string, number>;
+            cur[emoji] = Math.max(0, (cur[emoji] || 0) - 1);
+            return { ...prev, [message_id]: cur };
+          });
+          if (user_id === user?.id) {
+            setMyReactions((m) => {
+              const set = new Set(m[message_id] || []);
+              set.delete(emoji);
+              return { ...m, [message_id]: set };
+            });
+          }
           return;
         }
 
@@ -1054,31 +1169,45 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     );
   }, [bookingDetails, paymentInfo, quotes, isClientViewFlag, isPaidFlag, isPaymentOpen, openPaymentModal, bookingRequestId, onShowReviewModal, parsedBookingDetails]);
 
-  // ---- Reactions helpers (ephemeral)
-  const toggleReaction = useCallback((msgId: number, emoji: string) => {
+  // ---- Reactions helpers (persisted)
+  const toggleReaction = useCallback(async (msgId: number, emoji: string) => {
+    const mine = myReactions[msgId] || new Set<string>();
+    const has = mine.has(emoji);
+    // optimistic
     setReactions((prev) => {
       const cur = { ...(prev[msgId] || {}) } as Record<string, number>;
-      const mine = (myReactions[msgId] || new Set<string>());
-      const has = mine.has(emoji);
-      if (has) {
-        cur[emoji] = Math.max(0, (cur[emoji] || 1) - 1);
-        const copy = new Set(mine); copy.delete(emoji);
-        setMyReactions((m) => ({ ...m, [msgId]: copy }));
-      } else {
-        cur[emoji] = (cur[emoji] || 0) + 1;
-        const copy = new Set(mine); copy.add(emoji);
-        setMyReactions((m) => ({ ...m, [msgId]: copy }));
-      }
+      cur[emoji] = Math.max(0, (cur[emoji] || 0) + (has ? -1 : 1));
       return { ...prev, [msgId]: cur };
     });
-  }, [myReactions]);
+    setMyReactions((m) => {
+      const copy = new Set(m[msgId] || []) as Set<string>;
+      if (has) copy.delete(emoji); else copy.add(emoji);
+      return { ...m, [msgId]: copy };
+    });
+    try {
+      if (has) await removeMessageReaction(bookingRequestId, msgId, emoji);
+      else await addMessageReaction(bookingRequestId, msgId, emoji);
+    } catch (e) {
+      // revert
+      setReactions((prev) => {
+        const cur = { ...(prev[msgId] || {}) } as Record<string, number>;
+        cur[emoji] = Math.max(0, (cur[emoji] || 0) + (has ? 1 : -1));
+        return { ...prev, [msgId]: cur };
+      });
+      setMyReactions((m) => {
+        const copy = new Set(m[msgId] || []) as Set<string>;
+        if (has) copy.add(emoji); else copy.delete(emoji);
+        return { ...m, [msgId]: copy };
+      });
+    }
+  }, [bookingRequestId, myReactions]);
 
   const ReactionBar: React.FC<{ id: number }> = ({ id }) => {
     const opts = ['👍','❤️','😂','🎉','👏','🔥'];
     return (
-      <div className="mt-1 flex gap-1">
+      <div className="mt-1 inline-flex gap-1 rounded-full bg-white/90 border border-gray-200 px-1 py-0.5 shadow">
         {opts.map((e) => (
-          <button key={e} type="button" onClick={() => toggleReaction(id, e)} className="text-xs rounded-full bg-gray-100 hover:bg-gray-200 px-2 py-0.5">
+          <button key={e} type="button" onClick={() => { toggleReaction(id, e); setReactionPickerFor(null); }} className="text-xs rounded-full hover:bg-gray-100 px-2 py-0.5">
             {e}
           </button>
         ))}
@@ -1120,11 +1249,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           attachment_url = res.data.url;
         }
 
-        const replyPrefix = replyTarget ? `↩︎ ${replyTarget.content.slice(0, 120)}\n` : '';
+        const replyPrefix = replyTarget ? `${replyTarget.content.slice(0, 120)}\n` : '';
+        // If sending an attachment without text, provide a minimal placeholder that the UI may hide
+        let baseContent = newMessageContent.trim();
+        if (!baseContent && attachment_url) {
+          const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(attachmentFile?.name || attachment_url);
+          baseContent = isAudio ? '[Voice note]' : '[Attachment]';
+        }
         const payload: MessageCreate = {
-          content: `${replyPrefix}${newMessageContent.trim()}`,
+          content: `${replyPrefix}${baseContent}`,
           attachment_url,
         } as any;
+        if (replyTarget?.id) (payload as any).reply_to_message_id = replyTarget.id;
 
         // Optimistic
         const optimistic: ThreadMessage = {
@@ -1656,37 +1792,54 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   return (
                     <div
                       key={msg.id}
-                      className={`relative inline-block w-auto max-w-[75%] px-3 py-2 text-[13px] leading-snug ${bubbleClasses} ${msgIdx < group.messages.length - 1 ? 'mb-0.5' : ''} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'}`}
+                      id={`msg-${msg.id}`}
+                      className={`group relative inline-block w-auto max-w-[75%] px-3 py-2 text-[13px] leading-snug ${bubbleClasses} ${msgIdx < group.messages.length - 1 ? 'mb-0.5' : ''} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'} ${highlightFor === msg.id ? 'ring-1 ring-indigo-200' : ''}`}
                       ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                     >
                       <div className="pr-9">
+                        {msg.reply_to_preview && (
+                          <button
+                            type="button"
+                            onClick={() => msg.reply_to_message_id && scrollToMessage(msg.reply_to_message_id)}
+                            className={`mb-1 w-full block rounded-md bg-gray-50 text-left text-[12px] text-gray-700 px-2 py-1 border cursor-pointer hover:bg-gray-100 ${isMsgFromSelf ? 'border-r-2 border-indigo-200' : 'border-l-2 border-indigo-200'}`}
+                            title="View replied message"
+                          >
+                            <span className="line-clamp-2 break-words">
+                              {msg.reply_to_preview}
+                            </span>
+                          </button>
+                        )}
                         {!isMsgFromSelf && !msg.is_read && (
                           <span className="" aria-label="Unread message" />
                         )}
 
                         {
                           <>
-                            {msg.content}
+                            {(() => {
+                              // Suppress the placeholder label for voice notes
+                              const url = msg.attachment_url ? (getFullImageUrl(msg.attachment_url) as string) : '';
+                              const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
+                              const isVoicePlaceholder = typeof msg.content === 'string' && msg.content.trim().toLowerCase() === '[voice note]';
+                              return isAudio && isVoicePlaceholder ? null : msg.content;
+                            })()}
                             {msg.attachment_url && (
-                              isImageAttachment(msg.attachment_url) ? (
-                                <a
-                                  href={getFullImageUrl(msg.attachment_url) as string}
-                                  target="_blank"
-                                  className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
-                                  rel="noopener noreferrer"
-                                >
-                                  View image
-                                </a>
-                              ) : (
-                                <a
-                                  href={msg.attachment_url}
-                                  target="_blank"
-                                  className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300"
-                                  rel="noopener noreferrer"
-                                >
-                                  {/\/payments\//.test(msg.attachment_url) ? 'View receipt' : 'View attachment'}
-                                </a>
-                              )
+                              (() => {
+                                const url = getFullImageUrl(msg.attachment_url) as string;
+                                const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
+                                if (isImageAttachment(msg.attachment_url)) {
+                                  return (
+                                    <a href={url} target="_blank" className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300" rel="noopener noreferrer">View image</a>
+                                  );
+                                }
+                                if (isAudio) {
+                                  return (
+                                    <audio className="mt-1 w-48" controls src={url} preload="metadata" />
+                                  );
+                                }
+                                return (
+                                  <a href={url} target="_blank" className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300" rel="noopener noreferrer">View attachment</a>
+                                );
+                              })()
                             )}
                           </>
                         }
@@ -1710,46 +1863,144 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         )}
                     </div>
 
-                    {/* Actions: react / reply / delete (own) */}
-                    <div className={`absolute -top-2 ${isMsgFromSelf ? 'right-2' : 'left-2'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
-                      <button type="button" title="React" className="w-7 h-7 rounded-full bg-white/80 hover:bg-white text-gray-700 shadow flex items-center justify-center" onClick={() => toggleReaction(msg.id, '👍')}>
-                        <HandThumbUpIcon className="w-4 h-4" />
-                      </button>
-                      <button type="button" title="Reply" className="w-7 h-7 rounded-full bg-white/80 hover:bg-white text-gray-700 shadow flex items-center justify-center" onClick={() => setReplyTarget(msg)}>
-                        <ReplyIcon className="w-4 h-4" />
-                      </button>
-                      {isMsgFromSelf && (
+                    {/* Hover controls (hide on SYSTEM messages) */}
+                    {normalizeType(msg.message_type) !== 'SYSTEM' && (
+                      <>
+                        {/* Reaction shortcut per spec:
+                            - Sender (right-aligned bubbles): reaction on LEFT
+                            - Receiver (left-aligned bubbles): reaction on RIGHT */}
                         <button
                           type="button"
-                          title="Delete"
-                          className="w-7 h-7 rounded-full bg-white/80 hover:bg-white text-red-600 shadow flex items-center justify-center"
-                          onClick={async () => {
-                            // Optimistic remove
-                            const snapshot = messages;
-                            setMessages((prev) => prev.filter((m) => m.id !== msg.id));
-                            try {
-                              const bid = bookingDetails?.id || (parsedBookingDetails as any)?.id;
-                              if (bid) await deleteMessageForBookingRequest(bookingRequestId, msg.id);
-                            } catch (e) {
-                              // Restore on failure
-                              setMessages(snapshot);
-                              console.error('Delete failed', e);
-                              alert('Could not delete this message.');
-                            }
+                          title="React"
+                          className={`absolute top-1 ${isMsgFromSelf ? '-left-7' : '-right-7'} opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded-full bg-white/80 hover:bg-white text-gray-700 shadow flex items-center justify-center`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActionMenuFor(null);
+                            setReactionPickerFor((v) => (v === msg.id ? null : msg.id));
                           }}
                         >
-                          <TrashIcon className="w-4 h-4" />
+                          <FaceSmileIcon className="w-4 h-4" />
                         </button>
-                      )}
-                    </div>
 
-                    {/* Reactions row */}
-                    {(reactions[msg.id] && Object.entries(reactions[msg.id]).some(([,c]) => c>0)) && (
-                      <div className={`mt-1 ${isMsgFromSelf ? 'text-right' : 'text-left'}`}>
-                        <div className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700">
-                          {Object.entries(reactions[msg.id]).filter(([,c]) => c>0).map(([k,c]) => (
-                            <span key={k}>{k} {c}</span>
-                          ))}
+                        {/* Chevron + actions container; menu opens flush above chevron */}
+                        <div className={`absolute bottom-6 right-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
+                          <button
+                            type="button"
+                            title="More"
+                            className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-sm flex items-center justify-center hover:bg-gray-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReactionPickerFor(null);
+                              setActionMenuFor((v) => (v === msg.id ? null : msg.id));
+                            }}
+                          >
+                            <ChevronDownIcon className="w-3 h-3" />
+                          </button>
+                          {actionMenuFor === msg.id && (
+                            <div
+                              ref={actionMenuRef}
+                              className="absolute bottom-full right-0 z-20 min-w-[160px] rounded-md border border-gray-200 bg-white shadow-lg"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                type="button"
+                                className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                                onClick={() => {
+                                  try {
+                                    const parts: string[] = [];
+                                    if (msg.content) parts.push(msg.content);
+                                    if (msg.attachment_url) parts.push(getFullImageUrl(msg.attachment_url) as string);
+                                    void navigator.clipboard.writeText(parts.join('\n'));
+                                  } catch (e) {
+                                    console.error('Copy failed', e);
+                                  } finally {
+                                    setActionMenuFor(null);
+                                    setCopiedFor(msg.id);
+                                    setHighlightFor(msg.id);
+                                    setTimeout(() => {
+                                      setCopiedFor((v) => (v === msg.id ? null : v));
+                                      setHighlightFor((v) => (v === msg.id ? null : v));
+                                    }, 1200);
+                                  }
+                                }}
+                              >
+                                Copy
+                              </button>
+                              <button
+                                type="button"
+                                className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                                onClick={() => {
+                                  setReplyTarget(msg);
+                                  setActionMenuFor(null);
+                                }}
+                              >
+                                Reply
+                              </button>
+                              <button
+                                type="button"
+                                className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                                onClick={() => {
+                                  setActionMenuFor(null);
+                                  setReactionPickerFor(msg.id);
+                                }}
+                              >
+                                React
+                              </button>
+                              {isMsgFromSelf && (
+                                <button
+                                  type="button"
+                                  className="block w-full text-left px-3 py-2 text-[12px] text-red-600 hover:bg-red-50"
+                                  onClick={async () => {
+                                    setActionMenuFor(null);
+                                    const ok = typeof window !== 'undefined' ? window.confirm('Delete this message?') : true;
+                                    if (!ok) return;
+                                    const snapshot = messages;
+                                    setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+                                    try {
+                                      const bid = bookingDetails?.id || (parsedBookingDetails as any)?.id;
+                                      if (bid) await deleteMessageForBookingRequest(bookingRequestId, msg.id);
+                                    } catch (e) {
+                                      setMessages(snapshot);
+                                      console.error('Delete failed', e);
+                                      alert('Could not delete this message.');
+                                    }
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Reaction picker */}
+                    {reactionPickerFor === msg.id && (
+                      <div
+                        ref={reactionPickerRef}
+                        className={`absolute -top-10 z-10 ${
+                          isMsgFromSelf
+                            ? 'left-1/2 transform -translate-x-full'  // sender: right edge lands at center
+                            : 'left-1/2'                                 // receiver: left edge lands at center
+                        }`}
+                      >
+                        <ReactionBar id={msg.id} />
+                      </div>
+                    )}
+
+                    {/* Reactions badge: bottom-left of bubble for both sender and receiver.
+                        Sits half inside, half outside the bubble for emphasis. */}
+                    {(reactions[msg.id] && Object.entries(reactions[msg.id]).some(([, c]) => c > 0)) && (
+                      <div className="absolute left-2 -bottom-3 z-10">
+                        <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[11px] text-gray-700 shadow-sm">
+                          {Object.entries(reactions[msg.id])
+                            .filter(([, c]) => c > 0)
+                            .map(([k, c]) => (
+                              <span key={k} className="leading-none">
+                                {k} {c}
+                              </span>
+                            ))}
                         </div>
                       </div>
                     )}
@@ -1862,6 +2113,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               loading="lazy"
               className="w-10 h-10 object-cover rounded-md border border-gray-200"
             />
+          ) : attachmentFile && (attachmentFile.type.startsWith('audio/') || /\.(webm|mp3|m4a|ogg)$/i.test(attachmentFile.name || '')) ? (
+            <audio className="w-48" controls src={attachmentPreviewUrl} preload="metadata" />
           ) : (
             <>
               {attachmentFile?.type === 'application/pdf' ? (
@@ -1907,7 +2160,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 type="file"
                 className="hidden"
                 onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
-                accept="image/*,application/pdf"
+                accept="image/*,application/pdf,audio/*"
               />
               <label
                 htmlFor="file-upload"
@@ -1947,26 +2200,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
                         if (blob.size === 0) return;
                         const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
-                        try {
-                          setIsUploadingAttachment(true);
-                          const res = await uploadMessageAttachment(bookingRequestId, file);
-                          const payload: MessageCreate = { content: '[Voice note]', attachment_url: res.data.url } as any;
-                          const optimistic: ThreadMessage = {
-                            id: -Date.now(), booking_request_id: bookingRequestId, sender_id: user?.id || 0,
-                            sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
-                            content: payload.content, message_type: 'USER', quote_id: null,
-                            attachment_url: res.data.url, visible_to: 'both', action: null, avatar_url: undefined,
-                            expires_at: null, unread: false, is_read: true, timestamp: gmt2ISOString(), status: 'sending',
-                          };
-                          setMessages((prev) => mergeMessages(prev, optimistic));
-                          const apiRes = await postMessageToBookingRequest(bookingRequestId, payload);
-                          setMessages((prev) => prev.map((m) => (m.id === optimistic.id ? { ...normalizeMessage(apiRes.data), status: 'sent' } : m)));
-                        } catch (err) {
-                          console.error('Failed to send voice note', err);
-                          setThreadError('Failed to send voice note');
-                        } finally {
-                          setIsUploadingAttachment(false);
-                        }
+                        // Do not auto-send. Stage as attachment so user can press Send.
+                        setAttachmentFile(file);
+                        try { setShowEmojiPicker(false); } catch {}
+                        try { textareaRef.current?.focus(); } catch {}
                       };
                       mr.start();
                       setIsRecording(true);
@@ -2007,7 +2244,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 }}
                 autoFocus
                 rows={1}
-                className="flex-grow rounded-xl px-3 py-1 border border-gray-300 shadow-sm resize-none text-base ios-no-zoom font-medium focus:outline-none min-h-[36px]"
+                className="w-full flex-grow rounded-xl px-3 py-1 border border-gray-300 shadow-sm resize-none text-base ios-no-zoom font-medium focus:outline-none min-h-[36px]"
                 placeholder="Type your message..."
                 aria-label="New message input"
                 disabled={isUploadingAttachment}

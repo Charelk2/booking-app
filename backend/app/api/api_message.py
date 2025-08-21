@@ -6,6 +6,7 @@ from fastapi import (
     File,
     BackgroundTasks,
     Query,
+    Path,
 )
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -23,6 +24,7 @@ from .api_ws import manager
 import os
 import uuid
 import shutil
+from pydantic import BaseModel
 
 router = APIRouter(tags=["messages"])
 
@@ -112,6 +114,23 @@ def read_messages(
             "avatar_url",
         }
         include.update({f.strip() for f in fields.split(",") if f.strip()})
+    # Preload reactions for all messages (best-effort)
+    ids = [m.id for m in db_messages]
+    try:
+        aggregates = (
+            crud.crud_message_reaction.get_reaction_aggregates(db, ids) if ids else {}
+        )
+        my = (
+            crud.crud_message_reaction.get_user_reactions(db, ids, current_user.id)
+            if ids
+            else {}
+        )
+    except Exception:
+        # If the reactions table is missing or a transient error occurs,
+        # continue rendering messages without reactions.
+        aggregates = {}
+        my = {}
+
     result = []
     for m in db_messages:
         avatar_url = None
@@ -125,6 +144,21 @@ def read_messages(
                 avatar_url = sender.profile_picture_url
         data = schemas.MessageResponse.model_validate(m).model_dump()
         data["avatar_url"] = avatar_url
+        # Reply preview
+        if m.reply_to_message_id:
+            parent = (
+                db.query(models.Message)
+                .filter(models.Message.id == m.reply_to_message_id)
+                .first()
+            )
+            if parent:
+                data["reply_to_message_id"] = parent.id
+                data["reply_to_preview"] = parent.content[:160]
+        # Reactions aggregates
+        if m.id in aggregates:
+            data["reactions"] = aggregates[m.id]
+        if m.id in my:
+            data["my_reactions"] = my[m.id]
         if include is not None:
             data = {k: v for k, v in data.items() if k in include}
         result.append(data)
@@ -212,6 +246,20 @@ def create_message(
     ):
         sys_key = "booking_details_v1"
 
+    # Validate reply target if provided
+    if message_in.reply_to_message_id:
+        parent = (
+            db.query(models.Message)
+            .filter(models.Message.id == message_in.reply_to_message_id)
+            .first()
+        )
+        if not parent or parent.booking_request_id != request_id:
+            raise error_response(
+                "Reply target not found",
+                {"reply_to_message_id": "not_found"},
+                status.HTTP_404_NOT_FOUND,
+            )
+
     msg = crud.crud_message.create_message(
         db,
         booking_request_id=request_id,
@@ -226,6 +274,12 @@ def create_message(
         system_key=message_in.system_key or sys_key,
         expires_at=message_in.expires_at,
     )
+    # Set reply reference if provided
+    if message_in.reply_to_message_id:
+        msg.reply_to_message_id = message_in.reply_to_message_id
+        db.add(msg)
+        db.commit()
+        db.refresh(msg)
     other_user_id = (
         booking_request.artist_id
         if sender_type == models.SenderType.CLIENT
@@ -288,12 +342,93 @@ def create_message(
 
     data = schemas.MessageResponse.model_validate(msg).model_dump()
     data["avatar_url"] = avatar_url
+    # Add reply preview if any
+    if msg.reply_to_message_id:
+        parent = (
+            db.query(models.Message)
+            .filter(models.Message.id == msg.reply_to_message_id)
+            .first()
+        )
+        if parent:
+            data["reply_to_message_id"] = parent.id
+            data["reply_to_preview"] = parent.content[:160]
     background_tasks.add_task(
         manager.broadcast,
         request_id,
         data,
     )
     return data
+
+
+@router.delete(
+    "/booking-requests/{request_id}/messages/{message_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_message(
+    request_id: int = Path(..., description="Booking request id"),
+    message_id: int = Path(..., description="Message id"),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Delete a single message in a thread.
+
+    Rules:
+    - The message must belong to the given booking request
+    - Only the sender of the message (or the counterparty if message_type is SYSTEM with a system_key) can delete
+    - Both client and artist can delete their own messages
+    """
+    booking_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
+    if not booking_request:
+        raise error_response(
+            "Booking request not found",
+            {"request_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+    if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
+        raise error_response(
+            "Not authorized to modify messages",
+            {},
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    msg = (
+        db.query(models.Message)
+        .filter(models.Message.id == message_id)
+        .first()
+    )
+    if not msg or msg.booking_request_id != request_id:
+        raise error_response(
+            "Message not found",
+            {"message_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    # Only the original sender may delete non-system messages
+    if msg.message_type != models.MessageType.SYSTEM:
+        if msg.sender_id != current_user.id:
+            raise error_response(
+                "You can only delete your own messages",
+                {},
+                status.HTTP_403_FORBIDDEN,
+            )
+    else:
+        # Allow deleting a system message only by the artist (owner of automation)
+        if current_user.id != booking_request.artist_id:
+            raise error_response(
+                "You cannot delete this message",
+                {},
+                status.HTTP_403_FORBIDDEN,
+            )
+
+    ok = crud.crud_message.delete_message(db, message_id)
+    if not ok:
+        raise error_response(
+            "Delete failed",
+            {"message_id": "delete_failed"},
+            status.HTTP_400_BAD_REQUEST,
+        )
+    # No content response
+    return
 
 
 @router.post(
@@ -332,3 +467,62 @@ async def upload_attachment(
 
     url = f"/static/attachments/{unique_filename}"
     return {"url": url}
+class ReactionIn(BaseModel):
+    emoji: str
+
+
+@router.post(
+    "/booking-requests/{request_id}/messages/{message_id}/reactions",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def add_reaction(
+    request_id: int,
+    message_id: int,
+    payload: ReactionIn,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    booking_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
+    if not booking_request:
+        raise error_response("Booking request not found", {"request_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
+        raise error_response("Not authorized", {}, status.HTTP_403_FORBIDDEN)
+    msg = db.query(models.Message).filter(models.Message.id == message_id).first()
+    if not msg or msg.booking_request_id != request_id:
+        raise error_response("Message not found", {"message_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    crud.crud_message_reaction.add_reaction(db, message_id, current_user.id, payload.emoji)
+    # Broadcast minimal reaction update
+    try:
+        data = {"type": "reaction_added", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
+        manager.broadcast(request_id, data)
+    except Exception:
+        pass
+    return
+
+
+@router.delete(
+    "/booking-requests/{request_id}/messages/{message_id}/reactions",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_reaction(
+    request_id: int,
+    message_id: int,
+    payload: ReactionIn,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    booking_request = crud.crud_booking_request.get_booking_request(db, request_id=request_id)
+    if not booking_request:
+        raise error_response("Booking request not found", {"request_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    if current_user.id not in [booking_request.client_id, booking_request.artist_id]:
+        raise error_response("Not authorized", {}, status.HTTP_403_FORBIDDEN)
+    msg = db.query(models.Message).filter(models.Message.id == message_id).first()
+    if not msg or msg.booking_request_id != request_id:
+        raise error_response("Message not found", {"message_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    crud.crud_message_reaction.remove_reaction(db, message_id, current_user.id, payload.emoji)
+    try:
+        data = {"type": "reaction_removed", "payload": {"message_id": message_id, "emoji": payload.emoji, "user_id": current_user.id}}
+        manager.broadcast(request_id, data)
+    except Exception:
+        pass
+    return

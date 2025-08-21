@@ -288,6 +288,58 @@ def ensure_message_system_key_column(engine: Engine) -> None:
     )
 
 
+def ensure_message_reply_to_column(engine: Engine) -> None:
+    """Add the ``reply_to_message_id`` column to ``messages`` if missing.
+
+    This supports threaded replies in chat. We keep it nullable and do not
+    enforce a foreign key constraint at runtime to remain compatible with
+    SQLite without table rebuilds. The ORM still uses it to hydrate
+    reply previews.
+    """
+    add_column_if_missing(
+        engine,
+        "messages",
+        "reply_to_message_id",
+        "reply_to_message_id INTEGER",
+    )
+
+
+def ensure_message_reactions_table(engine: Engine) -> None:
+    """Create the ``message_reactions`` table if it doesn't exist.
+
+    Columns:
+      - id INTEGER PRIMARY KEY
+      - message_id INTEGER NOT NULL
+      - user_id INTEGER NOT NULL
+      - emoji VARCHAR NOT NULL
+
+    Constraints:
+      - UNIQUE(message_id, user_id, emoji)
+      - INDEX on (message_id)
+    """
+    inspector = inspect(engine)
+    if "message_reactions" in inspector.get_table_names():
+        return
+    ddl = (
+        "CREATE TABLE IF NOT EXISTS message_reactions ("
+        "id INTEGER PRIMARY KEY,"
+        "message_id INTEGER NOT NULL,"
+        "user_id INTEGER NOT NULL,"
+        "emoji VARCHAR NOT NULL,"
+        "created_at DATETIME,"
+        "updated_at DATETIME,"
+        "UNIQUE(message_id, user_id, emoji)"
+        ")"
+    )
+    with engine.begin() as conn:
+        conn.execute(text(ddl))
+        # Best-effort index creation
+        try:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_msg_reaction_message ON message_reactions(message_id)"))
+        except Exception:
+            pass
+
+
 def cleanup_blank_messages(engine: Engine) -> int:
     """Delete legacy blank messages to keep threads clean.
 

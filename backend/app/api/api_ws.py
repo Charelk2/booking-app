@@ -103,6 +103,13 @@ class ConnectionManager:
                     )
                 finally:
                     self.disconnect(request_id, ws)
+            except Exception:
+                # Client likely disconnected abruptly; drop silently to avoid noisy traces
+                try:
+                    await ws.close()
+                except Exception:
+                    pass
+                self.disconnect(request_id, ws)
 
     async def add_typing(self, request_id: int, user_id: int) -> None:
         buf = self.typing_buffers.setdefault(request_id, set())
@@ -329,7 +336,11 @@ async def notifications_ws(
     await notifications_manager.connect(user.id, websocket)
     reconnect_delay = min(2**attempt, 30)
     websocket.ping_interval = max(heartbeat, PING_INTERVAL)
-    await websocket.send_json({"type": "reconnect_hint", "delay": reconnect_delay})
+    try:
+        await websocket.send_json({"type": "reconnect_hint", "delay": reconnect_delay})
+    except Exception:
+        notifications_manager.disconnect(user.id, websocket)
+        return
 
     async def ping_loop() -> None:
         while True:
