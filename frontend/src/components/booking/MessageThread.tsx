@@ -69,6 +69,7 @@ import BookingSummaryCard from './BookingSummaryCard';
 import { t } from '@/lib/i18n';
 import { FEATURE_EVENT_PREP } from '@/lib/constants';
 import EventPrepCard from './EventPrepCard';
+import { ImagePreviewModal } from '@/components/ui';
 
 const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
 const MemoQuoteBubble = React.memo(QuoteBubble);
@@ -305,6 +306,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [isPortalReady, setIsPortalReady] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<{ status: string | null; amount: number | null; receiptUrl: string | null }>({ status: null, amount: null, receiptUrl: null });
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   // ---- Offline queue
@@ -1834,7 +1836,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
                                 if (isImageAttachment(msg.attachment_url)) {
                                   return (
-                                    <a href={url} target="_blank" className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300" rel="noopener noreferrer">View image</a>
+                                    <button
+                                      type="button"
+                                      onClick={() => setImageModalUrl(url)}
+                                      className="block mt-1"
+                                    >
+                                      <Image
+                                        src={url}
+                                        alt="Image attachment"
+                                        width={200}
+                                        height={200}
+                                        loading="lazy"
+                                        className="rounded-md max-w-xs h-auto"
+                                      />
+                                    </button>
                                   );
                                 }
                                 if (isAudio) {
@@ -2303,9 +2318,15 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               </div>
             )}
 
-          {paymentModal}
-        </>
-      )}
+      {paymentModal}
+
+      <ImagePreviewModal
+        open={Boolean(imageModalUrl)}
+        src={imageModalUrl ?? ''}
+        onClose={() => setImageModalUrl(null)}
+      />
+    </>
+  )}
 
       {/* Quote Drawer removed */}
 
