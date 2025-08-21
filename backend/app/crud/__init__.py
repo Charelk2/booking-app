@@ -18,6 +18,7 @@ from .crud_quote_template import (
     delete_template as delete_quote_template,
 )
 from . import crud_message
+from . import crud_message_reaction
 from . import crud_notification
 
 # For a cleaner import, you could define __all__ or group them

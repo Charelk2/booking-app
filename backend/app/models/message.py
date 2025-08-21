@@ -112,3 +112,6 @@ class Message(BaseModel):
     )
     sender = relationship("User")
     quote = relationship("QuoteV2")
+    # Optional reply-to reference (same table)
+    reply_to_message_id = Column(Integer, ForeignKey("messages.id"), nullable=True)
+    reply_to = relationship("Message", remote_side=[id], uselist=False)

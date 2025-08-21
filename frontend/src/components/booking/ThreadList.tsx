@@ -74,7 +74,20 @@ export default function ThreadList({ role, onOpenThread }: ThreadListProps) {
                 </span>
               )}
             </div>
-            <div className="text-xs text-gray-600 truncate">{it.last_message_preview}</div>
+            <div className="mt-0.5 text-xs text-gray-600 truncate flex items-center gap-1">
+              <svg
+                aria-label={it.unread_count > 0 ? 'Unread' : 'Read'}
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className={`h-4 w-4 ${it.unread_count > 0 ? 'text-gray-400' : 'text-blue-600'}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M12.75 12.75L15 15 18.75 9.75" />
+              </svg>
+              <span className="truncate">{it.last_message_preview}</span>
+            </div>
           </div>
         </button>
       ))}
@@ -84,4 +97,3 @@ export default function ThreadList({ role, onOpenThread }: ThreadListProps) {
     </div>
   );
 }
-

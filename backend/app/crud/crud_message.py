@@ -111,3 +111,16 @@ def mark_messages_read(db: Session, booking_request_id: int, user_id: int) -> in
     )
     db.commit()
     return int(updated)
+
+
+def delete_message(db: Session, message_id: int) -> bool:
+    """Delete a single message by id.
+
+    Returns True if a row was deleted, False otherwise.
+    """
+    msg = db.query(models.Message).filter(models.Message.id == message_id).first()
+    if not msg:
+        return False
+    db.delete(msg)
+    db.commit()
+    return True

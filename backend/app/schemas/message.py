@@ -12,6 +12,7 @@ class MessageCreate(BaseModel):
     quote_id: int | None = None
     attachment_url: str | None = None
     action: MessageAction | None = None
+    reply_to_message_id: int | None = None
     # For SYSTEM messages only; allows UPSERT by unique key
     system_key: str | None = None
     expires_at: Optional[datetime] = None
@@ -49,6 +50,10 @@ class MessageResponse(BaseModel):
     avatar_url: str | None = None
     system_key: str | None = None
     expires_at: Optional[datetime] = None
+    reply_to_message_id: int | None = None
+    reply_to_preview: str | None = None
+    reactions: dict[str, int] | None = None
+    my_reactions: list[str] | None = None
 
     @field_validator("message_type", mode="before")
     @classmethod
