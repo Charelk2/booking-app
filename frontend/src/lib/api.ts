@@ -435,6 +435,12 @@ export const postMessageToBookingRequest = (
     data
   );
 
+// Attempt to delete a message. If the backend doesn't support it, callers should handle errors gracefully.
+export const deleteMessageForBookingRequest = (
+  bookingRequestId: number,
+  messageId: number,
+) => api.delete(`${API_V1}/booking-requests/${bookingRequestId}/messages/${messageId}`);
+
 export const markMessagesRead = (bookingRequestId: number) =>
   api.put<{ updated: number }>(
     `${API_V1}/booking-requests/${bookingRequestId}/messages/read`

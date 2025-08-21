@@ -16,7 +16,7 @@ import dynamic from 'next/dynamic';
 import { createPortal } from 'react-dom';
 import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
 import data from '@emoji-mart/data';
-import { DocumentIcon, DocumentTextIcon, FaceSmileIcon } from '@heroicons/react/24/outline';
+import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, TrashIcon, ReplyIcon, HandThumbUpIcon, MicrophoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 
 import {
@@ -76,7 +76,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const WS_BASE = API_BASE.replace(/^http/, 'ws');
 const API_V1 = '/api/v1';
 const TEN_MINUTES_MS = 10 * 60 * 1000;
-const MIN_SCROLL_OFFSET = 20;
+const MIN_SCROLL_OFFSET = 24;
+const BOTTOM_GAP_PX = 8;
 const MAX_TEXTAREA_LINES = 10;
 const isImageAttachment = (url?: string | null) =>
   !!url && /\.(jpe?g|png|gif|webp)$/i.test(url);
@@ -304,7 +305,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // ---- Refs
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const distanceFromBottomRef = useRef<number>(0);
+  const prevScrollHeightRef = useRef<number>(0);
+  const prevComposerHeightRef = useRef<number>(0);
   const composerRef = useRef<HTMLDivElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
   const prevMessageCountRef = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
@@ -315,6 +320,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const stabilizingRef = useRef(true);
   const stabilizeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fetchInFlightRef = useRef(false);
+
+  // Local ephemeral features
+  const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
+  const [reactions, setReactions] = useState<Record<number, Record<string, number>>>({});
+  const [myReactions, setMyReactions] = useState<Record<number, Set<string>>>({});
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
 
   // ---- Presence
   const [typingUsers, setTypingUsers] = useState<number[]>([]);
@@ -492,9 +505,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   const autoResizeTextarea = useCallback(() => {
     const ta = textareaRef.current;
-    const container = messagesContainerRef.current;
     if (!ta || textareaLineHeight === 0) return;
-    const prevH = ta.offsetHeight;
     ta.style.height = 'auto';
 
     const style = getComputedStyle(ta);
@@ -504,11 +515,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     const maxH = textareaLineHeight * MAX_TEXTAREA_LINES + padT + bdrT + bdrB;
     const newH = Math.min(ta.scrollHeight, maxH);
     ta.style.height = `${newH}px`;
-
-    if (container && newH !== prevH && !isUserScrolledUp) {
-      container.scrollTop += (newH - prevH);
-    }
-  }, [textareaLineHeight, isUserScrolledUp]);
+    // Do not adjust message list scroll position on composer growth to avoid jitter while typing
+  }, [textareaLineHeight]);
   useEffect(() => { autoResizeTextarea(); }, [newMessageContent, autoResizeTextarea]);
 
   // ---- Dismiss emoji picker if clicking outside
@@ -634,11 +642,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       initialLoadedRef.current = true; // <— gate opens: WS can merge now
       // Stabilize: jump to bottom without smooth scrolling, then allow auto-scroll
       try {
-        if (messagesContainerRef.current) {
-          messagesContainerRef.current.scrollTo({
-            top: messagesContainerRef.current.scrollHeight,
-            behavior: 'auto',
-          });
+        const el = messagesContainerRef.current;
+        if (el) {
+          el.scrollTo({ top: el.scrollHeight, behavior: 'auto' });
+          prevScrollHeightRef.current = el.scrollHeight;
+          distanceFromBottomRef.current = el.scrollHeight - (el.scrollTop + el.clientHeight);
         }
       } catch {}
       stabilizingRef.current = true;
@@ -813,27 +821,26 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => {
     if (!messagesContainerRef.current || !messagesEndRef.current) return;
     if (stabilizingRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-    const atBottom = scrollHeight - scrollTop - clientHeight <= MIN_SCROLL_OFFSET;
-    const shouldAutoScroll =
-      messages.length > prevMessageCountRef.current ||
-      (typingIndicator && (atBottom || !isUserScrolledUp));
+    const anchored = distanceFromBottomRef.current <= MIN_SCROLL_OFFSET;
+    const shouldAutoScroll = messages.length > prevMessageCountRef.current || (typingIndicator && anchored);
     if (shouldAutoScroll) {
-      messagesContainerRef.current.scrollTo({
-        top: messagesContainerRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
+      try {
+        messagesContainerRef.current.scrollTo({ top: messagesContainerRef.current.scrollHeight, behavior: 'auto' });
+      } catch {}
     }
     prevMessageCountRef.current = messages.length;
-  }, [messages, typingIndicator, isUserScrolledUp]);
+  }, [messages, typingIndicator]);
 
   const handleScroll = useCallback(() => {
     if (stabilizingRef.current) return;
-    if (!messagesContainerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-    const atBottom = scrollHeight - scrollTop - clientHeight < MIN_SCROLL_OFFSET;
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - (el.scrollTop + el.clientHeight);
+    distanceFromBottomRef.current = distance;
+    const atBottom = distance <= MIN_SCROLL_OFFSET;
     setShowScrollButton(!atBottom);
     setIsUserScrolledUp(!atBottom);
+    prevScrollHeightRef.current = el.scrollHeight;
   }, []);
   useEffect(() => {
     handleScroll();
@@ -1047,6 +1054,38 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     );
   }, [bookingDetails, paymentInfo, quotes, isClientViewFlag, isPaidFlag, isPaymentOpen, openPaymentModal, bookingRequestId, onShowReviewModal, parsedBookingDetails]);
 
+  // ---- Reactions helpers (ephemeral)
+  const toggleReaction = useCallback((msgId: number, emoji: string) => {
+    setReactions((prev) => {
+      const cur = { ...(prev[msgId] || {}) } as Record<string, number>;
+      const mine = (myReactions[msgId] || new Set<string>());
+      const has = mine.has(emoji);
+      if (has) {
+        cur[emoji] = Math.max(0, (cur[emoji] || 1) - 1);
+        const copy = new Set(mine); copy.delete(emoji);
+        setMyReactions((m) => ({ ...m, [msgId]: copy }));
+      } else {
+        cur[emoji] = (cur[emoji] || 0) + 1;
+        const copy = new Set(mine); copy.add(emoji);
+        setMyReactions((m) => ({ ...m, [msgId]: copy }));
+      }
+      return { ...prev, [msgId]: cur };
+    });
+  }, [myReactions]);
+
+  const ReactionBar: React.FC<{ id: number }> = ({ id }) => {
+    const opts = ['👍','❤️','😂','🎉','👏','🔥'];
+    return (
+      <div className="mt-1 flex gap-1">
+        {opts.map((e) => (
+          <button key={e} type="button" onClick={() => toggleReaction(id, e)} className="text-xs rounded-full bg-gray-100 hover:bg-gray-200 px-2 py-0.5">
+            {e}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   // ---- Emoji select
   const handleEmojiSelect = (emoji: { native?: string }) => {
     if (emoji?.native) setNewMessageContent((prev) => `${prev}${emoji.native}`);
@@ -1081,10 +1120,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           attachment_url = res.data.url;
         }
 
+        const replyPrefix = replyTarget ? `↩︎ ${replyTarget.content.slice(0, 120)}\n` : '';
         const payload: MessageCreate = {
-          content: newMessageContent.trim(),
+          content: `${replyPrefix}${newMessageContent.trim()}`,
           attachment_url,
-        };
+        } as any;
 
         // Optimistic
         const optimistic: ThreadMessage = {
@@ -1118,6 +1158,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             textareaRef.current.rows = 1;
             textareaRef.current.focus();
           }
+          setReplyTarget(null);
         };
 
         if (!navigator.onLine) {
@@ -1277,9 +1318,25 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
   }, [isDetailsPanelOpen]);
 
-  const effectiveBottomPadding = isDetailsPanelOpen
-    ? 'calc(var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom))'
-    : `calc(${composerHeight || 0}px + var(--mobile-bottom-nav-height, 0px) + env(safe-area-inset-bottom))`;
+  // Keep last message visible by padding the scroll area with the composer height
+  // Keep a minimal visual gap; do not pad by composer height
+  const effectiveBottomPadding = `calc(${BOTTOM_GAP_PX}px + env(safe-area-inset-bottom))`;
+
+  // When the composer height changes and the user is anchored at bottom, keep the view pinned
+  // On composer height changes, if anchored, shift by the exact composer delta
+  useEffect(() => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const anchored = distanceFromBottomRef.current <= MIN_SCROLL_OFFSET;
+    const deltaH = composerHeight - (prevComposerHeightRef.current || 0);
+    if (anchored && deltaH !== 0) {
+      // Move content up by the same amount the composer grew
+      el.scrollTop = Math.max(0, el.scrollTop + deltaH);
+    }
+    prevComposerHeightRef.current = composerHeight;
+    // Recompute distance from bottom after adjustments
+    distanceFromBottomRef.current = el.scrollHeight - (el.scrollTop + el.clientHeight);
+  }, [composerHeight]);
 
   // ===== Render ===============================================================
   return (
@@ -1651,10 +1708,54 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             )}
                           </div>
                         )}
-                      </div>
                     </div>
-                  );
-                })}
+
+                    {/* Actions: react / reply / delete (own) */}
+                    <div className={`absolute -top-2 ${isMsgFromSelf ? 'right-2' : 'left-2'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
+                      <button type="button" title="React" className="w-7 h-7 rounded-full bg-white/80 hover:bg-white text-gray-700 shadow flex items-center justify-center" onClick={() => toggleReaction(msg.id, '👍')}>
+                        <HandThumbUpIcon className="w-4 h-4" />
+                      </button>
+                      <button type="button" title="Reply" className="w-7 h-7 rounded-full bg-white/80 hover:bg-white text-gray-700 shadow flex items-center justify-center" onClick={() => setReplyTarget(msg)}>
+                        <ReplyIcon className="w-4 h-4" />
+                      </button>
+                      {isMsgFromSelf && (
+                        <button
+                          type="button"
+                          title="Delete"
+                          className="w-7 h-7 rounded-full bg-white/80 hover:bg-white text-red-600 shadow flex items-center justify-center"
+                          onClick={async () => {
+                            // Optimistic remove
+                            const snapshot = messages;
+                            setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+                            try {
+                              const bid = bookingDetails?.id || (parsedBookingDetails as any)?.id;
+                              if (bid) await deleteMessageForBookingRequest(bookingRequestId, msg.id);
+                            } catch (e) {
+                              // Restore on failure
+                              setMessages(snapshot);
+                              console.error('Delete failed', e);
+                              alert('Could not delete this message.');
+                            }
+                          }}
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Reactions row */}
+                    {(reactions[msg.id] && Object.entries(reactions[msg.id]).some(([,c]) => c>0)) && (
+                      <div className={`mt-1 ${isMsgFromSelf ? 'text-right' : 'text-left'}`}>
+                        <div className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700">
+                          {Object.entries(reactions[msg.id]).filter(([,c]) => c>0).map(([k,c]) => (
+                            <span key={k}>{k} {c}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               </div>
             </React.Fragment>
           );
@@ -1662,22 +1763,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
         {typingIndicator && <p className="text-xs text-gray-500" aria-live="polite">{typingIndicator}</p>}
 
-        {/* Inline Event Prep card inside the scroll container so it scrolls with messages */}
+        {/* Inline Event Prep — sticky just below the thread header */}
         {(() => {
           const accepted = Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id);
           const bookingIdForPrep = (bookingDetails as any)?.id || (accepted as any)?.booking_id || null;
           const isConfirmed = (bookingDetails as any)?.status?.toString?.().toLowerCase?.() === 'confirmed';
           return FEATURE_EVENT_PREP && bookingIdForPrep && (isPaidFlag || isConfirmed);
         })() && (
-          <div className="mt-2">
+          <div className="mt-2 sticky top-[56px] md:top-[64px] z-20">
             <EventPrepCard
               bookingId={(bookingDetails as any)?.id || (Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id) as any)?.booking_id}
               bookingRequestId={bookingRequestId}
               eventDateISO={(bookingDetails as any)?.start_time || (parsedBookingDetails as any)?.date}
               canEdit={Boolean(user)}
               onContinuePrep={(id) => router.push(`/dashboard/events/${id}`)}
-              collapsed={eventPrepCollapsed}
-              onToggle={() => setEventPrepCollapsed((v) => !v)}
+              summaryOnly
             />
           </div>
         )}
@@ -1801,7 +1901,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               </div>
             )}
 
-            <form onSubmit={handleSendMessage} className="flex items-center gap-x-1.5 px-2 pt-1.5 pb-1.5">
+            <form ref={formRef} onSubmit={handleSendMessage} className="flex items-center gap-x-1.5 px-2 pt-1.5 pb-1.5">
               <input
                 id="file-upload"
                 type="file"
@@ -1828,12 +1928,83 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 <FaceSmileIcon className="w-5 h-5" />
               </button>
 
+              {/* Voice note */}
+              <button
+                type="button"
+                onClick={async () => {
+                  if (isRecording) {
+                    // stop
+                    mediaRecorderRef.current?.stop();
+                    setIsRecording(false);
+                  } else {
+                    recordedChunksRef.current = [];
+                    try {
+                      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                      const mr = new MediaRecorder(stream);
+                      mediaRecorderRef.current = mr;
+                      mr.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
+                      mr.onstop = async () => {
+                        const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
+                        if (blob.size === 0) return;
+                        const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
+                        try {
+                          setIsUploadingAttachment(true);
+                          const res = await uploadMessageAttachment(bookingRequestId, file);
+                          const payload: MessageCreate = { content: '[Voice note]', attachment_url: res.data.url } as any;
+                          const optimistic: ThreadMessage = {
+                            id: -Date.now(), booking_request_id: bookingRequestId, sender_id: user?.id || 0,
+                            sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
+                            content: payload.content, message_type: 'USER', quote_id: null,
+                            attachment_url: res.data.url, visible_to: 'both', action: null, avatar_url: undefined,
+                            expires_at: null, unread: false, is_read: true, timestamp: gmt2ISOString(), status: 'sending',
+                          };
+                          setMessages((prev) => mergeMessages(prev, optimistic));
+                          const apiRes = await postMessageToBookingRequest(bookingRequestId, payload);
+                          setMessages((prev) => prev.map((m) => (m.id === optimistic.id ? { ...normalizeMessage(apiRes.data), status: 'sent' } : m)));
+                        } catch (err) {
+                          console.error('Failed to send voice note', err);
+                          setThreadError('Failed to send voice note');
+                        } finally {
+                          setIsUploadingAttachment(false);
+                        }
+                      };
+                      mr.start();
+                      setIsRecording(true);
+                    } catch (e) {
+                      console.error('Mic permission error', e);
+                      alert('Microphone permission is required to record voice notes.');
+                    }
+                  }
+                }}
+                aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
+                className={`flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-colors ${isRecording ? 'bg-red-600 text-white hover:bg-red-700' : 'text-gray-500 hover:bg-gray-100'}`}
+              >
+                {isRecording ? <XMarkIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
+              </button>
+
               {/* Textarea (16px to avoid iOS zoom) */}
+              <div className="flex-1">
+              {replyTarget && (
+                <div className="mb-1 flex items-center justify-between rounded-md bg-gray-50 border border-gray-200 px-2 py-1 text-[12px] text-gray-700">
+                  <div className="truncate">
+                    Replying to {replyTarget.sender_type === 'client' ? 'Client' : 'You'}: <span className="italic text-gray-500">{replyTarget.content.slice(0, 60)}</span>
+                  </div>
+                  <button type="button" className="ml-2 text-gray-500 hover:text-gray-700" onClick={() => setReplyTarget(null)} aria-label="Cancel reply">
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
               <textarea
                 ref={textareaRef}
                 value={newMessageContent}
                 onChange={(e) => setNewMessageContent(e.target.value)}
                 onInput={autoResizeTextarea}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    formRef.current?.requestSubmit();
+                  }
+                }}
                 autoFocus
                 rows={1}
                 className="flex-grow rounded-xl px-3 py-1 border border-gray-300 shadow-sm resize-none text-base ios-no-zoom font-medium focus:outline-none min-h-[36px]"
@@ -1841,6 +2012,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 aria-label="New message input"
                 disabled={isUploadingAttachment}
               />
+              </div>
 
               {isUploadingAttachment && (
                 <div
@@ -1862,7 +2034,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               <Button
                 type="submit"
                 aria-label="Send message"
-                className="flex-shrink-0 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center w-9 h-9 p-2"
+                className="flex-shrink-0 rounded-full bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center w-8 h-8 p-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile)}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">

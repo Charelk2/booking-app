@@ -1,13 +1,6 @@
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  Fragment,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import {
@@ -20,16 +13,15 @@ import {
   UploadCloud,
   Trash2,
   AlertTriangle,
-  Clock,
-  Mic2,
   Users,
-  GitCommitHorizontal,
 } from "lucide-react";
+
+// Removed MUI components in favor of Tailwind classes
 
 import { useAuth } from "@/contexts/AuthContext";
 import SavedPill from "@/components/ui/SavedPill";
 import useSavedHint from "@/hooks/useSavedHint";
-import type { EventPrep, Booking, EventPrepAttachment } from "@/types";
+import type { EventPrep, Booking } from "@/types";
 import {
   getEventPrep,
   updateEventPrep,
@@ -40,6 +32,32 @@ import {
   addEventPrepAttachment,
   deleteEventPrepAttachment,
 } from "@/lib/api";
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Lucide icon wrappers (prevents TS 2786 JSX issues)
+   ────────────────────────────────────────────────────────────────────────── */
+type IconProps = React.SVGProps<SVGSVGElement>;
+const wrapIcon = (Comp: any) =>
+  function IconWrapped(props: IconProps) {
+    const C = Comp as any;
+    return <C {...props} />;
+  };
+
+const CalendarDaysIcon = wrapIcon(CalendarDays);
+const MapPinIcon = wrapIcon(MapPin);
+const ReceiptTextIcon = wrapIcon(ReceiptText);
+const CheckCircle2Icon = wrapIcon(CheckCircle2);
+const Loader2Icon = wrapIcon(Loader2);
+const Music4Icon = wrapIcon(Music4);
+const UploadCloudIcon = wrapIcon(UploadCloud);
+const Trash2Icon = wrapIcon(Trash2);
+const AlertTriangleIcon = wrapIcon(AlertTriangle);
+const UsersIcon = wrapIcon(Users);
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Minimal local type used in this file
+   ────────────────────────────────────────────────────────────────────────── */
+type EventPrepAttachment = { id: number; file_url: string };
 
 /* ────────────────────────────────────────────────────────────────────────────
    Utilities
@@ -58,25 +76,23 @@ const timeToMinutes = (val?: string | null): number => {
   const parts = s.split(":");
   if (parts.length < 2) return NaN;
   const h = Number(parts[0]);
-  const min = Number(parts[1]);
-  if (!Number.isFinite(h) || !Number.isFinite(min)) return NaN;
-  if (h < 0 || h > 23 || min < 0 || min > 59) return NaN;
-  return h * 60 + min;
+  const m = Number(parts[1]);
+  if (!Number.isFinite(h) || !Number.isFinite(m) || h < 0 || h > 23 || m < 0 || m > 59) return NaN;
+  return h * 60 + m;
 };
 
-// Small helper for "(1h 30m)" style durations
-const formatDuration = (startMinutes: number, endMinutes: number): string | null => {
-  if (isNaN(startMinutes) || isNaN(endMinutes) || endMinutes <= startMinutes) return null;
-  const duration = endMinutes - startMinutes;
-  const hours = Math.floor(duration / 60);
-  const minutes = duration % 60;
-  let result = "";
-  if (hours > 0) result += `${hours}h`;
-  if (minutes > 0) result += ` ${minutes}m`;
-  return result.trim();
+const formatDuration = (startMin: number, endMin: number) => {
+  if (isNaN(startMin) || isNaN(endMin) || endMin <= startMin) return null;
+  const d = endMin - startMin;
+  const h = Math.floor(d / 60);
+  const m = d % 60;
+  const parts: string[] = [];
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  return parts.join(" ") || null;
 };
 
-// Local persistence for critical time fields
+// Persist specific time fields locally so quick navs don’t lose edits
 const TIME_FIELDS: (keyof EventPrep | "soundcheck_end_time")[] = [
   "loadin_start",
   "loadin_end",
@@ -87,7 +103,6 @@ const TIME_FIELDS: (keyof EventPrep | "soundcheck_end_time")[] = [
   "soundcheck_end_time",
 ];
 const localTimesKey = (bookingId: number) => `event_prep_times:${bookingId}`;
-
 function readLocalTimes(bookingId: number): Partial<EventPrep & { soundcheck_end_time: string }> {
   try {
     const raw = localStorage.getItem(localTimesKey(bookingId));
@@ -109,25 +124,11 @@ function writeLocalTimes(bookingId: number, data: Partial<EventPrep & { soundche
   }
 }
 
-// Encode soundcheck end into schedule_notes so it survives cross-device
-const SND_TAG = "SND_END";
-function parseSoundcheckEndFromNotes(notes: string): string | null {
-  try {
-    const m = notes.match(new RegExp(`\\[${SND_TAG}=([0-2]?\\d:[0-5]\\d)(?::[0-5]\\d)?\\]`));
-    return m?.[1] || null;
-  } catch {
-    return null;
-  }
-}
-function composeSoundcheckEndIntoNotes(notes: string, endHHMM: string): string {
-  const base = (notes || "").replace(new RegExp(`\\[${SND_TAG}=[^\\]]*\\]`), "").trim();
-  if (!endHHMM) return base;
-  const tag = `[${SND_TAG}=${endHHMM}]`;
-  return base ? `${base}\n${tag}` : tag;
-}
+// Note: previously we encoded soundcheck end inside schedule_notes as a tag.
+// This behavior has been removed per request. We now keep end time only locally.
 
 /* ────────────────────────────────────────────────────────────────────────────
-   Data hook (stable hooks, no conditional creation)
+   Data hook
    ────────────────────────────────────────────────────────────────────────── */
 function useEventPrep(bookingId: number) {
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -152,22 +153,21 @@ function useEventPrep(bookingId: number) {
 
         setBooking(b);
 
+        // Merge server with any local time cache
         const localTimes = readLocalTimes(bookingId);
         const merged: EventPrep = { ...(e as EventPrep) };
         let needsServerUpdate = false;
-
-        Object.keys(localTimes).forEach((key) => {
-          const k = key as keyof typeof localTimes;
-          if (!(merged as any)[k] && (localTimes as any)[k]) {
-            (merged as any)[k] = (localTimes as any)[k];
+        for (const k of TIME_FIELDS) {
+          const sv = (merged as any)[k];
+          const lv = (localTimes as any)[k];
+          if ((!sv || String(sv).trim() === "") && lv) {
+            (merged as any)[k] = lv;
             needsServerUpdate = true;
           }
-        });
-
+        }
         setEp(merged);
 
-        const scEndLocal =
-          localTimes.soundcheck_end_time || parseSoundcheckEndFromNotes(merged.schedule_notes || "") || "";
+        const scEndLocal = localTimes.soundcheck_end_time || "";
         setSoundcheckEnd(toHHMM(scEndLocal));
 
         if (needsServerUpdate) {
@@ -264,703 +264,190 @@ function useEventPrep(bookingId: number) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
-   UI Primitives
+   Timeline (MUI, always visible & editable)
    ────────────────────────────────────────────────────────────────────────── */
-function Section({
-  title,
-  subtitle,
-  actions,
-  children,
+function RoleTitle({ text, role }: { text: string; role: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="text-sm font-semibold text-gray-900">{text}</div>
+      <span className="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-600">
+        {role}
+      </span>
+    </div>
+  );
+}
+
+function TimeField({
+  value,
+  onChange,
+  "aria-label": ariaLabel,
+  className,
 }: {
-  title: string;
-  subtitle?: string;
-  actions?: React.ReactNode;
-  children: React.ReactNode;
+  value: string | undefined | null;
+  onChange: (v: string) => void;
+  "aria-label"?: string;
+  className?: string;
+}) {
+  const safeValue = toHHMM(value) || "";
+  return (
+    <input
+      type="time"
+      step={60}
+      aria-label={ariaLabel || "time"}
+      value={safeValue}
+      onChange={(e) => onChange(e.target.value)}
+      className={
+        className ||
+        "w-24 rounded-md bg-white border border-gray-300 text-gray-900 placeholder-gray-400 px-2 py-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
+      }
+    />
+  );
+}
+
+function StartEndRow({
+  start,
+  end,
+  onStart,
+  onEnd,
+  showDuration = true,
+}: {
+  start: string | null | undefined;
+  end: string | null | undefined;
+  onStart: (v: string) => void;
+  onEnd: (v: string) => void;
+  showDuration?: boolean;
+}) {
+  const s = timeToMinutes(start);
+  const e = timeToMinutes(end);
+  const duration = showDuration ? formatDuration(s, e) : null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <TimeField value={start} onChange={onStart} aria-label="Start time" />
+      <span className="text-gray-400">—</span>
+      <TimeField value={end} onChange={onEnd} aria-label="End time" />
+      {duration && (
+        <span className="ml-1 inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">({duration})</span>
+      )}
+    </div>
+  );
+}
+
+function SingleTimeRow({
+  time,
+  onTime,
+}: {
+  time: string | null | undefined;
+  onTime: (v: string) => void;
+}) {
+  return <TimeField value={time} onChange={onTime} aria-label="Time" />;
+}
+
+function EventTimeline({
+  ep,
+  patch,
+  bookingId,
+  soundcheckEnd,
+  setSoundcheckEnd,
+  roleNotes,
+}: {
+  ep: EventPrep;
+  patch: (p: Partial<EventPrep>) => void;
+  bookingId: number;
+  soundcheckEnd: string;
+  setSoundcheckEnd: (v: string) => void;
+  roleNotes: { loadin: string; soundcheck: string; guests: string; performance: string };
 }) {
   return (
-    <section className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-3.5">
-        <div>
-          <h3 className="text-[15px] font-semibold text-gray-900">{title}</h3>
+    <section aria-label="Event timeline">
+      <h3 className="text-base font-semibold text-gray-900">Event Timeline</h3>
+      <p className="mt-1 text-xs text-gray-500">All times are local.</p>
+
+      <div className="relative mt-4 pl-8">
+        <div className="absolute left-4 top-0 bottom-0 w-px bg-gray-200" aria-hidden />
+
+        <div className="space-y-5">
+          {/* Arrival & Setup */}
+          <div className="relative flex items-start gap-3">
+            <div className="absolute left-4 -top-4 h-4 w-px bg-gray-200" aria-hidden />
+            <div className="grid h-7 w-7 place-items-center rounded-full bg-gray-100 ring-1 ring-gray-200 text-gray-600">
+              <CalendarDaysIcon width={14} height={14} />
+            </div>
+            <div className="flex-1">
+              <RoleTitle text="Arrival & Setup" role={roleNotes.loadin} />
+              <div className="mt-2">
+                <StartEndRow
+                  start={ep.loadin_start || null}
+                  end={ep.loadin_end || null}
+                  onStart={(v) => patch({ loadin_start: v })}
+                  onEnd={(v) => patch({ loadin_end: v })}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Soundcheck */}
+          <div className="relative flex items-start gap-3">
+            <div className="absolute left-4 -top-4 h-4 w-px bg-gray-200" aria-hidden />
+            <div className="grid h-7 w-7 place-items-center rounded-full bg-gray-100 ring-1 ring-gray-200 text-gray-600">
+              <Music4Icon width={14} height={14} />
+            </div>
+            <div className="flex-1">
+              <RoleTitle text="Soundcheck" role={roleNotes.soundcheck} />
+              <div className="mt-2">
+                <StartEndRow
+                  start={ep.soundcheck_time || null}
+                  end={soundcheckEnd || null}
+                  onStart={(v) => patch({ soundcheck_time: v })}
+                  onEnd={(v) => {
+                    setSoundcheckEnd(v);
+                    writeLocalTimes(bookingId, { soundcheck_end_time: v });
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Guests Arrive (single time) */}
+          <div className="relative flex items-start gap-3">
+            <div className="absolute left-4 -top-4 h-4 w-px bg-gray-200" aria-hidden />
+            <div className="grid h-7 w-7 place-items-center rounded-full bg-gray-100 ring-1 ring-gray-200 text-gray-600">
+              <UsersIcon width={14} height={14} />
+            </div>
+            <div className="flex-1">
+              <RoleTitle text="Guests Arrive" role={roleNotes.guests} />
+              <div className="mt-2">
+                <SingleTimeRow time={ep.guests_arrival_time || null} onTime={(v) => patch({ guests_arrival_time: v })} />
+              </div>
+            </div>
+          </div>
+
+          {/* Performance (notes only) */}
+          <div className="relative flex items-start gap-3">
+            <div className="absolute left-4 -top-4 h-4 w-px bg-gray-200" aria-hidden />
+            <div className="grid h-7 w-7 place-items-center rounded-full bg-gray-100 ring-1 ring-gray-200 text-gray-600">
+              <ReceiptTextIcon width={14} height={14} />
+            </div>
+            <div className="flex-1">
+              <RoleTitle text="Performance" role={roleNotes.performance} />
+              <div className="mt-2">
+                <textarea
+                  className="min-h-[96px] w-full rounded-md bg-white border border-gray-300 text-gray-900 placeholder-gray-400 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  placeholder="e.g., Two 45-min sets with a 15-min break. Speeches around 20:30."
+                  value={ep.schedule_notes || ""}
+                  onChange={(e) => patch({ schedule_notes: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">{actions}</div>
       </div>
-      {subtitle && <p className="px-5 pt-2 text-[12px] text-gray-500">{subtitle}</p>}
-      <div className="p-5">{children}</div>
     </section>
   );
 }
 
-function Field({
-  id,
-  label,
-  children,
-  disabled = false,
-  tooltip,
-}: {
-  id: string;
-  label: string;
-  children: React.ReactNode;
-  disabled?: boolean;
-  tooltip?: string;
-}) {
-  return (
-    <div title={disabled ? tooltip : undefined}>
-      <label htmlFor={id} className="block text-[12.5px] font-medium text-gray-600">
-        {label}
-      </label>
-      <div className="mt-1">{children}</div>
-    </div>
-  );
-}
-
-function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  const { className, ...rest } = props;
-  return (
-    <input
-      {...rest}
-      className={
-        `w-full rounded-lg border bg-white px-3.5 py-2 text-sm shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-gray-100 disabled:text-gray-500 ${
-          props.disabled ? "border-gray-200" : "border-gray-300"
-        } ` + (className || "")
-      }
-    />
-  );
-}
-
-function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  const { className, ...rest } = props;
-  return (
-    <textarea
-      {...rest}
-      className={
-        `w-full resize-y rounded-lg border bg-white px-3.5 py-2 text-sm shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:cursor-not-allowed disabled:border-dashed disabled:bg-gray-100 disabled:text-gray-500 ${
-          props.disabled ? "border-gray-200" : "border-gray-300"
-        } ` + (className || "")
-      }
-    />
-  );
-}
-
 /* ────────────────────────────────────────────────────────────────────────────
-   Timeline prefs (ONLY expand/collapse)
-   ────────────────────────────────────────────────────────────────────────── */
-function useTimelinePrefs(bookingId: number) {
-  const key = `event_prep_timeline_prefs:${bookingId}`;
-  const [expanded, setExpanded] = useState<boolean>(true);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const obj = JSON.parse(raw);
-        if (typeof obj.expanded === "boolean") setExpanded(obj.expanded);
-      }
-    } catch {
-      // ignore
-    }
-  }, [key]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify({ expanded }));
-    } catch {
-      // ignore
-    }
-  }, [key, expanded]);
-
-  return { expanded, setExpanded };
-}
-
-/* ────────────────────────────────────────────────────────────────────────────
-   Vertical Timeline (your design)
-   ────────────────────────────────────────────────────────────────────────── */
-function VerticalTimeline({
-  ep,
-  soundcheckEnd,
-  issues,
-}: {
-  ep: EventPrep;
-  soundcheckEnd: string;
-  issues: string[];
-}) {
-  const events = useMemo(() => {
-    const rows = [
-      {
-        key: "loadin",
-        label: "Load-in",
-        startMin: timeToMinutes(ep.loadin_start),
-        endMin: timeToMinutes(ep.loadin_end),
-        startStr: toHHMM(ep.loadin_start),
-        endStr: toHHMM(ep.loadin_end),
-        icon: GitCommitHorizontal,
-        color: "text-sky-600",
-      },
-      {
-        key: "soundcheck",
-        label: "Soundcheck",
-        startMin: timeToMinutes(ep.soundcheck_time),
-        endMin: timeToMinutes(soundcheckEnd),
-        startStr: toHHMM(ep.soundcheck_time),
-        endStr: toHHMM(soundcheckEnd),
-        icon: Mic2,
-        color: "text-indigo-600",
-      },
-      {
-        key: "guests",
-        label: "Guests Arrive",
-        startMin: timeToMinutes(ep.guests_arrival_time),
-        endMin: NaN,
-        startStr: toHHMM(ep.guests_arrival_time),
-        endStr: "",
-        icon: Users,
-        color: "text-pink-600",
-      },
-      {
-        key: "performance",
-        label: "Performance",
-        startMin: timeToMinutes(ep.performance_start_time),
-        endMin: timeToMinutes(ep.performance_end_time),
-        startStr: toHHMM(ep.performance_start_time),
-        endStr: toHHMM(ep.performance_end_time),
-        icon: Music4,
-        color: "text-emerald-600",
-      },
-    ].filter((e) => !isNaN(e.startMin));
-
-    return rows.sort((a, b) => a.startMin - b.startMin);
-  }, [ep, soundcheckEnd]);
-
-  if (events.length === 0) {
-    return (
-      <div className="flex h-24 items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-sm text-gray-500">
-        Add times below to build the event timeline.
-      </div>
-    );
-  }
-
-  const Item = ({ event, last }: { event: (typeof events)[number]; last: boolean }) => {
-    const duration =
-      !isNaN(event.endMin) && event.endMin > event.startMin
-        ? formatDuration(event.startMin, event.endMin)
-        : null;
-    const Icon = event.icon as any;
-
-    return (
-      <div className="relative flex items-start gap-4 pb-8">
-        {!last && <div className="absolute left-[18px] top-5 h-full w-0.5 bg-gray-200" />}
-        <div className={`z-10 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white ring-8 ring-white ${event.color}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="font-semibold text-gray-800">{event.label}</p>
-          <div className="mt-0.5 flex items-center gap-2 text-sm text-gray-500">
-            <Clock className="h-3.5 w-3.5" />
-            <span>
-              {event.startStr}
-              {event.endStr && ` – ${event.endStr}`}
-            </span>
-            {duration && <span className="text-xs font-medium text-gray-400">({duration})</span>}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="mb-4">
-      {issues.length > 0 && (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-            <div>
-              <p className="font-semibold">Timeline has issues</p>
-              <ul className="mt-1 list-disc space-y-0.5 pl-5">
-                {issues.map((m, i) => (
-                  <li key={i}>{m}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      )}
-      <div>
-        {events.map((e, i) => (
-          <Item key={e.key} event={e} last={i === events.length - 1} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ────────────────────────────────────────────────────────────────────────────
-   Main Component
-   ────────────────────────────────────────────────────────────────────────── */
-export default function EventPrepForm({ bookingId }: { bookingId: number }) {
-  const { user } = useAuth();
-  const isProvider = user?.user_type === "service_provider";
-
-  const {
-    booking,
-    ep,
-    riderUrl,
-    attachments,
-    saving,
-    saved,
-    patch,
-    uploadAttachment,
-    deleteAttachment,
-    soundcheckEnd,
-    setSoundcheckEnd,
-  } = useEventPrep(bookingId);
-
-  const { expanded, setExpanded } = useTimelinePrefs(bookingId);
-
-  const progress = useMemo(
-    () => ({ done: ep?.progress_done ?? 0, total: ep?.progress_total ?? 0 }),
-    [ep]
-  );
-
-  const orderIssues = useMemo(() => {
-    if (!ep) return [] as string[];
-    const points = {
-      loadin_start: timeToMinutes(ep.loadin_start),
-      loadin_end: timeToMinutes(ep.loadin_end),
-      soundcheck_time: timeToMinutes(ep.soundcheck_time),
-      soundcheck_end_time: timeToMinutes(soundcheckEnd),
-      guests_arrival_time: timeToMinutes(ep.guests_arrival_time),
-      performance_start_time: timeToMinutes(ep.performance_start_time),
-      performance_end_time: timeToMinutes(ep.performance_end_time),
-    };
-    const checks: { a: keyof typeof points; b: keyof typeof points; al: string; bl: string }[] = [
-      { a: "loadin_start", b: "loadin_end", al: "Load-in start", bl: "Load-in end" },
-      { a: "loadin_end", b: "soundcheck_time", al: "Load-in end", bl: "Soundcheck start" },
-      { a: "soundcheck_time", b: "soundcheck_end_time", al: "Soundcheck start", bl: "Soundcheck end" },
-      { a: "soundcheck_end_time", b: "guests_arrival_time", al: "Soundcheck end", bl: "Guest arrival" },
-      { a: "guests_arrival_time", b: "performance_start_time", al: "Guests arrive", bl: "Performance start" },
-      { a: "performance_start_time", b: "performance_end_time", al: "Performance start", bl: "Performance end" },
-    ];
-    return checks
-      .map(({ a, b, al, bl }) => {
-        const ta = points[a];
-        const tb = points[b];
-        if (!isNaN(ta) && !isNaN(tb) && tb <= ta) return `${bl} must be after ${al}.`;
-        return null;
-      })
-      .filter((x): x is string => !!x);
-  }, [ep, soundcheckEnd]);
-
-  if (!ep || !booking) {
-    return (
-      <div className="flex min-height-[60vh] items-center justify-center text-gray-500">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
-      </div>
-    );
-  }
-
-  // Derived
-  const eventDate = booking.start_time ? new Date(booking.start_time) : null;
-  const soundNeeded = Boolean((ep as any)?.is_sound_required ?? (booking as any)?.requires_sound ?? false);
-  const techOwner = ep.tech_owner === "artist" ? "Artist brings PA" : "Venue system";
-  const clientTooltip = "This is to be filled in by the client";
-  const providerTooltip = "This is to be filled in by the artist";
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
-  const receiptUrl = booking.payment_id ? `${apiBase}/api/v1/payments/${booking.payment_id}/receipt` : null;
-  const icsUrl = `${apiBase}/api/v1/bookings/${bookingId}/calendar.ics`;
-  const venueAddress = booking?.service?.service_provider?.location || "";
-  const mapsUrl = venueAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueAddress)}` : null;
-  const heroImage =
-    booking?.service?.media_url ||
-    booking?.service?.service_provider?.cover_photo_url ||
-    booking?.service?.service_provider?.profile_picture_url ||
-    "";
-
-  const SidebarContent = () => (
-    <>
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        {heroImage ? (
-          <div className="aspect-[16/9] w-full overflow-hidden bg-gray-100">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={heroImage} alt="Service image" className="h-full w-full object-cover" />
-          </div>
-        ) : null}
-        <div className="p-5">
-          <p className="text-sm font-semibold text-gray-900">Booking Summary</p>
-          <div className="mt-1 text-xs text-gray-500">{booking.service?.title}</div>
-          <div className="mt-4 space-y-3 text-sm text-gray-700">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-gray-600" />
-              <span>{eventDate ? format(eventDate, "d MMM yyyy") : "…"}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-gray-600" />
-              <span className="truncate">{venueAddress || "Location"}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <ReceiptText className="h-4 w-4 text-gray-600" />
-              <span>Total: {ZAR(booking.total_price)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Music4 className="h-4 w-4 text-gray-600" />
-              <span>{soundNeeded ? techOwner : "No sound system required"}</span>
-            </div>
-          </div>
-          <div className="mt-5 grid grid-cols-2 gap-2">
-            {mapsUrl && (
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="action-button"
-              >
-                <MapPin className="h-4 w-4" /> Maps
-              </a>
-            )}
-            {receiptUrl && (
-              <a
-                href={receiptUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="action-button"
-              >
-                <ReceiptText className="h-4 w-4" /> Receipt
-              </a>
-            )}
-            <a
-              href={icsUrl}
-              className="action-button"
-            >
-              <CalendarDays className="h-4 w-4" /> Calendar
-            </a>
-            {riderUrl && (
-              <a
-                href={riderUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="action-button"
-              >
-                <Music4 className="h-4 w-4" /> Rider
-              </a>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {progress.done >= progress.total ? (
-        <div className="status-box bg-emerald-50 border-emerald-200 text-emerald-900">
-          <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
-          <div>
-            <p className="font-semibold">Ready to go!</p>
-            <p className="text-emerald-800/80">All details filled in. Changes auto-save.</p>
-          </div>
-        </div>
-      ) : (
-        <div className="status-box bg-amber-50 border-amber-200 text-amber-900">
-          <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-          <div>
-            <p className="font-semibold">Awaiting details</p>
-            <p className="text-amber-800/80">Please complete the remaining sections.</p>
-          </div>
-        </div>
-      )}
-    </>
-  );
-
-  return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Sticky header */}
-      <div className="sticky top-4 z-10 mb-6 rounded-2xl border border-gray-200 bg-white/80 p-3 shadow-lg backdrop-blur sm:p-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-base font-semibold text-gray-900 sm:text-lg">
-              {booking.service?.title || "Event Preparation"}
-            </p>
-            <p className="text-xs text-gray-600">
-              Prep {progress.done}/{progress.total}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <SavedPill saving={saving} saved={saved} />
-            <Link
-              href={`/dashboard/events/${bookingId}`}
-              className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-            >
-              View booking
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile sidebar summary */}
-      <div className="mb-8 space-y-6 lg:hidden">
-        <SidebarContent />
-      </div>
-
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr,380px]">
-        <main className="space-y-8">
-          {/* Timeline section with ONLY expand/collapse */}
-         {/* --- Event Timeline (visual collapses; inputs always visible) --- */}
-<Section
-  title="Event Timeline"
-  subtitle="All times are local to the event"
-  actions={
-    <button
-      type="button"
-      onClick={() => setExpanded((v) => !v)}
-      className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-      aria-pressed={expanded}
-      aria-expanded={expanded}
-    >
-      {expanded ? "Hide timeline" : "Show timeline"}
-    </button>
-  }
->
-  {/* Only the visual timeline collapses */}
-  {expanded && (
-    <VerticalTimeline ep={ep} soundcheckEnd={soundcheckEnd} issues={orderIssues} />
-  )}
-
-  {/* Inputs remain always visible */}
-  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3">
-    <Field
-      id="loadin_start"
-      label={`Load-in start ${isProvider ? "(You)" : "(Artist)"}`}
-      disabled={!isProvider}
-      tooltip={providerTooltip}
-    >
-      <TextInput
-        id="loadin_start"
-        type="time"
-        value={toHHMM(ep.loadin_start)}
-        onChange={(e) => patch({ loadin_start: e.target.value })}
-        disabled={!isProvider}
-      />
-    </Field>
-
-    <Field
-      id="loadin_end"
-      label={`Load-in end ${isProvider ? "(You)" : "(Artist)"}`}
-      disabled={!isProvider}
-      tooltip={providerTooltip}
-    >
-      <TextInput
-        id="loadin_end"
-        type="time"
-        value={toHHMM(ep.loadin_end)}
-        onChange={(e) => patch({ loadin_end: e.target.value })}
-        disabled={!isProvider}
-      />
-    </Field>
-
-    <Field id="soundcheck_start" label="Soundcheck start">
-      <TextInput
-        id="soundcheck_start"
-        type="time"
-        value={toHHMM(ep.soundcheck_time)}
-        onChange={(e) => patch({ soundcheck_time: e.target.value })}
-      />
-    </Field>
-
-    <Field id="soundcheck_end" label="Soundcheck end">
-      <TextInput
-        id="soundcheck_end"
-        type="time"
-        value={toHHMM(soundcheckEnd)}
-        onChange={(e) => {
-          const v = e.target.value;
-          setSoundcheckEnd(v);
-          writeLocalTimes(bookingId, { soundcheck_end_time: v });
-          const nextNotes = composeSoundcheckEndIntoNotes(ep.schedule_notes || "", v);
-          patch({ schedule_notes: nextNotes });
-        }}
-      />
-    </Field>
-
-    <Field
-      id="guests_arrival_time"
-      label={`Guests arrive ${isProvider ? "(Client)" : "(You)"}`}
-      disabled={isProvider}
-      tooltip={clientTooltip}
-    >
-      <TextInput
-        id="guests_arrival_time"
-        type="time"
-        value={toHHMM(ep.guests_arrival_time)}
-        onChange={(e) => patch({ guests_arrival_time: e.target.value })}
-        disabled={isProvider}
-      />
-    </Field>
-
-    <Field
-      id="performance_start_time"
-      label={`Performance starts ${isProvider ? "(Client)" : "(You)"}`}
-      disabled={isProvider}
-      tooltip={clientTooltip}
-    >
-      <TextInput
-        id="performance_start_time"
-        type="time"
-        value={toHHMM(ep.performance_start_time)}
-        onChange={(e) => patch({ performance_start_time: e.target.value })}
-        disabled={isProvider}
-      />
-    </Field>
-
-    <Field
-      id="performance_end_time"
-      label={`Performance ends ${isProvider ? "(Client)" : "(You)"}`}
-      disabled={isProvider}
-      tooltip={clientTooltip}
-    >
-      <TextInput
-        id="performance_end_time"
-        type="time"
-        value={toHHMM(ep.performance_end_time)}
-        onChange={(e) => patch({ performance_end_time: e.target.value })}
-        disabled={isProvider}
-      />
-    </Field>
-  </div>
-
-  <div className="mt-4">
-    <Field id="schedule_notes" label="Schedule notes (sets, breaks, speeches)">
-      <TextArea
-        id="schedule_notes"
-        rows={3}
-        placeholder="Two 45-min sets with a 15-min break, speeches at 20:30."
-        value={ep.schedule_notes || ""}
-        onChange={(e) => patch({ schedule_notes: e.target.value })}
-      />
-    </Field>
-  </div>
-</Section>
-
-          {/* People & Place */}
-          <Section title="People & Place" subtitle="Key contact and venue info">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field
-                id="day_of_contact_name"
-                label={`On-the-day contact ${isProvider ? "(Client)" : "(You)"}`}
-                disabled={isProvider}
-                tooltip={clientTooltip}
-              >
-                <TextInput
-                  id="day_of_contact_name"
-                  placeholder="e.g., Jane Doe (Venue Manager)"
-                  value={ep.day_of_contact_name || ""}
-                  onChange={(e) => patch({ day_of_contact_name: e.target.value })}
-                  disabled={isProvider}
-                />
-              </Field>
-              <Field
-                id="day_of_contact_phone"
-                label={`Mobile ${isProvider ? "(Client)" : "(You)"}`}
-                disabled={isProvider}
-                tooltip={clientTooltip}
-              >
-                <TextInput
-                  id="day_of_contact_phone"
-                  type="tel"
-                  placeholder="+27 82 123 4567"
-                  value={ep.day_of_contact_phone || ""}
-                  onChange={(e) => patch({ day_of_contact_phone: e.target.value })}
-                  disabled={isProvider}
-                />
-              </Field>
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-lg border bg-gray-50 p-4">
-                <div className="flex items-center gap-2 text-sm text-gray-800">
-                  <MapPin className="h-4 w-4 text-gray-600" /> Venue address
-                </div>
-                <div className="mt-1 text-sm text-gray-700">
-                  {ep.venue_address ? (
-                    ep.venue_address
-                  ) : (
-                    <Link href={`/dashboard/events/${bookingId}`} className="text-blue-600 hover:underline">
-                      Add venue address on the event page.
-                    </Link>
-                  )}
-                </div>
-              </div>
-              <Field id="parking_access_notes" label="Parking & access notes">
-                <TextArea
-                  id="parking_access_notes"
-                  rows={3}
-                  placeholder="Load-in via service entrance. Access code #1234."
-                  value={ep.parking_access_notes || ""}
-                  onChange={(e) => patch({ parking_access_notes: e.target.value })}
-                />
-              </Field>
-            </div>
-          </Section>
-
-          {/* Files & Notes */}
-          <Section title="Files & Notes" subtitle="Share programs or add final details">
-            <Field id="notes" label="General notes">
-              <TextArea
-                id="notes"
-                rows={4}
-                placeholder="Stage plots, guest lists, special announcements…"
-                value={ep.notes || ""}
-                onChange={(e) => patch({ notes: e.target.value })}
-              />
-            </Field>
-            <div className="mt-3">
-              <label className="mb-2 block text-[13px] font-medium text-gray-700">
-                Attachments
-              </label>
-              <AttachmentUploader
-                onUpload={uploadAttachment}
-                attachments={attachments}
-                onDelete={deleteAttachment}
-              />
-            </div>
-          </Section>
-        </main>
-
-        {/* Desktop sidebar */}
-        <aside className="hidden space-y-6 lg:sticky lg:top-28 lg:block lg:self-start">
-          <SidebarContent />
-        </aside>
-      </div>
-
-      <style jsx global>{`
-        .action-button {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.5rem;
-          border-radius: 0.75rem;
-          border: 1px solid #e5e7eb;
-          padding: 0.5rem 0.75rem;
-          font-size: 0.875rem;
-          line-height: 1.25rem;
-          color: #374151;
-          background-color: white;
-          transition: background-color 0.15s ease-in-out;
-        }
-        .action-button:hover {
-          background-color: #f9fafb;
-        }
-        .status-box {
-          display: flex;
-          align-items: flex-start;
-          gap: 0.75rem;
-          border-radius: 1rem;
-          border-width: 1px;
-          padding: 1rem;
-          font-size: 0.875rem;
-          line-height: 1.25rem;
-          margin-top: 1rem;
-        }
-      `}</style>
-    </div>
-  );
-}
-
-/* ────────────────────────────────────────────────────────────────────────────
-   Attachment Uploader
+   Attachment Uploader (MUI surfaces & controls)
    ────────────────────────────────────────────────────────────────────────── */
 function AttachmentUploader({
   onUpload,
@@ -983,21 +470,21 @@ function AttachmentUploader({
   const onPick = () => inputRef.current?.click();
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => handleFile(e.target.files?.[0]);
 
-  const onDragEnter = (e: React.DragEvent) => {
+  const onDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(true);
   };
-  const onDragLeave = (e: React.DragEvent) => {
+  const onDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
   };
-  const onDragOver = (e: React.DragEvent) => {
+  const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
   };
-  const onDrop = (e: React.DragEvent) => {
+  const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
@@ -1014,52 +501,290 @@ function AttachmentUploader({
   };
 
   return (
-    <div>
-      <div
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onDragEnter={onDragEnter}
-        onDragLeave={onDragLeave}
-        className={`relative rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
-          isDragging ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"
-        }`}
-      >
-        <div className="flex flex-col items-center justify-center gap-2">
-          <UploadCloud className={`h-7 w-7 ${isDragging ? "text-blue-600" : "text-gray-500"}`} />
-          <p className="text-sm text-gray-600">
-            <button
-              type="button"
-              onClick={onPick}
-              className="font-semibold text-blue-600 hover:underline focus:outline-none"
-            >
-              Click to upload
-            </button>{" "}
-            or drag and drop
-          </p>
-          <p className="text-xs text-gray-500">PDF or Images accepted</p>
+    <div
+      className={`rounded-xl border border-gray-200 ${isDragging ? 'bg-gray-50' : 'bg-white'} p-3 transition-colors`}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      onDragEnter={onDragEnter}
+      onDragLeave={onDragLeave}
+    >
+      <div className="flex flex-col items-center gap-2 text-gray-700">
+        <UploadCloudIcon className="opacity-75" width={28} height={28} />
+        <div className="text-sm text-gray-600">
+          <button type="button" onClick={onPick} className="font-semibold underline decoration-gray-400 underline-offset-2">
+            Click to upload
+          </button>
+          <span className="ml-1">or drag & drop</span>
         </div>
-        <input ref={inputRef} type="file" className="hidden" onChange={onChange} accept="application/pdf,image/*" />
+        <div className="text-xs text-gray-500">PDFs or Images</div>
+        <input ref={inputRef} type="file" hidden onChange={onChange} accept="application/pdf,image/*" />
       </div>
 
       {attachments.length > 0 && (
-        <ul className="mt-3 space-y-2 text-sm">
-          {attachments.map((a) => (
-            <li key={a.id} className="group flex items-center justify-between rounded-lg bg-gray-50 p-2.5 transition hover:bg-gray-100">
-              <a href={a.file_url} target="_blank" rel="noopener noreferrer" className="truncate hover:underline">
-                {fileName(a.file_url)}
-              </a>
-              <button
-                type="button"
-                onClick={() => onDelete(a.id)}
-                className="ml-2 rounded-md p-1.5 text-gray-400 opacity-0 transition hover:bg-red-100 hover:text-red-600 group-hover:opacity-100"
-                aria-label="Delete attachment"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-3 border-t border-gray-200 pt-2">
+          <ul className="divide-y divide-gray-100">
+            {attachments.map((a) => (
+              <li key={a.id} className="flex items-center justify-between py-2 text-sm">
+                <a href={a.file_url} target="_blank" rel="noopener noreferrer" className="truncate text-gray-900 hover:underline">
+                  {fileName(a.file_url)}
+                </a>
+                <button
+                  type="button"
+                  aria-label="delete attachment"
+                  onClick={() => onDelete(a.id)}
+                  className="inline-flex items-center rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  <Trash2Icon width={16} height={16} className="opacity-70" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Button helper for safe external links (fixes TS on href/target/rel)
+   ────────────────────────────────────────────────────────────────────────── */
+function LinkButton({ children, href, icon, disabledWhenEmpty = true, className }: { children: React.ReactNode; href?: string; icon?: React.ReactNode; disabledWhenEmpty?: boolean; className?: string }) {
+  const disabled = disabledWhenEmpty && !href;
+  if (!href) {
+    return (
+      <button type="button" disabled className={`inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-500 opacity-60 ${className || ''}`}>
+        {icon}
+        {children}
+      </button>
+    );
+  }
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 ${className || ''}`}
+    >
+      {icon}
+      {children}
+    </a>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Main Component (MUI across the whole page) — NO Grid2 needed
+   ────────────────────────────────────────────────────────────────────────── */
+export default function EventPrepForm({ bookingId }: { bookingId: number }) {
+  const { user } = useAuth();
+  const isProvider = user?.user_type === "service_provider";
+
+  const {
+    booking,
+    ep,
+    riderUrl,
+    attachments,
+    saving,
+    saved,
+    patch,
+    uploadAttachment,
+    deleteAttachment,
+    soundcheckEnd,
+    setSoundcheckEnd,
+  } = useEventPrep(bookingId);
+
+  const progress = useMemo(() => {
+    const done = ep?.progress_done ?? 0;
+    const total = ep?.progress_total ?? 0;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    return { done, total, pct };
+  }, [ep]);
+
+  if (!ep || !booking) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center gap-2 text-white/70">
+        <Loader2Icon width={20} height={20} /> Loading…
+      </div>
+    );
+  }
+
+  // Derived content
+  const eventDate = booking.start_time ? new Date(booking.start_time) : null;
+  const soundNeeded = Boolean((ep as any)?.is_sound_required ?? (booking as any)?.requires_sound ?? false);
+  const techOwner = ep.tech_owner === "artist" ? "Artist brings PA" : "Venue system";
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
+  const receiptUrl = booking.payment_id ? `${apiBase}/api/v1/payments/${booking.payment_id}/receipt` : undefined;
+  const icsUrl = `${apiBase}/api/v1/bookings/${bookingId}/calendar.ics`;
+  const venueAddress = ep.venue_address || booking?.service?.service_provider?.location || "";
+  const mapsUrl = venueAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueAddress)}` : undefined;
+  const heroImage =
+    booking?.service?.media_url ||
+    booking?.service?.service_provider?.cover_photo_url ||
+    booking?.service?.service_provider?.profile_picture_url ||
+    "";
+
+  const roleNotes = {
+    loadin: isProvider ? "You" : "Artist",
+    soundcheck: isProvider ? "You" : "Artist",
+    guests: isProvider ? "Client" : "You",
+    performance: isProvider ? "Client" : "You",
+  };
+
+  return (
+    <div className="mx-auto max-w-[1180px] px-4 py-6 text-gray-900">
+      {/* Sticky Header */}
+      <div className="sticky md:top-[72px] z-40 mb-4 rounded-2xl border border-gray-200 bg-white/80 px-4 py-3 backdrop-blur">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-base font-bold">{booking.service?.title || "Event Preparation"}</div>
+            <div className="mt-2 flex items-center gap-3">
+              <div className="h-1.5 w-44 rounded-full bg-gray-200">
+                <div className="h-full rounded-full bg-gray-900" style={{ width: `${progress.pct}%` }} />
+              </div>
+              <span className="text-xs text-gray-500">{progress.done}/{progress.total} complete</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <SavedPill saving={saving} saved={saved} />
+            <Link href={`/dashboard/events/${bookingId}`} className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              View booking
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Responsive 2-column grid via CSS Grid (no MUI Grid types) */}
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr,360px]">
+        {/* Main column */}
+        <div>
+          {/* Event Timeline */}
+          <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
+            <EventTimeline
+              ep={ep}
+              patch={patch}
+              bookingId={bookingId}
+              soundcheckEnd={soundcheckEnd}
+              setSoundcheckEnd={setSoundcheckEnd}
+              roleNotes={roleNotes}
+            />
+          </div>
+
+          {/* People & Place (as requested) */}
+          <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
+            <h3 className="text-base font-semibold">People & Place</h3>
+            <p className="mt-1 text-xs text-white/60">On-the-day contacts and location details</p>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+              {/* On-the-day contact name */}
+              <div className="space-y-1.5">
+                <label className="text-xs text-gray-600">On-the-day contact name</label>
+                <input type="text" placeholder="Full name" value={ep.day_of_contact_name || ""} onChange={(e) => patch({ day_of_contact_name: e.target.value })} className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              </div>
+              {/* On-the-day contact number */}
+              <div className="space-y-1.5">
+                <label className="text-xs text-gray-600">On-the-day contact number</label>
+                <input type="tel" placeholder="+27 82 123 4567" value={ep.day_of_contact_phone || ""} onChange={(e) => patch({ day_of_contact_phone: e.target.value })} className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              </div>
+
+              {/* Secondary contact name */}
+              <div className="space-y-1.5">
+                <label className="text-xs text-gray-600">Secondary contact name (optional)</label>
+                <input type="text" placeholder="Full name" value={(ep as any).additional_contact_name || ""} onChange={(e) => patch(({ additional_contact_name: e.target.value } as unknown) as Partial<EventPrep>)} className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              </div>
+              {/* Secondary contact number */}
+              <div className="space-y-1.5">
+                <label className="text-xs text-gray-600">Secondary contact number (optional)</label>
+                <input type="tel" placeholder="+27 82 987 6543" value={(ep as any).additional_contact_phone || ""} onChange={(e) => patch(({ additional_contact_phone: e.target.value } as unknown) as Partial<EventPrep>)} className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              </div>
+
+              {/* Venue name */}
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="text-xs text-gray-600">Venue name (optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Sea Point Pavilion"
+                  value={(ep as any).venue_name || ""}
+                  onChange={(e) => patch(({ venue_name: e.target.value } as unknown) as Partial<EventPrep>)}
+                  className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                />
+              </div>
+
+              {/* Location */}
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="text-xs text-gray-600">Confirm Location</label>
+                <input placeholder="Venue / Address" value={ep.venue_address || ""} onChange={(e) => patch({ venue_address: e.target.value })} className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              </div>
+
+              {/* Location quick actions */}
+              <div className="md:col-span-2 flex gap-2">
+                <LinkButton href={venueAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueAddress)}` : undefined} icon={<MapPinIcon width={16} height={16} />}>Open in Maps</LinkButton>
+                <LinkButton href={`${apiBase}/api/v1/bookings/${bookingId}/calendar.ics`} icon={<CalendarDaysIcon width={16} height={16} />}>Add to Calendar</LinkButton>
+              </div>
+
+              {/* Notes — full width (span 2) */}
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="text-xs text-gray-600">Notes</label>
+                <textarea placeholder="Access instructions, gate codes, parking info, etc." value={ep.parking_access_notes || ""} onChange={(e) => patch({ parking_access_notes: e.target.value })} className="min-h-[96px] w-full rounded-md bg-white border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              </div>
+            </div>
+          </div>
+
+          {/* Files & Notes */}
+          <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
+            <h3 className="text-base font-semibold">Files & Notes</h3>
+            <p className="mt-1 text-xs text-gray-500">Share programs or add final details</p>
+            <div className="mt-3 space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs text-gray-600">General notes</label>
+                <textarea placeholder="Stage plots, guest lists, special announcements…" value={ep.notes || ""} onChange={(e) => patch({ notes: e.target.value })} className="min-h-[96px] w-full rounded-md bg-white border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300" />
+              </div>
+              <div>
+                <div className="mb-1 text-sm font-medium text-white/90">Attachments</div>
+                <AttachmentUploader onUpload={uploadAttachment} attachments={attachments} onDelete={deleteAttachment} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <aside>
+          {heroImage && (
+            <div className="mb-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+              <div className="aspect-[16/9] bg-gray-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={heroImage} alt={booking.service?.title || 'Event'} className="h-full w-full object-cover" />
+              </div>
+            </div>
+          )}
+          <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
+            <h3 className="mb-2 text-base font-semibold">Quick Links</h3>
+            <div className="space-y-2">
+              <LinkButton href={riderUrl || undefined} icon={<CheckCircle2Icon width={16} height={16} />} className="w-full justify-center">Open Rider (PDF)</LinkButton>
+              <LinkButton href={receiptUrl} icon={<ReceiptTextIcon width={16} height={16} />} className="w-full justify-center">View Receipt</LinkButton>
+              <LinkButton href={icsUrl} icon={<CalendarDaysIcon width={16} height={16} />} className="w-full justify-center">Add to Calendar (.ics)</LinkButton>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <h3 className="mb-2 text-base font-semibold">Event</h3>
+            <div className="space-y-1">
+              <div className="text-sm text-gray-900">{eventDate ? format(eventDate, "EEE, d MMM yyyy") : "Date TBA"}</div>
+              <div className="text-sm text-gray-900">{booking.service?.title || "Untitled"}</div>
+              <div className="text-xs text-gray-500">{venueAddress || "Address TBA"}</div>
+            </div>
+          </div>
+          <div className="mt-4 text-xs text-gray-600">
+            {progress.total > 0 && progress.done >= progress.total ? (
+              <div className="rounded-md border border-emerald-600/30 bg-emerald-600/10 px-3 py-2 text-emerald-700">Ready to go! All details filled in. Changes auto-save.</div>
+            ) : (
+              <div className="rounded-md border border-amber-600/30 bg-amber-600/10 px-3 py-2 text-amber-700">Awaiting details. Please complete the remaining sections.</div>
+            )}
+          </div>
+        </aside>
+      </div>
+      {/* Hide native clock icon in time inputs */}
+      <style jsx global>{`
+        .no-time-picker::-webkit-calendar-picker-indicator { display: none !important; }
+        .no-time-picker { -webkit-appearance: none; }
+      `}</style>
     </div>
   );
 }
