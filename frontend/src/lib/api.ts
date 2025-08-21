@@ -9,6 +9,8 @@ import {
   ServiceProviderProfile,
   Service,
   Booking,
+  EventPrep,
+  EventPrepPayload,
   Review,
   BookingRequestCreate,
   BookingRequest,
@@ -664,8 +666,65 @@ export const exportMyAccount = () =>
 export const deleteMyAccount = (password: string) =>
   api.delete(`${API_V1}/users/me`, { data: { password } });
 
+// ─── EVENT PREP ───────────────────────────────────────────────────────────────
+export async function getEventPrep(bookingId: number) {
+  const res = await api.get<EventPrep>(`${API_V1}/bookings/${bookingId}/event-prep`);
+  return res.data;
+}
+
+export async function updateEventPrep(
+  bookingId: number,
+  patch: Partial<EventPrepPayload>,
+  opts?: { idempotencyKey?: string }
+) {
+  const res = await api.patch<EventPrep>(
+    `${API_V1}/bookings/${bookingId}/event-prep`,
+    patch,
+    opts?.idempotencyKey ? { headers: { 'Idempotency-Key': opts.idempotencyKey } } : undefined,
+  );
+  return res.data;
+}
+
+export async function completeEventPrepTask(
+  bookingId: number,
+  payload: { key: string; value?: any },
+  opts?: { idempotencyKey?: string }
+) {
+  const res = await api.post<EventPrep>(
+    `${API_V1}/bookings/${bookingId}/event-prep/complete-task`,
+    payload,
+    opts?.idempotencyKey ? { headers: { 'Idempotency-Key': opts.idempotencyKey } } : undefined,
+  );
+  return res.data;
+}
+
 export default api; // Export the axios instance as default
 
 // Re-export useAuth from its original context file if it's there
 // This fixes the 'Function not implemented' warning and potential import conflicts.
 export { useContextAuth as useAuth }; // Re-export as 'useAuth'
+
+// Explicit type re-export for convenience
+export type { EventPrep } from '@/types';
+
+// ─── RIDER ───────────────────────────────────────────────────────────────────
+export interface Rider {
+  id: number;
+  service_id: number;
+  spec?: Record<string, any> | null;
+  pdf_url?: string | null;
+}
+
+export const getRider = (serviceId: number) =>
+  api.get<Rider>(`${API_V1}/services/${serviceId}/rider`);
+
+export const upsertRider = (serviceId: number, payload: { spec?: Record<string, any> | null; pdf_url?: string | null }) =>
+  api.post<Rider>(`${API_V1}/services/${serviceId}/rider`, { service_id: serviceId, ...payload });
+// ─── EVENT PREP ATTACHMENTS ────────────────────────────────────────────────
+export interface EventPrepAttachment { id: number; file_url: string; created_at: string }
+export const getEventPrepAttachments = (bookingId: number) =>
+  api.get<EventPrepAttachment[]>(`${API_V1}/bookings/${bookingId}/event-prep/attachments`);
+export const addEventPrepAttachment = (bookingId: number, url: string) =>
+  api.post<EventPrepAttachment>(`${API_V1}/bookings/${bookingId}/event-prep/attachments`, { url });
+export const deleteEventPrepAttachment = (bookingId: number, attachmentId: number) =>
+  api.delete<void>(`${API_V1}/bookings/${bookingId}/event-prep/attachments/${attachmentId}`);

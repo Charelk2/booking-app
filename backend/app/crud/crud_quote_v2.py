@@ -271,38 +271,8 @@ def accept_quote(
             exc,
         )
 
-    # Simulate payment and issue a mock receipt for testing
-    try:
-        payment_id = f"test_{uuid.uuid4().hex}"
-        booking.payment_status = "deposit_paid"
-        booking.deposit_paid = True
-        booking.payment_id = payment_id
-
-        receipt_dir = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "static", "receipts")
-        )
-        os.makedirs(receipt_dir, exist_ok=True)
-        receipt_path = os.path.join(receipt_dir, f"{payment_id}.pdf")
-        with open(receipt_path, "wb") as f:
-            f.write(b"%PDF-1.4 test receipt\n%%EOF")
-
-        crud_message.create_message(
-            db=db,
-            booking_request_id=db_quote.booking_request_id,
-            sender_id=db_quote.client_id,
-            sender_type=models.SenderType.CLIENT,
-            content=(
-                f"Deposit received. Receipt: /api/v1/payments/{payment_id}/receipt"
-            ),
-            message_type=models.MessageType.SYSTEM,
-        )
-
-        notify_new_booking(db, artist, booking.id)
-        notify_new_booking(db, client, booking.id)
-    except Exception as exc:  # pragma: no cover - best effort only
-        logger.warning(
-            "Failed to simulate payment for booking %s: %s", booking.id, exc
-        )
+    # Do not simulate payment here; payment and receipt issuance happen via the
+    # payments API after the client completes checkout.
 
     return booking
 

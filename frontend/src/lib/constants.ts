@@ -8,6 +8,13 @@ export const BOOKING_DETAILS_PREFIX = 'Booking details:';
 export let DEFAULT_CURRENCY =
   process.env.NEXT_PUBLIC_DEFAULT_CURRENCY || 'ZAR';
 
+// Feature flags (string envs → booleans). Safe if missing.
+export const FEATURE_EVENT_PREP: boolean = !!(
+  process.env.NEXT_PUBLIC_FEATURE_EVENT_PREP &&
+  process.env.NEXT_PUBLIC_FEATURE_EVENT_PREP !== '0' &&
+  process.env.NEXT_PUBLIC_FEATURE_EVENT_PREP !== 'false'
+);
+
 /**
  * Fetch the default currency from `/api/v1/settings` when not provided via
  * environment variables. The resolved value updates `DEFAULT_CURRENCY` so

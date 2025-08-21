@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from .. import models, schemas
 from ..models.booking_status import BookingStatus  # For BookingStatus enum
 from ..models.service import ServiceType
+from . import crud_event_prep
 
 
 class CRUDBooking:
@@ -144,6 +145,11 @@ def create_booking_from_quote(
     db.add(db_booking)
     db.commit()
     db.refresh(db_booking)
+    # Bootstrap event prep row for this booking (idempotent)
+    try:
+        crud_event_prep.seed_for_booking(db, db_booking)
+    except Exception:
+        pass
     return db_booking
 
 
@@ -181,4 +187,10 @@ def create_booking_from_quote_v2(db: Session, quote: models.QuoteV2) -> models.B
     db.add(db_booking)
     db.commit()
     db.refresh(db_booking)
+    # Bootstrap event prep row for this booking (idempotent)
+    try:
+        from . import crud_event_prep
+        crud_event_prep.seed_for_booking(db, db_booking)
+    except Exception:
+        pass
     return db_booking

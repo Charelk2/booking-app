@@ -1,7 +1,7 @@
 # backend/app/api/v1/api_booking.py
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status, BackgroundTasks
 from sqlalchemy.orm import Session, selectinload
 from fastapi.responses import Response
 from ics import Calendar, Event
@@ -23,8 +23,13 @@ from .dependencies import (
     get_current_service_provider,
 )
 from ..utils.redis_cache import invalidate_availability_cache
+from ..schemas.event_prep import EventPrepResponse, EventPrepPatch
+from ..crud import crud_event_prep
+from .api_ws import manager
+from ..models.message import MessageType, SenderType, VisibleTo
 from ..utils import error_response
 from .api_sound_outreach import kickoff_sound_outreach
+from pydantic import BaseModel
 
 router = APIRouter(tags=["bookings"])
 logger = logging.getLogger(__name__)
@@ -371,6 +376,296 @@ def read_booking_details(
         booking.booking_request_id = booking_request_id
 
     return booking
+
+
+# ─── EVENT PREP ROUTES (under /api/v1/bookings/{booking_id}/event-prep) ───────────
+
+def _ensure_participant_or_404(db: Session, booking_id: int, user: User) -> Booking:
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise error_response("Booking not found", {"booking_id": "not_found"}, status.HTTP_404_NOT_FOUND)
+    if user.id not in [booking.client_id, booking.artist_id]:
+        raise error_response("Not authorized", {}, status.HTTP_404_NOT_FOUND)
+    return booking
+
+
+def _find_booking_request_id(db: Session, booking_id: int) -> int | None:
+    return crud_event_prep._resolve_booking_request_id(db, booking_id)  # reuse internal helper
+
+
+def _as_response(db: Session, ep: models.EventPrep) -> EventPrepResponse:
+    done, total = crud_event_prep.compute_progress(db, ep.booking_id, ep)
+    return EventPrepResponse(
+        booking_id=ep.booking_id,
+        day_of_contact_name=ep.day_of_contact_name,
+        day_of_contact_phone=ep.day_of_contact_phone,
+        venue_address=ep.venue_address,
+        venue_place_id=ep.venue_place_id,
+        venue_lat=float(ep.venue_lat) if ep.venue_lat is not None else None,
+        venue_lng=float(ep.venue_lng) if ep.venue_lng is not None else None,
+        loadin_start=ep.loadin_start.isoformat() if ep.loadin_start else None,
+        loadin_end=ep.loadin_end.isoformat() if ep.loadin_end else None,
+        # Ensure all schedule times round-trip in the API response
+        soundcheck_time=ep.soundcheck_time.isoformat() if ep.soundcheck_time else None,
+        guests_arrival_time=ep.guests_arrival_time.isoformat() if ep.guests_arrival_time else None,
+        performance_start_time=ep.performance_start_time.isoformat() if ep.performance_start_time else None,
+        performance_end_time=ep.performance_end_time.isoformat() if ep.performance_end_time else None,
+        tech_owner=ep.tech_owner,
+        stage_power_confirmed=ep.stage_power_confirmed,
+        accommodation_required=ep.accommodation_required,
+        accommodation_address=ep.accommodation_address,
+        accommodation_contact=ep.accommodation_contact,
+        accommodation_notes=ep.accommodation_notes,
+        notes=ep.notes,
+        schedule_notes=ep.schedule_notes,
+        parking_access_notes=ep.parking_access_notes,
+        progress_done=done,
+        progress_total=total,
+    )
+
+
+@router.get("/{booking_id}/event-prep", response_model=EventPrepResponse)
+def get_event_prep(
+    booking_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    booking = _ensure_participant_or_404(db, booking_id, current_user)
+    # Idempotent bootstrap: create seed record if missing
+    ep = crud_event_prep.get_by_booking_id(db, booking.id) or crud_event_prep.seed_for_booking(db, booking)
+    return _as_response(db, ep)
+
+
+@router.patch("/{booking_id}/event-prep", response_model=EventPrepResponse)
+def patch_event_prep(
+    booking_id: int,
+    patch: EventPrepPatch,
+    request: Request,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    booking = _ensure_participant_or_404(db, booking_id, current_user)
+    # Idempotency support (24h window)
+    key = request.headers.get("Idempotency-Key")
+    is_dup, existing = crud_event_prep.idempotency_check(
+        db,
+        booking.id,
+        key,
+        request_hash=str(patch.model_dump_json()) if hasattr(patch, "model_dump_json") else str(patch.dict()),
+    )
+    if is_dup and existing:
+        return _as_response(db, existing)
+
+    ep = crud_event_prep.upsert(
+        db,
+        booking.id,
+        patch.model_dump(exclude_unset=True),
+        updated_by_user_id=current_user.id,
+    )
+
+    br_id = _find_booking_request_id(db, booking.id)
+    # Post minimal system message
+    try:
+        if br_id is not None:
+            content = "Event prep updated"
+            # Specialize for common updates when clear
+            p = patch.model_dump(exclude_unset=True)
+            if p.get("day_of_contact_name") or p.get("day_of_contact_phone"):
+                name = p.get("day_of_contact_name") or ep.day_of_contact_name or ""
+                phone = p.get("day_of_contact_phone") or ep.day_of_contact_phone or ""
+                pretty = (f"{name} ({phone})" if name or phone else "updated")
+                content = f"Day-of contact added: {pretty}".strip()
+                sys_key = "event_prep_contact_saved"
+            elif p.get("loadin_start") or p.get("loadin_end"):
+                content = "Load-in window updated"
+                sys_key = "event_prep_loadin_saved"
+            elif "tech_owner" in p:
+                content = f"Tech owner set to {p.get('tech_owner') or ep.tech_owner}"
+                sys_key = "event_prep_tech_owner_updated"
+            elif p.get("stage_power_confirmed") is True:
+                content = "Stage power confirmed"
+                sys_key = "event_prep_stage_power_confirmed"
+            elif "parking_access_notes" in p:
+                content = "Parking & access notes updated"
+                sys_key = "event_prep_parking_access_notes_updated"
+            elif "schedule_notes" in p:
+                content = "Schedule notes updated"
+                sys_key = "event_prep_schedule_notes_updated"
+            else:
+                sys_key = "event_prep_updated"
+
+            from ..crud import crud_message
+            crud_message.create_message(
+                db=db,
+                booking_request_id=br_id,
+                sender_id=booking.artist_id,
+                sender_type=SenderType.ARTIST,
+                content=content,
+                message_type=MessageType.SYSTEM,
+                visible_to=VisibleTo.BOTH,
+                system_key=sys_key,
+            )
+            db.commit()
+    except Exception:
+        pass
+
+    # WebSocket broadcast on thread channel
+    try:
+        if br_id is not None:
+            background_tasks.add_task(
+                manager.broadcast,
+                br_id,
+                {
+                    "type": "event_prep_updated",
+                    "payload": _as_response(db, ep).model_dump(),
+                },
+            )
+    except Exception:
+        pass
+
+    return _as_response(db, ep)
+
+
+@router.post("/{booking_id}/event-prep/complete-task", response_model=EventPrepResponse)
+def complete_event_prep_task(
+    booking_id: int,
+    body: dict,
+    request: Request,
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    booking = _ensure_participant_or_404(db, booking_id, current_user)
+    key = request.headers.get("Idempotency-Key")
+    is_dup, existing = crud_event_prep.idempotency_check(db, booking.id, key, str(body))
+    if is_dup and existing:
+        return _as_response(db, existing)
+
+    key_name = (body or {}).get("key")
+    value = (body or {}).get("value")
+
+    patch: dict[str, Any] = {}
+    system_key = "event_prep_updated"
+    content = "Event prep updated"
+    if key_name == "day_of_contact":
+        if isinstance(value, dict):
+            patch["day_of_contact_name"] = value.get("name")
+            patch["day_of_contact_phone"] = value.get("phone")
+        system_key = "event_prep_contact_saved"
+        name = (value or {}).get("name") or ""
+        phone = (value or {}).get("phone") or ""
+        content = f"Day-of contact added: {name} ({phone})".strip()
+    elif key_name == "loadin":
+        if isinstance(value, dict):
+            patch["loadin_start"] = value.get("start")
+            patch["loadin_end"] = value.get("end")
+        system_key = "event_prep_loadin_saved"
+        content = "Load-in window updated"
+    elif key_name == "tech_owner":
+        patch["tech_owner"] = value or "venue"
+        system_key = "event_prep_tech_owner_updated"
+        content = f"Tech owner set to {patch['tech_owner']}"
+    elif key_name == "stage_power":
+        patch["stage_power_confirmed"] = bool(value)
+        system_key = "event_prep_stage_power_confirmed"
+        content = "Stage power confirmed" if patch["stage_power_confirmed"] else "Stage power unconfirmed"
+    elif key_name == "venue_address":
+        patch["venue_address"] = value
+        content = "Venue address saved"
+    elif key_name == "accommodation":
+        if isinstance(value, dict):
+            for k in ("accommodation_required", "accommodation_address", "accommodation_contact", "accommodation_notes"):
+                if k in value:
+                    patch[k] = value[k]
+        content = "Accommodation details updated"
+    elif key_name == "notes":
+        patch["notes"] = value
+        content = "Event notes updated"
+    elif key_name == "parking_access_notes":
+        patch["parking_access_notes"] = value
+        content = "Parking & access notes updated"
+
+    ep = crud_event_prep.upsert(db, booking.id, patch, updated_by_user_id=current_user.id)
+
+    br_id = _find_booking_request_id(db, booking.id)
+    try:
+        if br_id is not None:
+            from ..crud import crud_message
+            crud_message.create_message(
+                db=db,
+                booking_request_id=br_id,
+                sender_id=booking.artist_id,
+                sender_type=SenderType.ARTIST,
+                content=content,
+                message_type=MessageType.SYSTEM,
+                visible_to=VisibleTo.BOTH,
+                system_key=system_key,
+            )
+            db.commit()
+    except Exception:
+        pass
+
+    try:
+        if br_id is not None:
+            background_tasks.add_task(
+                manager.broadcast,
+                br_id,
+                {
+                    "type": "event_prep_updated",
+                    "payload": _as_response(db, ep).model_dump(),
+                },
+            )
+    except Exception:
+        pass
+
+    return _as_response(db, ep)
+
+
+# ─── Event Prep Attachments (structured) ─────────────────────────────────────
+
+class EventPrepAttachmentIn(BaseModel):
+    url: str
+
+
+@router.get("/{booking_id}/event-prep/attachments")
+def list_event_prep_attachments(
+    booking_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    booking = _ensure_participant_or_404(db, booking_id, current_user)
+    ep = crud_event_prep.get_by_booking_id(db, booking.id) or crud_event_prep.seed_for_booking(db, booking)
+    rows = (
+        db.query(models.EventPrepAttachment)
+        .filter(models.EventPrepAttachment.event_prep_id == ep.id)
+        .order_by(models.EventPrepAttachment.created_at.desc())
+        .all()
+    )
+    return [{"id": r.id, "file_url": r.file_url, "created_at": r.created_at} for r in rows]
+
+
+@router.post("/{booking_id}/event-prep/attachments", status_code=status.HTTP_201_CREATED)
+def add_event_prep_attachment(
+    booking_id: int,
+    body: EventPrepAttachmentIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    booking = _ensure_participant_or_404(db, booking_id, current_user)
+    ep = crud_event_prep.get_by_booking_id(db, booking.id) or crud_event_prep.seed_for_booking(db, booking)
+    att = models.EventPrepAttachment(event_prep_id=ep.id, file_url=body.url)
+    db.add(att)
+    db.commit()
+    db.refresh(att)
+    # Broadcast a lightweight update for attachments consumers
+    try:
+        br_id = _find_booking_request_id(db, booking.id)
+        if br_id is not None:
+            manager.broadcast(br_id, {"type": "event_prep_updated", "payload": _as_response(db, ep).model_dump()})
+    except Exception:
+        pass
+    return {"id": att.id, "file_url": att.file_url, "created_at": att.created_at}
 
 
 @router.get("/{booking_id}/calendar.ics")

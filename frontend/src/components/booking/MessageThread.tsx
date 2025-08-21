@@ -24,6 +24,7 @@ import {
 } from '@/lib/utils';
 import { BOOKING_DETAILS_PREFIX } from '@/lib/constants';
 import { parseBookingDetailsFromMessage } from '@/lib/bookingDetails';
+import { isSystemMessage as isSystemMsgHelper, systemLabel } from '@/lib/systemMessages';
 
 import {
   Booking,
@@ -36,21 +37,22 @@ import {
   BookingRequest,
 } from '@/types';
 
-import {
-  getMessagesForBookingRequest,
-  postMessageToBookingRequest,
-  uploadMessageAttachment,
-  createQuoteV2,
-  getQuoteV2,
-  acceptQuoteV2,
-  declineQuoteV2,
-  getBookingDetails,
-  getBookingRequestById,
-  markMessagesRead,
-  markThreadRead,
-  updateBookingRequestArtist,
-  useAuth,
-} from '@/lib/api';
+  import {
+    getMessagesForBookingRequest,
+    postMessageToBookingRequest,
+    uploadMessageAttachment,
+    createQuoteV2,
+    getQuoteV2,
+    acceptQuoteV2,
+    declineQuoteV2,
+    getBookingDetails,
+    getMyClientBookings,
+    getBookingRequestById,
+    markMessagesRead,
+    markThreadRead,
+    updateBookingRequestArtist,
+    useAuth,
+  } from '@/lib/api';
 
 import useOfflineQueue from '@/hooks/useOfflineQueue';
 import usePaymentModal from '@/hooks/usePaymentModal';
@@ -59,10 +61,11 @@ import useBookingView from '@/hooks/useBookingView';
 
 import Button from '../ui/Button';
 import QuoteBubble from './QuoteBubble';
-import QuoteDrawer from './QuoteDrawer';
 import InlineQuoteForm from './InlineQuoteForm';
 import BookingSummaryCard from './BookingSummaryCard';
 import { t } from '@/lib/i18n';
+import { FEATURE_EVENT_PREP } from '@/lib/constants';
+import EventPrepCard from './EventPrepCard';
 
 const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
 const MemoQuoteBubble = React.memo(QuoteBubble);
@@ -106,6 +109,7 @@ type ThreadMessage = {
   sender_type: 'client' | 'service_provider'; // normalized
   content: string;
   message_type: MessageKind;
+  system_key?: string | null;
   quote_id?: number | null;
   attachment_url?: string | null;
   visible_to?: 'client' | 'service_provider' | 'both'; // normalized
@@ -137,6 +141,7 @@ function normalizeMessage(raw: any): ThreadMessage {
     sender_type: normalizeSenderType(raw.sender_type),
     content: String(raw.content ?? ''),
     message_type: (raw.message_type ?? 'text') as MessageKind,
+    system_key: raw.system_key ?? null,
     quote_id: raw.quote_id == null ? null : Number(raw.quote_id),
     attachment_url: raw.attachment_url ?? null,
     visible_to: normalizeVisibleTo(raw.visible_to),
@@ -285,9 +290,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [isPortalReady, setIsPortalReady] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<{ status: string | null; amount: number | null; receiptUrl: string | null }>({ status: null, amount: null, receiptUrl: null });
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [quoteDrawerOpen, setQuoteDrawerOpen] = useState(false);
-  const [quoteDrawerId, setQuoteDrawerId] = useState<number | null>(null);
-  const [quoteDrawerTopOffset, setQuoteDrawerTopOffset] = useState<number>(0);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   // ---- Offline queue
@@ -381,55 +383,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     } as any;
   }, [clientName, parsedBookingDetails, bookingRequest, bookingDetails]);
 
-  // ---- Payment modal
-  const { openPaymentModal, paymentModal } = usePaymentModal(
-    useCallback(({ status, amount, receiptUrl: url }) => {
-      setPaymentInfo({ status: status ?? null, amount: amount ?? null, receiptUrl: url ?? null });
-      if (status === 'paid') {
-        setBookingConfirmed(true);
-        onBookingConfirmedChange?.(true, bookingDetails);
-        // Add a reassuring system message on payment
-        const paidMsg: ThreadMessage = {
-          id: -Date.now() - 1,
-          booking_request_id: bookingRequestId,
-          sender_id: user?.id || 0,
-          sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
-          content: 'Payment received. Your booking is confirmed and the date is secured. A receipt is available in your booking details.',
-          message_type: 'SYSTEM',
-          quote_id: null,
-          attachment_url: null,
-          visible_to: 'both',
-          action: null,
-          avatar_url: undefined,
-          expires_at: null,
-          unread: false,
-          is_read: true,
-          timestamp: new Date().toISOString(),
-          status: 'sent',
-        };
-        setMessages((prev) => mergeMessages(prev, paidMsg));
-        // Also persist a backend message so the other party receives a header notification
-        (async () => {
-          try {
-            const text = url
-              ? 'Payment received. Your booking is confirmed and the date is secured. View your receipt from booking details.'
-              : 'Payment received. Your booking is confirmed and the date is secured.';
-            await postMessageToBookingRequest(bookingRequestId, { content: text });
-            // Nudge header unread counts to refresh
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new Event('threads:updated'));
-            }
-          } catch (e) {
-            // non-fatal
-          }
-        })();
-      }
-      setIsPaymentOpen(false);
-      onPaymentStatusChange?.(status, amount, url ?? null);
-    }, [onPaymentStatusChange, bookingDetails, onBookingConfirmedChange]),
-    useCallback(() => { setIsPaymentOpen(false); }, []),
-  );
-
   const { isClientView: isClientViewFlag, isProviderView: isProviderViewFlag, isPaid: isPaidFlag } = useBookingView(user, bookingDetails, paymentInfo, bookingConfirmed);
 
   // ---- Focus textarea on mount & thread switch
@@ -439,22 +392,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // ---- Portal ready
   useEffect(() => { setIsPortalReady(true); }, []);
 
-  // ---- Compute drawer top offset so it doesn't overlap the site header on web
-  useEffect(() => {
-    const compute = () => {
-      const rect = wrapperRef.current?.getBoundingClientRect();
-      const top = rect ? Math.max(0, Math.round(rect.top)) : 0;
-      setQuoteDrawerTopOffset(top);
-    };
-    compute();
-    const handle = () => compute();
-    window.addEventListener('scroll', handle, { passive: true });
-    window.addEventListener('resize', handle);
-    return () => {
-      window.removeEventListener('scroll', handle as any);
-      window.removeEventListener('resize', handle as any);
-    };
-  }, []);
+  // (Quote drawer removed)
 
   // ---- Prefill quote form (SP side)
   const hasSentQuote = useMemo(() => messages.some((m) => Number(m.quote_id) > 0), [messages]);
@@ -714,6 +652,62 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useImperativeHandle(ref, () => ({ refreshMessages: fetchMessages }), [fetchMessages]);
   useEffect(() => { fetchMessages(); }, [bookingRequestId, fetchMessages]);
 
+  // Resolve booking from request for paid/confirmed state (client path)
+  const resolveBookingFromRequest = useCallback(async () => {
+    try {
+      const list = await getMyClientBookings();
+      const arr = list.data || [];
+      const match = arr.find((b: any) => b.booking_request_id === bookingRequestId);
+      if (match && (!bookingDetails || bookingDetails.id !== match.id)) {
+        const full = await getBookingDetails(match.id);
+        setBookingDetails(full.data);
+        return full.data;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  }, [bookingRequestId, bookingDetails]);
+
+  // ---- Payment modal (moved after fetchMessages is defined)
+  const { openPaymentModal, paymentModal } = usePaymentModal(
+    useCallback(async ({ status, amount, receiptUrl: url, paymentId, mocked }) => {
+      setPaymentInfo({ status: status ?? null, amount: amount ?? null, receiptUrl: url ?? null });
+      if (status === 'paid') {
+        setBookingConfirmed(true);
+        onBookingConfirmedChange?.(true, bookingDetails);
+        if (paymentId) {
+          setBookingDetails((prev) => (prev ? { ...prev, payment_id: paymentId as any } : prev));
+        }
+        if (mocked) {
+          try {
+            // Persist a canonical system message so it survives refresh even in mock mode
+            const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/,'');
+            const receiptLink = url || (paymentId ? `${apiBase}/api/v1/payments/${paymentId}/receipt` : undefined);
+            await postMessageToBookingRequest(bookingRequestId, {
+              content: `Payment received. Your booking is confirmed and the date is secured.${receiptLink ? ` Receipt: ${receiptLink}` : ''}`,
+              message_type: 'SYSTEM',
+              action: 'payment_received',
+              // system_key is accepted on backend; pass it for idempotency if supported
+              // @ts-ignore – extra field tolerated by backend
+              system_key: 'payment_received',
+              visible_to: 'both',
+            } as any);
+          } catch (e) {
+            // non-fatal; UI still shows local message until next load
+          }
+        }
+        // Fetch fresh messages so the server-authored (or persisted) system line shows up and persists
+        void fetchMessages();
+        // Also resolve booking from this thread so Event Prep can render immediately
+        void resolveBookingFromRequest();
+      }
+      setIsPaymentOpen(false);
+      onPaymentStatusChange?.(status, amount, url ?? null);
+    }, [onPaymentStatusChange, bookingDetails, onBookingConfirmedChange, fetchMessages]),
+    useCallback(() => { setIsPaymentOpen(false); }, []),
+  );
+
   // ---- WS connection
   const token = typeof window !== 'undefined'
     ? localStorage.getItem('token') || sessionStorage.getItem('token') || ''
@@ -757,6 +751,11 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         }
         if (payload?.type === 'presence' || payload?.type === 'reconnect' || payload?.type === 'reconnect_hint' || payload?.type === 'ping') {
           // Presence/heartbeat/reconnect hints are not chat messages
+          return;
+        }
+
+        // Event prep updates are handled by the EventPrepCard subscriber
+        if (payload?.type === 'event_prep_updated') {
           return;
         }
 
@@ -902,19 +901,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         typeof msg.content === 'string' &&
         /^\s*quote\s+sent/i.test(msg.content.trim());
 
-      // Hide acceptance-only system notices; payment confirmation supersedes it
-      const isAcceptanceOnly =
-        normalizeType(msg.message_type) === 'SYSTEM' &&
-        typeof msg.content === 'string' &&
-        /\baccepted the quote\b/i.test(msg.content);
-
-      // Hide old deposit-style system notices; we use clearer payment copy now
-      const isDepositLegacy =
-        normalizeType(msg.message_type) === 'SYSTEM' &&
-        typeof msg.content === 'string' &&
-        /\bdeposit\b/i.test(msg.content);
-
-      return visibleToCurrentUser && !isHiddenSystem && !isRedundantQuoteSent && !isDepositLegacy && !isAcceptanceOnly;
+      return visibleToCurrentUser && !isHiddenSystem && !isRedundantQuoteSent;
     });
   }, [messages, user?.user_type]);
 
@@ -945,6 +932,120 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     });
     return groups;
   }, [visibleMessages, shouldShowTimestampGroup]);
+
+  // ---- System message rendering (centralized)
+  const renderSystemLine = useCallback((msg: ThreadMessage) => {
+    const key = (msg.system_key || '').toLowerCase();
+    const label = systemLabel(msg);
+
+    const actions: React.ReactNode[] = [];
+
+    // Receipt download (payment received / receipt available)
+    if (key === 'payment_received' || key === 'receipt_available' || key === 'download_receipt' || /\breceipt\b/i.test(label)) {
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/,'');
+      let url = bookingDetails?.payment_id
+        ? `${apiBase}/api/v1/payments/${bookingDetails.payment_id}/receipt`
+        : paymentInfo?.receiptUrl || null;
+      if (!url && typeof (msg as any).content === 'string') {
+        const m = (msg as any).content.match(/(https?:\/\/[^\s]+\/api\/v1\/payments\/[^\s/]+\/receipt|\/?api\/v1\/payments\/[^\s/]+\/receipt)/i);
+        if (m) {
+          url = m[1].startsWith('http') ? m[1] : `${apiBase}${m[1].startsWith('/') ? '' : '/'}${m[1]}`;
+        }
+      }
+      if (url && !/^https?:\/\//i.test(url)) {
+        url = `${apiBase}${url.startsWith('/') ? '' : '/'}${url}`;
+      }
+      if (url) {
+        actions.push(
+          <a
+            key="dl-receipt"
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-2 text-[11px] text-indigo-700 underline hover:text-indigo-800"
+          >
+            {t('system.downloadReceipt', 'Download receipt')}
+          </a>
+        );
+      }
+    }
+
+    // Deposit due / Pay now CTA when there is an unpaid quote
+    if (key === 'deposit_due' || /\bdeposit\b/i.test(label)) {
+      const accepted = Object.values(quotes).find((q) => q.status === 'accepted');
+      const pending = Object.values(quotes).find((q) => q.status === 'pending');
+      const qForPay = accepted || pending;
+      if (qForPay && isClientViewFlag && !isPaidFlag && !isPaymentOpen) {
+        actions.push(
+          <Button
+            key="pay-now"
+            type="button"
+            onClick={() => { setIsPaymentOpen(true); openPaymentModal({ bookingRequestId, amount: Number(qForPay.total || 0) } as any); }}
+            className="ml-2 !py-0.5 !px-2 !text-[11px]"
+          >
+            {t('system.payNow', 'Pay now')}
+          </Button>
+        );
+      }
+    }
+
+    // Review request CTA
+    if (key === 'review_request' && onShowReviewModal) {
+      actions.push(
+        <Button
+          key="leave-review"
+          type="button"
+          onClick={() => onShowReviewModal(true)}
+          className="ml-2 !py-0.5 !px-2 !text-[11px]"
+        >
+          {t('system.leaveReview', 'Leave review')}
+        </Button>
+      );
+    }
+
+    // Event reminder: compute days left from booking details when available
+    if (key.startsWith('event_reminder')) {
+      let eventDate: Date | undefined;
+      const rawDate = (parsedBookingDetails as any)?.date || (bookingDetails as any)?.start_time || undefined;
+      if (rawDate) {
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) eventDate = d;
+      }
+      if (eventDate) {
+        const today = startOfDay(new Date());
+        const days = Math.max(0, differenceInCalendarDays(startOfDay(eventDate), today));
+        // Override label with normalized copy when we can compute
+        const txt = t('system.eventInDays', 'Event in {n} days', { n: String(days) });
+        const extras: React.ReactNode[] = [...actions];
+        if ((bookingDetails as any)?.id) {
+          const bid = (bookingDetails as any).id as number;
+          extras.push(
+            <Button
+              key="add-cal"
+              type="button"
+              onClick={() => window.open(`/api/v1/bookings/${bid}/calendar.ics`, '_blank')}
+              className="ml-2 !py-0.5 !px-2 !text-[11px]"
+            >
+              {t('system.addToCalendar', 'Add to calendar')}
+            </Button>
+          );
+        }
+        return (
+          <div className="text-center text-xs text-gray-500 py-2">
+            <span>{txt}</span>
+            {extras}
+          </div>
+        );
+      }
+    }
+
+    return (
+      <div className="text-center text-xs text-gray-500 py-2">
+        <span>{label}</span>
+        {actions}
+      </div>
+    );
+  }, [bookingDetails, paymentInfo, quotes, isClientViewFlag, isPaidFlag, isPaymentOpen, openPaymentModal, bookingRequestId, onShowReviewModal, parsedBookingDetails]);
 
   // ---- Emoji select
   const handleEmojiSelect = (emoji: { native?: string }) => {
@@ -1070,9 +1171,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         const res = await createQuoteV2(quoteData);
         const created = res.data;
         setQuotes((prev) => ({ ...prev, [created.id]: created }));
-        // No extra system line; the quote card communicates this already.
-        setQuoteDrawerId(created.id);
-        setQuoteDrawerOpen(true);
+        // No drawer — QuoteBubble modal presents details via "View quote".
         void fetchMessages();
         onMessageSent?.();
         onQuoteSent?.();
@@ -1141,6 +1240,21 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     },
     [],
   );
+
+  // Emit booking context for header menus (additive, safe)
+  useEffect(() => {
+    const accepted = Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id);
+    const bid = (bookingDetails as any)?.id || (accepted as any)?.booking_id || null;
+    try { (window as any).__currentBookingId = bid; } catch {}
+    try { window.dispatchEvent(new Event('booking:context')); } catch {}
+    return () => {
+      try { (window as any).__currentBookingId = null; } catch {}
+      try { window.dispatchEvent(new Event('booking:context')); } catch {}
+    };
+  }, [bookingDetails?.id, quotes]);
+
+  // Collapsible state for Event Prep card
+  const [eventPrepCollapsed, setEventPrepCollapsed] = useState(true);
 
   // ---- Request a new quote (client)
   const handleRequestNewQuote = useCallback(async () => {
@@ -1305,7 +1419,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   const isMsgFromSelf = msg.sender_id === user?.id;
                   const isLastInGroup = msgIdx === group.messages.length - 1;
 
-                  const isSystemMsg = normalizeType(msg.message_type) === 'SYSTEM';
+                  const isSystemMsg = isSystemMsgHelper(msg);
 
                   let bubbleShape = 'rounded-xl';
                   if (isSystemMsg) {
@@ -1325,12 +1439,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   // Plain system line (except for special actions handled below)
                   if (isSystemMsg && msg.action !== 'view_booking_details' && msg.action !== 'review_quote') {
                     return (
-                      <div
-                        key={msg.id}
-                        className="text-center text-xs text-gray-500 py-2"
-                        ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
-                      >
-                        {msg.content}
+                      <div key={msg.id} ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}>
+                        {renderSystemLine(msg)}
                       </div>
                     );
                   }
@@ -1414,19 +1524,25 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                             arr.push('Venue/Power/Stage');
                             return arr;
                           })()}
-                          onViewDetails={() => {
-                            setQuoteDrawerId(quoteId);
-                            setQuoteDrawerOpen(true);
-                          }}
+                          onViewDetails={undefined}
                           onAskQuestion={() => textareaRef.current?.focus()}
-                          onAccept={
-                            user?.user_type === 'client' && quoteData.status === 'pending' && !bookingConfirmed
-                              ? () => handleAcceptQuote(quoteData)
-                              : undefined
-                          }
+                          onAccept={undefined}
                           onPayNow={
                             user?.user_type === 'client' && (quoteData.status === 'pending' || quoteData.status === 'accepted') && !isPaid && !isPaymentOpen
-                              ? () => { setIsPaymentOpen(true); openPaymentModal({ bookingRequestId, amount: Number(quoteData.total || 0) } as any); }
+                              ? async () => {
+                                  try {
+                                    if (quoteData.status === 'pending') {
+                                      await handleAcceptQuote(quoteData);
+                                    }
+                                  } catch (e) {
+                                    // If acceptance fails, surface error and abort payment
+                                    console.error('Failed to accept before pay:', e);
+                                    setThreadError('Could not accept the quote. Please try again.');
+                                    return;
+                                  }
+                                  setIsPaymentOpen(true);
+                                  openPaymentModal({ bookingRequestId, amount: Number(quoteData.total || 0) } as any);
+                                }
                               : undefined
                           }
                           onDecline={
@@ -1446,7 +1562,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                     {t('quote.guidance.review', 'Review the itemized price and included services. Ask questions if anything looks off.')}
                                   </p>
                                   <p className="text-[11px] text-gray-600 mt-1">
-                                    {t('quote.guidance.acceptCta', 'Ready to go? Tap Accept & Pay to confirm your booking now.')}
+                                    {t('quote.guidance.acceptCta', 'Ready to go? Tap Pay now to confirm your booking.')}
                                   </p>
                                 </div>
                               </div>
@@ -1473,7 +1589,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     );
                   }
 
-                  if (isSystemMsg && msg.action === 'review_quote') {
+                  if (isSystemMsg && (msg.action === 'review_quote' || msg.action === 'view_booking_details')) {
                     return null;
                   }
 
@@ -1491,22 +1607,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           <span className="" aria-label="Unread message" />
                         )}
 
-                        {isSystemMsg && msg.action === 'view_booking_details' ? (
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              if (!bookingDetails?.id) return;
-                              const base =
-                                user?.user_type === 'service_provider'
-                                  ? '/dashboard/bookings'
-                                  : '/dashboard/client/bookings';
-                              router.push(`${base}/${bookingDetails.id}`);
-                            }}
-                            className="text-xs text-indigo-700 underline hover:bg-indigo-50 hover:text-indigo-800 transition-colors"
-                          >
-                            View Booking Details
-                          </Button>
-                        ) : (
+                        {
                           <>
                             {msg.content}
                             {msg.attachment_url && (
@@ -1531,7 +1632,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                               )
                             )}
                           </>
-                        )}
+                        }
                       </div>
 
                       {/* Time & status */}
@@ -1560,8 +1661,30 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         })}
 
         {typingIndicator && <p className="text-xs text-gray-500" aria-live="polite">{typingIndicator}</p>}
+
+        {/* Inline Event Prep card inside the scroll container so it scrolls with messages */}
+        {(() => {
+          const accepted = Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id);
+          const bookingIdForPrep = (bookingDetails as any)?.id || (accepted as any)?.booking_id || null;
+          const isConfirmed = (bookingDetails as any)?.status?.toString?.().toLowerCase?.() === 'confirmed';
+          return FEATURE_EVENT_PREP && bookingIdForPrep && (isPaidFlag || isConfirmed);
+        })() && (
+          <div className="mt-2">
+            <EventPrepCard
+              bookingId={(bookingDetails as any)?.id || (Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id) as any)?.booking_id}
+              bookingRequestId={bookingRequestId}
+              eventDateISO={(bookingDetails as any)?.start_time || (parsedBookingDetails as any)?.date}
+              canEdit={Boolean(user)}
+              onContinuePrep={(id) => router.push(`/dashboard/events/${id}`)}
+              collapsed={eventPrepCollapsed}
+              onToggle={() => setEventPrepCollapsed((v) => !v)}
+            />
+          </div>
+        )}
+
         <div ref={messagesEndRef} className="absolute bottom-0 left-0 w-0 h-0" aria-hidden="true" />
       </div>
+
 
       {/* Scroll-to-bottom (mobile only) — hidden while details panel is open */}
       {showScrollButton && !isDetailsPanelOpen && (
@@ -1769,65 +1892,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         </>
       )}
 
-      {/* Slide-in Quote Drawer */}
-      <QuoteDrawer
-        isOpen={quoteDrawerOpen}
-        onClose={() => setQuoteDrawerOpen(false)}
-        quote={quoteDrawerId ? quotes[quoteDrawerId] : undefined}
-        booking={bookingDetails}
-        isClientView={isClientViewFlag}
-        isPaid={isPaidFlag}
-        onRequestNewQuote={isClientViewFlag ? handleRequestNewQuote : undefined}
-        topOffset={quoteDrawerTopOffset}
-        onAccept={(() => {
-          const q = quoteDrawerId ? quotes[quoteDrawerId] : undefined;
-          if (!q || !isClientViewFlag || q.status !== 'pending' || isPaidFlag) return undefined;
-          return () => handleAcceptQuote(q);
-        })()}
-        onPayNow={(() => {
-          const q = quoteDrawerId ? quotes[quoteDrawerId] : undefined;
-          if (!q || !isClientViewFlag || (q.status !== 'pending' && q.status !== 'accepted') || isPaidFlag || isPaymentOpen) return undefined;
-          return () => { setIsPaymentOpen(true); openPaymentModal({ bookingRequestId, amount: Number(q.total || 0) } as any); };
-        })()}
-        onDecline={(() => {
-          const q = quoteDrawerId ? quotes[quoteDrawerId] : undefined;
-          if (!q || !isClientViewFlag || q.status !== 'pending' || isPaidFlag) return undefined;
-          return () => handleDeclineQuote(q);
-        })()}
-        onOpenReceipt={(() => {
-          if (!bookingDetails?.payment_id) return undefined;
-          return () => window.open(`/api/v1/payments/${bookingDetails.payment_id}/receipt`, '_blank');
-        })()}
-        eventSummary={(() => {
-          const parts: string[] = [];
-          if (parsedBookingDetails?.eventType) parts.push(parsedBookingDetails.eventType);
-          if (parsedBookingDetails?.date) {
-            const d = new Date(parsedBookingDetails.date);
-            if (!isNaN(d.getTime())) parts.push(format(d, 'PPP'));
-          }
-          // Location: prefer name — address when available
-          const rawLoc = (parsedBookingDetails?.location || '').trim();
-          const locName = (parsedBookingDetails as any)?.location_name as string | undefined;
-          let name = (locName || '').trim();
-          let addr = '';
-          if (!name && rawLoc) {
-            const partsLoc = rawLoc.split(',');
-            const first = (partsLoc[0] || '').trim();
-            if (first && !/^\d/.test(first)) {
-              name = first;
-              addr = partsLoc.slice(1).join(',').trim();
-            } else {
-              addr = rawLoc;
-            }
-          } else if (name) {
-            addr = rawLoc;
-          }
-          const locLabel = name ? (addr ? `${name} — ${addr}` : name) : (addr || '');
-          if (locLabel) parts.push(locLabel);
-          if (parsedBookingDetails?.guests) parts.push(`${parsedBookingDetails.guests} guests`);
-          return parts.length ? parts.join(' – ') : null;
-        })()}
-      />
+      {/* Quote Drawer removed */}
 
       {/* Errors */}
       {threadError && (

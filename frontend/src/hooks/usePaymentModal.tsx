@@ -7,6 +7,7 @@ export interface PaymentSuccess {
   amount: number;
   receiptUrl?: string;
   paymentId?: string;
+  mocked?: boolean;
 }
 
 interface OpenArgs { bookingRequestId: number; amount: number }
