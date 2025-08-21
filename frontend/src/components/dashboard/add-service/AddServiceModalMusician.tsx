@@ -21,6 +21,7 @@ import {
   updateService as apiUpdateService,
   getAllServices,
 } from "@/lib/api";
+import { upsertRider } from "@/lib/api";
 import { ID_TO_UI_CATEGORY } from "@/lib/categoryMap";
 import { DEFAULT_CURRENCY } from "@/lib/constants";
 import Button from "@/components/ui/Button";
@@ -80,6 +81,7 @@ interface ServiceFormData {
   price_driving_sound?: number | "";
   price_flying_sound?: number | "";
   sound_city_prefs?: { city: string; provider_ids: number[] }[];
+  tech_rider_url?: string;
 }
 
 const emptyDefaults: ServiceFormData = {
@@ -325,6 +327,12 @@ export default function AddServiceModalMusician({
       const res = service
         ? await apiUpdateService(service.id, { ...serviceData, media_url })
         : await apiCreateService({ ...serviceData, media_url });
+      // Upsert tech rider if provided
+      try {
+        if (data.tech_rider_url) {
+          await upsertRider(res.data.id, { pdf_url: data.tech_rider_url });
+        }
+      } catch {}
       onServiceSaved(res.data);
       reset(service ? editingDefaults : emptyDefaults);
       setMediaFiles([]);
@@ -725,6 +733,16 @@ export default function AddServiceModalMusician({
                               </div>
                             </CollapsibleSection>
                           )}
+
+                          {/* Tech Rider URL */}
+                          <div className="mt-4">
+                            <TextInput
+                              label="Tech rider PDF URL (optional)"
+                              placeholder="https://.../tech-rider.pdf"
+                              {...register("tech_rider_url")}
+                            />
+                            <p className="text-xs text-gray-600 mt-1">If provided, clients can download it from Event Prep when the venue manages sound.</p>
+                          </div>
                               <TextInput
                                 label="Travelling (Rand per km)"
                                 type="number"

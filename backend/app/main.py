@@ -157,6 +157,19 @@ ensure_rider_tables(engine)
 ensure_legacy_artist_user_type(engine)
 ensure_service_category_id_column(engine)
 seed_service_categories(engine)
+# Additive EventPrep schedule columns (safe/idempotent)
+try:
+    from .db_utils import add_column_if_missing
+    add_column_if_missing(engine, "event_preps", "soundcheck_time", "soundcheck_time TIME")
+    add_column_if_missing(engine, "event_preps", "guests_arrival_time", "guests_arrival_time TIME")
+    add_column_if_missing(engine, "event_preps", "performance_start_time", "performance_start_time TIME")
+    add_column_if_missing(engine, "event_preps", "performance_end_time", "performance_end_time TIME")
+    # Separate free-text field for schedule-specific notes
+    add_column_if_missing(engine, "event_preps", "schedule_notes", "schedule_notes VARCHAR")
+    # Separate free-text field for parking and access notes (Location section)
+    add_column_if_missing(engine, "event_preps", "parking_access_notes", "parking_access_notes VARCHAR")
+except Exception as _exc:
+    logger.warning("EventPrep schedule columns ensure skipped: %s", _exc)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Artist Booking API", default_response_class=ORJSONResponse)

@@ -12,11 +12,15 @@
     "tailwindcss": "^4.1.11"
   },
   "dependencies": {
+    "@react-google-maps/api": "^2.20.7",
     "class-variance-authority": "^0.7.1",
     "cva": "^0.0.0",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.540.0",
+    "react-dropzone": "^14.3.8",
     "react-responsive": "^10.0.1",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "uuid": "^11.1.0",
+    "zod": "^4.0.17"
   }
 }

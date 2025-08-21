@@ -499,3 +499,34 @@ export interface UnifiedNotification {
     notes?: string;
   } | null;
 }
+
+// ─── Event Prep ───────────────────────────────────────────────────────────────
+export interface EventPrepPayload {
+  day_of_contact_name?: string | null;
+  day_of_contact_phone?: string | null;
+  venue_address?: string | null;
+  venue_place_id?: string | null;
+  venue_lat?: number | null;
+  venue_lng?: number | null;
+  loadin_start?: string | null; // HH:MM[:SS]
+  loadin_end?: string | null;   // HH:MM[:SS]
+  soundcheck_time?: string | null;
+  guests_arrival_time?: string | null;
+  performance_start_time?: string | null;
+  performance_end_time?: string | null;
+  tech_owner?: 'venue' | 'artist' | null;
+  stage_power_confirmed?: boolean | null;
+  accommodation_required?: boolean | null;
+  accommodation_address?: string | null;
+  accommodation_contact?: string | null;
+  accommodation_notes?: string | null;
+  notes?: string | null;
+  schedule_notes?: string | null;
+  parking_access_notes?: string | null;
+}
+
+export interface EventPrep extends EventPrepPayload {
+  booking_id: number;
+  progress_done: number;
+  progress_total: number;
+}

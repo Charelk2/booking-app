@@ -1,4 +1,4 @@
-// src/components/booking/QuotePeek.tsx
+// src/components/booking/QuoteBubble.tsx
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -172,10 +172,10 @@ export default function QuotePeek(props: QuotePeekProps) {
   const isPaid = Boolean(paidProp);
   const expiryText = useMemo(() => {
     if (isPaid) return 'Booking Confirmed';
-    if (!expiresAt) return 'Valid until confirmed';
+    if (!expiresAt) return 'Valid until paid';
     if (isExpired)  return `Expired ${formatDistanceToNowStrict(new Date(expiresAt), { addSuffix: true })}`;
     if (hasExpiry)  return `Expires in ${formatDistanceToNowStrict(new Date(expiresAt))}`;
-    return 'Valid until confirmed';
+    return 'Valid until paid';
   }, [expiresAt, hasExpiry, isExpired, expiryTick, isPaid]);
 
   const isPending  = !isPaid && status === 'Pending';
@@ -184,7 +184,6 @@ export default function QuotePeek(props: QuotePeekProps) {
 
   const chips: string[] = [];
   if (eventDetails?.event) chips.push(eventDetails.event);
-  if (eventDetails?.date) chips.push(eventDetails.date);
   if (eventDetails?.guests) chips.push(`${eventDetails.guests} guests`);
   if (eventDetails?.venue) {
     const v = (eventDetails.venue || '').trim();
@@ -326,7 +325,6 @@ export default function QuotePeek(props: QuotePeekProps) {
   const handleAcceptPay = () => {
     // Close the modal/sheet first to avoid layering behind payment popup
     setOpen(false);
-    onAccept?.();
     onPayNow?.();
   };
 
@@ -334,23 +332,13 @@ export default function QuotePeek(props: QuotePeekProps) {
   return (
     <>
       {/* PEEK (thread item) */}
-      <div className={clsx('w-full rounded-xl border border-gray-200 bg-white', className)}>
+      <div className={clsx('w-full md:w-1/2 lg:w-1/2 rounded-xl border border-gray-200 bg-white', className)}>
         {/* Peek header: provider and title */}
         <div className="flex items-start justify-between gap-2 px-3 py-2">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              {providerAvatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={providerAvatarUrl} alt="Provider avatar" className="h-6 w-6 rounded-full object-cover flex-shrink-0" />
-              ) : (
-                <div className="h-6 w-6 rounded-full bg-gray-200 flex-shrink-0" aria-hidden />
-              )}
-              <span className="truncate text-[12px] text-gray-600 inline-flex items-center gap-1">
-                {providerName || 'Service Provider'}
-                {providerVerified && <CheckBadgeIcon className="h-3.5 w-3.5 text-emerald-600" title="Verified" />}
-              </span>
-            </div>
-            <div className="mt-0.5 text-[13px] font-semibold text-gray-900 truncate">{description}</div>
+            
+            <div className="mt-0.5 text-[13px] font-semibold text-gray-900 inline-flex items-center gap-1 truncate">
+              {providerVerified && <CheckBadgeIcon className="h-3.5 w-3.5 text-emerald-600" title="Verified" />}{description}</div>
             {chips.length > 0 && (
               <>
                 {/* Mobile: first 3 with +N */}
@@ -429,9 +417,6 @@ export default function QuotePeek(props: QuotePeekProps) {
           </div>
 
           <div className="shrink-0 text-right">
-            <div className="text-[10px] uppercase tracking-wide text-gray-500">
-              {isPending ? 'Estimated total' : 'Total'}
-            </div>
             <div className="text-sm font-extrabold tabular-nums text-gray-900">
               {money(displayTotal)}
             </div>
@@ -447,7 +432,7 @@ export default function QuotePeek(props: QuotePeekProps) {
                 if (autoVat > 0) rows.push({ label: 'VAT (15%)', amount: autoVat });
               }
               const has = rows.some((r) => !Number.isNaN(r.amount) && r.amount > 0);
-              return has ? <div className="mt-0.5 text-[10px] text-gray-600">Includes tax</div> : null;
+              return has ? <div className="mt-0.5 text-[10px] text-gray-600"></div> : null;
             })()}
           </div>
         </div>
@@ -680,7 +665,7 @@ export default function QuotePeek(props: QuotePeekProps) {
                         onClick={handleAcceptPay}
                         className="rounded bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-700"
                       >
-                        {onPayNow ? 'Accept \u0026 Pay' : 'Accept'}
+                        Pay now
                       </button>
                       {onDecline && (
                         <button

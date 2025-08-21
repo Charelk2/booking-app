@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     # rely on message threads as the primary inbox surface. Disabled by default.
     EMIT_NEW_MESSAGE_FOR_NEW_REQUEST: bool = False
 
+    # Feature flag: Event Prep (backend awareness only)
+    FEATURE_EVENT_PREP: bool = False
+    # Frontend env passthrough to avoid validation errors when extra is forbid
+    NEXT_PUBLIC_FEATURE_EVENT_PREP: str = ""
+
     @field_validator("CORS_ORIGINS", mode="before")
     def split_origins(cls, v: Any) -> list[str]:
         """Parse comma-separated or JSON list of origins from environment."""

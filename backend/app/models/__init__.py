@@ -18,6 +18,7 @@ from .profile_view import ArtistProfileView
 from .sound_outreach import SoundOutreachRequest, OutreachStatus
 from .rider import Rider
 from .supplier_pricebook import SupplierPricebook
+from .event_prep import EventPrep, EventPrepIdempotency, EventPrepAttachment
 
 __all__ = [
     "User",
@@ -52,4 +53,7 @@ __all__ = [
     "OutreachStatus",
     "Rider",
     "SupplierPricebook",
+    "EventPrep",
+    "EventPrepIdempotency",
+    "EventPrepAttachment",
 ]

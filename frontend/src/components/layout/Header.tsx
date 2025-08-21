@@ -55,6 +55,7 @@ import { getStreetFromAddress } from '@/lib/utils';
 import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/solid';
 import { ChatBubbleLeftRightIcon as ChatOutline } from '@heroicons/react/24/outline';
 import React from 'react';
+import { FEATURE_EVENT_PREP } from '@/lib/constants';
 
 export type HeaderState = 'initial' | 'compacted' | 'expanded-from-compact';
 
@@ -245,6 +246,20 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [currentBookingId, setCurrentBookingId] = useState<number | null>(null);
+
+  // Listen for booking context emitted by thread pages
+  useEffect(() => {
+    const update = () => {
+      try {
+        const bid = (window as any).__currentBookingId;
+        setCurrentBookingId(typeof bid === 'number' && !Number.isNaN(bid) ? bid : null);
+      } catch { setCurrentBookingId(null); }
+    };
+    update();
+    window.addEventListener('booking:context', update as any);
+    return () => window.removeEventListener('booking:context', update as any);
+  }, []);
 
   // Search state
   const categories = useServiceCategories();
@@ -639,6 +654,24 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                         )}
 
                         <div className="border-t border-slate-200 my-1" />
+                        {FEATURE_EVENT_PREP && currentBookingId && (
+                          <Menu.Item>
+                            {({ active }) => (
+                              <Link
+                                href={`/dashboard/events/${currentBookingId}`}
+                                className={clsx(
+                                  'group flex items-center px-4 py-2 text-sm',
+                                  'text-black',
+                                  active && 'bg-slate-100',
+                                  hoverNeutralLink
+                                )}
+                              >
+                                <CalendarDaysIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
+                                Event Prep
+                              </Link>
+                            )}
+                          </Menu.Item>
+                        )}
 
                         <Menu.Item>
                           {({ active }) => (
