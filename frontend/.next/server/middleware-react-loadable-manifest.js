@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{\"components/search/SearchBar.tsx -> ./SearchPopupContent\":{\"id\":\"components/search/SearchBar.tsx -> ./SearchPopupContent\",\"files\":[\"static/chunks/_app-pages-browser_src_components_search_SearchPopupContent_tsx.js\"]}}"
+self.__REACT_LOADABLE_MANIFEST="{}"

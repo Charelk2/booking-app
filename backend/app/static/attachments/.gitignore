@@ -1,0 +1,4 @@
+# Ignore all uploaded attachments by default
+*
+!.gitignore
+!.gitkeep
