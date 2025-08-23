@@ -39,6 +39,11 @@ if _google_oauth_client_id:
         api_base_url="https://openidconnect.googleapis.com/v1/",
         client_kwargs={"scope": "openid email profile"},
     )
+    try:
+        # Safe, non-sensitive confirmation that Google OAuth is wired
+        logger.info("Google OAuth registered (client_id suffix=%s)", _google_oauth_client_id[-20:])
+    except Exception:
+        logger.info("Google OAuth registered")
 
 if settings.GITHUB_CLIENT_ID:
     oauth.register(

@@ -95,6 +95,19 @@ class Settings(BaseSettings):
             return [s.strip() for s in v.split(",") if s.strip()]
         return v
 
+    @field_validator(
+        "GOOGLE_OAUTH_CLIENT_ID",
+        "GOOGLE_OAUTH_CLIENT_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "FRONTEND_URL",
+        mode="before",
+    )
+    def strip_whitespace(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            return v.strip()
+        return v
+
 
     @model_validator(mode="after")
     def allow_all_if_requested(cls, values: "Settings") -> "Settings":
