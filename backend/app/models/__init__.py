@@ -20,6 +20,7 @@ from .sound_outreach import SoundOutreachRequest, OutreachStatus
 from .rider import Rider
 from .supplier_pricebook import SupplierPricebook
 from .event_prep import EventPrep, EventPrepIdempotency, EventPrepAttachment
+from .webauthn_credential import WebAuthnCredential
 
 __all__ = [
     "User",
@@ -58,4 +59,5 @@ __all__ = [
     "EventPrep",
     "EventPrepIdempotency",
     "EventPrepAttachment",
+    "WebAuthnCredential",
 ]

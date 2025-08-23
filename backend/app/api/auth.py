@@ -1,6 +1,7 @@
 # backend/app/api/auth.py
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -54,7 +55,7 @@ REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", 30))
 
 # Login attempt throttling configured via settings
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -85,6 +86,57 @@ def _store_refresh_token(db: Session, user: User, token: str, exp: datetime) -> 
     db.add(user)
     db.commit()
     db.refresh(user)
+
+
+def _is_secure_cookie() -> bool:
+    try:
+        return settings.FRONTEND_URL.lower().startswith("https")
+    except Exception:
+        return False
+
+
+def _set_access_cookie(response: Response, token: str, minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES) -> None:
+    max_age = minutes * 60
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=_is_secure_cookie(),
+        samesite="Lax",
+        max_age=max_age,
+        path="/",
+    )
+
+
+def _set_refresh_cookie(response: Response, token: str, expires_at: datetime) -> None:
+    # Compute max_age from expiry (fallback to configured days)
+    try:
+        delta = int((expires_at - datetime.utcnow()).total_seconds())
+    except Exception:
+        delta = REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
+    response.set_cookie(
+        key="refresh_token",
+        value=token,
+        httponly=True,
+        secure=_is_secure_cookie(),
+        samesite="Lax",
+        max_age=delta,
+        path="/",
+    )
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    for k in ("access_token", "refresh_token"):
+        response.set_cookie(
+            key=k,
+            value="",
+            max_age=0,
+            expires=0,
+            path="/",
+            httponly=True,
+            secure=_is_secure_cookie(),
+            samesite="Lax",
+        )
 
 
 @router.post("/register", response_model=UserResponse)
@@ -219,7 +271,8 @@ def login(
     refresh_token, r_exp = _create_refresh_token(user.email)
     _store_refresh_token(db, user, refresh_token, r_exp)
 
-    return {
+    # Set HttpOnly cookies for access + refresh, but still return JSON for compatibility
+    payload = {
         "access_token": access_token,
         "token_type": "bearer",
         "user": {
@@ -232,6 +285,10 @@ def login(
         },
         "refresh_token": refresh_token,
     }
+    resp = JSONResponse(payload)
+    _set_access_cookie(resp, access_token)
+    _set_refresh_cookie(resp, refresh_token, r_exp)
+    return resp
 
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
@@ -241,15 +298,20 @@ def get_user_by_email(db: Session, email: str) -> Optional[User]:
 
 def get_current_user(
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    request: Request = None,
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    # Prefer Authorization header; fall back to access_token cookie if missing
+    jwt_token = token
+    if (not jwt_token) and request is not None:
+        jwt_token = request.cookies.get("access_token")
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(jwt_token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
@@ -288,7 +350,9 @@ def verify_mfa(data: MFAVerify, db: Session = Depends(get_db)):
         data={"sub": user.email},
         expires_delta=access_token_expires,
     )
-    return {
+    refresh_token, r_exp = _create_refresh_token(user.email)
+    _store_refresh_token(db, user, refresh_token, r_exp)
+    payload = {
         "access_token": access_token,
         "token_type": "bearer",
         "user": {
@@ -299,7 +363,12 @@ def verify_mfa(data: MFAVerify, db: Session = Depends(get_db)):
             "user_type": user.user_type,
             "mfa_enabled": True,
         },
+        "refresh_token": refresh_token,
     }
+    resp = JSONResponse(payload)
+    _set_access_cookie(resp, access_token)
+    _set_refresh_cookie(resp, refresh_token, r_exp)
+    return resp
 
 
 @router.post("/setup-mfa")
@@ -400,8 +469,9 @@ def read_current_user(current_user: User = Depends(get_current_user)):
 @router.post("/refresh")
 def refresh_token(
     *,
-    token: str,
+    token: str = None,
     db: Session = Depends(get_db),
+    request: Request = None,
 ):
     """Rotate refresh token and issue a new access token to prevent logouts.
 
@@ -409,8 +479,12 @@ def refresh_token(
     expiry, compares hash to the stored hash on the user, rotates to a fresh
     refresh token, and returns both tokens.
     """
+    # Allow refresh via body token or cookie
+    refresh_jwt = token or (request.cookies.get("refresh_token") if request else None)
+    if not refresh_jwt:
+        raise HTTPException(status_code=401, detail="Missing refresh token")
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(refresh_jwt, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("typ") != "refresh":
             raise HTTPException(status_code=400, detail="Invalid token type")
         email = payload.get("sub")
@@ -426,7 +500,7 @@ def refresh_token(
         db.commit()
         raise HTTPException(status_code=401, detail="Session expired")
 
-    if _hash_token(token) != user.refresh_token_hash:
+    if _hash_token(refresh_jwt) != user.refresh_token_hash:
         raise HTTPException(status_code=401, detail="Token has been rotated")
 
     # Rotate refresh token
@@ -435,7 +509,11 @@ def refresh_token(
 
     # Issue a fresh access token
     access = create_access_token({"sub": email}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    return {"access_token": access, "token_type": "bearer", "refresh_token": new_refresh}
+    payload = {"access_token": access, "token_type": "bearer", "refresh_token": new_refresh}
+    resp = JSONResponse(payload)
+    _set_access_cookie(resp, access)
+    _set_refresh_cookie(resp, new_refresh, r_exp)
+    return resp
 
 
 @router.post("/logout")
@@ -447,5 +525,65 @@ def logout(
     current_user.refresh_token_hash = None
     current_user.refresh_token_expires_at = None
     db.commit()
-    return {"message": "logged out"}
+    resp = JSONResponse({"message": "logged out"})
+    _clear_auth_cookies(resp)
+    return resp
 
+
+# ─── Password reset (JWT-based, no DB migration required) ─────────────────────────
+from pydantic import BaseModel, EmailStr
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str
+
+
+@router.post("/forgot-password")
+def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    email = normalize_email(data.email)
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    # Respond 200 regardless to avoid account enumeration; only send email if user exists
+    reset_link = None
+    if user:
+        reset_exp = datetime.utcnow() + timedelta(hours=1)
+        reset_token = jwt.encode(
+            {"sub": user.email, "typ": "pwd_reset", "exp": reset_exp}, SECRET_KEY, algorithm=ALGORITHM
+        )
+        reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+        try:
+            send_email(user.email, "Reset your password", f"Click the link to reset your password: {reset_link}")
+        except Exception as exc:  # pragma: no cover
+            logger.warning("Failed to send reset email: %s", exc)
+    # In dev mode, surface the link to the client to ease testing
+    if settings.EMAIL_DEV_MODE and reset_link:
+        logger.info("Password reset link for %s: %s", email, reset_link)
+        return {"message": "Reset link generated.", "reset_link": reset_link}
+    return {"message": "If the account exists, a reset link was sent."}
+
+
+@router.post("/reset-password")
+def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        payload = jwt.decode(data.token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("typ") != "pwd_reset":
+            raise HTTPException(status_code=400, detail="Invalid token type")
+        email = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user = get_user_by_email(db, email)
+    if not user:
+        # Treat as expired/invalid to avoid user enumeration details
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user.password = get_password_hash(data.password)
+    # Invalidate existing refresh token
+    user.refresh_token_hash = None
+    user.refresh_token_expires_at = None
+    db.commit()
+    return {"message": "Password has been reset"}

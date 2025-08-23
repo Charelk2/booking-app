@@ -39,18 +39,16 @@ const api = axios.create({
   },
 });
 
+// Allow sending/receiving HttpOnly cookies
+api.defaults.withCredentials = true;
+
 // Automatically attach the bearer token (if present) to every request
 api.interceptors.request.use(
   (config) => {
     logger.info({ method: config.method, url: config.url }, 'API request');
-    if (typeof window !== 'undefined') {
-      const token =
-        localStorage.getItem('token') || sessionStorage.getItem('token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      } else if (config.headers && 'Authorization' in config.headers) {
-        delete config.headers.Authorization;
-      }
+    // Cookie-only: do not attach Authorization headers from JS
+    if (config.headers && 'Authorization' in config.headers) {
+      delete config.headers.Authorization;
     }
     return config;
   },
@@ -58,13 +56,48 @@ api.interceptors.request.use(
 );
 
 // Provide consistent error messages across the app
+let isRefreshing = false;
+let pendingQueue: Array<() => void> = [];
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (axios.isAxiosError(error)) {
+      const originalRequest = error.config;
       const status = error.response?.status;
       const detail = error.response?.data?.detail;
       let message = extractErrorMessage(detail);
+
+      // Attempt silent refresh once on 401, then retry original request
+      if (status === 401 && originalRequest && !originalRequest._retry) {
+        if (isRefreshing) {
+          return new Promise((resolve) => {
+            pendingQueue.push(() => resolve(api(originalRequest)));
+          });
+        }
+        originalRequest._retry = true;
+        isRefreshing = true;
+        return api
+          .post('/auth/refresh')
+          .then(() => {
+            // Access cookie is updated by server; proceed to retry
+            // Retry queued requests
+            pendingQueue.forEach((cb) => cb());
+            pendingQueue = [];
+            return api(originalRequest);
+          })
+          .catch((refreshErr) => {
+            pendingQueue = [];
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('user');
+              sessionStorage.removeItem('user');
+            }
+            return Promise.reject(refreshErr);
+          })
+          .finally(() => {
+            isRefreshing = false;
+          });
+      }
 
       if (status) {
         const map: Record<number, string> = {
@@ -124,6 +157,24 @@ export const confirmEmail = (token: string) =>
   api.post('/auth/confirm-email', { token });
 
 export const getCurrentUser = () => api.get<User>('/auth/me');
+
+export const logout = () => api.post('/auth/logout');
+
+export const forgotPassword = (email: string) => api.post('/auth/forgot-password', { email });
+export const resetPassword = (token: string, password: string) =>
+  api.post('/auth/reset-password', { token, password });
+
+// Magic link
+export const requestMagicLink = (email: string, next?: string) =>
+  api.post('/auth/magic-link/request', { email, next });
+export const consumeMagicLink = (token: string) =>
+  api.post('/auth/magic-link/consume', { token });
+
+// WebAuthn (Passkeys)
+export const webauthnGetRegistrationOptions = () => api.get('/auth/webauthn/registration/options');
+export const webauthnVerifyRegistration = (payload: unknown) => api.post('/auth/webauthn/registration/verify', payload);
+export const webauthnGetAuthenticationOptions = () => api.get('/auth/webauthn/authentication/options');
+export const webauthnVerifyAuthentication = (payload: unknown) => api.post('/auth/webauthn/authentication/verify', payload);
 
 // ─── All other resources live under /api/v1 ────────────────────────────────────
 

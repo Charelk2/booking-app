@@ -14,6 +14,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import Button from '@/components/ui/Button';
 import AuthInput from '@/components/auth/AuthInput';
 import SocialLoginButtons from '@/components/auth/SocialLoginButtons';
+import { requestMagicLink, webauthnGetAuthenticationOptions, webauthnVerifyAuthentication } from '@/lib/api';
 
 interface LoginForm {
   email: string;
@@ -22,13 +23,14 @@ interface LoginForm {
 }
 
 export default function LoginPage() {
-  const { login, verifyMfa, user } = useAuth();
+  const { login, verifyMfa, user, refreshUser } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next');
   const [error, setError] = useState('');
   const [mfaToken, setMfaToken] = useState<string | null>(null);
   const [rememberState, setRememberState] = useState(false);
+  const [magicSent, setMagicSent] = useState(false);
   const {
     register,
     handleSubmit,
@@ -75,6 +77,71 @@ export default function LoginPage() {
       // Defer redirect to useEffect to route by role
     } catch (err) {
       setError('Invalid verification code');
+    }
+  };
+
+  const sendMagic = async () => {
+    const email = (document.getElementById('email') as HTMLInputElement | null)?.value || '';
+    if (!email) {
+      setError('Enter your email above, then try again.');
+      return;
+    }
+    try {
+      setError('');
+      await requestMagicLink(email, next || '/dashboard');
+      setMagicSent(true);
+    } catch (e) {
+      setError('Unable to send magic link.');
+    }
+  };
+
+  const signInWithPasskey = async () => {
+    try {
+      if (!('PublicKeyCredential' in window)) {
+        setError('Passkeys not supported on this device.');
+        return;
+      }
+      const toBase64Url = (buf: ArrayBuffer) => {
+        const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      };
+      const fromBase64Url = (b64url: string): Uint8Array => {
+        let s = b64url.replace(/-/g, '+').replace(/_/g, '/');
+        const pad = s.length % 4;
+        if (pad) s += '='.repeat(4 - pad);
+        const bin = atob(s);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+        return bytes;
+      };
+      const { data: opts } = await webauthnGetAuthenticationOptions();
+      const publicKey: PublicKeyCredentialRequestOptions = {
+        challenge: fromBase64Url(opts.challenge as string),
+        allowCredentials: (opts.allowCredentials || []).map((c: any) => ({
+          type: 'public-key',
+          id: fromBase64Url(c.id as string),
+        })),
+        userVerification: opts.userVerification || 'preferred',
+      };
+      const cred = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential;
+      const payload = {
+        id: cred.id,
+        type: cred.type,
+        rawId: toBase64Url(cred.rawId as ArrayBuffer),
+        response: {
+          clientDataJSON: toBase64Url((cred.response as AuthenticatorAssertionResponse).clientDataJSON),
+          authenticatorData: toBase64Url((cred.response as AuthenticatorAssertionResponse).authenticatorData),
+          signature: toBase64Url((cred.response as AuthenticatorAssertionResponse).signature),
+          userHandle: (cred.response as any).userHandle ? toBase64Url((cred.response as any).userHandle) : undefined,
+        },
+      };
+      await webauthnVerifyAuthentication(payload);
+      // Populate user from cookie session before navigating to avoid guards bouncing back
+      try { await refreshUser?.(); } catch {}
+      router.replace(next || '/dashboard');
+    } catch (e: any) {
+      const m = e?.response?.data?.detail || e?.message || 'Passkey sign-in failed.';
+      setError(typeof m === 'string' ? m : 'Passkey sign-in failed.');
     }
   };
 
@@ -162,8 +229,17 @@ export default function LoginPage() {
               </Button>
             </div>
 
-              <div className="pt-2">
+              <div className="pt-2 space-y-2">
                 <SocialLoginButtons redirectPath={next || '/dashboard'} />
+                <Button type="button" onClick={signInWithPasskey} className="w-full bg-gray-700 hover:bg-gray-800">
+                  Continue with Passkey
+                </Button>
+                <Button type="button" onClick={sendMagic} className="w-full bg-indigo-600 hover:bg-indigo-700">
+                  Email me a magic link
+                </Button>
+                {magicSent && (
+                  <p className="text-sm text-green-700">If your email exists, a link was sent. Check your inbox.</p>
+                )}
               </div>
             </form>
           )}
