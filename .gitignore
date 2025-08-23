@@ -30,3 +30,13 @@ backend/venv/
 .env.test.local
 .env.production.local
 backend/.env
+
+# Next.js build output and caches
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+frontend/.vercel/
+frontend/.eslintcache
+frontend/next-env.d.ts
+frontend/tsconfig.tsbuildinfo
+frontend/coverage/
