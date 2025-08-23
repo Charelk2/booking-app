@@ -199,12 +199,36 @@ APP_STATIC_DIR = os.path.join(THIS_DIR, "static")  # backend/app/static
 PROFILE_PICS_DIR = os.path.join(APP_STATIC_DIR, "profile_pics")
 COVER_PHOTOS_DIR = os.path.join(APP_STATIC_DIR, "cover_photos")
 ATTACHMENTS_DIR = os.path.join(APP_STATIC_DIR, "attachments")
+ATTACHMENTS_DIR_OVERRIDE = os.getenv("ATTACHMENTS_DIR")
 INVOICE_PDFS_DIR = os.path.join(APP_STATIC_DIR, "invoices")
 
 # Ensure all the subfolders exist
 os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
 os.makedirs(COVER_PHOTOS_DIR, exist_ok=True)
-os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
+if ATTACHMENTS_DIR_OVERRIDE and os.path.abspath(ATTACHMENTS_DIR_OVERRIDE) != os.path.abspath(ATTACHMENTS_DIR):
+    # Ensure override exists and point the static/attachments folder at it via symlink
+    os.makedirs(ATTACHMENTS_DIR_OVERRIDE, exist_ok=True)
+    try:
+        # Replace attachments dir with a symlink to the override
+        if os.path.islink(ATTACHMENTS_DIR) or os.path.exists(ATTACHMENTS_DIR):
+            try:
+                if os.path.islink(ATTACHMENTS_DIR):
+                    os.unlink(ATTACHMENTS_DIR)
+                else:
+                    # Remove empty dir; if not empty, leave as-is
+                    if not os.listdir(ATTACHMENTS_DIR):
+                        os.rmdir(ATTACHMENTS_DIR)
+            except Exception:
+                pass
+        os.makedirs(os.path.dirname(ATTACHMENTS_DIR), exist_ok=True)
+        try:
+            os.symlink(ATTACHMENTS_DIR_OVERRIDE, ATTACHMENTS_DIR)
+        except FileExistsError:
+            pass
+    except Exception as _exc:
+        logging.getLogger(__name__).warning("Failed to link attachments dir: %s", _exc)
+else:
+    os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 os.makedirs(INVOICE_PDFS_DIR, exist_ok=True)
 
 

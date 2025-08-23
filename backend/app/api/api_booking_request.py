@@ -32,9 +32,10 @@ router = APIRouter(
 
 logger = logging.getLogger(__name__)
 
-ATTACHMENTS_DIR = os.path.abspath(
+DEFAULT_ATTACHMENTS_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "static", "attachments")
 )
+ATTACHMENTS_DIR = os.getenv("ATTACHMENTS_DIR", DEFAULT_ATTACHMENTS_DIR)
 os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 
 

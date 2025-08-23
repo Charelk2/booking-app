@@ -1,0 +1,42 @@
+# Fly.io config for the backend API (FastAPI/Uvicorn)
+# Deploy with: flyctl deploy -c fly.toml
+
+app = "booka-api-charel"  # globally unique app name
+primary_region = "jnb"  # Johannesburg (fallback to ams if not available)
+
+[build]
+  dockerfile = "backend/Dockerfile.fly"
+
+[env]
+  PORT = "8000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+  # WebSockets are supported automatically over the same service
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 50
+    hard_limit = 100
+
+  # Health check against FastAPI health endpoint
+  [[http_service.checks]]
+    grace_period = "15s"
+    interval = "10s"
+    method = "get"
+    timeout = "2s"
+    path = "/healthz"
+
+# Persist SQLite DB and attachments on a volume named "data".
+[mounts]
+  source = "data"
+  destination = "/data"
+
+[deploy]
+  # Run migrations on each deploy (requires Alembic in requirements)
+  release_command = "bash -lc 'cd /app && alembic upgrade head'"

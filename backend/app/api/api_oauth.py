@@ -26,11 +26,15 @@ logger = logging.getLogger(__name__)
 
 oauth = OAuth()
 
-if settings.GOOGLE_OAUTH_CLIENT_ID:
+# Allow fallback to GOOGLE_CLIENT_ID/SECRET if OAUTH-specific vars aren't set
+_google_oauth_client_id = settings.GOOGLE_OAUTH_CLIENT_ID or settings.GOOGLE_CLIENT_ID
+_google_oauth_client_secret = settings.GOOGLE_OAUTH_CLIENT_SECRET or settings.GOOGLE_CLIENT_SECRET
+
+if _google_oauth_client_id:
     oauth.register(
         name="google",
-        client_id=settings.GOOGLE_OAUTH_CLIENT_ID,
-        client_secret=settings.GOOGLE_OAUTH_CLIENT_SECRET,
+        client_id=_google_oauth_client_id,
+        client_secret=_google_oauth_client_secret,
         server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
         api_base_url="https://openidconnect.googleapis.com/v1/",
         client_kwargs={"scope": "openid email profile"},
