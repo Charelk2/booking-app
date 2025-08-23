@@ -8,7 +8,9 @@ interface SocialLoginButtonsProps {
 
 const providers = [
   { id: 'google', name: 'Google', className: 'bg-red-500 hover:bg-red-600' },
-  { id: 'github', name: 'GitHub', className: 'bg-gray-800 hover:bg-gray-900' },
+  ...(process.env.NEXT_PUBLIC_APPLE_SIGNIN === '1'
+    ? ([{ id: 'apple', name: 'Apple', className: 'bg-black hover:bg-gray-900' }] as const)
+    : ([] as const)),
 ];
 
 export default function SocialLoginButtons({ redirectPath = '/dashboard' }: SocialLoginButtonsProps) {

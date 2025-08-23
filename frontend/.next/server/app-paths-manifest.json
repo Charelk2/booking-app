@@ -1,6 +1,9 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
   "/login/page": "app/login/page.js",
-  "/service-providers/[id]/page": "app/service-providers/[id]/page.js",
-  "/page": "app/page.js"
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/client/page": "app/dashboard/client/page.js",
+  "/page": "app/page.js",
+  "/security/enable/page": "app/security/enable/page.js",
+  "/security/page": "app/security/page.js"
 }

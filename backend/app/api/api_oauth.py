@@ -16,6 +16,10 @@ from app.api.auth import (
     create_access_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
     get_user_by_email,
+    _create_refresh_token,
+    _store_refresh_token,
+    _set_access_cookie,
+    _set_refresh_cookie,
 )
 from app.utils.auth import get_password_hash, normalize_email
 from app.utils import error_response
@@ -45,15 +49,20 @@ if _google_oauth_client_id:
     except Exception:
         logger.info("Google OAuth registered")
 
-if settings.GITHUB_CLIENT_ID:
+# Sign in with Apple (conditionally registered when credentials are present)
+if getattr(settings, "APPLE_CLIENT_ID", None) and getattr(settings, "APPLE_TEAM_ID", None) and getattr(settings, "APPLE_KEY_ID", None) and getattr(settings, "APPLE_PRIVATE_KEY", None):
+    # Authlib supports Apple OpenID; client_secret must be a signed JWT
+    # constructed from APPLE_TEAM_ID, APPLE_KEY_ID, and APPLE_PRIVATE_KEY.
+    # We let Authlib build it via client_kwargs below.
     oauth.register(
-        name="github",
-        client_id=settings.GITHUB_CLIENT_ID,
-        client_secret=settings.GITHUB_CLIENT_SECRET,
-        access_token_url="https://github.com/login/oauth/access_token",
-        authorize_url="https://github.com/login/oauth/authorize",
-        api_base_url="https://api.github.com/",
-        client_kwargs={"scope": "user:email"},
+        name="apple",
+        client_id=settings.APPLE_CLIENT_ID,
+        client_secret=settings.APPLE_PRIVATE_KEY,  # Authlib expects the private key and will sign.
+        server_metadata_url="https://appleid.apple.com/.well-known/openid-configuration",
+        client_kwargs={
+            "scope": "name email",
+            "token_endpoint_auth_method": "client_secret_post",
+        },
     )
 
 
@@ -152,76 +161,71 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    # Issue tokens and set HttpOnly cookies; avoid token-in-URL
     expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    jwt_token = create_access_token({"sub": user.email}, expires)
-    next_part = (
-        next_url[len(settings.FRONTEND_URL.rstrip("/")) :]
-        if next_url.startswith(settings.FRONTEND_URL)
-        else next_url
-    )
-    login_redirect = (
-        f"{settings.FRONTEND_URL.rstrip('/')}/login?token={jwt_token}"
-        f"&next={quote(next_part, safe='')}"
-    )
-    return RedirectResponse(url=login_redirect)
+    access_token = create_access_token({"sub": user.email}, expires)
+    refresh_token, r_exp = _create_refresh_token(user.email)
+    _store_refresh_token(db, user, refresh_token, r_exp)
+    resp = RedirectResponse(url=next_url)
+    _set_access_cookie(resp, access_token)
+    _set_refresh_cookie(resp, refresh_token, r_exp)
+    return resp
 
 
-@router.get("/github/login")
-async def github_login(
+@router.get("/apple/login")
+async def apple_login(
     request: Request,
     next: str = settings.FRONTEND_URL.rstrip("/") + "/dashboard",
 ):
-    """Start GitHub OAuth flow."""
-    if not hasattr(oauth, "github"):
+    if not hasattr(oauth, "apple"):
         raise error_response(
-            "GitHub OAuth not configured",
+            "Apple Sign-in not configured",
             {},
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-    redirect_uri = request.url_for("github_callback")
-    return await oauth.github.authorize_redirect(request, redirect_uri, state=next)
+    redirect_uri = request.url_for("apple_callback")
+    return await oauth.apple.authorize_redirect(request, redirect_uri, state=next)
 
 
-@router.get("/github/callback")
-async def github_callback(request: Request, db: Session = Depends(get_db)):
-    if not hasattr(oauth, "github"):
+@router.get("/apple/callback")
+async def apple_callback(request: Request, db: Session = Depends(get_db)):
+    if not hasattr(oauth, "apple"):
         raise error_response(
-            "GitHub OAuth not configured",
+            "Apple Sign-in not configured",
             {},
             status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
     next_url = request.query_params.get("state") or settings.FRONTEND_URL
     if next_url.startswith("/"):
         next_url = settings.FRONTEND_URL.rstrip("/") + next_url
-    token = await oauth.github.authorize_access_token(request)
-    resp = await oauth.github.get("user", token=token)
-    profile = resp.json()
-    email = profile.get("email")
-    if not email:
-        r = await oauth.github.get("user/emails", token=token)
-        for entry in r.json():
-            if entry.get("primary"):
-                email = entry.get("email")
-                break
-        if not email and r.json():
-            email = r.json()[0].get("email")
-    if not email:
+    token = await oauth.apple.authorize_access_token(request)
+    # Try to parse id_token for profile
+    profile = None
+    try:
+        profile = await oauth.apple.parse_id_token(request, token)
+    except Exception:
+        profile = None
+    if not profile:
         raise error_response(
-            "Email not available from GitHub",
+            "Failed to fetch Apple profile",
             {},
             status.HTTP_400_BAD_REQUEST,
         )
-    name = profile.get("name") or profile.get("login")
-    parts = name.split()
-    first_name = parts[0]
-    last_name = "".join(parts[1:]) if len(parts) > 1 else ""
+    email = profile.get("email")
+    first_name = (profile.get("name") or {}).get("firstName") or profile.get("given_name") or ""
+    last_name = (profile.get("name") or {}).get("lastName") or profile.get("family_name") or ""
+    if not email:
+        # Apple may hide email; in production you'd use the stable sub claim + account linking
+        # For now, fail gracefully
+        raise error_response("Email not available from Apple", {}, status.HTTP_400_BAD_REQUEST)
+
     email = normalize_email(email)
     user = get_user_by_email(db, email)
     if not user:
         user = User(
             email=email,
             password=get_password_hash(secrets.token_hex(8)),
-            first_name=first_name,
+            first_name=first_name or email.split("@")[0],
             last_name=last_name,
             user_type=UserType.CLIENT,
             is_verified=True,
@@ -235,14 +239,10 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
     db.refresh(user)
 
     expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    jwt_token = create_access_token({"sub": user.email}, expires)
-    next_part = (
-        next_url[len(settings.FRONTEND_URL.rstrip("/")) :]
-        if next_url.startswith(settings.FRONTEND_URL)
-        else next_url
-    )
-    login_redirect = (
-        f"{settings.FRONTEND_URL.rstrip('/')}/login?token={jwt_token}"
-        f"&next={quote(next_part, safe='')}"
-    )
-    return RedirectResponse(url=login_redirect)
+    access_token = create_access_token({"sub": user.email}, expires)
+    refresh_token, r_exp = _create_refresh_token(user.email)
+    _store_refresh_token(db, user, refresh_token, r_exp)
+    resp = RedirectResponse(url=next_url)
+    _set_access_cookie(resp, access_token)
+    _set_refresh_cookie(resp, refresh_token, r_exp)
+    return resp

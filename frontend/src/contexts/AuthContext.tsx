@@ -76,37 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get('token');
-
-    if (urlToken) {
-      // Persist deep-link tokens to localStorage so auth survives reloads
-      localStorage.setItem('token', urlToken);
-      sessionStorage.removeItem('token');
-      setToken(urlToken);
-      params.delete('token');
-      const newUrl = `${window.location.pathname}${
-        params.toString() ? `?${params.toString()}` : ''}`;
-      window.history.replaceState({}, '', newUrl);
-      (async () => {
-        try {
-          const userData = await fetchCurrentUserWithArtist();
-          setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
-          sessionStorage.removeItem('user');
-        } catch (err) {
-          console.error('Failed to fetch current user:', err);
-        } finally {
-          setLoading(false);
-        }
-      })();
-      return;
-    }
+    // Cookie-only sessions: no token in URL handling
 
     const storedUser =
       localStorage.getItem('user') || sessionStorage.getItem('user');
-    const storedToken =
-      localStorage.getItem('token') || sessionStorage.getItem('token');
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
@@ -116,10 +89,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionStorage.removeItem('user');
       }
     }
-    if (storedToken) {
-      setToken(storedToken);
-    }
-    setLoading(false);
+    // Attempt to fetch current user using cookie-based session if present
+    (async () => {
+      try {
+        const userData = await fetchCurrentUserWithArtist();
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+      } catch (err) {
+        // Not authenticated by cookie; proceed with whatever we have in storage
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const login = async (
@@ -132,13 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.data.mfa_required) {
         return { mfaRequired: true, token: response.data.mfa_token } as const;
       }
-      const { user: fallbackUser, access_token } = response.data;
-      setToken(access_token);
+      const { user: fallbackUser } = response.data;
       const storage = remember ? localStorage : sessionStorage;
       const altStorage = remember ? sessionStorage : localStorage;
-      storage.setItem('token', access_token);
-      altStorage.removeItem('token');
-
       try {
         const userData = await fetchCurrentUserWithArtist();
         setUser(userData);
@@ -163,12 +140,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) => {
     try {
       const response = await apiVerifyMfa(tokenToVerify, code);
-      const { user: fallbackUser, access_token } = response.data;
-      setToken(access_token);
+      const { user: fallbackUser } = response.data;
       const storage = remember ? localStorage : sessionStorage;
       const altStorage = remember ? sessionStorage : localStorage;
-      storage.setItem('token', access_token);
-      altStorage.removeItem('token');
 
       try {
         const userData = await fetchCurrentUserWithArtist();
@@ -238,8 +212,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    // Also invalidate server-side session
+    try { void import('@/lib/api').then(m => m.logout()); } catch {}
     setUser(null);
-    setToken(null);
     setArtistViewActive(true);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
@@ -253,7 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        token,
+        token: null,
         loading,
         login,
         verifyMfa,

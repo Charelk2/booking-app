@@ -46,6 +46,8 @@ from .api import (
     api_weather,
     api_ws,
     auth,
+    api_magic,
+    api_webauthn,
 )
 
 # The “service-provider-profiles” router lives under app/api/v1/
@@ -352,6 +354,8 @@ api_prefix = settings.API_V1_STR  # usually something like "/api/v1"
 # Clients will POST to /auth/register and /auth/login
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(api_oauth.router, prefix="/auth", tags=["auth"])
+app.include_router(api_magic.router, prefix="/auth", tags=["auth"])
+app.include_router(api_webauthn.router, prefix="/auth", tags=["auth"])
 
 
 # ─── SERVICE-PROVIDER PROFILE ROUTES (under /api/v1/service-provider-profiles) ──────────

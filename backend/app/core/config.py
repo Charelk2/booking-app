@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
 
+    # Apple Sign-in
+    APPLE_CLIENT_ID: str = ""
+    APPLE_TEAM_ID: str = ""
+    APPLE_KEY_ID: str = ""
+    APPLE_PRIVATE_KEY: str = ""
+
     # API key used on the frontend for Google Maps components. The backend does
     # not use this value but includes it so loading `.env` files shared with the
     # frontend does not raise a validation error when extra fields are forbidden
@@ -81,6 +87,9 @@ class Settings(BaseSettings):
     FEATURE_EVENT_PREP: bool = False
     # Frontend env passthrough to avoid validation errors when extra is forbid
     NEXT_PUBLIC_FEATURE_EVENT_PREP: str = ""
+
+    # Email Dev Mode: include reset links in the API response and logs to ease local testing
+    EMAIL_DEV_MODE: bool = True
 
     @field_validator("CORS_ORIGINS", mode="before")
     def split_origins(cls, v: Any) -> list[str]:

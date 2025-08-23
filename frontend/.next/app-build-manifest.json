@@ -12,17 +12,34 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/service-providers/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/service-providers/[id]/page.css",
-      "static/chunks/app/service-providers/[id]/page.js"
-    ],
     "/login/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/css/app/login/page.css",
       "static/chunks/app/login/page.js"
+    ],
+    "/security/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/security/page.css",
+      "static/chunks/app/security/page.js"
+    ],
+    "/security/enable/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/security/enable/page.css",
+      "static/chunks/app/security/enable/page.js"
+    ],
+    "/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/page.js"
+    ],
+    "/dashboard/client/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/client/page.css",
+      "static/chunks/app/dashboard/client/page.js"
     ],
     "/_not-found/page": [
       "static/chunks/webpack.js",
