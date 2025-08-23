@@ -16,7 +16,8 @@ async function fetchInitial(category: string, limit = 12) {
     (process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_API_URL : 'http://localhost:8000') ||
     'http://localhost:8000'
   );
-  const params = new URLSearchParams({ limit: String(limit), category, sort: 'recent' });
+  // Backend expects one of: top_rated | most_booked | newest
+  const params = new URLSearchParams({ limit: String(limit), category, sort: 'newest' });
   try {
     const res = await fetch(`${API.replace(/\/+$/,'')}/api/v1/service-provider-profiles/?${params.toString()}`, {
       // Cache on the server for ISR; backend also sets Cache-Control for CDN
