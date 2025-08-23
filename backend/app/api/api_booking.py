@@ -8,8 +8,9 @@ from ics import Calendar, Event
 from typing import List, Any
 from decimal import Decimal
 
-from ..database import get_db
+from ..database import get_db, engine, Base
 from .. import models
+from sqlalchemy.exc import OperationalError
 from ..models.user import User, UserType
 from ..models.service_provider_profile import ServiceProviderProfile
 from ..models.service import Service
@@ -104,7 +105,7 @@ def create_booking(
         db.query(Booking)
         .options(
             selectinload(Booking.client),
-            selectinload(Booking.service),
+            selectinload(Booking.service).selectinload(Service.artist),
             selectinload(Booking.source_quote),
         )
         .filter(Booking.id == db_booking.id)
@@ -142,7 +143,7 @@ def read_my_bookings(
         .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
         .options(
             selectinload(Booking.client),
-            selectinload(Booking.service),
+            selectinload(Booking.service).selectinload(Service.artist),
             selectinload(Booking.source_quote),
         )
         .filter(Booking.client_id == current_client.id)
@@ -213,7 +214,7 @@ def read_artist_bookings(
         db.query(Booking)
         .options(
             selectinload(Booking.client),
-            selectinload(Booking.service),
+            selectinload(Booking.service).selectinload(Service.artist),
             selectinload(Booking.source_quote),
         )
         .filter(Booking.artist_id == current_artist.id)
@@ -322,7 +323,7 @@ def read_booking_details(
         .outerjoin(QuoteV2, BookingSimple.quote_id == QuoteV2.id)
         .options(
             selectinload(Booking.client),
-            selectinload(Booking.service),
+            selectinload(Booking.service).selectinload(Service.artist),
             selectinload(Booking.source_quote),
         )
         .filter(Booking.id == booking_id)
@@ -419,9 +420,19 @@ def _as_response(db: Session, ep: models.EventPrep) -> EventPrepResponse:
         notes=ep.notes,
         schedule_notes=ep.schedule_notes,
         parking_access_notes=ep.parking_access_notes,
+        event_type=ep.event_type,
+        guests_count=ep.guests_count,
         progress_done=done,
         progress_total=total,
     )
+
+
+def _ensure_event_prep_tables():
+    try:
+        # Create tables if missing (idempotent)
+        Base.metadata.create_all(bind=engine)
+    except Exception:
+        pass
 
 
 @router.get("/{booking_id}/event-prep", response_model=EventPrepResponse)
@@ -430,10 +441,19 @@ def get_event_prep(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    booking = _ensure_participant_or_404(db, booking_id, current_user)
-    # Idempotent bootstrap: create seed record if missing
-    ep = crud_event_prep.get_by_booking_id(db, booking.id) or crud_event_prep.seed_for_booking(db, booking)
-    return _as_response(db, ep)
+    try:
+        booking = _ensure_participant_or_404(db, booking_id, current_user)
+        # Idempotent bootstrap: create seed record if missing
+        ep = crud_event_prep.get_by_booking_id(db, booking.id) or crud_event_prep.seed_for_booking(db, booking)
+        return _as_response(db, ep)
+    except OperationalError as exc:
+        # Gracefully recover if tables are missing on a fresh environment
+        if "no such table: event_preps" in str(exc).lower():
+            _ensure_event_prep_tables()
+            booking = _ensure_participant_or_404(db, booking_id, current_user)
+            ep = crud_event_prep.get_by_booking_id(db, booking.id) or crud_event_prep.seed_for_booking(db, booking)
+            return _as_response(db, ep)
+        raise
 
 
 @router.patch("/{booking_id}/event-prep", response_model=EventPrepResponse)
@@ -445,7 +465,14 @@ def patch_event_prep(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    booking = _ensure_participant_or_404(db, booking_id, current_user)
+    try:
+        booking = _ensure_participant_or_404(db, booking_id, current_user)
+    except OperationalError as exc:
+        if "no such table: event_preps" in str(exc).lower():
+            _ensure_event_prep_tables()
+            booking = _ensure_participant_or_404(db, booking_id, current_user)
+        else:
+            raise
     # Idempotency support (24h window)
     key = request.headers.get("Idempotency-Key")
     is_dup, existing = crud_event_prep.idempotency_check(

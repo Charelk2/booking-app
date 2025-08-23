@@ -247,7 +247,7 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
 
   return (
     <section
-      className={summaryOnly ? 'rounded-xl border border-gray-200 bg-white text-gray-900 p-3 cursor-pointer' : 'rounded-2xl shadow border border-gray-200 bg-white text-gray-900 p-5 cursor-pointer'}
+      className={summaryOnly ? 'rounded-xl border border-gray-200 bg-green-400 text-gray-900 p-3 cursor-pointer' : 'rounded-2xl shadow border border-gray-200 bg-indigo-50   text-gray-900 p-5 cursor-pointer'}
       aria-label="Event preparation"
       role="button"
       tabIndex={0}
@@ -262,15 +262,15 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
       <div className={summaryOnly ? 'flex items-center justify-between gap-3' : 'flex items-start justify-between gap-3'}>
         <div>
           <h3 className={summaryOnly ? 'text-sm font-semibold tracking-tight' : 'text-lg font-semibold tracking-tight'}>Let’s prep your event</h3>
-          <p className={summaryOnly ? 'text-[10px] text-gray-500 mt-0.5' : 'text-[11px] text-gray-500 mt-0.5'}>A quick checklist to keep the day smooth.</p>
+          <p className={summaryOnly ? 'text-[10px] text-gray-800 mt-0.5' : 'text-[11px] text-gray-800 mt-0.5'}>A quick checklist to keep the day smooth.</p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <span className={summaryOnly ? 'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-700' : 'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold bg-gray-100 text-gray-700'} aria-label={`Prep ${progress.done}/${progress.total}`}>
+          <span className={summaryOnly ? 'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-white text-gray-700' : 'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold bg-gray-100 text-gray-700'} aria-label={`Prep ${progress.done}/${progress.total}`}>
             Prep {progress.done}/{progress.total}
           </span>
           {!summaryOnly && <SavedPill saving={savingStd} saved={savedStd} />}
           {daysToGo !== null && (
-            <span className={summaryOnly ? 'text-[10px] text-gray-500' : 'text-xs text-gray-500'} aria-label={`In ${daysToGo} days`}>In {daysToGo} days</span>
+            <span className={summaryOnly ? 'text-[10px] text-gray-800' : 'text-xs text-gray-800'} aria-label={`In ${daysToGo} days`}>In {daysToGo} days</span>
           )}
         </div>
       </div>

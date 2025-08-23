@@ -50,6 +50,7 @@ const remotePatterns = [
   { protocol: protocol.replace(':', ''), hostname, port: port || '', pathname: '/static/default-avatar.svg' },
   { protocol: protocol.replace(':', ''), hostname, port: port || '', pathname: '/static/cover_photos/**' },
   { protocol: protocol.replace(':', ''), hostname, port: port || '', pathname: '/static/portfolio_images/**' },
+  { protocol: protocol.replace(':', ''), hostname, port: port || '', pathname: '/static/attachments/**' },
 ];
 
 // Also allow localhost when API_URL points at your IP (useful on laptop)
@@ -59,6 +60,7 @@ if (hostname !== 'localhost') {
     { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/static/default-avatar.svg' },
     { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/static/cover_photos/**' },
     { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/static/portfolio_images/**' },
+    { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/static/attachments/**' },
   );
 }
 
@@ -69,6 +71,24 @@ const nextConfig = {
     remotePatterns,
     // If you prefer to bypass optimization during dev, uncomment:
     // unoptimized: true,
+  },
+  async headers() {
+    return [
+      {
+        source: '/static/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+        ],
+      },
+      {
+        source: '/media/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'self'" },
+        ],
+      },
+    ];
   },
   async rewrites() {
     return [

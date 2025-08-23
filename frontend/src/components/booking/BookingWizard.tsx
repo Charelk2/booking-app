@@ -575,15 +575,25 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       const id = requestId || res?.data?.id;
       if (!id) throw new Error('Missing booking request ID after creation/update.');
 
-        await postMessageToBookingRequest(id, {
-          content: message,
-          // Backend expects uppercase message types.
-          message_type: 'SYSTEM',
-        });
-
+      // Redirect immediately to inbox for a snappy UX; post the details line in the background
+      try { router.prefetch('/inbox'); } catch {}
       toast.success('Your booking request has been submitted successfully!');
-      router.push(`/booking-requests/${id}`);
-      // No resetBooking() or onClose() here, as router.push handles navigation
+      router.push(`/inbox?requestId=${id}`);
+
+      // Fire-and-forget posting of the details system line; do not block navigation
+      (async () => {
+        try {
+          await postMessageToBookingRequest(id, {
+            content: message,
+            // Backend expects uppercase message types.
+            message_type: 'SYSTEM',
+          });
+        } catch (err) {
+          console.warn('Failed to post details message for request', id, err);
+        }
+      })();
+
+      // No resetBooking() or onClose() here; navigation handles teardown
     } catch (e) {
       console.error('Submit Request Error:', e);
       setValidationError('Failed to submit booking request. Please try again.');

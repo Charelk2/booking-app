@@ -1,6 +1,6 @@
 # app/api/v1/api_service_provider.py
 
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Query, Response
 from fastapi.params import Query as QueryParam
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, or_
@@ -36,6 +36,7 @@ from app.schemas.artist import (
     ArtistAvailabilityResponse,
     ArtistListResponse,
 )
+from app.utils.profile import is_artist_profile_complete
 from app.api.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -148,6 +149,16 @@ def update_current_artist_profile(
     db.add(artist_profile)
     db.commit()
     db.refresh(artist_profile)
+    # Auto-mark onboarding as completed when the profile meets requirements
+    try:
+        if not artist_profile.onboarding_completed and is_artist_profile_complete(artist_profile):
+            artist_profile.onboarding_completed = True
+            db.add(artist_profile)
+            db.commit()
+            db.refresh(artist_profile)
+    except Exception:
+        # Non-fatal; if this fails, service creation still enforces completion.
+        pass
     return artist_profile
 
 
@@ -761,9 +772,129 @@ def read_artist_availability(
     return result
 
 
-def read_all_artists(db: Session = Depends(get_db)):
-    """
-    GET /api/v1/service-provider-profiles
-    """
-    artists = db.query(Artist).all()
-    return artists
+@router.get(
+    "/",
+    response_model=ArtistListResponse,
+    response_model_exclude_none=True,
+    summary="List service provider profiles (paginated)",
+)
+def list_service_provider_profiles(
+    response: Response,
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    limit: int = Query(12, ge=1, le=50),
+    category: Optional[str] = Query(None),
+    location: Optional[str] = Query(None),
+    sort: Optional[str] = Query(None, description="Sort by 'price_asc' | 'price_desc' | 'rating_desc' | 'recent'"),
+    min_price: Optional[float] = Query(None, ge=0),
+    max_price: Optional[float] = Query(None, ge=0),
+    include_price_distribution: bool = Query(False),
+):
+    cached = get_cached_artist_list(
+        page,
+        limit=limit,
+        category=category,
+        location=location,
+        sort=sort,
+        min_price=min_price,
+        max_price=max_price,
+    )
+    if isinstance(cached, dict) and "data" in cached and "total" in cached:
+        response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=120"
+        return cached
+
+    min_price_subq = (
+        db.query(Service.artist_id.label("artist_id"), func.min(Service.price).label("min_price"))
+        .group_by(Service.artist_id)
+        .subquery()
+    )
+
+    q = (
+        db.query(Artist, min_price_subq.c.min_price)
+        .outerjoin(min_price_subq, Artist.user_id == min_price_subq.c.artist_id)
+    )
+
+    if category:
+        q = q.join(Service, Service.artist_id == Artist.user_id)
+        q = q.join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
+        q = q.filter(func.lower(ServiceCategory.name) == category.lower())
+    if location:
+        q = q.filter(Artist.location.ilike(f"%{location}%"))
+    if min_price is not None:
+        q = q.filter((min_price_subq.c.min_price == None) | (min_price_subq.c.min_price >= min_price))
+    if max_price is not None:
+        q = q.filter((min_price_subq.c.min_price == None) | (min_price_subq.c.min_price <= max_price))
+
+    if sort == "price_asc":
+        q = q.order_by(min_price_subq.c.min_price.asc().nulls_last())
+    elif sort == "price_desc":
+        q = q.order_by(min_price_subq.c.min_price.desc().nulls_last())
+    else:
+        q = q.order_by(Artist.updated_at.desc())
+
+    total = q.count()
+    rows = q.offset((page - 1) * limit).limit(limit).all()
+
+    data = []
+    for artist, minp in rows:
+        data.append(
+            {
+                "user_id": artist.user_id,
+                "business_name": artist.business_name,
+                "custom_subtitle": artist.custom_subtitle,
+                "description": artist.description,
+                "location": artist.location,
+                "hourly_rate": str(artist.hourly_rate) if artist.hourly_rate is not None else None,
+                "portfolio_urls": artist.portfolio_urls,
+                "portfolio_image_urls": artist.portfolio_image_urls,
+                "specialties": artist.specialties,
+                "profile_picture_url": artist.profile_picture_url,
+                "cover_photo_url": artist.cover_photo_url,
+                "price_visible": artist.price_visible,
+                "cancellation_policy": artist.cancellation_policy,
+                "contact_email": artist.contact_email,
+                "contact_phone": artist.contact_phone,
+                "contact_website": artist.contact_website,
+                "created_at": artist.created_at.isoformat(),
+                "updated_at": artist.updated_at.isoformat(),
+                "rating": None,
+                "rating_count": 0,
+                "is_available": None,
+                "service_price": float(minp) if minp is not None else None,
+                "service_categories": [],
+                "onboarding_completed": getattr(artist, "onboarding_completed", None),
+                "user": None,
+            }
+        )
+
+    price_distribution = []
+    if include_price_distribution:
+        buckets = PRICE_BUCKETS
+        counts = [0 for _ in buckets]
+        all_min_prices = [float(p or 0) for p, in db.query(func.min(Service.price)).group_by(Service.artist_id).all()]
+        for price in all_min_prices:
+            for idx, (lo, hi) in enumerate(buckets):
+                if lo <= price <= hi:
+                    counts[idx] += 1
+                    break
+        price_distribution = [{"min": lo, "max": hi, "count": cnt} for (lo, hi), cnt in zip(buckets, counts)]
+
+    payload = {"data": data, "total": int(total), "price_distribution": price_distribution}
+
+    try:
+        cache_artist_list(
+            payload,
+            page,
+            limit=limit,
+            category=category,
+            location=location,
+            sort=sort,
+            min_price=min_price,
+            max_price=max_price,
+            expire=60,
+        )
+    except Exception:
+        pass
+
+    response.headers["Cache-Control"] = "public, max-age=60, stale-while-revalidate=120"
+    return payload

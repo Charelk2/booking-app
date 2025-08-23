@@ -78,7 +78,7 @@ export default function ServicesPage() {
                       {formatCurrency(Number(service.price))}
                     </span>
                     <span className="text-sm text-gray-500">
-                      {service.duration_minutes} min
+                      {(service as any).duration || (service as any)?.details?.duration_label || `${service.duration_minutes} min`}
                     </span>
                   </div>
                   <Link

@@ -3,6 +3,7 @@
 
 import React, {
   useEffect,
+  useLayoutEffect,
   useState,
   forwardRef,
   useImperativeHandle,
@@ -16,7 +17,7 @@ import dynamic from 'next/dynamic';
 import { createPortal } from 'react-dom';
 import { format, isValid, differenceInCalendarDays, startOfDay } from 'date-fns';
 import data from '@emoji-mart/data';
-import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { DocumentIcon, DocumentTextIcon, FaceSmileIcon, ChevronDownIcon, MusicalNoteIcon, PaperClipIcon } from '@heroicons/react/24/outline';
 import { ClockIcon, ExclamationTriangleIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { MicrophoneIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -67,7 +68,6 @@ import QuoteBubble from './QuoteBubble';
 import InlineQuoteForm from './InlineQuoteForm';
 import BookingSummaryCard from './BookingSummaryCard';
 import { t } from '@/lib/i18n';
-import { FEATURE_EVENT_PREP } from '@/lib/constants';
 import EventPrepCard from './EventPrepCard';
 import { ImagePreviewModal } from '@/components/ui';
 
@@ -90,6 +90,28 @@ const gmt2ISOString = () =>
   new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString().replace('Z', '+02:00');
 
 const normalizeType = (v?: string | null) => (v ?? '').toUpperCase();
+const formatBytes = (bytes: number) => {
+  if (!bytes || bytes <= 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const val = bytes / Math.pow(k, i);
+  return `${i === 0 ? Math.round(val) : val.toFixed(1)} ${sizes[i]}`;
+};
+
+// Proxy backend static/media URLs through Next so iframes/audio are same-origin
+const toProxyPath = (url: string): string => {
+  try {
+    const api = new URL(API_BASE);
+    const u = new URL(url, API_BASE);
+    const sameOrigin = u.protocol === api.protocol && u.hostname === api.hostname && (u.port || '') === (api.port || '');
+    if (sameOrigin) {
+      if (u.pathname.startsWith('/static/')) return u.pathname + u.search;
+      if (u.pathname.startsWith('/media/')) return u.pathname + u.search;
+    }
+  } catch {}
+  return url;
+};
 const daySeparatorLabel = (date: Date) => {
   const now = new Date();
   const days = differenceInCalendarDays(startOfDay(now), startOfDay(date));
@@ -189,7 +211,9 @@ function mergeMessages(existing: ThreadMessage[], incoming: ThreadMessage | Thre
     map.set(m.id, curTs >= prevTs ? { ...prev, ...m } : { ...m, ...prev });
   }
 
-  return [...map.values()].sort(
+  const arr: ThreadMessage[] = [];
+  map.forEach((v) => arr.push(v));
+  return arr.sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
 }
@@ -290,6 +314,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [newMessageContent, setNewMessageContent] = useState('');
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([]);
   const [bookingDetails, setBookingDetails] = useState<Booking | null>(null);
   const [bookingRequest, setBookingRequest] = useState<BookingRequest | null>(null);
   const [parsedBookingDetails, setParsedBookingDetails] = useState<ParsedBookingDetails | undefined>();
@@ -306,7 +332,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [isPortalReady, setIsPortalReady] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<{ status: string | null; amount: number | null; receiptUrl: string | null }>({ status: null, amount: null, receiptUrl: null });
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [imageModalUrl, setImageModalUrl] = useState<string | null>(null);
+  const [imageModalIndex, setImageModalIndex] = useState<number | null>(null);
+  const [filePreviewSrc, setFilePreviewSrc] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   // ---- Offline queue
@@ -327,6 +354,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const composerRef = useRef<HTMLDivElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const prevMessageCountRef = useRef(0);
+  const initialScrolledRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
   const firstUnreadMessageRef = useRef<HTMLDivElement | null>(null);
@@ -336,6 +364,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const stabilizingRef = useRef(true);
   const stabilizeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fetchInFlightRef = useRef(false);
+  const activeThreadRef = useRef<number | null>(null);
 
   // Local ephemeral features
   const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
@@ -345,8 +374,34 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => { myReactionsRef.current = myReactions; }, [myReactions]);
   const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
   const [actionMenuFor, setActionMenuFor] = useState<number | null>(null);
-  const reactionPickerRef = useRef<HTMLDivElement | null>(null);
+  const reactionPickerRefDesktop = useRef<HTMLDivElement | null>(null);
+  const reactionPickerRefMobile = useRef<HTMLDivElement | null>(null);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const [imageMenuFor, setImageMenuFor] = useState<number | null>(null);
+  const imageMenuRef = useRef<HTMLDivElement | null>(null);
+  // Simple responsive helper (reactive)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const update = () => setIsMobile(typeof window !== 'undefined' && window.innerWidth < 640);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  const mobileOverlayOpenedAtRef = useRef<number>(0);
+
+  // When mobile long-press overlay is open, ensure composer does not focus/type
+  const isMobileOverlayOpen = isMobile && actionMenuFor !== null;
+  useEffect(() => {
+    if (isMobileOverlayOpen) {
+      try { textareaRef.current?.blur(); } catch {}
+    }
+  }, [isMobileOverlayOpen]);
+  // Long-press (mobile) to open actions menu
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressPosRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressFiredRef = useRef<boolean>(false);
+  const longPressMsgIdRef = useRef<number | null>(null);
+  const longPressStartTimeRef = useRef<number>(0);
   const [copiedFor, setCopiedFor] = useState<number | null>(null);
   const [highlightFor, setHighlightFor] = useState<number | null>(null);
 
@@ -369,17 +424,25 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => {
     const onDocMouseDown = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (reactionPickerFor && reactionPickerRef.current && !reactionPickerRef.current.contains(t)) {
-        setReactionPickerFor(null);
+      // When mobile overlay is open, let its handlers manage open/close
+      if (isMobile && actionMenuFor !== null) return;
+      if (reactionPickerFor) {
+        const inDesktop = reactionPickerRefDesktop.current?.contains(t) ?? false;
+        const inMobile = reactionPickerRefMobile.current?.contains(t) ?? false;
+        if (!inDesktop && !inMobile) setReactionPickerFor(null);
       }
       if (actionMenuFor && actionMenuRef.current && !actionMenuRef.current.contains(t)) {
         setActionMenuFor(null);
+      }
+      if (imageMenuFor && imageMenuRef.current && !imageMenuRef.current.contains(t)) {
+        setImageMenuFor(null);
       }
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (reactionPickerFor) setReactionPickerFor(null);
         if (actionMenuFor) setActionMenuFor(null);
+        if (imageMenuFor) setImageMenuFor(null);
       }
     };
     document.addEventListener('mousedown', onDocMouseDown);
@@ -388,7 +451,72 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       document.removeEventListener('mousedown', onDocMouseDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [reactionPickerFor, actionMenuFor]);
+  }, [reactionPickerFor, actionMenuFor, imageMenuFor]);
+
+  const startLongPress = useCallback((msgId: number, e: React.TouchEvent) => {
+    try {
+      const t = e.touches?.[0];
+      if (!t) return;
+      longPressPosRef.current = { x: t.clientX, y: t.clientY };
+      longPressFiredRef.current = false;
+      longPressMsgIdRef.current = msgId;
+      longPressStartTimeRef.current = Date.now();
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = setTimeout(() => {
+        longPressFiredRef.current = true;
+        setReactionPickerFor(null);
+        setImageMenuFor(null);
+        setActionMenuFor(msgId);
+        // Also prime reactions for this message so the picker can render in modal (mobile)
+        setReactionPickerFor(msgId);
+        mobileOverlayOpenedAtRef.current = Date.now();
+        try { (navigator as any)?.vibrate?.(10); } catch {}
+      }, 250);
+    } catch {}
+  }, []);
+
+  const moveLongPress = useCallback((e: React.TouchEvent) => {
+    const start = longPressPosRef.current;
+    const t = e.touches?.[0];
+    if (!start || !t) return;
+    const dx = Math.abs(t.clientX - start.x);
+    const dy = Math.abs(t.clientY - start.y);
+    if (dx > 10 || dy > 10) {
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
+  const endLongPress = useCallback((e?: React.TouchEvent) => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+    // If long-press did not fire, treat as single tap on mobile for reply jump
+    if (!longPressFiredRef.current) {
+      try {
+        const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+        const msgId = longPressMsgIdRef.current;
+        if (!isMobile || !msgId) return;
+        // Ignore taps on interactive child elements
+        const target = e?.target as HTMLElement | undefined;
+        let el: HTMLElement | null | undefined = target;
+        let interactive = false;
+        while (el && el !== document.body) {
+          const tag = (el.tagName || '').toUpperCase();
+          if (tag === 'BUTTON' || tag === 'A' || tag === 'IMG' || tag === 'AUDIO' || el.getAttribute('role') === 'button') {
+            interactive = true; break;
+          }
+          el = el.parentElement as HTMLElement | null;
+        }
+        if (interactive) return;
+        const m = messages.find((mm) => mm.id === msgId);
+        if (m?.reply_to_message_id) {
+          e?.preventDefault();
+          e?.stopPropagation();
+          scrollToMessage(m.reply_to_message_id);
+        }
+      } catch {}
+    }
+  }, [messages, scrollToMessage]);
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -398,6 +526,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Derived
   const computedServiceName = serviceName ?? bookingDetails?.service?.title;
+  const serviceTypeFromThread = bookingRequest?.service?.service_type || bookingDetails?.service?.service_type || '';
+  const isPersonalizedVideo = String(serviceTypeFromThread).toLowerCase() === 'personalized video'.toLowerCase();
   const currentClientId =
     propClientId ||
     bookingDetails?.client_id ||
@@ -459,6 +589,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       locationAddress: locAddr,
     } as any;
   }, [clientName, parsedBookingDetails, bookingRequest, bookingDetails]);
+
+  // List of image URLs in this thread (for modal navigation)
+  const imageMessages = useMemo(() => messages.filter((m) => isImageAttachment(m.attachment_url || undefined)), [messages]);
+  const imageUrls = useMemo(() => imageMessages.map((m) => getFullImageUrl(m.attachment_url!) as string), [imageMessages]);
+  const openImageModalForUrl = useCallback((url: string) => {
+    const idx = imageUrls.indexOf(url);
+    setImageModalIndex(idx >= 0 ? idx : null);
+  }, [imageUrls]);
 
   const { isClientView: isClientViewFlag, isProviderView: isProviderViewFlag, isPaid: isPaidFlag } = useBookingView(user, bookingDetails, paymentInfo, bookingConfirmed);
 
@@ -652,6 +790,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     if (!initialLoadedRef.current) setLoading(true);
     try {
       const res = await getMessagesForBookingRequest(bookingRequestId);
+      // If the user switched threads while this request was in flight, ignore the result
+      if (activeThreadRef.current !== bookingRequestId) {
+        return;
+      }
 
       let parsedDetails: ParsedBookingDetails | undefined;
       // Filter meta booking-details system msg out of the visible list,
@@ -715,15 +857,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     } finally {
       setLoading(false);
       initialLoadedRef.current = true; // <— gate opens: WS can merge now
-      // Stabilize: jump to bottom without smooth scrolling, then allow auto-scroll
-      try {
-        const el = messagesContainerRef.current;
-        if (el) {
-          el.scrollTo({ top: el.scrollHeight, behavior: 'auto' });
-          prevScrollHeightRef.current = el.scrollHeight;
-          distanceFromBottomRef.current = el.scrollHeight - (el.scrollTop + el.clientHeight);
-        }
-      } catch {}
+      // Defer initial scroll to a layout effect to avoid any visible jump
       stabilizingRef.current = true;
       if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current);
       stabilizeTimerRef.current = setTimeout(() => {
@@ -733,16 +867,70 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     }
   }, [bookingRequestId, user?.id, initialNotes, onBookingDetailsParsed, ensureQuoteLoaded]);
   useImperativeHandle(ref, () => ({ refreshMessages: fetchMessages }), [fetchMessages]);
-  useEffect(() => { fetchMessages(); }, [bookingRequestId, fetchMessages]);
+  useEffect(() => {
+    activeThreadRef.current = bookingRequestId;
+    fetchMessages();
+  }, [bookingRequestId, fetchMessages]);
+
+  // Reset initial scrolled flag when switching threads
+  useEffect(() => {
+    initialScrolledRef.current = false;
+    prevMessageCountRef.current = 0;
+  }, [bookingRequestId]);
+
+  // Hard-reset thread state on conversation switch to avoid cross-thread merging
+  useEffect(() => {
+    setMessages([]);
+    setQuotes({});
+    setBookingDetails(null);
+    setBookingRequest(null);
+    setParsedBookingDetails(undefined);
+    setBookingConfirmed(false);
+    setPaymentInfo({ status: null, amount: null, receiptUrl: null });
+    setIsPaymentOpen(false);
+    setTypingUsers([]);
+    setWsFailed(false);
+    setShowDetailsCard(false);
+    setReactions({});
+    setMyReactions({});
+    setReplyTarget(null);
+    setActionMenuFor(null);
+    setReactionPickerFor(null);
+    setImageFiles([]);
+    setImagePreviewUrls([]);
+    setAttachmentFile(null);
+    setAttachmentPreviewUrl(null);
+    setThreadError(null);
+    setLoading(true);
+    initialLoadedRef.current = false;
+  }, [bookingRequestId]);
+
+  // Ensure the thread starts anchored at bottom on first load, without a noticeable scroll
+  useLayoutEffect(() => {
+    if (!initialLoadedRef.current) return;
+    if (initialScrolledRef.current) return;
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    try {
+      el.scrollTop = el.scrollHeight;
+      prevScrollHeightRef.current = el.scrollHeight;
+      distanceFromBottomRef.current = 0;
+    } catch {}
+    initialScrolledRef.current = true;
+  }, [messages.length, bookingRequestId]);
 
   // Resolve booking from request for paid/confirmed state (client path)
   const resolveBookingFromRequest = useCallback(async () => {
+    // Ignore if user switched threads
+    if (activeThreadRef.current !== bookingRequestId) return null;
     try {
       const list = await getMyClientBookings();
+      if (activeThreadRef.current !== bookingRequestId) return null;
       const arr = list.data || [];
       const match = arr.find((b: any) => b.booking_request_id === bookingRequestId);
       if (match && (!bookingDetails || bookingDetails.id !== match.id)) {
         const full = await getBookingDetails(match.id);
+        if (activeThreadRef.current !== bookingRequestId) return null;
         setBookingDetails(full.data);
         return full.data;
       }
@@ -759,6 +947,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       if (status === 'paid') {
         setBookingConfirmed(true);
         onBookingConfirmedChange?.(true, bookingDetails);
+        try { localStorage.setItem(`booking-confirmed-${bookingRequestId}`, '1'); } catch {}
         if (paymentId) {
           setBookingDetails((prev) => (prev ? { ...prev, payment_id: paymentId as any } : prev));
         }
@@ -822,6 +1011,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(
     () =>
       onSocketMessage((event) => {
+        if (activeThreadRef.current !== bookingRequestId) return;
         let payload: any;
         try { payload = JSON.parse(event.data); } catch { return; }
 
@@ -934,6 +1124,31 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return () => {};
   }, [attachmentFile]);
 
+  // Image previews for multiple image attachments
+  useEffect(() => {
+    // Revoke stale URLs
+    return () => {
+      try { imagePreviewUrls.forEach((u) => URL.revokeObjectURL(u)); } catch {}
+    };
+  }, []);
+  const addImageFiles = useCallback((files: File[]) => {
+    if (!files.length) return;
+    const imgs = files.filter((f) => f.type.startsWith('image/'));
+    if (!imgs.length) return;
+    setImageFiles((prev) => [...prev, ...imgs]);
+    const urls = imgs.map((f) => URL.createObjectURL(f));
+    setImagePreviewUrls((prev) => [...prev, ...urls]);
+  }, []);
+  const removeImageAt = useCallback((idx: number) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== idx));
+    setImagePreviewUrls((prev) => {
+      const copy = [...prev];
+      const [removed] = copy.splice(idx, 1);
+      try { if (removed) URL.revokeObjectURL(removed); } catch {}
+      return copy;
+    });
+  }, []);
+
   // ---- Scrolling logic
   useEffect(() => {
     if (!messagesContainerRef.current || !messagesEndRef.current) return;
@@ -1007,7 +1222,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- Visible messages (keep it simple; only hide booking-details meta)
   const visibleMessages = useMemo(() => {
-    return messages.filter((msg) => {
+    const filtered = messages.filter((msg) => {
       const visibleToCurrentUser =
         !msg.visible_to ||
         msg.visible_to === 'both' ||
@@ -1027,6 +1242,20 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
       return visibleToCurrentUser && !isHiddenSystem && !isRedundantQuoteSent;
     });
+
+    // Global dedupe: only show a given SYSTEM line once (same system_key+content)
+    const seen = new Set<string>();
+    const deduped: ThreadMessage[] = [];
+    for (const msg of filtered) {
+      if (normalizeType(msg.message_type) === 'SYSTEM') {
+        const key = `${(msg.system_key || '').toLowerCase()}|${String(msg.content || '').trim().toLowerCase()}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+      }
+      deduped.push(msg);
+    }
+
+    return deduped;
   }, [messages, user?.user_type]);
 
   const groupedMessages = useMemo(() => {
@@ -1060,7 +1289,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // ---- System message rendering (centralized)
   const renderSystemLine = useCallback((msg: ThreadMessage) => {
     const key = (msg.system_key || '').toLowerCase();
-    const label = systemLabel(msg);
+    let label = systemLabel(msg);
 
     const actions: React.ReactNode[] = [];
 
@@ -1127,7 +1356,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       );
     }
 
-    // Event reminder: compute days left from booking details when available
+    // Event reminder: compute days left and format label; also handle inline variants
     if (key.startsWith('event_reminder')) {
       let eventDate: Date | undefined;
       const rawDate = (parsedBookingDetails as any)?.date || (bookingDetails as any)?.start_time || undefined;
@@ -1139,77 +1368,119 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         const today = startOfDay(new Date());
         const days = Math.max(0, differenceInCalendarDays(startOfDay(eventDate), today));
         // Override label with normalized copy when we can compute
-        const txt = t('system.eventInDays', 'Event in {n} days', { n: String(days) });
-        const extras: React.ReactNode[] = [...actions];
+        const niceDate = format(eventDate, 'yyyy-MM-dd');
+        // Prefer a relative URL as in backend examples
+        let calUrl: string | null = null;
         if ((bookingDetails as any)?.id) {
           const bid = (bookingDetails as any).id as number;
-          extras.push(
-            <Button
-              key="add-cal"
-              type="button"
-              onClick={() => window.open(`/api/v1/bookings/${bid}/calendar.ics`, '_blank')}
-              className="ml-2 !py-0.5 !px-2 !text-[11px]"
-            >
-              {t('system.addToCalendar', 'Add to calendar')}
-            </Button>
-          );
+          calUrl = `/api/v1/bookings/${bid}/calendar.ics`;
         }
-        return (
-          <div className="text-center text-xs text-gray-500 py-2">
-            <span>{txt}</span>
-            {extras}
-          </div>
-        );
+        // Inline label with raw URL instead of a button
+        label = calUrl
+          ? t(
+              'system.eventReminderShortWithCal',
+              'Event in {n} days: {date}. Add to calendar: {url}. If not done yet, please finalise event prep.',
+              { n: String(days), date: niceDate, url: calUrl }
+            )
+          : t(
+              'system.eventReminderShort',
+              'Event in {n} days: {date}. Please finalise event prep.  Add to calendar: {url}.',
+              { n: String(days), date: niceDate,  url: calUrl }
+            );
+      }
+    } else {
+      // Fallback: detect inline event reminder text even if system_key isn't set as expected
+      const raw = String((msg as any).content || '');
+      const match = raw.match(/\bEvent\s+in\s+(\d+)\s+days:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})(?:[ T]\d{2}:\d{2})?/i);
+      if (match) {
+        const n = match[1];
+        const d = match[2];
+        // Extract calendar URL and include it inline in the label
+        let calUrl: string | null = null;
+        const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/,'');
+        const m = raw.match(/add\s+to\s+calendar:\s*(https?:\/\/\S+|\/\S*)/i);
+        if (m) {
+          calUrl = /^https?:\/\//i.test(m[1]) ? m[1] : `${apiBase}${m[1].startsWith('/') ? '' : '/'}${m[1]}`;
+        }
+        label = calUrl
+          ? t('system.eventReminderShortWithCal', 'Event in {n} days: {date}. Add to calendar: {url}. If not done yet, please finalise event prep.', { n, date: d, url: calUrl })
+          : t('system.eventReminderShort', 'Event in {n} days: {date}. If not done yet, please finalise event prep.', { n, date: d });
       }
     }
 
+    // Remove any inline receipt URL from the label; we surface a clean CTA instead
+    const displayLabel = (() => {
+      const stripped = String(label || '')
+        .replace(/receipt:\s*(https?:\/\/\S+|\/\S*)/gi, '')
+        // Keep "Add to calendar" URL for event reminders; strip elsewhere
+        [key.startsWith('event_reminder') ? 'replaceAll' : 'replace'](/add\s+to\s+calendar:\s*(https?:\/\/\S+|\/\S*)/gi, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+      return stripped || String(label || '').trim();
+    })();
+
+    // Centered divider style: lines left/right, text in middle; actions below
     return (
-      <div className="text-center text-xs text-gray-500 py-2">
-        <span>{label}</span>
-        {actions}
+      <div className="my-3">
+        <div className="flex items-center gap-3 text-xs text-gray-500">
+          <div className="h-px bg-gray-200 flex-1" />
+          <span className="px-2 bg-white text-gray-600 max-w-[75%] text-center break-words">
+            {displayLabel}
+          </span>
+          <div className="h-px bg-gray-200 flex-1" />
+        </div>
+        {actions.length > 0 && (
+          <div className="mt-2 flex items-center justify-center gap-2">
+            {actions}
+          </div>
+        )}
       </div>
     );
   }, [bookingDetails, paymentInfo, quotes, isClientViewFlag, isPaidFlag, isPaymentOpen, openPaymentModal, bookingRequestId, onShowReviewModal, parsedBookingDetails]);
 
   // ---- Reactions helpers (persisted)
   const toggleReaction = useCallback(async (msgId: number, emoji: string) => {
-    const mine = myReactions[msgId] || new Set<string>();
-    const has = mine.has(emoji);
-    // optimistic
+    // compute has from latest myReactions snapshot
+    const hasNow = (myReactions[msgId] || new Set<string>()).has(emoji);
+
+    // optimistic: compute from latest state snapshots safely using functional updates
+    let committedCounts: Record<string, number> = {};
     setReactions((prev) => {
-      const cur = { ...(prev[msgId] || {}) } as Record<string, number>;
-      cur[emoji] = Math.max(0, (cur[emoji] || 0) + (has ? -1 : 1));
-      return { ...prev, [msgId]: cur };
+      const msgSnapshot = messages.find((m) => m.id === msgId);
+      const merged = {
+        ...((prev[msgId] as any) || {}),
+        ...(((msgSnapshot?.reactions as any) || {}) as Record<string, number>),
+      } as Record<string, number>;
+      const updated = { ...merged, [emoji]: Math.max(0, (merged[emoji] || 0) + (hasNow ? -1 : 1)) };
+      committedCounts = updated;
+      return { ...prev, [msgId]: updated };
     });
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, reactions: committedCounts } : m)));
     setMyReactions((m) => {
       const copy = new Set(m[msgId] || []) as Set<string>;
-      if (has) copy.delete(emoji); else copy.add(emoji);
+      if (hasNow) copy.delete(emoji); else copy.add(emoji);
       return { ...m, [msgId]: copy };
     });
+
     try {
-      if (has) await removeMessageReaction(bookingRequestId, msgId, emoji);
+      if (hasNow) await removeMessageReaction(bookingRequestId, msgId, emoji);
       else await addMessageReaction(bookingRequestId, msgId, emoji);
-    } catch (e) {
-      // revert
-      setReactions((prev) => {
-        const cur = { ...(prev[msgId] || {}) } as Record<string, number>;
-        cur[emoji] = Math.max(0, (cur[emoji] || 0) + (has ? 1 : -1));
-        return { ...prev, [msgId]: cur };
-      });
-      setMyReactions((m) => {
-        const copy = new Set(m[msgId] || []) as Set<string>;
-        if (has) copy.add(emoji); else copy.delete(emoji);
-        return { ...m, [msgId]: copy };
-      });
+    } catch {
+      // keep optimistic
     }
-  }, [bookingRequestId, myReactions]);
+  }, [bookingRequestId, myReactions, messages]);
 
   const ReactionBar: React.FC<{ id: number }> = ({ id }) => {
     const opts = ['👍','❤️','😂','🎉','👏','🔥'];
     return (
-      <div className="mt-1 inline-flex gap-1 rounded-full bg-white/90 border border-gray-200 px-1 py-0.5 shadow">
+      <div className="mt-1 inline-flex gap-1.5 rounded-full bg-white border border-gray-200 px-2 py-1 shadow">
         {opts.map((e) => (
-          <button key={e} type="button" onClick={() => { toggleReaction(id, e); setReactionPickerFor(null); }} className="text-xs rounded-full hover:bg-gray-100 px-2 py-0.5">
+          <button
+            key={e}
+            type="button"
+            onClick={() => { toggleReaction(id, e); setReactionPickerFor(null); setActionMenuFor(null); }}
+            className="text-sm rounded-full hover:bg-gray-100 px-3 py-1"
+          >
             {e}
           </button>
         ))}
@@ -1228,9 +1499,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const handleSendMessage = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!newMessageContent.trim() && !attachmentFile) return;
+      if (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0) return;
 
-      if (attachmentFile && !navigator.onLine) {
+      if ((attachmentFile || imageFiles.length > 0) && !navigator.onLine) {
         setThreadError('Cannot send attachments while offline.');
         return;
       }
@@ -1239,6 +1510,101 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       const tempId = -Date.now(); // negative to avoid collisions
 
       try {
+        if (imageFiles.length > 0) {
+          // Upload and send multiple images. First image carries the text if provided.
+          setIsUploadingAttachment(true);
+          const uploadedUrls: string[] = [];
+          for (let i = 0; i < imageFiles.length; i++) {
+            const f = imageFiles[i];
+            const res = await uploadMessageAttachment(
+              bookingRequestId,
+              f,
+              (evt) => {
+                if (evt.total) setUploadingProgress(Math.round((evt.loaded * 100) / evt.total));
+              },
+            );
+            uploadedUrls.push(res.data.url);
+          }
+
+          // Send first image with text (or placeholder hidden later)
+          const firstUrl = uploadedUrls[0];
+          let baseContent = newMessageContent;
+          if (!baseContent.trim()) baseContent = '[Attachment]';
+          const firstPayload: MessageCreate = { content: baseContent, attachment_url: firstUrl } as any;
+
+          // Optimistic for first
+          const firstOptimistic: ThreadMessage = {
+            id: tempId,
+            booking_request_id: bookingRequestId,
+            sender_id: user?.id || 0,
+            sender_type: user?.user_type === 'service_provider' ? 'service_provider' : 'client',
+            content: baseContent,
+            message_type: 'USER',
+            quote_id: null,
+            attachment_url: firstUrl,
+            visible_to: 'both',
+            action: null,
+            avatar_url: undefined,
+            expires_at: null,
+            unread: false,
+            is_read: true,
+            timestamp: gmt2ISOString(),
+            status: 'sending',
+            reply_to_message_id: replyTarget?.id ?? null,
+            reply_to_preview: replyTarget ? replyTarget.content.slice(0, 120) : null,
+          };
+          setMessages((prev) => mergeMessages(prev, firstOptimistic));
+
+          try {
+            const res = await postMessageToBookingRequest(bookingRequestId, firstPayload);
+            setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...normalizeMessage(res.data), status: 'sent' } : m)));
+          } catch (err) {
+            console.error('Failed to send first image message:', err);
+            setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' as const } : m)));
+            enqueueMessage({ tempId, payload: firstPayload });
+          }
+
+          // Send remaining images as individual messages with hidden placeholder
+          for (let i = 1; i < uploadedUrls.length; i++) {
+            const url = uploadedUrls[i];
+            const payload: MessageCreate = { content: '[Attachment]', attachment_url: url } as any;
+            const temp = tempId - (i + 1);
+            const optimistic: ThreadMessage = {
+              ...firstOptimistic,
+              id: temp,
+              content: '[Attachment]',
+              attachment_url: url,
+              reply_to_message_id: null,
+              reply_to_preview: null,
+            };
+            setMessages((prev) => mergeMessages(prev, optimistic));
+            try {
+              const res = await postMessageToBookingRequest(bookingRequestId, payload);
+              setMessages((prev) => prev.map((m) => (m.id === temp ? { ...normalizeMessage(res.data), status: 'sent' } : m)));
+            } catch (err) {
+              console.error('Failed to send image message:', err);
+              setMessages((prev) => prev.map((m) => (m.id === temp ? { ...m, status: 'queued' as const } : m)));
+              enqueueMessage({ tempId: temp, payload });
+            }
+          }
+
+          // Reset inputs
+          setNewMessageContent('');
+          setImageFiles([]);
+          try { imagePreviewUrls.forEach((u) => URL.revokeObjectURL(u)); } catch {}
+          setImagePreviewUrls([]);
+          setUploadingProgress(0);
+          setIsUploadingAttachment(false);
+          if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.rows = 1;
+            textareaRef.current.focus();
+          }
+          setReplyTarget(null);
+          onMessageSent?.();
+          return;
+        }
+
         if (attachmentFile) {
           setIsUploadingAttachment(true);
           const res = await uploadMessageAttachment(
@@ -1251,11 +1617,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           attachment_url = res.data.url;
         }
 
-        // If sending an attachment without text, provide a minimal placeholder that the UI may hide
+        // If sending an attachment without text, label with filename and size for non-images
         let baseContent = newMessageContent;
         if (!baseContent.trim() && attachment_url) {
-          const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(attachmentFile?.name || attachment_url);
-          baseContent = isAudio ? '[Voice note]' : '[Attachment]';
+          const isImg = !!attachmentFile && attachmentFile.type.startsWith('image/');
+          if (!isImg && attachmentFile) {
+            baseContent = `${attachmentFile.name} (${formatBytes(attachmentFile.size)})`;
+          } else {
+            // fallback (shouldn't hit because images go via imageFiles)
+            baseContent = '[Attachment]';
+          }
         }
         const payload: MessageCreate = {
           content: baseContent,
@@ -1290,6 +1661,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           setNewMessageContent('');
           setAttachmentFile(null);
           setAttachmentPreviewUrl(null);
+          setImageFiles([]);
+          try { imagePreviewUrls.forEach((u) => URL.revokeObjectURL(u)); } catch {}
+          setImagePreviewUrls([]);
           setUploadingProgress(0);
           setIsUploadingAttachment(false);
           if (textareaRef.current) {
@@ -1479,7 +1853,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ===== Render ===============================================================
   return (
-    <div ref={wrapperRef} className="flex flex-col rounded-b-2xl overflow-hidden w-full bg-white h-full min-h-0">
+    <div ref={wrapperRef} className="relative flex flex-col rounded-b-2xl overflow-hidden w-full bg-white h-full min-h-0">
       {/* Messages */}
       <div
         ref={messagesContainerRef}
@@ -1487,14 +1861,10 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         onTouchStart={handleTouchStartOnList}
         onTouchMove={handleTouchMoveOnList}
         onWheel={handleWheelOnList}
-        className="relative flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 bg-white px-3 pt-3"
+        className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-3 bg-white px-3 pt-3"
         style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', paddingBottom: effectiveBottomPadding }}
       >
-        {loading ? (
-          <div className="flex justify-center py-6" aria-label="Loading messages">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500" />
-          </div>
-        ) : (
+        {!loading && (
           visibleMessages.length === 0 && !isSystemTyping && (
             <div className="text-center py-4">
               {user?.user_type === 'client' ? (
@@ -1524,7 +1894,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           )
         )}
 
-        {user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && (
+        {user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && !isPersonalizedVideo && (
           <div className="mb-3" data-testid="artist-inline-quote">
             <MemoInlineQuoteForm
               artistId={currentArtistId}
@@ -1794,14 +2164,28 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   // Reveal images lazily
                   const [revealedImages, setRevealedImages] = [undefined, undefined] as any;
 
+                  const reactionMapForMsg = ((reactions[msg.id] || (msg.reactions as any) || {}) as Record<string, number>);
+                  const hasReactionsForMsg = Object.entries(reactionMapForMsg).some(([, c]) => (Number(c) > 0));
+
                   return (
                     <div
                       key={msg.id}
                       id={`msg-${msg.id}`}
-                      className={`group relative inline-block w-auto max-w-[75%] px-3 py-2 text-[13px] leading-snug ${bubbleClasses} ${msgIdx < group.messages.length - 1 ? 'mb-0.5' : ''} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'} ${highlightFor === msg.id ? 'ring-1 ring-indigo-200' : ''}`}
+                      className={`group relative inline-block select-none w-auto max-w-[75%] ${isImageAttachment(msg.attachment_url || undefined) ? 'p-0 bg-transparent rounded-xl' : 'px-3 py-2'} text-[13px] leading-snug ${bubbleClasses} ${isImageAttachment(msg.attachment_url || undefined) ? 'bg-transparent' : ''} ${hasReactionsForMsg ? 'mb-5' : (msgIdx < group.messages.length - 1 ? 'mb-0.5' : '')} ${isMsgFromSelf ? 'ml-auto mr-0' : 'mr-auto ml-0'} ${highlightFor === msg.id ? 'ring-1 ring-indigo-200' : ''}`}
                       ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
+                      onTouchStart={(e) => startLongPress(msg.id, e)}
+                      onTouchMove={moveLongPress}
+                      onTouchEnd={endLongPress}
+                      onTouchCancel={(e) => endLongPress(e)}
+                      style={{ WebkitTouchCallout: 'none' } as any}
                     >
-                      <div className="pr-9">
+                      {/* Desktop hover extender zones: make hover area span full row side */}
+                      {isMsgFromSelf ? (
+                        <div className="hidden md:block absolute inset-y-0 left-0 -translate-x-full w-screen" aria-hidden="true" />
+                      ) : (
+                        <div className="hidden md:block absolute inset-y-0 right-0 translate-x-full w-screen" aria-hidden="true" />
+                      )}
+                      <div className={isImageAttachment(msg.attachment_url || undefined) ? '' : 'pr-9'}>
                         {msg.reply_to_preview && (
                           <button
                             type="button"
@@ -1824,11 +2208,52 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         {
                           <>
                             {(() => {
-                              // Suppress the placeholder label for voice notes
+                              // Suppress placeholder labels; style non-image attachments like a reply header box
                               const url = msg.attachment_url ? (getFullImageUrl(msg.attachment_url) as string) : '';
                               const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
-                              const isVoicePlaceholder = typeof msg.content === 'string' && msg.content.trim().toLowerCase() === '[voice note]';
-                              return isAudio && isVoicePlaceholder ? null : msg.content;
+                              const isImage = isImageAttachment(msg.attachment_url || undefined);
+                              const contentLower = String(msg.content || '').trim().toLowerCase();
+                              const isVoicePlaceholder = contentLower === '[voice note]';
+                              const isAttachmentPlaceholder = contentLower === '[attachment]';
+                              if (isAudio && isVoicePlaceholder) return null; // legacy voice-note placeholder hidden
+                              if (isImage && isAttachmentPlaceholder) return null; // hide generic attachment label for images
+                              // For non-image attachments, render a reply-style header with file label; no text body below
+                              if (!isImage && msg.attachment_url) {
+                                let label = String(msg.content || '').trim();
+                                if (!label || isAttachmentPlaceholder) {
+                                  try {
+                                    label = decodeURIComponent((url.split('?')[0].split('/').pop() || 'Attachment'));
+                                  } catch {
+                                    label = 'Attachment';
+                                  }
+                                }
+                                // Pick an icon by extension
+                                let IconComp: React.ComponentType<React.SVGProps<SVGSVGElement>> | null = DocumentTextIcon;
+                                try {
+                                  const clean = url.split('?')[0];
+                                  const ext = (clean.split('.').pop() || '').toLowerCase();
+                                  if (['mp3','m4a','ogg','webm','wav'].includes(ext)) IconComp = MusicalNoteIcon;
+                                  else if (ext === 'pdf') IconComp = DocumentIcon;
+                                  else if (['doc','docx','txt','rtf','ppt','pptx','xls','xlsx','csv','md'].includes(ext)) IconComp = DocumentTextIcon;
+                                  else IconComp = PaperClipIcon;
+                                } catch { IconComp = DocumentTextIcon; }
+                                return (
+                                  <div
+                                    className={`mb-3 w-full rounded bg-gray-200 text-left text-[12px] text-gray-700 px-2 py-1 ${!isAudio ? 'cursor-pointer' : ''}`}
+                                    title={label}
+                                    role={!isAudio ? 'button' : undefined}
+                                    tabIndex={!isAudio ? 0 : undefined}
+                                    onClick={!isAudio ? (e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); } : undefined}
+                                    onKeyDown={!isAudio ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilePreviewSrc(toProxyPath(url)); } } : undefined}
+                                  >
+                                    <span className="inline-flex items-center gap-1.5">
+                                      {IconComp ? <IconComp className="w-3.5 h-3.5 text-gray-600" /> : null}
+                                      <span className="line-clamp-2 break-words">{label}</span>
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              return msg.content;
                             })()}
                             {msg.attachment_url && (
                               (() => {
@@ -1836,30 +2261,39 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                 const isAudio = /\.(webm|mp3|m4a|ogg)$/i.test(url);
                                 if (isImageAttachment(msg.attachment_url)) {
                                   return (
-                                    <button
-                                      type="button"
-                                      onClick={() => setImageModalUrl(url)}
-                                      className="block mt-1"
-                                    >
-                                      <Image
-                                        src={url}
-                                        alt="Image attachment"
-                                        width={200}
-                                        height={200}
-                                        loading="lazy"
-                                        className="rounded-md max-w-xs h-auto"
-                                      />
-                                    </button>
+                                    <div className="relative mt-0 inline-block w-full">
+                                      <button
+                                        type="button"
+                                        onClick={() => openImageModalForUrl(url)}
+                                        className="block"
+                                        aria-label="Open image"
+                                      >
+                                        <Image
+                                          src={url}
+                                          alt="Image attachment"
+                                          width={600}
+                                          height={600}
+                                          loading="lazy"
+                                          className="block w-full h-auto rounded-xl"
+                                        />
+                                      </button>
+                                    </div>
                                   );
                                 }
                                 if (isAudio) {
                                   return (
-                                    <audio className="mt-1 w-48" controls src={url} preload="metadata" />
+                                    <div className="mt-1 inline-block">
+                                      <audio
+                                        className="w-56 cursor-pointer"
+                                        controls
+                                        src={url}
+                                        preload="metadata"
+                                        onClick={(e) => { e.stopPropagation(); setFilePreviewSrc(toProxyPath(url)); }}
+                                      />
+                                    </div>
                                   );
                                 }
-                                return (
-                                  <a href={url} target="_blank" className="block text-indigo-400 underline mt-1 text-xs hover:text-indigo-300" rel="noopener noreferrer">View attachment</a>
-                                );
+                                return null; // header is the clickable element for non-image, non-audio files
                               })()
                             )}
                           </>
@@ -1867,10 +2301,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                       </div>
 
                       {/* Time & status */}
-                      <div className="absolute bottom-0.5 right-1.5 flex items-center space-x-0.5 text-[10px] text-right text-gray-500">
-                        <time dateTime={msg.timestamp} title={new Date(msg.timestamp).toLocaleString()}>
-                          {format(new Date(msg.timestamp), 'HH:mm')}
-                        </time>
+                      <div className={`absolute bottom-0.5 right-1.5 flex items-center space-x-0.5 text-[10px] text-right ${isImageAttachment(msg.attachment_url || undefined) ? 'text-white' : 'text-gray-500'}`}>
+                        <span className={`${isImageAttachment(msg.attachment_url || undefined) ? 'bg-black/40 rounded px-1.5 py-0.5' : ''}`}>
+                          <time dateTime={msg.timestamp} title={new Date(msg.timestamp).toLocaleString()}>
+                            {format(new Date(msg.timestamp), 'HH:mm')}
+                          </time>
+                        </span>
                         {isMsgFromSelf && (
                           <div className="flex-shrink-0">
                             {msg.status === 'sending' ? (
@@ -1893,7 +2329,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                         <button
                           type="button"
                           title="React"
-                          className={`absolute top-1 ${isMsgFromSelf ? '-left-7' : '-right-7'} opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded-full bg-white/80 hover:bg-white text-gray-700 shadow flex items-center justify-center`}
+                          className={`hidden sm:flex absolute top-1/2 -translate-y-1/2 ${
+                            isMsgFromSelf
+                              ? (isImageAttachment(msg.attachment_url || undefined) ? '-left-8' : '-left-7')
+                              : (isImageAttachment(msg.attachment_url || undefined) ? '-right-8' : '-right-7')
+                          } opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity w-7 h-7 rounded-full ${
+                            isImageAttachment(msg.attachment_url || undefined) ? 'bg-white/90' : 'bg-white/80'
+                          } hover:bg-white text-gray-700 shadow flex items-center justify-center`}
                           onClick={(e) => {
                             e.stopPropagation();
                             setActionMenuFor(null);
@@ -1903,120 +2345,159 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           <FaceSmileIcon className="w-4 h-4" />
                         </button>
 
-                        {/* Chevron + actions container; menu opens flush above chevron */}
-                        <div className={`absolute bottom-6 right-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
-                          <button
-                            type="button"
-                            title="More"
-                            className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-sm flex items-center justify-center hover:bg-gray-50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setReactionPickerFor(null);
-                              setActionMenuFor((v) => (v === msg.id ? null : msg.id));
-                            }}
-                          >
-                            <ChevronDownIcon className="w-3 h-3" />
-                          </button>
-                          {actionMenuFor === msg.id && (
-                            <div
-                              ref={actionMenuRef}
-                              className="absolute bottom-full right-0 z-20 min-w-[160px] rounded-md border border-gray-200 bg-white shadow-lg"
-                              onClick={(e) => e.stopPropagation()}
-                            >
+                        {/* Chevron + actions container; hidden until hover (like emoji button) */}
+                        {(() => {
+                          const hasAttachment = Boolean(msg.attachment_url);
+                          const hasReply = Boolean(msg.reply_to_preview);
+                          const content = msg.content || '';
+                          const isLikelyOneLine = !hasAttachment && !hasReply && !content.includes('\n') && content.length <= 36;
+                          const chevronPos = isLikelyOneLine ? 'bottom-4 right-1' : 'top-1 right-1';
+                          return (
+                            <div className={`absolute ${chevronPos} opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity`}>
                               <button
                                 type="button"
-                                className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
-                                onClick={() => {
-                                  try {
-                                    const parts: string[] = [];
-                                    if (msg.content) parts.push(msg.content);
-                                    if (msg.attachment_url) parts.push(getFullImageUrl(msg.attachment_url) as string);
-                                    void navigator.clipboard.writeText(parts.join('\n'));
-                                  } catch (e) {
-                                    console.error('Copy failed', e);
-                                  } finally {
-                                    setActionMenuFor(null);
-                                    setCopiedFor(msg.id);
-                                    setHighlightFor(msg.id);
-                                    setTimeout(() => {
-                                      setCopiedFor((v) => (v === msg.id ? null : v));
-                                      setHighlightFor((v) => (v === msg.id ? null : v));
-                                    }, 1200);
-                                  }
+                                title="More"
+                                className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-700 shadow-sm flex items-center justify-center hover:bg-gray-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setReactionPickerFor(null);
+                                  setActionMenuFor((v) => (v === msg.id ? null : msg.id));
                                 }}
                               >
-                                Copy
+                                <ChevronDownIcon className="w-3 h-3" />
                               </button>
-                              <button
-                                type="button"
-                                className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
-                                onClick={() => {
-                                  setReplyTarget(msg);
-                                  setActionMenuFor(null);
-                                }}
-                              >
-                                Reply
-                              </button>
-                              <button
-                                type="button"
-                                className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
-                                onClick={() => {
-                                  setActionMenuFor(null);
-                                  setReactionPickerFor(msg.id);
-                                }}
-                              >
-                                React
-                              </button>
-                              {isMsgFromSelf && (
-                                <button
-                                  type="button"
-                                  className="block w-full text-left px-3 py-2 text-[12px] text-red-600 hover:bg-red-50"
-                                  onClick={async () => {
-                                    setActionMenuFor(null);
-                                    const ok = typeof window !== 'undefined' ? window.confirm('Delete this message?') : true;
-                                    if (!ok) return;
-                                    const snapshot = messages;
-                                    setMessages((prev) => prev.filter((m) => m.id !== msg.id));
-                                    try {
-                                      const bid = bookingDetails?.id || (parsedBookingDetails as any)?.id;
-                                      if (bid) await deleteMessageForBookingRequest(bookingRequestId, msg.id);
-                                    } catch (e) {
-                                      setMessages(snapshot);
-                                      console.error('Delete failed', e);
-                                      alert('Could not delete this message.');
-                                    }
-                                  }}
+                              {actionMenuFor === msg.id && !(isMobile && !isMsgFromSelf) && (
+                                <div
+                                  ref={actionMenuRef}
+                                  className={`absolute bottom-full ${isMsgFromSelf ? 'right-0' : 'left-0'} z-20 min-w-[160px] rounded-md border border-gray-200 bg-white shadow-lg`}
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  Delete
-                                </button>
+                                  <button
+                                    type="button"
+                                    className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                                    onClick={() => {
+                                      try {
+                                        const parts: string[] = [];
+                                        if (msg.content) parts.push(msg.content);
+                                        if (msg.attachment_url) parts.push(getFullImageUrl(msg.attachment_url) as string);
+                                        void navigator.clipboard.writeText(parts.join('\n'));
+                                      } catch (e) {
+                                        console.error('Copy failed', e);
+                                      } finally {
+                                        setActionMenuFor(null);
+                                        setCopiedFor(msg.id);
+                                        setHighlightFor(msg.id);
+                                        setTimeout(() => {
+                                          setCopiedFor((v) => (v === msg.id ? null : v));
+                                          setHighlightFor((v) => (v === msg.id ? null : v));
+                                        }, 1200);
+                                      }
+                                    }}
+                                  >
+                                    Copy
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                                    onClick={() => {
+                                      setReplyTarget(msg);
+                                      setReactionPickerFor(null);
+                                      setActionMenuFor(null);
+                                    }}
+                                  >
+                                    Reply
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                                    onClick={() => {
+                                      setActionMenuFor(null);
+                                      setReactionPickerFor(msg.id);
+                                    }}
+                                  >
+                                    React
+                                  </button>
+                                  {msg.attachment_url && (
+                                    <button
+                                      type="button"
+                                      className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                                      onClick={async () => {
+                                        try {
+                                          const url = getFullImageUrl(msg.attachment_url!) as string;
+                                          const res = await fetch(url, { credentials: 'include' as RequestCredentials });
+                                          if (!res.ok) throw new Error(String(res.status));
+                                          const blob = await res.blob();
+                                          const a = document.createElement('a');
+                                          const objectUrl = URL.createObjectURL(blob);
+                                          a.href = objectUrl;
+                                          a.download = url.split('/').pop() || 'file';
+                                          document.body.appendChild(a);
+                                          a.click();
+                                          a.remove();
+                                          URL.revokeObjectURL(objectUrl);
+                                        } catch (err) {
+                                          try { window.open(getFullImageUrl(msg.attachment_url!) as string, '_blank', 'noopener,noreferrer'); } catch {}
+                                        } finally {
+                                          setActionMenuFor(null);
+                                        }
+                                      }}
+                                    >
+                                      Download
+                                    </button>
+                                  )}
+                                  {isMsgFromSelf && (
+                                    <button
+                                      type="button"
+                                      className="block w-full text-left px-3 py-2 text-[12px] text-red-600 hover:bg-red-50"
+                                      onClick={async () => {
+                                        setActionMenuFor(null);
+                                        const ok = typeof window !== 'undefined' ? window.confirm('Delete this message?') : true;
+                                        if (!ok) return;
+                                        const snapshot = messages;
+                                        setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+                                        try {
+                                          const bid = bookingDetails?.id || (parsedBookingDetails as any)?.id;
+                                          if (bid) await deleteMessageForBookingRequest(bookingRequestId, msg.id);
+                                        } catch (e) {
+                                          setMessages(snapshot);
+                                          console.error('Delete failed', e);
+                                          alert('Could not delete this message.');
+                                        }
+                                      }}
+                                    >
+                                      Delete
+                                    </button>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          )}
-                        </div>
+                          );
+                        })()}
                       </>
                     )}
 
                     {/* Reaction picker */}
                     {reactionPickerFor === msg.id && (
-                      <div
-                        ref={reactionPickerRef}
-                        className={`absolute -top-10 z-10 ${
-                          isMsgFromSelf
-                            ? 'left-1/2 transform -translate-x-full'  // sender: right edge lands at center
-                            : 'left-1/2'                                 // receiver: left edge lands at center
-                        }`}
-                      >
-                        <ReactionBar id={msg.id} />
-                      </div>
+                      <>
+                        {/* Desktop/Tablet anchored picker */}
+                        <div
+                          ref={reactionPickerRefDesktop}
+                          className={`hidden sm:block absolute -top-10 z-30 pointer-events-auto ${
+                            isMsgFromSelf ? 'left-1/2 transform -translate-x-full' : 'left-1/2'
+                          }`}
+                        >
+                          <ReactionBar id={msg.id} />
+                        </div>
+                      </>
                     )}
 
                     {/* Reactions badge: bottom-left of bubble for both sender and receiver.
                         Sits half inside, half outside the bubble for emphasis. */}
-                    {(reactions[msg.id] && Object.entries(reactions[msg.id]).some(([, c]) => c > 0)) && (
-                      <div className="absolute left-2 -bottom-3 z-10">
+                    {(Object.entries(reactionMapForMsg).some(([, c]) => Number(c) > 0)) && (
+                      <div className="absolute left-2 -bottom-3 z-20">
                         <div className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[11px] text-gray-700 shadow-sm">
-                          {Object.entries(reactions[msg.id])
-                            .filter(([, c]) => c > 0)
+                          {Object.entries(reactionMapForMsg)
+                            .filter(([, c]) => Number(c) > 0)
                             .map(([k, c]) => (
                               <span key={k} className="leading-none">
                                 {k} {c}
@@ -2035,27 +2516,172 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
         {typingIndicator && <p className="text-xs text-gray-500" aria-live="polite">{typingIndicator}</p>}
 
-        {/* Inline Event Prep — sticky just below the thread header */}
-        {(() => {
-          const accepted = Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id);
-          const bookingIdForPrep = (bookingDetails as any)?.id || (accepted as any)?.booking_id || null;
-          const isConfirmed = (bookingDetails as any)?.status?.toString?.().toLowerCase?.() === 'confirmed';
-          return FEATURE_EVENT_PREP && bookingIdForPrep && (isPaidFlag || isConfirmed);
-        })() && (
-          <div className="mt-2 sticky top-[56px] md:top-[64px] z-20">
-            <EventPrepCard
-              bookingId={(bookingDetails as any)?.id || (Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id) as any)?.booking_id}
-              bookingRequestId={bookingRequestId}
-              eventDateISO={(bookingDetails as any)?.start_time || (parsedBookingDetails as any)?.date}
-              canEdit={Boolean(user)}
-              onContinuePrep={(id) => router.push(`/dashboard/events/${id}`)}
-              summaryOnly
-            />
-          </div>
-        )}
-
+        {/* messagesEnd anchor */}
+        
         <div ref={messagesEndRef} className="absolute bottom-0 left-0 w-0 h-0" aria-hidden="true" />
       </div>
+
+      {/* No skeleton or spinner per request */}
+
+      {/* Mobile reaction overlay: global scrim + centered picker */}
+      {reactionPickerFor !== null && actionMenuFor === null && isMobile && (
+        <div className="sm:hidden fixed inset-0 z-[2000]">
+          <button
+            type="button"
+            aria-label="Close reactions"
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setReactionPickerFor(null)}
+          />
+          <div className="relative w-full h-full flex items-center justify-center">
+            <div ref={reactionPickerRefMobile}>
+              <ReactionBar id={reactionPickerFor} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile overlay: dim screen; center received actions; show reactions above */}
+      {actionMenuFor !== null && isMobile && (
+        <div className="fixed inset-0 z-[2000] sm:hidden">
+          <button
+            type="button"
+            aria-label="Close actions"
+            className="absolute inset-0 bg-white/70 backdrop-blur-sm z-[2001]"
+            onClick={() => { setActionMenuFor(null); setReactionPickerFor(null); }}
+          />
+          {(() => {
+            const msg = messages.find((m) => m.id === actionMenuFor);
+            const isFromSelf = msg ? (msg.sender_id === (user?.id || 0)) : false;
+            return (
+              <div className="relative w-full h-full flex items-center justify-center px-6 pointer-events-none">
+                <div className="w-full max-w-sm flex flex-col items-stretch gap-3 z-[2002] pointer-events-auto">
+                  {/* Reactions row on top for mobile */}
+                  {reactionPickerFor !== null && (
+                    <div ref={reactionPickerRefMobile} className="flex items-center justify-center">
+                      <ReactionBar id={reactionPickerFor} />
+                    </div>
+                  )}
+                  {/* Target message preview */}
+                  {msg && (
+                    <div className="w-full">
+                      {(() => {
+                        const bubbleBase = isFromSelf ? 'bg-blue-50 text-gray-900 whitespace-pre-wrap break-words' : 'bg-gray-50 text-gray-900 whitespace-pre-wrap break-words';
+                        const bubbleClasses = `${bubbleBase} rounded-xl`;
+                        const isImg = isImageAttachment(msg.attachment_url || undefined);
+                        return (
+                          <div className={`px-3 py-2 text-[13px] leading-snug ${bubbleClasses}`}>
+                            {isImg ? (
+                              <span>Image</span>
+                            ) : (
+                              <span className="block max-h-24 overflow-hidden">{msg.content}</span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                  {/* Actions list for both sent and received */}
+                  {msg && (
+                    <div ref={actionMenuRef} className="rounded-md border border-gray-200 bg-white shadow-lg">
+                      <button
+                        type="button"
+                        className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                        onClick={() => {
+                          try {
+                            const parts: string[] = [];
+                            if (msg.content) parts.push(msg.content);
+                            if (msg.attachment_url) parts.push(getFullImageUrl(msg.attachment_url) as string);
+                            void navigator.clipboard.writeText(parts.join('\n'));
+                          } catch (e) {
+                            console.error('Copy failed', e);
+                          } finally {
+                            setActionMenuFor(null);
+                            setCopiedFor(msg.id);
+                            setTimeout(() => setCopiedFor((v) => (v === msg.id ? null : v)), 1200);
+                          }
+                        }}
+                      >
+                        Copy
+                      </button>
+                      <button
+                        type="button"
+                        className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                        onClick={() => {
+                          setReplyTarget(msg);
+                          setReactionPickerFor(null);
+                          setActionMenuFor(null);
+                        }}
+                      >
+                        Reply
+                      </button>
+                      <button
+                        type="button"
+                        className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                        onClick={() => {
+                          setReactionPickerFor(msg.id);
+                        }}
+                      >
+                        React
+                      </button>
+                      {msg.attachment_url && (
+                        <button
+                          type="button"
+                          className="block w-full text-left px-3 py-2 text-[12px] hover:bg-gray-50"
+                          onClick={async () => {
+                            try {
+                              const url = getFullImageUrl(msg.attachment_url!) as string;
+                              const res = await fetch(url, { credentials: 'include' as RequestCredentials });
+                              if (!res.ok) throw new Error(String(res.status));
+                              const blob = await res.blob();
+                              const a = document.createElement('a');
+                              const objectUrl = URL.createObjectURL(blob);
+                              a.href = objectUrl;
+                              a.download = url.split('/').pop() || 'file';
+                              document.body.appendChild(a);
+                              a.click();
+                              a.remove();
+                              URL.revokeObjectURL(objectUrl);
+                            } catch (err) {
+                              try { window.open(getFullImageUrl(msg.attachment_url!) as string, '_blank', 'noopener,noreferrer'); } catch {}
+                            } finally {
+                              setActionMenuFor(null);
+                            }
+                          }}
+                        >
+                          Download
+                        </button>
+                      )}
+                      {isFromSelf && (
+                        <button
+                          type="button"
+                          className="block w-full text-left px-3 py-2 text-[12px] text-red-600 hover:bg-red-50"
+                          onClick={async () => {
+                            setActionMenuFor(null);
+                            const ok = typeof window !== 'undefined' ? window.confirm('Delete this message?') : true;
+                            if (!ok) return;
+                            const snapshot = messages;
+                            setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+                            try {
+                              const bid = bookingDetails?.id || (parsedBookingDetails as any)?.id;
+                              if (bid) await deleteMessageForBookingRequest(bookingRequestId, msg.id);
+                            } catch (e) {
+                              setMessages(snapshot);
+                              console.error('Delete failed', e);
+                              alert('Could not delete this message.');
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
 
       {/* Scroll-to-bottom (mobile only) — hidden while details panel is open */}
@@ -2123,37 +2749,48 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       )}
 
       {/* Attachment preview — hide on mobile while details panel open */}
-      {attachmentPreviewUrl && (
+      {/* Image previews row (multiple) */}
+      {imagePreviewUrls.length > 0 && (
         <div className={isDetailsPanelOpen ? 'hidden md:flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner' : 'flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner'}>
-          {attachmentFile && attachmentFile.type.startsWith('image/') ? (
-            <Image
-              src={attachmentPreviewUrl}
-              alt="Attachment preview"
-              width={40}
-              height={40}
-              loading="lazy"
-              className="w-10 h-10 object-cover rounded-md border border-gray-200"
-            />
-          ) : attachmentFile && (attachmentFile.type.startsWith('audio/') || /\.(webm|mp3|m4a|ogg)$/i.test(attachmentFile.name || '')) ? (
-            <audio className="w-48" controls src={attachmentPreviewUrl} preload="metadata" />
+          {/* Add more images button on the left */}
+          <input id="image-upload" type="file" accept="image/*" multiple className="hidden" onChange={(e) => addImageFiles(Array.from(e.target.files || []))} />
+          <label htmlFor="image-upload" className="flex-shrink-0 w-10 h-10 rounded-md border border-dashed border-gray-300 bg-white/70 text-gray-600 flex items-center justify-center cursor-pointer hover:bg-white" title="Add images">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+          </label>
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {imagePreviewUrls.map((u, i) => (
+              <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200 bg-white">
+                <Image src={u} alt={`Preview ${i+1}`} width={64} height={64} className="w-16 h-16 object-cover" />
+                <button type="button" aria-label="Remove image" className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white/90 border border-gray-200 text-gray-700 flex items-center justify-center hover:bg-white" onClick={() => removeImageAt(i)}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Non-image attachment preview */}
+      {attachmentPreviewUrl && attachmentFile && !attachmentFile.type.startsWith('image/') && (
+        <div className={isDetailsPanelOpen ? 'hidden md:flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner' : 'flex items-center gap-2 mb-1 bg-gray-100 rounded-xl p-2 shadow-inner'}>
+          {attachmentFile && (attachmentFile.type.startsWith('audio/') || /\.(webm|mp3|m4a|ogg)$/i.test(attachmentFile.name || '')) ? (
+            <>
+              <audio className="w-48" controls src={attachmentPreviewUrl} preload="metadata" />
+              <span className="text-xs text-gray-700 font-medium">{attachmentFile.name} ({formatBytes(attachmentFile.size)})</span>
+            </>
           ) : (
             <>
               {attachmentFile?.type === 'application/pdf' ? (
-                <DocumentIcon className="w-8 h-8 text-red-600" />
-              ) : (
-                <DocumentTextIcon className="w-8 h-8 text-gray-600" />
-              )}
-              <span className="text-xs text-gray-700 font-medium">{attachmentFile?.name}</span>
+                <DocumentIcon className="w-8 h-8 text-red-600" />)
+                : (<DocumentTextIcon className="w-8 h-8 text-gray-600" />)}
+              <span className="text-xs text-gray-700 font-medium">{attachmentFile?.name} ({formatBytes(attachmentFile.size)})</span>
             </>
           )}
-          <button
-            type="button"
-            onClick={() => setAttachmentFile(null)}
-            className="text-xs text-red-600 hover:text-red-700 font-medium"
-            aria-label="Remove attachment"
-          >
-            Remove
-          </button>
+          <button type="button" onClick={() => setAttachmentFile(null)} className="text-xs text-red-600 hover:text-red-700 font-medium" aria-label="Remove attachment">Remove</button>
         </div>
       )}
 
@@ -2169,9 +2806,42 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 : 'block sticky bottom-0 z-[60] bg-white border-t border-gray-100 shadow pb-safe flex-shrink-0 relative'
             }
           >
+            {/* Event Prep: show as a bottom bar above the composer, always in view */}
+            {(() => {
+              const accepted = Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id);
+              const bookingIdForPrep = (bookingDetails as any)?.id || (accepted as any)?.booking_id || null;
+              // Show Event Prep whenever a booking exists (accepted quote created a booking),
+              // do not gate on env flag to ensure it’s visible.
+              return Boolean(bookingIdForPrep);
+            })() && (
+              <div className="px-2 pt-2 border-b border-gray-100 bg-white">
+                <EventPrepCard
+                  bookingId={(bookingDetails as any)?.id || (Object.values(quotes).find((q: any) => q?.status === 'accepted' && q?.booking_id) as any)?.booking_id}
+                  bookingRequestId={bookingRequestId}
+                  eventDateISO={(bookingDetails as any)?.start_time || (parsedBookingDetails as any)?.date}
+                  canEdit={Boolean(user)}
+                  onContinuePrep={(id) => router.push(`/dashboard/events/${id}`)}
+                  summaryOnly
+                />
+              </div>
+            )}
             {showEmojiPicker && (
               <div ref={emojiPickerRef} className="absolute bottom-12 left-0 z-50">
                 <EmojiPicker data={data} onEmojiSelect={handleEmojiSelect} previewPosition="none" />
+              </div>
+            )}
+
+            {/* Reply preview row (full width, single line) */}
+            {replyTarget && (
+              <div className="px-2 pt-1">
+                <div className="w-full rounded-md bg-gray-50 border border-gray-200 px-2 py-1 text-[12px] text-gray-700 flex items-center justify-between">
+                  <div className="min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">
+                    Replying to {replyTarget.sender_type === 'client' ? 'Client' : 'You'}: <span className="italic text-gray-500">{replyTarget.content}</span>
+                  </div>
+                  <button type="button" className="ml-2 text-gray-500 hover:text-gray-700 flex-shrink-0" onClick={() => setReplyTarget(null)} aria-label="Cancel reply">
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             )}
 
@@ -2180,8 +2850,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 id="file-upload"
                 type="file"
                 className="hidden"
-                onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (!files.length) return;
+                  const imgs = files.filter((f) => f.type.startsWith('image/'));
+                  const others = files.filter((f) => !f.type.startsWith('image/'));
+                  if (imgs.length) addImageFiles(imgs);
+                  if (others.length) setAttachmentFile(others[0]);
+                }}
                 accept="image/*,application/pdf,audio/*"
+                multiple
               />
               <label
                 htmlFor="file-upload"
@@ -2242,16 +2920,6 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
               {/* Textarea (16px to avoid iOS zoom) */}
               <div className="flex-1">
-              {replyTarget && (
-                <div className="mb-1 flex items-center justify-between rounded-md bg-gray-50 border border-gray-200 px-2 py-1 text-[12px] text-gray-700">
-                  <div className="truncate">
-                    Replying to {replyTarget.sender_type === 'client' ? 'Client' : 'You'}: <span className="italic text-gray-500">{replyTarget.content.slice(0, 60)}</span>
-                  </div>
-                  <button type="button" className="ml-2 text-gray-500 hover:text-gray-700" onClick={() => setReplyTarget(null)} aria-label="Cancel reply">
-                    <XMarkIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
               <textarea
                 ref={textareaRef}
                 value={newMessageContent}
@@ -2293,7 +2961,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 type="submit"
                 aria-label="Send message"
                 className="flex-shrink-0 rounded-full bg-gray-900 hover:bg-gray-800 text-white flex items-center justify-center w-8 h-8 p-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile)}
+                disabled={isUploadingAttachment || (!newMessageContent.trim() && !attachmentFile && imageFiles.length === 0)}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
@@ -2321,9 +2989,36 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       {paymentModal}
 
       <ImagePreviewModal
-        open={Boolean(imageModalUrl)}
-        src={imageModalUrl ?? ''}
-        onClose={() => setImageModalUrl(null)}
+        open={imageModalIndex !== null}
+        src={imageModalIndex !== null ? (imageUrls[imageModalIndex] || '') : ''}
+        images={imageUrls}
+        index={imageModalIndex ?? 0}
+        onIndexChange={(i) => setImageModalIndex(i)}
+        onReply={() => {
+          if (imageModalIndex !== null) {
+            const msg = imageMessages[imageModalIndex];
+            if (msg) setReplyTarget(msg);
+          }
+          setImageModalIndex(null);
+        }}
+        onClose={() => setImageModalIndex(null)}
+      />
+
+      {/* Generic file preview (PDF/audio/etc.) */}
+      <ImagePreviewModal
+        open={Boolean(filePreviewSrc)}
+        src={filePreviewSrc || ''}
+        onClose={() => setFilePreviewSrc(null)}
+        onReply={() => {
+          // Best-effort: reply to message that matches this URL (absolute or proxied)
+          const m = messages.find((mm) => {
+            if (!mm.attachment_url) return false;
+            const abs = getFullImageUrl(mm.attachment_url) as string;
+            return abs === filePreviewSrc || toProxyPath(abs) === filePreviewSrc;
+          });
+          if (m) setReplyTarget(m as any);
+          setFilePreviewSrc(null);
+        }}
       />
     </>
   )}

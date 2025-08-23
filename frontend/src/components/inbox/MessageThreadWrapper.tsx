@@ -11,7 +11,6 @@ import { getFullImageUrl } from '@/lib/utils';
 
 import MessageThread from '../booking/MessageThread';
 import BookingDetailsPanel from './BookingDetailsPanel';
-import Spinner from '../ui/Spinner';
 import usePaymentModal from '@/hooks/usePaymentModal';
 
 import { InformationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -124,73 +123,69 @@ export default function MessageThreadWrapper({
     );
   }
 
-  if (!bookingRequest) {
-    return (
-      <div className="flex justify-center py-6 h-full">
-        <Spinner />
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col h-full w-full bg-white shadow-xl border-l border-gray-100 relative">
       {/* Unified header */}
       <header className="sticky top-0 z-10 bg-white text-gray-900 px-3 py-2 sm:px-5 sm:py-3 flex items-center justify-between border-b border-gray-200 md:min-h-[64px]">
         <div className="flex items-center gap-3">
           {/* Avatar */}
-          {isUserArtist ? (
-            bookingRequest.client?.profile_picture_url ? (
-              <Image
-                src={getFullImageUrl(bookingRequest.client.profile_picture_url) as string}
-                alt="Client avatar"
-                width={40}
-                height={40}
-                loading="lazy"
-                className="h-10 w-10 rounded-full object-cover"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src =
-                    getFullImageUrl('/static/default-avatar.svg') as string;
-                }}
-              />
+          {bookingRequest ? (
+            isUserArtist ? (
+              bookingRequest.client?.profile_picture_url ? (
+                <Image
+                  src={getFullImageUrl(bookingRequest.client.profile_picture_url) as string}
+                  alt="Client avatar"
+                  width={40}
+                  height={40}
+                  loading="lazy"
+                  className="h-10 w-10 rounded-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src =
+                      getFullImageUrl('/static/default-avatar.svg') as string;
+                  }}
+                />
+              ) : (
+                <div className="h-10 w-10 rounded-full bg-black flex items-center justify-center text-base font-medium text-white">
+                  {bookingRequest.client?.first_name?.charAt(0) || 'U'}
+                </div>
+              )
+            ) : bookingRequest.artist_profile?.profile_picture_url ? (
+              <Link
+                href={`/service-providers/${bookingRequest.artist?.id}`}
+                aria-label="Service Provider profile"
+                className="flex-shrink-0"
+              >
+                <Image
+                  src={getFullImageUrl(bookingRequest.artist_profile.profile_picture_url) as string}
+                  alt="Service Provider avatar"
+                  width={40}
+                  height={40}
+                  loading="lazy"
+                  className="h-10 w-10 rounded-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src =
+                      getFullImageUrl('/static/default-avatar.svg') as string;
+                  }}
+                />
+              </Link>
             ) : (
-              <div className="h-10 w-10 rounded-full bg-black flex items-center justify-center text-base font-medium text-white">
-                {bookingRequest.client?.first_name?.charAt(0) || 'U'}
+              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-base font-medium text-gray-600">
+                {(bookingRequest.artist_profile?.business_name ||
+                  bookingRequest.artist?.first_name ||
+                  'U').charAt(0)}
               </div>
             )
-          ) : bookingRequest.artist_profile?.profile_picture_url ? (
-            <Link
-              href={`/service-providers/${bookingRequest.artist?.id}`}
-              aria-label="Service Provider profile"
-              className="flex-shrink-0"
-            >
-              <Image
-                src={getFullImageUrl(bookingRequest.artist_profile.profile_picture_url) as string}
-                alt="Service Provider avatar"
-                width={40}
-                height={40}
-                loading="lazy"
-                className="h-10 w-10 rounded-full object-cover"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src =
-                    getFullImageUrl('/static/default-avatar.svg') as string;
-                }}
-              />
-            </Link>
           ) : (
-            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-base font-medium text-gray-600">
-              {(bookingRequest.artist_profile?.business_name ||
-                bookingRequest.artist?.first_name ||
-                'U').charAt(0)}
-            </div>
+            <div className="h-10 w-10 rounded-full bg-gray-200" aria-hidden="true" />
           )}
 
           {/* Name */}
           <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
-            {isUserArtist
-              ? bookingRequest.client?.first_name || 'User'
-              : bookingRequest.artist_profile?.business_name ||
-                bookingRequest.artist?.first_name ||
-                'User'}
+            {bookingRequest
+              ? (isUserArtist
+                  ? bookingRequest.client?.first_name || 'User'
+                  : bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'User')
+              : 'Messages'}
           </span>
         </div>
 
@@ -221,32 +216,16 @@ export default function MessageThreadWrapper({
         >
           <MessageThread
             bookingRequestId={bookingRequestId}
-            serviceId={bookingRequest.service_id ?? undefined}
-            clientName={bookingRequest.client?.first_name}
-            artistName={
-              bookingRequest.artist_profile?.business_name ||
-              bookingRequest.artist?.first_name
-            }
-            artistAvatarUrl={
-              bookingRequest.artist_profile?.profile_picture_url ?? null
-            }
-            clientAvatarUrl={bookingRequest.client?.profile_picture_url ?? null}
-            serviceName={bookingRequest.service?.title}
-            initialNotes={bookingRequest.message ?? null}
-            artistCancellationPolicy={
-              bookingRequest.artist_profile?.cancellation_policy ?? null
-            }
-            initialBaseFee={
-              bookingRequest.service?.price
-                ? Number(bookingRequest.service.price)
-                : undefined
-            }
-            initialTravelCost={
-              bookingRequest.travel_cost !== null &&
-              bookingRequest.travel_cost !== undefined
-                ? Number(bookingRequest.travel_cost)
-                : undefined
-            }
+            serviceId={bookingRequest?.service_id ?? undefined}
+            clientName={bookingRequest?.client?.first_name}
+            artistName={bookingRequest?.artist_profile?.business_name || bookingRequest?.artist?.first_name}
+            artistAvatarUrl={bookingRequest?.artist_profile?.profile_picture_url ?? null}
+            clientAvatarUrl={bookingRequest?.client?.profile_picture_url ?? null}
+            serviceName={bookingRequest?.service?.title}
+            initialNotes={bookingRequest?.message ?? null}
+            artistCancellationPolicy={bookingRequest?.artist_profile?.cancellation_policy ?? null}
+            initialBaseFee={bookingRequest?.service?.price ? Number(bookingRequest.service.price) : undefined}
+            initialTravelCost={bookingRequest && bookingRequest.travel_cost !== null && bookingRequest.travel_cost !== undefined ? Number(bookingRequest.travel_cost) : undefined}
             initialSoundNeeded={parsedDetails?.soundNeeded?.toLowerCase() === 'yes'}
             onBookingDetailsParsed={setParsedDetails}
             onBookingConfirmedChange={(confirmed, booking) => {
@@ -275,19 +254,21 @@ export default function MessageThreadWrapper({
               : 'md:w-0 md:p-0 md:overflow-hidden'
           }`}
         >
-          <BookingDetailsPanel
-            bookingRequest={bookingRequest}
-            parsedBookingDetails={parsedDetails}
-            bookingConfirmed={bookingConfirmed}
-            confirmedBookingDetails={confirmedBookingDetails}
-            setShowReviewModal={setShowReviewModal}
-            paymentModal={paymentModal}
-            /** keep types happy; MessageThread owns actual quotes */
-            quotes={{} as Record<number, QuoteV2>}
-            openPaymentModal={(args: { bookingRequestId: number; amount: number }) =>
-              openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount } as any)
-            }
-          />
+          {bookingRequest && (
+            <BookingDetailsPanel
+              bookingRequest={bookingRequest}
+              parsedBookingDetails={parsedDetails}
+              bookingConfirmed={bookingConfirmed}
+              confirmedBookingDetails={confirmedBookingDetails}
+              setShowReviewModal={setShowReviewModal}
+              paymentModal={paymentModal}
+              /** keep types happy; MessageThread owns actual quotes */
+              quotes={{} as Record<number, QuoteV2>}
+              openPaymentModal={(args: { bookingRequestId: number; amount: number }) =>
+                openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount } as any)
+              }
+            />
+          )}
         </section>
 
         {/* Mobile overlay backdrop */}
@@ -323,18 +304,20 @@ export default function MessageThreadWrapper({
             </button>
           </div>
           <div className="p-4">
-            <BookingDetailsPanel
-              bookingRequest={bookingRequest}
-              parsedBookingDetails={parsedDetails}
-              bookingConfirmed={bookingConfirmed}
-              confirmedBookingDetails={confirmedBookingDetails}
-              setShowReviewModal={setShowReviewModal}
-              paymentModal={paymentModal}
-              quotes={{} as Record<number, QuoteV2>}
-              openPaymentModal={(args: { bookingRequestId: number; amount: number }) =>
-                openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount } as any)
-              }
-            />
+            {bookingRequest && (
+              <BookingDetailsPanel
+                bookingRequest={bookingRequest}
+                parsedBookingDetails={parsedDetails}
+                bookingConfirmed={bookingConfirmed}
+                confirmedBookingDetails={confirmedBookingDetails}
+                setShowReviewModal={setShowReviewModal}
+                paymentModal={paymentModal}
+                quotes={{} as Record<number, QuoteV2>}
+                openPaymentModal={(args: { bookingRequestId: number; amount: number }) =>
+                  openPaymentModal({ bookingRequestId: args.bookingRequestId, amount: args.amount } as any)
+                }
+              />
+            )}
           </div>
         </section>
       </div>

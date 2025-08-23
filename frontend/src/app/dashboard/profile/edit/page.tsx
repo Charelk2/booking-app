@@ -19,8 +19,9 @@ import {
   disconnectGoogleCalendar,
 } from '@/lib/api';
 import { getFullImageUrl } from '@/lib/utils';
-import { DEFAULT_CURRENCY } from '@/lib/constants';
-import { Spinner } from '@/components/ui';
+import { Spinner, ImagePreviewModal } from '@/components/ui';
+import SavedPill from '@/components/ui/SavedPill';
+import useSavedHint from '@/hooks/useSavedHint';
 import LocationInput from '@/components/ui/LocationInput';
 import MarkdownPreview from '@/components/ui/MarkdownPreview';
 
@@ -113,6 +114,34 @@ async function getCroppedImg(
   });
 }
 
+// Normalize a ReactCrop crop to natural-image pixel coordinates
+function toPixelCrop(img: HTMLImageElement, crop: any): PixelCrop {
+  const naturalW = img.naturalWidth || 0;
+  const naturalH = img.naturalHeight || 0;
+  if (!crop) return { x: 0, y: 0, width: naturalW, height: naturalH, unit: 'px' } as any;
+  // Percent unit
+  if (typeof crop.unit === 'string' && crop.unit !== 'px') {
+    return {
+      x: Math.round(((crop.x || 0) / 100) * naturalW),
+      y: Math.round(((crop.y || 0) / 100) * naturalH),
+      width: Math.round(((crop.width || 0) / 100) * naturalW),
+      height: Math.round(((crop.height || 0) / 100) * naturalH),
+      unit: 'px',
+    } as any;
+  }
+  // Pixel unit but relative to displayed size → scale to natural
+  const rect = img.getBoundingClientRect();
+  const scaleX = rect.width ? naturalW / rect.width : 1;
+  const scaleY = rect.height ? naturalH / rect.height : 1;
+  return {
+    x: Math.round((crop.x || 0) * scaleX),
+    y: Math.round((crop.y || 0) * scaleY),
+    width: Math.round((crop.width || 0) * scaleX),
+    height: Math.round((crop.height || 0) * scaleY),
+    unit: 'px',
+  } as any;
+}
+
 export default function EditServiceProviderProfilePage(): JSX.Element {
   const { user, loading: authLoading, refreshUser } = useAuth();
   const router = useRouter();
@@ -126,10 +155,21 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
   const [customSubtitleInput, setCustomSubtitleInput] = useState('');
   const [descriptionInput, setDescriptionInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
-  const [hourlyRateInput, setHourlyRateInput] = useState<string | number>('');
+  // Contact details (sent to clients on confirmation)
+  const [contactEmailInput, setContactEmailInput] = useState('');
+  const [contactPhoneInput, setContactPhoneInput] = useState('');
+  const [contactWebsiteInput, setContactWebsiteInput] = useState('');
+  // Banking details (for payouts/invoices if needed)
+  const [bankNameInput, setBankNameInput] = useState('');
+  const [bankAccountNameInput, setBankAccountNameInput] = useState('');
+  const [bankAccountNumberInput, setBankAccountNumberInput] = useState('');
+  const [bankBranchCodeInput, setBankBranchCodeInput] = useState('');
   const [specialtiesInput, setSpecialtiesInput] = useState('');
   const [portfolioUrlsInput, setPortfolioUrlsInput] = useState('');
   const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
+  // Portfolio preview modal state
+  const [portfolioPreviewOpen, setPortfolioPreviewOpen] = useState(false);
+  const [portfolioPreviewIndex, setPortfolioPreviewIndex] = useState(0);
   const dragIndex = useRef<number | null>(null);
   const [uploadingPortfolioImages, setUploadingPortfolioImages] = useState(false);
 
@@ -151,6 +191,11 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
   const [uploadingCoverPhoto, setUploadingCoverPhoto] = useState(false);
   const [coverPhotoError, setCoverPhotoError] = useState<string | null>(null);
   const [coverPhotoSuccessMessage, setCoverPhotoSuccessMessage] = useState<string | null>(null);
+  const [coverOriginalSrc, setCoverOriginalSrc] = useState<string | null>(null);
+  const coverImgRef = useRef<HTMLImageElement>(null);
+  const [coverCrop, setCoverCrop] = useState<Crop>();
+  const [coverCompletedCrop, setCoverCompletedCrop] = useState<PixelCrop>();
+  const COVER_ASPECT = 16 / 9;
 
   // Misc UI state
   const [loading, setLoading] = useState(true);
@@ -158,10 +203,32 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [calendarConnected, setCalendarConnected] = useState(false);
   const [calendarEmail, setCalendarEmail] = useState<string | null>(null);
+  const [calendarCardMessage, setCalendarCardMessage] = useState<string | null>(null);
+  // CTA variant for success after calendar sync
+  const [ctaVariant, setCtaVariant] = useState<'generic' | 'calendar_success'>('generic');
+  const justSyncedRef = useRef(false);
+
+  // First-time completion CTA state
+  const [showFirstTimeCompleteCta, setShowFirstTimeCompleteCta] = useState(false);
 
   // Policies wizard state
   const [policyTemplate, setPolicyTemplate] = useState<'flexible'|'moderate'|'strict'|'custom'>('flexible');
   const [cancellationPolicy, setCancellationPolicy] = useState<string>('');
+  // Saved hints per card
+  const bizHint = useSavedHint();
+  const policyHint = useSavedHint();
+  const profHint = useSavedHint();
+  const contactHint = useSavedHint();
+  const mediaHint = useSavedHint();
+  const [showCoverModal, setShowCoverModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const contactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bizTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const policyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const profTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // South Africa format only: +27 followed by 9 digits
+  const isValidZANumber = (v: string) => /^\+27\d{9}$/.test(v.trim());
+  const [phoneRest, setPhoneRest] = useState<string>('');
   const POLICY_TEMPLATES: Record<string, string> = {
     flexible: '# Flexible\n\n- Free cancellation within 48 hours of booking.\n- 100% refund up to 14 days before the event.\n- 50% refund up to 7 days before.',
     moderate: '# Moderate\n\n- Free cancellation within 24 hours of booking.\n- 50% refund up to 7 days before the event.',
@@ -176,6 +243,69 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
   };
 
   const searchParams = useSearchParams();
+
+  // Basic validators for first-time completeness check
+  const isValidEmail = (v: string) => /.+@.+\..+/.test((v || '').trim());
+  const isLikelyUrl = (v: string) => /^(https?:\/\/)?[\w.-]+\.[A-Za-z]{2,}/.test((v || '').trim());
+
+  // Determine if all required profile fields are filled for first-time completion
+  const isProfileComplete = (() => {
+    const hasBusiness = !!businessNameInput.trim();
+    const hasDesc = !!descriptionInput.trim();
+    const hasLocation = !!locationInput.trim();
+    const hasEmail = isValidEmail(contactEmailInput);
+    const hasPhone = isValidZANumber(contactPhoneInput);
+    const hasWebsite = !!contactWebsiteInput.trim() && isLikelyUrl(contactWebsiteInput);
+    const hasSpecialties = !!specialtiesInput.trim();
+    // Policy is optional for completion (backend treats missing policy as OK)
+    const hasPolicy = true;
+    // Bank details are explicitly excluded from completion rules.
+    return (
+      hasBusiness && hasDesc && hasLocation && hasEmail && hasPhone && hasWebsite && hasSpecialties && hasPolicy && calendarConnected
+    );
+  })();
+
+  // Show CTA only the first time profile becomes complete for this user (service providers only)
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || user.user_type !== 'service_provider') return;
+    try {
+      const key = `sp:onboard:complete:${user.id}`;
+      const already = localStorage.getItem(key);
+      // Require calendarConnected as part of isProfileComplete
+      if (!already && isProfileComplete) {
+        const ae = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+        const isEditing = !!ae && ((ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable));
+        if (isEditing) {
+          const onBlurOnce = () => {
+            document.removeEventListener('focusout', onBlurOnce, true);
+            // Re-check to avoid showing if conditions changed
+            const stillComplete = isProfileComplete;
+            if (stillComplete) setShowFirstTimeCompleteCta(true);
+          };
+          document.addEventListener('focusout', onBlurOnce, true);
+        } else {
+          setShowFirstTimeCompleteCta(true);
+        }
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user, isProfileComplete]);
+
+  const markOnboardingComplete = () => {
+    if (!user) return;
+    try { localStorage.setItem(`sp:onboard:complete:${user.id}`, '1'); } catch {}
+    setShowFirstTimeCompleteCta(false);
+  };
+
+  const goAddService = () => {
+    markOnboardingComplete();
+    router.push('/dashboard/artist?tab=services');
+  };
+  const goDashboard = () => {
+    markOnboardingComplete();
+    router.push('/dashboard/artist');
+  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -201,11 +331,74 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
         setCustomSubtitleInput(fetchedProfile.custom_subtitle || '');
         setDescriptionInput(fetchedProfile.description || '');
         setLocationInput(fetchedProfile.location || '');
-        setHourlyRateInput(fetchedProfile.hourly_rate?.toString() || '');
         setSpecialtiesInput(fetchedProfile.specialties?.join(', ') || '');
         setPortfolioUrlsInput(fetchedProfile.portfolio_urls?.join(', ') || '');
         setPortfolioImages(fetchedProfile.portfolio_image_urls || []);
-        setCancellationPolicy(fetchedProfile.cancellation_policy || '');
+        // Policies: prefer backend, fall back to localStorage if missing; derive template
+        try {
+          const uid = fetchedProfile.user?.id || user?.id || 0;
+          const localPolicy = localStorage.getItem(`sp:policy:${uid}`) || '';
+          const policy = fetchedProfile.cancellation_policy || localPolicy || '';
+          setCancellationPolicy(policy);
+          if (policy) {
+            if (policy === POLICY_TEMPLATES.flexible) setPolicyTemplate('flexible');
+            else if (policy === POLICY_TEMPLATES.moderate) setPolicyTemplate('moderate');
+            else if (policy === POLICY_TEMPLATES.strict) setPolicyTemplate('strict');
+            else setPolicyTemplate('custom');
+          } else {
+            setPolicyTemplate('flexible');
+          }
+        } catch {
+          setCancellationPolicy(fetchedProfile.cancellation_policy || '');
+        }
+
+        // Contact details defaults (prefer backend, then local overrides, then sensible fallbacks)
+        try {
+          const uid = fetchedProfile.user?.id || user?.id || 0;
+          const localContact = JSON.parse(localStorage.getItem(`sp:contact:${uid}`) || '{}');
+          const backendEmail = (fetchedProfile as any).contact_email || fetchedProfile.user?.email || '';
+          const backendPhone = (fetchedProfile as any).contact_phone || fetchedProfile.user?.phone_number || '';
+          const backendWebsite = (fetchedProfile as any).contact_website || (fetchedProfile.portfolio_urls?.[0] || '');
+          const derivedEmail = backendEmail || localContact.email || '';
+          const derivedPhone = backendPhone || localContact.phone || '';
+          const derivedWebsite = backendWebsite || localContact.website || '';
+          setContactEmailInput(derivedEmail);
+          setContactPhoneInput(derivedPhone);
+          setContactWebsiteInput(derivedWebsite);
+          // Initialize the ZA phone rest (digits after +27)
+          try {
+            const digits = (derivedPhone || '').startsWith('+27') ? (derivedPhone || '').slice(3) : '';
+            setPhoneRest(digits.replace(/\D/g, '').slice(0, 9));
+          } catch {}
+
+          const localBank = JSON.parse(localStorage.getItem(`sp:bank:${uid}`) || '{}');
+          setBankNameInput(localBank.bank_name || (fetchedProfile as any).bank_name || '');
+          setBankAccountNameInput(localBank.account_name || (fetchedProfile as any).bank_account_name || '');
+          setBankAccountNumberInput(localBank.account_number || (fetchedProfile as any).bank_account_number || '');
+          setBankBranchCodeInput(localBank.branch_code || (fetchedProfile as any).bank_branch_code || '');
+
+          // Auto-persist contact details if backend missing but we have derived values.
+          const needsPersist = !((fetchedProfile as any).contact_email) || !((fetchedProfile as any).contact_phone) || !((fetchedProfile as any).contact_website);
+          if (needsPersist && (derivedEmail || derivedPhone || derivedWebsite)) {
+            try {
+              await updateMyServiceProviderProfile({
+                contact_email: derivedEmail || undefined,
+                contact_phone: derivedPhone || undefined,
+                contact_website: derivedWebsite || undefined,
+              } as any);
+              // Reflect in local profile state
+              setProfile((prev) => ({
+                ...prev,
+                contact_email: derivedEmail || undefined,
+                contact_phone: derivedPhone || undefined,
+                contact_website: derivedWebsite || undefined,
+              } as any));
+            } catch (e) {
+              // Non-fatal; UI will still show local values
+              console.warn('Auto-persist contact details failed', e);
+            }
+          }
+        } catch {}
 
         const currentRelativePic = fetchedProfile.profile_picture_url || '';
         setProfilePictureUrlInput(currentRelativePic);
@@ -227,10 +420,11 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
 
     const syncStatus = searchParams.get('calendarSync');
     if (syncStatus === 'success') {
-      setSuccessMessage('Google Calendar connected successfully!');
+      setCalendarCardMessage('Google Calendar connected successfully.');
       setCalendarConnected(true);
+      justSyncedRef.current = true;
     } else if (syncStatus === 'error') {
-      setError('Failed to connect Google Calendar.');
+      setCalendarCardMessage('Failed to connect Google Calendar.');
     }
 
     fetchProfile();
@@ -271,9 +465,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
         custom_subtitle: customSubtitleInput.trim() || undefined,
         description: descriptionInput.trim(),
         location: locationInput.trim(),
-        hourly_rate: hourlyRateInput
-          ? parseFloat(String(hourlyRateInput))
-          : undefined,
+        // hourly_rate removed from UI
         specialties: specialtiesInput
           .split(',')
           .map((s) => s.trim())
@@ -294,6 +486,37 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
         cancellation_policy: cancellationPolicy.trim() || undefined,
       };
 
+      // Persist contact/bank details to localStorage for use in Event Prep & elsewhere
+      try {
+        const uid = user?.id || profile.user_id || 0;
+        localStorage.setItem(
+          `sp:contact:${uid}`,
+          JSON.stringify({
+            email: contactEmailInput.trim(),
+            phone: contactPhoneInput.trim(),
+            website: contactWebsiteInput.trim(),
+          }),
+        );
+        localStorage.setItem(
+          `sp:bank:${uid}`,
+          JSON.stringify({
+            bank_name: bankNameInput.trim(),
+            account_name: bankAccountNameInput.trim(),
+            account_number: bankAccountNumberInput.trim(),
+            branch_code: bankBranchCodeInput.trim(),
+          }),
+        );
+      } catch {}
+
+      // Send through to backend as custom fields (ok if ignored)
+      (dataToUpdate as any).contact_email = contactEmailInput.trim() || undefined;
+      (dataToUpdate as any).contact_phone = contactPhoneInput.trim() || undefined;
+      (dataToUpdate as any).contact_website = contactWebsiteInput.trim() || undefined;
+      (dataToUpdate as any).bank_name = bankNameInput.trim() || undefined;
+      (dataToUpdate as any).bank_account_name = bankAccountNameInput.trim() || undefined;
+      (dataToUpdate as any).bank_account_number = bankAccountNumberInput.trim() || undefined;
+      (dataToUpdate as any).bank_branch_code = bankBranchCodeInput.trim() || undefined;
+
       await updateMyServiceProviderProfile(dataToUpdate);
       setSuccessMessage('Profile details updated successfully!');
     } catch (err) {
@@ -303,6 +526,34 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
       setLoading(false);
     }
   };
+
+  // When calendar is connected and profile is complete, surface the CTA if not shown.
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || user.user_type !== 'service_provider') return;
+    if (!calendarConnected) return;
+    try {
+      const key = `sp:onboard:complete:${user.id}`;
+      const already = localStorage.getItem(key);
+      if (!already && isProfileComplete) {
+        // Use success variant when arriving from calendar callback
+        setCtaVariant(justSyncedRef.current ? 'calendar_success' : 'generic');
+        const ae = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
+        const isEditing = !!ae && ((ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable));
+        if (isEditing) {
+          const onBlurOnce = () => {
+            document.removeEventListener('focusout', onBlurOnce, true);
+            const stillComplete = isProfileComplete;
+            if (stillComplete) setShowFirstTimeCompleteCta(true);
+          };
+          document.addEventListener('focusout', onBlurOnce, true);
+        } else {
+          setShowFirstTimeCompleteCta(true);
+        }
+        justSyncedRef.current = false;
+      }
+    } catch {}
+  }, [calendarConnected, isProfileComplete, authLoading, user]);
 
   const handleSaveClick = () => {
     formRef.current?.requestSubmit();
@@ -400,29 +651,55 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
     }
   };
 
-  const handleCoverPhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverPhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCoverPhotoError(null);
     setCoverPhotoSuccessMessage(null);
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploadingCoverPhoto(true);
+    setCoverCrop(undefined);
+    setCoverCompletedCrop(undefined);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setCoverOriginalSrc(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
+  async function applyCoverCropAndUpload() {
+    if (!coverOriginalSrc || !coverImgRef.current) return;
+    // Always compute pixel crop from current UI crop or centered default
+    const imgEl = coverImgRef.current;
+    const baseCrop = (coverCrop as any) || { x: 0, y: 0, width: 100, height: 100, unit: '%' };
+    const pixelCrop = toPixelCrop(imgEl, baseCrop);
+    setCoverCompletedCrop(pixelCrop);
+    setUploadingCoverPhoto(true);
     try {
-      const response = await uploadMyServiceProviderCoverPhoto(file);
+      const cropped = await getCroppedImg(
+        coverOriginalSrc,
+        pixelCrop,
+        'cover.jpg',
+        Math.max(1, Math.round(pixelCrop.width)),
+        Math.max(1, Math.round(pixelCrop.height))
+      );
+      if (!cropped) throw new Error('Failed to crop cover');
+      mediaHint.startSaving();
+      const response = await uploadMyServiceProviderCoverPhoto(cropped);
       const newRelativeCoverUrl = response.data.cover_photo_url || '';
       setCoverPhotoUrl(getFullImageUrl(newRelativeCoverUrl));
       setProfile((prev) => ({ ...prev, cover_photo_url: newRelativeCoverUrl || undefined }));
-      setCoverPhotoSuccessMessage('Cover photo uploaded successfully!');
-    } catch (err: unknown) {
-      console.error('Failed to upload cover photo:', err);
-      const msg =
-        err instanceof Error ? err.message : 'Failed to upload cover photo.';
-      setCoverPhotoError(msg);
+      setCoverPhotoSuccessMessage('Cover photo updated');
+      setCoverOriginalSrc(null);
+      setCoverCompletedCrop(undefined);
+      mediaHint.doneSaving();
+    } catch (err: any) {
+      console.error('Cover crop/upload failed:', err);
+      setCoverPhotoError(err?.message || 'Failed to upload cover photo.');
+      mediaHint.stopSaving();
     } finally {
       setUploadingCoverPhoto(false);
-      e.target.value = '';
     }
-  };
+  }
 
   const handlePortfolioFilesChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -430,15 +707,18 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     setUploadingPortfolioImages(true);
+    mediaHint.startSaving();
     try {
       const fileArray = Array.from(files);
       const response = await uploadMyServiceProviderPortfolioImages(fileArray);
       const urls = response.data.portfolio_image_urls || [];
       setPortfolioImages(urls);
       setProfile((prev) => ({ ...prev, portfolio_image_urls: urls }));
+      mediaHint.doneSaving();
     } catch (err) {
       console.error('Failed to upload portfolio images:', err);
       setError('Failed to upload portfolio images.');
+      mediaHint.stopSaving();
     } finally {
       setUploadingPortfolioImages(false);
       e.target.value = '';
@@ -467,6 +747,21 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
 
   const handleConnectCalendar = async () => {
     try {
+      // Flush core fields before redirect so completion state persists
+      try {
+        await updateMyServiceProviderProfile({
+          business_name: businessNameInput.trim() || undefined,
+          description: descriptionInput.trim() || undefined,
+          location: locationInput.trim() || undefined,
+          contact_email: contactEmailInput.trim() || undefined,
+          contact_phone: contactPhoneInput.trim() || undefined,
+          contact_website: contactWebsiteInput.trim() || undefined,
+          specialties: specialtiesInput.split(',').map(s=>s.trim()).filter(Boolean),
+          cancellation_policy: cancellationPolicy.trim() || undefined,
+        } as any);
+      } catch (e) {
+        console.warn('Pre-sync profile flush failed (non-fatal):', e);
+      }
       const res = await connectGoogleCalendar();
       window.location.href = res.data.auth_url;
     } catch (err) {
@@ -490,7 +785,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
     'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-brand focus:border-brand sm:text-sm placeholder-gray-400';
   const labelClasses = 'block text-sm font-medium text-gray-700 mb-1';
   const primaryButtonClasses =
-    'inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-dark hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand disabled:opacity-50';
+    'inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand-dark hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed';
 
   if (authLoading || loading) {
     return (
@@ -529,184 +824,259 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
           Edit Your Service Provider Profile
         </h1>
 
+        {showFirstTimeCompleteCta && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+            <div className="absolute inset-0 bg-black/40" />
+            <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200 p-5">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                {ctaVariant === 'calendar_success' ? 'Success — all details are in.' : 'All details are in — let’s get started.'}
+              </h3>
+              <p className="mt-2 text-sm text-gray-700">
+                {ctaVariant === 'calendar_success' ? 'Calendar connected successfully. You can add your first service now or head to your dashboard.' : 'Great work completing your profile. You can add your first service now or head to your dashboard.'}
+              </p>
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  className="text-sm text-gray-600 hover:text-gray-800"
+                  onClick={markOnboardingComplete}
+                >
+                  Dismiss
+                </button>
+              </div>
+              <div className="mt-2 grid grid-cols-1 gap-2">
+                <button type="button" onClick={goAddService} className="inline-flex items-center justify-center rounded-md bg-green-600 hover:bg-green-700 text-white px-3 py-2 text-sm font-medium">All details are in, let’s get started</button>
+                <button type="button" onClick={goAddService} className="inline-flex items-center justify-center rounded-md border border-green-300 bg-white text-green-800 hover:bg-green-50 px-3 py-2 text-sm">Add Service</button>
+                <button type="button" onClick={goDashboard} className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 px-3 py-2 text-sm">Go to Dashboard</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {error && <p className="mb-4 text-sm text-red-600 bg-red-100 p-3 rounded-md">{error}</p>}
         {successMessage && <p className="mb-4 text-sm text-green-600 bg-green-100 p-3 rounded-md">{successMessage}</p>}
 
-        {/* Profile Media Section */}
-        <section className="mb-10">
-          <h2 className="text-xl font-medium text-gray-700 mb-6">Profile Media</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            {/* Profile Picture Upload */}
-            <div className="space-y-4">
-              <label htmlFor="profilePicInput" className={labelClasses}>
-                Profile Picture
-              </label>
-              <div className="flex flex-col items-center space-y-3">
-                {imagePreviewUrl ? (
-                  <NextImage
-                    src={imagePreviewUrl}
-                    alt="Profile Preview"
-                    width={128}
-                    height={128}
-                    loading="lazy"
-                    className="w-32 h-32 rounded-full object-cover border-2 border-gray-300 shadow-sm"
-                  />
-                ) : (
-                  <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm border-2 border-gray-300 shadow-sm">
-                    No Photo
-                  </div>
-                )}
-
-                <input
-                  id="profilePicInput"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageFileChange}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-light file:text-brand-dark hover:file:bg-brand-light"
+        {/* Media Card */}
+            <section className="relative bg-white rounded-2xl border border-gray-200 p-5 shadow-sm md:col-span-2">
+              {/* Card counter */}
+              <div className={`${(imagePreviewUrl && coverPhotoUrl) ? 'text-green-800 bg-green-100 border-green-300' : 'text-gray-600 bg-gray-100 border-gray-200'} absolute bottom-3 right-3 text-xs border rounded-full px-2 py-0.5`}>1/6</div>
+              <div className="absolute right-4 top-4"><SavedPill saving={mediaHint.saving} saved={mediaHint.saved} /></div>
+              <h2 className="text-xl font-medium text-gray-700 mb-4">Profile Media</h2>
+              {/* Overlay to close modals when clicking outside (hidden during crop UI) */}
+              {(showCoverModal || showProfileModal) && !coverOriginalSrc && !showCropper && (
+                <button
+                  type="button"
+                  aria-label="Close media modal"
+                  className="absolute inset-0 z-10 rounded-2xl"
+                  onClick={()=>{ setShowCoverModal(false); setShowProfileModal(false); }}
                 />
-              </div>
-
-              {showCropper && originalImageSrc && (
-                <div className="mt-4 p-4 border rounded-md bg-gray-50">
-                  <h3 className="text-md font-medium text-gray-700 mb-2">Crop Your Photo</h3>
-                  <div style={{ width: '100%', height: 300, position: 'relative' }}>
-                    <ReactCrop
-                      crop={crop}
-                      onChange={(_, percentCrop) => setCrop(percentCrop)}
-                      onComplete={(c: PixelCrop) => {
-                        if (
-                          imgRef.current &&
-                          c.width &&
-                          c.height &&
-                          imgRef.current.naturalWidth > 0 &&
-                          imgRef.current.naturalHeight > 0
-                        ) {
-                          const image = imgRef.current;
-                          const scaleX = image.naturalWidth / image.width;
-                          const scaleY = image.naturalHeight / image.height;
-                          const scaledCrop: PixelCrop = {
-                            x: Math.round(c.x * scaleX),
-                            y: Math.round(c.y * scaleY),
-                            width: Math.round(c.width * scaleX),
-                            height: Math.round(c.height * scaleY),
-                            unit: 'px',
-                          };
-                          setCompletedCrop(scaledCrop);
-                        } else {
-                          setCompletedCrop(c);
-                        }
-                      }}
-                      aspect={aspect}
-                      circularCrop
-                      minWidth={100}
-                      minHeight={100}
-                    >
-                      <NextImage
-                        ref={imgRef}
-                        src={originalImageSrc}
-                        alt="Crop me"
-                        onLoad={onImageLoad}
-                        width={300}
-                        height={300}
-                        loading="lazy"
-                        style={{ maxHeight: '300px', objectFit: 'contain' }}
-                      />
-                    </ReactCrop>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCropAndUpload}
-                    className={`${primaryButtonClasses} mt-4 w-full`}
-                    disabled={uploadingImage || !completedCrop?.width}
-                  >
-                    {uploadingImage ? 'Uploading...' : 'Apply Crop & Upload'}
-                  </button>
-                </div>
               )}
-            </div>
-
-            {/* Cover Photo Upload */}
-            <div className="space-y-4">
-              <label htmlFor="coverPhotoInput" className={labelClasses}>
-                Cover Photo
-              </label>
-              <div className="flex flex-col items-center space-y-3">
+              {/* Cover large */}
+              <div className="relative w-2/3 mx-auto">
                 {coverPhotoUrl ? (
                   <NextImage
                     src={coverPhotoUrl}
-                    alt="Cover Photo Preview"
-                    width={400}
-                    height={192}
-                    loading="lazy"
-                    className="w-full h-48 object-cover rounded-md border-2 border-gray-300 shadow-sm"
+                    alt="Cover Photo"
+                    width={1600}
+                    height={900}
+                    className="w-full aspect-[16/9] object-cover rounded-xl border"
                   />
                 ) : (
-                  <div className="w-full h-48 rounded-md bg-gray-200 flex items-center justify-center text-gray-500 text-sm border-2 border-gray-300 shadow-sm">
-                    No Cover Photo
-                  </div>
+                  <button
+                    type="button"
+                    aria-label="Upload cover photo"
+                    className="w-full aspect-[16/9] rounded-xl bg-gray-200 flex items-center justify-center text-gray-600 border hover:bg-gray-300/60 transition"
+                    onClick={() => {
+                      document
+                        .getElementById('coverPhotoInput')
+                        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                    }}
+                  >
+                    No cover — click to add
+                  </button>
                 )}
+                <button
+                  type="button"
+                  className="absolute left-3 top-3 inline-flex items-center rounded-md bg-white/90 hover:bg-white border border-gray-300 px-3 py-1.5 text-sm text-gray-800 shadow-sm"
+                  onClick={() => setShowCoverModal(true)}
+                >
+                  Edit
+                </button>
+                {/* Dim overlay when modal open */}
+                {showCoverModal && (
+                  <>
+                    <div className="absolute inset-0 z-20 flex items-center justify-center p-4">
+                      <div className="w-full max-w-sm rounded-lg border border-gray-200 bg-white p-4 shadow-xl">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-2">Cover Photo</h3>
+                        <div className="space-y-2">
+                          <button type="button" className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 hover:bg-gray-50" onClick={()=>{ document.getElementById('coverPhotoInput')?.dispatchEvent(new MouseEvent('click', { bubbles: true })); setShowCoverModal(false); }}>Upload new cover photo</button>
+                          {/* Crop again removed per request */}
+                          <button type="button" className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 hover:bg-gray-50" onClick={()=>setShowCoverModal(false)}>Cancel</button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {/* hidden input for cover */}
+                <input id="coverPhotoInput" type="file" accept="image/*" onChange={handleCoverPhotoFileChange} className="hidden" />
+              </div>
 
-                <input
-                  id="coverPhotoInput"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleCoverPhotoFileChange}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-light file:text-brand-dark hover:file:bg-brand-light"
-                  disabled={uploadingCoverPhoto}
-                />
-                {uploadingCoverPhoto && (
-                  <p className="text-sm text-brand-dark">Uploading cover photo...</p>
-                )}
-                {coverPhotoError && <p className="text-sm text-red-600">{coverPhotoError}</p>}
-                {coverPhotoSuccessMessage && (
-                  <p className="text-sm text-green-600">{coverPhotoSuccessMessage}</p>
+              {/* Cover crop UI below */}
+              {coverOriginalSrc && (
+                <div className="relative z-30 space-y-2 mt-4">
+                  <ReactCrop
+                    crop={coverCrop}
+                    onChange={(_, p)=> setCoverCrop(p)}
+                    onComplete={(c: any) => {
+                      const img = coverImgRef.current;
+                      if (img) setCoverCompletedCrop(toPixelCrop(img, c)); else setCoverCompletedCrop(c);
+                    }}
+                    aspect={COVER_ASPECT}
+                    className="max-w-full"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img ref={coverImgRef} src={coverOriginalSrc} alt="Cover crop" className="max-h-72" onLoad={(e)=>{
+                      const imgEl = e.currentTarget as HTMLImageElement;
+                      if (imgEl.naturalWidth && imgEl.naturalHeight) {
+                        const centered = centerAspectCrop(imgEl.naturalWidth, imgEl.naturalHeight, COVER_ASPECT);
+                        setCoverCrop(centered as any);
+                        setCoverCompletedCrop(toPixelCrop(imgEl, centered as any));
+                      }
+                    }} />
+                  </ReactCrop>
+                  <div className="flex gap-2">
+                    <button type="button" className={primaryButtonClasses} onClick={applyCoverCropAndUpload} disabled={uploadingCoverPhoto}>{uploadingCoverPhoto ? 'Uploading…' : 'Apply Crop & Upload'}</button>
+                    <button type="button" className="px-3 py-2 text-sm border rounded-md" onClick={()=>{ setCoverOriginalSrc(null); setCoverCompletedCrop(undefined); }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Profile avatar overlapping (hidden while cover crop UI is visible) */}
+              {!coverOriginalSrc && (
+              <div className="relative -mt-10 mb-4 flex justify-center">
+                <div className="relative w-24 h-24">
+                  {imagePreviewUrl ? (
+                    <NextImage src={imagePreviewUrl} alt="Profile" width={96} height={96} className="w-24 h-24 rounded-full object-cover border-4 border-white shadow" />
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label="Upload profile picture"
+                      className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow flex items-center justify-center text-gray-600 hover:bg-gray-300/60 transition"
+                      onClick={() => {
+                        document
+                          .getElementById('profilePicInputHidden')
+                          ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                      }}
+                    >
+                      No image — click to add
+                    </button>
+                  )}
+                  <button type="button" aria-label="Edit profile picture" className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-7 h-7 rounded-full bg-white border border-gray-300 shadow" onClick={()=> setShowProfileModal(true)}>+
+                  </button>
+                  {showProfileModal && (
+                    <>
+                      <div className="absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2">
+                        <div className="w-64 rounded-lg border border-gray-200 bg-white p-3 shadow-xl">
+                          <h3 className="text-sm font-semibold text-gray-900 mb-2">Profile Picture</h3>
+                          <div className="space-y-2">
+                            <button type="button" className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 hover:bg-gray-50" onClick={()=>{ document.getElementById('profilePicInputHidden')?.dispatchEvent(new MouseEvent('click', { bubbles: true })); setShowProfileModal(false); }}>Upload new profile picture</button>
+                            <button type="button" className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 hover:bg-gray-50" onClick={async()=>{
+                              try {
+                                const url = getFullImageUrl(profilePictureUrlInput);
+                                if (url) {
+                                  const res = await fetch(url);
+                                  const blob = await res.blob();
+                                  const reader = new FileReader();
+                                  reader.onloadend = ()=> { setOriginalImageSrc(reader.result as string); setShowCropper(true); };
+                                  reader.readAsDataURL(blob);
+                                }
+                              } catch {}
+                              setShowProfileModal(false);
+                            }}>Crop again</button>
+                            <button type="button" className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 hover:bg-gray-50" onClick={()=>setShowProfileModal(false)}>Cancel</button>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                </div>
+              )}
+                {/* hidden input for profile */}
+                <input id="profilePicInputHidden" type="file" accept="image/*" onChange={handleImageFileChange} className="hidden" />
+
+              {/* Profile crop UI */}
+              {showCropper && originalImageSrc && (
+                <div className="space-y-2">
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(_, p) => setCrop(p)}
+                    onComplete={(c: any) => {
+                      const img = imgRef.current;
+                      if (img) setCompletedCrop(toPixelCrop(img, c)); else setCompletedCrop(c);
+                    }}
+                    aspect={aspect}
+                    className="max-w-full"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img ref={imgRef} src={originalImageSrc} alt="Crop preview" onLoad={onImageLoad} className="max-h-72" />
+                  </ReactCrop>
+                  <div className="flex gap-2">
+                    <button type="button" className={primaryButtonClasses} onClick={handleCropAndUpload} disabled={uploadingImage || !completedCrop?.width}>{uploadingImage ? 'Uploading…' : 'Apply Crop & Upload'}</button>
+                    <button type="button" className="px-3 py-2 text-sm border rounded-md" onClick={()=>{ setShowCropper(false); setOriginalImageSrc(null); }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Portfolio Images full width */}
+              <div className="mt-6">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="portfolioImagesInput" className={labelClasses}>Portfolio Images</label>
+                  <button
+                    type="button"
+                    aria-label="Add portfolio images"
+                    title="Add images"
+                    data-testid="add-portfolio-button"
+                    className="inline-flex items-center justify-center rounded-md bg-white border border-gray-300 shadow hover:bg-gray-50 disabled:opacity-50 px-2 py-1 text-xs"
+                    onClick={() => document.getElementById('portfolioImagesInput')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))}
+                    disabled={uploadingPortfolioImages}
+                  >
+                    + Add
+                  </button>
+                </div>
+                <input id="portfolioImagesInput" type="file" accept="image/*" multiple onChange={handlePortfolioFilesChange} className="hidden" disabled={uploadingPortfolioImages} />
+                {uploadingPortfolioImages && (<p className="text-sm text-gray-700 mt-1">Uploading images…</p>)}
+                {portfolioImages.length > 0 && (
+                  <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-3" data-testid="portfolio-list">
+                    {portfolioImages.map((url, idx) => (
+                      <li key={url} data-testid="portfolio-item" draggable onDragStart={handleDragStart(idx)} onDragOver={(e)=>e.preventDefault()} onDrop={handleDrop(idx)} className="relative group border rounded-md overflow-hidden">
+                        <button type="button" className="relative w-full h-24 bg-white block" onClick={() => { setPortfolioPreviewIndex(idx); setPortfolioPreviewOpen(true); }} aria-label={`View portfolio image ${idx + 1}`}>
+                          <NextImage src={getFullImageUrl(url) || ''} alt={`Portfolio ${idx + 1}`} fill className="object-contain p-1" loading="lazy" />
+                        </button>
+                        <button type="button" aria-label="Delete" onClick={()=>{
+                          const next = portfolioImages.filter((u)=>u!==url);
+                          setPortfolioImages(next);
+                          mediaHint.startSaving();
+                          updateMyServiceProviderPortfolioImageOrder(next).then(()=>mediaHint.doneSaving()).catch(()=>mediaHint.stopSaving());
+                        }} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 hover:bg-white border border-gray-300 rounded px-1.5 py-0.5 text-xs text-gray-700">Delete</button>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
-            </div>
-            {/* Portfolio Images */}
-            <div className="space-y-4 md:col-span-2">
-              <label htmlFor="portfolioImagesInput" className={labelClasses}>
-                Portfolio Images
-              </label>
-              <input
-                id="portfolioImagesInput"
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePortfolioFilesChange}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-brand-light file:text-brand-dark hover:file:bg-brand-light"
-                disabled={uploadingPortfolioImages}
-              />
-              {uploadingPortfolioImages && (
-                <p className="text-sm text-brand-dark">Uploading images...</p>
-              )}
-              {portfolioImages.length > 0 && (
-                <ul className="grid grid-cols-3 gap-3" data-testid="portfolio-list">
-                  {portfolioImages.map((url, idx) => (
-                    <li
-                      key={url}
-                      data-testid="portfolio-item"
-                      draggable
-                      onDragStart={handleDragStart(idx)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={handleDrop(idx)}
-                      className="border rounded-md overflow-hidden cursor-move"
-                    >
-                      <NextImage
-                        src={getFullImageUrl(url)}
-                        alt={`Portfolio ${idx + 1}`}
-                        width={120}
-                        height={120}
-                        className="w-full h-24 object-cover"
-                        loading="lazy"
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </section>
+            </section>
+
+        {/* Full-screen portfolio image preview modal */}
+        {portfolioImages.length > 0 && (
+          <ImagePreviewModal
+            open={portfolioPreviewOpen}
+            src={getFullImageUrl(portfolioImages[portfolioPreviewIndex] || '') || ''}
+            images={portfolioImages.map((u) => getFullImageUrl(u)).filter(Boolean) as string[]}
+            index={portfolioPreviewIndex}
+            onIndexChange={setPortfolioPreviewIndex}
+            onClose={() => setPortfolioPreviewOpen(false)}
+          />
+        )}
+
 
         <form
           ref={formRef}
@@ -714,7 +1084,13 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
           className="space-y-8 divide-y divide-gray-200"
         >
           <div className="space-y-6 pt-8 sm:space-y-5">
-            <section className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <section className="relative bg-white rounded-2xl border border-gray-200 p-5 pb-10 shadow-sm">
+              {/* Card counter */}
+              <div className={(() => {
+                const done = !!businessNameInput.trim() && !!descriptionInput.trim() && !!locationInput.trim() && !!specialtiesInput.trim();
+                return done ? 'absolute bottom-3 right-3 text-xs text-green-800 bg-green-100 border border-green-300 rounded-full px-2 py-0.5' : 'absolute bottom-3 right-3 text-xs text-gray-600 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5';
+              })()}>2/6</div>
+              <div className="absolute right-4 top-4"><SavedPill saving={bizHint.saving} saved={bizHint.saved} /></div>
               <h2 className="text-xl font-medium text-gray-700 mb-6">Business Details</h2>
               <div className="space-y-4">
                 <div>
@@ -725,11 +1101,40 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                     type="text"
                     id="businessName"
                     value={businessNameInput}
-                    onChange={(e) => setBusinessNameInput(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setBusinessNameInput(v);
+                      if (bizTimerRef.current) clearTimeout(bizTimerRef.current);
+                      bizHint.startSaving();
+                      bizTimerRef.current = setTimeout(async () => {
+                        try {
+                          await updateMyServiceProviderProfile({
+                            business_name: v.trim() || undefined,
+                          } as any);
+                          bizHint.doneSaving();
+                        } catch {
+                          bizHint.stopSaving();
+                        }
+                      }, 800);
+                    }}
+                    onBlur={async (e) => {
+                      const v = e.target.value;
+                      if (bizTimerRef.current) clearTimeout(bizTimerRef.current);
+                      bizHint.startSaving();
+                      try {
+                        await updateMyServiceProviderProfile({ business_name: v.trim() || undefined } as any);
+                        bizHint.doneSaving();
+                      } catch {
+                        bizHint.stopSaving();
+                      }
+                    }}
                     className={inputClasses}
                     placeholder="e.g., Your Awesome Studio"
                     required
                   />
+                  {!businessNameInput.trim() && (
+                    <div className="mt-1 text-xs text-red-600">Required</div>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="customSubtitle" className={labelClasses}>
@@ -739,7 +1144,22 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                     type="text"
                     id="customSubtitle"
                     value={customSubtitleInput}
-                    onChange={(e) => setCustomSubtitleInput(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCustomSubtitleInput(v);
+                      if (bizTimerRef.current) clearTimeout(bizTimerRef.current);
+                      bizHint.startSaving();
+                      bizTimerRef.current = setTimeout(async () => {
+                        try {
+                          await updateMyServiceProviderProfile({
+                            custom_subtitle: v.trim() || undefined,
+                          } as any);
+                          bizHint.doneSaving();
+                        } catch {
+                          bizHint.stopSaving();
+                        }
+                      }, 800);
+                    }}
                     className={inputClasses}
                     placeholder="e.g., Indie Rock Band"
                   />
@@ -751,11 +1171,29 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                   <textarea
                     id="description"
                     value={descriptionInput}
-                    onChange={(e) => setDescriptionInput(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setDescriptionInput(v);
+                      if (bizTimerRef.current) clearTimeout(bizTimerRef.current);
+                      bizHint.startSaving();
+                      bizTimerRef.current = setTimeout(async () => {
+                        try {
+                          await updateMyServiceProviderProfile({
+                            description: v,
+                          } as any);
+                          bizHint.doneSaving();
+                        } catch {
+                          bizHint.stopSaving();
+                        }
+                      }, 800);
+                    }}
                     rows={6}
                     className={inputClasses}
                     placeholder="Tell us about yourself, your art, and your services..."
                   />
+                  {!descriptionInput.trim() && (
+                    <div className="mt-1 text-xs text-red-600">Required</div>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="location" className={labelClasses}>
@@ -763,18 +1201,184 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                   </label>
                   <LocationInput
                     value={locationInput}
-                    onValueChange={setLocationInput}
+                    onValueChange={(v) => {
+                      setLocationInput(v);
+                      if (bizTimerRef.current) clearTimeout(bizTimerRef.current);
+                      bizHint.startSaving();
+                      bizTimerRef.current = setTimeout(async () => {
+                        try {
+                          await updateMyServiceProviderProfile({ location: v.trim() || undefined } as any);
+                          bizHint.doneSaving();
+                        } catch {
+                          bizHint.stopSaving();
+                        }
+                      }, 800);
+                    }}
                     onPlaceSelect={() => {}}
                     placeholder="e.g., City, State or Studio Address"
                     inputClassName={inputClasses}
-                    required
+                  />
+                  {!locationInput.trim() && (
+                    <div className="mt-1 text-xs text-red-600">Required</div>
+                  )}
+                </div>
+                {/* Specialties moved here (required) */}
+                <div>
+                  <label htmlFor="specialties" className={labelClasses}>
+                    Specialties (comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    id="specialties"
+                    value={specialtiesInput}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSpecialtiesInput(v);
+                      if (profTimerRef.current) clearTimeout(profTimerRef.current);
+                      profHint.startSaving();
+                      profTimerRef.current = setTimeout(async ()=>{
+                        try {
+                          const arr = v.split(',').map(s=>s.trim()).filter(Boolean);
+                          await updateMyServiceProviderProfile({ specialties: arr } as any);
+                          profHint.doneSaving();
+                        } catch { profHint.stopSaving(); }
+                      }, 800);
+                    }}
+                    className={inputClasses}
+                    placeholder="e.g., Portraits, Landscapes, Events"
+                  />
+                  {!specialtiesInput.trim() && (
+                    <div className="mt-1 text-xs text-red-600">Required</div>
+                  )}
+                </div>
+                {/* Portfolio URLs moved here (optional) */}
+                <div>
+                  <label htmlFor="portfolioUrls" className={labelClasses}>
+                    Portfolio URLs (comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    id="portfolioUrls"
+                    value={portfolioUrlsInput}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setPortfolioUrlsInput(v);
+                      if (profTimerRef.current) clearTimeout(profTimerRef.current);
+                      profHint.startSaving();
+                      profTimerRef.current = setTimeout(async ()=>{
+                        try {
+                          const arr = v.split(',').map(u=>u.trim()).filter(Boolean).map(u=> (u.startsWith('http://')||u.startsWith('https://'))?u:`http://${u}`);
+                          await updateMyServiceProviderProfile({ portfolio_urls: arr } as any);
+                          profHint.doneSaving();
+                        } catch { profHint.stopSaving(); }
+                      }, 800);
+                    }}
+                    className={inputClasses}
+                    placeholder="e.g., https://myportfolio.com, https://instagram.com/me"
                   />
                 </div>
               </div>
             </section>
 
+        
+
+
+            {/* Contact Details (sent to client on confirmation) */}
+            <section className="pt-8 relative bg-white rounded-2xl border border-gray-200 p-5 pb-10 shadow-sm">
+              {/* Card counter */}
+              <div className={`${(isValidEmail(contactEmailInput) && isValidZANumber(contactPhoneInput) && isLikelyUrl(contactWebsiteInput)) ? 'text-green-800 bg-green-100 border-green-300' : 'text-gray-600 bg-gray-100 border-gray-200'} absolute bottom-3 right-3 text-xs border rounded-full px-2 py-0.5`}>3/6</div>
+              <div className="absolute right-4 top-4"><SavedPill saving={contactHint.saving} saved={contactHint.saved} /></div>
+              <h2 className="text-xl font-medium text-gray-700 mb-2">Contact Details</h2>
+              <p className="text-xs text-gray-500 mb-4">These details are shared with the client when a booking is confirmed.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClasses}>Contact email</label>
+                  <input
+                    type="email"
+                    className={`${inputClasses} ${contactEmailInput && !isValidEmail(contactEmailInput) ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                    value={contactEmailInput}
+                    onChange={(e)=>{
+                      const v = e.target.value;
+                      setContactEmailInput(v);
+                      if (contactTimerRef.current) clearTimeout(contactTimerRef.current);
+                      contactHint.startSaving();
+                      contactTimerRef.current = setTimeout(async ()=>{
+                        try { await updateMyServiceProviderProfile({ contact_email: v || undefined } as any); contactHint.doneSaving(); }
+                        catch { contactHint.stopSaving(); }
+                      }, 800);
+                    }}
+                    placeholder="you@example.com"
+                  />
+                  {contactEmailInput && !isValidEmail(contactEmailInput) && (
+                    <div className="mt-1 text-xs text-red-600">Enter a valid email e.g. you@example.com</div>
+                  )}
+                </div>
+                <div>
+                  <label className={labelClasses}>Cell number</label>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center px-3 py-2 rounded-md border border-gray-300 bg-gray-50 text-gray-700 sm:text-sm select-none">+27</span>
+                    <input
+                      type="tel"
+                      className={`${inputClasses} flex-1 ${contactPhoneInput && !isValidZANumber(contactPhoneInput) ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                      value={phoneRest}
+                      onChange={(e)=>{
+                        const rest = e.target.value.replace(/\D/g, '').slice(0, 9);
+                        setPhoneRest(rest);
+                        const v = rest ? `+27${rest}` : '';
+                        setContactPhoneInput(v);
+                        if (contactTimerRef.current) clearTimeout(contactTimerRef.current);
+                        contactHint.startSaving();
+                        contactTimerRef.current = setTimeout(async ()=>{
+                          if (!v || isValidZANumber(v)) {
+                            try { await updateMyServiceProviderProfile({ contact_phone: v || undefined } as any); contactHint.doneSaving(); }
+                            catch { contactHint.stopSaving(); }
+                          } else {
+                            contactHint.stopSaving();
+                          }
+                        }, 800);
+                      }}
+                      placeholder="821234567"
+                      inputMode="numeric"
+                      pattern="\\d{9}"
+                      maxLength={9}
+                    />
+                  </div>
+                  {contactPhoneInput && !isValidZANumber(contactPhoneInput) && (
+                    <div className="mt-1 text-xs text-red-600">Enter a valid number e.g. +27821234567</div>
+                  )}
+                </div>
+                <div className="sm:col-span-2">
+                  <label className={labelClasses}>Website</label>
+                  <input
+                    type="url"
+                    className={`${inputClasses} ${contactWebsiteInput && !isLikelyUrl(contactWebsiteInput) ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                    value={contactWebsiteInput}
+                    onChange={(e)=>{
+                      const v = e.target.value;
+                      setContactWebsiteInput(v);
+                      if (contactTimerRef.current) clearTimeout(contactTimerRef.current);
+                      contactHint.startSaving();
+                      contactTimerRef.current = setTimeout(async ()=>{
+                        try { await updateMyServiceProviderProfile({ contact_website: v || undefined } as any); contactHint.doneSaving(); }
+                        catch { contactHint.stopSaving(); }
+                      }, 800);
+                    }}
+                    placeholder="https://yourwebsite.com"
+                  />
+                  {contactWebsiteInput && !isLikelyUrl(contactWebsiteInput) && (
+                    <div className="mt-1 text-xs text-red-600">Enter a valid website e.g. https://example.com</div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+        
+
+
             {/* Policies Wizard */}
-            <section className="pt-8 bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <section className="pt-8 relative bg-white rounded-2xl border border-gray-200 p-5 pb-10 shadow-sm">
+              {/* Card counter */}
+              <div className={`${(!!cancellationPolicy.trim()) ? 'text-green-800 bg-green-100 border-green-300' : 'text-gray-600 bg-gray-100 border-gray-200'} absolute bottom-3 right-3 text-xs border rounded-full px-2 py-0.5`}>4/6</div>
               <h2 className="text-xl font-medium text-gray-700 mb-3">Policies</h2>
               <p className="text-sm text-gray-600 mb-4">Set a cancellation policy clients will see before they book.</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
@@ -784,7 +1388,20 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                     type="button"
                     onClick={() => {
                       setPolicyTemplate(t);
-                      if (t !== 'custom') setCancellationPolicy(POLICY_TEMPLATES[t]);
+                      if (t !== 'custom') {
+                        const v = POLICY_TEMPLATES[t];
+                        setCancellationPolicy(v);
+                        if (policyTimerRef.current) clearTimeout(policyTimerRef.current);
+                        policyHint.startSaving();
+                        policyTimerRef.current = setTimeout(async () => {
+                          try { 
+                            await updateMyServiceProviderProfile({ cancellation_policy: v } as any);
+                            try { const uid = user?.id || profile.user_id || 0; localStorage.setItem(`sp:policy:${uid}`, v); } catch {}
+                            policyHint.doneSaving(); 
+                          }
+                          catch { policyHint.stopSaving(); }
+                        }, 800);
+                      }
                     }}
                     className={`px-3 py-2 rounded-md border text-sm ${policyTemplate===t ? 'border-gray-800 text-gray-900' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
                     aria-pressed={policyTemplate===t}
@@ -795,81 +1412,95 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
               </div>
               <p className="text-xs text-gray-500 mb-3">{POLICY_DESCRIPTIONS[policyTemplate]}</p>
               <div className="space-y-2">
-                <label htmlFor="cancellationPolicy" className={labelClasses}>Cancellation policy text</label>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="cancellationPolicy" className={labelClasses}>Cancellation policy text</label>
+                  <SavedPill saving={policyHint.saving} saved={policyHint.saved} />
+                </div>
                 <textarea
                   id="cancellationPolicy"
                   value={cancellationPolicy}
-                  onChange={(e)=>{ setCancellationPolicy(e.target.value); setPolicyTemplate('custom'); }}
+                  onChange={(e)=>{ 
+                    const v = e.target.value; 
+                    setCancellationPolicy(v); 
+                    setPolicyTemplate('custom');
+                    if (policyTimerRef.current) clearTimeout(policyTimerRef.current);
+                    policyHint.startSaving();
+                    policyTimerRef.current = setTimeout(async () => {
+                      try {
+                        const text = v.trim() || '';
+                        await updateMyServiceProviderProfile({ cancellation_policy: text || undefined } as any);
+                        try { const uid = user?.id || profile.user_id || 0; localStorage.setItem(`sp:policy:${uid}`, text); } catch {}
+                        policyHint.doneSaving();
+                      } catch {
+                        policyHint.stopSaving();
+                      }
+                    }, 800);
+                  }}
+                  onBlur={(e)=>{
+                    const v = e.target.value;
+                    if (policyTimerRef.current) clearTimeout(policyTimerRef.current);
+                    policyHint.startSaving();
+                    (async()=>{
+                      try { 
+                        const text = v.trim() || '';
+                        await updateMyServiceProviderProfile({ cancellation_policy: text || undefined } as any);
+                        try { const uid = user?.id || profile.user_id || 0; localStorage.setItem(`sp:policy:${uid}`, text); } catch {}
+                        policyHint.doneSaving(); 
+                      }
+                      catch { policyHint.stopSaving(); }
+                    })();
+                  }}
                   rows={5}
                   className={inputClasses}
                   placeholder="Write your policy here..."
                 />
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>Live preview</span>
-                  <span>{cancellationPolicy.length} chars</span>
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm text-gray-700">
-                  {cancellationPolicy.trim() ? (
-                    <MarkdownPreview value={cancellationPolicy} />
-                  ) : (
-                    <span>No policy yet. Choose a template or write your own.</span>
-                  )}
-                </div>
-                <div className="pt-2">
-                  <button type="submit" className={primaryButtonClasses}>Save & Preview</button>
-                </div>
+                {/* Live preview removed for a cleaner experience; autosaves are active */}
               </div>
             </section>
 
-            <section className="pt-8 bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
-              <h2 className="text-xl font-medium text-gray-700 mb-6">Professional Details</h2>
+        
+
+
+            <section className="pt-8 relative bg-white rounded-2xl border border-gray-200 p-5 pb-10 shadow-sm">
+              {/* Card counter */}
+              <div className={`${(!!bankNameInput.trim() && !!bankAccountNameInput.trim() && !!bankAccountNumberInput.trim() && !!bankBranchCodeInput.trim()) ? 'text-green-800 bg-green-100 border-green-300' : 'text-gray-600 bg-gray-100 border-gray-200'} absolute bottom-3 right-3 text-xs border rounded-full px-2 py-0.5`}>5/6</div>
+              <div className="absolute right-4 top-4"><SavedPill saving={profHint.saving} saved={profHint.saved} /></div>
+              <h2 className="text-xl font-medium text-gray-700 mb-6">Banking Details</h2>
+              <p className="text-xs text-gray-600 mb-3">Not required now, but will be when we need to do payouts.</p>
               <div className="space-y-4">
-                <div>
-                  <label htmlFor="hourlyRate" className={labelClasses}>
-                    {`Hourly Rate (${DEFAULT_CURRENCY})`}
-                  </label>
-                  <input
-                    type="number"
-                    id="hourlyRate"
-                    value={hourlyRateInput}
-                    onChange={(e) => setHourlyRateInput(e.target.value)}
-                    className={inputClasses}
-                    placeholder="e.g., 50"
-                    min="0"
-                    step="0.01"
-                  />
+                {/* Banking details */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClasses}>Bank name</label>
+                  <input type="text" className={inputClasses} value={bankNameInput} onChange={(e)=>{ const v=e.target.value; setBankNameInput(v); if (profTimerRef.current) clearTimeout(profTimerRef.current); profHint.startSaving(); profTimerRef.current = setTimeout(async ()=>{ try { await updateMyServiceProviderProfile({ bank_name: v.trim() || undefined } as any); profHint.doneSaving(); } catch { profHint.stopSaving(); } }, 800); }} placeholder="e.g., FNB" />
                 </div>
                 <div>
-                  <label htmlFor="specialties" className={labelClasses}>
-                    Specialties (comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    id="specialties"
-                    value={specialtiesInput}
-                    onChange={(e) => setSpecialtiesInput(e.target.value)}
-                    className={inputClasses}
-                    placeholder="e.g., Portraits, Landscapes, Events"
-                  />
+                  <label className={labelClasses}>Account name</label>
+                  <input type="text" className={inputClasses} value={bankAccountNameInput} onChange={(e)=>{ const v=e.target.value; setBankAccountNameInput(v); if (profTimerRef.current) clearTimeout(profTimerRef.current); profHint.startSaving(); profTimerRef.current = setTimeout(async ()=>{ try { await updateMyServiceProviderProfile({ bank_account_name: v.trim() || undefined } as any); profHint.doneSaving(); } catch { profHint.stopSaving(); } }, 800); }} placeholder="Account holder name" />
                 </div>
                 <div>
-                  <label htmlFor="portfolioUrls" className={labelClasses}>
-                    Portfolio URLs (comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    id="portfolioUrls"
-                    value={portfolioUrlsInput}
-                    onChange={(e) => setPortfolioUrlsInput(e.target.value)}
-                    className={inputClasses}
-                    placeholder="e.g., https://myportfolio.com, https://instagram.com/me"
-                  />
+                  <label className={labelClasses}>Account number</label>
+                  <input type="text" className={inputClasses} value={bankAccountNumberInput} onChange={(e)=>{ const v=e.target.value; setBankAccountNumberInput(v); if (profTimerRef.current) clearTimeout(profTimerRef.current); profHint.startSaving(); profTimerRef.current = setTimeout(async ()=>{ try { await updateMyServiceProviderProfile({ bank_account_number: v.trim() || undefined } as any); profHint.doneSaving(); } catch { profHint.stopSaving(); } }, 800); }} placeholder="0000000000" />
+                </div>
+                <div>
+                  <label className={labelClasses}>Branch code</label>
+                  <input type="text" className={inputClasses} value={bankBranchCodeInput} onChange={(e)=>{ const v=e.target.value; setBankBranchCodeInput(v); if (profTimerRef.current) clearTimeout(profTimerRef.current); profHint.startSaving(); profTimerRef.current = setTimeout(async ()=>{ try { await updateMyServiceProviderProfile({ bank_branch_code: v.trim() || undefined } as any); profHint.doneSaving(); } catch { profHint.stopSaving(); } }, 800); }} placeholder="e.g., 250655" />
                 </div>
               </div>
-            </section>
+              {/* Hourly rate field removed per request */}
+            </div>
+          </section>
 
-            <section className="pt-8 bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+        
+
+
+            <section className="pt-8 relative bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+              {/* Card counter */}
+              <div className={`${(calendarConnected) ? 'text-green-800 bg-green-100 border-green-300' : 'text-gray-600 bg-gray-100 border-gray-200'} absolute bottom-3 right-3 text-xs border rounded-full px-2 py-0.5`}>6/6</div>
               <h2 className="text-xl font-medium text-gray-700 mb-6">Sync Google Calendar</h2>
+              {calendarCardMessage && (
+                <p className="text-xs text-gray-600 mb-3">{calendarCardMessage}</p>
+              )}
               <p className="text-sm text-gray-600 mb-4">
                 Status:
                 {calendarConnected
@@ -896,22 +1527,12 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                 )}
               </div>
             </section>
+
+        
+
           </div>
 
-          <div className="pt-8 hidden sm:flex justify-end">
-            <button
-              type="submit"
-              className={primaryButtonClasses}
-              disabled={
-                loading ||
-                uploadingImage ||
-                uploadingCoverPhoto ||
-                uploadingPortfolioImages
-              }
-            >
-              {loading ? 'Saving Changes...' : 'Save Changes'}
-            </button>
-          </div>
+          {/* Bottom Save button removed; fields autosave */}
         </form>
       </div>
       <MobileSaveBar

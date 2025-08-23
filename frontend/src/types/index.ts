@@ -28,6 +28,10 @@ export interface ServiceProviderProfile {
   specialties?: string[] | null;
   /** Optional cancellation policy text configured by the service provider */
   cancellation_policy?: string | null;
+  /** Whether the provider has completed onboarding */
+  onboarding_completed?: boolean;
+  /** Derived completion flag from backend */
+  profile_complete?: boolean;
   /** Average star rating calculated from reviews */
   rating?: number;
   /** Number of reviews contributing to the rating */
@@ -530,6 +534,9 @@ export interface EventPrepPayload {
   notes?: string | null;
   schedule_notes?: string | null;
   parking_access_notes?: string | null;
+  // Booking Wizard specific details for clarity in Event Prep
+  event_type?: string | null;
+  guests_count?: number | null;
 }
 
 export interface EventPrep extends EventPrepPayload {

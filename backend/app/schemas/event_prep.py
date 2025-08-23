@@ -28,6 +28,10 @@ class EventPrepBase(BaseModel):
     # Separate notes for parking and venue access logistics (Location section)
     parking_access_notes: Optional[str] = None
 
+    # Booking Wizard fields persisted for clarity in Event Prep
+    event_type: Optional[str] = None
+    guests_count: Optional[int] = None
+
 
 class EventPrepResponse(EventPrepBase):
     booking_id: int

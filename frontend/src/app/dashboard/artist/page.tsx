@@ -20,6 +20,7 @@ import ServicesSection from "@/components/dashboard/artist/ServicesSection";
 import { useArtistDashboardData } from "@/hooks/useArtistDashboardData";
 import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
+import { getGoogleCalendarStatus } from "@/lib/api";
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -32,6 +33,8 @@ export default function DashboardPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [requestToUpdate, setRequestToUpdate] = useState<any | null>(null);
+  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
+  const [calendarConnected, setCalendarConnected] = useState<boolean>(false);
 
   const { loading, error, fetchAll, bookings, services, artistProfile, bookingRequests, dashboardStats, setBookingRequests, upsertService, removeService, reorderServices } = useArtistDashboardData(user?.id);
 
@@ -73,6 +76,63 @@ export default function DashboardPage() {
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     }
   }, [activeTab, router, pathname]);
+
+  // Load calendar connection status to include in completion rule
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getGoogleCalendarStatus();
+        setCalendarConnected(!!res.data?.connected);
+      } catch {
+        setCalendarConnected(false);
+      }
+    })();
+  }, []);
+
+  // Profile completion guard (exclude bank details)
+  const isProfileComplete = useMemo(() => {
+    const p = artistProfile;
+    if (!p) return false;
+    if (typeof p.profile_complete === 'boolean') return p.profile_complete;
+    const nonempty = (v?: string | null) => !!(v && String(v).trim());
+    const validEmail = (v?: string | null) => !!(v && /.+@.+\..+/.test(v));
+    const validPhoneZA = (v?: string | null) => !!(v && /^\+27\d{9}$/.test(v));
+    const likelyUrl = (v?: string | null) => !!(v && /^(https?:\/\/)?[\w.-]+\.[A-Za-z]{2,}/.test(v));
+    const hasSpecialties = Array.isArray(p.specialties) && p.specialties.some(Boolean);
+    const hasPolicy = p.cancellation_policy === undefined || p.cancellation_policy === null ? true : nonempty(p.cancellation_policy as any);
+    return (
+      nonempty(p.business_name) &&
+      nonempty(p.description || '') &&
+      nonempty(p.location || '') &&
+      validEmail((p as any).contact_email) &&
+      validPhoneZA((p as any).contact_phone) &&
+      likelyUrl((p as any).contact_website) &&
+      hasSpecialties &&
+      hasPolicy &&
+      calendarConnected
+    );
+  }, [artistProfile, calendarConnected]);
+
+  const missingFields = useMemo(() => {
+    const p = artistProfile;
+    const list: string[] = [];
+    if (!p) return list;
+    const nonempty = (v?: string | null) => !!(v && String(v).trim());
+    const validEmail = (v?: string | null) => !!(v && /.+@.+\..+/.test(v));
+    const validPhoneZA = (v?: string | null) => !!(v && /^\+27\d{9}$/.test(v));
+    const likelyUrl = (v?: string | null) => !!(v && /^(https?:\/\/)?[\w.-]+\.[A-Za-z]{2,}/.test(v));
+    if (!nonempty(p.business_name)) list.push('Business name');
+    if (!nonempty(p.description || '')) list.push('Description');
+    if (!nonempty(p.location || '')) list.push('Location');
+    if (!validEmail((p as any).contact_email)) list.push('Email');
+    if (!validPhoneZA((p as any).contact_phone)) list.push('Cell number');
+    if (!likelyUrl((p as any).contact_website)) list.push('Website');
+    const hasSpecialties = Array.isArray(p.specialties) && p.specialties.some(Boolean);
+    if (!hasSpecialties) list.push('Specialties');
+    // Policy optional in completion; remove if previously added.
+    if (!calendarConnected) list.push('Calendar sync');
+    return list;
+  }, [artistProfile, calendarConnected]);
 
   // Aggregated totals for dashboard statistics
   const servicesCount = services.length;
@@ -161,6 +221,7 @@ export default function DashboardPage() {
           user={user}
           profile={artistProfile}
           onAddService={() => {
+            if (!isProfileComplete) { setShowCompleteProfileModal(true); return; }
             setEditingService(null);
             setSelectorOpen(true);
           }}
@@ -264,6 +325,17 @@ export default function DashboardPage() {
           {user?.user_type === 'service_provider' && activeTab === 'services' && (
             <ErrorBoundary onRetry={fetchAll}>
               <React.Suspense fallback={<LoadingSkeleton lines={6} />}>
+                {!isProfileComplete && (
+                  <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 p-3">
+                    <p className="text-sm text-yellow-800">Please complete your profile before adding a service. We need this info to display your service to clients.</p>
+                    {missingFields.length > 0 && (
+                      <p className="mt-1 text-xs text-yellow-700">Missing: {missingFields.join(', ')}</p>
+                    )}
+                    <div className="mt-2">
+                      <a href="/dashboard/profile/edit" className="text-xs text-yellow-900 underline hover:text-yellow-950">Go to profile</a>
+                    </div>
+                  </div>
+                )}
                 <ServicesSection
                   services={services}
                   loading={loading}
@@ -271,6 +343,7 @@ export default function DashboardPage() {
                   onRetry={fetchAll}
                   onReorder={(ordered) => reorderServices(ordered)}
                   onAdd={() => {
+                    if (!isProfileComplete) { setShowCompleteProfileModal(true); return; }
                     setEditingService(null);
                     setSelectorOpen(true);
                   }}
@@ -295,6 +368,22 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+      {showCompleteProfileModal && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowCompleteProfileModal(false)} />
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-xl border border-gray-200 p-5">
+            <h3 className="text-base font-semibold text-gray-900">Please complete your profile</h3>
+            <p className="mt-2 text-sm text-gray-700">We need a few details to display your service to clients.</p>
+            {missingFields.length > 0 && (
+              <p className="mt-2 text-xs text-gray-600">Missing: {missingFields.join(', ')}</p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" className="px-3 py-2 text-sm rounded-md border border-gray-300 bg-white text-gray-800 hover:bg-gray-50" onClick={() => setShowCompleteProfileModal(false)}>Not now</button>
+              <button type="button" className="px-3 py-2 text-sm rounded-md bg-brand-primary text-white hover:opacity-90" onClick={() => { setShowCompleteProfileModal(false); router.push('/dashboard/profile/edit?incomplete=1'); }}>Go to Profile</button>
+            </div>
+          </div>
+        </div>
+      )}
       {selectorOpen && (
         <AddServiceCategorySelector
           isOpen={selectorOpen}

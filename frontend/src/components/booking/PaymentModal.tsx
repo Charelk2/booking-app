@@ -33,10 +33,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 }) => {
   // Check the environment variable at runtime so tests can override it
   const FAKE_PAYMENTS = process.env.NEXT_PUBLIC_FAKE_PAYMENTS === '1';
+  const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
   const [full] = useState(true); // always full amount
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLFormElement | null>(null);
+  const autoRunRef = useRef(false);
 
   useEffect(() => {}, [open]);
 
@@ -71,20 +73,52 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
-
+  // Trigger payment via backend (Paystack or fallback)
   const handlePay = async () => {
     setLoading(true);
     setError(null);
-    if (FAKE_PAYMENTS) {
+    // If Paystack is enabled, do not use fake payments even if the flag is set
+    if (FAKE_PAYMENTS && !USE_PAYSTACK) {
+      const apiBase = API_BASE.replace(/\/+$/,'');
+      const fakeId = `fake_${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
+      const receiptUrl = `${apiBase}/api/v1/payments/${fakeId}/receipt`;
+      try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
       onSuccess({
         status: 'paid',
         amount: Number(amount),
+        receiptUrl,
+        paymentId: fakeId,
+        mocked: true,
       });
       setLoading(false);
       return;
     }
     try {
+      if (USE_PAYSTACK) {
+        // Ask backend to initialize Paystack and redirect the user
+        const res = await createPayment({ booking_request_id: bookingRequestId, amount: Number(amount), full: true });
+        const data = res.data as any;
+        if (data && data.authorization_url && data.reference) {
+          window.open(String(data.authorization_url), '_blank', 'noopener,noreferrer');
+          // Show a quick verify flow
+          const ok = window.confirm('Complete the payment in the newly opened tab. Click OK after you have paid.');
+          if (ok) {
+            try {
+              const verify = await fetch(`${API_BASE.replace(/\/+$/,'')}/api/v1/payments/paystack/verify?reference=${encodeURIComponent(String(data.reference))}`, { credentials: 'include' });
+              if (!verify.ok) throw new Error('Verification failed');
+              const v = await verify.json();
+              const pid = v?.payment_id || data.reference;
+              const receiptUrl = `${API_BASE.replace(/\/+$/,'')}/api/v1/payments/${pid}/receipt`;
+              try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
+              onSuccess({ status: 'paid', amount: Number(amount), paymentId: pid, receiptUrl });
+            } catch (e) {
+              onError('We could not verify your payment. Please try again.');
+            }
+          }
+          setLoading(false);
+          return;
+        }
+      }
       const res = await createPayment({
         booking_request_id: bookingRequestId,
         amount: Number(amount),
@@ -94,6 +128,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       const receiptUrl = paymentId
         ? `${API_BASE.replace(/\/+$/,'')}/api/v1/payments/${paymentId}/receipt`
         : undefined;
+      try { if (receiptUrl) localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
       onSuccess({
         status: 'paid',
         amount: Number(amount),
@@ -107,11 +142,23 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       const hex = Math.random().toString(16).slice(2).padEnd(8, '0');
       const paymentId = `test_${Date.now().toString(16)}${hex}`;
       const receiptUrl = `${API_BASE.replace(/\/+$/,'')}/api/v1/payments/${paymentId}/receipt`;
+      try { localStorage.setItem(`receipt_url:br:${bookingRequestId}`, receiptUrl); } catch {}
       onSuccess({ status: 'paid', amount: Number(amount), paymentId, receiptUrl, mocked: true });
     } finally {
       setLoading(false);
     }
   };
+
+  // Auto-start Paystack flow when the modal opens (for streamlined UX)
+  useEffect(() => {
+    if (open && USE_PAYSTACK && !autoRunRef.current) {
+      autoRunRef.current = true;
+      // Slight delay to allow modal mount
+      setTimeout(() => handlePay(), 0);
+    }
+  }, [open, USE_PAYSTACK]);
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center overflow-y-auto z-[200]">
@@ -136,7 +183,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             Cancel
           </Button>
           <Button type="submit" isLoading={loading}>
-            Pay
+            {USE_PAYSTACK ? 'Open Paystack' : 'Pay'}
           </Button>
         </div>
       </form>

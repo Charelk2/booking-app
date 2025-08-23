@@ -78,7 +78,7 @@ export default function ServiceProviderServiceCard({ service, onBook }: ServiceP
             </span>
             <span>per guest</span>
             <span aria-hidden="true">·</span>
-            <span>{formatDuration(currentService.duration_minutes)}</span>
+            <span>{(currentService as any).duration || (currentService as any)?.details?.duration_label || formatDuration(currentService.duration_minutes)}</span>
           </div>
           {currentService.description && (
             <p className="mt-1 text-sm text-gray-600">

@@ -39,6 +39,21 @@ class ServiceProviderProfile(BaseModel):
     profile_picture_url = Column(String, nullable=True)
     cover_photo_url = Column(String, nullable=True)
     price_visible = Column(Boolean, nullable=False, default=True)
+    # Optional cancellation policy text (displayed to clients)
+    cancellation_policy = Column(Text, nullable=True)
+    # Onboarding/completion flag to gate adding services until profile is complete
+    onboarding_completed = Column(Boolean, nullable=False, default=False)
+
+    # Optional contact details shared with clients upon booking confirmation
+    contact_email = Column(String, nullable=True)
+    contact_phone = Column(String, nullable=True)
+    contact_website = Column(String, nullable=True)
+
+    # Optional banking details (for payouts/invoices)
+    bank_name = Column(String, nullable=True)
+    bank_account_name = Column(String, nullable=True)
+    bank_account_number = Column(String, nullable=True)
+    bank_branch_code = Column(String, nullable=True)
 
     # Relationships
     user = relationship("User", back_populates="artist_profile")

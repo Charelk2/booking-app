@@ -6,6 +6,7 @@ import { format, isValid } from 'date-fns';
 import { getFullImageUrl, formatCurrency, buildReceiptUrl } from '@/lib/utils';
 import { Booking, QuoteV2 } from '@/types';
 import Button from '../ui/Button';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -62,6 +63,33 @@ export default function BookingSummaryCard({
   currentArtistId,
   instantBookingPrice,
 }: BookingSummaryCardProps) {
+  const { user } = useAuth();
+  const [briefLink, setBriefLink] = React.useState<string | null>(null);
+  const [briefComplete, setBriefComplete] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const update = () => {
+      try {
+        const oid = localStorage.getItem(`vo-order-for-thread-${bookingRequestId}`);
+        if (oid) {
+          setBriefLink(`/video-orders/${oid}/brief`);
+          setBriefComplete(!!localStorage.getItem(`vo-brief-complete-${oid}`));
+        } else {
+          setBriefLink(null);
+          setBriefComplete(false);
+        }
+      } catch {}
+    };
+    update();
+    window.addEventListener('storage', update);
+    window.addEventListener('focus', update);
+    return () => {
+      window.removeEventListener('storage', update);
+      window.removeEventListener('focus', update);
+    };
+  }, [bookingRequestId]);
+
   return (
     <>
       <div className="px-4 mt-3 flex items-center gap-3">
@@ -188,6 +216,25 @@ export default function BookingSummaryCard({
             </div>
           </div>
         )}
+
+        {/* Personalized Video Brief Link (client-side only) */}
+        {(() => {
+          const isClient = user?.user_type === 'client';
+          const isProvider = user?.user_type === 'service_provider';
+          const canShow = !!briefLink && (isClient || (isProvider && briefComplete));
+          const label = briefComplete ? 'View brief' : 'Finish brief';
+          if (!canShow) return null;
+          return (
+          <div className="mt-4">
+            <a
+              href={briefLink}
+              className="block text-center bg-black text-white font-semibold rounded-lg border border-gray-200 px-3 py-2 hover:bg-black hover:text-white hover:no-underline"
+            >
+              {label}
+            </a>
+          </div>
+          );
+        })()}
 
         {/* Estimate or Quote Totals */}
         {(() => {

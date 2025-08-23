@@ -50,6 +50,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
     const [predictions, setPredictions] =
       useState<google.maps.places.AutocompletePrediction[]>([]);
     const [isDropdownVisible, setDropdownVisible] = useState(false);
+    const [isFocused, setFocused] = useState(false);
     const [userLocation, setUserLocation] =
       useState<google.maps.LatLngLiteral | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
@@ -152,13 +153,14 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
             const preds = results || [];
             setPredictions(preds);
             onPredictionsChange?.(preds);
-            setDropdownVisible(preds.length > 0);
+            // Only show dropdown when user has focused the input
+            setDropdownVisible(isFocused && preds.length > 0);
             if (preds.length > 0) setHighlightedIndex(-1);
           }
         );
       }, 300);
       return () => clearTimeout(handler);
-    }, [value, userLocation, isPlacesReady, onPredictionsChange]);
+    }, [value, userLocation, isPlacesReady, onPredictionsChange, isFocused]);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -297,12 +299,17 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={(e) => {
+            setFocused(true);
             // Keep current behavior: open dropdown if we have content…
             if (predictions.length > 0) {
               setDropdownVisible(true);
             }
             // …and bubble to parent if provided
             onFocus?.(e);
+          }}
+          onBlur={() => {
+            setFocused(false);
+            setDropdownVisible(false);
           }}
           placeholder={placeholder}
           className={clsx(

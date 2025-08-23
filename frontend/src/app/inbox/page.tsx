@@ -45,7 +45,8 @@ export default function InboxPage() {
   }, []);
 
   const fetchAllRequests = useCallback(async () => {
-    setLoadingRequests(true);
+    // Only show the page-level spinner if we have nothing yet
+    setLoadingRequests((prev) => prev || allBookingRequests.length === 0);
     try {
       const mineRes = await getMyBookingRequests();
       let artistRes: AxiosResponse<BookingRequest[]> = { data: [] } as unknown as AxiosResponse<BookingRequest[]>;
@@ -82,23 +83,13 @@ export default function InboxPage() {
           new Date(a.last_message_timestamp ?? a.updated_at ?? a.created_at).getTime(),
       );
       setAllBookingRequests(combined);
-      const urlId = Number(searchParams.get('requestId'));
-      const isMobileScreen =
-        typeof window !== 'undefined' && window.innerWidth < BREAKPOINT_MD;
-      if (!isMobileScreen) {
-        if (urlId && combined.find((r) => r.id === urlId)) {
-          setSelectedBookingRequestId(urlId);
-        } else if (combined.length > 0) {
-          setSelectedBookingRequestId(combined[0].id);
-        }
-      }
     } catch (err: unknown) {
       console.error('Failed to load booking requests:', err);
       setError(err instanceof Error ? err.message : 'Failed to load conversations');
     } finally {
       setLoadingRequests(false);
     }
-  }, [searchParams, user]);
+  }, [user?.user_type, allBookingRequests.length]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -109,6 +100,19 @@ export default function InboxPage() {
       }
     }
   }, [authLoading, user, router, fetchAllRequests]);
+
+  // Select conversation based on URL param after requests load (desktop), but do not refetch
+  useEffect(() => {
+    if (!allBookingRequests.length) return;
+    const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < BREAKPOINT_MD;
+    if (isMobileScreen) return;
+    const urlId = Number(searchParams.get('requestId'));
+    if (urlId && allBookingRequests.find((r) => r.id === urlId)) {
+      setSelectedBookingRequestId(urlId);
+    } else if (selectedBookingRequestId == null) {
+      setSelectedBookingRequestId(allBookingRequests[0].id);
+    }
+  }, [allBookingRequests, searchParams, selectedBookingRequestId]);
 
   // Compute list height dynamically to avoid scroll within scroll
   useEffect(() => {
@@ -146,22 +150,21 @@ export default function InboxPage() {
       setSelectedBookingRequestId(id);
       const params = new URLSearchParams(searchParams.toString());
       params.set('requestId', String(id));
-      if (typeof window !== 'undefined') {
-        window.history.replaceState(null, '', `?${params.toString()}`);
-      }
+      // Use Next router to update the URL without scrolling the page.
+      router.replace(`?${params.toString()}`, { scroll: false });
 
       if (isMobile) {
         setShowList(false);
       }
     },
-    [searchParams, isMobile]
+    [searchParams, isMobile, router]
   );
 
   const handleBackToList = useCallback(() => {
     setShowList(true);
   }, []);
 
-  if (authLoading || loadingRequests) {
+  if (authLoading || (loadingRequests && allBookingRequests.length === 0)) {
     return (
       <MainLayout hideFooter={true}>
         <div className="flex justify-center items-center min-h-[60vh]">
@@ -191,7 +194,7 @@ export default function InboxPage() {
         {(!isMobile || showList) && (
           <div
             id="conversation-list-wrapper"
-            className="w-full px-4 md:w-1/4 lg:w-1/4 border-gray-100 flex-shrink-0 h-full min-h-0 flex flex-col overflow-y-auto border-gray-100"
+            className="w-full px-4 md:w-1/4 lg:w-1/4 border-gray-100 flex-shrink-0 h-full min-h-0 flex flex-col overflow-hidden border-gray-100"
           >
             <div className="p-3 sticky top-0 z-10 bg-white space-y-2 border-b border-gray-100">
               <h1 className="text-xl font-semibold">Messages</h1>
@@ -225,6 +228,7 @@ export default function InboxPage() {
                   onSelectRequest={handleSelect}
                   currentUser={user}
                   query={query}
+                  height={listHeight}
                 />
               ) : (
                 <p className="p-6 text-center text-gray-500">No conversations found.</p>
