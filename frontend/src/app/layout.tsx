@@ -1,4 +1,5 @@
 import { Inter } from 'next/font/google';
+import { Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { NotificationsProvider } from '@/hooks/useNotifications';
@@ -34,7 +35,9 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <AuthProvider>
           <NotificationsProvider>
-            {children}
+            <Suspense fallback={null}>
+              {children}
+            </Suspense>
             <Toaster position="top-right" />
           </NotificationsProvider>
         </AuthProvider>
