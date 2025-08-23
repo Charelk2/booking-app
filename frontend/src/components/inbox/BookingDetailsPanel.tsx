@@ -1,10 +1,13 @@
 'use client';
 
+import React from 'react';
+
 import { format, parseISO, isValid } from 'date-fns';
 import { Booking, BookingRequest, Review, QuoteV2 } from '@/types';
 import Button from '../ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
 import BookingSummaryCard from '../booking/BookingSummaryCard';
+import { getEventPrep } from '@/lib/api';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -39,10 +42,48 @@ export default function BookingDetailsPanel({
   openPaymentModal,
 }: BookingDetailsPanelProps) {
   const { user } = useAuth();
+  const [eventType, setEventType] = React.useState<string | null>(null);
+  const [guestsCount, setGuestsCount] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    const bid = (confirmedBookingDetails as any)?.id;
+    if (!bid) return;
+    let cancelled = false;
+    getEventPrep(bid)
+      .then((ep) => {
+        if (cancelled) return;
+        const et = (ep as any)?.event_type || null;
+        const gc = (ep as any)?.guests_count;
+        setEventType(et ? String(et) : null);
+        setGuestsCount(typeof gc === 'number' ? gc : (gc != null ? Number(gc) : null));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [confirmedBookingDetails?.id]);
 
   return (
     <div className="w-full flex flex-col h-full">
       <h4 className="mb-3 text-base font-semibold text-gray-900">Booking Details</h4>
+
+      {/* Quick Event glance */}
+      {(() => {
+        const displayEventType = eventType || parsedBookingDetails?.eventType || null;
+        const displayGuests = (guestsCount != null ? String(guestsCount) : (parsedBookingDetails?.guests || '')).toString().trim();
+        if (!displayEventType && !displayGuests) return null;
+        return (
+          <div className="mb-3 rounded-lg border border-gray-200 bg-white p-3">
+            <div className="text-sm font-semibold mb-1">Event</div>
+            <ul className="text-sm leading-6">
+              {displayEventType && (
+                <li className="py-0.5"><span className="font-medium">Type:</span> {displayEventType}</li>
+              )}
+              {displayGuests && (
+                <li className="py-0.5"><span className="font-medium">Guests:</span> {displayGuests}</li>
+              )}
+            </ul>
+          </div>
+        );
+      })()}
       <BookingSummaryCard
         parsedBookingDetails={parsedBookingDetails ?? undefined}
         imageUrl={bookingRequest.service?.media_url}

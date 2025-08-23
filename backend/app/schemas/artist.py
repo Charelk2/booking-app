@@ -27,6 +27,18 @@ class ArtistProfileBase(BaseModel):
     profile_picture_url: Optional[str] = None
     cover_photo_url: Optional[str] = None
     price_visible: Optional[bool] = True
+    cancellation_policy: Optional[str] = None
+
+    # Contact details shared with the client on confirmation
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_website: Optional[str] = None
+
+    # Banking details (optional)
+    bank_name: Optional[str] = None
+    bank_account_name: Optional[str] = None
+    bank_account_number: Optional[str] = None
+    bank_branch_code: Optional[str] = None
 
     model_config = {
         # Still needed so that Pydantic can work with ORM objects, but we override below
@@ -57,6 +69,33 @@ class ArtistProfileResponse(ArtistProfileBase):
     is_available: Optional[bool] = None
     service_price: Optional[Decimal] = None
     service_categories: List[str] = Field(default_factory=list)
+    onboarding_completed: Optional[bool] = None
+    # Derived convenience field for clients to check completion status
+    @computed_field(return_type=bool)
+    @property
+    def profile_complete(self) -> bool:
+        # Simple mirror of backend util; keep light to avoid import cycles
+        import re
+        def nonempty(v: Optional[str]) -> bool:
+            return bool(v and str(v).strip())
+        def valid_email(v: Optional[str]) -> bool:
+            return bool(v and re.match(r"[^@]+@[^@]+\.[^@]+", v))
+        def valid_phone(v: Optional[str]) -> bool:
+            return bool(v and re.match(r"^\+27\d{9}$", v))
+        def likely_url(v: Optional[str]) -> bool:
+            return bool(v and re.match(r"^(https?://)?[\w.-]+\.[A-Za-z]{2,}", v))
+        has_specialties = isinstance(self.specialties, list) and any(bool(s) for s in (self.specialties or []))
+        has_policy = True if self.cancellation_policy is None else nonempty(self.cancellation_policy)
+        return all([
+            nonempty(self.business_name),
+            nonempty(self.description),
+            nonempty(self.location),
+            valid_email(self.contact_email),
+            valid_phone(self.contact_phone),
+            likely_url(self.contact_website),
+            has_specialties,
+            has_policy,
+        ])
 
     # We want to include a nested "user" object when returning a service provider profile
     user: Optional[UserResponse] = None

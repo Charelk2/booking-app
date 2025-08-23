@@ -124,7 +124,7 @@ def seed_service_categories(engine: Engine) -> None:
 
         # Remove categories that are no longer part of the canonical list.
         obsolete = [name for name in existing if name not in categories]
-        if obsolete:
+    if obsolete:
             conn.execute(table.delete().where(table.c.name.in_(obsolete)))
 
 
@@ -137,6 +137,46 @@ def ensure_service_type_column(engine: Engine) -> None:
         "service_type",
         "service_type VARCHAR NOT NULL DEFAULT 'Live Performance'",
     )
+
+
+def ensure_performance_indexes(engine: Engine) -> None:
+    """Create lightweight indexes that speed up common homepage queries.
+
+    - service_provider_profiles(updated_at)
+    - service_provider_profiles(location)
+    - services(artist_id, price)
+    """
+    inspector = inspect(engine)
+    # Collect existing index names safely (SQLAlchemy returns List[Dict])
+    existing = set()
+    if "service_provider_profiles" in inspector.get_table_names():
+        try:
+            existing = {idx.get("name") for idx in inspector.get_indexes("service_provider_profiles") if isinstance(idx, dict)}
+        except Exception:
+            existing = set()
+    with engine.connect() as conn:
+        try:
+            if "idx_spp_updated_at" not in existing:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_spp_updated_at ON service_provider_profiles(updated_at)"))
+            if "idx_spp_location" not in existing:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_spp_location ON service_provider_profiles(location)"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
+    existing_srv = set()
+    if "services" in inspector.get_table_names():
+        try:
+            existing_srv = {idx.get("name") for idx in inspector.get_indexes("services") if isinstance(idx, dict)}
+        except Exception:
+            existing_srv = set()
+    with engine.connect() as conn:
+        try:
+            if "idx_services_artist_price" not in existing_srv:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_services_artist_price ON services(artist_id, price)"))
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
 
 def ensure_message_type_column(engine: Engine) -> None:
@@ -694,6 +734,75 @@ def ensure_quote_v2_sound_firm_column(engine: Engine) -> None:
         "quotes_v2",
         "sound_firm",
         "sound_firm VARCHAR",
+    )
+
+
+def ensure_service_provider_contact_columns(engine: Engine) -> None:
+    """Ensure contact and banking columns exist on service_provider_profiles.
+
+    These are additive, nullable string columns so it's safe to apply on
+    existing databases without migrations.
+    """
+    add_column_if_missing(
+        engine,
+        "service_provider_profiles",
+        "contact_email",
+        "contact_email VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "service_provider_profiles",
+        "contact_phone",
+        "contact_phone VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "service_provider_profiles",
+        "contact_website",
+        "contact_website VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "service_provider_profiles",
+        "bank_name",
+        "bank_name VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "service_provider_profiles",
+        "bank_account_name",
+        "bank_account_name VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "service_provider_profiles",
+        "bank_account_number",
+        "bank_account_number VARCHAR",
+    )
+    add_column_if_missing(
+        engine,
+        "service_provider_profiles",
+        "bank_branch_code",
+        "bank_branch_code VARCHAR",
+    )
+
+def ensure_service_provider_onboarding_columns(engine: Engine) -> None:
+    """Ensure onboarding/completion and cancellation policy columns exist.
+
+    - onboarding_completed BOOLEAN: gates creating services until profile complete
+    - cancellation_policy TEXT: optional policy text shown to clients
+    """
+    add_column_if_missing(
+        engine,
+        "service_provider_profiles",
+        "onboarding_completed",
+        "onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    add_column_if_missing(
+        engine,
+        "service_provider_profiles",
+        "cancellation_policy",
+        "cancellation_policy TEXT",
     )
 
 

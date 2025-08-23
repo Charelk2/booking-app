@@ -13,6 +13,7 @@ interface ArtistsSectionProps {
   query?: Partial<SearchParams>;
   limit?: number;
   hideIfEmpty?: boolean;
+  initialData?: ServiceProviderProfile[];
 }
 
 function CardSkeleton() {
@@ -32,9 +33,10 @@ export default function ArtistsSection({
   query = {},
   limit = 12,
   hideIfEmpty = false,
+  initialData,
 }: ArtistsSectionProps) {
-  const [artists, setArtists] = useState<ServiceProviderProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [artists, setArtists] = useState<ServiceProviderProfile[]>(initialData || []);
+  const [loading, setLoading] = useState(!initialData);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollRight, setCanScrollRight] = useState(false);
 

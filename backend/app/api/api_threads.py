@@ -11,6 +11,8 @@ from ..schemas.threads import (
 from .dependencies import get_db, get_current_user
 from ..crud import crud_booking_request, crud_notification, crud_message
 from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
+from ..crud import crud_message
+import re
 
 router = APIRouter(tags=["threads"])
 
@@ -101,8 +103,49 @@ def get_threads_preview(
         # State
         state = _state_from_status(br.status)
 
-        # Preview label (centralized)
-        preview = preview_label_for_message(last_m, thread_state=state, sender_display=display)
+        # Preview label (PV-aware)
+        service_type = (getattr(br.service, "service_type", "") or "").lower()
+        is_pv = service_type == "personalized video".lower()
+        if is_pv:
+            def _is_skip(msg) -> bool:
+                if not msg or not getattr(msg, "content", None):
+                    return False
+                text = (msg.content or "").strip()
+                low = text.lower()
+                if text.startswith(BOOKING_DETAILS_PREFIX):
+                    return True
+                if "you have a new booking request" in low:
+                    return True
+                return False
+
+            candidate = last_m
+            if _is_skip(candidate):
+                viewer = models.VisibleTo.ARTIST if is_artist else models.VisibleTo.CLIENT
+                try:
+                    msgs = crud_message.get_messages_for_request(db, br.id, viewer=viewer, skip=0, limit=200)
+                    for m in reversed(msgs):
+                        if not _is_skip(m):
+                            candidate = m
+                            break
+                except Exception:
+                    pass
+
+            if candidate is not None:
+                text = (candidate.content or "").strip()
+                low = text.lower()
+                if low.startswith("payment received"):
+                    m = re.search(r"order\s*#\s*([A-Za-z0-9\-]+)", text, flags=re.IGNORECASE)
+                    order = f" — order #{m.group(1)}" if m else ""
+                    preview = f"Payment received{order} · View receipt"
+                elif "brief completed" in low:
+                    preview = "Brief completed"
+                else:
+                    preview = preview_label_for_message(candidate, thread_state=state, sender_display=display)
+            else:
+                preview = preview_label_for_message(last_m, thread_state=state, sender_display=display)
+        else:
+            # Non-PV threads use shared helper
+            preview = preview_label_for_message(last_m, thread_state=state, sender_display=display)
 
         # Meta
         meta = {}

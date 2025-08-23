@@ -6,6 +6,7 @@ import { formatRelative } from 'date-fns';
 import { BookingRequest, User } from '@/types';
 import { getFullImageUrl } from '@/lib/utils'; // Import getFullImageUrl
 import { FixedSizeList as List, type ListChildComponentProps } from 'react-window';
+import React from 'react';
 
 interface ConversationListProps {
   bookingRequests: BookingRequest[];
@@ -13,6 +14,7 @@ interface ConversationListProps {
   onSelectRequest: (id: number) => void;
   currentUser?: User | null;
   query?: string;
+  height?: number;
 }
 
 export default function ConversationList({
@@ -21,11 +23,26 @@ export default function ConversationList({
   onSelectRequest,
   currentUser,
   query = '',
+  height,
 }: ConversationListProps) {
   if (!currentUser) {
     return null;
   }
   const ROW_HEIGHT = 74;
+  const STORAGE_KEY = 'inbox:convListOffset';
+  const STORAGE_TOP_ID = 'inbox:convListTopId';
+  const STORAGE_TOP_INDEX = 'inbox:convListTopIndex';
+
+  // Persist scroll position so selecting a convo doesn't jump to top.
+  const listRef = React.useRef<List>(null);
+  const restoredRef = React.useRef(false);
+  const lastVisibleStartRef = React.useRef(0);
+  const initialOffset = React.useMemo(() => {
+    if (typeof window === 'undefined') return 0;
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) ? n : 0;
+  }, []);
 
   const q = query.trim().toLowerCase();
   const highlight = (text: string) => {
@@ -43,14 +60,93 @@ export default function ConversationList({
       </>
     );
   };
+  // Restore on mount if needed (for cases where List remounts due to props)
+  React.useEffect(() => {
+    if (restoredRef.current) return;
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      const n = raw ? Number(raw) : 0;
+      if (listRef.current && Number.isFinite(n) && n > 0) {
+        listRef.current.scrollTo(n);
+      }
+      restoredRef.current = true;
+    } catch {}
+  }, [bookingRequests.length]);
+
+  // After selecting a conversation, restore the previous scroll offset to avoid jumping to top.
+  React.useLayoutEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      const n = raw ? Number(raw) : 0;
+      if (listRef.current) {
+        const topId = sessionStorage.getItem(STORAGE_TOP_ID);
+        if (topId) {
+          const index = bookingRequests.findIndex((r) => String(r.id) === topId);
+          if (index >= 0) {
+            try { (listRef.current as any).scrollToItem?.(index, 'start'); return; } catch {}
+          }
+        }
+        if (Number.isFinite(n) && n >= 0) {
+          const idx = Math.max(0, Math.round(n / ROW_HEIGHT));
+          try { (listRef.current as any).scrollToItem?.(idx, 'start'); } catch { listRef.current.scrollTo(n); }
+        }
+      }
+    } catch {}
+  }, [selectedRequestId, bookingRequests]);
+
+  const listHeight = height ?? Math.min(ROW_HEIGHT * bookingRequests.length, ROW_HEIGHT * 10);
+
+  // Outer wrapper that suppresses anchor navigation inside the list.
+  // IMPORTANT: Pass a stable component reference to react-window to avoid remounting the scroller.
+  const Outer = React.useMemo(
+    () =>
+      React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(function OuterDiv(props, ref) {
+        const { onClick, ...rest } = props;
+        return (
+          <div
+            {...rest}
+            ref={ref}
+            role={rest.role ?? 'listbox'}
+            aria-label={rest['aria-label'] ?? 'Conversations'}
+            onClick={(e) => {
+              const t = e.target as HTMLElement;
+              if (t && (t as any).closest && (t as any).closest('a')) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+              onClick && onClick(e as any);
+            }}
+          />
+        );
+      }),
+    [],
+  );
+
   return (
     <List
-      height={Math.min(ROW_HEIGHT * bookingRequests.length, ROW_HEIGHT * 10)}
+      ref={listRef}
+      height={listHeight}
       itemCount={bookingRequests.length}
       itemSize={ROW_HEIGHT}
       width="100%"
       className="divide-y divide-gray-100"
-      outerElementType={(props: any) => <div role="listbox" aria-label="Conversations" {...props} />}
+      overscanCount={6}
+      initialScrollOffset={initialOffset}
+      itemKey={(index) => bookingRequests[index]?.id ?? index}
+      onScroll={(ev: { scrollOffset: number }) => {
+        try { sessionStorage.setItem(STORAGE_KEY, String(ev.scrollOffset)); } catch {}
+      }}
+      onItemsRendered={({ visibleStartIndex }) => {
+        lastVisibleStartRef.current = visibleStartIndex;
+        try {
+          const id = bookingRequests[visibleStartIndex]?.id;
+          if (id) {
+            sessionStorage.setItem(STORAGE_TOP_ID, String(id));
+            sessionStorage.setItem(STORAGE_TOP_INDEX, String(visibleStartIndex));
+          }
+        } catch {}
+      }}
+      outerElementType={Outer}
     >
       {({ index, style }: ListChildComponentProps) => {
         const req = bookingRequests[index];
@@ -102,6 +198,36 @@ export default function ConversationList({
           );
         })();
 
+        const serviceType = (req.service?.service_type || '').toString();
+        const isPersonalizedVideo = serviceType.toLowerCase() === 'personalized video';
+        // Determine paid/confirmed state for events (non-PV)
+        const paidOrConfirmed = (() => {
+          const text = (req.last_message_content || '').toString();
+          const status = (req.status || '').toString().toLowerCase();
+          const hasAcceptedQuote = (req.accepted_quote_id as unknown as number) ? true : false;
+          const paidMsg = /payment\s*received|booking\s*confirmed/i.test(text);
+          const confirmed = ['confirmed', 'completed', 'request_confirmed', 'request_completed'].includes(status);
+          let localFlag = false;
+          try {
+            if (typeof window !== 'undefined') {
+              localFlag = !!localStorage.getItem(`booking-confirmed-${req.id}`);
+            }
+          } catch {}
+          return paidMsg || confirmed || hasAcceptedQuote || localFlag;
+        })();
+        // VIDEO badge: for PV, chat opens after payment, so always show VIDEO.
+        // Fallback: if service is missing but we created a video order mapping client-side, show VIDEO.
+        const showVideoBadge = (() => {
+          if (isPersonalizedVideo) return true;
+          try {
+            if (typeof window !== 'undefined') {
+              const oid = localStorage.getItem(`vo-order-for-thread-${req.id}`);
+              if (oid) return true;
+            }
+          } catch {}
+          return false;
+        })();
+        const showEventBadge = !showVideoBadge && paidOrConfirmed;
         const isQuote = (() => {
           const text = (req.last_message_content || '').toString();
           if (!text) return false;
@@ -116,6 +242,21 @@ export default function ConversationList({
             aria-selected={isActive}
             tabIndex={0}
             onClick={() => onSelectRequest(req.id)}
+            onMouseDownCapture={(e) => {
+              const t = e.target as HTMLElement;
+              // If a link is clicked inside the row (e.g., auto-linked URL in preview), prevent navigation.
+              if (t && t.closest && t.closest('a')) {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelectRequest(req.id);
+              }
+            }}
+            onClickCapture={(e) => {
+              // Ensure row selection always handles navigation within SPA
+              e.preventDefault();
+              e.stopPropagation();
+              onSelectRequest(req.id);
+            }}
             onKeyPress={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 onSelectRequest(req.id);
@@ -172,7 +313,17 @@ export default function ConversationList({
                 )}
               >
                 <span className="inline-flex items-center gap-2 min-w-0">
-                  {isQuote && (
+                  {showEventBadge && (
+                    <span className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">
+                      EVENT
+                    </span>
+                  )}
+                  {showVideoBadge && (
+                    <span className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">
+                      VIDEO
+                    </span>
+                  )}
+                  {!showEventBadge && !showVideoBadge && isQuote && (
                     <span className="inline-flex items-center gap-1 rounded bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">
                       QUOTE
                     </span>

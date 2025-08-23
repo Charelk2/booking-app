@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, ORJSONResponse
 from fastapi.staticfiles import StaticFiles
 from routes import distance
@@ -89,6 +90,9 @@ from .db_utils import (
     ensure_visible_to_column,
     ensure_quote_v2_sound_firm_column,
     ensure_rider_tables,
+    ensure_service_provider_contact_columns,
+    ensure_service_provider_onboarding_columns,
+    ensure_performance_indexes,
     seed_service_categories,
 )
 from .middleware.security_headers import SecurityHeadersMiddleware
@@ -108,6 +112,8 @@ from .utils.notifications import (
 from .services.ops_scheduler import run_maintenance
 from .utils.redis_cache import close_redis_client
 from .utils.status_logger import register_status_listeners
+from .api.v1.api_service_provider import list_service_provider_profiles
+from .utils.redis_cache import get_cached_artist_list
 
 # Configure logging before creating any loggers
 setup_logging()
@@ -161,6 +167,9 @@ ensure_rider_tables(engine)
 ensure_legacy_artist_user_type(engine)
 ensure_service_category_id_column(engine)
 seed_service_categories(engine)
+ensure_service_provider_contact_columns(engine)
+ensure_service_provider_onboarding_columns(engine)
+ensure_performance_indexes(engine)
 # Additive EventPrep schedule columns (safe/idempotent)
 try:
     from .db_utils import add_column_if_missing
@@ -172,6 +181,9 @@ try:
     add_column_if_missing(engine, "event_preps", "schedule_notes", "schedule_notes VARCHAR")
     # Separate free-text field for parking and access notes (Location section)
     add_column_if_missing(engine, "event_preps", "parking_access_notes", "parking_access_notes VARCHAR")
+    # Canonical fields captured from Booking Wizard
+    add_column_if_missing(engine, "event_preps", "event_type", "event_type VARCHAR")
+    add_column_if_missing(engine, "event_preps", "guests_count", "guests_count INTEGER")
 except Exception as _exc:
     logger.warning("EventPrep schedule columns ensure skipped: %s", _exc)
 Base.metadata.create_all(bind=engine)
@@ -241,6 +253,7 @@ logger.info("CORS origins set to: %s", allow_origins)
 # that cookie using our SECRET_KEY.
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
 @app.middleware("http")
@@ -563,3 +576,35 @@ def shutdown_redis_client() -> None:
     """Close Redis connections when the application shuts down."""
     logger.info("Closing Redis client")
     close_redis_client()
+
+
+@app.on_event("startup")
+async def warm_cache_on_startup() -> None:
+    """Warm the homepage artist list cache for faster first paint.
+
+    Best effort; logs a warning if it cannot prewarm.
+    """
+    try:
+        # Skip if already cached
+        if get_cached_artist_list(1, limit=12) is not None:
+            return
+        from .database import SessionLocal
+        db = SessionLocal()
+        try:
+            # Use the same logic as the API route to ensure consistent payload and caching
+            list_service_provider_profiles(  # type: ignore[arg-type]
+                response=ORJSONResponse({}),
+                db=db,
+                page=1,
+                limit=12,
+                category=None,
+                location=None,
+                sort=None,
+                min_price=None,
+                max_price=None,
+                include_price_distribution=False,
+            )
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.warning("Warm-cache skipped: %s", exc)

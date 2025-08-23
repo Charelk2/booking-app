@@ -14,6 +14,10 @@ import {
   Trash2,
   AlertTriangle,
   Users,
+  Mail,
+  Phone,
+  Globe,
+  FileText,
 } from "lucide-react";
 
 // Removed MUI components in favor of Tailwind classes
@@ -32,6 +36,9 @@ import {
   addEventPrepAttachment,
   deleteEventPrepAttachment,
 } from "@/lib/api";
+import { getMessagesForBookingRequest } from "@/lib/api";
+import { parseBookingDetailsFromMessage } from "@/lib/bookingDetails";
+import { BOOKING_DETAILS_PREFIX } from "@/lib/constants";
 
 /* ────────────────────────────────────────────────────────────────────────────
    Lucide icon wrappers (prevents TS 2786 JSX issues)
@@ -53,6 +60,10 @@ const UploadCloudIcon = wrapIcon(UploadCloud);
 const Trash2Icon = wrapIcon(Trash2);
 const AlertTriangleIcon = wrapIcon(AlertTriangle);
 const UsersIcon = wrapIcon(Users);
+const MailIcon = wrapIcon(Mail);
+const PhoneIcon = wrapIcon(Phone);
+const GlobeIcon = wrapIcon(Globe);
+const FileTextIcon = wrapIcon(FileText);
 
 /* ────────────────────────────────────────────────────────────────────────────
    Minimal local type used in this file
@@ -127,6 +138,75 @@ function writeLocalTimes(bookingId: number, data: Partial<EventPrep & { soundche
 // Note: previously we encoded soundcheck end inside schedule_notes as a tag.
 // This behavior has been removed per request. We now keep end time only locally.
 
+// Persist selected non-time fields locally so they survive reloads even if
+// backend doesn't store them yet.
+const CONTACT_FIELDS: (keyof EventPrep | "venue_name")[] = [
+  "additional_contact_name" as any,
+  "additional_contact_phone" as any,
+  "venue_name" as any,
+];
+const localInfoKey = (bookingId: number) => `event_prep_info:${bookingId}`;
+function readLocalInfo(bookingId: number): Partial<EventPrep> {
+  try {
+    const raw = localStorage.getItem(localInfoKey(bookingId));
+    return raw ? (JSON.parse(raw) as Partial<EventPrep>) : {};
+  } catch {
+    return {};
+  }
+}
+function writeLocalInfo(bookingId: number, data: Partial<EventPrep>) {
+  try {
+    const current = readLocalInfo(bookingId);
+    const next = { ...current } as any;
+    for (const k of CONTACT_FIELDS) {
+      if (k in data) (next as any)[k] = (data as any)[k];
+    }
+    localStorage.setItem(localInfoKey(bookingId), JSON.stringify(next));
+  } catch {
+    // ignore
+  }
+}
+
+// Persist a mapping of attachment URL -> original filename so we can show a
+// friendly label instead of a storage GUID.
+const attachmentNamesKey = (bookingId: number) => `event_prep_attachment_names:${bookingId}`;
+const attachmentUploadersKey = (bookingId: number) => `event_prep_attachment_uploaders:${bookingId}`;
+function readAttachmentNames(bookingId: number): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(attachmentNamesKey(bookingId));
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+function writeAttachmentName(bookingId: number, url: string, originalName: string) {
+  try {
+    const map = readAttachmentNames(bookingId);
+    map[url] = originalName;
+    localStorage.setItem(attachmentNamesKey(bookingId), JSON.stringify(map));
+  } catch {
+    // ignore
+  }
+}
+
+function readAttachmentUploaders(bookingId: number): Record<string, 'client' | 'service_provider'> {
+  try {
+    const raw = localStorage.getItem(attachmentUploadersKey(bookingId));
+    return raw ? (JSON.parse(raw) as Record<string, 'client' | 'service_provider'>) : {};
+  } catch {
+    return {};
+  }
+}
+function writeAttachmentUploader(bookingId: number, url: string, role: 'client' | 'service_provider') {
+  try {
+    const map = readAttachmentUploaders(bookingId);
+    map[url] = role;
+    localStorage.setItem(attachmentUploadersKey(bookingId), JSON.stringify(map));
+  } catch {
+    // ignore
+  }
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
    Data hook
    ────────────────────────────────────────────────────────────────────────── */
@@ -155,12 +235,22 @@ function useEventPrep(bookingId: number) {
 
         // Merge server with any local time cache
         const localTimes = readLocalTimes(bookingId);
+        // Merge server with any local info cache (contacts/venue)
+        const localInfo = readLocalInfo(bookingId);
         const merged: EventPrep = { ...(e as EventPrep) };
         let needsServerUpdate = false;
         for (const k of TIME_FIELDS) {
           const sv = (merged as any)[k];
           const lv = (localTimes as any)[k];
           if ((!sv || String(sv).trim() === "") && lv) {
+            (merged as any)[k] = lv;
+            needsServerUpdate = true;
+          }
+        }
+        for (const k of CONTACT_FIELDS) {
+          const sv = (merged as any)[k];
+          const lv = (localInfo as any)[k];
+          if ((!sv || String(sv).trim?.() === "") && lv) {
             (merged as any)[k] = lv;
             needsServerUpdate = true;
           }
@@ -199,6 +289,7 @@ function useEventPrep(bookingId: number) {
       setEp((prev) => ({ ...(prev as EventPrep), ...p }));
       startSaving();
       writeLocalTimes(bookingId, p);
+      writeLocalInfo(bookingId, p);
 
       if (saveTimer.current) clearTimeout(saveTimer.current);
       pendingPatchRef.current = { ...pendingPatchRef.current, ...p };
@@ -224,21 +315,55 @@ function useEventPrep(bookingId: number) {
   );
 
   const uploadAttachment = useCallback(
-    async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
-      const { data: up } = await uploadBookingAttachment(formData);
-      if (up?.url) {
-        const { data: created } = await addEventPrepAttachment(bookingId, up.url);
-        setAttachments((prev) => [...prev, created]);
+    async (file: File, onProgress?: (pct: number) => void): Promise<EventPrepAttachment | void> => {
+      startSaving();
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const { data: up } = await uploadBookingAttachment(formData, (evt) => {
+          if (!onProgress || !evt.total) return;
+          const pct = Math.round((evt.loaded * 100) / evt.total);
+          onProgress(pct);
+        });
+        if (up?.url) {
+          const { data: created } = await addEventPrepAttachment(bookingId, up.url);
+          // Remember the original filename for display
+          try { writeAttachmentName(bookingId, created.file_url, file.name || "file"); } catch {}
+          setAttachments((prev) => [...prev, created]);
+          doneSaving();
+          return created as EventPrepAttachment;
+        }
+        doneSaving();
+      } catch (err) {
+        console.error('Upload failed:', err);
+        stopSaving();
+        throw err;
       }
     },
-    [bookingId]
+    [bookingId, startSaving, doneSaving, stopSaving]
   );
 
   const deleteAttachment = useCallback(
     async (id: number) => {
-      setAttachments((prev) => prev.filter((a) => a.id !== id));
+      setAttachments((prev) => {
+        const target = prev.find((a) => a.id === id);
+        if (target) {
+          // Remove stored name/uploader mapping on delete
+          try {
+            const names = readAttachmentNames(bookingId);
+            if (names[target.file_url]) {
+              delete names[target.file_url];
+              localStorage.setItem(attachmentNamesKey(bookingId), JSON.stringify(names));
+            }
+            const upMap = readAttachmentUploaders(bookingId);
+            if (upMap[target.file_url]) {
+              delete upMap[target.file_url];
+              localStorage.setItem(attachmentUploadersKey(bookingId), JSON.stringify(upMap));
+            }
+          } catch {}
+        }
+        return prev.filter((a) => a.id !== id);
+      });
       try {
         await deleteEventPrepAttachment(bookingId, id);
       } catch (err) {
@@ -360,7 +485,7 @@ function EventTimeline({
 }) {
   return (
     <section aria-label="Event timeline">
-      <h3 className="text-base font-semibold text-gray-900">Event Timeline</h3>
+      <h3 className="text-base font-semibold text-gray-900 ">Event Timeline</h3>
       <p className="mt-1 text-xs text-gray-500">All times are local.</p>
 
       <div className="relative mt-4 pl-8">
@@ -453,21 +578,46 @@ function AttachmentUploader({
   onUpload,
   attachments,
   onDelete,
+  bookingId,
+  isProvider,
 }: {
-  onUpload: (file: File) => Promise<void> | void;
+  onUpload: (file: File, onProgress?: (pct: number) => void) => Promise<EventPrepAttachment | void> | void;
   attachments: EventPrepAttachment[];
   onDelete: (id: number) => Promise<void> | void;
+  bookingId: number;
+  isProvider: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [justUploaded, setJustUploaded] = useState(false);
+  const [currentName, setCurrentName] = useState<string>("");
+  const [progress, setProgress] = useState<number>(0);
 
   const handleFile = async (file?: File) => {
     if (!file) return;
-    await onUpload(file);
+    try {
+      setUploading(true);
+      setJustUploaded(false);
+      setCurrentName(file.name || "file");
+      const created = await onUpload(file, (pct?: number) => {
+        if (typeof pct === 'number') setProgress(pct);
+      });
+      try {
+        const url = (created as any)?.file_url as string | undefined;
+        if (url) writeAttachmentUploader(bookingId, url, isProvider ? 'service_provider' : 'client');
+      } catch {}
+      setJustUploaded(true);
+      setTimeout(() => setJustUploaded(false), 1500);
+    } finally {
+      setUploading(false);
+      setCurrentName("");
+      setProgress(0);
+    }
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const onPick = () => inputRef.current?.click();
+  const onPick = () => { if (!uploading) inputRef.current?.click(); };
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) => handleFile(e.target.files?.[0]);
 
   const onDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
@@ -500,6 +650,26 @@ function AttachmentUploader({
     }
   };
 
+  const displayName = (url: string) => {
+    try {
+      const names = readAttachmentNames(bookingId);
+      return names[url] || fileName(url);
+    } catch {
+      return fileName(url);
+    }
+  };
+
+  const attachmentUploaderRole = (url: string): 'client' | 'service_provider' | null => {
+    const serverRole = null as any; // might be present on the attachment object itself; handled below per-item
+    if (serverRole) return serverRole;
+    try {
+      const up = readAttachmentUploaders(bookingId);
+      return (up[url] as any) || null;
+    } catch {
+      return null;
+    }
+  };
+
   return (
     <div
       className={`rounded-xl border border-gray-200 ${isDragging ? 'bg-gray-50' : 'bg-white'} p-3 transition-colors`}
@@ -508,10 +678,25 @@ function AttachmentUploader({
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}
     >
+      {(uploading || justUploaded) && (
+        <div className="mb-2 flex items-center justify-center gap-2 text-sm">
+          {uploading ? (
+            <>
+              <Loader2Icon width={16} height={16} className="animate-spin text-gray-600" />
+              <span className="text-gray-700">Uploading {currentName}…</span>
+            </>
+          ) : (
+            <>
+              <CheckCircle2Icon width={16} height={16} className="text-emerald-600" />
+              <span className="text-emerald-700">Uploaded</span>
+            </>
+          )}
+        </div>
+      )}
       <div className="flex flex-col items-center gap-2 text-gray-700">
         <UploadCloudIcon className="opacity-75" width={28} height={28} />
         <div className="text-sm text-gray-600">
-          <button type="button" onClick={onPick} className="font-semibold underline decoration-gray-400 underline-offset-2">
+          <button type="button" onClick={onPick} disabled={uploading} className={`font-semibold underline decoration-gray-400 underline-offset-2 ${uploading ? 'opacity-60 cursor-not-allowed' : ''}`}>
             Click to upload
           </button>
           <span className="ml-1">or drag & drop</span>
@@ -520,22 +705,47 @@ function AttachmentUploader({
         <input ref={inputRef} type="file" hidden onChange={onChange} accept="application/pdf,image/*" />
       </div>
 
-      {attachments.length > 0 && (
+      {(attachments.length > 0 || uploading) && (
         <div className="mt-3 border-t border-gray-200 pt-2">
           <ul className="divide-y divide-gray-100">
+            {uploading && (
+              <li className="flex items-center justify-between py-2 text-sm opacity-80">
+                <span className="truncate text-gray-900">{currentName || 'Uploading…'}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600">{progress}%</span>
+                  <Loader2Icon width={16} height={16} className="animate-spin text-gray-600" />
+                </div>
+              </li>
+            )}
             {attachments.map((a) => (
               <li key={a.id} className="flex items-center justify-between py-2 text-sm">
                 <a href={a.file_url} target="_blank" rel="noopener noreferrer" className="truncate text-gray-900 hover:underline">
-                  {fileName(a.file_url)}
+                  {displayName(a.file_url)}
                 </a>
-                <button
-                  type="button"
-                  aria-label="delete attachment"
-                  onClick={() => onDelete(a.id)}
-                  className="inline-flex items-center rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
-                >
-                  <Trash2Icon width={16} height={16} className="opacity-70" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Checkmark for uploaded file */}
+                  <CheckCircle2Icon width={16} height={16} className="text-emerald-600" aria-hidden="true" />
+                  {(() => {
+                    // Determine if current user can delete this attachment
+                    const serverRole = (a as any).uploaded_by_role as 'client' | 'service_provider' | undefined;
+                    const localRole = attachmentUploaderRole(a.file_url);
+                    const uploaderRole = serverRole || localRole || null;
+                    const meRole = isProvider ? 'service_provider' : 'client';
+                    const canDelete = !uploaderRole || uploaderRole === meRole;
+                    return (
+                      <button
+                        type="button"
+                        aria-label="delete attachment"
+                        onClick={() => canDelete && onDelete(a.id)}
+                        disabled={!canDelete}
+                        className={`inline-flex items-center rounded border border-gray-300 bg-white px-2 py-1 text-xs ${canDelete ? 'text-gray-700 hover:bg-gray-50' : 'text-gray-400 cursor-not-allowed opacity-60'}`}
+                        title={canDelete ? 'Delete attachment' : 'You cannot delete this file'}
+                      >
+                        <Trash2Icon width={16} height={16} className="opacity-70" />
+                      </button>
+                    );
+                  })()}
+                </div>
               </li>
             ))}
           </ul>
@@ -577,6 +787,22 @@ function LinkButton({ children, href, icon, disabledWhenEmpty = true, className 
 export default function EventPrepForm({ bookingId }: { bookingId: number }) {
   const { user } = useAuth();
   const isProvider = user?.user_type === "service_provider";
+  const rolePill = isProvider ? "Client" : "You";
+
+  // Local-only extras for People & Place: event type and guest count
+  const [eventTypeExtra, setEventTypeExtra] = useState<string>("");
+  const [guestsExtra, setGuestsExtra] = useState<string>("");
+  const extrasKey = useMemo(() => `event_prep_extras:${bookingId}`,[bookingId]);
+  const readExtras = useCallback(() => {
+    try { const raw = localStorage.getItem(extrasKey); return raw ? JSON.parse(raw) as { event_type?: string; guests?: string } : {}; } catch { return {}; }
+  }, [extrasKey]);
+  const writeExtras = useCallback((data: { event_type?: string; guests?: string }) => {
+    try {
+      const cur = readExtras();
+      const next = { ...cur, ...data };
+      localStorage.setItem(extrasKey, JSON.stringify(next));
+    } catch {}
+  }, [extrasKey, readExtras]);
 
   const {
     booking,
@@ -591,6 +817,57 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
     soundcheckEnd,
     setSoundcheckEnd,
   } = useEventPrep(bookingId);
+
+  // When server has values already, hydrate local extras
+  useEffect(() => {
+    if (!ep) return;
+    if (!eventTypeExtra && (ep as any).event_type) {
+      setEventTypeExtra(String((ep as any).event_type || ''));
+    }
+    if (!guestsExtra && (ep as any).guests_count != null) {
+      setGuestsExtra(String((ep as any).guests_count || ''));
+    }
+  }, [ep]);
+
+  // Prefill extras from Booking Wizard details embedded in the first booking-details
+  // system message. Do not fallback to service category; we want the user's chosen type.
+  useEffect(() => {
+    if (!booking) return;
+    // Load persisted extras (user-edited values win)
+    const saved = readExtras();
+    if (saved.event_type) setEventTypeExtra(saved.event_type);
+    if (saved.guests) setGuestsExtra(saved.guests);
+
+    // Try parse from booking thread system booking-details message
+    const brId = booking.booking_request_id;
+    if (brId) {
+      getMessagesForBookingRequest(brId).then((res) => {
+        const msgs = res.data || [] as any[];
+        const sys = msgs.find((m) => {
+          if (String(m.message_type).toUpperCase() !== 'SYSTEM' || typeof m.content !== 'string') return false;
+          const c = m.content.trim();
+          // Prefer canonical prefix; fall back to legacy bracket label
+          return c.startsWith(BOOKING_DETAILS_PREFIX) || /\[\s*BOOKING\s+DETAILS\s*\]/i.test(c);
+        });
+        if (sys) {
+          // Normalize legacy bracket header by replacing with canonical prefix for parsing
+          const normalized = (sys.content as string).replace(/\[\s*BOOKING\s+DETAILS\s*\]\s*/i, BOOKING_DETAILS_PREFIX);
+          const parsed = parseBookingDetailsFromMessage(normalized);
+          if (!saved.event_type && parsed.eventType) {
+            setEventTypeExtra(parsed.eventType);
+            writeExtras({ event_type: parsed.eventType });
+            try { patch({ event_type: parsed.eventType } as any); } catch {}
+          }
+          if (!saved.guests && parsed.guests) {
+            const g = String(parsed.guests).replace(/[^0-9]/g, '');
+            setGuestsExtra(g);
+            writeExtras({ guests: g });
+            try { const n = g ? Number(g) : null; patch({ guests_count: (n as any) } as any); } catch {}
+          }
+        }
+      }).catch(() => {});
+    }
+  }, [booking, readExtras, writeExtras]);
 
   const progress = useMemo(() => {
     const done = ep?.progress_done ?? 0;
@@ -612,9 +889,16 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
   const soundNeeded = Boolean((ep as any)?.is_sound_required ?? (booking as any)?.requires_sound ?? false);
   const techOwner = ep.tech_owner === "artist" ? "Artist brings PA" : "Venue system";
   const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
-  const receiptUrl = booking.payment_id ? `${apiBase}/api/v1/payments/${booking.payment_id}/receipt` : undefined;
+  // Build receipt URL: prefer booking.payment_id; else fallback to localStorage (mock payments)
+  let receiptUrl: string | undefined = booking.payment_id ? `${apiBase}/api/v1/payments/${booking.payment_id}/receipt` : undefined;
+  if (!receiptUrl && booking.booking_request_id) {
+    try {
+      const stored = localStorage.getItem(`receipt_url:br:${booking.booking_request_id}`);
+      if (stored) receiptUrl = stored;
+    } catch {}
+  }
   const icsUrl = `${apiBase}/api/v1/bookings/${bookingId}/calendar.ics`;
-  const venueAddress = ep.venue_address || booking?.service?.service_provider?.location || "";
+  const venueAddress = ep.venue_address || (booking?.service as any)?.artist?.location || "";
   const mapsUrl = venueAddress ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueAddress)}` : undefined;
   const heroImage =
     booking?.service?.media_url ||
@@ -629,13 +913,38 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
     performance: isProvider ? "Client" : "You",
   };
 
+  // Contact details for Quick Links (prefer provider's configured contact details if present)
+  const providerUserId = (booking?.service as any)?.artist?.user?.id
+    || (booking?.service as any)?.artist?.user_id
+    || null;
+  let contactEmail = (booking?.service as any)?.artist?.contact_email
+    || (booking?.service as any)?.artist?.user?.email
+    || '';
+  let contactPhone = (booking?.service as any)?.artist?.contact_phone
+    || (booking?.service as any)?.artist?.user?.phone_number
+    || '';
+  let contactWebsite = (booking?.service as any)?.artist?.contact_website
+    || (booking?.service as any)?.artist?.portfolio_urls?.[0]
+    || '';
+  try {
+    if (providerUserId) {
+      const local = JSON.parse(localStorage.getItem(`sp:contact:${providerUserId}`) || '{}');
+      if (!contactEmail && local.email) contactEmail = local.email;
+      if (!contactPhone && local.phone) contactPhone = local.phone;
+      if (!contactWebsite && local.website) contactWebsite = local.website;
+    }
+  } catch {}
+  const telHref = contactPhone ? `tel:${contactPhone.replace(/\s+/g,'')}` : undefined;
+  const mailHref = contactEmail ? `mailto:${contactEmail}` : undefined;
+  const webHref = contactWebsite ? (contactWebsite.startsWith('http') ? contactWebsite : `https://${contactWebsite}`) : undefined;
+
   return (
     <div className="mx-auto max-w-[1180px] px-4 py-6 text-gray-900">
       {/* Sticky Header */}
       <div className="sticky md:top-[72px] z-40 mb-4 rounded-2xl border border-gray-200 bg-white/80 px-4 py-3 backdrop-blur">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-base font-bold">{booking.service?.title || "Event Preparation"}</div>
+            <div className="text-base font-bold">{booking.service?.title || "Event Preparation"} - {eventDate ? format(eventDate, "EEE, d MMM yyyy") : "Date TBA"}</div>
             <div className="mt-2 flex items-center gap-3">
               <div className="h-1.5 w-44 rounded-full bg-gray-200">
                 <div className="h-full rounded-full bg-gray-900" style={{ width: `${progress.pct}%` }} />
@@ -668,10 +977,44 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
             />
           </div>
 
-          {/* People & Place (as requested) */}
+          {/* People & Place (client-owned) */}
           <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
-            <h3 className="text-base font-semibold">People & Place</h3>
-            <p className="mt-1 text-xs text-white/60">On-the-day contacts and location details</p>
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-base font-semibold">People & Place</h3>
+                <p className="mt-1 text-xs text-white/60">On-the-day contacts and location details</p>
+              </div>
+              <span className="ml-3 inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-600" title="Owner">
+                {rolePill}
+              </span>
+            </div>
+
+            {/* Event meta confirmation */}
+            <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-xs text-gray-600">Type of event</label>
+                <input
+                  type="text"
+                  value={eventTypeExtra}
+                  onChange={(e) => { const val = e.target.value; setEventTypeExtra(val); writeExtras({ event_type: val }); try { patch({ event_type: val } as any); } catch {} }}
+                  placeholder="e.g. Wedding, Corporate, Birthday"
+                  className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                />
+                <p className="text-[11px] text-gray-500">Confirm type of event.</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-gray-600">Number of guests</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={guestsExtra}
+                  onChange={(e) => { const v = e.target.value.replace(/[^0-9]/g, ''); setGuestsExtra(v); writeExtras({ guests: v }); try { const n = v ? Number(v) : null; patch({ guests_count: (n as any) } as any); } catch {} }}
+                  placeholder="e.g. 120"
+                  className="w-full rounded-md bg-white border border-gray-300 px-2 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                />
+                <p className="text-[11px] text-gray-500">An estimated count is fine.</p>
+              </div>
+            </div>
 
             <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
               {/* On-the-day contact name */}
@@ -739,7 +1082,7 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
               </div>
               <div>
                 <div className="mb-1 text-sm font-medium text-white/90">Attachments</div>
-                <AttachmentUploader onUpload={uploadAttachment} attachments={attachments} onDelete={deleteAttachment} />
+                <AttachmentUploader bookingId={bookingId} isProvider={!!isProvider} onUpload={uploadAttachment} attachments={attachments} onDelete={deleteAttachment} />
               </div>
             </div>
           </div>
@@ -758,9 +1101,33 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
           <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4">
             <h3 className="mb-2 text-base font-semibold">Quick Links</h3>
             <div className="space-y-2">
-              <LinkButton href={riderUrl || undefined} icon={<CheckCircle2Icon width={16} height={16} />} className="w-full justify-center">Open Rider (PDF)</LinkButton>
+              {(
+                // Show rider to providers always; for clients, only when they should provide sound
+                (isProvider && !!riderUrl) || (!isProvider && !soundNeeded && !!riderUrl)
+              ) && (
+                <LinkButton href={riderUrl || undefined} icon={<FileTextIcon width={16} height={16} />} className="w-full justify-center">Open Rider (PDF)</LinkButton>
+              )}
               <LinkButton href={receiptUrl} icon={<ReceiptTextIcon width={16} height={16} />} className="w-full justify-center">View Receipt</LinkButton>
               <LinkButton href={icsUrl} icon={<CalendarDaysIcon width={16} height={16} />} className="w-full justify-center">Add to Calendar (.ics)</LinkButton>
+              <div className="h-px bg-gray-200 my-2" />
+              <h4 className="text-xs font-semibold text-gray-600">Contact</h4>
+              <div className="grid grid-cols-1 gap-2">
+                <LinkButton href={mailHref} icon={<MailIcon width={16} height={16} />} className="w-full justify-center" disabledWhenEmpty>
+                  {contactEmail || 'No email set'}
+                </LinkButton>
+                <LinkButton href={telHref} icon={<PhoneIcon width={16} height={16} />} className="w-full justify-center" disabledWhenEmpty>
+                  {contactPhone || 'No phone set'}
+                </LinkButton>
+                {webHref && (
+                  <LinkButton
+                    href={webHref}
+                    icon={<span aria-hidden="true" className="text-base leading-none">🌐</span>}
+                    className="w-full justify-center"
+                  >
+                    {contactWebsite}
+                  </LinkButton>
+                )}
+              </div>
             </div>
           </div>
           <div className="rounded-2xl border border-gray-200 bg-white p-4">

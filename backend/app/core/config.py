@@ -60,6 +60,10 @@ class Settings(BaseSettings):
 
     # Payment gateway base URL
     PAYMENT_GATEWAY_URL: str = "https://example.com"
+    # Paystack test/live keys (optional)
+    PAYSTACK_SECRET_KEY: str = ""
+    PAYSTACK_PUBLIC_KEY: str = ""
+    PAYSTACK_CALLBACK_URL: str = ""
 
     # SMTP email settings
     SMTP_HOST: str = "localhost"

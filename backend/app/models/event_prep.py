@@ -60,6 +60,10 @@ class EventPrep(BaseModel):
     # Separate notes for parking & access (Location section)
     parking_access_notes = Column(String, nullable=True)
 
+    # New: canonical fields from Booking Wizard
+    event_type = Column(String, nullable=True)
+    guests_count = Column(Integer, nullable=True)
+
     # Cached int for quick progress bars; server recomputes on reads/writes
     progress_cached = Column(Integer, nullable=False, default=0)
 

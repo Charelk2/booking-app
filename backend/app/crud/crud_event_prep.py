@@ -130,6 +130,8 @@ def upsert(
         "notes",
         "schedule_notes",
         "parking_access_notes",
+        "event_type",
+        "guests_count",
     ]:
         if key in patch:
             setattr(ep, key, patch[key])

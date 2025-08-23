@@ -69,6 +69,9 @@ interface ServiceFormData {
   service_type: Service["service_type"] | undefined;
   title: string;
   description: string;
+  /** Free-text duration label, e.g. "60-90 min" */
+  duration_label?: string;
+  /** Numeric fallback used for legacy displays and sorting */
   duration_minutes: number | "";
   is_remote: boolean;
   price: number | "";
@@ -88,6 +91,7 @@ const emptyDefaults: ServiceFormData = {
   service_type: undefined,
   title: "",
   description: "",
+  duration_label: "",
   duration_minutes: 60,
   is_remote: false,
   price: 0,
@@ -116,6 +120,10 @@ export default function AddServiceModalMusician({
       service_type: service?.service_type,
       title: service?.title ?? "",
       description: service?.description ?? "",
+      duration_label:
+        (service as any)?.duration ||
+        (service as any)?.details?.duration_label ||
+        (service?.duration_minutes != null ? `${service.duration_minutes} min` : ""),
       duration_minutes: service?.duration_minutes ?? 60,
       is_remote: service?.is_remote ?? false,
       price: service?.price ?? 0,
@@ -134,7 +142,7 @@ export default function AddServiceModalMusician({
     setValue,
     watch,
     trigger,
-    formState: { errors, isSubmitting, isValid },
+    formState: { errors, isSubmitting, isValid, touchedFields },
   } = useForm<ServiceFormData>({
     mode: "onChange",
     reValidateMode: "onChange",
@@ -218,7 +226,7 @@ export default function AddServiceModalMusician({
       const valid = await trigger([
         "title",
         "description",
-        "duration_minutes",
+        "duration_label",
         "price",
       ]);
       if (!valid) return;
@@ -280,10 +288,25 @@ export default function AddServiceModalMusician({
     setServerError(null);
     setPublishing(true);
     try {
+      // Normalize duration label -> string + numeric fallback
+      const rawLabel = (data.duration_label || "").toString().trim();
+      const numberMatches = rawLabel.match(/\d+/g) || [];
+      const firstNumber = numberMatches.length > 0 ? parseInt(numberMatches[0]!, 10) : Number(data.duration_minutes || 0) || 0;
+      const normalizedLabel = (() => {
+        if (numberMatches.length >= 2) {
+          const a = parseInt(numberMatches[0]!, 10);
+          const b = parseInt(numberMatches[1]!, 10);
+          if (Number.isFinite(a) && Number.isFinite(b)) return `${a}\u2013${b} min`;
+        }
+        if (numberMatches.length === 1 && Number.isFinite(firstNumber)) return `${firstNumber} min`;
+        // Fallback: keep whatever user typed
+        return rawLabel || `${Number(data.duration_minutes || 60)} min`;
+      })();
+
       const serviceData: any = {
         ...data,
         price: Number(data.price || 0),
-        duration_minutes: Number(data.duration_minutes || 0),
+        duration_minutes: Number.isFinite(firstNumber) && firstNumber > 0 ? firstNumber : Number(data.duration_minutes || 0),
         service_category_slug: "musician",
         travel_rate: data.travel_rate ? Number(data.travel_rate) : undefined,
         travel_members: data.travel_members
@@ -313,6 +336,12 @@ export default function AddServiceModalMusician({
                 ? (data.sound_city_prefs || [])
                 : undefined,
           },
+          duration_label: normalizedLabel,
+        };
+      } else {
+        serviceData.details = {
+          ...(service?.details as any),
+          duration_label: normalizedLabel,
         };
       }
       let media_url = existingMediaUrl || "";
@@ -363,7 +392,6 @@ export default function AddServiceModalMusician({
 
   const types: { value: Service["service_type"]; label: string }[] = [
     { value: "Live Performance", label: "Live Performance" },
-    { value: "Virtual Appearance", label: "Virtual Appearance" },
     { value: "Personalized Video", label: "Personalized Video" },
     { value: "Custom Song", label: "Custom Song" },
     { value: "Other", label: "Other" },
@@ -589,14 +617,20 @@ export default function AddServiceModalMusician({
                           </div>
 
                           <TextInput
-                            label="Duration (minutes)"
-                            type="number"
-                            {...register("duration_minutes", {
+                            label="Duration (minutes or range)"
+                            placeholder="e.g., 60-90 min or 45–60 min or 1-5 min"
+                            type="text"
+                            {...register("duration_label", {
                               required: "Duration is required",
-                              valueAsNumber: true,
-                              min: { value: 1, message: "Minimum 1 minute" },
+                              validate: (v) => {
+                                const s = (v || '').toString().trim();
+                                // Must contain at least one number
+                                if (!/\d+/.test(s)) return 'Enter a number or range (e.g., 60-90)';
+                                return true;
+                              },
                             })}
-                            error={errors.duration_minutes?.message}
+                            // Do not show error styling until the field is touched or validation is triggered
+                            error={touchedFields?.duration_label ? (errors.duration_label?.message as string | undefined) : undefined}
                           />
                           <TextInput
                             label={`Price (${DEFAULT_CURRENCY})`}
@@ -878,7 +912,7 @@ export default function AddServiceModalMusician({
                             </div>
                             <div className="rounded-md border p-2">
                               <h3 className="font-medium">Duration</h3>
-                              <p>{watch("duration_minutes") || 0} minutes</p>
+                              <p>{(watch("duration_label") as string) || `${watch("duration_minutes") || 0} min`}</p>
                             </div>
                           <div className="rounded-md border p-2">
                             <h3 className="font-medium">Price</h3>

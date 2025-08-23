@@ -69,7 +69,7 @@ export default function ServiceDetailPage() {
             <p className="text-gray-600 mb-2">{service.description}</p>
           )}
           <p className="text-gray-800 font-semibold">
-            {formatCurrency(Number(service.price))} — {service.duration_minutes} min
+            {formatCurrency(Number(service.price))} — {(service as any).duration || (service as any)?.details?.duration_label || `${service.duration_minutes} min`}
           </p>
           {average && (
             <p className="mt-2 flex items-center text-sm text-gray-700">
@@ -106,4 +106,3 @@ export default function ServiceDetailPage() {
     </MainLayout>
   );
 }
-

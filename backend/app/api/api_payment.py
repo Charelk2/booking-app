@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, status, Request
+from fastapi import APIRouter, Depends, status, Request, Query, Header
 from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -25,6 +26,9 @@ from ..models import (
 from .dependencies import get_db, get_current_active_client, get_current_service_provider
 from ..core.config import settings
 from ..utils import error_response
+import hmac
+import hashlib
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +99,44 @@ def create_payment(
     )
     logger.info("Resolved payment amount %s", amount)
     charge_amount = Decimal(str(amount))
+
+    # If Paystack is configured, initialize a checkout session instead of immediate capture
+    if settings.PAYSTACK_SECRET_KEY:
+        try:
+            # Resolve amount (Paystack expects the smallest currency unit)
+            amount_float = float(amount)
+            amount_int = int(round(amount_float * 100))
+            client_email = getattr(current_user, "email", None) or f"user{current_user.id}@example.com"
+            callback = settings.PAYSTACK_CALLBACK_URL or None
+            headers = {
+                "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "email": client_email,
+                "amount": amount_int,
+                # Explicitly set currency to match our app default (e.g., ZAR)
+                "currency": settings.DEFAULT_CURRENCY or "ZAR",
+            }
+            if callback:
+                payload["callback_url"] = callback
+            with httpx.Client(timeout=10.0) as client:
+                r = client.post("https://api.paystack.co/transaction/initialize", json=payload, headers=headers)
+                r.raise_for_status()
+                data = r.json().get("data", {})
+            auth_url = data.get("authorization_url")
+            reference = data.get("reference")
+            if not auth_url or not reference:
+                raise RuntimeError("Invalid Paystack response")
+            # Store a pending marker on BookingSimple so we can correlate on verify
+            booking.payment_id = reference
+            booking.payment_status = "pending"
+            db.add(booking)
+            db.commit()
+            return {"status": "redirect", "authorization_url": auth_url, "reference": reference, "payment_id": reference}
+        except Exception as exc:
+            logger.error("Paystack init error: %s", exc, exc_info=True)
+            raise error_response("Payment initialization failed", {}, status.HTTP_502_BAD_GATEWAY)
 
     # Mock if env flag is set or if using default example gateway URL
     MOCK_GATEWAY = bool(PAYMENT_GATEWAY_FAKE or (settings.PAYMENT_GATEWAY_URL and 'example.com' in settings.PAYMENT_GATEWAY_URL))
@@ -192,6 +234,203 @@ def create_payment(
         )
 
     return {"status": "ok", "payment_id": charge.get("id")}
+
+
+@router.get("/paystack/verify")
+def paystack_verify(
+    reference: str = Query(..., min_length=4),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_client),
+):
+    if not settings.PAYSTACK_SECRET_KEY:
+        raise error_response("Paystack not configured", {}, status.HTTP_400_BAD_REQUEST)
+    headers = {
+        "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+        "Content-Type": "application/json",
+    }
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            r = client.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers)
+            r.raise_for_status()
+            data = r.json().get("data", {})
+        status_str = str(data.get("status", "")).lower()
+        amount_kobo = int(data.get("amount", 0) or 0)
+        amount = Decimal(str(amount_kobo / 100.0))
+    except Exception as exc:
+        logger.error("Paystack verify error: %s", exc, exc_info=True)
+        raise error_response("Verification failed", {}, status.HTTP_502_BAD_GATEWAY)
+
+    if status_str != "success":
+        raise error_response("Payment not successful", {"status": status_str}, status.HTTP_400_BAD_REQUEST)
+
+    # Resolve booking via reference stored in payment_id
+    simple = db.query(BookingSimple).filter(BookingSimple.payment_id == reference).first()
+    if not simple:
+        raise error_response("Payment reference not recognized", {}, status.HTTP_404_NOT_FOUND)
+    if simple.client_id != current_user.id:
+        raise error_response("Forbidden", {}, status.HTTP_403_FORBIDDEN)
+
+    # Mark paid and propagate changes (same as create_payment success path)
+    simple.deposit_paid = True
+    simple.payment_status = "paid"
+    simple.deposit_amount = amount
+    simple.payment_id = reference
+    simple.charged_total_amount = amount
+    simple.confirmed = True
+
+    br = None
+    if simple.quote and simple.quote.booking_request:
+        br = simple.quote.booking_request
+        if br.status != BookingStatus.REQUEST_CONFIRMED:
+            br.status = BookingStatus.REQUEST_CONFIRMED
+    formal_booking = db.query(Booking).filter(Booking.quote_id == simple.quote_id).first()
+    if formal_booking and formal_booking.status != BookingStatus.CONFIRMED:
+        formal_booking.status = BookingStatus.CONFIRMED
+
+    db.commit()
+    db.refresh(simple)
+
+    if br:
+        try:
+            receipt_suffix = f" Receipt: /api/v1/payments/{simple.payment_id}/receipt" if simple.payment_id else ""
+            crud.crud_message.create_message(
+                db=db,
+                booking_request_id=br.id,
+                sender_id=simple.artist_id,
+                sender_type=SenderType.ARTIST,
+                content=f"Payment received — order #{simple.payment_id}.{receipt_suffix}",
+                message_type=MessageType.SYSTEM,
+                visible_to=VisibleTo.BOTH,
+                action=None,
+                system_key="payment_received",
+            )
+            db.commit()
+        except Exception:
+            pass
+
+    return {"status": "ok", "payment_id": simple.payment_id}
+
+
+@router.get("/{payment_id}/receipt")
+def download_receipt(payment_id: str, request: Request, db: Session = Depends(get_db)):
+    """Return a minimal plaintext receipt for the given payment id.
+
+    In test mode we emit a small text response so callers can download it.
+    """
+    # Try to find a booking_simple with this payment_id to extract some context
+    bs = db.query(BookingSimple).filter(BookingSimple.payment_id == payment_id).first()
+    lines = [
+        f"Payment ID: {payment_id}",
+        f"Date: {datetime.utcnow().isoformat()}Z",
+    ]
+    if bs:
+        try:
+            amt = bs.charged_total_amount or bs.deposit_amount or Decimal("0")
+            lines.append(f"Amount: {amt} ZAR")
+        except Exception:
+            pass
+        if bs.quote and bs.quote.booking_request_id:
+            lines.append(f"Booking Request: {bs.quote.booking_request_id}")
+    body = "\n".join(lines) + "\n"
+    headers = {"Content-Disposition": f"attachment; filename=receipt-{payment_id}.txt"}
+    return Response(content=body, media_type="text/plain", headers=headers)
+
+
+@router.post("/paystack/webhook")
+async def paystack_webhook(
+    request: Request,
+    db: Session = Depends(get_db),
+    x_paystack_signature: str | None = Header(default=None),
+):
+    """Handle Paystack webhook events (test/production).
+
+    - Verifies HMAC SHA512 signature of the raw request body using PAYSTACK_SECRET_KEY.
+    - On `charge.success`, marks the matching booking paid and emits the system message.
+    - Idempotent: if already marked paid, returns 200 OK.
+    """
+    if not settings.PAYSTACK_SECRET_KEY:
+        return Response(status_code=status.HTTP_200_OK)
+
+    raw = await request.body()
+    try:
+        expected = hmac.new(
+            key=settings.PAYSTACK_SECRET_KEY.encode("utf-8"),
+            msg=raw,
+            digestmod=hashlib.sha512,
+        ).hexdigest()
+        if not x_paystack_signature or x_paystack_signature != expected:
+            logger.warning("Paystack webhook signature mismatch")
+            return Response(status_code=status.HTTP_400_BAD_REQUEST)
+    except Exception as exc:
+        logger.error("Webhook signature verification failed: %s", exc)
+        return Response(status_code=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except Exception:
+        return Response(status_code=status.HTTP_400_BAD_REQUEST)
+
+    event = str(payload.get("event", "")).lower()
+    data = payload.get("data", {}) or {}
+    reference = str(data.get("reference", ""))
+    status_str = str(data.get("status", "")).lower()
+    amount_kobo = int(data.get("amount", 0) or 0)
+    amount = Decimal(str(amount_kobo / 100.0))
+
+    if event != "charge.success" and status_str != "success":
+        return Response(status_code=status.HTTP_200_OK)
+
+    if not reference:
+        return Response(status_code=status.HTTP_200_OK)
+
+    # Correlate with pending BookingSimple using reference
+    simple = db.query(BookingSimple).filter(BookingSimple.payment_id == reference).first()
+    if not simple:
+        # Not a fatal condition; acknowledge to avoid retries
+        return Response(status_code=status.HTTP_200_OK)
+
+    # Idempotency
+    if simple.deposit_paid:
+        return Response(status_code=status.HTTP_200_OK)
+
+    # Mark paid and propagate (same as manual verify path)
+    simple.deposit_paid = True
+    simple.payment_status = "paid"
+    simple.deposit_amount = amount
+    simple.charged_total_amount = amount
+    simple.confirmed = True
+
+    br = None
+    if simple.quote and simple.quote.booking_request:
+        br = simple.quote.booking_request
+        if br.status != BookingStatus.REQUEST_CONFIRMED:
+            br.status = BookingStatus.REQUEST_CONFIRMED
+    formal_booking = db.query(Booking).filter(Booking.quote_id == simple.quote_id).first()
+    if formal_booking and formal_booking.status != BookingStatus.CONFIRMED:
+        formal_booking.status = BookingStatus.CONFIRMED
+
+    db.commit()
+    db.refresh(simple)
+
+    if br:
+        try:
+            receipt_suffix = f" Receipt: /api/v1/payments/{simple.payment_id}/receipt" if simple.payment_id else ""
+            crud.crud_message.create_message(
+                db=db,
+                booking_request_id=br.id,
+                sender_id=simple.artist_id,
+                sender_type=SenderType.ARTIST,
+                content=f"Payment received — order #{simple.payment_id}.{receipt_suffix}",
+                message_type=MessageType.SYSTEM,
+                visible_to=VisibleTo.BOTH,
+                action=None,
+                system_key="payment_received",
+            )
+            db.commit()
+        except Exception:
+            pass
+
+    return Response(status_code=status.HTTP_200_OK)
 
 
 class PaymentAuthorizeIn(BaseModel):
