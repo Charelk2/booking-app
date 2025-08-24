@@ -11,6 +11,7 @@ from app.database import get_db
 from app.api.dependencies import get_current_user
 from app.models.webauthn_credential import WebAuthnCredential
 from app.utils.redis_cache import get_redis_client
+import redis
 from app.models.user import User
 from app.api.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -51,7 +52,7 @@ def _bytes_to_b64url(b: bytes) -> str:
 
 
 @router.get("/registration/options")
-def registration_options(current_user=Depends(get_current_user)):
+def registration_options(request: Request, current_user=Depends(get_current_user)):
     client = get_redis_client()
     challenge = secrets.token_bytes(32)
     rp_id = urlparse(settings.FRONTEND_URL).hostname or "localhost"
@@ -73,7 +74,12 @@ def registration_options(current_user=Depends(get_current_user)):
         "authenticatorSelection": {"residentKey": "required", "userVerification": "preferred"},
     }
     # Store canonical base64url string for compatibility with Redis decode_responses
-    client.setex(f"webauthn:reg:{current_user.id}", 600, _bytes_to_b64url(challenge))
+    chal_b64 = _bytes_to_b64url(challenge)
+    try:
+        client.setex(f"webauthn:reg:{current_user.id}", 600, chal_b64)
+    except redis.exceptions.ConnectionError:
+        # Fallback to session cookie if Redis is unavailable
+        request.session["webauthn_reg_chal"] = chal_b64
     return options
 
 
@@ -86,9 +92,15 @@ def registration_verify(payload: dict, request: Request, db: Session = Depends(g
         raise HTTPException(status_code=501, detail="WebAuthn verification library not installed. Install 'webauthn'.")
 
     client = get_redis_client()
-    stored = client.get(f"webauthn:reg:{current_user.id}")
+    try:
+        stored = client.get(f"webauthn:reg:{current_user.id}")
+    except redis.exceptions.ConnectionError:
+        stored = None
     if not stored:
-        raise HTTPException(status_code=400, detail="Registration challenge not found or expired")
+        # Fallback to session storage
+        stored = request.session.get("webauthn_reg_chal")
+        if not stored:
+            raise HTTPException(status_code=400, detail="Registration challenge not found or expired")
 
     # Prefer the browser-provided Origin header to match dev/prod hosts
     header_origin = request.headers.get("origin")
@@ -195,7 +207,7 @@ def registration_verify(payload: dict, request: Request, db: Session = Depends(g
 
 
 @router.get("/authentication/options")
-def authentication_options():
+def authentication_options(request: Request):
     client = get_redis_client()
     challenge = secrets.token_bytes(32)
     options = {
@@ -207,7 +219,11 @@ def authentication_options():
         "userVerification": "preferred",
     }
     # Store canonical base64url string for compatibility with Redis decode_responses
-    client.setex("webauthn:auth:anon", 600, _bytes_to_b64url(challenge))
+    chal_b64 = _bytes_to_b64url(challenge)
+    try:
+        client.setex("webauthn:auth:anon", 600, chal_b64)
+    except redis.exceptions.ConnectionError:
+        request.session["webauthn_auth_chal"] = chal_b64
     return options
 
 
@@ -220,9 +236,14 @@ def authentication_verify(payload: dict, request: Request, db: Session = Depends
         raise HTTPException(status_code=501, detail="WebAuthn verification library not installed. Install 'webauthn'.")
 
     client = get_redis_client()
-    stored = client.get("webauthn:auth:anon")
+    try:
+        stored = client.get("webauthn:auth:anon")
+    except redis.exceptions.ConnectionError:
+        stored = None
     if not stored:
-        raise HTTPException(status_code=400, detail="Authentication challenge not found or expired")
+        stored = request.session.get("webauthn_auth_chal")
+        if not stored:
+            raise HTTPException(status_code=400, detail="Authentication challenge not found or expired")
 
     header_origin = request.headers.get("origin")
     origin = header_origin or _origin_from_url(settings.FRONTEND_URL)
