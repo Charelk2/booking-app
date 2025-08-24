@@ -1,4 +1,14 @@
 {
+  "components/booking/steps/DateTimeStep.tsx -> react-datepicker": {
+    "id": "components/booking/steps/DateTimeStep.tsx -> react-datepicker",
+    "files": []
+  },
+  "components/booking/steps/LocationStep.tsx -> @react-google-maps/api": {
+    "id": "components/booking/steps/LocationStep.tsx -> @react-google-maps/api",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_react-google-maps_api_dist_esm_js.js"
+    ]
+  },
   "components/search/SearchBar.tsx -> ./SearchPopupContent": {
     "id": "components/search/SearchBar.tsx -> ./SearchPopupContent",
     "files": [
