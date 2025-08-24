@@ -7,6 +7,7 @@ import MobileBottomNav from './MobileBottomNav';
 import clsx from 'clsx';
 import { usePathname } from 'next/navigation';
 import Footer from './Footer';
+import { Analytics } from '@vercel/analytics/next';
 
 const SCROLL_THRESHOLD_DOWN = 60; // desktop scroll behavior only
 const SCROLL_THRESHOLD_UP = 10;
@@ -427,6 +428,9 @@ export default function MainLayout({
       {!hideFooter && <Footer />}
 
       {user && <MobileBottomNav user={user} />}
+
+      {/* Vercel Analytics */}
+      <Analytics />
     </div>
   );
 }
