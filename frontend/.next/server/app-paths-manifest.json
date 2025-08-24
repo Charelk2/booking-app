@@ -1,7 +1,7 @@
 {
   "/security/enable/page": "app/security/enable/page.js",
-  "/page": "app/page.js",
   "/dashboard/client/page": "app/dashboard/client/page.js",
-  "/login/page": "app/login/page.js",
-  "/service-providers/[id]/page": "app/service-providers/[id]/page.js"
+  "/page": "app/page.js",
+  "/service-providers/[id]/page": "app/service-providers/[id]/page.js",
+  "/login/page": "app/login/page.js"
 }

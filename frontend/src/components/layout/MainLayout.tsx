@@ -7,7 +7,7 @@ import MobileBottomNav from './MobileBottomNav';
 import clsx from 'clsx';
 import { usePathname } from 'next/navigation';
 import Footer from './Footer';
-import { Analytics } from '@vercel/analytics/next';
+import { Analytics } from '@vercel/analytics/react';
 
 const SCROLL_THRESHOLD_DOWN = 60; // desktop scroll behavior only
 const SCROLL_THRESHOLD_UP = 10;
