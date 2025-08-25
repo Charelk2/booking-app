@@ -139,6 +139,162 @@ def ensure_service_type_column(engine: Engine) -> None:
     )
 
 
+def ensure_service_status_column(engine: Engine) -> None:
+    """Ensure moderation status column exists on services.
+
+    status values: draft | pending_review | approved | rejected
+    """
+    add_column_if_missing(
+        engine,
+        "services",
+        "status",
+        "status VARCHAR NOT NULL DEFAULT 'pending_review'",
+    )
+
+
+def ensure_ledger_tables(engine: Engine) -> None:
+    """Create lightweight ledger table if absent (SQLAlchemy metadata won't add to existing DB without migrations)."""
+    inspector = inspect(engine)
+    if "ledger_entries" in inspector.get_table_names():
+        return
+    with engine.connect() as conn:
+        conn.execute(text(
+            """
+            CREATE TABLE IF NOT EXISTS ledger_entries (
+              id INTEGER PRIMARY KEY,
+              booking_id INTEGER,
+              type VARCHAR NOT NULL,
+              amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+              currency VARCHAR(3) NOT NULL DEFAULT 'ZAR',
+              meta JSON,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        ))
+        conn.commit()
+
+
+def ensure_payout_tables(engine: Engine) -> None:
+    inspector = inspect(engine)
+    if "payouts" not in inspector.get_table_names():
+        with engine.connect() as conn:
+            conn.execute(text(
+                """
+                CREATE TABLE IF NOT EXISTS payouts (
+                  id INTEGER PRIMARY KEY,
+                  provider_id INTEGER,
+                  amount NUMERIC(10,2) NOT NULL DEFAULT 0,
+                  currency VARCHAR(3) NOT NULL DEFAULT 'ZAR',
+                  status VARCHAR NOT NULL DEFAULT 'queued',
+                  batch_id VARCHAR,
+                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            ))
+            conn.commit()
+
+
+def ensure_dispute_table(engine: Engine) -> None:
+    inspector = inspect(engine)
+    if "disputes" in inspector.get_table_names():
+        return
+    with engine.connect() as conn:
+        conn.execute(text(
+            """
+            CREATE TABLE IF NOT EXISTS disputes (
+              id INTEGER PRIMARY KEY,
+              booking_id INTEGER NOT NULL,
+              status VARCHAR NOT NULL DEFAULT 'open',
+              reason VARCHAR,
+              assigned_admin_id INTEGER,
+              due_at DATETIME,
+              notes JSON,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        ))
+        conn.commit()
+
+
+def ensure_email_sms_event_tables(engine: Engine) -> None:
+    inspector = inspect(engine)
+    with engine.connect() as conn:
+        if "email_events" not in inspector.get_table_names():
+            conn.execute(text(
+                """
+                CREATE TABLE IF NOT EXISTS email_events (
+                  id INTEGER PRIMARY KEY,
+                  message_id VARCHAR,
+                  recipient VARCHAR,
+                  template VARCHAR,
+                  event VARCHAR,
+                  booking_id INTEGER,
+                  user_id INTEGER,
+                  payload JSON,
+                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            ))
+        if "sms_events" not in inspector.get_table_names():
+            conn.execute(text(
+                """
+                CREATE TABLE IF NOT EXISTS sms_events (
+                  id INTEGER PRIMARY KEY,
+                  sid VARCHAR,
+                  recipient VARCHAR,
+                  status VARCHAR,
+                  booking_id INTEGER,
+                  user_id INTEGER,
+                  payload JSON,
+                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            ))
+        conn.commit()
+
+
+def ensure_audit_events_table(engine: Engine) -> None:
+    inspector = inspect(engine)
+    if "audit_events" in inspector.get_table_names():
+        return
+    with engine.connect() as conn:
+        conn.execute(text(
+            """
+            CREATE TABLE IF NOT EXISTS audit_events (
+              id INTEGER PRIMARY KEY,
+              actor_admin_id INTEGER NOT NULL,
+              entity VARCHAR NOT NULL,
+              entity_id VARCHAR NOT NULL,
+              action VARCHAR NOT NULL,
+              before JSON,
+              after JSON,
+              at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        ))
+        conn.commit()
+
+
+def ensure_service_moderation_logs(engine: Engine) -> None:
+    inspector = inspect(engine)
+    if "service_moderation_logs" in inspector.get_table_names():
+        return
+    with engine.connect() as conn:
+        conn.execute(text(
+            """
+            CREATE TABLE IF NOT EXISTS service_moderation_logs (
+              id INTEGER PRIMARY KEY,
+              service_id INTEGER NOT NULL,
+              admin_id INTEGER NOT NULL,
+              action VARCHAR NOT NULL,
+              reason VARCHAR,
+              at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        ))
+        conn.commit()
+
+
 def ensure_performance_indexes(engine: Engine) -> None:
     """Create lightweight indexes that speed up common homepage queries.
 
@@ -378,6 +534,36 @@ def ensure_message_reactions_table(engine: Engine) -> None:
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_msg_reaction_message ON message_reactions(message_id)"))
         except Exception:
             pass
+
+
+def ensure_booka_system_user(engine: Engine) -> None:
+    """Ensure a lightweight 'Booka' system user exists for SYSTEM messages.
+
+    The user will not be used for login. It serves as the sender for system
+    messages so the data model has a consistent origin.
+    """
+    email = os.getenv("BOOKA_SYSTEM_EMAIL", "system@booka.co.za").strip().lower()
+    with engine.connect() as conn:
+        try:
+            exists = conn.execute(text("SELECT id FROM users WHERE lower(email)=:e LIMIT 1"), {"e": email}).fetchone()
+            if exists:
+                return
+            # Insert minimal record. Password is a placeholder; the account is not used for auth.
+            conn.execute(text(
+                """
+                INSERT INTO users (email, password, first_name, last_name, phone_number, is_active, is_verified, user_type)
+                VALUES (:email, :password, :first_name, :last_name, :phone, 1, 1, 'client')
+                """
+            ), {
+                "email": email,
+                "password": "!disabled-system-user!",
+                "first_name": "Booka",
+                "last_name": "",
+                "phone": None,
+            })
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
 
 def cleanup_blank_messages(engine: Engine) -> int:

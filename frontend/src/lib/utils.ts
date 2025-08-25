@@ -13,7 +13,23 @@ export const getFullImageUrl = (
     relativePath.startsWith('https://') ||
     relativePath.startsWith('data:')
   ) {
-    return relativePath;
+    // Guard against non-image external URLs (e.g., social profile pages)
+    try {
+      if (relativePath.startsWith('data:')) return relativePath;
+      const u = new URL(relativePath);
+      const host = u.hostname.toLowerCase();
+      const pathLower = u.pathname.toLowerCase();
+      const hasImageExt = /(\.png|\.jpg|\.jpeg|\.webp|\.gif|\.svg|\.avif)(\?|$)/.test(pathLower);
+      if (hasImageExt) return relativePath;
+      // Any external URL without an image extension is treated as a profile/page link.
+      // Fall back to our default avatar to avoid next/image host errors.
+      let base = api.defaults.baseURL || '';
+      base = base.replace(/\/+$/, '');
+      base = base.replace(/\/api(?:\/v\d+)?$/, '');
+      return `${base}/static/default-avatar.svg`;
+    } catch {
+      return relativePath;
+    }
   }
 
   const cleanPath = relativePath.startsWith('/static/')
@@ -159,6 +175,86 @@ export const getCityFromAddress = (address: string): string => {
     }
   }
   return parts[parts.length - 1] ?? '';
+};
+
+/**
+ * Extract the South African province from an address string, if present.
+ * Returns a nicely capitalized name like "Western Cape" or an empty string if not found.
+ */
+export const getProvinceFromAddress = (address: string): string => {
+  if (!address) return '';
+  const provinces = [
+    'eastern cape',
+    'western cape',
+    'northern cape',
+    'gauteng',
+    'kwazulu-natal',
+    'limpopo',
+    'mpumalanga',
+    'north west',
+    'free state',
+  ];
+  const lower = address.toLowerCase();
+  let match = provinces.find((p) => lower.includes(p));
+  // Fallback by city if province is not explicitly present
+  if (!match) {
+    const cityToProvince: Record<string, string> = {
+      // Western Cape
+      'cape town': 'western cape',
+      'stellenbosch': 'western cape',
+      'paarl': 'western cape',
+      'somerset west': 'western cape',
+      'strand': 'western cape',
+      'mossel bay': 'western cape',
+      'george': 'western cape',
+      'knysna': 'western cape',
+      'hermanus': 'western cape',
+      'malmesbury': 'western cape',
+      // Gauteng
+      'johannesburg': 'gauteng',
+      'sandton': 'gauteng',
+      'soweto': 'gauteng',
+      'pretoria': 'gauteng',
+      'centurion': 'gauteng',
+      // KwaZulu-Natal
+      'durban': 'kwazulu-natal',
+      'pietermaritzburg': 'kwazulu-natal',
+      'umhlanga': 'kwazulu-natal',
+      // Eastern Cape
+      'gqeberha': 'eastern cape',
+      'port elizabeth': 'eastern cape',
+      'east london': 'eastern cape',
+      // Free State
+      'bloemfontein': 'free state',
+      // Northern Cape
+      'kimberley': 'northern cape',
+      // Limpopo
+      'polokwane': 'limpopo',
+      // Mpumalanga
+      'mbombela': 'mpumalanga',
+      'nelspruit': 'mpumalanga',
+      // North West
+      'mafikeng': 'north west',
+      'mahikeng': 'north west',
+    };
+    const foundCity = Object.keys(cityToProvince).find((city) => lower.includes(city));
+    if (foundCity) match = cityToProvince[foundCity];
+  }
+  if (!match) return '';
+  // Capitalize each word and handle hyphenated names
+  const words = match.split(/([ -])/); // keep separators
+  return words
+    .map((w) => (/^[ -]$/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join('');
+};
+
+/**
+ * Return a compact location display: "Town, Province" when available; otherwise just the town.
+ */
+export const getTownProvinceFromAddress = (address: string): string => {
+  const city = getCityFromAddress(address);
+  const province = getProvinceFromAddress(address);
+  return province ? `${city}, ${province}` : city;
 };
 
 export const normalizeQuoteTemplate = (

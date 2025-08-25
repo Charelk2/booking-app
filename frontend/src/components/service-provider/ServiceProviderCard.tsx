@@ -9,7 +9,7 @@ import {
   StarIcon,
   CheckBadgeIcon,
 } from '@heroicons/react/24/solid';
-import { getFullImageUrl, getCityFromAddress } from '@/lib/utils';
+import { getFullImageUrl, getTownProvinceFromAddress } from '@/lib/utils';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 
 export interface ServiceProviderCardProps extends HTMLAttributes<HTMLDivElement> {
@@ -160,7 +160,7 @@ export default function ServiceProviderCard({
         <div className="flex justify-between items-center mt-4">
           {location ? (
             <span className="text-sm text-gray-600 truncate">
-              {getCityFromAddress(location)}
+              {getTownProvinceFromAddress(location)}
             </span>
           ) : (
             <span />

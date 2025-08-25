@@ -87,9 +87,29 @@ def get_message_thread_notifications(db: Session, user_id: int) -> List[dict]:
     threads: Dict[int, dict] = {}
     for n in notifs:
         match = re.search(r"(?:/booking-requests/|/inbox\?requestId=)(\d+)", n.link)
-        if not match:
+        request_id: int | None = int(match.group(1)) if match else None
+        # Support stable Booka alias links without numeric id
+        if request_id is None and "/inbox?booka=1" in (n.link or ""):
+            # Resolve the most recent Booka moderation thread for this user (artist)
+            try:
+                # Find the latest moderation message for any of the user's threads
+                latest = (
+                    db.query(models.Message)
+                    .join(models.BookingRequest, models.BookingRequest.id == models.Message.booking_request_id)
+                    .filter(
+                        models.BookingRequest.artist_id == user_id,
+                        models.Message.message_type == models.MessageType.SYSTEM,
+                        models.Message.system_key.ilike("listing_%"),
+                    )
+                    .order_by(models.Message.timestamp.desc())
+                    .first()
+                )
+                if latest:
+                    request_id = int(latest.booking_request_id)
+            except Exception:
+                request_id = None
+        if request_id is None:
             continue
-        request_id = int(match.group(1))
 
         thread = threads.get(request_id)
         if thread is None:
@@ -193,6 +213,7 @@ def mark_thread_read(db: Session, user_id: int, booking_request_id: int) -> None
             models.Notification.link.in_([
                 f"/booking-requests/{booking_request_id}",
                 f"/inbox?requestId={booking_request_id}",
+                "/inbox?booka=1",
             ]),
             models.Notification.is_read == False,
         )

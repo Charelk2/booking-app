@@ -174,3 +174,112 @@ def get_threads_preview(
 
     items.sort(key=lambda i: i.last_ts, reverse=True)
     return ThreadPreviewResponse(items=items, next_cursor=None)
+
+
+@router.post("/message-threads/ensure-booka-thread")
+def ensure_booka_thread(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Ensure a Booka thread exists for the current artist and contains the latest
+    moderation message (approved/rejected) for one of their services.
+
+    Returns a booking_request_id which the client can navigate to.
+    """
+    if current_user.user_type != models.UserType.SERVICE_PROVIDER:
+        return {"booking_request_id": None}
+
+    # Ensure Booka system user exists
+    import os
+    from sqlalchemy import func
+    system_email = (os.getenv("BOOKA_SYSTEM_EMAIL") or "system@booka.co.za").strip().lower()
+    system_user = db.query(models.User).filter(func.lower(models.User.email) == system_email).first()
+    if not system_user:
+        try:
+            system_user = models.User(
+                email=system_email,
+                password="!disabled-system-user!",
+                first_name="Booka",
+                last_name="",
+                phone_number=None,
+                is_active=True,
+                is_verified=True,
+                user_type=models.UserType.CLIENT,
+            )
+            db.add(system_user)
+            db.commit()
+            db.refresh(system_user)
+        except Exception:
+            db.rollback()
+
+    # Find or create a booking thread
+    br = (
+        db.query(models.BookingRequest)
+        .filter(models.BookingRequest.artist_id == current_user.id)
+        .order_by(models.BookingRequest.created_at.desc())
+        .first()
+    )
+    if not br and system_user:
+        br = models.BookingRequest(
+            client_id=system_user.id,
+            artist_id=current_user.id,
+            status=models.BookingStatus.PENDING_QUOTE,
+        )
+        db.add(br)
+        db.commit()
+        db.refresh(br)
+
+    if not br:
+        return {"booking_request_id": None}
+
+    # Best-effort: find the most recently updated approved/rejected service
+    s = (
+        db.query(models.Service)
+        .filter(models.Service.artist_id == current_user.id)
+        .filter(models.Service.status.in_(["approved", "rejected"]))
+        .order_by(models.Service.updated_at.desc() if hasattr(models.Service, 'updated_at') else models.Service.id.desc())
+        .first()
+    )
+
+    if s is None:
+        return {"booking_request_id": br.id}
+
+    # Post system message if not already present
+    from ..crud import crud_message
+    key = f"listing_approved_v1:{s.id}" if s.status == "approved" else f"listing_rejected_v1:{s.id}"
+    exists = (
+        db.query(models.Message)
+        .filter(models.Message.booking_request_id == br.id, models.Message.system_key == key)
+        .first()
+    )
+    if not exists:
+        if s.status == "approved":
+            msg = (
+                f"Listing approved: {s.title}\n"
+                f"Congratulations! Your listing has been approved and is now live.\n"
+                f"View listing: /services/{s.id}\n"
+                f"Need help? Contact support at support@booka.co.za."
+            )
+        else:
+            msg = (
+                f"Listing rejected: {s.title}\n"
+                f"Reason: No reason provided.\n"
+                f"You can update your listing and resubmit.\n"
+                f"View listing: /dashboard/artist?tab=services\n"
+                f"Need help? Contact support at support@booka.co.za."
+            )
+        try:
+            crud_message.create_message(
+                db,
+                booking_request_id=br.id,
+                sender_id=(system_user.id if system_user else current_user.id),
+                sender_type=models.SenderType.CLIENT,
+                content=msg,
+                message_type=models.MessageType.SYSTEM,
+                visible_to=models.VisibleTo.BOTH,
+                system_key=key,
+            )
+        except Exception:
+            pass
+
+    return {"booking_request_id": br.id}

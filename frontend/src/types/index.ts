@@ -106,6 +106,9 @@ export interface Service {
   display_order: number;
   price: number;
 
+  /** Moderation status to reflect dashboard visibility */
+  status?: 'draft' | 'pending_review' | 'approved' | 'rejected';
+
   /** Canonical relation */
   service_provider: ServiceProviderProfile;
   /** DEPRECATED alias kept during migration */

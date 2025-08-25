@@ -498,6 +498,7 @@ def read_all_service_provider_profiles(
             func.group_concat(ServiceCategory.name, ",").label("service_categories"),
         )
         .join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
+        .filter(getattr(Service, "status", "approved") == "approved")
         .group_by(Service.artist_id)
         .subquery()
     )
@@ -515,8 +516,8 @@ def read_all_service_provider_profiles(
         .outerjoin(booking_subq, booking_subq.c.artist_id == Artist.user_id)
         .outerjoin(category_subq, category_subq.c.artist_id == Artist.user_id)
     )
-    # Exclude service providers who have not added any services.
-    query = query.filter(Artist.services.any())
+    # Exclude service providers who have not added any APPROVED services.
+    query = query.filter(Artist.services.any(Service.status == "approved"))
     if artist:
         query = query.join(User).filter(
             or_(
@@ -532,7 +533,7 @@ def read_all_service_provider_profiles(
         price_query = db.query(
             Service.artist_id.label("artist_id"),
             func.min(Service.price).label("service_price"),
-        )
+        ).filter(getattr(Service, "status", "approved") == "approved")
         if category_slug:
             price_query = price_query.join(Service.service_category).filter(
                 func.lower(ServiceCategory.name) == category_slug.replace("_", " ")
@@ -805,6 +806,7 @@ def list_service_provider_profiles(
 
     min_price_subq = (
         db.query(Service.artist_id.label("artist_id"), func.min(Service.price).label("min_price"))
+        .filter(getattr(Service, "status", "approved") == "approved")
         .group_by(Service.artist_id)
         .subquery()
     )
@@ -813,10 +815,13 @@ def list_service_provider_profiles(
         db.query(Artist, min_price_subq.c.min_price)
         .outerjoin(min_price_subq, Artist.user_id == min_price_subq.c.artist_id)
     )
+    # Hide providers with zero approved services
+    q = q.filter(Artist.services.any(Service.status == "approved"))
 
     if category:
         q = q.join(Service, Service.artist_id == Artist.user_id)
         q = q.join(ServiceCategory, Service.service_category_id == ServiceCategory.id)
+        q = q.filter(getattr(Service, "status", "approved") == "approved")
         q = q.filter(func.lower(ServiceCategory.name) == category.lower())
     if location:
         q = q.filter(Artist.location.ilike(f"%{location}%"))
@@ -871,7 +876,13 @@ def list_service_provider_profiles(
     if include_price_distribution:
         buckets = PRICE_BUCKETS
         counts = [0 for _ in buckets]
-        all_min_prices = [float(p or 0) for p, in db.query(func.min(Service.price)).group_by(Service.artist_id).all()]
+        all_min_prices = [
+            float(p or 0)
+            for p, in db.query(func.min(Service.price))
+            .filter(getattr(Service, "status", "approved") == "approved")
+            .group_by(Service.artist_id)
+            .all()
+        ]
         for price in all_min_prices:
             for idx, (lo, hi) in enumerate(buckets):
                 if lo <= price <= hi:

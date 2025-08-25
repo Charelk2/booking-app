@@ -37,6 +37,20 @@ interface BookingContextValue {
   setTravelResult: (r: TravelResult | null) => void;
   resetBooking: () => void;
   loadSavedProgress: () => boolean;
+  peekSavedProgress: () => {
+    step?: number;
+    details?: Partial<EventDetails> & { date?: string; time?: string };
+    serviceId?: number;
+    requestId?: number;
+    travelResult?: TravelResult | null;
+  } | null;
+  applySavedProgress: (parsed: {
+    step?: number;
+    details?: Partial<EventDetails> & { date?: string; time?: string };
+    serviceId?: number;
+    requestId?: number;
+    travelResult?: TravelResult | null;
+  }) => void;
 }
 
 const BookingContext = createContext<BookingContextValue | undefined>(undefined);
@@ -76,14 +90,28 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  /**
-   * Restore an in-progress booking from localStorage if the user confirms.
-   * Returns true when progress was restored.
-   */
-  const loadSavedProgress = () => {
-    if (typeof window === 'undefined') return false;
+  // Determine whether saved data is meaningful (user actually started)
+  const hasMeaningfulProgress = (p: {
+    step?: number;
+    details?: Partial<EventDetails> & { date?: string | null; time?: string };
+  }) => {
+    if (!p) return false;
+    if ((p.step ?? 0) > 0) return true;
+    const d = p.details || {};
+    const nonempty = (v?: string | null) => !!(v && String(v).trim());
+    return (
+      nonempty(d.eventDescription) ||
+      nonempty(d.location) ||
+      nonempty(d.guests) ||
+      nonempty(d.eventType) ||
+      (d.date != null && String(d.date).trim() !== '')
+    );
+  };
+
+  const peekSavedProgress = () => {
+    if (typeof window === 'undefined') return null;
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return false;
+    if (!stored) return null;
     try {
       const parsed = JSON.parse(stored) as {
         step?: number;
@@ -92,34 +120,42 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
         requestId?: number;
         travelResult?: TravelResult | null;
       };
-
-      const resume = window.confirm(
-        'Resume your previous booking request? Choose Cancel to start over.',
-      );
-      if (!resume) {
-        localStorage.removeItem(STORAGE_KEY);
-        return false;
-      }
-
-      if (parsed.step !== undefined) setStep(parsed.step);
-      if (parsed.details) {
-        const parsedDetails: EventDetails = {
-          ...initialDetails,
-          ...parsed.details,
-          date: parsed.details.date ? new Date(parsed.details.date) : new Date(),
-        };
-        setDetails(parsedDetails);
-      }
-      if (parsed.serviceId !== undefined) setServiceId(parsed.serviceId);
-      if (parsed.requestId !== undefined) setRequestId(parsed.requestId);
-      if (parsed.travelResult) setTravelResult(parsed.travelResult);
-
-      return true;
+      if (!hasMeaningfulProgress(parsed)) return null;
+      return parsed;
     } catch (e) {
       console.error('Failed to parse saved booking progress:', e);
       localStorage.removeItem(STORAGE_KEY);
-      return false;
+      return null;
     }
+  };
+
+  const applySavedProgress = (parsed: {
+    step?: number;
+    details?: Partial<EventDetails> & { date?: string; time?: string };
+    serviceId?: number;
+    requestId?: number;
+    travelResult?: TravelResult | null;
+  }) => {
+    if (parsed.step !== undefined) setStep(parsed.step);
+    if (parsed.details) {
+      const parsedDetails: EventDetails = {
+        ...initialDetails,
+        ...parsed.details,
+        date: parsed.details.date ? new Date(parsed.details.date) : new Date(),
+      };
+      setDetails(parsedDetails);
+    }
+    if (parsed.serviceId !== undefined) setServiceId(parsed.serviceId);
+    if (parsed.requestId !== undefined) setRequestId(parsed.requestId);
+    if (parsed.travelResult) setTravelResult(parsed.travelResult);
+  };
+
+  // Legacy: keep API but do not auto-confirm; only restore if there is meaningful progress
+  const loadSavedProgress = () => {
+    const parsed = peekSavedProgress();
+    if (!parsed) return false;
+    applySavedProgress(parsed);
+    return true;
   };
 
   // Persist progress with throttling to avoid excessive localStorage writes
@@ -144,7 +180,10 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
       travelResult: throttledState.travelResult,
     };
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      // Only persist if there is meaningful progress
+      if (hasMeaningfulProgress(data)) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
     } catch (e) {
       console.error('Failed to save booking progress:', e);
     }
@@ -164,6 +203,8 @@ export const BookingProvider = ({ children }: { children: ReactNode }) => {
       setTravelResult,
       resetBooking,
       loadSavedProgress,
+      peekSavedProgress,
+      applySavedProgress,
     }}
     >
       {children}

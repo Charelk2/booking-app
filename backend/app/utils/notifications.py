@@ -473,12 +473,17 @@ def notify_user_new_message(
         content=content,
         sender_name=sender_name,
     )
+    # For Booka moderation posts, route to a stable alias instead of numeric requestId
+    low = (content or "").strip().lower()
+    link = f"/inbox?requestId={booking_request_id}"
+    if low.startswith("listing approved:") or low.startswith("listing rejected:"):
+        link = "/inbox?booka=1"
     _create_and_broadcast(
         db,
         user.id,
         NotificationType.NEW_MESSAGE,
         message,
-        f"/inbox?requestId={booking_request_id}",
+        link,
         sender_name=sender_name,
         avatar_url=avatar_url,
     )
@@ -858,3 +863,33 @@ def notify_service_nudge(service: "models.Service", booking: "models.Booking") -
         logger.info("Nudge supplier %s: %s", supplier_id, message)
     except Exception as exc:  # pragma: no cover - best effort only
         logger.warning("notify_service_nudge failed: %s", exc)
+
+
+# ─── Listings moderation notifications ────────────────────────────────────────
+def notify_listing_moderation(
+    db: Session,
+    service: "models.Service",  # type: ignore[name-defined]
+    approved: bool,
+    reason: str | None = None,
+) -> None:
+    """Notify a provider that their listing was approved or rejected.
+
+    Uses NEW_MESSAGE type for broad compatibility with existing UI handlers.
+    """
+    try:
+        title = getattr(service, "title", "Your listing")
+        if approved:
+            msg = f"Your listing '{title}' was approved."
+        else:
+            extra = f" Reason: {reason}" if reason else ""
+            msg = f"Your listing '{title}' was rejected.{extra}"
+        _create_and_broadcast(
+            db,
+            user_id=service.artist_id,
+            ntype=NotificationType.NEW_MESSAGE,
+            message=msg,
+            link="/dashboard/artist?tab=services",
+        )
+        logger.info("Notify provider %s: %s", service.artist_id, msg)
+    except Exception as exc:  # pragma: no cover - best effort
+        logger.warning("notify_listing_moderation failed: %s", exc)

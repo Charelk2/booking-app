@@ -67,6 +67,8 @@ class ServiceResponse(ServiceBase):
     created_at: datetime
     updated_at: datetime
     media_url: str
+    # Moderation status: draft | pending_review | approved | rejected
+    status: Optional[str] = None
 
     @model_validator(mode="after")
     def derive_category_slug(cls, model: "ServiceResponse") -> "ServiceResponse":

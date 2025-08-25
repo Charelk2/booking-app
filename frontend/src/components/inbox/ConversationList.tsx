@@ -234,6 +234,20 @@ export default function ConversationList({
           return /\bquote\b/i.test(text);
         })();
 
+        // Listing moderation chips from system preview text; or explicit flag from synthetic rows
+        const isSyntheticBooka = Boolean((req as any).is_booka_synthetic);
+        const showApprovedChip = /^\s*listing\s+approved:/i.test((previewMessage || '').toString());
+        const showRejectedChip = /^\s*listing\s+rejected:/i.test((previewMessage || '').toString());
+
+        // Override display for Booka moderation previews
+        let rowName = otherName;
+        let rowAvatar = avatarUrl as string | undefined | null;
+        const isBookaModeration = isSyntheticBooka || showApprovedChip || showRejectedChip;
+        if (isBookaModeration) {
+          rowName = 'Booka';
+          rowAvatar = undefined; // fall back to letter avatar 'B'
+        }
+
         return (
           <div
             style={style}
@@ -271,10 +285,10 @@ export default function ConversationList({
             )}
           >
             {/* Avatar Handling */}
-            {avatarUrl ? (
+            {rowAvatar ? (
               <Image
-                src={getFullImageUrl(avatarUrl) as string}
-                alt={`${otherName} avatar`}
+                src={getFullImageUrl(rowAvatar) as string}
+                alt={`${rowName} avatar`}
                 width={40}
                 height={40}
                 loading="lazy"
@@ -285,7 +299,7 @@ export default function ConversationList({
               />
             ) : (
               <div className={clsx('h-10 w-10 rounded-full bg-black text-white flex-shrink-0 flex items-center justify-center font-medium text-lg')}>
-                {otherName.charAt(0)}
+                {rowName.charAt(0)}
               </div>
             )}
             
@@ -295,7 +309,7 @@ export default function ConversationList({
                 isUnread ? 'font-semibold text-gray-900' : 'text-gray-700'
               )}>
                 <span className="truncate flex items-center gap-2 min-w-0">
-                  <span className="truncate">{q ? highlight(otherName) : otherName}</span>
+                  <span className="truncate">{q ? highlight(rowName) : rowName}</span>
                 </span>
                 <time
                   dateTime={date}
@@ -328,8 +342,17 @@ export default function ConversationList({
                       QUOTE
                     </span>
                   )}
+                  {/* Suppress APPROVED/REJECTED chips for Booka moderation threads */}
                   <span className="truncate">
-                    {q ? highlight(previewMessage) : previewMessage}
+                    {(() => {
+                      const base = q ? highlight(previewMessage) : previewMessage;
+                      const isBookaModeration = showApprovedChip || showRejectedChip;
+                      return isBookaModeration ? (
+                        <>
+                          <span className="text-[10px] font-semibold text-indigo-700 mr-1">Booka •</span> {base}
+                        </>
+                      ) : base;
+                    })()}
                   </span>
                 </span>
               </div>
