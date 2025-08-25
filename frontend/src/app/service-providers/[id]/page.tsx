@@ -572,21 +572,6 @@ export default function ServiceProviderProfilePage() {
             </div>
 
             <div className="mx-auto max-w-5xl px-4 mt-6 space-y-8">
-              {!!galleryImages.length && (
-                <section aria-labelledby="photos-heading">
-                  <h2 id="photos-heading" className="text-lg font-bold text-gray-900">
-                    Photos
-                  </h2>
-                  <ul className="mt-3 grid grid-cols-3 gap-1">
-                    {galleryImages.slice(0, 6).map((src, i) => (
-                      <li key={`g-m-${i}`} className="relative aspect-square overflow-hidden rounded-lg border border-gray-100">
-                        <Image src={src} alt="" fill className="object-cover" sizes="50vw" />
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-
               <section id="services" aria-labelledby="services-heading" className="mb-16">
                 <h2 id="services-heading" className="text-lg font-bold text-gray-900">
                   Services
@@ -697,6 +682,23 @@ export default function ServiceProviderProfilePage() {
                   )}
                 </div>
               </section>
+              {!!galleryImages.length && (
+                <section id="portfolio" aria-labelledby="portfolio-heading" className="mt-16">
+                  <h2 id="portfolio-heading" className="text-lg font-bold text-gray-900">
+                    My Portfolio
+                  </h2>
+                  <ul className="mt-3 grid grid-cols-3 gap-1">
+                    {galleryImages.slice(0, 6).map((src, i) => (
+                      <li
+                        key={`portfolio-mobile-${i}`}
+                        className="relative aspect-square overflow-hidden rounded-lg border border-gray-100"
+                      >
+                        <Image src={src} alt="" fill className="object-cover" sizes="50vw" />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
 
               {(serviceProvider as any)?.cancellation_policy && (
                 <section aria-labelledby="policies-heading">
@@ -798,21 +800,6 @@ export default function ServiceProviderProfilePage() {
                       )}
                     </div>
                   </div>
-
-                  {!!galleryImages.length && (
-                    <section className="mt-6" aria-labelledby="photos-heading-desktop">
-                      <h2 id="photos-heading-desktop" className="text-lg font-bold text-gray-900">
-                        Photos
-                      </h2>
-                      <ul className="mt-3 grid grid-cols-4 gap-2">
-                        {galleryImages.slice(0, 9).map((src, i) => (
-                          <li key={`g-d-${i}`} className="relative aspect-square overflow-hidden rounded-lg border border-gray-100">
-                            <Image src={src} alt="" fill className="object-cover" sizes="33vw" />
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  )}
 
                   {(serviceProvider as any)?.cancellation_policy && (
                     <section className="mt-6" aria-labelledby="policies-heading-desktop">
@@ -957,6 +944,31 @@ export default function ServiceProviderProfilePage() {
                     )}
                   </div>
                 </section>
+
+                {!!galleryImages.length && (
+                  <section
+                    id="portfolio-desktop"
+                    aria-labelledby="portfolio-heading-desktop"
+                    className="mt-16"
+                  >
+                    <h2
+                      id="portfolio-heading-desktop"
+                      className="text-2xl font-bold text-gray-800 mb-6"
+                    >
+                      My Portfolio
+                    </h2>
+                    <ul className="grid grid-cols-4 gap-2">
+                      {galleryImages.slice(0, 9).map((src, i) => (
+                        <li
+                          key={`portfolio-desktop-${i}`}
+                          className="relative aspect-square overflow-hidden rounded-lg border border-gray-100"
+                        >
+                          <Image src={src} alt="" fill className="object-cover" sizes="33vw" />
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
               </section>
             </div>
           </section>
