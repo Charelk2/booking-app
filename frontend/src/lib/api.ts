@@ -327,6 +327,10 @@ export const updateService = (id: number, data: Partial<Service>) =>
 export const deleteService = (id: number) =>
   api.delete(`${API_V1}/services/${id}`);
 
+// List my services (includes unapproved for dashboard visibility)
+export const getMyServices = () =>
+  api.get<Service[]>(`${API_V1}/services/mine`);
+
 // ─── BOOKINGS ──────────────────────────────────────────────────────────────────
 
 // create booking: POST /api/v1/bookings
@@ -714,6 +718,12 @@ export const getMessageThreadsPreview = (role?: 'artist' | 'client', limit = 50)
   api.get<ThreadPreviewResponse>(
     `${API_V1}/message-threads/preview`,
     { params: { role, limit } }
+  );
+
+export const ensureBookaThread = () =>
+  api.post<{ booking_request_id: number | null }>(
+    `${API_V1}/message-threads/ensure-booka-thread`,
+    {}
   );
 
 // ─── GOOGLE CALENDAR ─────────────────────────────────────────────────────────

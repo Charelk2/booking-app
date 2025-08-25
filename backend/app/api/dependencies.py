@@ -15,6 +15,9 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         headers={"WWW-Authenticate": "Bearer"},
     )
     jwt_token = token or (request.cookies.get("access_token") if request else None)
+    if not jwt_token:
+        # No bearer token or access cookie present
+        raise credentials_exception
     try:
         payload = jwt.decode(jwt_token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")

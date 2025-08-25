@@ -12,40 +12,51 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/login/page": [
+    "/dashboard/artist/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/login/page.css",
-      "static/chunks/app/login/page.js"
+      "static/css/app/dashboard/artist/page.css",
+      "static/chunks/app/dashboard/artist/page.js"
     ],
-    "/security/page": [
+    "/dashboard/profile/edit/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/security/page.css",
-      "static/chunks/app/security/page.js"
-    ],
-    "/security/enable/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/security/enable/page.css",
-      "static/chunks/app/security/enable/page.js"
-    ],
-    "/dashboard/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/dashboard/page.js"
-    ],
-    "/dashboard/client/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/dashboard/client/page.css",
-      "static/chunks/app/dashboard/client/page.js"
+      "static/css/app/dashboard/profile/edit/page.css",
+      "static/chunks/app/dashboard/profile/edit/page.js"
     ],
     "/service-providers/[id]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/css/app/service-providers/[id]/page.css",
       "static/chunks/app/service-providers/[id]/page.js"
+    ],
+    "/booking-requests/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/booking-requests/[id]/page.css",
+      "static/chunks/app/booking-requests/[id]/page.js"
+    ],
+    "/inbox/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/inbox/page.css",
+      "static/chunks/app/inbox/page.js"
+    ],
+    "/login/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/login/page.css",
+      "static/chunks/app/login/page.js"
+    ],
+    "/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/page.js"
+    ],
+    "/_not-found/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/_not-found/page.js"
     ]
   }
 }

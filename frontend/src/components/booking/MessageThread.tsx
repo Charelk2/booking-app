@@ -264,6 +264,8 @@ interface MessageThreadProps {
   allowInstantBooking?: boolean;
   instantBookingPrice?: number;
   isDetailsPanelOpen?: boolean;
+  /** Disable the chat composer for system-only threads (e.g., Booka updates). */
+  disableComposer?: boolean;
 }
 
 // SVG
@@ -301,6 +303,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     allowInstantBooking,
     instantBookingPrice,
     isDetailsPanelOpen = false,
+    disableComposer = false,
   }: MessageThreadProps,
   ref,
 ) {
@@ -1408,6 +1411,28 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
     }
 
+    // Detect "View listing: <url>" to surface a clean CTA button
+    try {
+      const raw = String((msg as any).content || '');
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
+      const mView = raw.match(/view\s+listing\s*:\s*(https?:\/\/\S+|\/\S*)/i);
+      if (mView) {
+        let vurl = mView[1];
+        if (!/^https?:\/\//i.test(vurl)) vurl = `${apiBase}${vurl.startsWith('/') ? '' : '/'}${vurl}`;
+        actions.push(
+          <a
+            key="view-listing"
+            href={vurl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-2 text-[11px] text-indigo-700 underline hover:text-indigo-800"
+          >
+            {t('system.viewListing', 'View listing')}
+          </a>
+        );
+      }
+    } catch {}
+
     // Remove any inline receipt URL from the label; we surface a clean CTA instead
     const displayLabel = (() => {
       const stripped = String(label || '')
@@ -1420,8 +1445,16 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     })();
 
     // Centered divider style: lines left/right, text in middle; actions below
+    const isBookaModeration = key.startsWith('listing_approved_v1') || key.startsWith('listing_rejected_v1');
     return (
       <div className="my-3">
+        {isBookaModeration && (
+          <div className="flex items-center justify-center mb-1">
+            <span className="inline-flex items-center gap-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold">
+              Booka
+            </span>
+          </div>
+        )}
         <div className="flex items-center gap-3 text-xs text-gray-500">
           <div className="h-px bg-gray-200 flex-1" />
           <span className="px-2 bg-white text-gray-600 max-w-[75%] text-center break-words">
@@ -2794,8 +2827,8 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         </div>
       )}
 
-      {/* Composer — hidden on mobile while details panel is open */}
-      {user && (
+      {/* Composer — hidden on mobile while details panel is open, or entirely when disabled */}
+      {user && !disableComposer && (
         <>
           <div
             ref={composerRef}

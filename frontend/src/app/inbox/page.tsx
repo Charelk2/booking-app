@@ -15,6 +15,9 @@ import {
   getMyBookingRequests,
   getBookingRequestsForArtist,
   getMessageThreads,
+  getMessageThreadsPreview,
+  getMessagesForBookingRequest,
+  ensureBookaThread,
 } from '@/lib/api';
 import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BookingRequest } from '@/types';
@@ -36,6 +39,8 @@ export default function InboxPage() {
   const [query, setQuery] = useState('');
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const [listHeight, setListHeight] = useState<number>(420);
+  // Ensure we only attempt to create a Booka thread once per mount
+  const ensureTriedRef = useRef(false);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < BREAKPOINT_MD);
@@ -77,12 +82,182 @@ export default function InboxPage() {
       } catch (e) {
         // best-effort; ignore errors and show existing flags
       }
+      // Overlay moderation previews from the threads preview endpoint directly onto existing rows
+      try {
+        const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
+        const preview = await getMessageThreadsPreview(role as any, 50);
+        const items = preview.data?.items || [];
+        if (items.length > 0) {
+          const byId = new Map<number, BookingRequest>(combined.map((r) => [r.id, r] as [number, BookingRequest]));
+          for (const it of items) {
+            const id = (it as any).thread_id as number;
+            const r = byId.get(id);
+            if (!r) continue;
+            const text = String(it.last_message_preview || '');
+            const isBooka = String((it as any).counterparty?.name || '') === 'Booka' || /^(\s*listing\s+approved:|\s*listing\s+rejected:)/i.test(text);
+            if (isBooka) {
+              (r as any).last_message_content = it.last_message_preview;
+              (r as any).last_message_timestamp = it.last_ts;
+              (r as any).is_booka_synthetic = true; // hint for Booka display
+            }
+          }
+          // If we have no booking requests yet, synthesize rows from previews so Booka appears in Inbox
+          if (combined.length === 0) {
+            const synth: BookingRequest[] = [] as any;
+            for (const it of items) {
+              const text = String(it.last_message_preview || '');
+              const isBooka = String((it as any).counterparty?.name || '') === 'Booka' || /^(\s*listing\s+approved:|\s*listing\s+rejected:)/i.test(text);
+              if (!isBooka) continue;
+              const id = (it as any).thread_id as number;
+              synth.push({
+                id,
+                client_id: 0,
+                service_provider_id: 0 as any,
+                status: 'pending_quote' as any,
+                created_at: String(it.last_ts || new Date().toISOString()),
+                updated_at: String(it.last_ts || new Date().toISOString()),
+                last_message_content: 'Booka update',
+                last_message_timestamp: it.last_ts,
+                is_unread_by_current_user: true as any,
+                message: null,
+                travel_mode: null,
+                travel_cost: null,
+                travel_breakdown: null,
+                proposed_datetime_1: null,
+                proposed_datetime_2: null,
+                attachment_url: null,
+                service_id: undefined,
+                service: undefined,
+                artist: undefined as any,
+                artist_profile: undefined as any,
+                client: undefined as any,
+                accepted_quote_id: null,
+                sound_required: undefined as any,
+                // Hints for UI overrides
+                ...( { is_booka_synthetic: true } as any ),
+              } as any);
+            }
+            if (synth.length > 0) {
+              synth.sort((a, b) => new Date(String((b as any).last_message_timestamp || b.updated_at || b.created_at)).getTime() -
+                                     new Date(String((a as any).last_message_timestamp || a.updated_at || a.created_at)).getTime());
+              combined = synth;
+            }
+          }
+        }
+      } catch {}
+
+      // Secondary zero-state fallback: synthesize from message thread notifications
+      if (combined.length === 0) {
+        try {
+          const t = await getMessageThreads();
+          const items = (t.data || []) as any[];
+          const synth: BookingRequest[] = [] as any;
+          for (const th of items) {
+            const id = Number((th as any).booking_request_id);
+            if (!id) continue;
+            const text = String(th.last_message || '').trim();
+            const last_ts = String(th.timestamp || new Date().toISOString());
+            const isBooka = /^\s*listing\s+(approved|rejected)\s*:/i.test(text);
+            synth.push({
+              id,
+              client_id: 0,
+              service_provider_id: 0 as any,
+              status: 'pending_quote' as any,
+              created_at: last_ts,
+              updated_at: last_ts,
+              last_message_content: isBooka ? 'Booka update' : text,
+              last_message_timestamp: last_ts,
+              is_unread_by_current_user: Number(th.unread_count || 0) > 0,
+              message: null,
+              travel_mode: null,
+              travel_cost: null,
+              travel_breakdown: null,
+              proposed_datetime_1: null,
+              proposed_datetime_2: null,
+              attachment_url: null,
+              service_id: undefined,
+              service: undefined,
+              artist: undefined as any,
+              artist_profile: undefined as any,
+              client: undefined as any,
+              accepted_quote_id: null,
+              sound_required: undefined as any,
+              ...( isBooka ? { is_booka_synthetic: true } : {} ),
+            } as any);
+          }
+          if (synth.length > 0) {
+            synth.sort((a, b) => new Date(String((b as any).last_message_timestamp || b.updated_at || b.created_at)).getTime() -
+                                   new Date(String((a as any).last_message_timestamp || a.updated_at || a.created_at)).getTime());
+            combined = synth;
+          }
+        } catch {}
+      }
+
+      // Fallback: if preview overlay missed, inspect last chat messages for recent threads (best-effort)
+      try {
+        // Check up to 8 most recent rows and patch moderation previews if found
+        const sample = [...combined]
+          .sort((a, b) => new Date(String((b as any).last_message_timestamp ?? b.updated_at ?? b.created_at)).getTime() -
+                          new Date(String((a as any).last_message_timestamp ?? a.updated_at ?? a.created_at)).getTime())
+          .slice(0, 8);
+        const results = await Promise.allSettled(
+          sample.map(async (r) => {
+            const res = await getMessagesForBookingRequest(r.id);
+            const msgs = res.data || [];
+            const last = msgs[msgs.length - 1];
+            if (!last || !last.content) return null;
+            const text = String(last.content || '').trim();
+            if (/^(listing\s+approved:|listing\s+rejected:)/i.test(text)) {
+              return { id: r.id, text: 'Booka update', ts: last.timestamp } as const;
+            }
+            return null;
+          })
+        );
+        const found: Array<{ id: number; text: string; ts: string } | null> = results.map((r) => r.status === 'fulfilled' ? r.value : null);
+        const byId = new Map<number, BookingRequest>(combined.map((r) => [r.id, r] as [number, BookingRequest]));
+        for (const item of found) {
+          if (!item) continue;
+          const r = byId.get(item.id);
+          if (!r) continue;
+          (r as any).last_message_content = item.text;
+          (r as any).last_message_timestamp = item.ts;
+          (r as any).is_booka_synthetic = true;
+        }
+      } catch {}
+
       combined.sort(
         (a, b) =>
-          new Date(b.last_message_timestamp ?? b.updated_at ?? b.created_at).getTime() -
-          new Date(a.last_message_timestamp ?? a.updated_at ?? a.created_at).getTime(),
+          new Date(String((b as any).last_message_timestamp ?? b.updated_at ?? b.created_at)).getTime() -
+          new Date(String((a as any).last_message_timestamp ?? a.updated_at ?? a.created_at)).getTime(),
       );
       setAllBookingRequests(combined);
+
+      // If artist has zero threads, attempt to ensure a Booka thread exists once
+      try {
+        if (!ensureTriedRef.current && (user?.user_type === 'service_provider') && combined.length === 0) {
+          ensureTriedRef.current = true;
+          const res = await ensureBookaThread();
+          const realId = res.data?.booking_request_id;
+          if (realId) {
+            // Refetch to include the new thread
+            const mineRes2 = await getMyBookingRequests();
+            let artistRes2: AxiosResponse<BookingRequest[]> = { data: [] } as unknown as AxiosResponse<BookingRequest[]>;
+            try { artistRes2 = await getBookingRequestsForArtist(); } catch {}
+            const combined2 = [...mineRes2.data, ...artistRes2.data].reduce<BookingRequest[]>((acc, req) => {
+              if (!acc.find((r) => r.id === req.id)) acc.push(req);
+              return acc;
+            }, []);
+            combined2.sort(
+              (a, b) =>
+                new Date(String((b as any).last_message_timestamp ?? b.updated_at ?? b.created_at)).getTime() -
+                new Date(String((a as any).last_message_timestamp ?? a.updated_at ?? a.created_at)).getTime(),
+            );
+            setAllBookingRequests(combined2);
+          }
+        }
+      } catch {
+        // best-effort only
+      }
     } catch (err: unknown) {
       console.error('Failed to load booking requests:', err);
       setError(err instanceof Error ? err.message : 'Failed to load conversations');
@@ -101,12 +276,40 @@ export default function InboxPage() {
     }
   }, [authLoading, user, router, fetchAllRequests]);
 
+  // Refresh list on window focus / tab visibility change so previews update
+  useEffect(() => {
+    const onFocus = () => {
+      fetchAllRequests();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') fetchAllRequests();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [fetchAllRequests]);
+
   // Select conversation based on URL param after requests load (desktop), but do not refetch
   useEffect(() => {
     if (!allBookingRequests.length) return;
     const isMobileScreen = typeof window !== 'undefined' && window.innerWidth < BREAKPOINT_MD;
     if (isMobileScreen) return;
     const urlId = Number(searchParams.get('requestId'));
+    const isBooka = Boolean(searchParams.get('booka') || searchParams.get('bookasystem'));
+    if (isBooka) {
+      // Resolve or create the Booka thread and select it
+      (async () => {
+        try {
+          const res = await ensureBookaThread();
+          const realId = res.data?.booking_request_id;
+          if (realId) setSelectedBookingRequestId(realId);
+        } catch {}
+      })();
+      return;
+    }
     if (urlId && allBookingRequests.find((r) => r.id === urlId)) {
       setSelectedBookingRequestId(urlId);
     } else if (selectedBookingRequestId == null) {
@@ -146,18 +349,34 @@ export default function InboxPage() {
   }, [allBookingRequests, query, user]);
 
   const handleSelect = useCallback(
-    (id: number) => {
+    async (id: number) => {
+      try {
+        // If this is a Booka row, ensure a real thread exists and set URL alias
+        const selected = allBookingRequests.find((r) => r.id === id) as any;
+        const isBooka = Boolean(selected?.is_booka_synthetic);
+        if (isBooka) {
+          const res = await ensureBookaThread();
+          const realId = res.data?.booking_request_id || id;
+          id = realId;
+          await fetchAllRequests();
+        }
+      } catch {}
+
       setSelectedBookingRequestId(id);
       const params = new URLSearchParams(searchParams.toString());
-      params.set('requestId', String(id));
-      // Use Next router to update the URL without scrolling the page.
-      router.replace(`?${params.toString()}`, { scroll: false });
-
-      if (isMobile) {
-        setShowList(false);
+      const selected = allBookingRequests.find((r) => r.id === id) as any;
+      const isBooka = Boolean(selected?.is_booka_synthetic);
+      if (isBooka) {
+        params.delete('requestId');
+        params.set('booka', '1');
+      } else {
+        params.delete('booka');
+        params.set('requestId', String(id));
       }
+      router.replace(`?${params.toString()}`, { scroll: false });
+      if (isMobile) setShowList(false);
     },
-    [searchParams, isMobile, router]
+    [allBookingRequests, searchParams, isMobile, router, fetchAllRequests]
   );
 
   const handleBackToList = useCallback(() => {

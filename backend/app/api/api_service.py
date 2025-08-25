@@ -27,10 +27,11 @@ router = APIRouter(
 
 @router.get("/", response_model=List[ServiceResponse])
 def list_services(db: Session = Depends(get_db)):
-    """List all services with artist info."""
+    """List approved services with artist info (public)."""
     services = (
         db.query(Service)
         .options(joinedload(Service.artist))
+        .filter(getattr(Service, "status", "approved") == "approved")
         .order_by(Service.display_order)
         .all()
     )
@@ -127,12 +128,27 @@ def create_service(
     if service_data.get("display_order") is None:
         service_data["display_order"] = (max_order or 0) + 1
 
+    # Always create as pending_review until a moderator approves
+    service_data["status"] = "pending_review"
     new_service = Service(**service_data, artist_id=current_artist.id)
     db.add(new_service)
     db.commit()
     db.refresh(new_service)
     invalidate_artist_list_cache()
     return new_service
+
+
+@router.get("/mine", response_model=List[ServiceResponse])
+def list_my_services(db: Session = Depends(get_db), current_artist=Depends(get_current_service_provider)):
+    """List all services for the current artist, including unapproved ones (dashboard view)."""
+    services = (
+        db.query(Service)
+        .options(joinedload(Service.artist))
+        .filter(Service.artist_id == current_artist.id)
+        .order_by(Service.display_order)
+        .all()
+    )
+    return services
 
 
 @router.put("/{service_id}", response_model=ServiceResponse)
@@ -217,6 +233,13 @@ def read_service(service_id: int, db: Session = Depends(get_db)):
             {"service_id": "not_found"},
             status.HTTP_404_NOT_FOUND,
         )
+    # Only expose approved services publicly
+    if getattr(service, "status", "approved") != "approved":
+        raise error_response(
+            "Service not found",
+            {"service_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
     return service
 
 
@@ -243,6 +266,7 @@ def read_services_by_artist(artist_user_id: int, db: Session = Depends(get_db)):
         db.query(Service)
         .options(joinedload(Service.artist))
         .filter(Service.artist_id == artist_user_id)
+        .filter(getattr(Service, "status", "approved") == "approved")
         .order_by(Service.display_order)
         .all()
     )

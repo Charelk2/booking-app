@@ -194,6 +194,9 @@ async def booking_request_ws(
     """WebSocket endpoint for booking-specific chat rooms."""
 
     user: User | None = None
+    # Accept cookie-based auth when query token is missing
+    if not token:
+        token = websocket.cookies.get("access_token")
     if not token:
         logger.warning("Rejecting WebSocket for request %s: missing token", request_id)
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")
@@ -317,6 +320,8 @@ async def notifications_ws(
     """WebSocket endpoint pushing real-time notifications to a user."""
 
     user: User | None = None
+    if not token:
+        token = websocket.cookies.get("access_token")
     if not token:
         logger.warning("Rejecting notifications WebSocket: missing token")
         raise WebSocketException(code=WS_4401_UNAUTHORIZED, reason="Missing token")

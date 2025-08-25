@@ -56,6 +56,12 @@ import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/solid';
 import { ChatBubbleLeftRightIcon as ChatOutline } from '@heroicons/react/24/outline';
 import React from 'react';
 import { FEATURE_EVENT_PREP } from '@/lib/constants';
+import dynamic from 'next/dynamic';
+import useNotifications from '@/hooks/useNotifications';
+import useIsMobile from '@/hooks/useIsMobile';
+
+const NotificationDrawer = dynamic(() => import('./NotificationDrawer'), { ssr: false });
+const FullScreenNotificationModal = dynamic(() => import('./FullScreenNotificationModal'), { ssr: false });
 
 export type HeaderState = 'initial' | 'compacted' | 'expanded-from-compact';
 
@@ -246,6 +252,9 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   const isArtistView = user?.user_type === 'service_provider' && artistViewActive;
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const isMobile = useIsMobile();
+  const { items: notifItems, markItem, markAll, loadMore, hasMore, error: notifError } = useNotifications();
   const [currentBookingId, setCurrentBookingId] = useState<number | null>(null);
 
   // Listen for booking context emitted by thread pages
@@ -583,12 +592,29 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                 </Link>
                               )}
                             </Menu.Item>
-                            <Menu.Item>
-                              {({ active }) => (
-                                <Link
-                                  href="/dashboard/profile/edit"
-                                  className={clsx(
-                                    'group flex items-center px-4 py-2 text-sm',
+                          <Menu.Item>
+                            {({ active }) => (
+                              <button
+                                type="button"
+                                onClick={() => setNotificationsOpen(true)}
+                                className={clsx(
+                                  'group flex w-full items-center px-4 py-2 text-sm',
+                                  'text-black',
+                                  active && 'bg-slate-100',
+                                  hoverNeutralLink
+                                )}
+                              >
+                                <span className="mr-3 inline-flex h-5 w-5 items-center justify-center text-slate-500 group-hover:text-slate-600">🔔</span>
+                                Notifications
+                              </button>
+                            )}
+                          </Menu.Item>
+                          <Menu.Item>
+                            {({ active }) => (
+                              <Link
+                                href="/dashboard/profile/edit"
+                                className={clsx(
+                                  'group flex items-center px-4 py-2 text-sm',
                                     'text-black',
                                     active && 'bg-slate-100',
                                     hoverNeutralLink
@@ -618,12 +644,29 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                                 </Link>
                               )}
                             </Menu.Item>
-                            <Menu.Item>
-                              {({ active }) => (
-                                <Link
-                                  href="/inbox"
-                                  className={clsx(
-                                    'group flex items-center px-4 py-2 text-sm',
+                          <Menu.Item>
+                            {({ active }) => (
+                              <button
+                                type="button"
+                                onClick={() => setNotificationsOpen(true)}
+                                className={clsx(
+                                  'group flex w-full items-center px-4 py-2 text-sm',
+                                  'text-black',
+                                  active && 'bg-slate-100',
+                                  hoverNeutralLink
+                                )}
+                              >
+                                <span className="mr-3 inline-flex h-5 w-5 items-center justify-center text-slate-500 group-hover:text-slate-600">🔔</span>
+                                Notifications
+                              </button>
+                            )}
+                          </Menu.Item>
+                          <Menu.Item>
+                            {({ active }) => (
+                              <Link
+                                href="/inbox"
+                                className={clsx(
+                                  'group flex items-center px-4 py-2 text-sm',
                                     'text-black',
                                     active && 'bg-slate-100',
                                     hoverNeutralLink
@@ -792,6 +835,45 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         logout={logout}
         pathname={pathname}
       />
+
+      {/* Notifications UI (drawer on desktop, fullscreen on mobile) */}
+      {notificationsOpen && (
+        isMobile ? (
+          <FullScreenNotificationModal
+            open={notificationsOpen}
+            onClose={() => setNotificationsOpen(false)}
+            items={notifItems}
+            onItemClick={async (id: number) => {
+              const item = notifItems.find((i) => (i.id || i.booking_request_id) === id);
+              if (item && !item.is_read) await markItem(item);
+              setNotificationsOpen(false);
+              if (item?.link) {
+                router.push(item.link);
+              }
+            }}
+            markAllRead={async () => { await markAll(); }}
+            loadMore={loadMore}
+            hasMore={hasMore}
+            error={notifError}
+          />
+        ) : (
+          <NotificationDrawer
+            open={notificationsOpen}
+            onClose={() => setNotificationsOpen(false)}
+            items={notifItems}
+            onItemClick={async (id: number) => {
+              const item = notifItems.find((i) => (i.id || i.booking_request_id) === id);
+              if (item && !item.is_read) await markItem(item);
+              setNotificationsOpen(false);
+              if (item?.link) {
+                router.push(item.link);
+              }
+            }}
+            markAllRead={async () => { await markAll(); }}
+            error={notifError}
+          />
+        )
+      )}
     </header>
   );
 });

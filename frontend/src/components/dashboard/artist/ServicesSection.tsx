@@ -32,6 +32,17 @@ type ServiceCardProps = {
   onDelete: (id: number) => void;
 };
 
+function StatusBadge({ status }: { status?: string }) {
+  if (!status || status === 'approved') return null;
+  const label = status === 'pending_review' ? 'Awaiting approval' : status === 'rejected' ? 'Rejected' : status === 'draft' ? 'Draft' : status;
+  const colors = status === 'pending_review' ? 'bg-yellow-50 text-yellow-700 ring-yellow-200' : status === 'rejected' ? 'bg-red-50 text-red-700 ring-red-200' : 'bg-gray-100 text-gray-700 ring-gray-200';
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ring-1 ${colors}`}>
+      {label}
+    </span>
+  );
+}
+
 function ServiceCard({ service, dragHandleProps, style, isDragging, onEdit, onDelete }: ServiceCardProps) {
   return (
     <div
@@ -46,7 +57,10 @@ function ServiceCard({ service, dragHandleProps, style, isDragging, onEdit, onDe
       </div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium mb-1 text-gray-900 truncate">{service.title}</h4>
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-medium mb-1 text-gray-900 truncate">{service.title}</h4>
+            <StatusBadge status={(service as any).status} />
+          </div>
           <p className="text-sm text-gray-600 line-clamp-2">{service.description}</p>
           <p className="mt-2 text-sm font-semibold text-gray-900">{Number(service.price).toLocaleString(undefined, { style: "currency", currency: "ZAR" })}</p>
         </div>

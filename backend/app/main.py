@@ -48,6 +48,8 @@ from .api import (
     auth,
     api_magic,
     api_webauthn,
+    api_admin,
+    api_webhooks_events,
 )
 
 # The “service-provider-profiles” router lives under app/api/v1/
@@ -87,7 +89,13 @@ from .db_utils import (
     ensure_service_category_id_column,
     ensure_service_travel_columns,
     ensure_service_type_column,
+    ensure_service_status_column,
     ensure_service_managed_markup_column,
+    ensure_ledger_tables,
+    ensure_payout_tables,
+    ensure_dispute_table,
+    ensure_email_sms_event_tables,
+    ensure_audit_events_table,
     ensure_user_profile_picture_column,
     ensure_visible_to_column,
     ensure_quote_v2_sound_firm_column,
@@ -96,6 +104,7 @@ from .db_utils import (
     ensure_service_provider_onboarding_columns,
     ensure_performance_indexes,
     seed_service_categories,
+    ensure_service_moderation_logs,
 )
 from .middleware.security_headers import SecurityHeadersMiddleware
 from .models.booking import Booking
@@ -112,6 +121,7 @@ from .utils.notifications import (
     notify_quote_expiring,
 )
 from .services.ops_scheduler import run_maintenance
+from .services.admin_bootstrap import ensure_default_admin
 from .utils.redis_cache import close_redis_client
 from .utils.status_logger import register_status_listeners
 from .api.v1.api_service_provider import list_service_provider_profiles
@@ -155,6 +165,7 @@ ensure_currency_column(engine)
 ensure_media_url_column(engine)
 ensure_service_travel_columns(engine)
 ensure_service_managed_markup_column(engine)
+ensure_service_status_column(engine)
 ensure_mfa_columns(engine)
 ensure_refresh_token_columns(engine)
 ensure_booking_simple_columns(engine)
@@ -172,6 +183,17 @@ seed_service_categories(engine)
 ensure_service_provider_contact_columns(engine)
 ensure_service_provider_onboarding_columns(engine)
 ensure_performance_indexes(engine)
+ensure_ledger_tables(engine)
+ensure_payout_tables(engine)
+ensure_dispute_table(engine)
+ensure_email_sms_event_tables(engine)
+ensure_audit_events_table(engine)
+ensure_service_moderation_logs(engine)
+try:
+    from .db_utils import ensure_booka_system_user
+    ensure_booka_system_user(engine)
+except Exception as _exc:
+    logger.warning("System user ensure skipped: %s", _exc)
 # Additive EventPrep schedule columns (safe/idempotent)
 try:
     from .db_utils import add_column_if_missing
@@ -189,6 +211,10 @@ try:
 except Exception as _exc:
     logger.warning("EventPrep schedule columns ensure skipped: %s", _exc)
 Base.metadata.create_all(bind=engine)
+try:
+    ensure_default_admin()
+except Exception as _exc:
+    logger.warning("Default admin bootstrap skipped: %s", _exc)
 
 app = FastAPI(title="Artist Booking API", default_response_class=ORJSONResponse)
 setup_tracer(app)
@@ -356,6 +382,8 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(api_oauth.router, prefix="/auth", tags=["auth"])
 app.include_router(api_magic.router, prefix="/auth", tags=["auth"])
 app.include_router(api_webauthn.router, prefix="/auth", tags=["auth"])
+app.include_router(api_admin.router, prefix="", tags=["admin"])
+app.include_router(api_webhooks_events.router, prefix="", tags=["webhooks"])
 
 
 # ─── SERVICE-PROVIDER PROFILE ROUTES (under /api/v1/service-provider-profiles) ──────────

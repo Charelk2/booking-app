@@ -123,6 +123,13 @@ export default function MessageThreadWrapper({
     );
   }
 
+  // Detect if the visible preview is a Booka moderation system message
+  const isBookaModeration = (() => {
+    const text = (bookingRequest?.last_message_content || '').toString();
+    const synthetic = Boolean((bookingRequest as any)?.is_booka_synthetic);
+    return synthetic || /^\s*listing\s+(approved|rejected)\s*:/i.test(text);
+  })();
+
   return (
     <div className="flex flex-col h-full w-full bg-white shadow-xl border-l border-gray-100 relative">
       {/* Unified header */}
@@ -130,7 +137,11 @@ export default function MessageThreadWrapper({
         <div className="flex items-center gap-3">
           {/* Avatar */}
           {bookingRequest ? (
-            isUserArtist ? (
+            isBookaModeration ? (
+              <div className="h-10 w-10 rounded-full bg-black text-white flex items-center justify-center text-base font-medium">
+                B
+              </div>
+            ) : isUserArtist ? (
               bookingRequest.client?.profile_picture_url ? (
                 <Image
                   src={getFullImageUrl(bookingRequest.client.profile_picture_url) as string}
@@ -151,7 +162,16 @@ export default function MessageThreadWrapper({
               )
             ) : bookingRequest.artist_profile?.profile_picture_url ? (
               <Link
-                href={`/service-providers/${bookingRequest.artist?.id}`}
+                href={`/service-providers/${
+                  (bookingRequest as any).service_provider_id ||
+                  (bookingRequest as any).artist_id ||
+                  (bookingRequest as any).artist?.id ||
+                  (bookingRequest as any).artist_profile?.user_id ||
+                  (bookingRequest as any).service?.service_provider_id ||
+                  (bookingRequest as any).service?.artist_id ||
+                  (bookingRequest as any).service?.artist?.user_id ||
+                  ''
+                }`}
                 aria-label="Service Provider profile"
                 className="flex-shrink-0"
               >
@@ -182,9 +202,11 @@ export default function MessageThreadWrapper({
           {/* Name */}
           <span className="font-semibold text-base sm:text-lg whitespace-nowrap overflow-hidden text-ellipsis">
             {bookingRequest
-              ? (isUserArtist
-                  ? bookingRequest.client?.first_name || 'User'
-                  : bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'User')
+              ? isBookaModeration
+                ? 'Booka'
+                : (isUserArtist
+                    ? bookingRequest.client?.first_name || 'User'
+                    : bookingRequest.artist_profile?.business_name || bookingRequest.artist?.first_name || 'User')
               : 'Messages'}
           </span>
         </div>
@@ -241,6 +263,8 @@ export default function MessageThreadWrapper({
             onOpenDetailsPanel={() => setShowSidePanel(true)}
             /** KEY: hide composer on mobile when details sheet is open */
             isDetailsPanelOpen={showSidePanel}
+            /** Disable composer for Booka system-only threads */
+            disableComposer={isBookaModeration}
           />
         </div>
 

@@ -1,4 +1,86 @@
 {
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalBartender": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalBartender",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalBartender_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalCaterer": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalCaterer",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalCaterer_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalDJ": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalDJ",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalDJ_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalMcHost": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalMcHost",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalMcHost_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalMusician": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalMusician",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalMusician_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalPhotographer": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalPhotographer",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalPhotographer_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalSoundService": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalSoundService",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalSoundService_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalSpeaker": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalSpeaker",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalSpeaker_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalVideographer": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalVideographer",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalVideographer_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalWeddingVenue": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalWeddingVenue",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalWeddingVenue_tsx.js"
+    ]
+  },
+  "app/dashboard/profile/edit/page.tsx -> react-image-crop": {
+    "id": "app/dashboard/profile/edit/page.tsx -> react-image-crop",
+    "files": []
+  },
+  "app/service-providers/[id]/page.tsx -> @/components/booking/BookingWizard": {
+    "id": "app/service-providers/[id]/page.tsx -> @/components/booking/BookingWizard",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_booking_BookingWizard_tsx.js"
+    ]
+  },
+  "app/service-providers/[id]/page.tsx -> @/components/booking/bookinwizardpersonilsedvideo": {
+    "id": "app/service-providers/[id]/page.tsx -> @/components/booking/bookinwizardpersonilsedvideo",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_booking_bookinwizardpersonilsedvideo_tsx.js"
+    ]
+  },
+  "components/booking/MessageThread.tsx -> @emoji-mart/react": {
+    "id": "components/booking/MessageThread.tsx -> @emoji-mart/react",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_emoji-mart_react_dist_module_js.js"
+    ]
+  },
   "components/booking/steps/DateTimeStep.tsx -> react-datepicker": {
     "id": "components/booking/steps/DateTimeStep.tsx -> react-datepicker",
     "files": []
@@ -7,6 +89,18 @@
     "id": "components/booking/steps/LocationStep.tsx -> @react-google-maps/api",
     "files": [
       "static/chunks/_app-pages-browser_node_modules_react-google-maps_api_dist_esm_js.js"
+    ]
+  },
+  "components/layout/Header.tsx -> ./FullScreenNotificationModal": {
+    "id": "components/layout/Header.tsx -> ./FullScreenNotificationModal",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_layout_FullScreenNotificationModal_tsx.js"
+    ]
+  },
+  "components/layout/Header.tsx -> ./NotificationDrawer": {
+    "id": "components/layout/Header.tsx -> ./NotificationDrawer",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_layout_NotificationDrawer_tsx.js"
     ]
   },
   "components/search/SearchBar.tsx -> ./SearchPopupContent": {

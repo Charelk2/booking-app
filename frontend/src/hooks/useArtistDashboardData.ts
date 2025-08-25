@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   getMyArtistBookings,
-  getServiceProviderServices,
+  getMyServices,
   getServiceProviderProfileMe,
   getBookingRequestsForArtist,
   getDashboardStats,
@@ -32,7 +32,7 @@ export function useArtistDashboardData(userId?: number) {
     try {
       const [bookingsRes, servicesRes, profileRes, requestsRes, statsRes] = await Promise.all([
         getMyArtistBookings(),
-        getServiceProviderServices(userId),
+        getMyServices(),
         getServiceProviderProfileMe(),
         getBookingRequestsForArtist(),
         getDashboardStats(),
@@ -99,4 +99,3 @@ export function useArtistDashboardData(userId?: number) {
 }
 
 export default useArtistDashboardData;
-

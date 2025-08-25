@@ -1,7 +1,8 @@
 {
-  "/security/enable/page": "app/security/enable/page.js",
-  "/dashboard/client/page": "app/dashboard/client/page.js",
-  "/page": "app/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
   "/service-providers/[id]/page": "app/service-providers/[id]/page.js",
-  "/login/page": "app/login/page.js"
+  "/login/page": "app/login/page.js",
+  "/dashboard/artist/page": "app/dashboard/artist/page.js",
+  "/page": "app/page.js",
+  "/inbox/page": "app/inbox/page.js"
 }

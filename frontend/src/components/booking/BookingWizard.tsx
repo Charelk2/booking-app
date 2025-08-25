@@ -12,6 +12,7 @@ import useBookingForm from '@/hooks/useBookingForm';
 import useOfflineQueue from '@/hooks/useOfflineQueue';
 import { useDebounce } from '@/hooks/useDebounce';
 import useKeyboardOffset from '@/hooks/useKeyboardOffset';
+import { parseBookingText } from '@/lib/api';
 import {
   getServiceProviderAvailability,
   createBookingRequest,
@@ -112,6 +113,10 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     loadSavedProgress,
   } = useBooking();
   const { user } = useAuth();
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [showAiAssist, setShowAiAssist] = useState(false);
+  const [aiText, setAiText] = useState('');
+  const savedRef = useRef<any | null>(null);
 
   // --- Component States ---
   const [unavailable, setUnavailable] = useState<string[]>([]);
@@ -260,7 +265,21 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   // Effect to prompt to restore saved progress only when the wizard first opens
   useEffect(() => {
     if (!isOpen || hasLoaded.current) return;
-    loadSavedProgress();
+    // Peek for saved progress; show modal if meaningful, else offer AI assist
+    try {
+      // Access functions from context via the closure variables
+      const anyCtx: any = { peekSavedProgress: (useBooking() as any).peekSavedProgress, applySavedProgress: (useBooking() as any).applySavedProgress };
+      const peek = anyCtx.peekSavedProgress?.();
+      if (peek) {
+        savedRef.current = peek;
+        setShowResumeModal(true);
+      } else {
+        setShowAiAssist(true);
+      }
+    } catch {
+      // fallback: previous behavior
+      loadSavedProgress();
+    }
     hasLoaded.current = true;
   }, [isOpen, loadSavedProgress]);
 
@@ -725,7 +744,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
           {/* Navigation controls - Adjusted for ReviewStep */}
           <div
-            className="flex-shrink-0 border-t border-gray-100 p-6 flex flex-col-reverse sm:flex-row sm:justify-between gap-2 sticky bottom-0 bg-white pb-safe"
+            className="flex-shrink-0 border-t border-gray-100 p-6 flex flex-row justify-between gap-2 sticky bottom-0 bg-white pb-safe"
             style={{ bottom: keyboardOffset }}
           >
             {/* Back/Cancel Button */}
@@ -751,6 +770,80 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           </div>
         </Dialog.Panel>
       </div>
+      {/* Resume Draft Modal */}
+      <Dialog open={showResumeModal} onClose={() => setShowResumeModal(false)} className="fixed inset-0 z-50">
+        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="mx-auto max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <Dialog.Title className="text-lg font-semibold text-gray-900">Resume previous request?</Dialog.Title>
+            <p className="mt-2 text-sm text-gray-700">We found a draft booking in progress. You can resume where you left off or start a new request.</p>
+            <div className="mt-4 flex gap-2 justify-end">
+              <button
+                type="button"
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                onClick={() => { setShowResumeModal(false); setShowAiAssist(true); /* keep current clean state */ }}
+              >
+                Start new
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-gray-900"
+                onClick={() => { setShowResumeModal(false); try { (useBooking() as any).applySavedProgress?.(savedRef.current); } catch { loadSavedProgress(); } }}
+              >
+                Resume
+              </button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
+
+      {/* AI Assist Modal */}
+      <Dialog open={showAiAssist} onClose={() => setShowAiAssist(false)} className="fixed inset-0 z-50">
+        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="mx-auto max-w-lg w-full rounded-2xl bg-white p-6 shadow-xl">
+            <Dialog.Title className="text-lg font-semibold text-gray-900">Fill with AI</Dialog.Title>
+            <p className="mt-2 text-sm text-gray-700">Paste a short description (date, city/venue, guests, occasion) and we’ll pre‑fill the form.</p>
+            <textarea
+              value={aiText}
+              onChange={(e) => setAiText(e.target.value)}
+              rows={4}
+              className="mt-3 w-full rounded-xl border border-black/20 p-2 text-sm"
+              placeholder="E.g. 50th birthday for ~80 guests on 12 Oct in Cape Town, outdoor garden party…"
+            />
+            <div className="mt-4 flex gap-2 justify-end">
+              <button
+                type="button"
+                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                onClick={() => setShowAiAssist(false)}
+              >
+                Skip
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-gray-900"
+                onClick={async () => {
+                  try {
+                    if (!aiText.trim()) { setShowAiAssist(false); return; }
+                    const res = await parseBookingText(aiText.trim());
+                    const data = res.data as any;
+                    if (data?.event_type) setValue('eventType', data.event_type);
+                    if (data?.date) setValue('date', new Date(data.date));
+                    if (data?.location) setValue('location', data.location);
+                    if (data?.guests != null) setValue('guests', String(data.guests));
+                    setShowAiAssist(false);
+                  } catch (e) {
+                    console.error(e);
+                    setShowAiAssist(false);
+                  }
+                }}
+              >
+                Fill with AI
+              </button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
     </Dialog>
   );
 }

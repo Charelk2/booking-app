@@ -129,6 +129,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         const newNotif: Notification = { ...(data as Notification), is_read: false };
         setNotifications((prev) => [newNotif, ...prev]);
         setUnreadCount((c) => c + 1);
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('threads:updated'));
+          }
+        } catch {}
       } catch (e) {
         console.error('Failed to parse notification message', e);
       }

@@ -67,6 +67,15 @@ export default function DashboardPage() {
         : 'requests';
   const [activeTab, setActiveTab] = useState<'requests' | 'bookings' | 'services'>(initialTab);
 
+  // Open a specific add-service wizard when arriving with ?addCategory=...
+  useEffect(() => {
+    const cat = params.get('addCategory');
+    if (cat) {
+      setActiveTab('services');
+      setWizardCategory(cat);
+    }
+  }, [params]);
+
   useEffect(() => {
     // Keep URL in sync with tab without scrolling to top
     const params = new URLSearchParams(window.location.search);

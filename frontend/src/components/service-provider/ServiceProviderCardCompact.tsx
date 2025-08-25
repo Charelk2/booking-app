@@ -8,7 +8,7 @@ import {
   StarIcon,
 } from '@heroicons/react/24/solid';
 import clsx from 'clsx';
-import { getFullImageUrl, getCityFromAddress } from '@/lib/utils';
+import { getFullImageUrl, getTownProvinceFromAddress } from '@/lib/utils';
 import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 
@@ -110,7 +110,7 @@ export default function ServiceProviderCardCompact({
         <p className="text-sm font-semibold truncate text-black">{name}</p>
         {location && (
           <p className="text-xs text-gray-400 truncate">
-            {getCityFromAddress(location)}
+            {getTownProvinceFromAddress(location)}
           </p>
         )}
       </div>

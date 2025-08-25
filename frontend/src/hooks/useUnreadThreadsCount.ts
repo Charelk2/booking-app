@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getMessageThreadsPreview } from '@/lib/api';
+import { getMessageThreadsPreview, getMessageThreads } from '@/lib/api';
 
 export default function useUnreadThreadsCount(pollMs = 30000) {
   const [count, setCount] = useState(0);
@@ -11,7 +11,16 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
     try {
       const res = await getMessageThreadsPreview();
       const items = res.data?.items || [];
-      const total = items.reduce((acc, it) => acc + (Number(it.unread_count || 0) || 0), 0);
+      let total = items.reduce((acc, it) => acc + (Number(it.unread_count || 0) || 0), 0);
+      // Fallback: if preview has no items (e.g., artist with no requests yet),
+      // pull thread notifications and sum unread counts so Booka shows a badge.
+      if (total === 0) {
+        try {
+          const t = await getMessageThreads();
+          const arr = (t.data || []) as any[];
+          total = arr.reduce((acc, th) => acc + (Number((th as any).unread_count || 0) || 0), 0);
+        } catch {}
+      }
       setCount(total);
     } catch (err) {
       // best-effort; avoid console noise in header

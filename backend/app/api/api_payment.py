@@ -29,6 +29,7 @@ from ..utils import error_response
 import hmac
 import hashlib
 import json
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +134,12 @@ def create_payment(
             booking.payment_status = "pending"
             db.add(booking)
             db.commit()
+            # Record ledger authorization init (optional) as 'charge' pending
+            try:
+                db.execute(text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"), {"bid": booking.id, "amt": amount, "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "init"})})
+                db.commit()
+            except Exception:
+                db.rollback()
             return {"status": "redirect", "authorization_url": auth_url, "reference": reference, "payment_id": reference}
         except Exception as exc:
             logger.error("Paystack init error: %s", exc, exc_info=True)
@@ -233,6 +240,12 @@ def create_payment(
             action=MessageAction.VIEW_BOOKING_DETAILS,
         )
 
+    # Record ledger capture (mock or real)
+    try:
+        db.execute(text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"), {"bid": booking.id, "amt": float(charge_amount), "meta": json.dumps({"source": "gateway"})})
+        db.commit()
+    except Exception:
+        db.rollback()
     return {"status": "ok", "payment_id": charge.get("id")}
 
 
@@ -308,6 +321,12 @@ def paystack_verify(
         except Exception:
             pass
 
+    # Record ledger capture
+    try:
+        db.execute(text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"), {"bid": simple.id, "amt": float(amount), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "verify"})})
+        db.commit()
+    except Exception:
+        db.rollback()
     return {"status": "ok", "payment_id": simple.payment_id}
 
 
@@ -430,6 +449,12 @@ async def paystack_webhook(
         except Exception:
             pass
 
+    # Record ledger capture
+    try:
+        db.execute(text("INSERT INTO ledger_entries (booking_id, type, amount, currency, meta) VALUES (:bid, 'charge', :amt, 'ZAR', :meta)"), {"bid": simple.id, "amt": float(amount), "meta": json.dumps({"gateway": "paystack", "reference": reference, "phase": "webhook"})})
+        db.commit()
+    except Exception:
+        db.rollback()
     return Response(status_code=status.HTTP_200_OK)
 
 

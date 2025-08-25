@@ -52,6 +52,12 @@ def preview_label_for_message(
             return f"Quote from {name}"
 
         content = last_message.content or ""
+        # Moderation/system announcements should surface verbatim even
+        # for requested threads (do not collapse to "New Booking Request").
+        low_content = content.strip().lower()
+        if low_content.startswith("listing approved:") or low_content.startswith("listing rejected:"):
+            # Neutral label for Booka moderation updates (avoid exposing APPROVED/REJECTED)
+            return "Booka update"
         if isinstance(content, str) and content.startswith(BOOKING_DETAILS_PREFIX):
             return "New Booking Request"
 

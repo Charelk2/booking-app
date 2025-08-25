@@ -58,6 +58,9 @@ class Service(BaseModel):
     details = Column(JSON, nullable=True)
     service_category = relationship("ServiceCategory")
 
+    # Moderation status controls public visibility
+    status = Column(String, nullable=False, default="pending_review", index=True)
+
     # New travel fields so quotes can accurately reflect costs
     travel_rate = Column(Numeric(10, 2), nullable=True, default=2.5)
     travel_members = Column(Integer, nullable=True, default=1)
