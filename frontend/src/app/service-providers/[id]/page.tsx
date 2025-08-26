@@ -704,15 +704,60 @@ export default function ServiceProviderProfilePage() {
                 </>
               )}
 
-              <section className="mt-16">
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-center">
-                  <h2 className="text-lg font-bold text-gray-900">{displayName} is vetted by Booka</h2>
-                  <p className="mt-2 text-sm text-gray-600">
-                    Booka reviews every service provider's professional experience, portfolio, and client feedback to ensure
-                    quality.
-                  </p>
-                </div>
-              </section>
+<section aria-label="Vetted by Booka" className="mt-16">
+  <div className="relative isolate overflow-hidden rounded-3xl border border-amber-100 bg-white p-6 text-center shadow-sm md:p-10 dark:border-gray-800 dark:bg-gray-900">
+    {/* soft background glow */}
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-amber-300/40 blur-3xl dark:bg-amber-400/10"
+    />
+
+    <div className="mx-auto flex max-w-3xl flex-col items-center">
+      {/* Gold B badge */}
+      <div
+        role="img"
+        aria-label="Booka vetted badge"
+        className="relative h-28 w-28 rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 shadow-lg ring-1 ring-amber-300/60 md:h-32 md:w-32 dark:from-amber-500 dark:via-amber-600 dark:to-amber-700"
+      >
+        <div className="absolute inset-2 rounded-full bg-gradient-to-br from-amber-100 to-amber-300 ring-1 ring-inset ring-amber-200/70 dark:from-amber-200 dark:to-amber-400" />
+        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl font-black tracking-tight text-amber-900/80 drop-shadow-sm md:text-5xl dark:text-amber-950">
+          B
+        </span>
+      </div>
+
+      {/* Copy centered under badge */}
+      <h2 className="mt-5 text-2xl font-semibold tracking-tight text-gray-900 md:text-3xl dark:text-white">
+        {displayName} is vetted by Booka
+      </h2>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-300">
+        Booka evaluates every service provider’s professional experience, portfolio, and verified client
+        feedback to ensure consistent quality.
+      </p>
+
+      <a
+        href="/trust-and-safety"
+        className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-700 hover:underline dark:text-amber-400"
+      >
+        Learn how we vet
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M5 12h14" />
+          <path d="m12 5 7 7-7 7" />
+        </svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+
 
               {(serviceProvider as any)?.cancellation_policy && (
                 <section aria-labelledby="policies-heading">
@@ -986,15 +1031,65 @@ export default function ServiceProviderProfilePage() {
                   </>
                 )}
 
-                <section className="mt-16">
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-center">
-                    <h2 className="text-lg font-bold text-gray-900">{displayName} is vetted by Booka</h2>
-                    <p className="mt-2 text-sm text-gray-600">
-                      Booka reviews every service provider's professional experience, portfolio, and client feedback to ensure
-                      quality.
-                    </p>
-                  </div>
-                </section>
+<section aria-label="Vetted by Booka" className="mt-16 pt-16">
+  <div className="relative isolate overflow-hidden rounded-3xl bg-gray-100 p-6 shadow-sm md:p-10 dark:border-gray-800 dark:bg-gray-900">
+    {/* soft background glow */}
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-amber-300/30 blur-3xl dark:bg-amber-400/10"
+    />
+    <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-6">
+      {/* Image (from /public) */}
+      <div className="flex justify-center mb-4">
+        <img
+          src="/booka-vetted.jpg" /* ← update this path to your file in /public */
+          alt="Booka vetted"
+          className="h-24 w-24 md:h-32 md:w-32 rounded-2xl object-contain"
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+
+      {/* Copy */}
+      <div className="text-center">
+        <h2 className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
+          {displayName} is vetted by Booka
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+          Booka evaluates every service provider’s professional experience, portfolio, and verified client
+          feedback to ensure consistent quality.
+        </p>
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <a
+            href="/trust-and-safety"
+            className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 hover:underline dark:text-amber-400"
+          >
+            Learn how we vet
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </a>
+          <span className="hidden text-sm text-gray-400 md:inline">•</span>
+          <span className="hidden text-sm text-gray-500 md:inline dark:text-gray-400">
+            Backed by verified reviews
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
               </section>
             </div>
           </section>
