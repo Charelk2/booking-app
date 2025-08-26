@@ -18,7 +18,7 @@ import {
   connectGoogleCalendar,
   disconnectGoogleCalendar,
 } from '@/lib/api';
-import { getFullImageUrl } from '@/lib/utils';
+import { getFullImageUrl, normalizeAssetPathForStorage } from '@/lib/utils';
 import { Spinner, ImagePreviewModal } from '@/components/ui';
 import SavedPill from '@/components/ui/SavedPill';
 import useSavedHint from '@/hooks/useSavedHint';
@@ -474,11 +474,16 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
           .split(',')
           .map((u) => u.trim())
           .filter((u) => u)
-          .map((u) =>
-            u.startsWith('http://') || u.startsWith('https://')
-              ? u
-              : `http://${u}`
-          ),
+          .map((u) => {
+            const canon = normalizeAssetPathForStorage(u);
+            // If it resolved to one of our mounts, store canonical path
+            if (/^(profile_pics|cover_photos|portfolio_images|attachments)\//i.test(canon)) {
+              return canon;
+            }
+            // Otherwise, treat as external link; ensure scheme present
+            if (/^https?:\/\//i.test(u)) return u;
+            return `http://${u}`;
+          }),
         portfolio_image_urls: portfolioImages,
         profile_picture_url: profilePictureUrlInput.trim()
           ? profilePictureUrlInput.trim()
@@ -711,7 +716,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
     try {
       const fileArray = Array.from(files);
       const response = await uploadMyServiceProviderPortfolioImages(fileArray);
-      const urls = response.data.portfolio_image_urls || [];
+      const urls = (response.data.portfolio_image_urls || []).map(normalizeAssetPathForStorage);
       setPortfolioImages(urls);
       setProfile((prev) => ({ ...prev, portfolio_image_urls: urls }));
       mediaHint.doneSaving();
@@ -737,10 +742,11 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
       const arr = [...prev];
       const [moved] = arr.splice(from, 1);
       arr.splice(index, 0, moved);
-      updateMyServiceProviderPortfolioImageOrder(arr).catch((err) => {
+      const canon = arr.map(normalizeAssetPathForStorage);
+      updateMyServiceProviderPortfolioImageOrder(canon).catch((err) => {
         console.error('Failed to update portfolio order:', err);
       });
-      return arr;
+      return canon;
     });
     dragIndex.current = null;
   };
