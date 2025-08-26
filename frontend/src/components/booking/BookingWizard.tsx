@@ -471,6 +471,23 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
     const valid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
 
     if (valid) {
+      // Auto-parse and apply event details on advancing from the first step
+      if (step === 0) {
+        const desc = (details as any).eventDescription as string | undefined;
+        if (desc && desc.trim().length >= 5) {
+          try {
+            const res = await parseBookingText(desc);
+            const { event_type, date, location, guests } = res.data || {};
+            if (date) setValue('date', new Date(date));
+            if (location) setValue('location', location);
+            if (guests !== undefined && guests !== null) setValue('guests', String(guests));
+            if (event_type) setValue('eventType', event_type);
+          } catch (err) {
+            // Non-blocking; proceed even if AI parse fails
+            console.warn('AI parse failed; continuing without suggestions', err);
+          }
+        }
+      }
       const newStep = step + 1;
       setStep(newStep);
       setMaxStepCompleted(Math.max(maxStepCompleted, newStep));
@@ -732,26 +749,21 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             <div className="overscroll-contain">
               {renderStep()}
 
-              {warning && <p className="text-orange-600 text-sm mt-4">{warning}</p>}
-              {Object.keys(errors).length > 0 && (
-                <p className="text-red-600 text-sm mt-4">
-                  Please fix the highlighted errors above to continue.
-                </p>
-              )}
+              {/* Global warning and always-on error removed per UX request */}
               {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}
             </div>
           </form>
 
           {/* Navigation controls - Adjusted for ReviewStep */}
           <div
-            className="flex-shrink-0 border-t border-gray-100 p-6 flex flex-row justify-between gap-2 sticky bottom-0 bg-white pb-safe"
+            className="flex-shrink-0 border-t border-gray-100 p-4 sm:p-6 flex flex-row flex-nowrap justify-between gap-2 sticky bottom-0 bg-white pb-safe"
             style={{ bottom: keyboardOffset }}
           >
             {/* Back/Cancel Button */}
             <button
               type="button" // Ensure it's a button, not a submit
               onClick={handleBack}
-              className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-300 focus:outline-none focus:ring-gray-400 w-32 min-h-[44px] min-w-[44px]"
+              className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-300 focus:outline-none focus:ring-gray-400 w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
             >
               {step === 0 ? 'Cancel' : 'Back'}
             </button>
@@ -761,7 +773,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               <button
                 type="button" // Ensure it's a button, not a submit
                 onClick={next}
-                className="bg-black text-white font-bold py-2 px-4 rounded-lg  transition-colors duration-300 focus:outline-none w-32 min-h-[44px] min-w-[44px]"
+                className="bg-black text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
               >
                 Next
               </button>

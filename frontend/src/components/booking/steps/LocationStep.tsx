@@ -7,8 +7,8 @@ import { loadPlaces } from '@/lib/loadPlaces';
 import LocationInput from '../../ui/LocationInput';
 import clsx from 'clsx';
 import { useRef, useState, useEffect } from 'react';
-import { Button, Tooltip, CollapsibleSection } from '../../ui';
-import { geocodeAddress, calculateDistanceKm, LatLng } from '@/lib/geo';
+import { Button } from '../../ui';
+import { LatLng } from '@/lib/geo';
 import { EventDetails } from '@/contexts/BookingContext';
 
 const GoogleMap = dynamic(
@@ -76,7 +76,6 @@ export default function LocationStep({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [marker, setMarker] = useState<LatLng | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
-  // Hidden form field setter for venue/place name
   const locationNameSetterRef = useRef<((val: string) => void) | null>(null);
 
   useEffect(() => {
@@ -92,43 +91,32 @@ export default function LocationStep({
     return () => observer.disconnect();
   }, [shouldLoadMap]);
 
-  useEffect(() => {
-    (async () => {
-      if (artistLocation) {
-        const artistPos = await geocodeAddress(artistLocation);
-        if (artistPos && marker) {
-          const dist = calculateDistanceKm(artistPos, marker);
-          if (dist > 100) setWarning('This location is over 100km from the artist.');
-          else setWarning(null);
-        }
-      }
-    })();
-  }, [artistLocation, marker, setWarning]);
+  // Distance warning removed per UX; keep function in props but unused
 
   return (
-    <CollapsibleSection
-      title="Location"
-      description="Where is the show?"
-      open={open}
-      onToggle={onToggle}
-      className="wizard-step-container rounded-2xl border border-black/10 bg-white p-6 shadow-sm"
-    >
-      <div ref={containerRef} className="space-y-3">
+    <section className="wizard-step-container rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+      <div>
+        <h3 className="font-bold text-neutral-900">Location</h3>
+        <p className="text-sm font-normal text-gray-600 pt-1">Where is the show?</p>
+      </div>
+      <div className="mt-6" ref={containerRef}>
+        <div className="space-y-3">
         {shouldLoadMap ? (
           <GoogleMapsLoader>
             {(loaded) => (
               <>
-                {/* Hidden controller for venue/place name so we can set it on selection */}
+                {/* Hidden controller for venue/place name */}
                 <Controller<EventDetails, 'locationName'>
                   name="locationName"
                   control={control}
                   render={({ field }) => {
-                    locationNameSetterRef.current = field.onChange;
+                    // Expose setter so we can set it in onPlaceSelect
+                    (locationNameSetterRef as any).current = field.onChange;
                     return null;
                   }}
                 />
 
-                <Controller<EventDetails, 'location'> // Explicitly type Controller
+                <Controller<EventDetails, 'location'>
                   name="location"
                   control={control}
                   render={({ field }) => (
@@ -142,26 +130,25 @@ export default function LocationStep({
                             lng: place.geometry.location.lng(),
                           });
                         }
-                        // Capture a human-friendly name when available
                         const nm = (place.name || '').toString();
                         if (locationNameSetterRef.current) {
                           locationNameSetterRef.current(nm);
                         }
                       }}
                       placeholder="Search address"
-                      inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black"
+                      inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2"
                     />
                   )}
                 />
-                <div
-                  className={clsx(
-                    'map-container ring-1 ring-black/10 rounded-2xl overflow-hidden transition-all',
-                    marker ? 'map-container-expanded' : 'map-container-collapsed'
-                  )}
-                  data-testid="map-container"
-                >
-                  <Map isLoaded={loaded} marker={marker} />
-                </div>
+                {marker && (
+                  <div className="mt-2 rounded-2xl overflow-hidden h-56" data-testid="map-container">
+                    {loaded ? (
+                      <Map isLoaded={loaded} marker={marker} />
+                    ) : (
+                      <div className="h-full w-full bg-gray-100 animate-pulse" />
+                    )}
+                  </div>
+                )}
               </>
             )}
           </GoogleMapsLoader>
@@ -172,11 +159,12 @@ export default function LocationStep({
               name="locationName"
               control={control}
               render={({ field }) => {
-                locationNameSetterRef.current = field.onChange;
+                (locationNameSetterRef as any).current = field.onChange;
                 return null;
               }}
             />
-            <Controller<EventDetails, 'location'> // Explicitly type Controller
+
+            <Controller<EventDetails, 'location'>
               name="location"
               control={control}
               render={({ field }) => (
@@ -196,19 +184,14 @@ export default function LocationStep({
                     }
                   }}
                   placeholder="Search address"
-                  inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black"
+                  inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2"
                 />
               )}
             />
-            <div
-              className={clsx(
-                'map-container ring-1 ring-black/10 rounded-2xl overflow-hidden transition-all',
-                marker ? 'map-container-expanded' : 'map-container-collapsed'
-              )}
-              data-testid="map-container"
-            />
+            {/* No collapsed placeholder map */}
           </>
         )}
+        </div>
       </div>
 
       <Button
@@ -230,8 +213,7 @@ export default function LocationStep({
       >
         Use my location
       </Button>
-      <Tooltip text="A warning appears if this address is over 100km from the artist." className="ml-1" />
       {geoError && <p className="text-sm text-black/80">{geoError}</p>}
-    </CollapsibleSection>
+    </section>
   );
 }

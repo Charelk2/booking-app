@@ -4,7 +4,7 @@ import { Control, Controller } from 'react-hook-form';
 import clsx from 'clsx';
 import useIsMobile from '@/hooks/useIsMobile';
 import { EventDetails } from '@/contexts/BookingContext';
-import { BottomSheet, Button, CollapsibleSection } from '../../ui';
+import { BottomSheet, Button } from '../../ui';
 import eventTypes from '@/data/eventTypes.json';
 
 interface Props {
@@ -22,13 +22,12 @@ export default function EventTypeStep({ control, open = true, onToggle = () => {
   const firstRadioRef = useRef<HTMLInputElement>(null);
 
   return (
-    <CollapsibleSection
-      title="Event Type"
-      description="What type of event are you planning?"
-      open={open}
-      onToggle={onToggle}
-      className="wizard-step-container"
-    >
+    <section className="wizard-step-container">
+      <div>
+        <h3 className="font-bold text-neutral-900">Event Type</h3>
+        <p className="text-sm font-normal text-gray-600 pt-1">What type of event are you planning?</p>
+      </div>
+      <div className="mt-6">
       <Controller<EventDetails, 'eventType'>
         name="eventType"
         control={control}
@@ -98,6 +97,7 @@ export default function EventTypeStep({ control, open = true, onToggle = () => {
           </>
         )}
       />
-    </CollapsibleSection>
+      </div>
+    </section>
   );
 }

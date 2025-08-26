@@ -9,7 +9,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { format, parseISO, isBefore, startOfDay } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 import useIsMobile from '@/hooks/useIsMobile';
-import { DateInput, CollapsibleSection } from '../../ui';
+import { DateInput } from '../../ui';
 
 // Import EventDetails for correct Control typing
 import { EventDetails } from '@/contexts/BookingContext';
@@ -43,13 +43,12 @@ export default function DateTimeStep({
     return !unavailable.includes(day) && !isBefore(date, today);
   };
   return (
-    <CollapsibleSection
-      title="Date & Time"
-      description="When should we perform?"
-      open={open}
-      onToggle={onToggle}
-      className="wizard-step-container wizard-step-container-date"
-    >
+    <section className="wizard-step-container wizard-step-container-date booking-wizard-step">
+      <div>
+        <h3 className="font-bold text-neutral-900">Date & Time</h3>
+        <p className="text-sm font-normal text-gray-600 pt-1">When should we perform?</p>
+      </div>
+      <div className="mt-6">
       {loading || (!isMobile && !showPicker) ? (
         <div
           data-testid="calendar-skeleton"
@@ -72,10 +71,10 @@ export default function DateTimeStep({
                 onBlur={field.onBlur}
                 value={currentValue ? format(currentValue, 'yyyy-MM-dd') : ''}
                 onChange={(e) => field.onChange(e.target.value)}
-                inputClassName="input-base"
+                inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2"
               />
             ) : (
-              <div className="mx-auto w-fit">
+              <div className="mx-auto w-fit booking-wizard-datepicker">
                 <ReactDatePicker
                   {...field}
                   selected={currentValue}
@@ -130,7 +129,7 @@ export default function DateTimeStep({
           }}
         />
       )}
-      {/* No WizardNav here. Its buttons are now in the parent BookingWizard. */}
-    </CollapsibleSection>
+      </div>
+    </section>
   );
 }

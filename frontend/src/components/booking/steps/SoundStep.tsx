@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Control, Controller } from 'react-hook-form';
 import useIsMobile from '@/hooks/useIsMobile';
-import { BottomSheet, Button, CollapsibleSection } from '../../ui';
+import { BottomSheet, Button } from '../../ui';
 import { EventDetails, useBooking } from '@/contexts/BookingContext';
 import { formatCurrency } from '@/lib/utils';
 import { getDrivingMetrics } from '@/lib/travel';
@@ -173,13 +173,12 @@ export default function SoundStep({
   }, [serviceId, eventLocation, details.soundMode, backlineRequired, lightingEvening, stageNeeded, stageSize, ctxServiceId, details, setDetails]);
 
   return (
-    <CollapsibleSection
-      title="Sound"
-      description="Will sound equipment be needed?"
-      open={open}
-      onToggle={onToggle}
-      className="wizard-step-container rounded-2xl border border-black/10 bg-white p-6 shadow-sm"
-    >
+    <section className="wizard-step-container rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+      <div>
+        <h3 className="font-bold text-neutral-900">Sound</h3>
+        <p className="text-sm font-normal text-gray-600 pt-1">Will sound equipment be needed?</p>
+      </div>
+      <div className="mt-6">
       <p className="text-sm text-neutral-600 mb-3">
         Book in one step. The artist must accept to confirm your date. If you choose sound,
         we’ll contact the artist’s preferred suppliers (top match first) to confirm a firm price.
@@ -381,6 +380,7 @@ export default function SoundStep({
         Final price is confirmed after acceptance; if the top pick declines we’ll auto-try backups.
         If all decline, you can choose another option and we’ll refund any sound portion immediately.
       </div>
-    </CollapsibleSection>
+      </div>
+    </section>
   );
 }
