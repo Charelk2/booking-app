@@ -212,10 +212,11 @@ def ensure_booka_thread(
         except Exception:
             db.rollback()
 
-    # Find or create a booking thread
+    # Find or create a dedicated Booka→Artist system thread (never reuse client threads)
     br = (
         db.query(models.BookingRequest)
         .filter(models.BookingRequest.artist_id == current_user.id)
+        .filter(models.BookingRequest.client_id == (system_user.id if system_user else -1))
         .order_by(models.BookingRequest.created_at.desc())
         .first()
     )

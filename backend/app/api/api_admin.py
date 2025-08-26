@@ -1110,9 +1110,11 @@ def approve_listing(listing_id: int, _: Tuple[User, AdminUser] = Depends(require
                 db.refresh(system_user)
             except Exception:
                 db.rollback()
+        # Use a dedicated Booka→Artist system thread; never reuse client threads
         br = (
             db.query(models.BookingRequest)
             .filter(models.BookingRequest.artist_id == s.artist_id)
+            .filter(models.BookingRequest.client_id == (system_user.id if system_user else -1))
             .order_by(models.BookingRequest.created_at.desc())
             .first()
         )
@@ -1121,7 +1123,6 @@ def approve_listing(listing_id: int, _: Tuple[User, AdminUser] = Depends(require
             br = models.BookingRequest(
                 client_id=system_user.id,
                 artist_id=s.artist_id,
-                service_id=s.id,
                 status=models.BookingStatus.PENDING_QUOTE,
             )
             db.add(br)
@@ -1216,6 +1217,7 @@ def reject_listing(listing_id: int, payload: Dict[str, Any], _: Tuple[User, Admi
         br = (
             db.query(models.BookingRequest)
             .filter(models.BookingRequest.artist_id == s.artist_id)
+            .filter(models.BookingRequest.client_id == (system_user.id if system_user else -1))
             .order_by(models.BookingRequest.created_at.desc())
             .first()
         )
@@ -1223,7 +1225,6 @@ def reject_listing(listing_id: int, payload: Dict[str, Any], _: Tuple[User, Admi
             br = models.BookingRequest(
                 client_id=system_user.id,
                 artist_id=s.artist_id,
-                service_id=s.id,
                 status=models.BookingStatus.PENDING_QUOTE,
             )
             db.add(br)
@@ -1316,6 +1317,7 @@ def bulk_approve(payload: Dict[str, Any], _: Tuple[User, AdminUser] = Depends(re
                 br = (
                     db.query(models.BookingRequest)
                     .filter(models.BookingRequest.artist_id == s.artist_id)
+                    .filter(models.BookingRequest.client_id == (system_user.id if system_user else -1))
                     .order_by(models.BookingRequest.created_at.desc())
                     .first()
                 )
@@ -1323,7 +1325,6 @@ def bulk_approve(payload: Dict[str, Any], _: Tuple[User, AdminUser] = Depends(re
                     br = models.BookingRequest(
                         client_id=system_user.id,
                         artist_id=s.artist_id,
-                        service_id=s.id,
                         status=models.BookingStatus.PENDING_QUOTE,
                     )
                     db.add(br)
@@ -1422,6 +1423,7 @@ def bulk_reject(payload: Dict[str, Any], _: Tuple[User, AdminUser] = Depends(req
                 br = (
                     db.query(models.BookingRequest)
                     .filter(models.BookingRequest.artist_id == s.artist_id)
+                    .filter(models.BookingRequest.client_id == (system_user.id if system_user else -1))
                     .order_by(models.BookingRequest.created_at.desc())
                     .first()
                 )
@@ -1429,7 +1431,6 @@ def bulk_reject(payload: Dict[str, Any], _: Tuple[User, AdminUser] = Depends(req
                     br = models.BookingRequest(
                         client_id=system_user.id,
                         artist_id=s.artist_id,
-                        service_id=s.id,
                         status=models.BookingStatus.PENDING_QUOTE,
                     )
                     db.add(br)
