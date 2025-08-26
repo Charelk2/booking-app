@@ -65,6 +65,47 @@ export const getFullImageUrl = (
   return `${base}${cleanPath}`;
 };
 
+// Convert a user-provided URL or path into a canonical storage form for
+// uploaded assets. Keeps case intact and strips any /static prefix and host
+// when pointing at our API origin. External URLs are returned unchanged.
+export const normalizeAssetPathForStorage = (input: string): string => {
+  const v = (input || '').trim();
+  if (!v) return v;
+
+  const MOUNTS = /^(profile_pics|cover_photos|portfolio_images|attachments)\/(.*)$/i;
+  const STATIC_PREFIX = /^\/static\/(profile_pics|cover_photos|portfolio_images|attachments)\/(.*)$/i;
+  const DIRECT_PREFIX = /^\/(profile_pics|cover_photos|portfolio_images|attachments)\/(.*)$/i;
+
+  // Relative paths
+  if (v.startsWith('/')) {
+    const mStatic = v.match(STATIC_PREFIX);
+    if (mStatic) return `${mStatic[1]}/${mStatic[2]}`; // strip /static/, preserve case
+    const mDirect = v.match(DIRECT_PREFIX);
+    if (mDirect) return `${mDirect[1]}/${mDirect[2]}`; // strip leading slash
+    return v; // Leave other absolute paths as-is
+  }
+  const mMount = v.match(MOUNTS);
+  if (mMount) return `${mMount[1]}/${mMount[2]}`; // already canonical
+
+  // Absolute URLs
+  try {
+    const u = new URL(v);
+    const host = u.hostname.toLowerCase();
+    // Any of our known hosts
+    if (/(^|\.)booka\.co\.za$/i.test(host)) {
+      const mStatic = u.pathname.match(STATIC_PREFIX);
+      if (mStatic) return `${mStatic[1]}/${mStatic[2]}`;
+      const mDirect = u.pathname.match(DIRECT_PREFIX);
+      if (mDirect) return `${mDirect[1]}/${mDirect[2]}`;
+    }
+    // External: return unchanged
+    return v;
+  } catch {
+    // Not a valid URL and not one of our mounts: try to coerce later
+    return v;
+  }
+};
+
 // Build a receipt URL from payment info. Prefers explicit receiptUrl, then PayFast base + payment_id.
 export const buildReceiptUrl = (
   receiptUrl?: string | null,
