@@ -1036,7 +1036,7 @@ export default function ServiceProviderProfilePage() {
     {/* soft background glow */}
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-amber-300/30 blur-3xl dark:bg-amber-400/10"
+      className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full  blur-3xl dark:bg-amber-400/10"
     />
     <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-6">
       {/* Image (from /public) */}

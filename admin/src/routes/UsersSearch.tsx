@@ -20,12 +20,12 @@ export default function UsersSearch() {
     }
   };
 
-  const purge = async (confirmEmail: string) => {
+  const purge = async (confirmEmail?: string) => {
     if (!result?.user?.id) return;
     try {
       await (dp as any).httpClient(`${(dp as any).API_URL || ''}/users/${result.user.id}/purge`, {
         method: 'POST',
-        body: JSON.stringify({ confirm: confirmEmail, force: true }),
+        body: JSON.stringify({ confirm: confirmEmail || '', force: true }),
       });
       notify('app.user.purged', { type: 'info' });
       setResult(null);

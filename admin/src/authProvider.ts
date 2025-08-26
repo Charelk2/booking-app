@@ -72,8 +72,11 @@ export const authProvider: AuthProvider = {
   },
   getIdentity: async () => {
     const userRaw = localStorage.getItem('booka_admin_user');
-    if (!userRaw) return Promise.resolve(undefined);
+    if (!userRaw) {
+      // Provide a minimal identity to satisfy RA types even before login
+      return { id: 'anonymous', fullName: 'Admin', avatar: undefined } as any;
+    }
     const user = JSON.parse(userRaw);
-    return { id: user.id, fullName: user.email, role: user.role };
+    return { id: user.id, fullName: user.email, role: user.role } as any;
   },
 };

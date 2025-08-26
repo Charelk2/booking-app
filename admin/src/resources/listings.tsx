@@ -351,7 +351,7 @@ export const ListingList = () => (
 // If navigated from Providers with ?provider=ID&ephemeral=1, apply provider filter once,
 // then clean the URL to avoid persistence on refresh/navigation.
 const EphemeralProviderFilter: React.FC = () => {
-  const { setFilters, filterValues } = useListContext();
+  const { setFilters, filterValues, displayedFilters } = useListContext();
   const location = useLocation();
   const navigate = useNavigate();
   React.useEffect(() => {
@@ -362,7 +362,7 @@ const EphemeralProviderFilter: React.FC = () => {
       if (provider && ephemeral === '1') {
         // Apply provider filter from providers page and keep it until user clears manually
         if (String(filterValues.provider_id || '') !== String(provider)) {
-          setFilters({ ...filterValues, provider_id: provider });
+          setFilters({ ...filterValues, provider_id: provider }, displayedFilters);
         }
       }
     } catch {}
@@ -373,7 +373,7 @@ const EphemeralProviderFilter: React.FC = () => {
 
 // Small control to clear only the provider filter (if applied)
 const ClearProviderFilterButton: React.FC = () => {
-  const { setFilters, filterValues } = useListContext();
+  const { setFilters, filterValues, displayedFilters } = useListContext();
   const providerId = (filterValues as any)?.provider_id;
   if (!providerId) return null;
   return (
@@ -381,7 +381,7 @@ const ClearProviderFilterButton: React.FC = () => {
       <Button label="Clear provider filter" onClick={() => {
         const next = { ...(filterValues as any) };
         delete next.provider_id;
-        setFilters(next);
+        setFilters(next, displayedFilters);
       }} />
     </div>
   );

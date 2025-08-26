@@ -64,6 +64,15 @@ if (hostname !== 'localhost') {
   );
 }
 
+// Hard-allow production API origin to prevent env drift from breaking images
+remotePatterns.push(
+  { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/static/profile_pics/**' },
+  { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/static/default-avatar.svg' },
+  { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/static/cover_photos/**' },
+  { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/static/portfolio_images/**' },
+  { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/static/attachments/**' },
+);
+
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
