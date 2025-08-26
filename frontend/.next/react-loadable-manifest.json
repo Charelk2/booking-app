@@ -1,4 +1,8 @@
 {
+  "app/dashboard/profile/edit/page.tsx -> react-image-crop": {
+    "id": "app/dashboard/profile/edit/page.tsx -> react-image-crop",
+    "files": []
+  },
   "app/service-providers/[id]/page.tsx -> @/components/booking/BookingWizard": {
     "id": "app/service-providers/[id]/page.tsx -> @/components/booking/BookingWizard",
     "files": [

@@ -407,11 +407,35 @@ export default function ServiceProviderProfilePage() {
     const defaultAvatar = getFullImageUrl('/static/default-avatar.svg');
     const imageExt = /\.(png|jpg|jpeg|webp|gif|svg|avif)(\?|$)/i;
     const filtered = urls.filter((u) => u && u !== defaultAvatar && imageExt.test(u));
-    // de-dup
+    // de-dup by exact URL
     const seen = new Set<string>();
     const deduped: string[] = [];
     for (const u of filtered) if (!seen.has(u)) { seen.add(u); deduped.push(u); }
-    return deduped;
+
+    // Heuristic: when multiple portfolio filenames share the same trailing
+    // original name (e.g., IMG_3132.JPG) but different timestamp prefixes,
+    // keep only the entry with the latest timestamp. This avoids showing a
+    // stale/nonexistent earlier upload alongside the valid one.
+    type Parsed = { key: string; ts: number; url: string };
+    const parse = (href: string): Parsed => {
+      let path = href;
+      try { path = new URL(href).pathname; } catch {}
+      // Match "/portfolio_images/<14 digit ts>_<id>_<rest>"
+      const m = path.match(/\/portfolio_images\/(\d{14})_\d+_(.+)$/);
+      if (m) {
+        const tsNum = Number(m[1]);
+        const key = m[2];
+        if (Number.isFinite(tsNum)) return { key, ts: tsNum, url: href };
+      }
+      return { key: path, ts: 0, url: href };
+    };
+    const byKey = new Map<string, Parsed>();
+    for (const u of deduped) {
+      const p = parse(u);
+      const prev = byKey.get(p.key);
+      if (!prev || p.ts > prev.ts) byKey.set(p.key, p);
+    }
+    return Array.from(byKey.values()).map((p) => p.url);
   }, [serviceProvider]);
 
   if (loading) {
