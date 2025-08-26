@@ -18,15 +18,9 @@ export const getFullImageUrl = (
       if (relativePath.startsWith('data:')) return relativePath;
       const u = new URL(relativePath);
       const host = u.hostname.toLowerCase();
-      const origPath = u.pathname;
-      // If the external URL points at our API but incorrectly uses /static for uploaded mounts,
-      // rewrite to the direct mount while PRESERVING original case (Linux FS is case-sensitive).
-      if (/(^|\.)booka\.co\.za$/i.test(host)) {
-        const m = origPath.match(/^\/static\/(profile_pics|cover_photos|portfolio_images|attachments)\/(.*)$/i);
-        if (m) {
-          return `${u.protocol}//${u.host}/${m[1]}/${m[2]}${u.search}`;
-        }
-      }
+      const origPath = u.pathname; // preserve case
+      // Do NOT rewrite /static to direct mounts for external URLs; production may serve
+      // only under /static. Just return the URL if it looks like an image.
       const hasImageExt = /(\.png|\.jpg|\.jpeg|\.webp|\.gif|\.svg|\.avif)(\?|$)/i.test(origPath);
       if (hasImageExt) return relativePath;
       // Any external URL without an image extension is treated as a profile/page link.
@@ -49,14 +43,12 @@ export const getFullImageUrl = (
     stripLeading.startsWith('attachments/') ||
     stripLeading.startsWith('media/')
   );
-  let cleanPath: string;
-  if (relativePath.startsWith('/static/')) {
-    // Normalize known mounts by stripping /static prefix while preserving case
-    const m = relativePath.match(/^\/static\/(profile_pics|cover_photos|portfolio_images|attachments)\/(.*)$/i);
-    cleanPath = m ? `/${m[1]}/${m[2]}` : relativePath;
-  } else {
-    cleanPath = isUploadPath ? `/${stripLeading}` : `/static/${stripLeading}`;
-  }
+  // Always serve via /static for relative paths to match production hosting
+  const cleanPath = relativePath.startsWith('/static/')
+    ? relativePath
+    : isUploadPath
+      ? `/static/${stripLeading}`
+      : `/static/${stripLeading}`;
 
   let base = api.defaults.baseURL || '';
   base = base.replace(/\/+$/, '');
