@@ -71,6 +71,7 @@ export default function ServiceProviderCardCompact({
             blurDataURL={BLUR_PLACEHOLDER}
             loading="lazy"
             quality={60}
+            unoptimized
             className="object-cover w-full h-full  transition-transform"
             onLoad={() => setLoaded(true)}
             onError={(e) => {
@@ -87,6 +88,7 @@ export default function ServiceProviderCardCompact({
             blurDataURL={BLUR_PLACEHOLDER}
             loading="lazy"
             quality={60}
+            unoptimized
             className="object-cover w-full h-full"
             onLoad={() => setLoaded(true)}
           />
