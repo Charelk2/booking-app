@@ -8,21 +8,24 @@ export const getFullImageUrl = (
   relativePath: string | undefined | null,
 ): string | null => {
   if (!relativePath) return null;
+  const input = String(relativePath).trim();
+  if (!input) return null;
+  const sanitized = input.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, '');
   if (
-    relativePath.startsWith('http://') ||
-    relativePath.startsWith('https://') ||
-    relativePath.startsWith('data:')
+    sanitized.startsWith('http://') ||
+    sanitized.startsWith('https://') ||
+    sanitized.startsWith('data:')
   ) {
     // Guard against non-image external URLs (e.g., social profile pages)
     try {
-      if (relativePath.startsWith('data:')) return relativePath;
-      const u = new URL(relativePath);
+      if (sanitized.startsWith('data:')) return sanitized;
+      const u = new URL(sanitized);
       const host = u.hostname.toLowerCase();
       const origPath = u.pathname; // preserve case
       // Do NOT rewrite /static to direct mounts for external URLs; production may serve
       // only under /static. Just return the URL if it looks like an image.
       const hasImageExt = /(\.png|\.jpg|\.jpeg|\.webp|\.gif|\.svg|\.avif)(\?|$)/i.test(origPath);
-      if (hasImageExt) return relativePath;
+      if (hasImageExt) return sanitized;
       // Any external URL without an image extension is treated as a profile/page link.
       // Fall back to our default avatar to avoid next/image host errors.
       let base = api.defaults.baseURL || '';
@@ -30,12 +33,12 @@ export const getFullImageUrl = (
       base = base.replace(/\/api(?:\/v\d+)?$/, '');
       return `${base}/static/default-avatar.svg`;
     } catch {
-      return relativePath;
+      return sanitized;
     }
   }
 
   // Normalize known upload directories to their direct mounts (not /static)
-  const stripLeading = relativePath.replace(/^\/+/, '');
+  const stripLeading = sanitized.replace(/^\/+/, '');
   const isUploadPath = (
     stripLeading.startsWith('profile_pics/') ||
     stripLeading.startsWith('cover_photos/') ||
@@ -44,8 +47,8 @@ export const getFullImageUrl = (
     stripLeading.startsWith('media/')
   );
   // Always serve via /static for relative paths to match production hosting
-  const cleanPath = relativePath.startsWith('/static/')
-    ? relativePath
+  const cleanPath = sanitized.startsWith('/static/')
+    ? sanitized
     : isUploadPath
       ? `/static/${stripLeading}`
       : `/static/${stripLeading}`;
@@ -61,7 +64,7 @@ export const getFullImageUrl = (
 // uploaded assets. Keeps case intact and strips any /static prefix and host
 // when pointing at our API origin. External URLs are returned unchanged.
 export const normalizeAssetPathForStorage = (input: string): string => {
-  const v = (input || '').trim();
+  const v = (input || '').trim().replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, '');
   if (!v) return v;
 
   const MOUNTS = /^(profile_pics|cover_photos|portfolio_images|attachments)\/(.*)$/i;
