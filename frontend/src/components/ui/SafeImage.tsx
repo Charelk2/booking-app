@@ -21,12 +21,14 @@ export default function SafeImage({ src, alt, fallbackSrc, ...rest }: Props) {
 
   const [currentSrc, setCurrentSrc] = useState<string | undefined>(src || undefined);
   const [triedAlternate, setTriedAlternate] = useState(false);
+  const [triedCaseVariant, setTriedCaseVariant] = useState(false);
   const [failedHard, setFailedHard] = useState(false);
 
   // Reset when src changes
   useEffect(() => {
     setCurrentSrc(src || undefined);
     setTriedAlternate(false);
+    setTriedCaseVariant(false);
     setFailedHard(false);
   }, [src]);
 
@@ -35,7 +37,7 @@ export default function SafeImage({ src, alt, fallbackSrc, ...rest }: Props) {
       setFailedHard(true);
       return;
     }
-    if (triedAlternate) {
+    if (triedAlternate && triedCaseVariant) {
       setFailedHard(true);
       return;
     }
@@ -51,10 +53,26 @@ export default function SafeImage({ src, alt, fallbackSrc, ...rest }: Props) {
         if (mDirect) return `${u.protocol}//${u.host}/static/${mDirect[1]}/${mDirect[2]}${u.search}`;
         return null;
       })();
-      if (isBookaHost && toggled) {
+      if (isBookaHost && toggled && !triedAlternate) {
         setTriedAlternate(true);
         setCurrentSrc(toggled);
         return;
+      }
+      // Try case-variant of the extension (.JPG <-> .jpg)
+      if (isBookaHost && !triedCaseVariant) {
+        const dot = u.pathname.lastIndexOf('.');
+        if (dot !== -1) {
+          const base = u.pathname.slice(0, dot);
+          const ext = u.pathname.slice(dot); // includes dot
+          // Only toggle case of known image extensions
+          if (/\.(png|jpg|jpeg|webp|gif|svg|avif)(\?|$)/i.test(ext)) {
+            const flipped = /[A-Z]/.test(ext) ? ext.toLowerCase() : ext.toUpperCase();
+            const nextUrl = `${u.protocol}//${u.host}${base}${flipped}${u.search}`;
+            setTriedCaseVariant(true);
+            setCurrentSrc(nextUrl);
+            return;
+          }
+        }
       }
     } catch {
       // ignore
