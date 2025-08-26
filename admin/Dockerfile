@@ -11,5 +11,5 @@ WORKDIR /app
 RUN npm i -g serve
 COPY --from=build /app/dist ./dist
 EXPOSE 8080
-CMD ["serve", "-s", "dist", "-l", "8080"]
-
+# Bind explicitly to 0.0.0.0 so Fly proxy can reach the container
+CMD ["serve", "-s", "dist", "-l", "tcp://0.0.0.0:8080"]
