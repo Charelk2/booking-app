@@ -46,6 +46,13 @@ const withPWA = require('next-pwa')({
 
 // next/image remote patterns for your backend (profile pics, covers, etc.)
 const remotePatterns = [
+  // Direct mounts for uploaded assets
+  { protocol: protocol.replace(':', ''), hostname, port: port || '', pathname: '/profile_pics/**' },
+  { protocol: protocol.replace(':', ''), hostname, port: port || '', pathname: '/cover_photos/**' },
+  { protocol: protocol.replace(':', ''), hostname, port: port || '', pathname: '/portfolio_images/**' },
+  { protocol: protocol.replace(':', ''), hostname, port: port || '', pathname: '/attachments/**' },
+  { protocol: protocol.replace(':', ''), hostname, port: port || '', pathname: '/media/**' },
+  // Static assets (default avatar, etc.)
   { protocol: protocol.replace(':', ''), hostname, port: port || '', pathname: '/static/profile_pics/**' },
   { protocol: protocol.replace(':', ''), hostname, port: port || '', pathname: '/static/default-avatar.svg' },
   { protocol: protocol.replace(':', ''), hostname, port: port || '', pathname: '/static/cover_photos/**' },
@@ -56,6 +63,11 @@ const remotePatterns = [
 // Also allow localhost when API_URL points at your IP (useful on laptop)
 if (hostname !== 'localhost') {
   remotePatterns.push(
+    { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/profile_pics/**' },
+    { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/cover_photos/**' },
+    { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/portfolio_images/**' },
+    { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/attachments/**' },
+    { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/media/**' },
     { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/static/profile_pics/**' },
     { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/static/default-avatar.svg' },
     { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/static/cover_photos/**' },
@@ -66,6 +78,11 @@ if (hostname !== 'localhost') {
 
 // Hard-allow production API origin to prevent env drift from breaking images
 remotePatterns.push(
+  { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/profile_pics/**' },
+  { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/cover_photos/**' },
+  { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/portfolio_images/**' },
+  { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/attachments/**' },
+  { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/media/**' },
   { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/static/profile_pics/**' },
   { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/static/default-avatar.svg' },
   { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/static/cover_photos/**' },

@@ -32,9 +32,20 @@ export const getFullImageUrl = (
     }
   }
 
+  // Normalize known upload directories to their direct mounts (not /static)
+  const stripLeading = relativePath.replace(/^\/+/, '');
+  const isUploadPath = (
+    stripLeading.startsWith('profile_pics/') ||
+    stripLeading.startsWith('cover_photos/') ||
+    stripLeading.startsWith('portfolio_images/') ||
+    stripLeading.startsWith('attachments/') ||
+    stripLeading.startsWith('media/')
+  );
   const cleanPath = relativePath.startsWith('/static/')
     ? relativePath
-    : `/static/${relativePath.replace(/^\/+/, '')}`;
+    : isUploadPath
+      ? `/${stripLeading}`
+      : `/static/${stripLeading}`;
 
   let base = api.defaults.baseURL || '';
   base = base.replace(/\/+$/, '');
