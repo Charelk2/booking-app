@@ -213,6 +213,12 @@ html, body {
     @apply h-[40vh] max-h-64;
   }
 
+  /* Wider inline datepicker inside booking wizard only */
+  .booking-wizard-step .react-datepicker,
+  .booking-wizard-step .react-datepicker__month-container {
+    width: 360px;
+  }
+
   /* Slide-out reservation side panel */
   .side-panel {
     @apply transform transition-transform duration-200 ease-in-out;

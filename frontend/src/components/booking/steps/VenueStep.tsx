@@ -2,7 +2,7 @@
 import { Controller, Control } from 'react-hook-form';
 import { useState, useRef } from 'react';
 import useIsMobile from '@/hooks/useIsMobile';
-import { BottomSheet, Button, CollapsibleSection } from '../../ui';
+import { BottomSheet, Button } from '../../ui';
 import { EventDetails } from '@/contexts/BookingContext';
 
 interface Props {
@@ -24,13 +24,12 @@ export default function VenueStep({ control, open = true, onToggle = () => {} }:
   ];
 
   return (
-    <CollapsibleSection
-      title="Venue Type"
-      description="What type of venue is it?"
-      open={open}
-      onToggle={onToggle}
-      className="wizard-step-container rounded-2xl border border-black/10 bg-white p-6 shadow-sm"
-    >
+    <section className="wizard-step-container rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+      <div>
+        <h3 className="font-bold text-neutral-900">Venue Type</h3>
+        <p className="text-sm font-normal text-gray-600 pt-1">What type of venue is it?</p>
+      </div>
+      <div className="mt-6">
       <Controller<EventDetails, 'venueType'>
         name="venueType"
         control={control}
@@ -103,6 +102,7 @@ export default function VenueStep({ control, open = true, onToggle = () => {} }:
           </>
         )}
       />
-    </CollapsibleSection>
+      </div>
+    </section>
   );
 }
