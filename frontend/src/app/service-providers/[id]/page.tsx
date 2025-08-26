@@ -683,22 +683,35 @@ export default function ServiceProviderProfilePage() {
                 </div>
               </section>
               {!!galleryImages.length && (
-                <section id="portfolio" aria-labelledby="portfolio-heading" className="mt-16">
-                  <h2 id="portfolio-heading" className="text-lg font-bold text-gray-900">
-                    My Portfolio
-                  </h2>
-                  <ul className="mt-3 grid grid-cols-3 gap-1">
-                    {galleryImages.slice(0, 6).map((src, i) => (
-                      <li
-                        key={`portfolio-mobile-${i}`}
-                        className="relative aspect-square overflow-hidden rounded-lg border border-gray-100"
-                      >
-                        <Image src={src} alt="" fill className="object-cover" sizes="50vw" />
-                      </li>
-                    ))}
-                  </ul>
-                </section>
+                <>
+                  <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
+                  <section id="portfolio" aria-labelledby="portfolio-heading">
+                    <h2 id="portfolio-heading" className="text-lg font-bold text-gray-900">
+                      My Portfolio
+                    </h2>
+                    <ul className="mt-3 grid grid-cols-3 gap-1">
+                      {galleryImages.slice(0, 6).map((src, i) => (
+                        <li
+                          key={`portfolio-mobile-${i}`}
+                          className="relative aspect-square overflow-hidden rounded-lg border border-gray-100"
+                        >
+                          <Image src={src} alt="" fill className="object-cover" sizes="50vw" />
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                </>
               )}
+
+              <section className="mt-16">
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-center">
+                  <h2 className="text-lg font-bold text-gray-900">{displayName} is vetted by Booka</h2>
+                  <p className="mt-2 text-sm text-gray-600">
+                    Booka reviews every service provider's professional experience, portfolio, and client feedback to ensure
+                    quality.
+                  </p>
+                </div>
+              </section>
 
               {(serviceProvider as any)?.cancellation_policy && (
                 <section aria-labelledby="policies-heading">
@@ -946,29 +959,41 @@ export default function ServiceProviderProfilePage() {
                 </section>
 
                 {!!galleryImages.length && (
-                  <section
-                    id="portfolio-desktop"
-                    aria-labelledby="portfolio-heading-desktop"
-                    className="mt-16"
-                  >
-                    <h2
-                      id="portfolio-heading-desktop"
-                      className="text-2xl font-bold text-gray-800 mb-6"
+                  <>
+                    <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
+                    <section
+                      id="portfolio-desktop"
+                      aria-labelledby="portfolio-heading-desktop"
                     >
-                      My Portfolio
-                    </h2>
-                    <ul className="grid grid-cols-4 gap-2">
-                      {galleryImages.slice(0, 9).map((src, i) => (
-                        <li
-                          key={`portfolio-desktop-${i}`}
-                          className="relative aspect-square overflow-hidden rounded-lg border border-gray-100"
-                        >
-                          <Image src={src} alt="" fill className="object-cover" sizes="33vw" />
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
+                      <h2
+                        id="portfolio-heading-desktop"
+                        className="text-2xl font-bold text-gray-800 mb-6"
+                      >
+                        My Portfolio
+                      </h2>
+                      <ul className="grid grid-cols-4 gap-2">
+                        {galleryImages.slice(0, 9).map((src, i) => (
+                          <li
+                            key={`portfolio-desktop-${i}`}
+                            className="relative aspect-square overflow-hidden rounded-lg border border-gray-100"
+                          >
+                            <Image src={src} alt="" fill className="object-cover" sizes="33vw" />
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  </>
                 )}
+
+                <section className="mt-16">
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-center">
+                    <h2 className="text-lg font-bold text-gray-900">{displayName} is vetted by Booka</h2>
+                    <p className="mt-2 text-sm text-gray-600">
+                      Booka reviews every service provider's professional experience, portfolio, and client feedback to ensure
+                      quality.
+                    </p>
+                  </div>
+                </section>
               </section>
             </div>
           </section>
