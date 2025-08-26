@@ -19,6 +19,17 @@ export const getFullImageUrl = (
       const u = new URL(relativePath);
       const host = u.hostname.toLowerCase();
       const pathLower = u.pathname.toLowerCase();
+      // If the external URL points at our API but incorrectly uses /static for uploaded mounts,
+      // rewrite to the direct mount so the backend serves the actual file instead of default avatar.
+      if (/(^|\.)booka\.co\.za$/i.test(host)) {
+        const fixed = pathLower.replace(
+          /^\/static\/(profile_pics|cover_photos|portfolio_images|attachments)\//,
+          '/$1/'
+        );
+        if (fixed !== pathLower) {
+          return `${u.protocol}//${u.host}${fixed}${u.search}`;
+        }
+      }
       const hasImageExt = /(\.png|\.jpg|\.jpeg|\.webp|\.gif|\.svg|\.avif)(\?|$)/.test(pathLower);
       if (hasImageExt) return relativePath;
       // Any external URL without an image extension is treated as a profile/page link.
