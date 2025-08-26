@@ -18,19 +18,16 @@ export const getFullImageUrl = (
       if (relativePath.startsWith('data:')) return relativePath;
       const u = new URL(relativePath);
       const host = u.hostname.toLowerCase();
-      const pathLower = u.pathname.toLowerCase();
+      const origPath = u.pathname;
       // If the external URL points at our API but incorrectly uses /static for uploaded mounts,
-      // rewrite to the direct mount so the backend serves the actual file instead of default avatar.
+      // rewrite to the direct mount while PRESERVING original case (Linux FS is case-sensitive).
       if (/(^|\.)booka\.co\.za$/i.test(host)) {
-        const fixed = pathLower.replace(
-          /^\/static\/(profile_pics|cover_photos|portfolio_images|attachments)\//,
-          '/$1/'
-        );
-        if (fixed !== pathLower) {
-          return `${u.protocol}//${u.host}${fixed}${u.search}`;
+        const m = origPath.match(/^\/static\/(profile_pics|cover_photos|portfolio_images|attachments)\/(.*)$/i);
+        if (m) {
+          return `${u.protocol}//${u.host}/${m[1]}/${m[2]}${u.search}`;
         }
       }
-      const hasImageExt = /(\.png|\.jpg|\.jpeg|\.webp|\.gif|\.svg|\.avif)(\?|$)/.test(pathLower);
+      const hasImageExt = /(\.png|\.jpg|\.jpeg|\.webp|\.gif|\.svg|\.avif)(\?|$)/i.test(origPath);
       if (hasImageExt) return relativePath;
       // Any external URL without an image extension is treated as a profile/page link.
       // Fall back to our default avatar to avoid next/image host errors.
@@ -52,11 +49,14 @@ export const getFullImageUrl = (
     stripLeading.startsWith('attachments/') ||
     stripLeading.startsWith('media/')
   );
-  const cleanPath = relativePath.startsWith('/static/')
-    ? relativePath
-    : isUploadPath
-      ? `/${stripLeading}`
-      : `/static/${stripLeading}`;
+  let cleanPath: string;
+  if (relativePath.startsWith('/static/')) {
+    // Normalize known mounts by stripping /static prefix while preserving case
+    const m = relativePath.match(/^\/static\/(profile_pics|cover_photos|portfolio_images|attachments)\/(.*)$/i);
+    cleanPath = m ? `/${m[1]}/${m[2]}` : relativePath;
+  } else {
+    cleanPath = isUploadPath ? `/${stripLeading}` : `/static/${stripLeading}`;
+  }
 
   let base = api.defaults.baseURL || '';
   base = base.replace(/\/+$/, '');
