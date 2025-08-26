@@ -99,8 +99,8 @@ const nextConfig = {
   typescript: { ignoreBuildErrors: true },
   images: {
     remotePatterns,
-    // If you prefer to bypass optimization during dev, uncomment:
-    // unoptimized: true,
+    // Temporarily bypass optimizer globally to stabilize external image URLs
+    unoptimized: true,
   },
   async headers() {
     return [
