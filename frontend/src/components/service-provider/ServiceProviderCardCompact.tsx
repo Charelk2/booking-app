@@ -1,5 +1,4 @@
 'use client';
-import Image from 'next/image';
 import Link, { LinkProps } from 'next/link';
 import type { AnchorHTMLAttributes } from 'react';
 import { useState } from 'react';
@@ -11,6 +10,7 @@ import clsx from 'clsx';
 import { getFullImageUrl, getTownProvinceFromAddress } from '@/lib/utils';
 import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
+import SafeImage from '@/components/ui/SafeImage';
 
 export interface ServiceProviderCardCompactProps
   extends LinkProps,
@@ -61,34 +61,21 @@ export default function ServiceProviderCardCompact({
         {!loaded && (
           <div className="absolute inset-0 animate-pulse bg-gray-200" />
         )}
-          {imageUrl ? (
-          <Image
+        {imageUrl ? (
+          <SafeImage
             src={imageUrl}
             alt={name}
             fill
             sizes={`(max-width:${BREAKPOINT_MD}px) 50vw, 33vw`}
-            placeholder="blur"
-            blurDataURL={BLUR_PLACEHOLDER}
-            loading="lazy"
-            quality={60}
-            unoptimized
-            className="object-cover w-full h-full  transition-transform"
+            className="object-cover w-full h-full transition-transform"
             onLoad={() => setLoaded(true)}
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
-            }}
           />
         ) : (
-          <Image
+          <SafeImage
             src={getFullImageUrl('/static/default-avatar.svg') as string}
             alt={name}
             fill
             sizes={`(max-width:${BREAKPOINT_MD}px) 0vw, 33vw`}
-            placeholder="blur"
-            blurDataURL={BLUR_PLACEHOLDER}
-            loading="lazy"
-            quality={60}
-            unoptimized
             className="object-cover w-full h-full"
             onLoad={() => setLoaded(true)}
           />

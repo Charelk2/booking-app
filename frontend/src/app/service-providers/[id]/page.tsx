@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useState, useDeferredValue, startTransition } from 'react';
 import Head from 'next/head';
-import Image from 'next/image';
+// next/image is wrapped via SafeImage to ensure reliable fallback
+import SafeImage from '@/components/ui/SafeImage';
 import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
 
@@ -497,7 +498,7 @@ export default function ServiceProviderProfilePage() {
             {/* Hero */}
             <div className="relative h-48 w-full overflow-hidden">
               {coverPhotoUrl ? (
-                <Image src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover" sizes="100vw" unoptimized />
+                <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover" sizes="100vw" />
               ) : (
                 <div className="h-full w-full bg-gray-100" />
               )}
@@ -522,7 +523,7 @@ export default function ServiceProviderProfilePage() {
                 <div className="flex items-center gap-4">
                   <div className="relative -mt-10 h-20 w-20 shrink-0 rounded-full ring-4 ring-white overflow-hidden bg-gray-200">
                     {profilePictureUrl ? (
-                      <Image src={profilePictureUrl} alt={displayName} fill className="object-cover" sizes="80px" unoptimized />
+                      <SafeImage src={profilePictureUrl} alt={displayName} fill className="object-cover" sizes="80px" />
                     ) : (
                       <div className="h-full w-full grid place-items-center">
                         <UserIcon className="h-10 w-10 text-gray-400" />
@@ -602,7 +603,7 @@ export default function ServiceProviderProfilePage() {
                               <div className="flex items-center gap-3">
                                 <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                                   {img ? (
-                                    <Image src={img} alt="" fill className="object-cover" sizes="64px" unoptimized />
+                                    <SafeImage src={img} alt="" fill className="object-cover" sizes="64px" />
                                   ) : (
                                     <div className="h-full w-full bg-gray-100" />
                                   )}
@@ -696,7 +697,7 @@ export default function ServiceProviderProfilePage() {
                           key={`portfolio-mobile-${i}`}
                           className="relative aspect-square overflow-hidden rounded-lg border border-gray-100"
                         >
-                          <Image src={src} alt="" fill className="object-cover" sizes="50vw" />
+                          <SafeImage src={src} alt="" fill className="object-cover" sizes="50vw" />
                         </li>
                       ))}
                     </ul>
@@ -795,7 +796,7 @@ export default function ServiceProviderProfilePage() {
               <aside className="md:w-2/5 md:flex md:flex-col bg-white p-6 md:sticky md:self-start md:border-gray-100" style={{ top: '5.5rem' }}>
                 <div className="relative h-48 overflow-hidden rounded-3xl shadow-sm" role="img" aria-label="Cover photo">
                   {coverPhotoUrl ? (
-                    <Image src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover rounded-3xl" sizes="40vw" />
+                    <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover rounded-3xl" sizes="40vw" />
                   ) : (
                     <div className="h-full grid place-items-center text-gray-500">No cover photo</div>
                   )}
@@ -814,7 +815,7 @@ export default function ServiceProviderProfilePage() {
                   <div className="flex flex-col items-center text-center">
                     <div className="relative -mt-12">
                       {profilePictureUrl ? (
-                        <Image
+                        <SafeImage
                           src={profilePictureUrl}
                           width={96}
                           height={96}
@@ -923,7 +924,7 @@ export default function ServiceProviderProfilePage() {
                               <div className="flex gap-4 h-full">
                                 <div className="relative h-32 w-32 rounded-3xl overflow-hidden bg-gray-100 shrink-0 group-hover:scale-105 transition-transform duration-200">
                                   {img ? (
-                                    <Image src={img} alt={service.title || (service as any).service_type} fill className="object-cover" sizes="128px" unoptimized />
+                                    <SafeImage src={img} alt={service.title || (service as any).service_type} fill className="object-cover" sizes="128px" />
                                   ) : (
                                     <div className="h-full w-full grid place-items-center text-gray-400">No image</div>
                                   )}
@@ -1023,7 +1024,7 @@ export default function ServiceProviderProfilePage() {
                             key={`portfolio-desktop-${i}`}
                             className="relative aspect-square overflow-hidden rounded-lg border border-gray-100"
                           >
-                            <Image src={src} alt="" fill className="object-cover" sizes="33vw" unoptimized />
+                            <SafeImage src={src} alt="" fill className="object-cover" sizes="33vw" />
                           </li>
                         ))}
                       </ul>
@@ -1142,7 +1143,7 @@ export default function ServiceProviderProfilePage() {
                   <div className="relative h-40 w-full bg-gray-100">
                     {(() => {
                       const img = getServiceImage(selectedServiceObj);
-                      return img ? <Image src={img} alt="" fill className="object-cover" sizes="100vw" /> : <div className="h-full w-full bg-gray-100" />;
+                      return img ? <SafeImage src={img} alt="" fill className="object-cover" sizes="100vw" /> : <div className="h-full w-full bg-gray-100" />;
                     })()}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
                       <div className="flex items-end justify-between gap-3">
@@ -1192,7 +1193,7 @@ export default function ServiceProviderProfilePage() {
                             aria-label={`Select ${s.title || (s as any).service_type}`}
                           />
                           <div className="relative h-14 w-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                            {img ? <Image src={img} alt="" fill className="object-cover" sizes="56px" /> : <div className="h-full w-full bg-gray-100" />}
+                            {img ? <SafeImage src={img} alt="" fill className="object-cover" sizes="56px" /> : <div className="h-full w-full bg-gray-100" />}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-gray-900 truncate">{s.title || (s as any).service_type}</p>
@@ -1255,7 +1256,7 @@ export default function ServiceProviderProfilePage() {
             <div className="flex items-center gap-3 mb-4">
               <div className="relative h-14 w-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                 {profilePictureUrl ? (
-                  <Image src={profilePictureUrl} alt={displayName} fill className="object-cover" sizes="56px" />
+                  <SafeImage src={profilePictureUrl} alt={displayName} fill className="object-cover" sizes="56px" />
                 ) : (
                   <div className="h-full w-full bg-gray-100" />
                 )}
@@ -1440,7 +1441,7 @@ export default function ServiceProviderProfilePage() {
                 <div className="relative h-40 w-full bg-gray-100 md:h-48">
                   {(() => {
                     const img = getServiceImage(detailedService);
-                    return img ? <Image src={img} alt="" fill className="object-cover" sizes="100vw" /> : <div className="h-full w-full grid place-items-center text-gray-400">No image available</div>;
+                    return img ? <SafeImage src={img} alt="" fill className="object-cover" sizes="100vw" /> : <div className="h-full w-full grid place-items-center text-gray-400">No image available</div>;
                   })()}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
                     <div className="flex items-end justify-between gap-3">

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { FunnelIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import SearchModal from "@/components/search/SearchModal";
 import { format } from "date-fns";
@@ -11,6 +10,7 @@ import { Button, Card } from "@/components/ui";
 import { getService, type PriceBucket } from "@/lib/api";
 import { SLIDER_MIN, SLIDER_MAX } from "@/lib/filter-constants";
 import { formatCurrency, getFullImageUrl } from "@/lib/utils";
+import SafeImage from "@/components/ui/SafeImage";
 
 // Fetch the latest service data on mount so pricing and descriptions stay
 // current without requiring a full page refresh.
@@ -51,19 +51,11 @@ export default function ServiceProviderServiceCard({ service, onBook }: ServiceP
       <div className="flex gap-6">
         {currentService.media_url && (
           <div className="relative w-35 h-35 flex-shrink-0 pr-4">
-            <Image
-              src={
-                getFullImageUrl(currentService.media_url) || currentService.media_url
-              }
+            <SafeImage
+              src={getFullImageUrl(currentService.media_url) || currentService.media_url}
               alt={currentService.title}
               fill
-              unoptimized
               className="object-cover rounded-3xl"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = getFullImageUrl(
-                  '/static/default-avatar.svg',
-                ) as string;
-              }}
             />
           </div>
         )}
