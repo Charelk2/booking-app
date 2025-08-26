@@ -2,7 +2,7 @@ import * as React from 'react';
 import { List, Datagrid, TextField, DateField, SelectInput, TextInput } from 'react-admin';
 
 const emailFilters = [
-  <TextInput key="q" source="q" label="Search" alwaysOn />,
+  <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
   <SelectInput key="event" source="event" choices={[
     { id:'processed', name:'Processed' },
     { id:'delivered', name:'Delivered' },
@@ -10,7 +10,7 @@ const emailFilters = [
     { id:'click', name:'Click' },
     { id:'bounce', name:'Bounce' },
     { id:'dropped', name:'Dropped' },
-  ]} alwaysOn />
+  ]} alwaysOn size="small" margin="dense" variant="outlined" />
 ];
 
 export const EmailEventList = () => (
@@ -27,4 +27,3 @@ export const EmailEventList = () => (
     </Datagrid>
   </List>
 );
-

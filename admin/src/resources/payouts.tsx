@@ -2,8 +2,8 @@ import * as React from 'react';
 import { List, Datagrid, TextField, DateField, NumberField, SelectInput, TextInput } from 'react-admin';
 
 const payoutFilters = [
-  <TextInput key="q" source="q" label="Search" alwaysOn />,
-  <SelectInput key="status" source="status" choices={[
+  <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
+  <SelectInput key="status" source="status" size="small" margin="dense" variant="outlined" choices={[
     { id:'queued', name:'Queued' },
     { id:'processing', name:'Processing' },
     { id:'paid', name:'Paid' },
@@ -23,4 +23,3 @@ export const PayoutList = () => (
     </Datagrid>
   </List>
 );
-

@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import { useParams, useRouter } from 'next/navigation';
 
 import MainLayout from '@/components/layout/MainLayout';
+import { BookingProvider } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Toast, Spinner, SkeletonList } from '@/components/ui';
 
@@ -828,7 +829,7 @@ export default function ServiceProviderProfilePage() {
               </aside>
 
               {/* Right rail */}
-              <section className="md:w-3/5 p-6 space-y-2">
+              <section className="md:w-3/5 p-6 space-y-4">
                 {!!services.length && (
                   <div className="sticky md: hidden top-20 z-10 mt-1 mb-1 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border border-gray-100 rounded-xl px-4 py-3 shadow-sm flex items-center justify-between">
                     <div className="text-md text-gray-700">
@@ -916,9 +917,9 @@ export default function ServiceProviderProfilePage() {
 
                 <section id="reviews-desktop" aria-labelledby="reviews-heading-desktop">
                   <h2 id="reviews-heading-desktop" className="text-2xl font-bold text-gray-800 mb-6">
-                    Reviews ({displayReviews.length})
+                    Reviews
                   </h2>
-                  <div className="space-y-6">
+                  <div className="space-y-6 mb-10">
                     <ReviewSummary reviews={displayReviews} />
                     {reviewsLoading ? (
                       <SkeletonList className="max-w-md" />
@@ -926,14 +927,14 @@ export default function ServiceProviderProfilePage() {
                       <>
                         <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {displayReviews.slice(0, 6).map((review) => (
-                            <li key={`review-desktop-${review.id}`} className="bg-white p-5 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow duration-200">
+                            <li key={`review-desktop-${review.id}`} className="bg-white p-5 rounded-xl transition-shadow duration-200">
                               <div className="flex items-start justify-between mb-3">
                                 <ReviewStars rating={Number(review.rating) || 0} />
                                 {review.client?.first_name && (
                                   <p className="text-sm font-medium text-gray-700 ml-3">{review.client.first_name}</p>
                                 )}
                               </div>
-                              <p className="text-gray-600 text-sm leading-relaxed">{review.comment}</p>
+                              <p className="text-gray-600 text-xs leading-relaxed">{review.comment}</p>
                               <p className="mt-2 text-xs text-gray-400">
                                 Reviewed on: {new Date(review.created_at).toLocaleDateString()}
                               </p>
@@ -944,10 +945,10 @@ export default function ServiceProviderProfilePage() {
                           <div className="mt-2">
                             <button
                               type="button"
-                              className="w-full inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
+                              className="w-full inline-flex items-center justify-center rounded-xl bg-gray-100 px-4 py-3.5 text-xs font-semibold text-gray-700 hover:bg-gray-200 transition"
                               onClick={() => setIsAllReviewsOpen(true)}
                             >
-                              Show all
+                              Show all reviews
                             </button>
                           </div>
                         )}
@@ -967,7 +968,7 @@ export default function ServiceProviderProfilePage() {
                     >
                       <h2
                         id="portfolio-heading-desktop"
-                        className="text-2xl font-bold text-gray-800 mb-6"
+                        className="text-2xl font-bold text-gray-800 mb-6 mt-10"
                       >
                         My Portfolio
                       </h2>
@@ -1002,15 +1003,17 @@ export default function ServiceProviderProfilePage() {
 
       {/* Booking modal */}
       {isBookingOpen && selectedService && (
-        <BookingWizard
-          artistId={serviceProviderId}
-          serviceId={selectedService?.id}
-          isOpen={isBookingOpen}
-          onClose={() => {
-            setIsBookingOpen(false);
-            setSelectedService(null);
-          }}
-        />
+        <BookingProvider>
+          <BookingWizard
+            artistId={serviceProviderId}
+            serviceId={selectedService?.id}
+            isOpen={isBookingOpen}
+            onClose={() => {
+              setIsBookingOpen(false);
+              setSelectedService(null);
+            }}
+          />
+        </BookingProvider>
       )}
 
       {/* Personalized Video sheet */}

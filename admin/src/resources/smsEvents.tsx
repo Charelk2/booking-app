@@ -2,14 +2,14 @@ import * as React from 'react';
 import { List, Datagrid, TextField, DateField, SelectInput, TextInput } from 'react-admin';
 
 const smsFilters = [
-  <TextInput key="q" source="q" label="Search" alwaysOn />,
+  <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
   <SelectInput key="status" source="status" choices={[
     { id:'queued', name:'Queued' },
     { id:'sent', name:'Sent' },
     { id:'delivered', name:'Delivered' },
     { id:'undelivered', name:'Undelivered' },
     { id:'failed', name:'Failed' },
-  ]} alwaysOn />
+  ]} alwaysOn size="small" margin="dense" variant="outlined" />
 ];
 
 export const SmsEventList = () => (
@@ -25,4 +25,3 @@ export const SmsEventList = () => (
     </Datagrid>
   </List>
 );
-

@@ -1,42 +1,42 @@
-
 'use client';
 
-// Login form uses shared auth components and offers optional social login
-// MFA verification is supported when the login response indicates it is required
-
-
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+
 import MainLayout from '@/components/layout/MainLayout';
 import Button from '@/components/ui/Button';
 import AuthInput from '@/components/auth/AuthInput';
-import SocialLoginButtons from '@/components/auth/SocialLoginButtons';
-import { requestMagicLink, webauthnGetAuthenticationOptions, webauthnVerifyAuthentication } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import api, {
+  getEmailStatus,
+  requestMagicLink,
+  webauthnGetAuthenticationOptions,
+  webauthnVerifyAuthentication,
+} from '@/lib/api';
 
-interface LoginForm {
-  email: string;
-  password: string;
-  remember: boolean;
-}
+type EmailStatus = { exists: boolean; providers: string[]; locked: boolean };
 
 export default function LoginPage() {
-  const { login, verifyMfa, user, refreshUser } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get('next');
+  const next = params.get('next') || '/dashboard';
+
+  const { login, verifyMfa, user, refreshUser } = useAuth();
+
+  // phases: ask email → either existing (inline sign-in) or notfound (offer magic link / sign up)
+  const [phase, setPhase] = useState<'email' | 'existing' | 'notfound'>('email');
+  const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null);
+  const [emailValue, setEmailValue] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [magicSent, setMagicSent] = useState(false);
   const [error, setError] = useState('');
   const [mfaToken, setMfaToken] = useState<string | null>(null);
   const [rememberState, setRememberState] = useState(false);
-  const [magicSent, setMagicSent] = useState(false);
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginForm>({ defaultValues: { remember: false } });
+  const liveRef = useRef<HTMLParagraphElement | null>(null);
 
+  // Redirect if already signed in
   useEffect(() => {
     if (user) {
       const target = next || (user.user_type === 'service_provider' ? '/dashboard' : '/');
@@ -44,207 +44,293 @@ export default function LoginPage() {
     }
   }, [user, next, router]);
 
+  // Forms
+  const {
+    register: registerEmail,
+    handleSubmit: handleEmailSubmit,
+    formState: { isSubmitting: emailSubmitting, errors: emailErrors },
+  } = useForm<{ email: string }>({
+    defaultValues: { email: '' },
+  });
+
+  const {
+    register: registerLogin,
+    handleSubmit: handlePasswordSubmit,
+    formState: { isSubmitting: pwSubmitting, errors: pwErrors },
+  } = useForm<{ email: string; password: string; remember: boolean }>({
+    defaultValues: { email: '', remember: false },
+  });
+
   const {
     register: registerMfa,
-    handleSubmit: handleSubmitMfa,
+    handleSubmit: handleMfaSubmit,
     formState: { isSubmitting: mfaSubmitting },
   } = useForm<{ code: string }>();
 
-  const onSubmit = async (data: LoginForm) => {
+  // 1) Email gate
+  const onContinueWithEmail = async ({ email }: { email: string }) => {
+    const normalized = email.trim().toLowerCase();
+    setError('');
+    setMagicSent(false);
+    setChecking(true);
     try {
-      const res = await login(data.email, data.password, data.remember);
-      if (res && res.mfaRequired) {
-        setError('');
-        setMfaToken(res.token);
-        setRememberState(data.remember);
-        return;
-      }
-      // Defer redirect to useEffect so we can route by role
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Invalid email or password');
-      }
+      const res = await getEmailStatus(normalized);
+      const data = res.data as EmailStatus;
+      setEmailStatus(data);
+      setEmailValue(normalized);
+      setPhase(data.exists ? 'existing' : 'notfound');
+      announce(data.exists ? 'Account found. Continue below.' : 'No account found. Choose an option below.');
+    } catch {
+      setError('Could not check email status. Please try again.');
+    } finally {
+      setChecking(false);
     }
   };
 
-  const onVerify = async ({ code }: { code: string }) => {
+  // 2) Password sign-in (existing account)
+  const onPasswordSignIn = async ({ email, password, remember }: { email: string; password: string; remember: boolean }) => {
+    try {
+      setError('');
+      const res = await login(email, password, remember);
+      if (res?.mfaRequired && res?.token) {
+        setMfaToken(res.token);
+        setRememberState(remember);
+        announce('Verification required. Enter the code sent to you.');
+        return;
+      }
+      // redirect handled by user effect
+    } catch (e: any) {
+      setError(e?.message || 'Invalid email or password.');
+      announce('Sign-in failed.');
+    }
+  };
+
+  const onVerifyMfa = async ({ code }: { code: string }) => {
     if (!mfaToken) return;
     try {
       setError('');
       await verifyMfa(mfaToken, code, rememberState);
-      // Defer redirect to useEffect to route by role
-    } catch (err) {
-      setError('Invalid verification code');
+      // redirect handled by user effect
+    } catch {
+      setError('Invalid verification code.');
+      announce('Invalid verification code.');
     }
   };
 
+  // Magic link
   const sendMagic = async () => {
-    const email = (document.getElementById('email') as HTMLInputElement | null)?.value || '';
-    if (!email) {
-      setError('Enter your email above, then try again.');
-      return;
-    }
+    if (!emailValue) return setError('Enter your email first.');
     try {
       setError('');
-      await requestMagicLink(email, next || '/dashboard');
+      await requestMagicLink(emailValue, next);
       setMagicSent(true);
-    } catch (e) {
+      announce('Magic link sent. Check your inbox.');
+    } catch {
       setError('Unable to send magic link.');
+      announce('Unable to send magic link.');
     }
   };
 
+  // Passkey / WebAuthn sign-in
   const signInWithPasskey = async () => {
     try {
       if (!('PublicKeyCredential' in window)) {
-        setError('Passkeys not supported on this device.');
+        setError('Passkeys are not supported on this device.');
         return;
       }
-      const toBase64Url = (buf: ArrayBuffer) => {
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-        return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      const b64ToBuf = (s: string) => {
+        let base64 = s.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) base64 += '=';
+        const raw = atob(base64);
+        return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
       };
-      const fromBase64Url = (b64url: string): Uint8Array => {
-        let s = b64url.replace(/-/g, '+').replace(/_/g, '/');
-        const pad = s.length % 4;
-        if (pad) s += '='.repeat(4 - pad);
-        const bin = atob(s);
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
-        return bytes;
+      const bufToB64 = (buf: ArrayBuffer) => {
+        const bin = String.fromCharCode(...new Uint8Array(buf));
+        return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
       };
+
       const { data: opts } = await webauthnGetAuthenticationOptions();
       const publicKey: PublicKeyCredentialRequestOptions = {
-        challenge: fromBase64Url(opts.challenge as string),
+        challenge: b64ToBuf(opts.challenge),
         allowCredentials: (opts.allowCredentials || []).map((c: any) => ({
           type: 'public-key',
-          id: fromBase64Url(c.id as string),
+          id: b64ToBuf(c.id),
         })),
         userVerification: opts.userVerification || 'preferred',
       };
+
       const cred = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential;
-      const payload = {
+      const assertion = cred.response as AuthenticatorAssertionResponse;
+
+      await webauthnVerifyAuthentication({
         id: cred.id,
         type: cred.type,
-        rawId: toBase64Url(cred.rawId as ArrayBuffer),
+        rawId: bufToB64(cred.rawId),
         response: {
-          clientDataJSON: toBase64Url((cred.response as AuthenticatorAssertionResponse).clientDataJSON),
-          authenticatorData: toBase64Url((cred.response as AuthenticatorAssertionResponse).authenticatorData),
-          signature: toBase64Url((cred.response as AuthenticatorAssertionResponse).signature),
-          userHandle: (cred.response as any).userHandle ? toBase64Url((cred.response as any).userHandle) : undefined,
+          clientDataJSON: bufToB64(assertion.clientDataJSON),
+          authenticatorData: bufToB64(assertion.authenticatorData),
+          signature: bufToB64(assertion.signature),
+          userHandle: assertion.userHandle ? bufToB64(assertion.userHandle) : undefined,
         },
-      };
-      await webauthnVerifyAuthentication(payload);
-      // Populate user from cookie session before navigating to avoid guards bouncing back
+      });
+
       try { await refreshUser?.(); } catch {}
-      router.replace(next || '/dashboard');
+      router.replace(next);
     } catch (e: any) {
-      const m = e?.response?.data?.detail || e?.message || 'Passkey sign-in failed.';
-      setError(typeof m === 'string' ? m : 'Passkey sign-in failed.');
+      const msg = e?.response?.data?.detail || e?.message || 'Passkey sign-in failed.';
+      setError(typeof msg === 'string' ? msg : 'Passkey sign-in failed.');
     }
+  };
+
+  const nextPath = useMemo(() => next, [next]);
+
+  const announce = (msg: string) => {
+    if (liveRef.current) liveRef.current.textContent = msg;
   };
 
   return (
     <MainLayout>
-      <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-sm">
-          <h2 className="mt-10 text-center text-2xl font-bold leading-9 tracking-tight text-gray-900">
-            Sign in to your account
-          </h2>
-        </div>
+      <div className="flex min-h-[calc(100vh-120px)] flex-1 items-center justify-center px-6 py-12">
+        <div className="w-full max-w-md">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold tracking-tight">
+              {phase === 'email' && 'Continue with your email'}
+              {phase === 'existing' && 'Welcome back'}
+              {phase === 'notfound' && 'No account found'}
+            </h1>
+            <p ref={liveRef} aria-live="polite" className="sr-only" />
+          </div>
 
-        <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-          {!mfaToken && (
-            <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-            <AuthInput
-              id="email"
-              type="email"
-              label="Email address"
-              autoComplete="email"
-              registration={register('email', {
-                required: 'Email is required',
-                pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Invalid email address',
-                },
-              })}
-              error={errors.email}
-            />
-
-            <div>
+          {/* Phase: Email entry */}
+          {phase === 'email' && (
+            <form className="mt-8 space-y-6" onSubmit={handleEmailSubmit(onContinueWithEmail)}>
               <AuthInput
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                label="Password"
-                registration={register('password', {
-                  required: 'Password is required',
-                  minLength: {
-                    value: 6,
-                    message: 'Password must be at least 6 characters',
+                id="email"
+                type="email"
+                label="Email address"
+                autoComplete="email"
+                registration={registerEmail('email', {
+                  required: 'Email is required',
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: 'Invalid email address',
                   },
+                  setValueAs: (v) => String(v || '').trim().toLowerCase(),
                 })}
-                error={errors.password}
+                error={emailErrors.email}
               />
-              <div className="mt-2 flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="remember"
-                    type="checkbox"
-                    aria-label="Remember me"
-                    {...register('remember')}
-                    className="h-4 w-4 rounded border-gray-300 text-brand-dark focus:ring-brand-dark"
-                  />
-                  <label htmlFor="remember" className="ml-2 block text-sm text-gray-900">
+              <Button type="submit" className="w-full" disabled={checking || emailSubmitting}>
+                {checking ? 'Checking…' : 'Continue'}
+              </Button>
+              {error && <p className="text-sm text-red-600">{error}</p>}
+            </form>
+          )}
+
+          {/* Phase: Existing account → inline sign in + options */}
+          {phase === 'existing' && (
+            <form className="mt-8 space-y-6" onSubmit={handlePasswordSubmit(onPasswordSignIn)}>
+              <AuthInput
+                id="email"
+                type="email"
+                label="Email address"
+                autoComplete="email"
+                defaultValue={emailValue}
+                registration={registerLogin('email', { required: true })}
+                error={undefined}
+              />
+              <div>
+                <AuthInput
+                  id="password"
+                  type="password"
+                  label="Password"
+                  autoComplete="current-password"
+                  registration={registerLogin('password', {
+                    required: 'Password is required',
+                    minLength: { value: 6, message: 'Must be at least 6 characters' },
+                  })}
+                  error={pwErrors.password}
+                />
+                <div className="mt-2 flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" className="h-4 w-4 rounded border-gray-300" {...registerLogin('remember')} />
                     Remember me
                   </label>
-                </div>
-                <div className="text-sm">
-                  <Link href="/forgot-password" className="font-semibold text-brand-dark hover:text-brand">
+                  <Link href={`/forgot-password?email=${encodeURIComponent(emailValue)}`} className="text-sm font-medium text-brand-dark hover:text-brand">
                     Forgot password?
                   </Link>
                 </div>
               </div>
-            </div>
 
-            {error && (
-              <div className="rounded-md bg-red-50 p-4">
-                <div className="flex">
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                  </div>
-                </div>
-              </div>
-            )}
+              {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</div>}
 
-            <div>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full"
-                analyticsEvent="login_submit"
-              >
-                {isSubmitting ? 'Signing in...' : 'Sign in'}
+              <Button type="submit" disabled={pwSubmitting} className="w-full">
+                {pwSubmitting ? 'Signing in…' : 'Sign in'}
               </Button>
-            </div>
 
-              <div className="pt-2 space-y-2">
-                <SocialLoginButtons redirectPath={next || '/dashboard'} />
+              <div className="space-y-2 pt-1">
+                {(emailStatus?.providers || []).includes('google') && (
+                  <a
+                    href={`${(api.defaults.baseURL || '').replace(/\/+$/, '')}/auth/google/login?next=${encodeURIComponent(nextPath)}`}
+                    className="inline-flex w-full items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+                  >
+                    Continue with Google
+                  </a>
+                )}
+                {(emailStatus?.providers || []).includes('apple') && (
+                  <a
+                    href={`${(api.defaults.baseURL || '').replace(/\/+$/, '')}/auth/apple/login?next=${encodeURIComponent(nextPath)}`}
+                    className="inline-flex w-full items-center justify-center rounded-md bg-black px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-900"
+                  >
+                    Continue with Apple
+                  </a>
+                )}
                 <Button type="button" onClick={signInWithPasskey} className="w-full bg-gray-700 hover:bg-gray-800">
                   Continue with Passkey
                 </Button>
                 <Button type="button" onClick={sendMagic} className="w-full bg-indigo-600 hover:bg-indigo-700">
                   Email me a magic link
                 </Button>
-                {magicSent && (
-                  <p className="text-sm text-green-700">If your email exists, a link was sent. Check your inbox.</p>
-                )}
+                {magicSent && <p className="text-sm text-green-700">We sent you a sign-in link. Check your inbox.</p>}
+              </div>
+
+              <div className="text-center text-sm text-gray-600">
+                Wrong email?{' '}
+                <button type="button" className="text-brand-dark hover:text-brand" onClick={() => setPhase('email')}>
+                  Change
+                </button>
               </div>
             </form>
           )}
+
+          {/* Phase: No account found */}
+          {phase === 'notfound' && (
+            <div className="mt-8 space-y-6">
+              <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+                <p className="text-sm font-medium text-gray-800">We couldn’t find an account for {emailValue}.</p>
+                <p className="mt-1 text-sm text-gray-600">Create a new account or use a magic link.</p>
+              </div>
+              <Link
+                href={`/register?next=${encodeURIComponent(nextPath)}&email=${encodeURIComponent(emailValue)}`}
+                className="inline-flex w-full items-center justify-center rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-dark"
+              >
+                Create an account
+              </Link>
+              <Button type="button" onClick={sendMagic} className="w-full bg-indigo-600 hover:bg-indigo-700">
+                Send magic link
+              </Button>
+              {magicSent && <p className="text-sm text-green-700">We sent you a sign-in link. Check your inbox.</p>}
+              <div className="text-center text-sm text-gray-600">
+                Entered the wrong email?{' '}
+                <button className="text-brand-dark hover:text-brand" onClick={() => setPhase('email')}>
+                  Change
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* MFA step */}
           {mfaToken && (
-            <form className="space-y-6" onSubmit={handleSubmitMfa(onVerify)}>
+            <form className="mt-8 space-y-6" onSubmit={handleMfaSubmit(onVerifyMfa)}>
               <AuthInput
                 id="mfa-code"
                 type="text"
@@ -252,39 +338,21 @@ export default function LoginPage() {
                 registration={registerMfa('code', { required: 'Code is required' })}
                 error={undefined}
               />
-              {error && (
-                <div className="rounded-md bg-red-50 p-4">
-                  <div className="flex">
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div>
-                <Button
-                  type="submit"
-                  disabled={mfaSubmitting}
-                  className="w-full"
-                  analyticsEvent="mfa_verify_submit"
-                >
-                  {mfaSubmitting ? 'Verifying...' : 'Verify'}
-                </Button>
-              </div>
+              {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</div>}
+              <Button type="submit" disabled={mfaSubmitting} className="w-full">
+                {mfaSubmitting ? 'Verifying…' : 'Verify'}
+              </Button>
             </form>
           )}
 
           <p className="mt-10 text-center text-sm text-gray-500">
-            Not a member?{' '}
-            <Link
-              href={`/register${next ? `?next=${encodeURIComponent(next)}` : ''}`}
-              className="font-semibold leading-6 text-brand-dark hover:text-brand"
-            >
-              Sign up now
+            New to Booka?{' '}
+            <Link href={`/register?next=${encodeURIComponent(nextPath)}`} className="font-semibold text-brand-dark hover:text-brand">
+              Create an account
             </Link>
           </p>
         </div>
       </div>
     </MainLayout>
   );
-} 
+}

@@ -2,10 +2,10 @@ import * as React from 'react';
 import { List, Datagrid, TextField, DateField, NumberField, BooleanField, SelectInput, TextInput } from 'react-admin';
 
 const reviewFilters = [
-  <TextInput key="q" source="q" label="Search" alwaysOn />,
+  <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
   <SelectInput key="verified" source="verified" choices={[
     { id:true, name:'Verified' }, { id:false, name:'Unverified' }
-  ]} alwaysOn />
+  ]} alwaysOn size="small" margin="dense" variant="outlined" />
 ];
 
 export const ReviewList = () => (
@@ -21,4 +21,3 @@ export const ReviewList = () => (
     </Datagrid>
   </List>
 );
-

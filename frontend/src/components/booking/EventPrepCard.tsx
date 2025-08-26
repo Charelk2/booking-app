@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
+import Link from 'next/link';
 
 import { EventPrep } from '@/types';
 import { getEventPrep, updateEventPrep } from '@/lib/api';
@@ -261,7 +262,17 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
     >
       <div className={summaryOnly ? 'flex items-center justify-between gap-3' : 'flex items-start justify-between gap-3'}>
         <div>
-          <h3 className={summaryOnly ? 'text-sm font-semibold tracking-tight' : 'text-lg font-semibold tracking-tight'}>Let’s prep your event</h3>
+          {summaryOnly ? (
+            <Link
+              href={`/dashboard/events/${bookingId}`}
+              onClick={(e) => e.stopPropagation()}
+              className="no-underline"
+            >
+              <h3 className="text-sm font-semibold tracking-tight">Let’s prep your event</h3>
+            </Link>
+          ) : (
+            <h3 className="text-lg font-semibold tracking-tight">Let’s prep your event</h3>
+          )}
           <p className={summaryOnly ? 'text-[10px] text-gray-800 mt-0.5' : 'text-[11px] text-gray-800 mt-0.5'}>A quick checklist to keep the day smooth.</p>
         </div>
         <div className="flex flex-col items-end gap-1">

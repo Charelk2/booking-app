@@ -2,10 +2,10 @@
 
 import { useParams } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
+import { BookingProvider } from '@/contexts/BookingContext';
 import EventPrepForm from './EventPrepForm';
 import { useEffect, useState } from 'react';
 import { getBookingDetails } from '@/lib/api';
-import { FEATURE_EVENT_PREP } from '@/lib/constants';
 
 export default function EventPrepPage() {
   const params = useParams();
@@ -30,18 +30,18 @@ export default function EventPrepPage() {
 
   return (
     <MainLayout>
-      <div className="mx-auto full-width px-3 sm:px-4 lg:px-6 py-6">
-        <h1 className="text-2xl font-bold mb-4">Event Prep</h1>
-        {!FEATURE_EVENT_PREP ? (
-          <div className="text-sm text-gray-600">This feature is not available.</div>
-        ) : exists === null ? (
-          <div className="text-sm text-gray-600">Loading…</div>
-        ) : exists ? (
-          <EventPrepForm bookingId={id} />
-        ) : (
-          <div className="text-sm text-gray-600">Not found or you do not have access.</div>
-        )}
-      </div>
+      <BookingProvider>
+        <div className="mx-auto full-width px-3 sm:px-4 lg:px-6 py-6">
+          <h1 className="text-2xl font-bold mb-4">Event Prep</h1>
+          {exists === null ? (
+            <div className="text-sm text-gray-600">Loading…</div>
+          ) : exists ? (
+            <EventPrepForm bookingId={id} />
+          ) : (
+            <div className="text-sm text-gray-600">Not found or you do not have access.</div>
+          )}
+        </div>
+      </BookingProvider>
     </MainLayout>
   );
 }

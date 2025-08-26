@@ -53,10 +53,47 @@
       "static/chunks/main-app.js",
       "static/chunks/app/dashboard/page.js"
     ],
-    "/_not-found/page": [
+    "/register/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/_not-found/page.js"
+      "static/css/app/register/page.css",
+      "static/chunks/app/register/page.js"
+    ],
+    "/dashboard/client/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/client/page.css",
+      "static/chunks/app/dashboard/client/page.js"
+    ],
+    "/account/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/account/page.css",
+      "static/chunks/app/account/page.js"
+    ],
+    "/category/[slug]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/category/[slug]/page.css",
+      "static/chunks/app/category/[slug]/page.js"
+    ],
+    "/dashboard/events/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/events/[id]/page.css",
+      "static/chunks/app/dashboard/events/[id]/page.js"
+    ],
+    "/video-orders/[id]/brief/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/video-orders/[id]/brief/page.css",
+      "static/chunks/app/video-orders/[id]/brief/page.js"
+    ],
+    "/service-providers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/service-providers/page.css",
+      "static/chunks/app/service-providers/page.js"
     ]
   }
 }

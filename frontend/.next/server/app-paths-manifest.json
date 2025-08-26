@@ -1,8 +1,7 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/service-providers/[id]/page": "app/service-providers/[id]/page.js",
-  "/login/page": "app/login/page.js",
-  "/dashboard/artist/page": "app/dashboard/artist/page.js",
   "/page": "app/page.js",
-  "/inbox/page": "app/inbox/page.js"
+  "/inbox/page": "app/inbox/page.js",
+  "/service-providers/page": "app/service-providers/page.js",
+  "/service-providers/[id]/page": "app/service-providers/[id]/page.js",
+  "/category/[slug]/page": "app/category/[slug]/page.js"
 }

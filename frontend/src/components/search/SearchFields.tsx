@@ -87,7 +87,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       const isValuePresent =
         typeof currentValue === 'string' &&
         currentValue !== '' &&
-        !['Add artist', 'Add dates', 'Add location'].includes(currentValue);
+        !['Search', 'Add dates', 'Add location'].includes(currentValue);
       const Icon = iconMap[id];
 
       return (
@@ -159,7 +159,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       {renderField(
         'category',
         'Category',
-        category ? category.label : 'Add artist',
+        category ? category.label : 'Search',
         categoryButtonRef,
         () => setCategory(null),
         'hover:rounded-full' // Pass rounded-full as an additional class

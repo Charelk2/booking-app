@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { List, Datagrid, TextField, DateField, SelectInput, TextInput, Edit, SimpleForm } from 'react-admin';
+import { List, Datagrid, TextField, DateField, SelectInput, TextInput, Edit, SimpleForm, Create, usePermissions } from 'react-admin';
 
 const adminFilters = [
-  <TextInput key="q" source="q" label="Search" alwaysOn />,
-  <SelectInput key="role" source="role" choices={[
+  <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" sx={{ minWidth: 220 }} />,
+  <SelectInput key="role" source="role" size="small" margin="dense" variant="outlined" sx={{ minWidth: 200 }} choices={[
     { id:'support', name:'Support' },
     { id:'payments', name:'Payments Ops' },
     { id:'trust', name:'Trust & Safety' },
@@ -42,3 +42,18 @@ export const AdminUserEdit = () => (
   </Edit>
 );
 
+export const AdminUserCreate = () => (
+  <Create>
+    <SimpleForm>
+      <TextInput source="email" required />
+      <SelectInput source="role" choices={[
+        { id:'support', name:'Support' },
+        { id:'payments', name:'Payments Ops' },
+        { id:'trust', name:'Trust & Safety' },
+        { id:'content', name:'Content Mod' },
+        { id:'admin', name:'Admin' },
+        { id:'superadmin', name:'Super Admin' },
+      ]} defaultValue={'admin'} />
+    </SimpleForm>
+  </Create>
+);

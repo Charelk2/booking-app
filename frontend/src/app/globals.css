@@ -238,14 +238,14 @@ html, body {
 #app-header {
   transition: all 0.5s ease-in-out; /* Smooth transitions for height and shadow */
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05); /* Default shadow-sm */
-  /* Default: initial-expanded state styles */
-  padding-top: 1rem; /* py-4 */
-  padding-bottom: 1rem; /* py-4 */
+  /* Default: initial-expanded state styles (slightly tighter) */
+  padding-top: 0.75rem; /* py-3 */
+  padding-bottom: 0.75rem; /* py-3 */
 }
 
 /* State: Compacted */
 #app-header[data-header-state="compacted"] {
-  height: 4rem; /* h-16 */
+  height: 4rem; /* keep consistent visual height */
   padding-top: 0.5rem; /* py-2 */
   padding-bottom: 0.5rem; /* py-2 */
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05); /* shadow-md */
@@ -253,9 +253,9 @@ html, body {
 
 /* State: Expanded from Compact (when pill is clicked) */
 #app-header[data-header-state="expanded-from-compact"] {
-  /* Same as initial for height/padding/shadow for seamless feel */
-  padding-top: 1rem; /* py-4 */
-  padding-bottom: 1rem; /* py-4 */
+  /* Same rhythm as initial with a touch more presence */
+  padding-top: 0.875rem; /* py-3.5 */
+  padding-bottom: 0.875rem; /* py-3.5 */
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* shadow-xl for prominent pop-up */
 }
 
@@ -273,6 +273,12 @@ html, body {
 /* Allow dropdowns like the LocationInput suggestions to escape clipping */
 .header-full-search-bar {
   overflow: visible;
+}
+
+/* Tighter, balanced spacing around the full search bar */
+#app-header .header-full-search-bar {
+  margin-top: 0.5rem;   /* mt-2 */
+  margin-bottom: 0.75rem; /* mb-3 */
 }
 
 /* When header is compacted, hide nav links and the full search bar */
@@ -316,6 +322,31 @@ html, body {
   max-height: 100px;
   opacity: 1;
   pointer-events: auto;
+}
+
+/* ——— Rhythm & Gap Refinements ——— */
+/* Header row: balanced horizontal spacing across breakpoints */
+#app-header > .full-width > .grid {
+  column-gap: 0.5rem;       /* 8px on mobile */
+  padding-inline: 0;        /* keep container padding authoritative */
+  min-height: 3.25rem;      /* tighter vertical rhythm without crowding */
+}
+@media (min-width: 640px) { /* sm */
+  #app-header > .full-width > .grid { column-gap: 0.75rem; }
+}
+@media (min-width: 768px) { /* md */
+  #app-header > .full-width > .grid { column-gap: 1rem; }
+}
+@media (min-width: 1024px) { /* lg */
+  #app-header > .full-width > .grid { column-gap: 1.25rem; }
+}
+
+/* Navigation link gap: slightly tighter for better density */
+#app-header .header-nav-links nav {
+  column-gap: 1rem;         /* 16px */
+}
+@media (min-width: 1024px) { /* lg */
+  #app-header .header-nav-links nav { column-gap: 1.25rem; }
 }
 
 /* Overlay for expanded search form */
