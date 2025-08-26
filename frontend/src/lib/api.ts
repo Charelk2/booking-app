@@ -170,6 +170,11 @@ export const requestMagicLink = (email: string, next?: string) =>
 export const consumeMagicLink = (token: string) =>
   api.post('/auth/magic-link/consume', { token });
 
+// Email-first helper: check if an email already has an account and which
+// providers are available for sign-in (password, google, apple), plus lock state.
+export const getEmailStatus = (email: string) =>
+  api.get('/auth/email-status', { params: { email } });
+
 // WebAuthn (Passkeys)
 export const webauthnGetRegistrationOptions = () => api.get('/auth/webauthn/registration/options');
 export const webauthnVerifyRegistration = (payload: unknown) => api.post('/auth/webauthn/registration/verify', payload);

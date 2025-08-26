@@ -8,7 +8,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import type { ExtendedDataProvider } from '../dataProvider';
 
 const bookingFilters = [
-  <TextInput key="q" source="q" label="Search" alwaysOn />,
+  <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
   <SelectInput key="status" source="status" choices={[
     { id:'requested', name:'Requested' },
     { id:'quoted', name:'Quoted' },
@@ -17,7 +17,7 @@ const bookingFilters = [
     { id:'disputed', name:'Disputed' },
     { id:'refunded', name:'Refunded' },
     { id:'cancelled', name:'Cancelled' },
-  ]} alwaysOn />
+  ]} alwaysOn size="small" margin="dense" variant="outlined" />
 ];
 
 const Actions = () => {

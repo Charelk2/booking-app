@@ -9,7 +9,7 @@ from datetime import datetime
 import os
 
 from ..database import get_db
-from ..models import Booking, Review, Service, User, AdminUser
+from ..models import Booking, Review, Service, User, AdminUser, ServiceProviderProfile
 from sqlalchemy import JSON
 from ..models.booking_status import BookingStatus
 from ..api.auth import get_user_by_email
@@ -176,12 +176,60 @@ def _apply_ra_filters(query, model, params):
         for key, value in filters.items():
             if key == "q":
                 continue
+            # Support React-Admin getMany: filter { ids: [..] }
+            if key in ("ids", "id_in") and hasattr(model, "id"):
+                try:
+                    values = value if isinstance(value, list) else [value]
+                    values = [int(v) for v in values]
+                except Exception:
+                    values = value if isinstance(value, list) else [value]
+                query = query.filter(getattr(model, "id").in_(values))
+                continue
+            # Support filter { id: [..] }
+            if key == "id" and hasattr(model, "id") and isinstance(value, list):
+                try:
+                    values = [int(v) for v in value]
+                except Exception:
+                    values = value
+                query = query.filter(getattr(model, "id").in_(values))
+                continue
+            # Special case: allow filtering Services by provider_id → artist_id
+            if model.__name__ == "Service" and key == "provider_id":
+                query = query.filter(getattr(model, "artist_id") == value)
+                continue
             if hasattr(model, key):
                 query = query.filter(getattr(model, key) == value)
     # Also support direct query params as equality filters
     skip = {"_page", "_perPage", "_sort", "_order", "q", "filter", "range", "sort"}
     for key, value in params.items():
         if key in skip:
+            continue
+        if key in ("ids", "id_in") and hasattr(model, "id"):
+            try:
+                import json
+                parsed = json.loads(value) if isinstance(value, str) else value
+                values = parsed if isinstance(parsed, list) else [parsed]
+                values = [int(v) for v in values]
+            except Exception:
+                values = value if isinstance(value, list) else [value]
+            query = query.filter(getattr(model, "id").in_(values))
+            continue
+        # Direct query param id can be a JSON array string: id=["29","31"]
+        if key == "id" and hasattr(model, "id"):
+            try:
+                import json
+                parsed = json.loads(value) if isinstance(value, str) else value
+                if isinstance(parsed, list):
+                    try:
+                        parsed = [int(v) for v in parsed]
+                    except Exception:
+                        pass
+                    query = query.filter(getattr(model, "id").in_(parsed))
+                    continue
+            except Exception:
+                pass
+        if model.__name__ == "Service" and key == "provider_id":
+            query = query.filter(getattr(model, "artist_id") == value)
             continue
         if hasattr(model, key):
             query = query.filter(getattr(model, key) == value)
@@ -228,6 +276,7 @@ def booking_to_admin(b: Booking) -> Dict[str, Any]:
 def service_to_listing(s: Service) -> Dict[str, Any]:
     return {
         "id": str(s.id),
+        "provider_id": str(getattr(s, "artist_id", "") or ""),
         "title": s.title,
         "description": getattr(s, "description", None),
         "media_url": getattr(s, "media_url", None),
@@ -254,7 +303,671 @@ def review_to_admin(r: Review) -> Dict[str, Any]:
     }
 
 
+def provider_to_admin(u: User, p: ServiceProviderProfile | None, services_count: int) -> Dict[str, Any]:
+    return {
+        "id": str(u.id),
+        "email": u.email,
+        "first_name": u.first_name,
+        "last_name": u.last_name,
+        "phone_number": u.phone_number,
+        "is_active": bool(u.is_active),
+        "is_verified": bool(u.is_verified),
+        "created_at": (getattr(u, "created_at", None).isoformat() if getattr(u, "created_at", None) else None),
+        "business_name": getattr(p, "business_name", None) if p else None,
+        "location": getattr(p, "location", None) if p else None,
+        "onboarding_completed": bool(getattr(p, "onboarding_completed", False)) if p else False,
+        "services_count": services_count,
+    }
+
+
 # ────────────────────────────────────────────────────────────────────────────────
+# Providers
+
+@router.get("/providers")
+def list_providers(request: Request, _: Tuple[User, AdminUser] = Depends(require_roles("support", "content", "admin", "superadmin")), db: Session = Depends(get_db)):
+    offset, limit, start, end = _get_offset_limit(request.query_params)
+    q = (
+        db.query(User, ServiceProviderProfile)
+        .outerjoin(ServiceProviderProfile, ServiceProviderProfile.user_id == User.id)
+        .filter(User.user_type == models.UserType.SERVICE_PROVIDER)
+    )
+    # Apply filters/sorting based on User fields
+    q_user = _apply_ra_filters(q, User, request.query_params)
+    q_user = _apply_ra_sorting(q_user, User, request.query_params)
+    total = q_user.count()
+    rows = q_user.offset(offset).limit(limit).all()
+    items: List[Dict[str, Any]] = []
+    for u, p in rows:
+        try:
+            svc_count = db.query(func.count(Service.id)).filter(Service.artist_id == u.id).scalar() or 0
+        except Exception:
+            svc_count = 0
+        items.append(provider_to_admin(u, p, int(svc_count)))
+    return _with_total(items, total, "providers", start, start + len(items) - 1)
+
+
+@router.get("/providers/{user_id}")
+def get_provider(user_id: int, _: Tuple[User, AdminUser] = Depends(require_roles("support", "content", "admin", "superadmin")), db: Session = Depends(get_db)):
+    u = db.query(User).filter(User.id == user_id, User.user_type == models.UserType.SERVICE_PROVIDER).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="Not found")
+    p = db.query(ServiceProviderProfile).filter(ServiceProviderProfile.user_id == user_id).first()
+    svc_count = db.query(func.count(Service.id)).filter(Service.artist_id == user_id).scalar() or 0
+    return provider_to_admin(u, p, int(svc_count))
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Users (lookup + purge for any role)
+
+@router.get("/users/search")
+def search_users(email: str, _: Tuple[User, AdminUser] = Depends(require_roles("support", "admin", "superadmin")), db: Session = Depends(get_db)):
+    e = normalize_email(email)
+    u = db.query(User).filter(func.lower(User.email) == e).first()
+    if not u:
+        return {"exists": False}
+    return {
+        "exists": True,
+        "user": {
+            "id": str(u.id),
+            "email": u.email,
+            "user_type": str(u.user_type),
+            "is_active": bool(u.is_active),
+            "is_verified": bool(u.is_verified),
+        },
+    }
+
+
+@router.post("/users/{user_id}/purge")
+def purge_user(user_id: int, payload: Dict[str, Any], current: Tuple[User, AdminUser] = Depends(require_roles("superadmin")), db: Session = Depends(get_db)):
+    """Purge any user (client or provider). Reuses provider purge logic but removes the role check."""
+    confirm = str(payload.get("confirm") or "").strip().lower()
+    force = bool(payload.get("force") or False)
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+    if confirm != (u.email or "").lower():
+        raise HTTPException(status_code=400, detail="Confirmation does not match provider email")
+
+    # Delegate to the same deletion routine by inlining the logic here (no role filter)
+    # Active bookings check for artists only
+    active_bookings = 0
+    if u.user_type == models.UserType.SERVICE_PROVIDER:
+        active_states = [
+            models.BookingStatus.PENDING,
+            models.BookingStatus.PENDING_QUOTE,
+            models.BookingStatus.QUOTE_PROVIDED,
+            models.BookingStatus.PENDING_ARTIST_CONFIRMATION,
+            models.BookingStatus.CONFIRMED,
+            models.BookingStatus.REQUEST_CONFIRMED,
+        ]
+        active_bookings = (
+            db.query(models.Booking)
+            .filter(models.Booking.artist_id == user_id)
+            .filter(models.Booking.status.in_(active_states))
+            .count()
+        )
+        if active_bookings and not force:
+            raise HTTPException(status_code=400, detail="Provider has active bookings. Pass force=true to proceed.")
+
+    # Reuse deletion sequence from purge_provider
+    payload2 = {"confirm": confirm, "force": force}
+    # Call the underlying function's core by simulating the same operations
+    # Inlined to avoid circular imports or refactors
+    # Precompute a summary for auditing
+    try:
+        svc_count = db.query(func.count(Service.id)).filter(Service.artist_id == user_id).scalar() or 0
+    except Exception:
+        svc_count = 0
+    try:
+        br_count = db.query(func.count(models.BookingRequest.id)).filter((models.BookingRequest.artist_id == user_id) | (models.BookingRequest.client_id == user_id)).scalar() or 0
+    except Exception:
+        br_count = 0
+    msg_count = (
+        db.query(func.count(models.Message.id))
+        .join(models.BookingRequest, models.Message.booking_request_id == models.BookingRequest.id)
+        .filter((models.BookingRequest.artist_id == user_id) | (models.BookingRequest.client_id == user_id))
+        .scalar()
+        or 0
+    )
+    before = {"email": u.email, "services": int(svc_count), "threads": int(br_count), "messages": int(msg_count), "active_bookings": int(active_bookings)}
+
+    try:
+        # Mirror the same DELETE sequence as provider purge
+        db.execute(text("DELETE FROM invoices WHERE artist_id=:uid OR client_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM messages WHERE booking_request_id IN (SELECT id FROM booking_requests WHERE artist_id=:uid OR client_id=:uid)"), {"uid": user_id})
+        db.execute(text("DELETE FROM messages WHERE sender_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM message_reactions WHERE user_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM message_reactions WHERE message_id IN (SELECT id FROM messages WHERE booking_request_id IN (SELECT id FROM booking_requests WHERE artist_id=:uid OR client_id=:uid))"), {"uid": user_id})
+        db.execute(text("DELETE FROM reviews WHERE artist_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM quotes_v2 WHERE artist_id=:uid OR client_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM quotes WHERE artist_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM bookings_simple WHERE artist_id=:uid OR client_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM bookings WHERE artist_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM booking_requests WHERE artist_id=:uid OR client_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM services WHERE artist_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM notifications WHERE user_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM email_tokens WHERE user_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM admin_users WHERE user_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM webauthn_credentials WHERE user_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM calendar_accounts WHERE user_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM quote_templates WHERE artist_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM profile_views WHERE artist_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM profile_views WHERE viewer_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM email_events WHERE user_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM sms_events WHERE user_id=:uid"), {"uid": user_id})
+        db.execute(text("DELETE FROM service_provider_profiles WHERE user_id=:uid"), {"uid": user_id})
+        # Final user delete
+        db.execute(text("DELETE FROM users WHERE id=:uid"), {"uid": user_id})
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Purge failed: {exc}")
+
+    _audit(db, current[1].id, "user", str(user_id), "purge", before, None)
+    return {"purged": True, "summary": before}
+
+
+@router.post("/providers/{user_id}/deactivate")
+def deactivate_provider(user_id: int, current: Tuple[User, AdminUser] = Depends(require_roles("admin", "superadmin")), db: Session = Depends(get_db)):
+    u = db.query(User).filter(User.id == user_id, User.user_type == models.UserType.SERVICE_PROVIDER).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="Not found")
+    before = {"is_active": bool(u.is_active)}
+    try:
+        u.is_active = False
+        db.add(u)
+    
+        db.commit()
+        db.refresh(u)
+        after = {"is_active": bool(u.is_active)}
+        _audit(db, current[1].id, "provider", str(user_id), "deactivate", before, after)
+        return provider_to_admin(u, db.query(ServiceProviderProfile).filter(ServiceProviderProfile.user_id == user_id).first(), db.query(func.count(Service.id)).filter(Service.artist_id == user_id).scalar() or 0)
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Update failed")
+
+
+@router.post("/providers/{user_id}/activate")
+def activate_provider(user_id: int, current: Tuple[User, AdminUser] = Depends(require_roles("admin", "superadmin")), db: Session = Depends(get_db)):
+    u = db.query(User).filter(User.id == user_id, User.user_type == models.UserType.SERVICE_PROVIDER).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="Not found")
+    before = {"is_active": bool(u.is_active)}
+    try:
+        u.is_active = True
+        db.add(u)
+        db.commit()
+        db.refresh(u)
+        after = {"is_active": bool(u.is_active)}
+        _audit(db, current[1].id, "provider", str(user_id), "activate", before, after)
+        return provider_to_admin(u, db.query(ServiceProviderProfile).filter(ServiceProviderProfile.user_id == user_id).first(), db.query(func.count(Service.id)).filter(Service.artist_id == user_id).scalar() or 0)
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Update failed")
+
+
+@router.post("/providers/{user_id}/message")
+def message_provider(user_id: int, payload: Dict[str, Any], current: Tuple[User, AdminUser] = Depends(require_roles("support", "admin", "superadmin")), db: Session = Depends(get_db)):
+    content = str(payload.get("content") or "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="content required")
+    artist_user = db.query(User).filter(User.id == user_id, User.user_type == models.UserType.SERVICE_PROVIDER).first()
+    if not artist_user:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    # Find or create a thread with the Booka system user
+    system_email = (os.getenv("BOOKA_SYSTEM_EMAIL") or "system@booka.co.za").strip().lower()
+    system_user = db.query(User).filter(func.lower(User.email) == system_email).first()
+    if not system_user:
+        try:
+            system_user = User(
+                email=system_email,
+                password="!disabled-system-user!",
+                first_name="Booka",
+                last_name="Support",
+                phone_number=None,
+                is_active=True,
+                is_verified=True,
+                user_type=models.UserType.CLIENT,
+            )
+            db.add(system_user)
+            db.commit()
+            db.refresh(system_user)
+        except Exception:
+            db.rollback()
+    # Try to reuse an existing booking request thread; create one if missing
+    br = (
+        db.query(models.BookingRequest)
+        .filter(models.BookingRequest.artist_id == user_id)
+        .order_by(models.BookingRequest.created_at.desc())
+        .first()
+    )
+    if not br and system_user:
+        try:
+            br = models.BookingRequest(
+                client_id=system_user.id,
+                artist_id=user_id,
+                status=models.BookingStatus.PENDING_QUOTE,
+            )
+            db.add(br)
+            db.commit()
+            db.refresh(br)
+        except Exception:
+            db.rollback()
+            br = None
+
+    if not br:
+        raise HTTPException(status_code=400, detail="Could not open a support thread")
+
+    msg = crud_message.create_message(
+        db,
+        booking_request_id=br.id,
+        sender_id=system_user.id if system_user else br.artist_id,
+        sender_type=models.SenderType.CLIENT,
+        content=content,
+        message_type=models.MessageType.SYSTEM,
+        visible_to=models.VisibleTo.BOTH,
+        system_key=f"admin_support_v1:{user_id}:{datetime.utcnow().isoformat()}",
+    )
+    try:
+        notify_user_new_message(db, user=artist_user, sender=(system_user or artist_user), booking_request_id=br.id, content=content, message_type=models.MessageType.SYSTEM)
+    except Exception:
+        pass
+    _audit(db, current[1].id, "provider", str(user_id), "support_message", None, {"booking_request_id": br.id, "message_id": msg.id})
+    return {"status": "sent", "booking_request_id": str(br.id), "message_id": str(msg.id)}
+
+
+@router.get("/providers/{user_id}/thread")
+def get_provider_thread(user_id: int, _: Tuple[User, AdminUser] = Depends(require_roles("support", "admin", "superadmin")), db: Session = Depends(get_db)):
+    """Return the latest support thread with a provider and recent messages."""
+    # Find (or lazily create) a thread between Booka system user and the provider
+    system_email = (os.getenv("BOOKA_SYSTEM_EMAIL") or "system@booka.co.za").strip().lower()
+    system_user = db.query(User).filter(func.lower(User.email) == system_email).first()
+    if not system_user:
+        system_user = User(
+            email=system_email,
+            password="!disabled-system-user!",
+            first_name="Booka",
+            last_name="Support",
+            is_active=True,
+            is_verified=True,
+            user_type=models.UserType.CLIENT,
+        )
+        db.add(system_user)
+        db.commit()
+        db.refresh(system_user)
+
+    br = (
+        db.query(models.BookingRequest)
+        .filter(models.BookingRequest.artist_id == user_id)
+        .order_by(models.BookingRequest.created_at.desc())
+        .first()
+    )
+    if not br:
+        # Create empty thread for support if none exists
+        br = models.BookingRequest(
+            client_id=system_user.id,
+            artist_id=user_id,
+            status=models.BookingStatus.PENDING_QUOTE,
+        )
+        db.add(br)
+        db.commit()
+        db.refresh(br)
+
+    # Fetch recent messages
+    msgs = (
+        db.query(models.Message)
+        .filter(models.Message.booking_request_id == br.id)
+        .order_by(models.Message.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    items = [
+        {
+            "id": str(m.id),
+            "sender_id": str(m.sender_id) if getattr(m, "sender_id", None) is not None else None,
+            "sender_type": str(getattr(m, "sender_type", "") or ""),
+            "content": getattr(m, "content", ""),
+            "created_at": (getattr(m, "created_at", None).isoformat() if getattr(m, "created_at", None) else None),
+            "message_type": str(getattr(m, "message_type", "") or ""),
+        }
+        for m in reversed(msgs)
+    ]
+    return {"booking_request_id": str(br.id), "messages": items}
+
+
+@router.post("/providers/{user_id}/unlist")
+def unlist_provider_services(user_id: int, current: Tuple[User, AdminUser] = Depends(require_roles("content", "admin", "superadmin")), db: Session = Depends(get_db)):
+    """Mark all services for a provider as rejected (hidden)."""
+    svcs = db.query(Service).filter(Service.artist_id == user_id).all()
+    updated = 0
+    before_states: List[Dict[str, Any]] = []
+    for s in svcs:
+        before_states.append({"id": s.id, "status": getattr(s, "status", None)})
+        try:
+            setattr(s, "status", "rejected")
+            db.add(s)
+            updated += 1
+        except Exception:
+            continue
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Unlist failed")
+    _audit(db, current[1].id, "provider", str(user_id), "unlist_all", before_states, {"updated": updated})
+    return {"status": "ok", "updated": updated}
+
+
+@router.post("/providers/{user_id}/purge")
+def purge_provider(user_id: int, payload: Dict[str, Any], current: Tuple[User, AdminUser] = Depends(require_roles("superadmin")), db: Session = Depends(get_db)):
+    """Hard-delete a provider and cascade related records where supported.
+
+    Safeguards:
+    - Requires role superadmin.
+    - Requires confirm matching the provider email.
+    - If active bookings exist, requires force=true.
+    """
+    confirm = str(payload.get("confirm") or "").strip().lower()
+    force = bool(payload.get("force") or False)
+    u = db.query(User).filter(User.id == user_id, User.user_type == models.UserType.SERVICE_PROVIDER).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if confirm != (u.email or "").lower():
+        raise HTTPException(status_code=400, detail="Confirmation does not match provider email")
+
+    # Check for any bookings not completed/cancelled
+    # Treat these statuses as active; they block purge unless force=true
+    active_states = [
+        models.BookingStatus.PENDING,
+        models.BookingStatus.PENDING_QUOTE,
+        models.BookingStatus.QUOTE_PROVIDED,
+        models.BookingStatus.PENDING_ARTIST_CONFIRMATION,
+        models.BookingStatus.CONFIRMED,
+        models.BookingStatus.REQUEST_CONFIRMED,
+    ]
+    active_bookings = (
+        db.query(models.Booking)
+        .filter(models.Booking.artist_id == user_id)
+        .filter(models.Booking.status.in_(active_states))
+        .count()
+    )
+    if active_bookings and not force:
+        raise HTTPException(status_code=400, detail="Provider has active bookings. Pass force=true to proceed.")
+
+    # Precompute a summary for auditing
+    svc_count = db.query(func.count(Service.id)).filter(Service.artist_id == user_id).scalar() or 0
+    br_count = db.query(func.count(models.BookingRequest.id)).filter(models.BookingRequest.artist_id == user_id).scalar() or 0
+    msg_count = (
+        db.query(func.count(models.Message.id))
+        .join(models.BookingRequest, models.Message.booking_request_id == models.BookingRequest.id)
+        .filter(models.BookingRequest.artist_id == user_id)
+        .scalar()
+        or 0
+    )
+    before = {
+        "email": u.email,
+        "services": int(svc_count),
+        "threads": int(br_count),
+        "messages": int(msg_count),
+        "active_bookings": int(active_bookings),
+    }
+    # Best-effort cascading deletes for dependent resources that may not have DB-level cascades
+    try:
+        # Invoices issued by this provider
+        try:
+            db.execute(text("DELETE FROM invoices WHERE artist_id=:uid OR client_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Messages under threads owned by this provider will be deleted with booking_requests below (ORM cascade). As a safety, force-delete via SQL too.
+        try:
+            db.execute(text(
+                "DELETE FROM messages WHERE booking_request_id IN (SELECT id FROM booking_requests WHERE artist_id=:uid)"
+            ), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Messages sent by this user anywhere
+        try:
+            db.execute(text("DELETE FROM messages WHERE sender_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Message reactions by this user or on their thread messages
+        try:
+            db.execute(text("DELETE FROM message_reactions WHERE user_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        try:
+            db.execute(text(
+                "DELETE FROM message_reactions WHERE message_id IN (SELECT id FROM messages WHERE booking_request_id IN (SELECT id FROM booking_requests WHERE artist_id=:uid))"
+            ), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Reviews for this artist (delete before bookings to avoid FK issues)
+        try:
+            db.execute(text("DELETE FROM reviews WHERE artist_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Quotes (v2) owned by this provider or on their threads; also quotes created for this client
+        try:
+            db.execute(text("DELETE FROM quotes_v2 WHERE artist_id=:uid OR client_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Legacy quotes table if present
+        try:
+            db.execute(text("DELETE FROM quotes WHERE artist_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # BookingSimple rows
+        try:
+            db.execute(text("DELETE FROM bookings_simple WHERE artist_id=:uid OR client_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Bookings (FK via service_provider_profiles.user_id)
+        try:
+            db.execute(text("DELETE FROM bookings WHERE artist_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Booking requests (threads) where artist or client is this user
+        try:
+            db.execute(text("DELETE FROM booking_requests WHERE artist_id=:uid OR client_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Services
+        try:
+            db.execute(text("DELETE FROM services WHERE artist_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Notification events
+        try:
+            db.execute(text("DELETE FROM notifications WHERE user_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Email confirmation tokens
+        try:
+            db.execute(text("DELETE FROM email_tokens WHERE user_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Admin user mapping
+        try:
+            db.execute(text("DELETE FROM admin_users WHERE user_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # WebAuthn credentials
+        try:
+            db.execute(text("DELETE FROM webauthn_credentials WHERE user_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Calendar accounts
+        try:
+            db.execute(text("DELETE FROM calendar_accounts WHERE user_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Quote templates
+        try:
+            db.execute(text("DELETE FROM quote_templates WHERE artist_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Profile views
+        try:
+            db.execute(text("DELETE FROM profile_views WHERE artist_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        try:
+            db.execute(text("DELETE FROM profile_views WHERE viewer_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Email/SMS event rows (best-effort; no FKs)
+        try:
+            db.execute(text("DELETE FROM email_events WHERE user_id=:uid"), {"uid": user_id})
+            db.execute(text("DELETE FROM sms_events WHERE user_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+        # Service provider profile
+        try:
+            db.execute(text("DELETE FROM service_provider_profiles WHERE user_id=:uid"), {"uid": user_id})
+        except Exception:
+            db.rollback()
+
+        # Finally, delete the user via raw SQL to avoid ORM trying to NULL FKs
+        db.execute(text("DELETE FROM users WHERE id=:uid"), {"uid": user_id})
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        # Surface the underlying error to aid debugging from the admin UI
+        raise HTTPException(status_code=400, detail=f"Purge failed: {exc}")
+    _audit(db, current[1].id, "provider", str(user_id), "purge", before, None)
+    return {"purged": True, "summary": before}
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Conversations (Support Inbox)
+
+@router.get("/conversations")
+def list_conversations(request: Request, _: Tuple[User, AdminUser] = Depends(require_roles("support", "admin", "superadmin")), db: Session = Depends(get_db)):
+    offset, limit, start, end = _get_offset_limit(request.query_params)
+    # Identify system user
+    system_email = (os.getenv("BOOKA_SYSTEM_EMAIL") or "system@booka.co.za").strip().lower()
+    system_user = db.query(User).filter(func.lower(User.email) == system_email).first()
+    system_id = system_user.id if system_user else None
+
+    # Fetch threads where system user is client or have system messages
+    q = (
+        db.query(models.BookingRequest.id, models.BookingRequest.artist_id)
+        .filter(
+            (models.BookingRequest.client_id == system_id)
+            | (
+                db.query(models.Message.id)
+                .filter(models.Message.booking_request_id == models.BookingRequest.id)
+                .filter(models.Message.message_type == models.MessageType.SYSTEM)
+                .exists()
+            )
+        )
+    )
+    # Apply simple search on provider email/name
+    filters = _parse_json_param(request.query_params, "filter") or {}
+    qtext = filters.get("q") if isinstance(filters, dict) else None
+    if qtext:
+        ilike = f"%{qtext}%"
+        q = q.join(User, User.id == models.BookingRequest.artist_id).filter(
+            (func.lower(User.email).ilike(ilike))
+            | (func.lower(User.first_name).ilike(ilike))
+            | (func.lower(User.last_name).ilike(ilike))
+        )
+
+    total = q.count()
+    threads = q.offset(offset).limit(limit).all()
+
+    items: List[Dict[str, Any]] = []
+    for tid, artist_id in threads:
+        u = db.query(User).get(artist_id)
+        last = (
+            db.query(models.Message)
+            .filter(models.Message.booking_request_id == tid)
+            .order_by(models.Message.created_at.desc())
+            .first()
+        )
+        items.append(
+            {
+                "id": str(tid),
+                "provider_id": str(artist_id),
+                "provider_email": getattr(u, "email", None),
+                "provider_name": f"{getattr(u, 'first_name', '')} {getattr(u, 'last_name', '')}".strip(),
+                "last_message": getattr(last, "content", None),
+                "last_at": (getattr(last, "created_at", None).isoformat() if getattr(last, "created_at", None) else None),
+            }
+        )
+    # Sort by last_at desc at the application layer for consistency
+    items.sort(key=lambda x: x.get("last_at") or "", reverse=True)
+    return _with_total(items, total, "conversations", start, start + len(items) - 1)
+
+
+@router.get("/conversations/{thread_id}")
+def get_conversation(thread_id: int, _: Tuple[User, AdminUser] = Depends(require_roles("support", "admin", "superadmin")), db: Session = Depends(get_db)):
+    br = db.query(models.BookingRequest).filter(models.BookingRequest.id == thread_id).first()
+    if not br:
+        raise HTTPException(status_code=404, detail="Not found")
+    msgs = (
+        db.query(models.Message)
+        .filter(models.Message.booking_request_id == thread_id)
+        .order_by(models.Message.created_at.asc())
+        .all()
+    )
+    out = [
+        {
+            "id": str(m.id),
+            "sender_id": str(m.sender_id) if getattr(m, "sender_id", None) is not None else None,
+            "sender_type": str(getattr(m, "sender_type", "") or ""),
+            "content": getattr(m, "content", ""),
+            "created_at": (getattr(m, "created_at", None).isoformat() if getattr(m, "created_at", None) else None),
+            "message_type": str(getattr(m, "message_type", "") or ""),
+        }
+        for m in msgs
+    ]
+    return {"id": str(thread_id), "messages": out}
+
+
+@router.post("/conversations/{thread_id}/message")
+def reply_conversation(thread_id: int, payload: Dict[str, Any], current: Tuple[User, AdminUser] = Depends(require_roles("support", "admin", "superadmin")), db: Session = Depends(get_db)):
+    br = db.query(models.BookingRequest).filter(models.BookingRequest.id == thread_id).first()
+    if not br:
+        raise HTTPException(status_code=404, detail="Not found")
+    content = str(payload.get("content") or "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="content required")
+    system_email = (os.getenv("BOOKA_SYSTEM_EMAIL") or "system@booka.co.za").strip().lower()
+    system_user = db.query(User).filter(func.lower(User.email) == system_email).first()
+    if not system_user:
+        system_user = User(
+            email=system_email,
+            password="!disabled-system-user!",
+            first_name="Booka",
+            last_name="Support",
+            is_active=True,
+            is_verified=True,
+            user_type=models.UserType.CLIENT,
+        )
+        db.add(system_user)
+        db.commit()
+        db.refresh(system_user)
+    msg = crud_message.create_message(
+        db,
+        booking_request_id=thread_id,
+        sender_id=system_user.id,
+        sender_type=models.SenderType.CLIENT,
+        content=content,
+        message_type=models.MessageType.SYSTEM,
+        visible_to=models.VisibleTo.BOTH,
+        system_key=f"admin_support_v1:{thread_id}:{datetime.utcnow().isoformat()}",
+    )
+    try:
+        artist_user = db.query(User).filter(User.id == br.artist_id).first()
+        if artist_user:
+            notify_user_new_message(db, user=artist_user, sender=system_user, booking_request_id=thread_id, content=content, message_type=models.MessageType.SYSTEM)
+    except Exception:
+        pass
+    _audit(db, current[1].id, "conversation", str(thread_id), "reply", None, {"message_id": msg.id})
+    return {"status": "sent", "message_id": str(msg.id)}
+
 # Bookings
 
 @router.get("/bookings")
@@ -810,6 +1523,32 @@ def get_admin_user(admin_id: int, _: Tuple[User, AdminUser] = Depends(require_ro
     return {"id": str(a.id), "email": a.email, "role": a.role, "created_at": (a.created_at.isoformat() if a.created_at else None)}
 
 
+@router.post("/admin_users")
+def create_admin_user(payload: Dict[str, Any], _: Tuple[User, AdminUser] = Depends(require_roles("superadmin")), db: Session = Depends(get_db)):
+    """Create an admin mapping for an existing user by email (superadmin only)."""
+    email = normalize_email(payload.get("email") or "")
+    role = (payload.get("role") or "admin").strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+    if role not in {"support", "payments", "trust", "content", "admin", "superadmin"}:
+        raise HTTPException(status_code=400, detail="invalid role")
+    user = get_user_by_email(db, email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    existing = db.query(AdminUser).filter(AdminUser.user_id == user.id).first()
+    if existing:
+        # Update role if already exists
+        existing.role = role
+        db.commit()
+        db.refresh(existing)
+        return {"id": str(existing.id), "email": existing.email, "role": existing.role, "created_at": (existing.created_at.isoformat() if existing.created_at else None)}
+    a = AdminUser(user_id=user.id, email=user.email, role=role)
+    db.add(a)
+    db.commit()
+    db.refresh(a)
+    return {"id": str(a.id), "email": a.email, "role": a.role, "created_at": (a.created_at.isoformat() if a.created_at else None)}
+
+
 @router.put("/admin_users/{admin_id}")
 def update_admin_user(admin_id: int, payload: Dict[str, Any], _: Tuple[User, AdminUser] = Depends(require_roles("admin", "superadmin")), db: Session = Depends(get_db)):
     a = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
@@ -832,6 +1571,22 @@ def update_admin_user(admin_id: int, payload: Dict[str, Any], _: Tuple[User, Adm
     db.refresh(a)
     _audit(db, _[1].id, "admin_user", str(a.id), "update", before, {"email": a.email, "role": a.role})
     return {"id": str(a.id), "email": a.email, "role": a.role, "created_at": (a.created_at.isoformat() if a.created_at else None)}
+
+
+@router.delete("/admin_users/{admin_id}")
+def delete_admin_user(admin_id: int, _: Tuple[User, AdminUser] = Depends(require_roles("superadmin")), db: Session = Depends(get_db)):
+    a = db.query(AdminUser).filter(AdminUser.id == admin_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail="Not found")
+    before = {"email": a.email, "role": a.role}
+    try:
+        db.delete(a)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Delete failed")
+    _audit(db, _[1].id, "admin_user", str(admin_id), "delete", before, None)
+    return {"status": "deleted"}
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -976,6 +1731,7 @@ def resolve_dispute(dispute_id: int, payload: Dict[str, Any], current: Tuple[Use
     except Exception:
         db.rollback()
         raise HTTPException(status_code=400, detail="Resolve failed")
+@router.get("/audit_events")
 def list_audit_events(request: Request, _: Tuple[User, AdminUser] = Depends(require_roles("admin", "superadmin")), db: Session = Depends(get_db)):
     offset, limit, start, end = _get_offset_limit(request.query_params)
     rows = db.execute(text("SELECT id, actor_admin_id, entity, entity_id, action, before, after, at FROM audit_events ORDER BY at DESC LIMIT :lim OFFSET :off"), {"lim": limit, "off": offset}).fetchall()

@@ -2,8 +2,8 @@ import * as React from 'react';
 import { List, Datagrid, TextField, DateField, NumberField, SelectInput, TextInput } from 'react-admin';
 
 const ledgerFilters = [
-  <TextInput key="q" source="q" label="Search" alwaysOn />,
-  <SelectInput key="type" source="type" choices={[
+  <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
+  <SelectInput key="type" source="type" size="small" margin="dense" variant="outlined" choices={[
     { id:'charge', name:'Charge' },
     { id:'fee', name:'Fee' },
     { id:'refund', name:'Refund' },
@@ -23,4 +23,3 @@ export const LedgerList = () => (
     </Datagrid>
   </List>
 );
-

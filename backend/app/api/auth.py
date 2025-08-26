@@ -144,9 +144,10 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     email = normalize_email(user_data.email)
     existing_user = db.query(User).filter(func.lower(User.email) == email).first()
     if existing_user:
+        # Use a precise, user-friendly message and 409 Conflict
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            status_code=status.HTTP_409_CONFLICT,
+            detail="That email already has an account. Sign in instead.",
         )
 
     hashed_password = get_password_hash(user_data.password)
@@ -464,6 +465,64 @@ def confirm_email(data: EmailConfirmRequest, db: Session = Depends(get_db)):
 def read_current_user(current_user: User = Depends(get_current_user)):
     """Return details for the authenticated user."""
     return current_user
+
+
+@router.get("/email-status")
+def email_status(
+    request: Request,
+    email: str,
+    db: Session = Depends(get_db),
+):
+    """Lightweight existence check for an email address.
+
+    Returns a minimal payload used by the email-first signup flow to branch the UI
+    before showing the full registration form.
+
+    Example response:
+    {"exists": true, "providers": ["password", "google", "apple"], "locked": false}
+    """
+    norm = normalize_email(email)
+    user = db.query(User).filter(func.lower(User.email) == norm).first()
+
+    # Determine supported providers — password is always supported. OAuth providers
+    # are included when configured so the UI can surface the relevant CTAs.
+    providers = ["password"]
+    try:
+        # Reuse the same env-driven checks as OAuth registration
+        from app.core.config import settings as _settings
+        if (_settings.GOOGLE_OAUTH_CLIENT_ID or _settings.GOOGLE_CLIENT_ID):
+            providers.append("google")
+        if (
+            getattr(_settings, "APPLE_CLIENT_ID", None)
+            and getattr(_settings, "APPLE_TEAM_ID", None)
+            and getattr(_settings, "APPLE_KEY_ID", None)
+            and getattr(_settings, "APPLE_PRIVATE_KEY", None)
+        ):
+            providers.append("apple")
+    except Exception:
+        # Best-effort; never fail this lightweight endpoint due to config lookups
+        pass
+
+    # Check if login is temporarily locked due to failed attempts
+    locked = False
+    try:
+        client = get_redis_client()
+        ip = request.client.host if request.client else "unknown"
+        user_key = f"login_fail:user:{norm}"
+        ip_key = f"login_fail:ip:{ip}"
+        user_attempts = int(client.get(user_key) or 0)
+        ip_attempts = int(client.get(ip_key) or 0)
+        from app.core.config import settings as _s
+        threshold = _s.MAX_LOGIN_ATTEMPTS
+        locked = user_attempts >= threshold or ip_attempts >= threshold
+    except Exception:
+        locked = False
+
+    return {
+        "exists": bool(user),
+        "providers": providers,
+        "locked": locked,
+    }
 
 
 @router.post("/refresh")

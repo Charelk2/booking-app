@@ -245,6 +245,15 @@ export default function SearchBar({
                     when={when}
                     setWhen={setWhen}
                     closeAllPopups={closeThisSearchBarsInternalPopups}
+                    setActiveField={(f) => {
+                      // Keep popup open and switch to requested field
+                      if (resetTimeoutRef.current) {
+                        clearTimeout(resetTimeoutRef.current);
+                        resetTimeoutRef.current = null;
+                      }
+                      setActiveField(f);
+                      setShowInternalPopup(true);
+                    }}
                     locationInputRef={locationInputRef}
                     categoryListboxOptionsRef={categoryListboxOptionsRef}
                     locationPredictions={locationPredictions}

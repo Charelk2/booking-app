@@ -603,6 +603,17 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   const { isClientView: isClientViewFlag, isProviderView: isProviderViewFlag, isPaid: isPaidFlag } = useBookingView(user, bookingDetails, paymentInfo, bookingConfirmed);
 
+  // When the thread is for admin moderation (e.g., listing approved/rejected),
+  // do not show booking-request specific UI like the inline quote editor.
+  const isModerationThread = useMemo(() => {
+    const firstSystem = messages.find((m) => String(m.message_type).toUpperCase() === 'SYSTEM');
+    const key = (firstSystem as any)?.system_key ? String((firstSystem as any).system_key).toLowerCase() : '';
+    const content = String((firstSystem as any)?.content || '').toLowerCase();
+    if (key.startsWith('listing_approved_v1') || key.startsWith('listing_rejected_v1')) return true;
+    if (content.startsWith('listing approved:') || content.startsWith('listing rejected:')) return true;
+    return false;
+  }, [messages]);
+
   // ---- Focus textarea on mount & thread switch
   useEffect(() => { textareaRef.current?.focus(); }, []);
   useEffect(() => { textareaRef.current?.focus(); }, [bookingRequestId]);
@@ -1927,7 +1938,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           )
         )}
 
-        {user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && !isPersonalizedVideo && (
+        {user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && !isPersonalizedVideo && !!bookingRequest && !isModerationThread && (
           <div className="mb-3" data-testid="artist-inline-quote">
             <MemoInlineQuoteForm
               artistId={currentArtistId}

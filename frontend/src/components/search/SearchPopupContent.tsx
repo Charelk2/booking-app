@@ -1,7 +1,7 @@
 // src/components/search/SearchPopupContent.tsx
 'use client';
 
-import React, { useEffect, useState, RefObject, useCallback } from 'react';
+import React, { useEffect, useState, RefObject, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import ReactDatePicker from 'react-datepicker';
 import { Listbox } from '@headlessui/react';
@@ -25,6 +25,7 @@ interface SearchPopupContentProps {
   when: Date | null;
   setWhen: (d: Date | null) => void;
   closeAllPopups: () => void; // Function to close these internal popups
+  setActiveField: (f: ActivePopup) => void; // Switch to another field without closing
   locationInputRef: RefObject<HTMLInputElement>;
   categoryListboxOptionsRef: RefObject<HTMLUListElement>;
   locationPredictions: google.maps.places.AutocompletePrediction[];
@@ -53,6 +54,7 @@ export default function SearchPopupContent({
   when,
   setWhen,
   closeAllPopups, // This now calls closeThisSearchBarsInternalPopups
+  setActiveField,
   locationInputRef,
   categoryListboxOptionsRef,
   locationPredictions,
@@ -64,6 +66,7 @@ export default function SearchPopupContent({
   const [announcement, setAnnouncement] = useState('');
   const [artistQuery, setArtistQuery] = useState('');
   const [artistResults, setArtistResults] = useState<ServiceProviderProfile[]>([]);
+  const artistInputRef = useRef<HTMLInputElement>(null);
   const categories = useServiceCategories();
   const router = useRouter();
 
@@ -73,11 +76,17 @@ export default function SearchPopupContent({
     const timer = setTimeout(() => {
       if (activeField === 'location' && locationInputRef.current) {
         locationInputRef.current.focus();
-      } else if (activeField === 'category' && categoryListboxOptionsRef.current) {
-        const target =
-          categoryListboxOptionsRef.current.querySelector('[aria-selected="true"]') ??
-          categoryListboxOptionsRef.current.querySelector('[role="option"]');
-        (target as HTMLElement | null)?.focus();
+      } else if (activeField === 'category') {
+        // Autofocus the artist search input when Category panel opens
+        if (artistInputRef.current) {
+          artistInputRef.current.focus();
+          artistInputRef.current.select?.();
+        } else if (categoryListboxOptionsRef.current) {
+          const target =
+            categoryListboxOptionsRef.current.querySelector('[aria-selected="true"]') ??
+            categoryListboxOptionsRef.current.querySelector('[role="option"]');
+          (target as HTMLElement | null)?.focus();
+        }
       }
     }, 50);
 
@@ -115,9 +124,10 @@ export default function SearchPopupContent({
     (c: Category | null) => {
       setCategory(c);
       setAnnouncement(`Category selected: ${c ? c.label : 'none'}`);
-      closeAllPopups(); // Close popup after selection
+      // Advance to next step: date picker
+      setActiveField('when');
     },
-    [setCategory, closeAllPopups],
+    [setCategory, setActiveField],
   );
 
   const handleArtistSelect = useCallback(
@@ -134,8 +144,9 @@ export default function SearchPopupContent({
 
   const handleDateSelect = useCallback((date: Date | null) => {
     setWhen(date);
-    closeAllPopups(); // Close popup after selection
-  }, [setWhen, closeAllPopups]);
+    // Advance to next step: location
+    setActiveField('location');
+  }, [setWhen, setActiveField]);
 
   // Renders the location suggestion list as an ARIA-compliant listbox.
   // The list shares an ID with LocationInput so the input's
@@ -309,11 +320,12 @@ export default function SearchPopupContent({
     <div>
       <input
         type="text"
+        ref={artistInputRef}
         value={artistQuery}
         onChange={(e) => setArtistQuery(e.target.value)}
-        placeholder="Search artists"
+        placeholder="Search"
         className="mb-3 w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-0"
-        aria-label="Search artists"
+        aria-label="Search"
       />
       {artistResults.length > 0 && (
         <ul className="mb-4 max-h-40 bg-white overflow-auto rounded-md">

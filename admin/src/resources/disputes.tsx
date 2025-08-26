@@ -6,8 +6,8 @@ import InfoIcon from '@mui/icons-material/Info';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 
 const disputeFilters = [
-  <TextInput key="q" source="q" label="Search" alwaysOn />,
-  <SelectInput key="status" source="status" choices={[
+  <TextInput key="q" source="q" label="Search" alwaysOn size="small" margin="dense" variant="outlined" />,
+  <SelectInput key="status" source="status" size="small" margin="dense" variant="outlined" choices={[
     { id:'open', name:'Open' },
     { id:'needs_info', name:'Needs Info' },
     { id:'resolved_refund', name:'Resolved (Refund)' },
