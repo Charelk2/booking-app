@@ -497,7 +497,7 @@ export default function ServiceProviderProfilePage() {
             {/* Hero */}
             <div className="relative h-48 w-full overflow-hidden">
               {coverPhotoUrl ? (
-                <Image src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover" sizes="100vw" />
+                <Image src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover" sizes="100vw" unoptimized />
               ) : (
                 <div className="h-full w-full bg-gray-100" />
               )}
@@ -522,7 +522,7 @@ export default function ServiceProviderProfilePage() {
                 <div className="flex items-center gap-4">
                   <div className="relative -mt-10 h-20 w-20 shrink-0 rounded-full ring-4 ring-white overflow-hidden bg-gray-200">
                     {profilePictureUrl ? (
-                      <Image src={profilePictureUrl} alt={displayName} fill className="object-cover" sizes="80px" />
+                      <Image src={profilePictureUrl} alt={displayName} fill className="object-cover" sizes="80px" unoptimized />
                     ) : (
                       <div className="h-full w-full grid place-items-center">
                         <UserIcon className="h-10 w-10 text-gray-400" />
@@ -602,7 +602,7 @@ export default function ServiceProviderProfilePage() {
                               <div className="flex items-center gap-3">
                                 <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                                   {img ? (
-                                    <Image src={img} alt="" fill className="object-cover" sizes="64px" />
+                                    <Image src={img} alt="" fill className="object-cover" sizes="64px" unoptimized />
                                   ) : (
                                     <div className="h-full w-full bg-gray-100" />
                                   )}
@@ -923,7 +923,7 @@ export default function ServiceProviderProfilePage() {
                               <div className="flex gap-4 h-full">
                                 <div className="relative h-32 w-32 rounded-3xl overflow-hidden bg-gray-100 shrink-0 group-hover:scale-105 transition-transform duration-200">
                                   {img ? (
-                                    <Image src={img} alt={service.title || (service as any).service_type} fill className="object-cover" sizes="128px" />
+                                    <Image src={img} alt={service.title || (service as any).service_type} fill className="object-cover" sizes="128px" unoptimized />
                                   ) : (
                                     <div className="h-full w-full grid place-items-center text-gray-400">No image</div>
                                   )}
@@ -1023,7 +1023,7 @@ export default function ServiceProviderProfilePage() {
                             key={`portfolio-desktop-${i}`}
                             className="relative aspect-square overflow-hidden rounded-lg border border-gray-100"
                           >
-                            <Image src={src} alt="" fill className="object-cover" sizes="33vw" />
+                            <Image src={src} alt="" fill className="object-cover" sizes="33vw" unoptimized />
                           </li>
                         ))}
                       </ul>
