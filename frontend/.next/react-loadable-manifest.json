@@ -1,4 +1,64 @@
 {
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalBartender": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalBartender",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalBartender_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalCaterer": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalCaterer",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalCaterer_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalDJ": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalDJ",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalDJ_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalMcHost": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalMcHost",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalMcHost_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalMusician": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalMusician",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalMusician_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalPhotographer": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalPhotographer",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalPhotographer_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalSoundService": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalSoundService",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalSoundService_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalSpeaker": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalSpeaker",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalSpeaker_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalVideographer": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalVideographer",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalVideographer_tsx.js"
+    ]
+  },
+  "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalWeddingVenue": {
+    "id": "app/dashboard/artist/page.tsx -> @/components/dashboard/add-service/AddServiceModalWeddingVenue",
+    "files": [
+      "static/chunks/_app-pages-browser_src_components_dashboard_add-service_AddServiceModalWeddingVenue_tsx.js"
+    ]
+  },
   "app/dashboard/profile/edit/page.tsx -> react-image-crop": {
     "id": "app/dashboard/profile/edit/page.tsx -> react-image-crop",
     "files": []

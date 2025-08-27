@@ -106,7 +106,7 @@ export default function LocationStep({
             {(loaded) => (
               <>
                 {/* Hidden controller for venue/place name */}
-                <Controller<EventDetails, 'locationName'>
+                <Controller
                   name="locationName"
                   control={control}
                   render={({ field }) => {
@@ -116,7 +116,7 @@ export default function LocationStep({
                   }}
                 />
 
-                <Controller<EventDetails, 'location'>
+                <Controller
                   name="location"
                   control={control}
                   render={({ field }) => (
@@ -155,7 +155,7 @@ export default function LocationStep({
         ) : (
           <>
             {/* Hidden controller for venue/place name */}
-            <Controller<EventDetails, 'locationName'>
+            <Controller
               name="locationName"
               control={control}
               render={({ field }) => {
@@ -164,7 +164,7 @@ export default function LocationStep({
               }}
             />
 
-            <Controller<EventDetails, 'location'>
+            <Controller
               name="location"
               control={control}
               render={({ field }) => (

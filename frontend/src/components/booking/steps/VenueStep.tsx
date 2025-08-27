@@ -30,7 +30,7 @@ export default function VenueStep({ control, open = true, onToggle = () => {} }:
         <p className="text-sm font-normal text-gray-600 pt-1">What type of venue is it?</p>
       </div>
       <div className="mt-6">
-      <Controller<EventDetails, 'venueType'>
+      <Controller
         name="venueType"
         control={control}
         render={({ field }) => (

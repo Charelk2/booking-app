@@ -54,7 +54,7 @@ export default function NotesStep({
         <p className="text-sm font-normal text-gray-600 pt-1">Anything else we should know?</p>
       </div>
       <div className="mt-2 space-y-3">
-      <Controller<EventDetails, 'notes'>
+      <Controller
         name="notes"
         control={control}
         render={({ field }) => (
@@ -67,7 +67,7 @@ export default function NotesStep({
           />
         )}
       />
-      <Controller<EventDetails, 'attachment_url'>
+      <Controller
         name="attachment_url"
         control={control}
         render={({ field }) => <input type="hidden" {...field} value={field.value ? String(field.value) : ''} />}

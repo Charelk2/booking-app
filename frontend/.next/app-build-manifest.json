@@ -23,6 +23,23 @@
       "static/chunks/main-app.js",
       "static/css/app/dashboard/profile/edit/page.css",
       "static/chunks/app/dashboard/profile/edit/page.js"
+    ],
+    "/login/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/login/page.css",
+      "static/chunks/app/login/page.js"
+    ],
+    "/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/page.js"
+    ],
+    "/dashboard/artist/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/artist/page.css",
+      "static/chunks/app/dashboard/artist/page.js"
     ]
   }
 }

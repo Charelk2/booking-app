@@ -185,7 +185,7 @@ export default function SoundStep({
         Estimates below use drive-only logistics and your guest count; final pricing may vary.
       </p>
 
-      <Controller<EventDetails, 'sound'>
+      <Controller
         name="sound"
         control={control}
         render={({ field }) => (

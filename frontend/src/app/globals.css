@@ -219,6 +219,21 @@ html, body {
     width: 360px;
   }
 
+  /* Larger tap targets for calendar days, scoped to wizard */
+  .booking-wizard-step .react-datepicker__day,
+  .booking-wizard-step .react-datepicker__day-name {
+    width: 2.25rem; /* 36px */
+    line-height: 2.25rem;
+    margin: 0.1rem;
+  }
+  .booking-wizard-step .react-datepicker__header {
+    padding-top: 0.5rem;
+  }
+  .booking-wizard-step .react-datepicker__day--selected,
+  .booking-wizard-step .react-datepicker__day--keyboard-selected {
+    background-color: #111827; /* black */
+  }
+
   /* Slide-out reservation side panel */
   .side-panel {
     @apply transform transition-transform duration-200 ease-in-out;

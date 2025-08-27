@@ -102,7 +102,7 @@ export default function EventDescriptionStep({
         <p className="text-sm font-normal text-gray-600 pt-1">Tell us a little bit more about your event.</p>
       </div>
       <div className="mt-6 space-y-6">
-      <Controller<EventDetails, 'eventDescription'>
+      <Controller
         name="eventDescription"
         control={control}
         render={({ field, fieldState }) => (
