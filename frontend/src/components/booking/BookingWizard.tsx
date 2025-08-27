@@ -646,6 +646,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
             control={control}
             setValue={setValue}
             watch={watch}
+            onEnterNext={() => void next()}
           />
         );
       case 1:

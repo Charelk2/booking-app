@@ -176,14 +176,16 @@ interface EventDescriptionProps {
   watch: UseFormWatch<EventDetails>;
   open?: boolean;
   onToggle?: () => void;
+  onEnterNext?: () => void;
 }
 
-export function EventDescriptionStep({ control, setValue, watch, open = true }: EventDescriptionProps) {
+export function EventDescriptionStep({ control, setValue, watch, open = true, onEnterNext }: EventDescriptionProps) {
   const isMobile = useIsMobile();
   type ParsedDetails = { eventType?: string; date?: string; location?: string; guests?: number };
   const [parsed, setParsed] = useState<ParsedDetails | null>(null);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<null | { stop: () => void }>(null);
+  const [descFocused, setDescFocused] = useState(false);
 
   const startListening = () => {
     const win = window as any;
@@ -246,8 +248,20 @@ export function EventDescriptionStep({ control, setValue, watch, open = true }: 
                 value={field.value || ''}
                 autoFocus={!isMobile}
                 enterKeyHint="next"
+                onKeyDown={(e) => {
+                  // On mobile, treat Enter as Next (unless Shift+Enter for newline)
+                  if (e.key === 'Enter' && !e.shiftKey && onEnterNext && typeof navigator !== 'undefined' && /Mobi|Android|iPhone/i.test(navigator.userAgent)) {
+                    e.preventDefault();
+                    onEnterNext();
+                  }
+                }}
+                onFocus={() => setDescFocused(true)}
+                onBlur={() => setDescFocused(false)}
                 placeholder="Add date, venue, city, number of guests, vibe, special notes…"
               />
+              {isMobile && descFocused && (
+                <p className="help-text mt-1">Tip: Shift+Enter for a new line</p>
+              )}
               {(!field.value || (field.value?.trim()?.length ?? 0) < 5) && (
                 <p className="help-text">Add a short description to continue.</p>
               )}
@@ -879,6 +893,7 @@ export function NotesStep({ control, setValue, open = true }: { control: Control
   const isMobile = useIsMobile();
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [notesFocused, setNotesFocused] = useState(false);
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -899,7 +914,20 @@ export function NotesStep({ control, setValue, open = true }: { control: Control
       </div>
       <div className="mt-2 space-y-3">
         <Controller name="notes" control={control} render={({ field }) => (
-          <textarea rows={3} {...field} value={field.value ? String(field.value) : ''} autoFocus={!isMobile} className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black min-h-[120px] px-3 py-2" />
+          <>
+            <textarea
+              rows={3}
+              {...field}
+              value={field.value ? String(field.value) : ''}
+              autoFocus={!isMobile}
+              className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black min-h-[120px] px-3 py-2"
+              onFocus={() => setNotesFocused(true)}
+              onBlur={() => setNotesFocused(false)}
+            />
+            {isMobile && notesFocused && (
+              <p className="help-text mt-1">Tip: Shift+Enter for a new line</p>
+            )}
+          </>
         )} />
         <Controller name="attachment_url" control={control} render={({ field }) => <input type="hidden" {...field} value={field.value ? String(field.value) : ''} />} />
         <label className="label block">Attachment (optional)</label>
