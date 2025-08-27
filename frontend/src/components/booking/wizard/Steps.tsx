@@ -57,8 +57,8 @@ export function DateTimeStep({
   return (
     <section className="wizard-step-container wizard-step-container-date booking-wizard-step">
       <div>
-        <h3 className="font-bold text-neutral-900">Date & Time</h3>
-        <p className="text-sm font-normal text-gray-600 pt-1">When should we perform?</p>
+        <h3 className="step-title">Date & Time</h3>
+        <p className="step-subtitle">When should we perform?</p>
       </div>
 
       <div className="mt-4">
@@ -83,6 +83,7 @@ export function DateTimeStep({
                     onBlur={field.onBlur}
                     value={currentValue ? format(currentValue, 'yyyy-MM-dd') : ''}
                     onChange={(e) => field.onChange(e.target.value)}
+                    enterKeyHint="next"
                     inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2"
                   />
                   {!currentValue && (
@@ -148,7 +149,7 @@ export function DateTimeStep({
         )}
 
         <div className="mt-4 max-w-sm">
-          <label className="block text-sm font-medium text-neutral-900 mb-1">Start time (optional)</label>
+          <label className="label mb-1 block">Start time (optional)</label>
           <Controller
             name="time"
             control={control}
@@ -157,6 +158,7 @@ export function DateTimeStep({
                 type="time"
                 {...field}
                 value={field.value || ''}
+                enterKeyHint="done"
                 className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2"
               />
             )}
@@ -224,8 +226,8 @@ export function EventDescriptionStep({ control, setValue, watch, open = true }: 
   return (
     <section className="wizard-step-container">
       <div>
-        <h3 className="font-bold text-neutral-900">Event Details</h3>
-        <p className="text-sm font-normal text-gray-600 pt-1">Tell us a little bit more about your event.</p>
+        <h3 className="step-title">Event Details</h3>
+        <p className="step-subtitle">Tell us a little bit more about your event.</p>
       </div>
       <div className="mt-6 space-y-6">
         <Controller
@@ -233,9 +235,9 @@ export function EventDescriptionStep({ control, setValue, watch, open = true }: 
           control={control}
           render={({ field }) => (
             <div className="space-y-2">
-              <label htmlFor="event-description" className="block text-sm font-medium text-neutral-900">
-                Describe your event
-              </label>
+            <label htmlFor="event-description" className="label block">
+              Describe your event
+            </label>
               <textarea
                 id="event-description"
                 rows={3}
@@ -243,10 +245,11 @@ export function EventDescriptionStep({ control, setValue, watch, open = true }: 
                 {...field}
                 value={field.value || ''}
                 autoFocus={!isMobile}
+                enterKeyHint="next"
                 placeholder="Add date, venue, city, number of guests, vibe, special notes…"
               />
               {(!field.value || (field.value?.trim()?.length ?? 0) < 5) && (
-                <p className="text-xs text-neutral-500">Add a short description to continue.</p>
+                <p className="help-text">Add a short description to continue.</p>
               )}
               <div className="flex flex-wrap gap-2 pt-1">
                 <button
@@ -365,10 +368,11 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
   return (
     <section className="wizard-step-container">
       <div>
-        <h3 className="font-bold text-neutral-900">Location</h3>
-        <p className="text-sm font-normal text-gray-600 pt-1">Where is the show?</p>
+        <h3 className="step-title">Location</h3>
+        <p className="step-subtitle">Where is the show?</p>
       </div>
       <div className="mt-4" ref={containerRef}>
+        <label className="label block mb-2">Event location</label>
         <div className="space-y-3">
           {shouldLoadMap ? (
             <GoogleMapsLoader>
@@ -389,6 +393,7 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
                       <LocationInput
                         value={field.value ?? ''}
                         onValueChange={field.onChange}
+                        enterKeyHint="search"
                         onPlaceSelect={(place: google.maps.places.PlaceResult) => {
                           if (place.geometry?.location) {
                             setMarker({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
@@ -401,6 +406,7 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
                       />)
                     }
                   />
+                  <p className="help-text">Start typing to see suggestions. Pick one to drop a pin.</p>
                   {marker && (
                     <div className="mt-2 rounded-2xl overflow-hidden h-56" data-testid="map-container">
                       {loaded ? <Map isLoaded={loaded} marker={marker} /> : <div className="h-full w-full bg-gray-100 animate-pulse" />}
@@ -426,6 +432,7 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
                   <LocationInput
                     value={field.value ?? ''}
                     onValueChange={field.onChange}
+                    enterKeyHint="search"
                     onPlaceSelect={(place: google.maps.places.PlaceResult) => {
                       if (place.geometry?.location) {
                         setMarker({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
@@ -438,6 +445,7 @@ export function LocationStep({ control, artistLocation, setWarning, open = true 
                   />
                 )}
               />
+            <p className="help-text">Start typing to see suggestions. Pick one to drop a pin.</p>
             </>
           )}
         </div>
@@ -516,9 +524,9 @@ export function EventTypeStep({ control, open = true }: { control: Control<Event
                   </BottomSheet>
                 </>
               ) : (
-                <fieldset className="grid grid-cols-1 gap-[clamp(0.5rem,2vw,1rem)] @md:grid-cols-2 @lg:grid-cols-4">
-                  {options.map((opt) => (
-                    <div key={opt}>
+              <fieldset className="bw-card-grid">
+                {options.map((opt) => (
+                  <div key={opt}>
                       <input id={`type-${opt}`} type="radio" className="selectable-card-input" name={field.name} value={opt} checked={field.value === opt} onChange={(e) => field.onChange(e.target.value)} />
                       <label htmlFor={`type-${opt}`} className={clsx('selectable-card')}>
                         {opt}
@@ -541,8 +549,8 @@ export function GuestsStep({ control, open = true }: { control: Control<EventDet
   return (
     <section className="wizard-step-container">
       <div>
-        <h3 className="font-bold text-neutral-900">Guests</h3>
-        <p className="text-sm font-normal text-gray-600 pt-1">How many people?</p>
+        <h3 className="step-title">Guests</h3>
+        <p className="step-subtitle">How many people?</p>
       </div>
       <div className="mt-4">
         <Controller
@@ -586,8 +594,8 @@ export function VenueStep({ control, open = true }: { control: Control<EventDeta
   return (
     <section className="wizard-step-container">
       <div>
-        <h3 className="font-bold text-neutral-900">Venue Type</h3>
-        <p className="text-sm font-normal text-gray-600 pt-1">What type of venue is it?</p>
+        <h3 className="step-title">Venue Type</h3>
+        <p className="step-subtitle">What type of venue is it?</p>
       </div>
       <div className="mt-4">
         <Controller
@@ -612,7 +620,7 @@ export function VenueStep({ control, open = true }: { control: Control<EventDeta
                   </BottomSheet>
                 </>
               ) : (
-                <fieldset className="space-y-2">
+                <fieldset className="bw-card-grid">
                   {options.map((opt) => (
                     <div key={opt.value}>
                       <input id={`venue-${opt.value}`} type="radio" className="selectable-card-input" name={field.name} value={opt.value} checked={field.value === opt.value} onChange={(e) => field.onChange(e.target.value)} />
@@ -763,8 +771,8 @@ export function SoundStep({ control, open = true, serviceId, artistLocation, eve
   return (
     <section className="wizard-step-container">
       <div>
-        <h3 className="font-bold text-neutral-900">Sound</h3>
-        <p className="text-sm font-normal text-gray-600 pt-1">Will sound equipment be needed?</p>
+        <h3 className="step-title">Sound</h3>
+        <p className="step-subtitle">Will sound equipment be needed?</p>
       </div>
       <div className="mt-6">
         <p className="text-sm text-neutral-600 mb-3">
@@ -886,15 +894,15 @@ export function NotesStep({ control, setValue, open = true }: { control: Control
   return (
     <section className="wizard-step-container space-y-3">
       <div>
-        <h3 className="font-bold text-neutral-900">Notes</h3>
-        <p className="text-sm font-normal text-gray-600 pt-1">Anything else we should know?</p>
+        <h3 className="step-title">Notes</h3>
+        <p className="step-subtitle">Anything else we should know?</p>
       </div>
       <div className="mt-2 space-y-3">
         <Controller name="notes" control={control} render={({ field }) => (
           <textarea rows={3} {...field} value={field.value ? String(field.value) : ''} autoFocus={!isMobile} className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black min-h-[120px] px-3 py-2" />
         )} />
         <Controller name="attachment_url" control={control} render={({ field }) => <input type="hidden" {...field} value={field.value ? String(field.value) : ''} />} />
-        <label className="block text-sm font-medium text-black">Attachment (optional)</label>
+        <label className="label block">Attachment (optional)</label>
         <input type="file" aria-label="Upload attachment" className="block w-full rounded-xl border border-black/20 bg-white px-3 py-2 text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-black file:px-3 file:py-1.5 file:text-white hover:bg-black/[0.02] focus:outline-none" onChange={handleFileChange} />
         {uploading && (
           <div className="flex items-center gap-2 mt-2" role="progressbar" aria-label="Upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-valuetext={`${progress}%`} aria-live="polite">
@@ -1029,7 +1037,7 @@ export function ReviewStep(props: {
         <div className="mt-8">
           <div className="flex items-start space-x-3 mb-6">
             <input type="checkbox" id="terms" className="mt-1 h-3 w-3 bg-black rounded border-black/30 text-black" />
-            <label htmlFor="terms" className="text-sm text-neutral-700">I have reviewed my details and agree to the <a href="#" className="text-black underline hover:underline underline-offset-4">terms of service</a>.</label>
+            <label htmlFor="terms" className="help-text">I have reviewed my details and agree to the <a href="#" className="text-black underline hover:underline underline-offset-4">terms of service</a>.</label>
           </div>
           <Button variant="primary" fullWidth isLoading={isProcessing} disabled={reviewDataError !== null || travelResult === null} onClick={(e) => { trackEvent('booking_submit'); void props.onNext(e); }} className="rounded-xl bg-black text-white hover:bg-black/90">{isProcessing ? (props.submitLabel === 'Submit Request' ? 'Submitting...' : 'Loading...') : props.submitLabel}</Button>
           <p className="text-xs text-neutral-600 mt-3">Artist must accept this request. Once accepted, your artist booking is confirmed. Sound is usually confirmed within a few hours; if the top pick declines we auto-try backups. If all decline, you can choose another option or we’ll refund the sound portion immediately.</p>
