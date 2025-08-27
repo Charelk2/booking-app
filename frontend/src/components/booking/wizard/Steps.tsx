@@ -240,37 +240,40 @@ export function EventDescriptionStep({ control, setValue, watch, open = true, on
             <label htmlFor="event-description" className="label block">
               Describe your event
             </label>
-              <textarea
-                id="event-description"
-                rows={3}
-                className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2"
-                {...field}
-                value={field.value || ''}
-                autoFocus={!isMobile}
-                enterKeyHint="next"
-                onKeyDown={(e) => {
-                  // On mobile, treat Enter as Next (unless Shift+Enter for newline)
-                  if (e.key === 'Enter' && !e.shiftKey && onEnterNext && typeof navigator !== 'undefined' && /Mobi|Android|iPhone/i.test(navigator.userAgent)) {
-                    e.preventDefault();
-                    onEnterNext();
-                  }
-                }}
-                onFocus={() => setDescFocused(true)}
-                onBlur={() => setDescFocused(false)}
-                placeholder="Add date, venue, city, number of guests, vibe, special notes…"
-              />
+              <div className="relative">
+                <textarea
+                  id="event-description"
+                  rows={3}
+                  className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2 pr-10"
+                  maxLength={200}
+                  {...field}
+                  value={field.value || ''}
+                  autoFocus={!isMobile}
+                  enterKeyHint="next"
+                  onKeyDown={(e) => {
+                    // On mobile, treat Enter as Next (unless Shift+Enter for newline)
+                    if (e.key === 'Enter' && !e.shiftKey && onEnterNext && typeof navigator !== 'undefined' && /Mobi|Android|iPhone/i.test(navigator.userAgent)) {
+                      e.preventDefault();
+                      onEnterNext();
+                    }
+                  }}
+                  onFocus={() => setDescFocused(true)}
+                  onBlur={() => setDescFocused(false)}
+                  placeholder="Add date, venue, city, number of guests, vibe, special notes…"
+                />
+                {(() => {
+                  const len = (field.value?.trim?.().length ?? 0);
+                  const min = 5;
+                  const shown = Math.min(len, min);
+                  return (
+                    <span className="absolute bottom-1 right-2 text-[10px] text-neutral-400">{shown}/{min}</span>
+                  );
+                })()}
+              </div>
               {isMobile && descFocused && (
-                <p className="help-text mt-1">
-                  <svg viewBox="0 0 24 24" className="inline mr-1 h-3 w-3 align-[2px] text-neutral-500" fill="currentColor" aria-hidden="true">
-                    <path d="M8.7 15.3a1 1 0 0 1 0-1.4L10.59 12H6a1 1 0 0 1-1-1V6a1 1 0 1 1 2 0v4h3.59L8.7 8.1a1 1 0 1 1 1.4-1.42l3.5 3.5a1 1 0 0 1 0 1.42l-3.5 3.5a1 1 0 0 1-1.4 0Z"/>
-                    <path d="M20 18H8a2 2 0 0 1-2-2v-1a1 1 0 1 1 2 0v1h12a1 1 0 1 1 0 2Z"/>
-                  </svg>
-                  Tip: Shift+Enter for a new line
-                </p>
+                <p className="help-text mt-1">↵ Shift+Enter for a new line</p>
               )}
-              {(!field.value || (field.value?.trim()?.length ?? 0) < 5) && (
-                <p className="help-text">Add a short description to continue.</p>
-              )}
+              {/* Removed verbose helper; using subtle char counter instead */}
               <div className="flex flex-wrap gap-2 pt-1">
                 <button
                   type="button"
@@ -931,13 +934,7 @@ export function NotesStep({ control, setValue, open = true }: { control: Control
               onBlur={() => setNotesFocused(false)}
             />
             {isMobile && notesFocused && (
-              <p className="help-text mt-1">
-                <svg viewBox="0 0 24 24" className="inline mr-1 h-3 w-3 align-[2px] text-neutral-500" fill="currentColor" aria-hidden="true">
-                  <path d="M8.7 15.3a1 1 0 0 1 0-1.4L10.59 12H6a1 1 0 0 1-1-1V6a1 1 0 1 1 2 0v4h3.59L8.7 8.1a1 1 0 1 1 1.4-1.42l3.5 3.5a1 1 0 0 1 0 1.42l-3.5 3.5a1 1 0 0 1-1.4 0Z"/>
-                  <path d="M20 18H8a2 2 0 0 1-2-2v-1a1 1 0 1 1 2 0v1h12a1 1 0 1 1 0 2Z"/>
-                </svg>
-                Tip: Shift+Enter for a new line
-              </p>
+              <p className="help-text mt-1">↵ Shift+Enter for a new line</p>
             )}
           </>
         )} />

@@ -46,6 +46,18 @@
       "static/chunks/main-app.js",
       "static/css/app/inbox/page.css",
       "static/chunks/app/inbox/page.js"
+    ],
+    "/category/[slug]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/category/[slug]/page.css",
+      "static/chunks/app/category/[slug]/page.js"
+    ],
+    "/service-providers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/service-providers/page.css",
+      "static/chunks/app/service-providers/page.js"
     ]
   }
 }

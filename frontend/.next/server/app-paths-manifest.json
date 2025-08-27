@@ -1,7 +1,9 @@
 {
-  "/login/page": "app/login/page.js",
   "/page": "app/page.js",
-  "/dashboard/artist/page": "app/dashboard/artist/page.js",
-  "/inbox/page": "app/inbox/page.js",
-  "/service-providers/[id]/page": "app/service-providers/[id]/page.js"
+  "/service-providers/[id]/page": "app/service-providers/[id]/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/service-providers/page": "app/service-providers/page.js",
+  "/dashboard/profile/edit/page": "app/dashboard/profile/edit/page.js",
+  "/login/page": "app/login/page.js",
+  "/dashboard/artist/page": "app/dashboard/artist/page.js"
 }

@@ -22,6 +22,7 @@ import {
 import { geocodeAddress } from '@/lib/geo';
 import { calculateTravelMode, getDrivingMetrics } from '@/lib/travel';
 import { trackEvent } from '@/lib/analytics';
+import { format } from 'date-fns';
 
 import { BookingRequestCreate } from '@/types';
 import './wizard/wizard.css';
@@ -182,6 +183,11 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   const watchedValues = watch();
   const debouncedValues = useDebounce(watchedValues, 300);
+  const minDesc = 5;
+  const descLen = (watchedValues?.eventDescription?.trim?.().length ?? 0);
+  const descMeetsMin = descLen >= minDesc;
+  const [showMinDescModal, setShowMinDescModal] = useState(false);
+  const [showUnavailableModal, setShowUnavailableModal] = useState(false);
 
   useEffect(() => {
     void trigger();
@@ -454,6 +460,23 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
   // Navigates to the next step after validation
   const next = async () => {
+    // Guard for step 0: require minimum description length, show modal instead of inline error
+    if (step === 0 && !descMeetsMin) {
+      setShowMinDescModal(true);
+      return;
+    }
+    // Guard for step 2 (Date): prevent selecting unavailable dates (especially on mobile native pickers)
+    if (step === 2) {
+      const d = (details as any)?.date as Date | string | undefined;
+      if (d) {
+        const dt = typeof d === 'string' ? new Date(d) : d;
+        const day = format(dt, 'yyyy-MM-dd');
+        if (unavailable.includes(day)) {
+          setShowUnavailableModal(true);
+          return;
+        }
+      }
+    }
     const stepFields: (keyof EventDetails)[][] = [
       ['eventDescription'],
       ['location'],
@@ -493,7 +516,8 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
       setValidationError(null);
       trackEvent('booking_wizard_next', { step: newStep });
     } else {
-      setValidationError('Please fix the errors above to continue.');
+      // Keep inline errors off for cleaner UX; specific modals/toasts should guide users per step
+      setValidationError(null);
     }
   };
 
@@ -771,7 +795,13 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               <button
                 type="button" // Ensure it's a button, not a submit
                 onClick={next}
-                className="bg-black text-white font-semibold py-2 px-4 rounded-xl hover:bg-black/90 transition-colors duration-200 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
+                aria-disabled={step === 0 && !descMeetsMin}
+                className={
+                  (step === 0 && !descMeetsMin)
+                    ? "bg-neutral-200 text-neutral-600 font-semibold py-2 px-4 rounded-xl transition-colors duration-200 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
+                    : "bg-black text-white font-semibold py-2 px-4 rounded-xl hover:bg-black/90 transition-colors duration-200 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
+                }
+                title={step === 0 && !descMeetsMin ? "Add at least 5 characters to continue" : undefined}
               >
                 Next
               </button>
@@ -849,6 +879,46 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
                 }}
               >
                 Fill with AI
+              </button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
+
+      {/* Minimum description requirement modal */}
+      <Dialog open={showMinDescModal} onClose={() => setShowMinDescModal(false)} className="fixed inset-0 z-[9999]">
+        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="mx-auto max-w-sm w-full rounded-2xl bg-white p-6 shadow-xl">
+            <Dialog.Title className="text-base font-semibold text-gray-900">Almost there</Dialog.Title>
+            <p className="mt-2 text-sm text-gray-700">Add at least 5 characters to continue.</p>
+            <div className="mt-4 flex gap-2 justify-end">
+              <button
+                type="button"
+                className="rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-gray-900"
+                onClick={() => setShowMinDescModal(false)}
+              >
+                OK
+              </button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
+
+      {/* Unavailable date modal */}
+      <Dialog open={showUnavailableModal} onClose={() => setShowUnavailableModal(false)} className="fixed inset-0 z-[9999]">
+        <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div className="fixed inset-0 flex items-center justify-center p-4">
+          <Dialog.Panel className="mx-auto max-w-sm w-full rounded-2xl bg-white p-6 shadow-xl">
+            <Dialog.Title className="text-base font-semibold text-gray-900">Date Unavailable</Dialog.Title>
+            <p className="mt-2 text-sm text-gray-700">This service provider is not available on the selected date. Please choose another day.</p>
+            <div className="mt-4 flex gap-2 justify-end">
+              <button
+                type="button"
+                className="rounded-lg bg-black text-white px-3 py-2 text-sm font-semibold hover:bg-gray-900"
+                onClick={() => setShowUnavailableModal(false)}
+              >
+                OK
               </button>
             </div>
           </Dialog.Panel>

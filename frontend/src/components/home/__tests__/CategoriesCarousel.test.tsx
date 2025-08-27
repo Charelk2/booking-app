@@ -36,7 +36,7 @@ describe('CategoriesCarousel', () => {
     });
     await flushPromises();
     expect(container.textContent).toContain("DJ's");
-    expect(container.textContent).toContain('Musician');
+    expect(container.textContent).toContain('Musicians');
     expect(container.textContent).not.toContain('Service Providers');
     const imgs = container.querySelectorAll('img');
     expect(imgs).toHaveLength(2);
