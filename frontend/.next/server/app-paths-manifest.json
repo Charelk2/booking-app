@@ -1,7 +1,7 @@
 {
-  "/service-providers/[id]/page": "app/service-providers/[id]/page.js",
-  "/page": "app/page.js",
   "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
   "/dashboard/artist/page": "app/dashboard/artist/page.js",
-  "/inbox/page": "app/inbox/page.js"
+  "/inbox/page": "app/inbox/page.js",
+  "/service-providers/[id]/page": "app/service-providers/[id]/page.js"
 }
