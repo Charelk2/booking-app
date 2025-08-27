@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import { useForm, Control, FieldValues } from 'react-hook-form';
-import NotesStep from '../NotesStep';
+import { NotesStep } from '../../wizard/Steps';
 import * as api from '@/lib/api';
 
 jest.mock('@/lib/api');

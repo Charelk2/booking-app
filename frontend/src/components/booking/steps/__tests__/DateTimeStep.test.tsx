@@ -3,7 +3,7 @@ import React from 'react';
 import { act } from 'react';
 import { useForm, Control } from 'react-hook-form';
 import type { EventDetails } from '@/contexts/BookingContext';
-import DateTimeStep from '../DateTimeStep';
+import { DateTimeStep } from '../../wizard/Steps';
 
 function Wrapper() {
   const { control } = useForm<EventDetails>({

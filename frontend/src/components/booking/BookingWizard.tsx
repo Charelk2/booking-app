@@ -11,7 +11,6 @@ import useIsMobile from '@/hooks/useIsMobile';
 import useBookingForm from '@/hooks/useBookingForm';
 import useOfflineQueue from '@/hooks/useOfflineQueue';
 import { useDebounce } from '@/hooks/useDebounce';
-import useKeyboardOffset from '@/hooks/useKeyboardOffset';
 import { parseBookingText } from '@/lib/api';
 import {
   getServiceProviderAvailability,
@@ -25,20 +24,21 @@ import { calculateTravelMode, getDrivingMetrics } from '@/lib/travel';
 import { trackEvent } from '@/lib/analytics';
 
 import { BookingRequestCreate } from '@/types';
-import Stepper from '../ui/Stepper';
-import ProgressBar from '../ui/ProgressBar';
+import './wizard/wizard.css';
 import toast from '../ui/Toast';
 
 // --- Step Components ---
-import EventDescriptionStep from './steps/EventDescriptionStep';
-import LocationStep from './steps/LocationStep';
-import DateTimeStep from './steps/DateTimeStep';
-import EventTypeStep from './steps/EventTypeStep';
-import GuestsStep from './steps/GuestsStep';
-import VenueStep from './steps/VenueStep';
-import SoundStep from './steps/SoundStep';
-import NotesStep from './steps/NotesStep';
-import ReviewStep from './steps/ReviewStep';
+import {
+  EventDescriptionStep,
+  LocationStep,
+  DateTimeStep,
+  EventTypeStep,
+  GuestsStep,
+  VenueStep,
+  SoundStep,
+  NotesStep,
+  ReviewStep,
+} from './wizard/Steps';
 
 // --- EventDetails Type & Schema ---
 type EventDetails = {
@@ -169,7 +169,6 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   const progressValue = ((step + 1) / steps.length) * 100;
   const hasLoaded = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const keyboardOffset = useKeyboardOffset();
 
   // --- Form Hook (React Hook Form + Yup) ---
   const {
@@ -708,7 +707,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
   return (
     <Dialog
       as="div"
-      className="fixed inset-0 z-50"
+      className="fixed inset-0 z-50 booking-wizard"
       open={isOpen}
       onClose={onClose}
     >
@@ -716,24 +715,29 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
 
       <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
         <Dialog.Panel className="pointer-events-auto w-full max-w-6xl max-h-[90vh] rounded-2xl shadow-2xl bg-white flex flex-col overflow-hidden">
-          {isMobile ? (
-            // On mobile, use a simple progress bar to avoid step label overflow.
-            <ProgressBar
-              value={progressValue}
-              className="px-6 py-4 border-b border-gray-100"
-            />
-          ) : (
-            <Stepper
-              steps={steps}
-              currentStep={step}
-              maxStepCompleted={maxStepCompleted}
-              onStepClick={setStep}
-              ariaLabel="Booking progress"
-              orientation="horizontal"
-              className="px-6 py-4 border-b border-gray-100"
-              noCircles
-            />
-          )}
+          <header className="px-6 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-neutral-500">Step {step + 1} of {steps.length}</p>
+                <h2 className="text-base font-semibold text-neutral-900">{steps[step]}</h2>
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={onClose}
+                className="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-full text-neutral-600 hover:bg-black/[0.06]"
+                title="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="mt-3 h-1.5 w-full rounded bg-black/10">
+              <div
+                className="h-full rounded bg-black transition-[width] duration-300"
+                style={{ width: `${progressValue}%` }}
+              />
+            </div>
+          </header>
 
           <form
             ref={formRef}
@@ -744,26 +748,19 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               // The submit logic for the final step is now handled by ReviewStep's internal button
             }}
             onKeyDown={handleKeyDown}
-            className="flex-1 overflow-y-scroll p-6 space-y-6"
+            className="flex-1 overflow-y-auto px-6 pt-2 pb-5"
           >
-            <div className="overscroll-contain">
-              {renderStep()}
-
-              {/* Global warning and always-on error removed per UX request */}
-              {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}
-            </div>
+            {renderStep()}
+            {validationError && <p className="text-red-600 text-sm mt-4">{validationError}</p>}
           </form>
 
           {/* Navigation controls - Adjusted for ReviewStep */}
-          <div
-            className="flex-shrink-0 border-t border-gray-100 p-4 sm:p-6 flex flex-row flex-nowrap justify-between gap-2 sticky bottom-0 bg-white pb-safe"
-            style={{ bottom: keyboardOffset }}
-          >
+          <div className="flex-shrink-0 p-4 sm:p-6 flex flex-row flex-nowrap justify-between gap-2 sticky bottom-0 bg-white pb-safe">
             {/* Back/Cancel Button */}
             <button
               type="button" // Ensure it's a button, not a submit
               onClick={handleBack}
-              className="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors duration-300 focus:outline-none focus:ring-gray-400 w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
+              className="bg-neutral-100 text-neutral-800 font-semibold py-2 px-4 rounded-xl hover:bg-neutral-200 transition-colors duration-200 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
             >
               {step === 0 ? 'Cancel' : 'Back'}
             </button>
@@ -773,12 +770,12 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
               <button
                 type="button" // Ensure it's a button, not a submit
                 onClick={next}
-                className="bg-black text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
+                className="bg-black text-white font-semibold py-2 px-4 rounded-xl hover:bg-black/90 transition-colors duration-200 focus:outline-none w-full sm:w-32 flex-1 sm:flex-none min-h-[44px] min-w-[44px]"
               >
                 Next
               </button>
             )}
-            {/* The Submit Request button for the Review Step is now handled INSIDE ReviewStep.tsx */}
+            {/* Submit button is handled by ReviewStep on the final step */}
           </div>
         </Dialog.Panel>
       </div>
