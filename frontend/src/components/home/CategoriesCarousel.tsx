@@ -15,6 +15,7 @@ const DISPLAY_LABELS: Record<string, string> = {
   photographer: 'Photography',
   caterer: 'Catering',
   dj: "DJ's",
+  musician: 'Musicians',
   videographer: 'Videographers',
   speaker: 'Speakers',
   sound_service: 'Sound Services',

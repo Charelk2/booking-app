@@ -388,7 +388,7 @@ export default function MainLayout({
           headerState={headerState}
           onForceHeaderState={forceHeaderState}
           extraBar={
-            isArtistsRoot ? (
+            headerAddon ? (
               <div className="mx-auto w-full px-4">{headerAddon}</div>
             ) : undefined
           }
