@@ -260,7 +260,13 @@ export function EventDescriptionStep({ control, setValue, watch, open = true, on
                 placeholder="Add date, venue, city, number of guests, vibe, special notes…"
               />
               {isMobile && descFocused && (
-                <p className="help-text mt-1">Tip: Shift+Enter for a new line</p>
+                <p className="help-text mt-1">
+                  <svg viewBox="0 0 24 24" className="inline mr-1 h-3 w-3 align-[2px] text-neutral-500" fill="currentColor" aria-hidden="true">
+                    <path d="M8.7 15.3a1 1 0 0 1 0-1.4L10.59 12H6a1 1 0 0 1-1-1V6a1 1 0 1 1 2 0v4h3.59L8.7 8.1a1 1 0 1 1 1.4-1.42l3.5 3.5a1 1 0 0 1 0 1.42l-3.5 3.5a1 1 0 0 1-1.4 0Z"/>
+                    <path d="M20 18H8a2 2 0 0 1-2-2v-1a1 1 0 1 1 2 0v1h12a1 1 0 1 1 0 2Z"/>
+                  </svg>
+                  Tip: Shift+Enter for a new line
+                </p>
               )}
               {(!field.value || (field.value?.trim()?.length ?? 0) < 5) && (
                 <p className="help-text">Add a short description to continue.</p>
@@ -925,7 +931,13 @@ export function NotesStep({ control, setValue, open = true }: { control: Control
               onBlur={() => setNotesFocused(false)}
             />
             {isMobile && notesFocused && (
-              <p className="help-text mt-1">Tip: Shift+Enter for a new line</p>
+              <p className="help-text mt-1">
+                <svg viewBox="0 0 24 24" className="inline mr-1 h-3 w-3 align-[2px] text-neutral-500" fill="currentColor" aria-hidden="true">
+                  <path d="M8.7 15.3a1 1 0 0 1 0-1.4L10.59 12H6a1 1 0 0 1-1-1V6a1 1 0 1 1 2 0v4h3.59L8.7 8.1a1 1 0 1 1 1.4-1.42l3.5 3.5a1 1 0 0 1 0 1.42l-3.5 3.5a1 1 0 0 1-1.4 0Z"/>
+                  <path d="M20 18H8a2 2 0 0 1-2-2v-1a1 1 0 1 1 2 0v1h12a1 1 0 1 1 0 2Z"/>
+                </svg>
+                Tip: Shift+Enter for a new line
+              </p>
             )}
           </>
         )} />
