@@ -22,6 +22,7 @@ export interface LocationInputProps {
   placeholder?: string;
   className?: string; // wrapper div
   inputClassName?: string; // input element
+  enterKeyHint?: React.InputHTMLAttributes<HTMLInputElement>["enterKeyHint"]; // mobile keyboard hint
   onPredictionsChange?: (
     predictions: google.maps.places.AutocompletePrediction[]
   ) => void;
@@ -42,6 +43,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       className,
       inputClassName,
       onPredictionsChange,
+      enterKeyHint,
       showDropdown = true,
       onFocus, // NEW
     },
@@ -312,6 +314,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
             setDropdownVisible(false);
           }}
           placeholder={placeholder}
+          enterKeyHint={enterKeyHint}
           className={clsx(
             "w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none",
             inputClassName

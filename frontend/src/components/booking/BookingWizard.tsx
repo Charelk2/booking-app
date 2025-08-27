@@ -755,7 +755,7 @@ export default function BookingWizard({ artistId, serviceId, isOpen, onClose }: 
           </form>
 
           {/* Navigation controls - Adjusted for ReviewStep */}
-          <div className="flex-shrink-0 p-4 sm:p-6 flex flex-row flex-nowrap justify-between gap-2 sticky bottom-0 bg-white pb-safe">
+          <div className="flex-shrink-0 p-4 sm:p-6 mb-4 flex flex-row flex-nowrap justify-between gap-2 sticky bottom-0 bg-white pb-safe">
             {/* Back/Cancel Button */}
             <button
               type="button" // Ensure it's a button, not a submit
