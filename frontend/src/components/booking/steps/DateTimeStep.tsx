@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { Controller, Control } from 'react-hook-form'; // REMOVED FieldValues
 // WizardNav is REMOVED from here, as navigation is global now.
 import dynamic from 'next/dynamic';
-import { type ReactDatePickerCustomHeaderProps } from 'react-datepicker';
 import '../../../styles/datepicker.css';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { format, parseISO, isBefore, startOfDay } from 'date-fns';
@@ -14,7 +13,7 @@ import { DateInput } from '../../ui';
 // Import EventDetails for correct Control typing
 import { EventDetails } from '@/contexts/BookingContext';
 
-const ReactDatePicker = dynamic(() => import('react-datepicker'), { ssr: false });
+const ReactDatePicker: any = dynamic(() => import('react-datepicker'), { ssr: false });
 
 // Props interface SIMPLIFIED: No navigation props here.
 interface Props {
@@ -25,13 +24,14 @@ interface Props {
   onToggle?: () => void;
 }
 
-export default function DateTimeStep({
-  control,
-  unavailable,
-  loading = false,
-  open = true,
-  onToggle = () => {},
-}: Props) {
+export default function DateTimeStep(props: Props) {
+  const {
+    control,
+    unavailable,
+    loading = false,
+    open = true,
+    onToggle = () => {},
+  } = props;
   const isMobile = useIsMobile();
   const [showPicker, setShowPicker] = useState(false);
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function DateTimeStep({
           className="h-72 bg-gray-200 rounded animate-pulse"
         />
       ) : (
-        <Controller<EventDetails, 'date'>
+        <Controller
           name="date"
           control={control}
           render={({ field }) => {
@@ -64,15 +64,20 @@ export default function DateTimeStep({
                 ? parseISO(field.value)
                 : (field.value as Date | null | undefined);
             return isMobile ? (
-              <DateInput
-                min={format(new Date(), 'yyyy-MM-dd')}
-                name={field.name}
-                ref={field.ref}
-                onBlur={field.onBlur}
-                value={currentValue ? format(currentValue, 'yyyy-MM-dd') : ''}
-                onChange={(e) => field.onChange(e.target.value)}
-                inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2"
-              />
+              <>
+                <DateInput
+                  min={format(new Date(), 'yyyy-MM-dd')}
+                  name={field.name}
+                  ref={field.ref}
+                  onBlur={field.onBlur}
+                  value={currentValue ? format(currentValue, 'yyyy-MM-dd') : ''}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  inputClassName="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2"
+                />
+                {!currentValue && (
+                  <p className="text-xs text-neutral-500 mt-1">Choose a date to continue.</p>
+                )}
+              </>
             ) : (
               <div className="mx-auto w-fit booking-wizard-datepicker">
                 <ReactDatePicker
@@ -83,52 +88,70 @@ export default function DateTimeStep({
                   filterDate={filterDate}
                   minDate={startOfDay(new Date())}
                   onChange={(date: Date | null) => field.onChange(date)}
-                  // react-datepicker expects a function for onClickOutside; provide
-                  // a no-op handler to prevent runtime errors when clicking elsewhere.
                   onClickOutside={() => {}}
-                  renderCustomHeader={(
-                    {
+                  renderCustomHeader={(hdrProps) => {
+                    const {
                       date,
                       decreaseMonth,
                       increaseMonth,
                       prevMonthButtonDisabled,
                       nextMonthButtonDisabled,
-                    }: ReactDatePickerCustomHeaderProps,
-                  ) => (
-                    <div className="flex justify-between items-center px-3 pt-2 pb-2">
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          decreaseMonth();
-                        }}
-                        disabled={prevMonthButtonDisabled}
-                        className="p-1 rounded-full hover:bg-gray-100"
-                      >
-                        <ChevronLeftIcon className="h-5 w-5 text-gray-500" />
-                      </button>
-                      <span className="text-base font-semibold text-gray-900">
-                        {date.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          increaseMonth();
-                        }}
-                        disabled={nextMonthButtonDisabled}
-                        className="p-1 rounded-full hover:bg-gray-100"
-                      >
-                        <ChevronRightIcon className="h-5 w-5 text-gray-500" />
-                      </button>
-                    </div>
-                  )}
+                    } = hdrProps as any;
+                    return (
+                      <div className="flex justify-between items-center px-3 pt-2 pb-2">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            decreaseMonth();
+                          }}
+                          disabled={prevMonthButtonDisabled}
+                          aria-label="Previous month"
+                          className="p-2.5 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                        >
+                          <ChevronLeftIcon className="h-5 w-5 text-gray-500" />
+                        </button>
+                        <span className="text-base font-semibold text-gray-900">
+                          {date.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            increaseMonth();
+                          }}
+                          disabled={nextMonthButtonDisabled}
+                          aria-label="Next month"
+                          className="p-2.5 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                        >
+                          <ChevronRightIcon className="h-5 w-5 text-gray-500" />
+                        </button>
+                      </div>
+                    );
+                  }}
                 />
               </div>
             );
           }}
         />
+
       )}
+      {/* Time input (optional) */}
+      <div className="mt-4 max-w-sm">
+        <label className="block text-sm font-medium text-neutral-900 mb-1">Start time (optional)</label>
+        <Controller
+          name="time"
+          control={control}
+          render={({ field }) => (
+            <input
+              type="time"
+              {...field}
+              value={field.value || ''}
+              className="input-base rounded-xl bg-white border border-black/20 placeholder:text-neutral-400 focus:border-black px-3 py-2"
+            />
+          )}
+        />
+      </div>
       </div>
     </section>
   );

@@ -28,7 +28,7 @@ export default function EventTypeStep({ control, open = true, onToggle = () => {
         <p className="text-sm font-normal text-gray-600 pt-1">What type of event are you planning?</p>
       </div>
       <div className="mt-6">
-      <Controller<EventDetails, 'eventType'>
+      <Controller
         name="eventType"
         control={control}
         render={({ field }) => (
