@@ -66,6 +66,7 @@
   "app/service-providers/[id]/page.tsx -> @/components/booking/BookingWizard": {
     "id": "app/service-providers/[id]/page.tsx -> @/components/booking/BookingWizard",
     "files": [
+      "static/css/_app-pages-browser_src_components_booking_BookingWizard_tsx.css",
       "static/chunks/_app-pages-browser_src_components_booking_BookingWizard_tsx.js"
     ]
   },
@@ -75,15 +76,21 @@
       "static/chunks/_app-pages-browser_src_components_booking_bookinwizardpersonilsedvideo_tsx.js"
     ]
   },
-  "components/booking/steps/DateTimeStep.tsx -> react-datepicker": {
-    "id": "components/booking/steps/DateTimeStep.tsx -> react-datepicker",
-    "files": []
+  "components/booking/MessageThread.tsx -> @emoji-mart/react": {
+    "id": "components/booking/MessageThread.tsx -> @emoji-mart/react",
+    "files": [
+      "static/chunks/_app-pages-browser_node_modules_emoji-mart_react_dist_module_js.js"
+    ]
   },
-  "components/booking/steps/LocationStep.tsx -> @react-google-maps/api": {
-    "id": "components/booking/steps/LocationStep.tsx -> @react-google-maps/api",
+  "components/booking/wizard/Steps.tsx -> @react-google-maps/api": {
+    "id": "components/booking/wizard/Steps.tsx -> @react-google-maps/api",
     "files": [
       "static/chunks/_app-pages-browser_node_modules_react-google-maps_api_dist_esm_js.js"
     ]
+  },
+  "components/booking/wizard/Steps.tsx -> react-datepicker": {
+    "id": "components/booking/wizard/Steps.tsx -> react-datepicker",
+    "files": []
   },
   "components/layout/Header.tsx -> ./FullScreenNotificationModal": {
     "id": "components/layout/Header.tsx -> ./FullScreenNotificationModal",

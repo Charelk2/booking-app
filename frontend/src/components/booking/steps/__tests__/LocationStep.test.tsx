@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import { useForm, Control, FieldValues } from 'react-hook-form';
-import LocationStep from '../LocationStep';
+import { LocationStep } from '../../wizard/Steps';
 
 jest.mock('@/lib/loadPlaces', () => ({
   loadPlaces: () =>

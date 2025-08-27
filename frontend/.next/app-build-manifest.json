@@ -40,6 +40,12 @@
       "static/chunks/main-app.js",
       "static/css/app/dashboard/artist/page.css",
       "static/chunks/app/dashboard/artist/page.js"
+    ],
+    "/inbox/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/inbox/page.css",
+      "static/chunks/app/inbox/page.js"
     ]
   }
 }

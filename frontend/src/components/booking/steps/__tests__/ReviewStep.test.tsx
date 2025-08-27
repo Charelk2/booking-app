@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
-import ReviewStep from '../ReviewStep';
+import { ReviewStep } from '../../wizard/Steps';
 import { useBooking } from '@/contexts/BookingContext';
 
 jest.mock('@/contexts/BookingContext');

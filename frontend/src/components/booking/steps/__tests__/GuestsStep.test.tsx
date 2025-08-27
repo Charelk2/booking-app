@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import React from 'react';
 import { act } from 'react';
 import { useForm, Control, FieldValues } from 'react-hook-form';
-import GuestsStep from '../GuestsStep';
+import { GuestsStep } from '../../wizard/Steps';
 
 function Wrapper() {
   const { control } = useForm({ defaultValues: { guests: '' } });
