@@ -226,13 +226,23 @@ THIS_DIR = os.path.dirname(__file__)  # backend/app
 APP_STATIC_DIR = os.path.join(THIS_DIR, "static")  # backend/app/static
 PROFILE_PICS_DIR = os.path.join(APP_STATIC_DIR, "profile_pics")
 COVER_PHOTOS_DIR = os.path.join(APP_STATIC_DIR, "cover_photos")
+# Portfolio images live under /static/portfolio_images
+PORTFOLIO_IMAGES_DIR = os.path.join(APP_STATIC_DIR, "portfolio_images")
+
 ATTACHMENTS_DIR = os.path.join(APP_STATIC_DIR, "attachments")
 ATTACHMENTS_DIR_OVERRIDE = os.getenv("ATTACHMENTS_DIR")
+
+# Optional: base dir for persistent uploads (e.g., on Fly volume)
+# When set, we'll symlink static subfolders to this base path so that
+# files survive restarts/redeploys.
+UPLOADS_DIR_OVERRIDE = os.getenv("UPLOADS_DIR")  # e.g. "/data/uploads"
+
 INVOICE_PDFS_DIR = os.path.join(APP_STATIC_DIR, "invoices")
 
 # Ensure all the subfolders exist
 os.makedirs(PROFILE_PICS_DIR, exist_ok=True)
 os.makedirs(COVER_PHOTOS_DIR, exist_ok=True)
+os.makedirs(PORTFOLIO_IMAGES_DIR, exist_ok=True)
 if ATTACHMENTS_DIR_OVERRIDE and os.path.abspath(ATTACHMENTS_DIR_OVERRIDE) != os.path.abspath(ATTACHMENTS_DIR):
     # Ensure override exists and point the static/attachments folder at it via symlink
     os.makedirs(ATTACHMENTS_DIR_OVERRIDE, exist_ok=True)
@@ -258,6 +268,40 @@ if ATTACHMENTS_DIR_OVERRIDE and os.path.abspath(ATTACHMENTS_DIR_OVERRIDE) != os.
 else:
     os.makedirs(ATTACHMENTS_DIR, exist_ok=True)
 os.makedirs(INVOICE_PDFS_DIR, exist_ok=True)
+
+# If an uploads base dir is provided, symlink static folders to the volume
+if UPLOADS_DIR_OVERRIDE:
+    try:
+        # Ensure base and subdirs exist on the volume
+        for sub in ("profile_pics", "cover_photos", "portfolio_images"):
+            os.makedirs(os.path.join(UPLOADS_DIR_OVERRIDE, sub), exist_ok=True)
+
+        def _ensure_symlink(static_path: str, target_subdir: str) -> None:
+            target = os.path.join(UPLOADS_DIR_OVERRIDE, target_subdir)
+            # Replace the static subdir with a symlink to the volume path
+            if os.path.islink(static_path) or os.path.exists(static_path):
+                try:
+                    if os.path.islink(static_path):
+                        os.unlink(static_path)
+                    else:
+                        # Remove empty dir only; if not empty, leave it to avoid accidental data loss
+                        if not os.listdir(static_path):
+                            os.rmdir(static_path)
+                except Exception:
+                    # Best-effort; if we can't remove, skip
+                    pass
+            # Ensure parent exists and create symlink
+            os.makedirs(os.path.dirname(static_path), exist_ok=True)
+            try:
+                os.symlink(target, static_path)
+            except FileExistsError:
+                pass
+
+        _ensure_symlink(PROFILE_PICS_DIR, "profile_pics")
+        _ensure_symlink(COVER_PHOTOS_DIR, "cover_photos")
+        _ensure_symlink(PORTFOLIO_IMAGES_DIR, "portfolio_images")
+    except Exception as _exc:
+        logging.getLogger(__name__).warning("Uploads dir override failed: %s", _exc)
 
 
 class StaticFilesWithDefault(StaticFiles):

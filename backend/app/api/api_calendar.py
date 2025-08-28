@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from urllib.parse import urlparse
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -35,17 +36,31 @@ def google_calendar_status(
     return {"connected": True, "email": account.email}
 
 
+def _effective_redirect_uri(request: Request) -> str:
+    candidate = str(request.url_for("google_calendar_callback"))
+    parsed = urlparse(candidate)
+    host = (parsed.hostname or "").lower()
+    # Google allows http only for localhost/127.0.0.1; otherwise require https
+    if parsed.scheme == "https" or host in {"localhost", "127.0.0.1"}:
+        return candidate
+    # Fallback to configured redirect (e.g., localhost or production https)
+    return settings.GOOGLE_REDIRECT_URI
+
+
 @router.get("/google-calendar/connect")
 def connect_google_calendar(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    url = calendar_service.get_auth_url(current_user.id, settings.GOOGLE_REDIRECT_URI)
+    redirect_uri = _effective_redirect_uri(request)
+    url = calendar_service.get_auth_url(current_user.id, redirect_uri)
     return {"auth_url": url}
 
 
 @router.get("/google-calendar/callback")
 def google_calendar_callback(
+    request: Request,
     code: str,
     state: str,
     db: Session = Depends(get_db),
@@ -53,9 +68,8 @@ def google_calendar_callback(
     user_id = int(state)
     status = "success"
     try:
-        calendar_service.exchange_code(
-            user_id, code, settings.GOOGLE_REDIRECT_URI, db
-        )
+        redirect_uri = _effective_redirect_uri(request)
+        calendar_service.exchange_code(user_id, code, redirect_uri, db)
     except Exception as exc:  # noqa: BLE001
         status = "error"
         logger.error(
@@ -82,4 +96,3 @@ def disconnect_google_calendar(
         db.delete(account)
         db.commit()
     return {"status": "deleted"}
-

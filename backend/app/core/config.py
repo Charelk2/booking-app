@@ -91,6 +91,12 @@ class Settings(BaseSettings):
     # Email Dev Mode: include reset links in the API response and logs to ease local testing
     EMAIL_DEV_MODE: bool = True
 
+    # Admin allowlist: explicit emails and/or whole domains
+    # Keep as plain strings to avoid JSON-only decoding of lists in BaseSettings.
+    # Other modules (e.g., api_admin.py) parse these with os.getenv/splitting.
+    ADMIN_EMAILS: str = ""
+    ADMIN_DOMAINS: str = ""
+
     @field_validator("CORS_ORIGINS", mode="before")
     def split_origins(cls, v: Any) -> list[str]:
         """Parse comma-separated or JSON list of origins from environment."""
@@ -102,6 +108,13 @@ class Settings(BaseSettings):
             except json.JSONDecodeError:
                 pass
             return [s.strip() for s in v.split(",") if s.strip()]
+        return v
+
+    @field_validator("ADMIN_EMAILS", "ADMIN_DOMAINS", mode="before")
+    def strip_admin_values(cls, v: Any) -> Any:
+        # Normalize whitespace; downstream code splits by commas or parses JSON if needed.
+        if isinstance(v, str):
+            return v.strip()
         return v
 
     @field_validator(
@@ -122,6 +135,27 @@ class Settings(BaseSettings):
     def allow_all_if_requested(cls, values: "Settings") -> "Settings":
         if values.CORS_ALLOW_ALL:
             values.CORS_ORIGINS = ["*"]
+        return values
+
+    @model_validator(mode="after")
+    def prefer_data_volume_for_sqlite(cls, values: "Settings") -> "Settings":
+        """If running on a host with a data volume (e.g., Fly.io mounts /data),
+        prefer storing the SQLite DB at /data/booking.db unless an explicit
+        SQLALCHEMY_DATABASE_URL is provided via environment.
+
+        This avoids losing data on container restarts/redeploys.
+        """
+        try:
+            # Only auto-switch for sqlite defaults; respect explicit env override
+            url = values.SQLALCHEMY_DATABASE_URL
+            if url.startswith("sqlite") and os.path.isdir("/data"):
+                # If the URL is exactly the default pointing at the app path, switch to /data
+                # Accept both sqlite:/// and sqlite://// forms
+                if "/booking.db" in url and "/data/booking.db" not in url:
+                    values.SQLALCHEMY_DATABASE_URL = "sqlite:////data/booking.db"
+        except Exception:
+            # Defensive: never block app startup on this convenience logic
+            pass
         return values
 
 model_config = SettingsConfigDict(

@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import React, { useEffect, useMemo, useState, useDeferredValue, startTransition } from 'react';
 import Head from 'next/head';
@@ -18,6 +18,8 @@ import {
   getServiceProviderServices,
   getServiceProviderReviews,
   createBookingRequest,
+  postMessageToBookingRequest,
+  startMessageThread,
 } from '@/lib/api';
 
 import {
@@ -34,6 +36,7 @@ import {
   LinkIcon,
   ChevronDownIcon,
   MagnifyingGlassIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 
@@ -247,13 +250,30 @@ function ReviewSummary({ reviews }: { reviews: ReviewType[] }) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
+   Policy helpers (format + sanitize)
+   ────────────────────────────────────────────────────────────────────────── */
+function sanitizePolicy(raw?: string | null) {
+  if (!raw) return { intro: '', bullets: [] as string[] };
+  const lines = String(raw).split(/\r?\n/);
+  // Remove heading lines like "# Flexible", "# Moderate", "# Strict"
+  const filtered = lines.filter((l) => !/^\s*#\s*(Flexible|Moderate|Strict)\s*$/i.test(l));
+  const bullets: string[] = [];
+  const introParts: string[] = [];
+  for (const l of filtered) {
+    if (/^\s*-\s+/.test(l)) bullets.push(l.replace(/^\s*-\s+/, '').trim());
+    else if (l.trim()) introParts.push(l.trim());
+  }
+  return { intro: introParts.join(' '), bullets };
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
    Page
    ────────────────────────────────────────────────────────────────────────── */
 export default function ServiceProviderProfilePage() {
   // Keep hook order stable forever
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  useAuth(); // keep user context warm (no UI assumptions)
+  const { user, loading: authLoading } = useAuth();
 
   const serviceProviderId = Number(id);
 
@@ -281,6 +301,12 @@ export default function ServiceProviderProfilePage() {
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [detailedService, setDetailedService] = useState<Service | null>(null);
+  // Message modal state
+  const [isMessageOpen, setIsMessageOpen] = useState(false);
+  const [messageBody, setMessageBody] = useState('');
+  const [messageDate, setMessageDate] = useState('');
+  const [messageGuests, setMessageGuests] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   // Review controls (search + sort)
   const [reviewSort, setReviewSort] = useState<'recent' | 'highest' | 'lowest'>('recent');
@@ -384,7 +410,7 @@ export default function ServiceProviderProfilePage() {
     const sp: any = serviceProvider;
     if (!sp) return out;
     if (sp.location) out.push(getTownProvinceFromAddress(sp.location));
-    if (sp.custom_subtitle) out.push(sp.custom_subtitle);
+    // Do not include subtitle in highlights; shown separately under name
     if (Array.isArray(sp.specialties) && sp.specialties.length) out.push(...sp.specialties.slice(0, 3));
     if (sp.owns_pa) out.push('Owns PA');
     if (sp.insured) out.push('Insured');
@@ -488,7 +514,6 @@ export default function ServiceProviderProfilePage() {
       const res = await createBookingRequest({
         artist_id: serviceProviderId,
         service_id: service.id,
-        service_provider_id: 0,
       });
       router.push(`/booking-requests/${res.data.id}`);
     } catch (err) {
@@ -503,6 +528,116 @@ export default function ServiceProviderProfilePage() {
       setSelectedServiceId(prefillId ?? null);
       setIsServicePickerOpen(true);
     });
+  }
+
+  function openMessageModalOrLogin() {
+    if (!authLoading && !user) {
+      const next = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/inbox';
+      router.push(`/login?next=${encodeURIComponent(next)}`);
+      return;
+    }
+    setIsMessageOpen(true);
+  }
+
+  async function handleSendMessage() {
+    if (!messageBody || messageBody.trim().length < 20) return;
+    if (!serviceProvider) return;
+    try {
+      setSendingMessage(true);
+      const firstMessage = messageBody.trim();
+      let requestId: number | null = null;
+      let usedFallback = false;
+      try {
+        // Preferred: message-threads/start (if backend supports it)
+        const res = await startMessageThread({
+          artist_id: serviceProviderId,
+          service_id: selectedServiceId || undefined,
+          message: firstMessage,
+          proposed_date: messageDate || undefined,
+          guests: messageGuests ? Number(messageGuests) : undefined,
+        });
+        requestId = Number(res.data.booking_request_id);
+      } catch (err: any) {
+        // Fallback for older backends without /message-threads/start
+        const status = err?.response?.status || err?.status;
+        const msg = (err && err.message) ? String(err.message) : '';
+        if (status === 404 || /resource not found/i.test(msg)) {
+          usedFallback = true;
+          const br = await createBookingRequest({
+            artist_id: serviceProviderId,
+            service_id: selectedServiceId || undefined,
+            message: firstMessage,
+          } as any);
+          requestId = Number(br.data.id);
+        } else {
+          throw err;
+        }
+      }
+
+      if (requestId == null) throw new Error('No thread id returned');
+      // If we used fallback, send the inquiry card first so the visible preview remains the user's message
+      if (usedFallback) {
+        try {
+          const title = (() => {
+            const svc = selectedServiceId ? services.find((s) => s.id === selectedServiceId) : null;
+            return (
+              (svc as any)?.title || serviceProvider?.user?.first_name || serviceProvider?.business_name || 'Listing'
+            );
+          })();
+          const cover = (() => {
+            const svc = selectedServiceId ? services.find((s) => s.id === selectedServiceId) : null;
+            const img = svc ? getServiceImage(svc as any) : null;
+            if (img) return img;
+            if (serviceProvider?.cover_photo_url) return getFullImageUrl(serviceProvider.cover_photo_url);
+            if (serviceProvider?.profile_picture_url) return getFullImageUrl(serviceProvider.profile_picture_url);
+            return null;
+          })();
+          const view = `/service-providers/${serviceProviderId}`;
+          const card = {
+            inquiry_sent_v1: {
+              title,
+              cover,
+              view,
+              date: messageDate || undefined,
+              guests: messageGuests ? Number(messageGuests) : undefined,
+            },
+          };
+          await postMessageToBookingRequest(requestId, {
+            content: JSON.stringify(card),
+            message_type: 'USER',
+          } as any);
+        } catch (e) {
+          // Non-fatal
+        }
+      }
+      // Post the actual first message only for fallback; the backend route already posts it
+      if (usedFallback) {
+        try {
+          await postMessageToBookingRequest(requestId, {
+            content: firstMessage,
+            message_type: 'USER',
+          } as any);
+        } catch (e) {
+          // Non-fatal; the thread still exists, the user can retry from inbox
+        }
+      }
+      try {
+        if (typeof window !== 'undefined' && requestId != null) {
+          // Mark this thread as a message-started inquiry so the inbox can show the INQUIRY chip
+          localStorage.setItem(`inquiry-thread-${requestId}`, '1');
+        }
+      } catch {}
+      router.push(`/inbox?requestId=${requestId}`);
+    } catch (err) {
+      console.error('Failed to send message', err);
+      Toast.error('Failed to send message');
+    } finally {
+      setSendingMessage(false);
+      setIsMessageOpen(false);
+      setMessageBody('');
+      setMessageDate('');
+      setMessageGuests('');
+    }
   }
 
   /* ───────────── UI */
@@ -577,8 +712,8 @@ export default function ServiceProviderProfilePage() {
                   </div>
                 </div>
 
-                {serviceProvider.description && (
-                  <p className="mt-3 text-sm text-gray-700 whitespace-pre-line">{serviceProvider.description}</p>
+                {serviceProvider.custom_subtitle && (
+                  <p className="mt-3 text-sm text-gray-700">{serviceProvider.custom_subtitle}</p>
                 )}
 
                 {!!highlights.length && (
@@ -594,6 +729,31 @@ export default function ServiceProviderProfilePage() {
                     <span className="font-semibold">Typical price:</span> {priceBand}
                   </p>
                 )}
+
+                {/* Quick Actions */}
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => openMobileServicePicker()}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-semibold text-white"
+                  >
+                    <BoltIcon className="h-4 w-4" />
+                    Book
+                  </button>
+                  <button
+                    onClick={openMessageModalOrLogin}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800"
+                  >
+                    <ChatBubbleOvalLeftIcon className="h-4 w-4" />
+                    Message
+                  </button>
+                  <button
+                    onClick={() => setIsShareOpen(true)}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800"
+                  >
+                    <ShareIcon className="h-4 w-4" />
+                    Share
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -655,13 +815,147 @@ export default function ServiceProviderProfilePage() {
                 </div>
               </section>
 
-              {/* Message helper before reviews (mobile) */}
-              <div className="mt-16">
-                <p className="text-xs text-gray-400">
-                  You can message {displayName} to customize or make changes.
-                </p>
-                <div className="mt-4 mb-10 h-px w-full bg-gray-200" />
+              {/* About/Bio (mobile) */}
+{/* ──────────────────────────────────────────────────────────────────────────
+   About / Meet your host — upgraded
+   - Accessible header + clean divider
+   - Avatar + name/role row
+   - Smart highlight chips (location, languages, experience, rating, bookings)
+   - Elegant Read more/less with <details> (no React state needed)
+   - Zero conditional hooks; purely declarative
+   - Mobile-first, subtle glow, no heavy borders
+   ────────────────────────────────────────────────────────────────────────── */}
+{(serviceProvider?.description || true) && (
+  <>
+    <div className="mt-12 mb-8 h-px w-full bg-gray-200" />
+
+    <section id="about-desktop" aria-labelledby="about-heading-desktop" className="group">
+      <h2 id="about-heading-desktop" className="text-2xl font-bold tracking-tight text-gray-900">
+        About
+      </h2>
+
+      <div className="mt-4 relative isolate overflow-hidden rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100 dark:bg-gray-900 dark:ring-gray-800 md:p-8">
+        {/* soft background glow */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-300/30 blur-3xl dark:bg-amber-400/10"
+        />
+
+        <div className="flex items-start gap-5">
+          {/* Avatar */}
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full ring-1 ring-gray-200 dark:ring-gray-700">
+            {profilePictureUrl ? (
+              <SafeImage
+                src={profilePictureUrl}
+                alt={displayName || 'Profile photo'}
+                fill
+                className="object-cover"
+                sizes="64px"
+              />
+            ) : (
+              <div className="grid h-full w-full place-items-center text-gray-400">
+                <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor">
+                  <path strokeWidth="1.5" d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5Z"/>
+                </svg>
               </div>
+            )}
+          </div>
+
+          {/* Name / Role / Chips */}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <p className="truncate text-lg font-semibold text-gray-900 dark:text-white">{displayName}</p>
+              {serviceProvider?.primary_role && (
+                <span className="text-sm text-gray-600 dark:text-gray-300">· {serviceProvider.primary_role}</span>
+              )}
+            </div>
+
+            {/* Smart highlight chips (computed inline, no hooks) */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(() => {
+                const chips: string[] = [];
+
+                if (serviceProvider?.location) chips.push(`Based in ${serviceProvider.location}`);
+
+                if (Array.isArray(serviceProvider?.languages) && serviceProvider.languages.length) {
+                  chips.push(`Languages: ${serviceProvider.languages.slice(0, 3).join(', ')}${serviceProvider.languages.length > 3 ? '…' : ''}`);
+                }
+
+                const years = (serviceProvider as any)?.years_experience ?? (serviceProvider as any)?.yearsExperience ?? (serviceProvider as any)?.experience_years;
+                if (typeof years === 'number' && years > 0) chips.push(`${years}+ yrs experience`);
+
+                const rating = (serviceProvider as any)?.rating_avg ?? (serviceProvider as any)?.ratingAverage ?? (serviceProvider as any)?.rating;
+                const ratingCount = (serviceProvider as any)?.rating_count ?? (serviceProvider as any)?.reviews_count ?? (serviceProvider as any)?.reviewsCount;
+                if (typeof rating === 'number' && ratingCount) chips.push(`${rating.toFixed(1)}★ (${ratingCount})`);
+
+                const bookings = (serviceProvider as any)?.completed_bookings ?? (serviceProvider as any)?.bookings_count;
+                if (typeof bookings === 'number' && bookings > 0) chips.push(`${bookings} bookings on Booka`);
+
+                // Optional responsiveness badge if you store reply minutes
+                const replyMins = (serviceProvider as any)?.reply_minutes ?? (serviceProvider as any)?.avg_reply_minutes;
+                if (typeof replyMins === 'number' && replyMins >= 0) {
+                  let label = 'Usually replies ';
+                  if (replyMins < 60) label += `in < ${Math.max(1, Math.round(replyMins / 10) * 10)} min`;
+                  else if (replyMins < 180) label += `within ~${Math.round(replyMins / 60)} h`;
+                  else label += 'within a day';
+                  chips.push(label);
+                }
+
+                return chips.slice(0, 6).map((c, i) => (
+                  <span
+                    key={`${c}-${i}`}
+                    className="inline-flex items-center rounded-full bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-200 dark:bg-gray-800/60 dark:text-gray-200 dark:ring-gray-700"
+                  >
+                    {c}
+                  </span>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+
+        {/* Description preview + graceful expand/collapse (no state) */}
+        {serviceProvider?.description && (() => {
+          const raw = String(serviceProvider.description).trim();
+          const m = raw.match(/(.+?[.!?])(\s|$)/);
+          const first = m ? m[1] : raw;
+          const rest = raw.slice(first.length).trim();
+          return (
+            <div className="mt-4">
+              <p className="text-sm text-gray-800 dark:text-gray-100">{first}</p>
+              {rest && (
+                <details className="mt-2 group/open">
+                  <summary className="mb-2 cursor-pointer list-none text-sm font-medium text-gray-900 hover:opacity-80 dark:text-gray-100">
+                    <span className="underline decoration-dotted underline-offset-4">Read more</span>
+                  </summary>
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
+                    <p className="whitespace-pre-line">{rest}</p>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500 group-open:hidden">Tip: click again to collapse</div>
+                  <div className="mt-2 hidden text-xs text-gray-500 group-open:block">Click to collapse</div>
+                </details>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Message button + microcopy */}
+        <div className="mt-4">
+                        <button onClick={openMessageModalOrLogin} className="w-full inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white">
+                          <ChatBubbleOvalLeftIcon className="h-5 w-5 mr-2" />
+                          Message {displayName}
+                        </button>
+          <p className="mt-2 text-[11px] text-gray-500">
+            To help protect your payment, always use Booka to send money and communicate with artists.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div className="mt-12 mb-6 h-px w-full bg-gray-200" />
+  </>
+)}
+
 
               <section id="reviews" aria-labelledby="reviews-heading">
                 <h2 id="reviews-heading" className="text-lg font-bold text-gray-900">
@@ -729,71 +1023,89 @@ export default function ServiceProviderProfilePage() {
                 </>
               )}
 
-<section aria-label="Vetted by Booka" className="mt-16">
-  <div className="relative isolate overflow-hidden rounded-3xl border border-amber-100 bg-white p-6 text-center shadow-sm md:p-10 dark:border-gray-800 dark:bg-gray-900">
+              {(serviceProvider as any)?.cancellation_policy && (() => {
+                const { intro, bullets } = sanitizePolicy((serviceProvider as any).cancellation_policy);
+                return (
+                  <>
+                    <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
+                    <section aria-labelledby="policies-heading">
+                      <h2 id="policies-heading" className="text-lg font-bold text-gray-900">
+                        Cancellation Policy
+                      </h2>
+                      <div className="mt-3 rounded-2xl border border-gray-100 p-5 text-sm text-gray-700 bg-gradient-to-br from-white to-gray-50 shadow-sm">
+                        {intro && <p className="mb-2 leading-relaxed">{intro}</p>}
+                        {!!bullets.length && (
+                          <ul className="list-disc pl-5 space-y-1">
+                            {bullets.map((b, i) => (
+                              <li key={`mobile-pol-${i}`}>{b}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </section>
+                  </>
+                );
+              })()}
+
+<section aria-label="Vetted by Booka" className="mt-16 pt-16">
+  <div className="relative isolate overflow-hidden rounded-3xl bg-gray-100 p-6 shadow-sm md:p-10 dark:border-gray-800 dark:bg-gray-900">
     {/* soft background glow */}
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-amber-300/40 blur-3xl dark:bg-amber-400/10"
+      className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full  blur-3xl dark:bg-amber-400/10"
     />
-
-    <div className="mx-auto flex max-w-3xl flex-col items-center">
-      {/* Gold B badge */}
-      <div
-        role="img"
-        aria-label="Booka vetted badge"
-        className="relative h-28 w-28 rounded-full bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 shadow-lg ring-1 ring-amber-300/60 md:h-32 md:w-32 dark:from-amber-500 dark:via-amber-600 dark:to-amber-700"
-      >
-        <div className="absolute inset-2 rounded-full bg-gradient-to-br from-amber-100 to-amber-300 ring-1 ring-inset ring-amber-200/70 dark:from-amber-200 dark:to-amber-400" />
-        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl font-black tracking-tight text-amber-900/80 drop-shadow-sm md:text-5xl dark:text-amber-950">
-          B
-        </span>
+    <div className="mx-auto grid max-w-5xl grid-cols-1 items-center gap-6">
+      {/* Image (from /public) */}
+      <div className="flex justify-center mb-4">
+        <img
+          src="/booka-vetted.jpg" /* ← update this path to your file in /public */
+          alt="Booka vetted"
+          className="h-24 w-24 md:h-32 md:w-32 rounded-2xl object-contain"
+          loading="lazy"
+          decoding="async"
+        />
       </div>
 
-      {/* Copy centered under badge */}
-      <h2 className="mt-5 text-2xl font-semibold tracking-tight text-gray-900 md:text-3xl dark:text-white">
-        {displayName} is vetted by Booka
-      </h2>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-300">
-        Booka evaluates every service provider’s professional experience, portfolio, and verified client
-        feedback to ensure consistent quality.
-      </p>
-
-      <a
-        href="/trust-and-safety"
-        className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-700 hover:underline dark:text-amber-400"
-      >
-        Learn how we vet
-        <svg
-          viewBox="0 0 24 24"
-          className="h-4 w-4"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M5 12h14" />
-          <path d="m12 5 7 7-7 7" />
-        </svg>
-      </a>
+      {/* Copy */}
+      <div className="text-center">
+        <h2 className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
+          {displayName} is vetted by Booka
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+          Booka evaluates every service provider’s professional experience, portfolio, and verified client
+          feedback to ensure consistent quality.
+        </p>
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <a
+            href="/trust-and-safety"
+            className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 hover:underline dark:text-amber-400"
+          >
+            Learn how we vet
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </a>
+          <span className="hidden text-sm text-gray-400 md:inline">•</span>
+          <span className="hidden text-sm text-gray-500 md:inline dark:text-gray-400">
+            Backed by verified reviews
+          </span>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-
-
-              {(serviceProvider as any)?.cancellation_policy && (
-                <section aria-labelledby="policies-heading">
-                  <h2 id="policies-heading" className="text-lg font-bold text-gray-900">
-                    Policies
-                  </h2>
-                  <div className="mt-3 rounded-2xl border border-gray-100 p-4 text-sm text-gray-700 whitespace-pre-line bg-white">
-                    {(serviceProvider as any).cancellation_policy}
-                  </div>
-                </section>
-              )}
+              
             </div>
 
             {/* Mobile Sticky CTA */}
@@ -806,6 +1118,7 @@ export default function ServiceProviderProfilePage() {
                     disabled={!services.length}
                     aria-label="Request booking"
                   >
+                    <BoltIcon className="mr-2 h-5 w-5" />
                     Request booking
                   </button>
                 </div>
@@ -854,8 +1167,8 @@ export default function ServiceProviderProfilePage() {
                     </div>
                     <h1 className="mt-4 text-4xl font-bold text-gray-900">{displayName}</h1>
 
-                    {serviceProvider.description && (
-                      <p className="mt-2 text-sm text-gray-600 whitespace-pre-line">{serviceProvider.description}</p>
+                    {serviceProvider.custom_subtitle && (
+                      <p className="mt-2 text-sm text-gray-600">{serviceProvider.custom_subtitle}</p>
                     )}
 
                     {!!highlights.length && (
@@ -885,16 +1198,47 @@ export default function ServiceProviderProfilePage() {
                     </div>
                   </div>
 
-                  {(serviceProvider as any)?.cancellation_policy && (
-                    <section className="mt-6" aria-labelledby="policies-heading-desktop">
-                      <h2 id="policies-heading-desktop" className="text-lg font-bold text-gray-900">
-                        Policies
-                      </h2>
-                      <div className="mt-3 rounded-2xl border border-gray-100 p-4 text-sm text-gray-700 whitespace-pre-line">
-                        {(serviceProvider as any).cancellation_policy}
+                  {/* Sticky Action Dock (left rail) */}
+                  {!!services.length && (
+                    <div
+                      className="mt-6 sticky z-10"
+                      style={{ top: 'calc(100vh - 9.5rem)' }}
+                      aria-label="Quick booking actions"
+                    >
+                      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm text-gray-600">
+                            {priceBand ? (
+                              <>
+                                <span className="font-semibold text-gray-900">Typical price:</span> {priceBand}
+                              </>
+                            ) : (
+                              'Select a service to see pricing'
+                            )}
+                          </div>
+                          <ShieldCheckIcon className="h-5 w-5 text-emerald-500" aria-hidden="true" />
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => openMobileServicePicker()}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-semibold text-white"
+                          >
+                            <BoltIcon className="h-4 w-4" />
+                            Request booking
+                          </button>
+                            <button
+                              onClick={openMessageModalOrLogin}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800"
+                            >
+                              <ChatBubbleOvalLeftIcon className="h-4 w-4" />
+                              Message
+                            </button>
+                        </div>
                       </div>
-                    </section>
+                    </div>
                   )}
+
+                  {/* Removed desktop policy from left rail; moved to right panel below portfolio */}
                 </div>
               </aside>
 
@@ -977,13 +1321,147 @@ export default function ServiceProviderProfilePage() {
                   )}
                 </section>
 
-                {/* Message helper before reviews (desktop) */}
-                <div className="mt-16">
-                  <p className="text-xs text-gray-400">
-                    You can message {displayName} to customize or make changes.
-                  </p>
-                  <div className="mt-10 mb-10 h-px w-full bg-gray-200" />
-                </div>
+                {/* About/Bio (desktop) */}
+{/* ──────────────────────────────────────────────────────────────────────────
+   About / Meet your host — upgraded
+   - Accessible header + clean divider
+   - Avatar + name/role row
+   - Smart highlight chips (location, languages, experience, rating, bookings)
+   - Elegant Read more/less with <details> (no React state needed)
+   - Zero conditional hooks; purely declarative
+   - Mobile-first, subtle glow, no heavy borders
+   ────────────────────────────────────────────────────────────────────────── */}
+{(serviceProvider?.description || true) && (
+  <>
+    <div className="mt-12 mb-8 h-px w-full bg-gray-200" />
+
+    <section id="about-desktop" aria-labelledby="about-heading-desktop" className="group">
+      <h2 id="about-heading-desktop" className="text-2xl font-bold tracking-tight text-gray-900">
+        About
+      </h2>
+
+      <div className="mt-4 relative isolate overflow-hidden rounded-3xl bg-white p-6 shadow-sm ring-1 ring-gray-100 dark:bg-gray-900 dark:ring-gray-800 md:p-8">
+        {/* soft background glow */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-300/30 blur-3xl dark:bg-amber-400/10"
+        />
+
+        <div className="flex items-start gap-5">
+          {/* Avatar */}
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full ring-1 ring-gray-200 dark:ring-gray-700">
+            {profilePictureUrl ? (
+              <SafeImage
+                src={profilePictureUrl}
+                alt={displayName || 'Profile photo'}
+                fill
+                className="object-cover"
+                sizes="64px"
+              />
+            ) : (
+              <div className="grid h-full w-full place-items-center text-gray-400">
+                <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor">
+                  <path strokeWidth="1.5" d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5Z"/>
+                </svg>
+              </div>
+            )}
+          </div>
+
+          {/* Name / Role / Chips */}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <p className="truncate text-lg font-semibold text-gray-900 dark:text-white">{displayName}</p>
+              {serviceProvider?.primary_role && (
+                <span className="text-sm text-gray-600 dark:text-gray-300">· {serviceProvider.primary_role}</span>
+              )}
+            </div>
+
+            {/* Smart highlight chips (computed inline, no hooks) */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(() => {
+                const chips: string[] = [];
+
+                if (serviceProvider?.location) chips.push(`Based in ${serviceProvider.location}`);
+
+                if (Array.isArray(serviceProvider?.languages) && serviceProvider.languages.length) {
+                  chips.push(`Languages: ${serviceProvider.languages.slice(0, 3).join(', ')}${serviceProvider.languages.length > 3 ? '…' : ''}`);
+                }
+
+                const years = (serviceProvider as any)?.years_experience ?? (serviceProvider as any)?.yearsExperience ?? (serviceProvider as any)?.experience_years;
+                if (typeof years === 'number' && years > 0) chips.push(`${years}+ yrs experience`);
+
+                const rating = (serviceProvider as any)?.rating_avg ?? (serviceProvider as any)?.ratingAverage ?? (serviceProvider as any)?.rating;
+                const ratingCount = (serviceProvider as any)?.rating_count ?? (serviceProvider as any)?.reviews_count ?? (serviceProvider as any)?.reviewsCount;
+                if (typeof rating === 'number' && ratingCount) chips.push(`${rating.toFixed(1)}★ (${ratingCount})`);
+
+                const bookings = (serviceProvider as any)?.completed_bookings ?? (serviceProvider as any)?.bookings_count;
+                if (typeof bookings === 'number' && bookings > 0) chips.push(`${bookings} bookings on Booka`);
+
+                // Optional responsiveness badge if you store reply minutes
+                const replyMins = (serviceProvider as any)?.reply_minutes ?? (serviceProvider as any)?.avg_reply_minutes;
+                if (typeof replyMins === 'number' && replyMins >= 0) {
+                  let label = 'Usually replies ';
+                  if (replyMins < 60) label += `in < ${Math.max(1, Math.round(replyMins / 10) * 10)} min`;
+                  else if (replyMins < 180) label += `within ~${Math.round(replyMins / 60)} h`;
+                  else label += 'within a day';
+                  chips.push(label);
+                }
+
+                return chips.slice(0, 6).map((c, i) => (
+                  <span
+                    key={`${c}-${i}`}
+                    className="inline-flex items-center rounded-full bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-200 dark:bg-gray-800/60 dark:text-gray-200 dark:ring-gray-700"
+                  >
+                    {c}
+                  </span>
+                ));
+              })()}
+            </div>
+          </div>
+        </div>
+
+        {/* Description preview + graceful expand/collapse (no state) */}
+        {serviceProvider?.description && (() => {
+          const raw = String(serviceProvider.description).trim();
+          const m = raw.match(/(.+?[.!?])(\s|$)/);
+          const first = m ? m[1] : raw;
+          const rest = raw.slice(first.length).trim();
+          return (
+            <div className="mt-4">
+              <p className="text-sm text-gray-800 dark:text-gray-100">{first}</p>
+              {rest && (
+                <details className="mt-2 group/open">
+                  <summary className="mb-2 cursor-pointer list-none text-sm font-medium text-gray-900 hover:opacity-80 dark:text-gray-100">
+                    <span className="underline decoration-dotted underline-offset-4">Read more</span>
+                  </summary>
+                  <div className="text-sm text-gray-700 dark:text-gray-300">
+                    <p className="whitespace-pre-line">{rest}</p>
+                  </div>
+                  
+                  <div className="mt-2 hidden text-xs text-gray-500 group-open:block">Click to collapse</div>
+                </details>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Message button + microcopy */}
+        <div className="mt-4">
+                        <button onClick={openMessageModalOrLogin} className="w-full inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white">
+                          <ChatBubbleOvalLeftIcon className="h-5 w-5 mr-2" />
+                          Message {displayName}
+                        </button>
+          <p className="mt-2 text-[11px] text-gray-500">
+            To help protect your payment, always use Booka to send money and communicate with artists.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div className="mt-12 mb-6 h-px w-full bg-gray-200" />
+  </>
+)}
+
 
                 <section id="reviews-desktop" aria-labelledby="reviews-heading-desktop">
                   <h2 id="reviews-heading-desktop" className="text-2xl font-bold text-gray-800 mb-6">
@@ -1053,6 +1531,29 @@ export default function ServiceProviderProfilePage() {
                         ))}
                       </ul>
                     </section>
+                    {(serviceProvider as any)?.cancellation_policy && (() => {
+                      const { intro, bullets } = sanitizePolicy((serviceProvider as any).cancellation_policy);
+                      return (
+                        <>
+                          <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
+                          <section aria-labelledby="policies-heading-desktop">
+                            <h2 id="policies-heading-desktop" className="text-2xl font-bold text-gray-800 mb-4">
+                              Cancellation Policy
+                            </h2>
+                            <div className="rounded-2xl border border-gray-100 p-6 bg-gradient-to-br from-white to-gray-50 shadow-sm text-gray-700">
+                              {intro && <p className="mb-2 leading-relaxed">{intro}</p>}
+                              {!!bullets.length && (
+                                <ul className="list-disc pl-6 space-y-1">
+                                  {bullets.map((b, i) => (
+                                    <li key={`desktop-pol-${i}`}>{b}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          </section>
+                        </>
+                      );
+                    })()}
                   </>
                 )}
 
@@ -1262,6 +1763,65 @@ export default function ServiceProviderProfilePage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message Modal */}
+      {isMessageOpen && (
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={`Write a message to ${displayName}`}>
+          <div className="absolute inset-0 bg-black/40" onClick={() => setIsMessageOpen(false)} aria-hidden="true" />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] sm:w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-gray-100 p-0 overflow-hidden">
+            <header className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <div />
+              <button aria-label="Close" onClick={() => setIsMessageOpen(false)} className="p-2 rounded hover:bg-gray-50">
+                <XMarkIcon className="h-5 w-5 text-gray-600" />
+              </button>
+            </header>
+            <div className="px-4 py-4">
+              <h2 id="send-inquiry-title" className="text-xl font-semibold text-gray-900">Write a message to {displayName}</h2>
+              <p className="mt-1 text-sm text-gray-600">You can also add booking details for them to review.</p>
+
+              <div className="mt-3">
+                <label htmlFor="message-text" className="sr-only">Message</label>
+                <textarea
+                  id="message-text"
+                  aria-labelledby="send-inquiry-title"
+                  rows={7}
+                  minLength={20}
+                  placeholder={`Example: Hi! I'm planning a birthday and was wondering if you're available ${new Date().toLocaleString('default',{ month:'long'})} ${new Date().getDate()} for about 50 guests.`}
+                  value={messageBody}
+                  onChange={(e) => setMessageBody(e.target.value)}
+                  className="w-full resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-gray-900 focus:outline-none"
+                />
+                <div className="mt-1 text-xs text-gray-500">{Math.min(messageBody.length, 999)}/20 required characters</div>
+              </div>
+
+              <div className="mt-4">
+                <h3 className="text-sm font-semibold text-gray-900">Add optional details</h3>
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">When</label>
+                    <input type="date" value={messageDate} onChange={(e) => setMessageDate(e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Guests</label>
+                    <input type="number" min="1" inputMode="numeric" value={messageGuests} onChange={(e) => setMessageGuests(e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-gray-900 focus:outline-none" placeholder="e.g. 50" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <footer className="px-4 py-3 border-t border-gray-100 flex items-center justify-end gap-2">
+              <button type="button" onClick={() => setIsMessageOpen(false)} className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700">Cancel</button>
+              <button
+                type="button"
+                onClick={handleSendMessage}
+                disabled={sendingMessage || messageBody.trim().length < 20}
+                className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {sendingMessage ? 'Sending…' : 'Send message'}
+              </button>
+            </footer>
           </div>
         </div>
       )}

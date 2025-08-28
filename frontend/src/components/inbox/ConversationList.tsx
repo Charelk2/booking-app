@@ -229,9 +229,34 @@ export default function ConversationList({
         })();
         const showEventBadge = !showVideoBadge && paidOrConfirmed;
         const isQuote = (() => {
+          // Prefer explicit signals over fuzzy text matching
+          const threadState = String(((req as any).thread_state ?? '') || '').toLowerCase();
+          if (threadState === 'quoted') return true;
+          const hasAcceptedQuote = (req.accepted_quote_id as unknown as number) ? true : false;
+          const hasQuotesArr = Array.isArray((req as any).quotes) && (req as any).quotes.length > 0;
+          if (hasAcceptedQuote || hasQuotesArr) return true;
           const text = (req.last_message_content || '').toString();
-          if (!text) return false;
-          return /\bquote\b/i.test(text);
+          return /(sent a quote|quote sent|provided a quote|new quote)/i.test(text);
+        })();
+
+        // Show INQUIRY only for message-started threads (never booking wizard)
+        const showInquiryBadge = (() => {
+          if (showEventBadge || showVideoBadge || isQuote) return false;
+          const threadState = String(((req as any).thread_state ?? '') || '').toLowerCase();
+          const status = (req.status || '').toString().toLowerCase();
+          const hasBookingDetails = Boolean((req as any).proposed_datetime_1 || (req as any).proposed_datetime_2 || (req as any).travel_breakdown);
+          const hasQuotes = Boolean((req as any).accepted_quote_id) || (Array.isArray((req as any).quotes) && (req as any).quotes.length > 0) || threadState === 'quoted';
+          // First, honor explicit inquiry signals
+          if ((req as any).has_inquiry_card === true) return true;
+          try {
+            if (typeof window !== 'undefined') {
+              const local = localStorage.getItem(`inquiry-thread-${req.id}`);
+              if (local) return true;
+            }
+          } catch {}
+          // Otherwise, if there are any booking-like signals, do not show INQUIRY
+          if (hasBookingDetails || hasQuotes || status.includes('pending_quote')) return false;
+          return false;
         })();
 
         // Listing moderation chips from system preview text; or explicit flag from synthetic rows
@@ -340,6 +365,11 @@ export default function ConversationList({
                   {!showEventBadge && !showVideoBadge && isQuote && (
                     <span className="inline-flex items-center gap-1 rounded bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">
                       QUOTE
+                    </span>
+                  )}
+                  {!showEventBadge && !showVideoBadge && !isQuote && showInquiryBadge && (
+                    <span className="inline-flex items-center gap-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 text-[10px] font-semibold flex-shrink-0">
+                      INQUIRY
                     </span>
                   )}
                   {/* Suppress APPROVED/REJECTED chips for Booka moderation threads */}

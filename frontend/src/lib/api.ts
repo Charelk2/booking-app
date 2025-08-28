@@ -230,6 +230,7 @@ export const getServiceProviders = async (params?: {
   limit?: number;
   artist?: string;
   includePriceDistribution?: boolean;
+  fields?: string[];
 }): Promise<GetServiceProvidersResponse> => {
   const { includePriceDistribution, ...rest } = params || {};
   const query = { ...rest } as Record<string, unknown>;
@@ -238,6 +239,9 @@ export const getServiceProviders = async (params?: {
   }
   if (includePriceDistribution) {
     query.include_price_distribution = true;
+  }
+  if (Array.isArray((params as any)?.fields) && (params as any).fields!.length > 0) {
+    (query as any).fields = (params as any).fields!.join(',');
   }
 
   const res = await api.get<GetServiceProvidersResponse>(`${API_V1}/service-provider-profiles/`, {
@@ -730,6 +734,15 @@ export const ensureBookaThread = () =>
     `${API_V1}/message-threads/ensure-booka-thread`,
     {}
   );
+
+// Start a message-only thread to contact an artist, without needing a full booking request
+export const startMessageThread = (payload: {
+  artist_id: number;
+  message?: string;
+  proposed_date?: string; // YYYY-MM-DD or ISO datetime
+  guests?: number;
+  service_id?: number;
+}) => api.post<{ booking_request_id: number }>(`${API_V1}/message-threads/start`, payload);
 
 // ─── GOOGLE CALENDAR ─────────────────────────────────────────────────────────
 export const getGoogleCalendarStatus = () =>

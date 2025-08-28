@@ -2,6 +2,7 @@ import logging
 import re
 import shutil
 from datetime import datetime
+import base64
 from pathlib import Path
 from typing import Any
 
@@ -117,39 +118,29 @@ async def upload_profile_picture_me(
         )
 
     try:
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        original = Path(file.filename or "profile").name
-        sanitized = re.sub(r"[^a-zA-Z0-9_.-]", "_", original)
-        unique_filename = f"{timestamp}_{current_user.id}_{sanitized}"
+        # Store as data URL in DB (same pattern as service media_url)
+        # This survives redeploys because it's persisted with the user record.
+        content = await file.read()
+        b64 = base64.b64encode(content).decode("ascii")
+        mime = file.content_type or "image/jpeg"
+        data_url = f"data:{mime};base64,{b64}"
 
-        file_path = PROFILE_PICS_DIR / unique_filename
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
+        # Best-effort cleanup for legacy file-based URLs
         if current_user.profile_picture_url:
             old_rel = current_user.profile_picture_url.replace("/static/", "", 1)
             old_file = STATIC_DIR / old_rel
-            if old_file.exists() and old_file != file_path:
+            if old_file.exists():
                 try:
                     old_file.unlink()
                 except OSError as e:
-                    logger.warning(
-                        "Error deleting old profile picture %s: %s", old_file, e
-                    )
+                    logger.warning("Error deleting old profile picture %s: %s", old_file, e)
 
-        current_user.profile_picture_url = f"/static/profile_pics/{unique_filename}"
+        current_user.profile_picture_url = data_url
         db.add(current_user)
         db.commit()
         db.refresh(current_user)
         return current_user
     except Exception as e:
-        if "file_path" in locals() and file_path.exists():
-            try:
-                file_path.unlink()
-            except OSError as cleanup_err:
-                logger.warning(
-                    "Error cleaning up profile picture %s: %s", file_path, cleanup_err
-                )
         raise error_response(
             f"Could not upload profile picture: {e}",
             {"file": "upload_failed"},

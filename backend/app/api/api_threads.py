@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 from typing import Dict, List, Optional
 
@@ -8,11 +8,15 @@ from ..schemas.threads import (
     ThreadPreviewResponse,
     Counterparty,
 )
-from .dependencies import get_db, get_current_user
+from .dependencies import get_db, get_current_user, get_current_active_client
+from .. import schemas
 from ..crud import crud_booking_request, crud_notification, crud_message
 from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
 from ..crud import crud_message
 import re
+import json
+from pydantic import BaseModel
+from datetime import datetime
 
 router = APIRouter(tags=["threads"])
 
@@ -283,4 +287,139 @@ def ensure_booka_thread(
         except Exception:
             pass
 
+    return {"booking_request_id": br.id}
+
+
+class StartThreadPayload(BaseModel):
+    artist_id: int
+    service_id: Optional[int] = None
+    message: Optional[str] = None
+    proposed_date: Optional[str] = None  # ISO date or datetime
+    guests: Optional[int] = None
+
+
+@router.post("/message-threads/start", status_code=status.HTTP_201_CREATED)
+def start_message_thread(
+    payload: StartThreadPayload,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_client),
+):
+    """Start a message-only thread with an artist and emit an inquiry card.
+
+    Creates a lightweight booking_request container, then posts:
+    1) an inquiry card (SYSTEM with system_key=inquiry_sent_v1)
+    2) the user's first message (USER)
+
+    Returns the booking_request_id to open in the inbox.
+    """
+    # Validate artist exists and is a service provider
+    artist = (
+        db.query(models.User)
+        .filter(models.User.id == payload.artist_id, models.User.user_type == models.UserType.SERVICE_PROVIDER)
+        .first()
+    )
+    if not artist:
+        from ..utils import error_response
+        raise error_response(
+            "Artist not found",
+            {"artist_id": "not_found"},
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    # Validate service if provided
+    svc = None
+    if payload.service_id:
+        svc = (
+            db.query(models.Service)
+            .filter(models.Service.id == payload.service_id, models.Service.artist_id == payload.artist_id)
+            .first()
+        )
+        if not svc:
+            from ..utils import error_response
+            raise error_response(
+                "Service ID does not match the specified artist or does not exist.",
+                {"service_id": "invalid"},
+                status.HTTP_400_BAD_REQUEST,
+            )
+
+    # Parse proposed date if present
+    proposed_dt: Optional[datetime] = None
+    if payload.proposed_date:
+        try:
+            proposed_dt = datetime.fromisoformat(payload.proposed_date.replace("Z", "+00:00"))
+        except Exception:
+            try:
+                proposed_dt = datetime.strptime(payload.proposed_date, "%Y-%m-%d")
+            except Exception:
+                proposed_dt = None
+
+    # Create a booking request container directly via CRUD (skip auto system messages)
+    # Do NOT persist the initial user message on the booking_request.message field
+    # to ensure the first chat bubble is visible (the UI hides duplicates).
+    req_in = schemas.BookingRequestCreate(
+        artist_id=payload.artist_id,
+        service_id=payload.service_id,
+        message=None,
+        proposed_datetime_1=proposed_dt,
+        status=models.BookingStatus.PENDING_QUOTE,
+    )
+    br = crud_booking_request.create_booking_request(db=db, booking_request=req_in, client_id=current_user.id)
+    db.commit()
+    db.refresh(br)
+
+    # Compose inquiry card details
+    title = None
+    cover = None
+    if svc:
+        title = svc.title or None
+        cover = getattr(svc, "media_url", None)
+    if not title:
+        prof = artist.artist_profile
+        title = (prof.business_name if prof and prof.business_name else f"{artist.first_name} {artist.last_name}").strip()
+    if not cover:
+        prof = artist.artist_profile
+        cover = (getattr(prof, "cover_photo_url", None) or getattr(prof, "profile_picture_url", None))
+
+    card = {
+        "inquiry_sent_v1": {
+            "title": title or "Listing",
+            "cover": cover,
+            "view": f"/service-providers/{payload.artist_id}",
+            "date": payload.proposed_date or None,
+            "guests": payload.guests or None,
+        }
+    }
+
+    # 1) Inquiry card first so the preview can prefer the user's text below
+    try:
+        crud_message.create_message(
+            db,
+            booking_request_id=br.id,
+            sender_id=current_user.id,
+            sender_type=models.SenderType.CLIENT,
+            content=json.dumps(card),
+            message_type=models.MessageType.SYSTEM,
+            visible_to=models.VisibleTo.BOTH,
+            system_key="inquiry_sent_v1",
+        )
+    except Exception:
+        db.rollback()
+        # Non-fatal; proceed
+
+    # 2) First user message (if provided)
+    if payload.message and payload.message.strip():
+        try:
+            crud_message.create_message(
+                db,
+                booking_request_id=br.id,
+                sender_id=current_user.id,
+                sender_type=models.SenderType.CLIENT,
+                content=payload.message.strip(),
+                message_type=models.MessageType.USER,
+                visible_to=models.VisibleTo.BOTH,
+            )
+        except Exception:
+            db.rollback()
+
+    db.commit()
     return {"booking_request_id": br.id}

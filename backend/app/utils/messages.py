@@ -59,10 +59,11 @@ def preview_label_for_message(
             # Neutral label for Booka moderation updates (avoid exposing APPROVED/REJECTED)
             return "Booka update"
         if isinstance(content, str) and content.startswith(BOOKING_DETAILS_PREFIX):
+            # Booking details summary: show a neutral label
             return "New Booking Request"
 
-        if thread_state == "requested":
-            return "New Booking Request"
+        # For requested threads, prefer the actual last message snippet if it's not a booking-details summary
+        # so inquiry/message-first threads preview the user's text instead of a generic label.
 
         # Common system lines
         text = content.strip()
