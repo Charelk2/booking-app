@@ -10,6 +10,7 @@ import logging
 import re
 import shutil
 from pathlib import Path
+import base64
 from typing import List, Optional, Tuple, Dict, Any
 from pydantic import BaseModel
 
@@ -194,32 +195,23 @@ async def upload_artist_profile_picture_me(
         )
 
     try:
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        original = Path(file.filename or "profile").name
-        sanitized = re.sub(r"[^a-zA-Z0-9_.-]", "_", original)
-        unique_filename = f"{timestamp}_{current_user.id}_{sanitized}"
+        # Store as data URL in DB to survive redeploys (same approach as service.media_url)
+        content = await file.read()
+        b64 = base64.b64encode(content).decode("ascii")
+        mime = file.content_type or "image/jpeg"
+        data_url = f"data:{mime};base64,{b64}"
 
-        file_path = PROFILE_PICS_DIR / unique_filename
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        # Delete old profile picture if it exists
-        if artist_profile.profile_picture_url:
-            old_rel = artist_profile.profile_picture_url.replace(
-                "/static/",
-                "",
-                1,
-            )
+        # Best-effort cleanup for legacy file-based URLs
+        if artist_profile.profile_picture_url and artist_profile.profile_picture_url.startswith("/static/"):
+            old_rel = artist_profile.profile_picture_url.replace("/static/", "", 1)
             old_file = STATIC_DIR / old_rel
-            if old_file.exists() and old_file != file_path:
+            if old_file.exists():
                 try:
                     old_file.unlink()
                 except OSError as e:
-                    logger.warning(
-                        "Error deleting old profile picture %s: %s", old_file, e
-                    )
+                    logger.warning("Error deleting old profile picture %s: %s", old_file, e)
 
-        artist_profile.profile_picture_url = f"/static/profile_pics/{unique_filename}"
+        artist_profile.profile_picture_url = data_url
         db.add(artist_profile)
         db.commit()
         db.refresh(artist_profile)
@@ -268,26 +260,23 @@ async def upload_artist_cover_photo_me(
         )
 
     try:
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        original = Path(file.filename or "cover").name
-        sanitized = re.sub(r"[^a-zA-Z0-9_.-]", "_", original)
-        unique_filename = f"{timestamp}_{current_user.id}_{sanitized}"
+        # Store as data URL to persist across redeploys
+        content = await file.read()
+        b64 = base64.b64encode(content).decode("ascii")
+        mime = file.content_type or "image/jpeg"
+        data_url = f"data:{mime};base64,{b64}"
 
-        file_path = COVER_PHOTOS_DIR / unique_filename
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-
-        # Delete old cover photo if it exists
-        if artist_profile.cover_photo_url:
+        # Best-effort cleanup for legacy file-based URLs
+        if artist_profile.cover_photo_url and artist_profile.cover_photo_url.startswith("/static/"):
             old_rel = artist_profile.cover_photo_url.replace("/static/", "", 1)
             old_file = STATIC_DIR / old_rel
-            if old_file.exists() and old_file != file_path:
+            if old_file.exists():
                 try:
                     old_file.unlink()
                 except OSError as e:
                     logger.warning("Error deleting old cover photo %s: %s", old_file, e)
 
-        artist_profile.cover_photo_url = f"/static/cover_photos/{unique_filename}"
+        artist_profile.cover_photo_url = data_url
         db.add(artist_profile)
         db.commit()
         db.refresh(artist_profile)
@@ -335,14 +324,11 @@ async def upload_artist_portfolio_images_me(
                     status_code=400,
                     detail=f"Invalid image type. Allowed: {ALLOWED_PORTFOLIO_IMAGE_TYPES}",
                 )
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            original = Path(up.filename or "portfolio").name
-            sanitized = re.sub(r"[^a-zA-Z0-9_.-]", "_", original)
-            unique_filename = f"{timestamp}_{current_user.id}_{sanitized}"
-            file_path = PORTFOLIO_IMAGES_DIR / unique_filename
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(up.file, buffer)
-            new_urls.append(f"/static/portfolio_images/{unique_filename}")
+            content = await up.read()
+            b64 = base64.b64encode(content).decode("ascii")
+            mime = up.content_type or "image/jpeg"
+            data_url = f"data:{mime};base64,{b64}"
+            new_urls.append(data_url)
 
         artist_profile.portfolio_image_urls = new_urls
         db.add(artist_profile)
@@ -350,13 +336,6 @@ async def upload_artist_portfolio_images_me(
         db.refresh(artist_profile)
         return artist_profile
     except Exception as e:
-        if "file_path" in locals() and file_path.exists():
-            try:
-                file_path.unlink()
-            except OSError as cleanup_err:
-                logger.warning(
-                    "Error cleaning up portfolio image %s: %s", file_path, cleanup_err
-                )
         raise HTTPException(
             status_code=500, detail=f"Could not upload portfolio image: {e}"
         )

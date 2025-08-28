@@ -26,4 +26,9 @@ services:
         value: '["https://booka.co.za","https://www.booka.co.za"]'
       - key: CORS_ALLOW_ALL
         value: "false"
-
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: https://api.booka.co.za/api/v1/google-calendar/callback

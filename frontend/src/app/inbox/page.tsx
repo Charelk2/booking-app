@@ -95,6 +95,10 @@ export default function InboxPage() {
             if (!r) continue;
             const text = String(it.last_message_preview || '');
             const isBooka = String((it as any).counterparty?.name || '') === 'Booka' || /^(\s*listing\s+approved:|\s*listing\s+rejected:)/i.test(text);
+            // Always capture thread state from preview for row logic (e.g., hide INQUIRY once requested)
+            (r as any).thread_state = (it as any).state || null;
+            // Optionally mirror unread count for accuracy
+            (r as any).unread_count = (it as any).unread_count ?? (r as any).unread_count;
             if (isBooka) {
               (r as any).last_message_content = it.last_message_preview;
               (r as any).last_message_timestamp = it.last_ts;
@@ -134,7 +138,7 @@ export default function InboxPage() {
                 accepted_quote_id: null,
                 sound_required: undefined as any,
                 // Hints for UI overrides
-                ...( { is_booka_synthetic: true } as any ),
+                ...( { is_booka_synthetic: true, thread_state: (it as any).state || null } as any ),
               } as any);
             }
             if (synth.length > 0) {
@@ -204,24 +208,40 @@ export default function InboxPage() {
           sample.map(async (r) => {
             const res = await getMessagesForBookingRequest(r.id);
             const msgs = res.data || [];
+            // Detect Booka moderation update based on the last message
             const last = msgs[msgs.length - 1];
-            if (!last || !last.content) return null;
-            const text = String(last.content || '').trim();
-            if (/^(listing\s+approved:|listing\s+rejected:)/i.test(text)) {
-              return { id: r.id, text: 'Booka update', ts: last.timestamp } as const;
+            let moderation: { id: number; text: string; ts: string } | null = null;
+            if (last && last.content) {
+              const text = String(last.content || '').trim();
+              if (/^(listing\s+approved:|listing\s+rejected:)/i.test(text)) {
+                moderation = { id: r.id, text: 'Booka update', ts: last.timestamp } as const;
+              }
             }
-            return null;
+            // Detect explicit inquiry card anywhere in the message list
+            const hasInquiryCard = Array.isArray(msgs) && msgs.some((m) => {
+              const raw = (m && (m as any).content) ? String((m as any).content) : '';
+              return raw.includes('inquiry_sent_v1');
+            });
+            return { moderation, hasInquiryCard } as const;
           })
         );
-        const found: Array<{ id: number; text: string; ts: string } | null> = results.map((r) => r.status === 'fulfilled' ? r.value : null);
+        const found: Array<{ moderation: { id: number; text: string; ts: string } | null; hasInquiryCard: boolean } | null> =
+          results.map((r) => r.status === 'fulfilled' ? r.value : null);
         const byId = new Map<number, BookingRequest>(combined.map((r) => [r.id, r] as [number, BookingRequest]));
-        for (const item of found) {
-          if (!item) continue;
-          const r = byId.get(item.id);
-          if (!r) continue;
-          (r as any).last_message_content = item.text;
-          (r as any).last_message_timestamp = item.ts;
-          (r as any).is_booka_synthetic = true;
+        for (let i = 0; i < sample.length; i++) {
+          const res = found[i];
+          const r = sample[i];
+          if (!res) continue;
+          const target = byId.get(r.id);
+          if (!target) continue;
+          if (res.moderation) {
+            (target as any).last_message_content = res.moderation.text;
+            (target as any).last_message_timestamp = res.moderation.ts;
+            (target as any).is_booka_synthetic = true;
+          }
+          if (res.hasInquiryCard) {
+            (target as any).has_inquiry_card = true;
+          }
         }
       } catch {}
 

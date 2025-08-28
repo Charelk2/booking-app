@@ -1269,6 +1269,24 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       deduped.push(msg);
     }
 
+    // Ensure inquiry card (inquiry_sent_v1) renders after the first client USER message
+    try {
+      const isInquiry = (m: ThreadMessage) => {
+        const key = ((m as any).system_key || '').toString().toLowerCase();
+        if (key === 'inquiry_sent_v1') return true;
+        const raw = String((m as any).content || '');
+        return raw.startsWith('{') && raw.includes('inquiry_sent_v1');
+      };
+      const inquiryIdx = deduped.findIndex(isInquiry);
+      const firstUserIdx = deduped.findIndex(
+        (m) => normalizeType(m.message_type) !== 'SYSTEM' && m.sender_type === 'client'
+      );
+      if (inquiryIdx !== -1 && firstUserIdx !== -1 && inquiryIdx < firstUserIdx) {
+        const [inq] = deduped.splice(inquiryIdx, 1);
+        deduped.splice(firstUserIdx + 1, 0, inq);
+      }
+    } catch {}
+
     return deduped;
   }, [messages, user?.user_type]);
 
@@ -1300,12 +1318,93 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     return groups;
   }, [visibleMessages, shouldShowTimestampGroup]);
 
+  // Hide artist inline quote composer for pure inquiry threads created from profile page
+  // Also treat threads started via message-threads/start (no booking details/quotes yet) as inquiries
+  const isInquiryThread = useMemo(() => {
+    try {
+      // Explicit inquiry card
+      for (const m of messages) {
+        if (normalizeType(m.message_type) !== 'SYSTEM') continue;
+        const key = (m as any).system_key ? String((m as any).system_key).toLowerCase() : '';
+        if (key === 'inquiry_sent_v1') return true;
+        const raw = String((m as any).content || '');
+        if (raw.startsWith('{') && raw.includes('inquiry_sent_v1')) return true;
+      }
+      // Implicit inquiry: first messages but no quotes or booking details yet
+      const hasQuoteLike = messages.some(
+        (m) => Number(m.quote_id) > 0 || (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote')
+      );
+      if (hasQuoteLike) return false;
+      const hasClientUserMsg = messages.some(
+        (m) => normalizeType(m.message_type) !== 'SYSTEM' && m.sender_type === 'client'
+      );
+      const hasDetails = Boolean(parsedBookingDetails) || Boolean(bookingRequest?.travel_breakdown);
+      // If we have a client intro but no details/quotes yet, consider it an inquiry
+      if (hasClientUserMsg && !hasDetails) return true;
+    } catch {}
+    return false;
+  }, [messages, parsedBookingDetails, bookingRequest]);
+
   // ---- System message rendering (centralized)
   const renderSystemLine = useCallback((msg: ThreadMessage) => {
     const key = (msg.system_key || '').toLowerCase();
     let label = systemLabel(msg);
 
     const actions: React.ReactNode[] = [];
+
+    // Custom inline inquiry card with image + CTA
+    if (key === 'inquiry_sent_v1') {
+      let card: any = null;
+      try {
+        const raw = String((msg as any).content || '');
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.inquiry_sent_v1) card = parsed.inquiry_sent_v1;
+      } catch {}
+      if (card) {
+        const isSelf = user?.id && msg.sender_id === user.id;
+        const alignClass = isSelf ? 'ml-auto' : 'mr-auto';
+        const dateOnly = card.date ? String(card.date).slice(0, 10) : null;
+        const prettyDate = (() => {
+          if (!dateOnly) return null;
+          const d = new Date(dateOnly);
+          return isValid(d) ? format(d, 'd LLL yyyy') : dateOnly;
+        })();
+        return (
+          <div className={`my-2 ${alignClass} w-full md:w-1/3 md:max-w-[480px] group relative`} role="group" aria-label="Inquiry sent">
+            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-3">
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] text-gray-600 font-medium">{t('system.inquirySent', 'Inquiry sent')}</div>
+                  <div className="mt-1 text-sm font-semibold text-gray-900 truncate">{card.title || t('system.listing', 'Listing')}</div>
+                </div>
+                {card.cover && (
+                  <Image src={card.cover} alt="" width={56} height={56} className="ml-auto h-14 w-14 rounded-lg object-cover" />
+                )}
+              </div>
+              {(prettyDate || card.guests) && (
+                <div className="mt-2 text-xs text-gray-600">
+                  {[prettyDate, card.guests ? `${card.guests} guest${Number(card.guests) === 1 ? '' : 's'}` : null]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </div>
+              )}
+              {card.view && (
+                <div className="mt-3">
+                  <a
+                    href={card.view}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-800 hover:text-white hover:no-underline focus:text-white active:text-white"
+                  >
+                    {t('system.viewListing', 'View listing')}
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+    }
 
     // Receipt download (payment received / receipt available)
     if (key === 'payment_received' || key === 'receipt_available' || key === 'download_receipt' || /\breceipt\b/i.test(label)) {
@@ -1938,7 +2037,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           )
         )}
 
-        {user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && !isPersonalizedVideo && !!bookingRequest && !isModerationThread && (
+        {user?.user_type === 'service_provider' && !bookingConfirmed && !hasSentQuote && !isPersonalizedVideo && !!bookingRequest && !isModerationThread && !isInquiryThread && (
           <div className="mb-3" data-testid="artist-inline-quote">
             <MemoInlineQuoteForm
               artistId={currentArtistId}
@@ -2045,6 +2144,58 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     quoteId > 0 &&
                     (normalizeType(msg.message_type) === 'QUOTE' ||
                       (normalizeType(msg.message_type) === 'SYSTEM' && msg.action === 'review_quote'));
+
+                  // Detect inline inquiry card payload even if message_type is not SYSTEM
+                  try {
+                    const raw = String((msg as any).content || '');
+                    if (raw.startsWith('{') && raw.includes('inquiry_sent_v1')) {
+                      const parsed = JSON.parse(raw);
+                      const card = parsed?.inquiry_sent_v1;
+                      if (card) {
+                        const alignClass = isMsgFromSelf ? 'ml-auto' : 'mr-auto';
+                        const dateOnly = card.date ? String(card.date).slice(0, 10) : null;
+                        const prettyDate = (() => {
+                          if (!dateOnly) return null;
+                          const d = new Date(dateOnly);
+                          return isValid(d) ? format(d, 'd LLL yyyy') : dateOnly;
+                        })();
+                        return (
+                          <div key={msg.id} className={`my-2 ${alignClass} w-full md:w-1/3 md:max-w-[480px] group relative`} role="group" aria-label="Inquiry sent">
+                            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-3">
+                              <div className="flex items-start gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-[11px] text-gray-600 font-medium">{t('system.inquirySent', 'Inquiry sent')}</div>
+                                  <div className="mt-1 text-sm font-semibold text-gray-900 truncate">{card.title || t('system.listing', 'Listing')}</div>
+                                </div>
+                                {card.cover && (
+                                  <Image src={card.cover} alt="" width={56} height={56} className="ml-auto h-14 w-14 rounded-lg object-cover" />
+                                )}
+                              </div>
+                              {(prettyDate || card.guests) && (
+                                <div className="mt-2 text-xs text-gray-600">
+                                  {[prettyDate, card.guests ? `${card.guests} guest${Number(card.guests) === 1 ? '' : 's'}` : null]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                                </div>
+                              )}
+                              {card.view && (
+                                <div className="mt-3">
+                                  <a
+                                    href={card.view}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-xs font-semibold text-white hover:bg-gray-800 hover:text-white hover:no-underline focus:text-white active:text-white"
+                                  >
+                                    {t('system.viewListing', 'View listing')}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+                    }
+                  } catch {}
 
                   // Plain system line (except for special actions handled below)
                   if (isSystemMsg && msg.action !== 'view_booking_details' && msg.action !== 'review_quote') {
