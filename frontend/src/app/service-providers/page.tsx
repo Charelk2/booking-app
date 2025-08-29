@@ -179,7 +179,8 @@ export default function ServiceProvidersPage() {
           setPriceDistribution(cached.price_distribution || []);
         }
 
-        const res = await getServiceProviders({ ...cacheParams, includePriceDistribution: true });
+        // Fetch list first (cacheable in backend). Price histogram is fetched lazily below.
+        const res = await getServiceProviders({ ...cacheParams });
 
         // Filter client-side to guard against any backend responses that
         // include artists from other service categories. For the DJ category,
@@ -215,6 +216,39 @@ export default function ServiceProvidersPage() {
       debouncedMaxPrice,
     ],
   );
+
+  // Lazily fetch price distribution after the initial list loads to keep the list cacheable.
+  useEffect(() => {
+    if (!filtersReady) return;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await getServiceProviders({
+          category: serviceName,
+          location: location || undefined,
+          when: when || undefined,
+          sort,
+          minPrice: debouncedMinPrice,
+          maxPrice: debouncedMaxPrice,
+          page: 1,
+          limit: LIMIT,
+          includePriceDistribution: true,
+        });
+        setPriceDistribution(res.price_distribution || []);
+      } catch {
+        // best-effort; histogram is non-blocking
+      }
+    })();
+    return () => controller.abort();
+  }, [
+    filtersReady,
+    serviceName,
+    location,
+    when,
+    sort,
+    debouncedMinPrice,
+    debouncedMaxPrice,
+  ]);
 
   // Idle prefetch page 2 for current filters to make pagination snappy
   useEffect(() => {
