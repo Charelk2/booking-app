@@ -22,10 +22,12 @@ type MagicForm = { email: string };
 declare global {
   interface Window {
     google?: any;
+    AppleID?: any;
   }
 }
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
+const APPLE_SRC = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
 const TRUSTED_DEVICE_KEY = 'booka.trusted_device_id';
 
 export default function LoginPage() {
@@ -36,19 +38,27 @@ export default function LoginPage() {
 
   const { login, verifyMfa, user, refreshUser } = useAuth();
 
+  // UI / state
   const [error, setError] = useState('');
   const [mfaToken, setMfaToken] = useState<string | null>(null);
-  const [autoTrying, setAutoTrying] = useState(true); // passkey auto-attempt hint
+  const [autoTrying, setAutoTrying] = useState(true);
   const [magicSent, setMagicSent] = useState(false);
-  const [showMagic, setShowMagic] = useState(false);
 
-  // For “remember this device” (30d trusted)
+  // Google button + Apple button readiness (to hide fallbacks)
+  const [googleButtonReady, setGoogleButtonReady] = useState(false);
+  const [appleButtonReady, setAppleButtonReady] = useState(false);
+
+  // Refs to button containers for responsive rendering
+  const googleBtnRef = useRef<HTMLDivElement | null>(null);
+  const appleBtnRef = useRef<HTMLDivElement | null>(null);
+
+  // “Trust this device” id for MFA skip
   const [trustedDeviceId] = useState<string>(() => {
-    const existing = typeof window !== 'undefined' ? localStorage.getItem(TRUSTED_DEVICE_KEY) : null;
+    if (typeof window === 'undefined') return '';
+    const existing = localStorage.getItem(TRUSTED_DEVICE_KEY);
     if (existing) return existing;
-    // generate a stable device id
-    const id = crypto.getRandomValues(new Uint32Array(4)).join('-');
-    if (typeof window !== 'undefined') localStorage.setItem(TRUSTED_DEVICE_KEY, id);
+    const id = window.crypto.getRandomValues(new Uint32Array(4)).join('-');
+    localStorage.setItem(TRUSTED_DEVICE_KEY, id);
     return id;
   });
 
@@ -85,26 +95,25 @@ export default function LoginPage() {
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
   };
 
-  // ---- Google One Tap ----
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  // -------- Google Identity Services: One Tap + Official Button (responsive) --------
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-  const loadGsi = () =>
+  const loadScript = (id: string, src: string) =>
     new Promise<void>((resolve, reject) => {
-      if (document.getElementById('gsi-script')) return resolve();
+      if (document.getElementById(id)) return resolve();
       const s = document.createElement('script');
-      s.id = 'gsi-script';
-      s.src = GSI_SRC;
+      s.id = id;
+      s.src = src;
       s.async = true;
       s.defer = true;
       s.onload = () => resolve();
-      s.onerror = () => reject(new Error('Failed to load Google script'));
+      s.onerror = () => reject(new Error(`Failed to load ${src}`));
       document.head.appendChild(s);
     });
 
-  const handleGsiCredential = async (response: { credential?: string; select_by?: string }) => {
+  const handleGsiCredential = async (response: { credential?: string }) => {
     try {
       if (!response?.credential) return;
-      // Send the ID token (JWT) to your backend for verification & session creation
       await api.post('/auth/google/onetap', {
         credential: response.credential,
         next: nextPath,
@@ -113,100 +122,80 @@ export default function LoginPage() {
       try { await refreshUser?.(); } catch {}
       router.replace(nextPath);
     } catch (e: any) {
-      // If One Tap fails, stay silent (don’t scare users); surface error only if needed
-      console.warn('One Tap sign-in failed', e?.response?.data || e?.message);
+      console.warn('One Tap / button sign-in failed', e?.response?.data || e?.message);
     }
+  };
+
+  // Render (or re-render) the official Google button with a computed width
+  const renderGoogleButton = () => {
+    const container = googleBtnRef.current;
+    if (!container || !window.google?.accounts?.id?.renderButton) return;
+    // Clear previous render
+    container.innerHTML = '';
+    const width = Math.min(420, Math.max(280, container.offsetWidth || 320));
+    window.google.accounts.id.renderButton(container, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      shape: 'pill',
+      text: 'continue_with',
+      logo_alignment: 'left',
+      width, // px
+    });
+    setGoogleButtonReady(true);
   };
 
   useEffect(() => {
     let cancelled = false;
-    const initGsi = async () => {
+    (async () => {
       try {
-        if (!clientId) return;
-        await loadGsi();
+        if (!googleClientId) return;
+        await loadScript('gsi-script', GSI_SRC);
         if (cancelled || !window.google?.accounts?.id) return;
 
         window.google.accounts.id.initialize({
-          client_id: clientId,
+          client_id: googleClientId,
           callback: handleGsiCredential,
-          // feel free to tune:
-          auto_select: true,              // instantly sign in returning users
+          auto_select: true,
           cancel_on_tap_outside: false,
-          use_fedcm_for_prompt: true,     // modern FedCM prompt
+          use_fedcm_for_prompt: true,
           context: 'signin',
         });
 
-        // Show the One Tap prompt; Google will decide when to display
-        window.google.accounts.id.prompt((notification: any) => {
-          // You can inspect notification.isDisplayed(), .getMomentType(), etc., for analytics
-          // and adjust your UI if it was dismissed.
-        });
+        // Official button
+        renderGoogleButton();
+
+        // Re-render on container resize (best) or window resize (fallback)
+        let ro: ResizeObserver | null = null;
+        if ('ResizeObserver' in window && googleBtnRef.current) {
+          ro = new ResizeObserver(() => renderGoogleButton());
+          ro.observe(googleBtnRef.current);
+        } else {
+          const onResize = () => { renderGoogleButton(); };
+          window.addEventListener('resize', onResize);
+          // cleanup attached on return
+          (renderGoogleButton as any)._cleanup = () => window.removeEventListener('resize', onResize);
+        }
+
+        // One Tap prompt (GIS decides visibility)
+        window.google.accounts.id.prompt();
+
+        // Cleanup
+        return () => {
+          cancelled = true;
+          try {
+            ro?.disconnect();
+            (renderGoogleButton as any)._cleanup?.();
+            window.google?.accounts.id.cancel();
+            window.google?.accounts.id.disableAutoSelect();
+          } catch {}
+        };
       } catch (e) {
         console.warn('GSI init failed', e);
       }
-    };
-    void initGsi();
-    return () => {
-      cancelled = true;
-      try {
-        window.google?.accounts.id.cancel();
-        window.google?.accounts.id.disableAutoSelect();
-      } catch {}
-    };
-  }, [clientId, nextPath, trustedDeviceId]);
-
-  // ---- Passkey: try auto (Conditional UI) ----
-  useEffect(() => {
-    let cancelled = false;
-    const tryAutoPasskey = async () => {
-      if (!('PublicKeyCredential' in window)) { setAutoTrying(false); return; }
-      try {
-        // @ts-ignore
-        const condAvailable = typeof PublicKeyCredential.isConditionalMediationAvailable === 'function'
-          // @ts-ignore
-          ? await PublicKeyCredential.isConditionalMediationAvailable()
-          : false;
-
-        const { data: opts } = await webauthnGetAuthenticationOptions();
-        const publicKey: PublicKeyCredentialRequestOptions = {
-          challenge: b64ToBuf(opts.challenge),
-          allowCredentials: (opts.allowCredentials || []).map((c: any) => ({ type: 'public-key', id: b64ToBuf(c.id) })),
-          userVerification: opts.userVerification || 'preferred',
-        };
-
-        const cred = (await navigator.credentials.get({
-          publicKey,
-          // @ts-ignore
-          mediation: condAvailable ? 'conditional' : undefined,
-        })) as PublicKeyCredential | null;
-
-        if (!cred) { if (!cancelled) setAutoTrying(false); return; }
-        const assertion = cred.response as AuthenticatorAssertionResponse;
-
-        await webauthnVerifyAuthentication({
-          id: cred.id,
-          type: cred.type,
-          rawId: bufToB64(cred.rawId),
-          response: {
-            clientDataJSON: bufToB64(assertion.clientDataJSON),
-            authenticatorData: bufToB64(assertion.authenticatorData),
-            signature: bufToB64(assertion.signature),
-            userHandle: assertion.userHandle ? bufToB64(assertion.userHandle) : undefined,
-          },
-          // Let backend consider deviceId for risk/remember logic too
-          deviceId: trustedDeviceId,
-        });
-
-        try { await refreshUser?.(); } catch {}
-        if (!cancelled) router.replace(nextPath);
-      } catch {
-        if (!cancelled) setAutoTrying(false);
-      }
-    };
-    const t = setTimeout(() => { void tryAutoPasskey(); }, 120);
-    return () => { cancelled = true; clearTimeout(t); };
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nextPath, trustedDeviceId]);
+  }, [googleClientId, nextPath, trustedDeviceId]);
 
   // Manual passkey trigger
   const signInWithPasskey = async () => {
@@ -246,6 +235,145 @@ export default function LoginPage() {
     }
   };
 
+  // Try auto passkey (Conditional UI)
+  useEffect(() => {
+    let cancelled = false;
+    const tryAutoPasskey = async () => {
+      if (!('PublicKeyCredential' in window)) { setAutoTrying(false); return; }
+      try {
+        // @ts-ignore
+        const condAvailable = typeof PublicKeyCredential.isConditionalMediationAvailable === 'function'
+          // @ts-ignore
+          ? await PublicKeyCredential.isConditionalMediationAvailable()
+          : false;
+
+        const { data: opts } = await webauthnGetAuthenticationOptions();
+        const publicKey: PublicKeyCredentialRequestOptions = {
+          challenge: b64ToBuf(opts.challenge),
+          allowCredentials: (opts.allowCredentials || []).map((c: any) => ({ type: 'public-key', id: b64ToBuf(c.id) })),
+          userVerification: opts.userVerification || 'preferred',
+        };
+
+        const cred = (await navigator.credentials.get({
+          publicKey,
+          // @ts-ignore
+          mediation: condAvailable ? 'conditional' : undefined,
+        })) as PublicKeyCredential | null;
+
+        if (!cred) { if (!cancelled) setAutoTrying(false); return; }
+        const assertion = cred.response as AuthenticatorAssertionResponse;
+
+        await webauthnVerifyAuthentication({
+          id: cred.id,
+          type: cred.type,
+          rawId: bufToB64(cred.rawId),
+          response: {
+            clientDataJSON: bufToB64(assertion.clientDataJSON),
+            authenticatorData: bufToB64(assertion.authenticatorData),
+            signature: bufToB64(assertion.signature),
+            userHandle: assertion.userHandle ? bufToB64(assertion.userHandle) : undefined,
+          },
+          deviceId: trustedDeviceId,
+        });
+
+        try { await refreshUser?.(); } catch {}
+        if (!cancelled) router.replace(nextPath);
+      } catch {
+        if (!cancelled) setAutoTrying(false);
+      }
+    };
+    const t = setTimeout(() => { void tryAutoPasskey(); }, 120);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextPath, trustedDeviceId]);
+
+  // -------- Apple JS Sign In (official widget + popup) --------
+  const appleClientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID;             // e.g., com.yourapp.web
+  const appleRedirectURI = process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI || ''; // your backend callback URL
+
+  const initApple = async () => {
+    if (!appleClientId || !appleRedirectURI) return;
+    await loadScript('appleid-js', APPLE_SRC);
+    if (!window.AppleID?.auth) return;
+
+    // Initialize Apple JS
+    window.AppleID.auth.init({
+      clientId: appleClientId,
+      scope: 'name email',
+      redirectURI: appleRedirectURI,
+      usePopup: true, // no full-page redirect; we’ll POST the result to backend
+    });
+
+    // Render a responsive Apple button by using Apple’s container + data-* attrs
+    const host = appleBtnRef.current;
+    if (!host) return;
+
+    // Clear & build the button container
+    host.innerHTML = '';
+    const btn = document.createElement('div');
+    btn.id = 'appleid-signin';
+    btn.setAttribute('data-color', 'black');   // 'black' | 'white'
+    btn.setAttribute('data-border', 'true');   // Apple styles the border
+    btn.setAttribute('data-type', 'continue'); // 'sign in' | 'continue'
+    btn.style.height = '44px';
+    btn.style.width = '100%';
+    host.appendChild(btn);
+
+    // Click to trigger Apple sign in popup; on success we post token/code to backend
+    btn.addEventListener('click', async () => {
+      try {
+        const result = await window.AppleID.auth.signIn();
+        // Send id_token / code to your backend for verification & session creation
+        await api.post('/auth/apple/js', {
+          id_token: result?.authorization?.id_token,
+          code: result?.authorization?.code,
+          user: result?.user, // name/email on first sign
+          next: nextPath,
+          deviceId: trustedDeviceId,
+        });
+        try { await refreshUser?.(); } catch {}
+        router.replace(nextPath);
+      } catch (err) {
+        console.warn('Apple sign-in failed', err);
+      }
+    });
+
+    setAppleButtonReady(true);
+  };
+
+  // Initialize Apple and re-size button responsively
+  useEffect(() => {
+    let ro: ResizeObserver | null = null;
+    let cleanupResize: (() => void) | null = null;
+
+    (async () => {
+      try {
+        await initApple();
+
+        // ResizeObserver to keep visuals crisp
+        if ('ResizeObserver' in window && appleBtnRef.current) {
+          ro = new ResizeObserver(() => {
+            // Re-init to let Apple button match new width
+            void initApple();
+          });
+          ro.observe(appleBtnRef.current);
+        } else {
+          const onResize = () => { void initApple(); };
+          window.addEventListener('resize', onResize);
+          cleanupResize = () => window.removeEventListener('resize', onResize);
+        }
+      } catch (e) {
+        console.warn('Apple init failed', e);
+      }
+    })();
+
+    return () => {
+      ro?.disconnect();
+      cleanupResize?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appleClientId, appleRedirectURI, nextPath, trustedDeviceId]);
+
   // Password sign-in
   const onPasswordSignIn = async ({ email, password, remember }: PwForm) => {
     setError('');
@@ -255,20 +383,18 @@ export default function LoginPage() {
         setMfaToken(res.token);
         return;
       }
-      // redirect handled by user effect
     } catch (e: any) {
       setError(e?.message || 'Invalid email or password.');
       announce('Sign-in failed.');
     }
   };
 
-  // MFA verify (with “trust this device”)
+  // MFA verify
   const onVerifyMfa = async ({ code, trustedDevice }: MfaForm) => {
     if (!mfaToken) return;
     try {
       setError('');
       await verifyMfa(mfaToken, code, trustedDevice, trustedDevice ? trustedDeviceId : undefined);
-      // redirect handled by user effect
     } catch {
       setError('Invalid verification code.');
       announce('Invalid verification code.');
@@ -289,7 +415,7 @@ export default function LoginPage() {
     }
   };
 
-  // OAuth links (keep your existing server redirects)
+  // Fallback OAuth links (used only if buttons fail to render)
   const base = (api.defaults.baseURL || '').replace(/\/+$/, '');
   const googleHref = `${base}/auth/google/login?next=${encodeURIComponent(nextPath)}`;
   const appleHref  = `${base}/auth/apple/login?next=${encodeURIComponent(nextPath)}`;
@@ -311,23 +437,35 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Primary: SSO & Passkey */}
+          {/* Primary: Passkey + Google + Apple (official widgets) */}
           <div className="mt-6 grid gap-3">
             <Button onClick={signInWithPasskey} className="w-full">Continue with Passkey</Button>
 
-            <a
-              href={googleHref}
-              className="inline-flex w-full items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50"
-            >
-              Continue with Google
-            </a>
+            {/* Google official button with resize-aware rendering */}
+            <div className="relative">
+              <div ref={googleBtnRef} className="w-full flex justify-center" />
+              {!googleButtonReady && (
+                <a
+                  href={googleHref}
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50"
+                >
+                  Continue with Google
+                </a>
+              )}
+            </div>
 
-            <a
-              href={appleHref}
-              className="inline-flex w-full items-center justify-center rounded-md bg-black px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-900"
-            >
-              Continue with Apple
-            </a>
+            {/* Apple official widget container (responsive); shows fallback <a> if JS fails */}
+            <div className="relative">
+              <div ref={appleBtnRef} className="w-full" />
+              {!appleButtonReady && (
+                <a
+                  href={appleHref}
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-black px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-900"
+                >
+                  Continue with Apple
+                </a>
+              )}
+            </div>
           </div>
 
           {/* Divider */}
@@ -379,39 +517,27 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Magic link reveal */}
-          <div className="mt-3">
-            {!showMagic ? (
-              <button
-                type="button"
-                className="w-full text-center text-sm font-medium text-indigo-700 underline decoration-dotted hover:text-indigo-800"
-                onClick={() => setShowMagic(true)}
-              >
-                Prefer a magic link?
-              </button>
-            ) : (
-              <form onSubmit={submitMagic(onSendMagic)} className="mt-3 space-y-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <AuthInput
-                  id="magic-email"
-                  type="email"
-                  label="Email for sign-in link"
-                  autoComplete="email"
-                  registration={regMagic('email', {
-                    required: 'Email is required',
-                    pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, message: 'Invalid email address' },
-                    setValueAs: (v) => String(v || '').trim().toLowerCase(),
-                  })}
-                  error={magicErrors.email}
-                />
-                <Button type="submit" className="w-full" disabled={magicSubmitting}>
-                  {magicSubmitting ? 'Sending…' : 'Send magic link'}
-                </Button>
-                {magicSent && <p className="text-sm text-green-700">We sent you a sign-in link. Check your inbox.</p>}
-              </form>
-            )}
-          </div>
+          {/* Magic link */}
+          <form onSubmit={submitMagic(onSendMagic)} className="mt-3 space-y-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <AuthInput
+              id="magic-email"
+              type="email"
+              label="Prefer a magic link? Enter email"
+              autoComplete="email"
+              registration={regMagic('email', {
+                required: 'Email is required',
+                pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, message: 'Invalid email address' },
+                setValueAs: (v) => String(v || '').trim().toLowerCase(),
+              })}
+              error={magicErrors.email}
+            />
+            <Button type="submit" className="w-full" disabled={magicSubmitting}>
+              {magicSubmitting ? 'Sending…' : 'Send magic link'}
+            </Button>
+            {magicSent && <p className="text-sm text-green-700">We sent you a sign-in link. Check your inbox.</p>}
+          </form>
 
-          {/* MFA step with trusted device */}
+          {/* MFA step (trusted device) */}
           {mfaToken && (
             <form className="mt-6 space-y-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900" onSubmit={submitMfa(onVerifyMfa)}>
               <AuthInput
