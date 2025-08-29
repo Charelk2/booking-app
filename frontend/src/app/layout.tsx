@@ -16,7 +16,7 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: 'Service Provider Booking App',
+  title: 'Booka',
   description: 'Book your favorite artists for services',
   manifest: '/manifest.json',
   icons: {
