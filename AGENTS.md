@@ -2,6 +2,8 @@
 Documentation for the automation modules ("agents") that power the booking application.
 For setup instructions see [README.md](README.md).
 
+For scaling, performance, and production runbooks, see [SCALE.md](SCALE.md).
+
 ---
 
 ## Agents Overview
