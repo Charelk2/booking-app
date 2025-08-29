@@ -980,7 +980,7 @@ export default function ServiceProviderProfilePage() {
                   ) : displayReviews.length ? (
                     <>
                       <ul className="space-y-4">
-                        {displayReviews.map((review) => (
+                        {displayReviews.slice(0, 4).map((review) => (
                           <li key={`review-mobile-${review.id}`} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                             <div className="flex items-start justify-between gap-3">
                               <ReviewStars rating={Number(review.rating) || 0} />
@@ -997,7 +997,7 @@ export default function ServiceProviderProfilePage() {
                           </li>
                         ))}
                       </ul>
-                      {displayReviews.length > 6 && (
+                      {displayReviews.length > 4 && (
                         <div className="pt-2">
                           <button
                             type="button"
