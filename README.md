@@ -1562,3 +1562,6 @@ the mobile menu or profile dropdown.
 
 Before opening a pull request, run `./scripts/test-all.sh` to execute the
 backend and frontend test suites.
+Scaling and Performance
+- See SCALE.md for a phased scaling checklist (Redis, Postgres, caching, images/CDN, SSR/ISR, WebSockets) and operational runbooks.
+- AGENTS.md documents app “agents” and automation; together with SCALE.md it forms the core contributor guide.
