@@ -27,6 +27,8 @@ interface AuthContextType {
     token: string,
     code: string,
     remember?: boolean,
+    trustedDevice?: boolean,
+    deviceId?: string,
   ) => Promise<void>;
   confirmMfa: (code: string) => Promise<void>;
   generateRecoveryCodes: () => Promise<string[]>;
@@ -142,9 +144,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tokenToVerify: string,
     code: string,
     remember = true,
+    trustedDevice?: boolean,
+    deviceId?: string,
   ) => {
     try {
-      const response = await apiVerifyMfa(tokenToVerify, code);
+      const response = await apiVerifyMfa(tokenToVerify, code, trustedDevice, deviceId);
       const { user: fallbackUser } = response.data;
       const storage = remember ? localStorage : sessionStorage;
       const altStorage = remember ? sessionStorage : localStorage;

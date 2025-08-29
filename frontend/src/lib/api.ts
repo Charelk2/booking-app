@@ -50,6 +50,15 @@ api.interceptors.request.use(
     if (config.headers && 'Authorization' in config.headers) {
       delete config.headers.Authorization;
     }
+    // Attach a non-sensitive device identifier to help trusted-device logic
+    try {
+      if (typeof window !== 'undefined') {
+        const did = localStorage.getItem('booka.trusted_device_id');
+        if (did) {
+          (config.headers as any)['X-Device-Id'] = did;
+        }
+      }
+    } catch {}
     return config;
   },
   (error) => Promise.reject(error)
@@ -143,8 +152,12 @@ export const login = (email: string, password: string) => {
   });
 };
 
-export const verifyMfa = (token: string, code: string) =>
-  api.post('/auth/verify-mfa', { token, code });
+export const verifyMfa = (
+  token: string,
+  code: string,
+  trustedDevice?: boolean,
+  deviceId?: string,
+) => api.post('/auth/verify-mfa', { token, code, trustedDevice, deviceId });
 
 export const setupMfa = () => api.post('/auth/setup-mfa');
 export const confirmMfa = (code: string) =>

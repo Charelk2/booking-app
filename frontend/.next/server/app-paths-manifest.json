@@ -1,8 +1,7 @@
 {
+  "/login/page": "app/login/page.js",
   "/page": "app/page.js",
   "/service-providers/[id]/page": "app/service-providers/[id]/page.js",
-  "/service-providers/page": "app/service-providers/page.js",
-  "/login/page": "app/login/page.js",
-  "/category/[slug]/page": "app/category/[slug]/page.js",
-  "/services/[id]/page": "app/services/[id]/page.js"
+  "/dashboard/artist/page": "app/dashboard/artist/page.js",
+  "/security/page": "app/security/page.js"
 }

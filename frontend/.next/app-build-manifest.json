@@ -57,6 +57,23 @@
       "static/chunks/main-app.js",
       "static/css/app/category/[slug]/page.css",
       "static/chunks/app/category/[slug]/page.js"
+    ],
+    "/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/dashboard/page.js"
+    ],
+    "/dashboard/artist/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/dashboard/artist/page.css",
+      "static/chunks/app/dashboard/artist/page.js"
+    ],
+    "/security/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/security/page.css",
+      "static/chunks/app/security/page.js"
     ]
   }
 }

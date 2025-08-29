@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Depends, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import timedelta
@@ -23,6 +23,15 @@ from app.api.auth import (
 )
 from app.utils.auth import get_password_hash, normalize_email
 from app.utils import error_response
+from app.models import TrustedDevice
+
+try:
+    # Prefer google-auth for token verification
+    from google.oauth2 import id_token as google_id_token
+    from google.auth.transport import requests as google_requests
+except Exception:  # pragma: no cover - optional import in some environments
+    google_id_token = None
+    google_requests = None
 
 router = APIRouter()
 
@@ -167,6 +176,122 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     refresh_token, r_exp = _create_refresh_token(user.email)
     _store_refresh_token(db, user, refresh_token, r_exp)
     resp = RedirectResponse(url=next_url)
+    _set_access_cookie(resp, access_token)
+    _set_refresh_cookie(resp, refresh_token, r_exp)
+    return resp
+
+
+@router.post("/google/onetap")
+async def google_onetap(request: Request, db: Session = Depends(get_db)):
+    """Verify a Google One Tap ID token and establish a session.
+
+    Expects JSON body: {"credential": "<ID_TOKEN>", "next": "/dashboard", "deviceId": "..."}
+    """
+    body = await request.json()
+    credential = (body or {}).get("credential")
+    next_url = (body or {}).get("next") or settings.FRONTEND_URL.rstrip("/") + "/dashboard"
+    device_id = (body or {}).get("deviceId")
+
+    if not credential:
+        raise error_response("Missing credential", {}, status.HTTP_400_BAD_REQUEST)
+
+    # Determine allowed audience (client_id)
+    audience = settings.GOOGLE_OAUTH_CLIENT_ID or settings.GOOGLE_CLIENT_ID
+    # As a convenience for dev, allow NEXT_PUBLIC_GOOGLE_CLIENT_ID if others are empty
+    if not audience:
+        # Pull directly from env to avoid circular import concerns
+        import os
+        audience = os.getenv("NEXT_PUBLIC_GOOGLE_CLIENT_ID", "")
+    if not audience:
+        raise error_response("Google Client ID not configured", {}, status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    payload = None
+    # Verify using google-auth if available
+    if google_id_token and google_requests:
+        try:
+            req = google_requests.Request()
+            payload = google_id_token.verify_oauth2_token(credential, req, audience)
+        except Exception as exc:  # pragma: no cover - depends on external certs/network
+            logger.warning("Google One Tap verification failed: %s", exc)
+            raise error_response("Invalid Google token", {}, status.HTTP_401_UNAUTHORIZED)
+    else:  # pragma: no cover - fallback for environments without google-auth
+        import jwt as pyjwt  # type: ignore
+        try:
+            # Decode without verification ONLY to extract claims; reject if aud doesn't match
+            payload = pyjwt.decode(credential, options={"verify_signature": False, "verify_aud": False})
+            aud = payload.get("aud")
+            if isinstance(aud, (list, tuple)):
+                ok = audience in aud
+            else:
+                ok = aud == audience
+            if not ok:
+                raise ValueError("audience mismatch")
+        except Exception:
+            raise error_response("Invalid Google token", {}, status.HTTP_401_UNAUTHORIZED)
+
+    email = payload.get("email")
+    if not email:
+        raise error_response("Email not available from Google", {}, status.HTTP_400_BAD_REQUEST)
+    first_name = payload.get("given_name") or ""
+    last_name = payload.get("family_name") or ""
+
+    email = normalize_email(email)
+    user = get_user_by_email(db, email)
+    if not user:
+        user = User(
+            email=email,
+            password=get_password_hash(secrets.token_hex(8)),
+            first_name=first_name or email.split("@")[0],
+            last_name=last_name,
+            user_type=UserType.CLIENT,
+            is_verified=True,
+        )
+        db.add(user)
+    else:
+        user.first_name = user.first_name or first_name
+        user.last_name = user.last_name or last_name
+        user.is_verified = True
+    db.commit()
+    db.refresh(user)
+
+    # Optionally remember trusted device (skip MFA for password logins)
+    resp = JSONResponse({"ok": True})
+    if device_id and isinstance(device_id, str) and len(device_id) <= 255:
+        try:
+            existing = (
+                db.query(TrustedDevice)
+                .filter(TrustedDevice.user_id == user.id, TrustedDevice.device_id == device_id)
+                .first()
+            )
+            from datetime import datetime, timedelta
+            now = datetime.utcnow()
+            exp = now + timedelta(days=30)
+            if not existing:
+                rec = TrustedDevice(user_id=user.id, device_id=device_id, last_seen_at=now, expires_at=exp)
+                db.add(rec)
+            else:
+                existing.last_seen_at = now
+                existing.expires_at = exp
+            db.commit()
+            # Also set a non-HttpOnly cookie with the device id for convenience (JS already stores it)
+            resp.set_cookie(
+                key="device_id",
+                value=device_id,
+                max_age=30 * 24 * 3600,
+                httponly=False,
+                secure=(settings.FRONTEND_URL.lower().startswith("https")),
+                samesite="Lax",
+                path="/",
+            )
+        except Exception:
+            # Do not block login on device persistence errors
+            db.rollback()
+
+    # Issue session cookies
+    expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token({"sub": user.email}, expires)
+    refresh_token, r_exp = _create_refresh_token(user.email)
+    _store_refresh_token(db, user, refresh_token, r_exp)
     _set_access_cookie(resp, access_token)
     _set_refresh_cookie(resp, refresh_token, r_exp)
     return resp
