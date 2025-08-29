@@ -16,8 +16,9 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: 'Booka',
-  description: 'Book your favorite artists for services',
+  title: 'Booka | Book Musicians, DJs & Event Pros in South Africa',
+  description:
+    'South Africa’s marketplace for live entertainment and event services. Browse vetted musicians, DJs & photographers; get quotes, chat, and pay securely.',
   manifest: '/manifest.json',
   icons: {
     icon: '/favicon.svg',
