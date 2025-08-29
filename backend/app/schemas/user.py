@@ -51,6 +51,9 @@ class TokenData(BaseModel):
 class MFAVerify(BaseModel):
     token: str
     code: str
+    # Optional: trust this device for 30 days and a caller-provided device id
+    trustedDevice: bool | None = None
+    deviceId: str | None = None
 
 
 class MFACode(BaseModel):
@@ -59,4 +62,3 @@ class MFACode(BaseModel):
 
 class EmailConfirmRequest(BaseModel):
     token: str
-

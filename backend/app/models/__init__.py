@@ -22,6 +22,7 @@ from .supplier_pricebook import SupplierPricebook
 from .event_prep import EventPrep, EventPrepIdempotency, EventPrepAttachment
 from .webauthn_credential import WebAuthnCredential
 from .admin_user import AdminUser
+from .trusted_device import TrustedDevice
 
 __all__ = [
     "User",
@@ -62,4 +63,5 @@ __all__ = [
     "EventPrepAttachment",
     "WebAuthnCredential",
     "AdminUser",
+    "TrustedDevice",
 ]

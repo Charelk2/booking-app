@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 
 from ..database import get_db
 from ..models.user import User, UserType
+from ..models.trusted_device import TrustedDevice
 from ..models.service_provider_profile import ServiceProviderProfile
 from ..models.email_token import EmailToken
 from ..schemas.user import (
@@ -246,7 +247,29 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if user.mfa_secret:
+    # Skip MFA if a recognized trusted device is present
+    device_id_hdr = request.headers.get("x-device-id") or request.headers.get("X-Device-Id")
+    device_id_cookie = request.cookies.get("device_id")
+    device_id = device_id_hdr or device_id_cookie
+    trusted_ok = False
+    if user.mfa_secret and device_id:
+        try:
+            from datetime import datetime
+            rec = (
+                db.query(TrustedDevice)
+                .filter(TrustedDevice.user_id == user.id, TrustedDevice.device_id == device_id)
+                .first()
+            )
+            if rec and rec.expires_at and rec.expires_at > datetime.utcnow():
+                trusted_ok = True
+                rec.last_seen_at = datetime.utcnow()
+                db.add(rec)
+                db.commit()
+        except Exception:
+            db.rollback()
+            trusted_ok = False
+
+    if user.mfa_secret and not trusted_ok:
         temp_token = create_access_token(
             {"sub": user.email, "mfa": True},
             expires_delta=timedelta(minutes=5),
@@ -348,6 +371,29 @@ def verify_mfa(data: MFAVerify, db: Session = Depends(get_db)):
     user.mfa_enabled = True
     db.commit()
 
+    # Optionally mark this device as trusted for 30 days
+    device_cookie_value: str | None = None
+    try:
+        if getattr(data, "trustedDevice", None) and getattr(data, "deviceId", None):
+            from datetime import datetime, timedelta
+            now = datetime.utcnow()
+            exp = now + timedelta(days=30)
+            existing = (
+                db.query(TrustedDevice)
+                .filter(TrustedDevice.user_id == user.id, TrustedDevice.device_id == data.deviceId)
+                .first()
+            )
+            if not existing:
+                rec = TrustedDevice(user_id=user.id, device_id=data.deviceId, last_seen_at=now, expires_at=exp)
+                db.add(rec)
+            else:
+                existing.last_seen_at = now
+                existing.expires_at = exp
+            db.commit()
+            device_cookie_value = data.deviceId
+    except Exception:
+        db.rollback()
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.email},
@@ -371,6 +417,17 @@ def verify_mfa(data: MFAVerify, db: Session = Depends(get_db)):
     resp = JSONResponse(payload)
     _set_access_cookie(resp, access_token)
     _set_refresh_cookie(resp, refresh_token, r_exp)
+    # Set non-HttpOnly device cookie to help future requests include device id even without JS
+    if device_cookie_value:
+        resp.set_cookie(
+            key="device_id",
+            value=device_cookie_value,
+            max_age=30 * 24 * 3600,
+            httponly=False,
+            secure=_is_secure_cookie(),
+            samesite="Lax",
+            path="/",
+        )
     return resp
 
 
