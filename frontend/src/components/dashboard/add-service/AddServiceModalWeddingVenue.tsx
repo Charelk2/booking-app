@@ -100,6 +100,7 @@ export default function AddServiceModalWeddingVenue({
                   width={80}
                   height={80}
                   className="h-full w-full object-cover"
+                  unoptimized
                 />
                 <button
                   type="button"
@@ -121,6 +122,7 @@ export default function AddServiceModalWeddingVenue({
                   width={80}
                   height={80}
                   className="h-full w-full object-cover"
+                  unoptimized
                 />
                 <button
                   type="button"
@@ -153,6 +155,7 @@ export default function AddServiceModalWeddingVenue({
                   width={64}
                   height={64}
                   className="h-16 w-16 rounded object-cover"
+                  unoptimized
                 />
               ))}
             </div>
@@ -187,4 +190,3 @@ export default function AddServiceModalWeddingVenue({
     />
   );
 }
-

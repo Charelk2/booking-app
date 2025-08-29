@@ -961,7 +961,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
               <div className="relative -mt-10 mb-4 flex justify-center">
                 <div className="relative w-24 h-24">
                   {imagePreviewUrl ? (
-                    <NextImage src={imagePreviewUrl} alt="Profile" width={96} height={96} className="w-24 h-24 rounded-full object-cover border-4 border-white shadow" />
+                    <NextImage src={imagePreviewUrl} alt="Profile" width={96} height={96} className="w-24 h-24 rounded-full object-cover border-4 border-white shadow" unoptimized />
                   ) : (
                     <button
                       type="button"

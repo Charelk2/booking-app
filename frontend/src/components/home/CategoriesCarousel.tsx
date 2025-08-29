@@ -1,12 +1,14 @@
 'use client';
 
 import Image from 'next/image';
+import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
 import useServiceCategories from '@/hooks/useServiceCategories';
-import { CATEGORY_IMAGES } from '@/lib/categoryMap';
+import { prefetchServiceProviders } from '@/lib/api';
+import { CATEGORY_IMAGES, UI_CATEGORY_TO_ID } from '@/lib/categoryMap';
 
 const CARD_W = 144; // h/w-36 = 9rem = 144px
 const GAP = 12;     // gap-3 = 12px
@@ -31,25 +33,97 @@ export default function CategoriesCarousel() {
   const [canScrollRight, setCanScrollRight] = useState(false);
 
   const categories = useServiceCategories();
+  const fallbackItems = useMemo(() => {
+    return Object.entries(UI_CATEGORY_TO_ID).map(([slug, id]) => ({
+      id,
+      value: slug,
+      label: slug.replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase()),
+      display: DISPLAY_LABELS[slug] || slug,
+    }));
+  }, []);
   const items = useMemo(
-    () => categories.map(c => ({ ...c, display: DISPLAY_LABELS[c.value] || c.label })),
-    [categories]
+    () => {
+      const mapped = categories.map(c => ({ ...c, display: DISPLAY_LABELS[c.value] || c.label }));
+      return mapped.length ? mapped : fallbackItems;
+    },
+    [categories, fallbackItems]
   );
 
   // Idle prefetch top categories on homepage
   useEffect(() => {
     if (!items.length) return;
+    const didPrefetch = { value: false } as { value: boolean };
+    const isSafari = typeof navigator !== 'undefined' && /safari/i.test(navigator.userAgent) && !/chrome|crios|android/i.test(navigator.userAgent);
+    const sessionKey = 'home:prefetch-done';
+
+    const runPrefetch = () => {
+      if (didPrefetch.value) return;
+      didPrefetch.value = true;
+      try {
+        // Defer two frames to ensure first paint, then a tiny timeout
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              items.slice(0, 4).forEach((cat) => {
+                const path = `/category/${encodeURIComponent(cat.value)}`;
+                router.prefetch?.(path);
+                prefetchServiceProviders({ category: cat.label, page: 1, limit: 20, fields: ['id','business_name','profile_picture_url','user.first_name','user.last_name'] });
+              });
+            }, 300);
+          });
+        });
+      } catch {}
+    };
+
+    // On Safari, be extra conservative: only prefetch once per session and only after 'load',
+    // even if readyState is already 'complete'. This avoids first-paint hangs.
+    if (isSafari && typeof document !== 'undefined') {
+      try { if (sessionStorage.getItem(sessionKey)) return; } catch {}
+      const afterLoad = () => {
+        window.removeEventListener('load', afterLoad);
+        document.removeEventListener('visibilitychange', onVis);
+        setTimeout(() => {
+          try { sessionStorage.setItem(sessionKey, '1'); } catch {}
+          runPrefetch();
+        }, 1000); // ensure paint happened well before prefetch
+      };
+      const onVis = () => {
+        if (document.visibilityState === 'visible') {
+          window.removeEventListener('load', afterLoad);
+          document.removeEventListener('visibilitychange', onVis);
+          setTimeout(() => {
+            try { sessionStorage.setItem(sessionKey, '1'); } catch {}
+            runPrefetch();
+          }, 1000);
+        }
+      };
+      // If load already fired, still delay; else wait for it
+      if (document.readyState === 'complete') {
+        setTimeout(() => {
+          try { sessionStorage.setItem(sessionKey, '1'); } catch {}
+          runPrefetch();
+        }, 1000);
+      } else {
+        window.addEventListener('load', afterLoad, { once: true });
+        document.addEventListener('visibilitychange', onVis, { once: true });
+      }
+      return () => {
+        window.removeEventListener('load', afterLoad);
+        document.removeEventListener('visibilitychange', onVis);
+      };
+    }
+
+    // Other browsers: prefetch gently after idle
     const idle = (cb: () => void) => (
       'requestIdleCallback' in window
         ? (window as any).requestIdleCallback(cb)
         : setTimeout(cb, 300)
     );
-    idle(() => {
-      items.slice(0, 4).forEach((cat) => {
-        const path = `/category/${encodeURIComponent(cat.value)}`;
-        router.prefetch?.(path);
-      });
-    });
+    const handle = idle(runPrefetch as any);
+    return () => {
+      if ('cancelIdleCallback' in window) (window as any).cancelIdleCallback?.(handle);
+      else clearTimeout(handle);
+    };
   }, [items, router]);
 
   const updateButtons = useCallback(() => {
@@ -153,11 +227,11 @@ export default function CategoriesCarousel() {
           className="flex gap-3 overflow-x-auto pb-2 pr-2 scroll-smooth scrollbar-hide snap-x snap-mandatory"
           aria-label="Scrollable list"
         >
-          {items.map(cat => (
+          {items.map((cat, i) => (
             <Link
               key={cat.value}
               href={`/category/${encodeURIComponent(cat.value)}`}
-              className="flex-shrink-0 flex flex-col hover:no-underline snap-start"
+              className="flex-shrink-0 flex flex-col hover:no-underline snap-start active:scale-[0.98] transition-transform duration-100"
               aria-label={cat.display}
               onMouseEnter={() => router.prefetch?.(`/category/${encodeURIComponent(cat.value)}`)}
               onFocus={() => router.prefetch?.(`/category/${encodeURIComponent(cat.value)}`)}
@@ -169,6 +243,11 @@ export default function CategoriesCarousel() {
                   fill
                   sizes="160px"
                   className="object-cover"
+                  priority={i === 0}
+                  fetchPriority={i === 0 ? 'high' : undefined}
+                  {...(i === 0 ? { elementtiming: 'LCP-hero' } as any : {})}
+                  placeholder="blur"
+                  blurDataURL={BLUR_PLACEHOLDER}
                 />
               </div>
               <p className="mt-2 text-xs text-left text-black font-semibold whitespace-nowrap">

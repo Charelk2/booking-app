@@ -12,6 +12,8 @@ import shutil
 from pathlib import Path
 import base64
 from typing import List, Optional, Tuple, Dict, Any
+import os
+import base64
 from pydantic import BaseModel
 
 from app.utils.redis_cache import (
@@ -104,6 +106,65 @@ def read_current_artist_profile(
             status_code=404,
             detail="Artist profile not found.",
         )
+    # Opportunistic migration: convert legacy file paths to data URLs so media
+    # survives redeploys, mirroring AddServiceModalMusician behavior.
+    try:
+        changed = False
+        # Helper to convert a single relative path under /static to data URL
+        def to_data_url_if_exists(rel_path: str | None) -> Optional[str]:
+            if not rel_path:
+                return rel_path
+            p = str(rel_path)
+            if p.startswith('/static/'):
+                rel = p.replace('/static/', '', 1)
+                fs_path = STATIC_DIR / rel
+                if fs_path.exists() and fs_path.is_file():
+                    mime = 'image/jpeg'
+                    ext = fs_path.suffix.lower()
+                    if ext in {'.png'}:
+                        mime = 'image/png'
+                    elif ext in {'.webp'}:
+                        mime = 'image/webp'
+                    elif ext in {'.svg'}:
+                        mime = 'image/svg+xml'
+                    try:
+                        data = fs_path.read_bytes()
+                        b64 = base64.b64encode(data).decode('ascii')
+                        return f'data:{mime};base64,{b64}'
+                    except Exception:
+                        return rel_path
+            return rel_path
+
+        # Profile picture
+        new_pp = to_data_url_if_exists(artist_profile.profile_picture_url)
+        if new_pp != artist_profile.profile_picture_url:
+            artist_profile.profile_picture_url = new_pp
+            changed = True
+        # Cover photo
+        new_cover = to_data_url_if_exists(artist_profile.cover_photo_url)
+        if new_cover != artist_profile.cover_photo_url:
+            artist_profile.cover_photo_url = new_cover
+            changed = True
+        # Portfolio images
+        if artist_profile.portfolio_image_urls:
+            new_list: List[str] = []
+            list_changed = False
+            for url in artist_profile.portfolio_image_urls:
+                new_url = to_data_url_if_exists(url)
+                new_list.append(new_url)
+                if new_url != url:
+                    list_changed = True
+            if list_changed:
+                artist_profile.portfolio_image_urls = new_list
+                changed = True
+        if changed:
+            db.add(artist_profile)
+            db.commit()
+            db.refresh(artist_profile)
+    except Exception:
+        # Non-fatal: return profile even if migration failed
+        pass
+
     return artist_profile
 
 

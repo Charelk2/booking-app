@@ -3,6 +3,8 @@
 import Image, { ImageProps } from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { getFullImageUrl } from "@/lib/utils";
+import { normalizeToCloudflareIfPossible } from "@/lib/cfImage";
+import { cfLoader, isCfLoaderEnabled } from "@/lib/cfLoader";
 
 type Props = Omit<ImageProps, "src"> & {
   src?: string | null;
@@ -19,14 +21,24 @@ export default function SafeImage({ src, alt, fallbackSrc, ...rest }: Props) {
     [fallbackSrc],
   );
 
-  const [currentSrc, setCurrentSrc] = useState<string | undefined>(src || undefined);
+  // Normalize the incoming src:
+  // - If it's a Cloudflare Images id or URL, convert to a delivery URL
+  // - Else, map relative API paths to absolute via getFullImageUrl
+  const initial = useMemo(() => {
+    const cf = normalizeToCloudflareIfPossible(src || undefined);
+    if (cf) return cf;
+    return getFullImageUrl(src || undefined) || undefined;
+  }, [src]);
+
+  const [currentSrc, setCurrentSrc] = useState<string | undefined>(initial);
   const [triedAlternate, setTriedAlternate] = useState(false);
   const [triedCaseVariant, setTriedCaseVariant] = useState(false);
   const [failedHard, setFailedHard] = useState(false);
 
   // Reset when src changes
   useEffect(() => {
-    setCurrentSrc(src || undefined);
+    const next = normalizeToCloudflareIfPossible(src || undefined) || getFullImageUrl(src || undefined) || undefined;
+    setCurrentSrc(next);
     setTriedAlternate(false);
     setTriedCaseVariant(false);
     setFailedHard(false);
@@ -82,12 +94,14 @@ export default function SafeImage({ src, alt, fallbackSrc, ...rest }: Props) {
 
   const effectiveSrc = failedHard ? defaultFallback : (currentSrc || defaultFallback);
 
-  return (
-    <Image
-      {...rest}
-      alt={alt}
-      src={effectiveSrc}
-      onError={onError}
-    />
-  );
+  const isDataOrBlob = typeof effectiveSrc === 'string' && /^(data:|blob:)/i.test(effectiveSrc);
+  const imgProps: ImageProps = {
+    ...(rest as ImageProps),
+    src: effectiveSrc as string,
+    alt,
+    onError,
+    ...(isDataOrBlob ? { unoptimized: true } : {}),
+  } as ImageProps;
+
+  return <Image {...imgProps} {...(isCfLoaderEnabled ? { loader: cfLoader } : {})} />;
 }

@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import Image from 'next/image';
+import SafeImage from '@/components/ui/SafeImage';
 
 interface ImagePreviewModalProps {
   open: boolean;
@@ -148,7 +148,7 @@ export default function ImagePreviewModal({ open, src, alt = 'Image preview', on
                   }
                   return (
                     <div className="relative">
-                      <Image
+                      <SafeImage
                         src={src}
                         alt={alt}
                         width={1600}
@@ -254,7 +254,7 @@ function ThumbnailTray({ images, activeIndex, onIndexChange }: { images: string[
               onClick={() => onIndexChange && onIndexChange(i)}
               aria-label={`Preview image ${i + 1}`}
             >
-              <Image src={src} alt={`thumb-${i + 1}`} width={56} height={56} className="w-14 h-14 object-cover" />
+              <SafeImage src={src} alt={`thumb-${i + 1}`} width={56} height={56} className="w-14 h-14 object-cover" />
             </button>
           </div>
         ))}

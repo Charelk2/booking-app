@@ -49,7 +49,7 @@ export default function ServiceProviderCardCompact({
     <Link
       href={href}
       className={clsx(
-        'group block rounded-xl overflow-hidden',
+        'group block rounded-xl overflow-hidden active:scale-[0.98] transition-transform duration-100',
         'no-underline hover:no-underline',
         className,
       )}
@@ -69,6 +69,8 @@ export default function ServiceProviderCardCompact({
             sizes={`(max-width:${BREAKPOINT_MD}px) 50vw, 33vw`}
             className="object-cover w-full h-full transition-transform"
             onLoad={() => setLoaded(true)}
+            placeholder="blur"
+            blurDataURL={BLUR_PLACEHOLDER}
           />
         ) : (
           <SafeImage
@@ -78,6 +80,8 @@ export default function ServiceProviderCardCompact({
             sizes={`(max-width:${BREAKPOINT_MD}px) 0vw, 33vw`}
             className="object-cover w-full h-full"
             onLoad={() => setLoaded(true)}
+            placeholder="blur"
+            blurDataURL={BLUR_PLACEHOLDER}
           />
         )}
         {rating !== undefined && (

@@ -1,6 +1,8 @@
 # backend/app/api/auth.py
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from pathlib import Path
+import base64
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
@@ -462,8 +464,38 @@ def confirm_email(data: EmailConfirmRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserResponse)
-def read_current_user(current_user: User = Depends(get_current_user)):
-    """Return details for the authenticated user."""
+def read_current_user(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Return details for the authenticated user.
+
+    Opportunistically migrate legacy file-based profile pictures to data URLs
+    so avatars survive redeploys.
+    """
+    try:
+        url = getattr(current_user, 'profile_picture_url', None)
+        if isinstance(url, str) and url.startswith('/static/'):
+            static_dir = Path(__file__).resolve().parent.parent / 'static'
+            rel = url.replace('/static/', '', 1)
+            fs_path = static_dir / rel
+            if fs_path.exists() and fs_path.is_file():
+                mime = 'image/jpeg'
+                ext = fs_path.suffix.lower()
+                if ext == '.png':
+                    mime = 'image/png'
+                elif ext == '.webp':
+                    mime = 'image/webp'
+                elif ext == '.svg':
+                    mime = 'image/svg+xml'
+                try:
+                    data = fs_path.read_bytes()
+                    b64 = base64.b64encode(data).decode('ascii')
+                    current_user.profile_picture_url = f'data:{mime};base64,{b64}'
+                    db.add(current_user)
+                    db.commit()
+                    db.refresh(current_user)
+                except Exception:
+                    pass
+    except Exception:
+        pass
     return current_user
 
 

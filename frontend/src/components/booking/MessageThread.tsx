@@ -12,6 +12,7 @@ import React, {
   useCallback,
 } from 'react';
 import Image from 'next/image';
+import SafeImage from '@/components/ui/SafeImage';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { createPortal } from 'react-dom';
@@ -1378,7 +1379,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                   <div className="mt-1 text-sm font-semibold text-gray-900 truncate">{card.title || t('system.listing', 'Listing')}</div>
                 </div>
                 {card.cover && (
-                  <Image src={card.cover} alt="" width={56} height={56} className="ml-auto h-14 w-14 rounded-lg object-cover" />
+                  <SafeImage src={card.cover} alt="" width={56} height={56} className="ml-auto h-14 w-14 rounded-lg object-cover" sizes="56px" />
                 )}
               </div>
               {(prettyDate || card.guests) && (
@@ -2081,16 +2082,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     {user?.user_type === 'service_provider'
                       ? clientAvatarUrl
                         ? (
-                            <Image
-                              src={getFullImageUrl(clientAvatarUrl) as string}
+                            <SafeImage
+                              src={clientAvatarUrl}
                               alt="Client avatar"
                               width={20}
                               height={20}
                               className="h-5 w-5 rounded-full object-cover mr-2"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src =
-                                  getFullImageUrl('/static/default-avatar.svg') as string;
-                              }}
                             />
                           )
                         : (
@@ -2100,16 +2097,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                           )
                       : artistAvatarUrl
                         ? (
-                            <Image
-                              src={getFullImageUrl(artistAvatarUrl) as string}
+                            <SafeImage
+                              src={artistAvatarUrl}
                               alt="Service Provider avatar"
                               width={20}
                               height={20}
                               className="h-5 w-5 rounded-full object-cover mr-2"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src =
-                                  getFullImageUrl('/static/default-avatar.svg') as string;
-                              }}
                             />
                           )
                         : (
@@ -2168,7 +2161,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                                   <div className="mt-1 text-sm font-semibold text-gray-900 truncate">{card.title || t('system.listing', 'Listing')}</div>
                                 </div>
                                 {card.cover && (
-                                  <Image src={card.cover} alt="" width={56} height={56} className="ml-auto h-14 w-14 rounded-lg object-cover" />
+                                  <SafeImage src={card.cover} alt="" width={56} height={56} className="ml-auto h-14 w-14 rounded-lg object-cover" sizes="56px" />
                                 )}
                               </div>
                               {(prettyDate || card.guests) && (
@@ -2957,7 +2950,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           <div className="flex items-center gap-2 overflow-x-auto">
             {imagePreviewUrls.map((u, i) => (
               <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200 bg-white">
-                <Image src={u} alt={`Preview ${i+1}`} width={64} height={64} className="w-16 h-16 object-cover" />
+                <Image src={u} alt={`Preview ${i+1}`} width={64} height={64} className="w-16 h-16 object-cover" unoptimized />
                 <button type="button" aria-label="Remove image" className="absolute top-1 right-1 w-5 h-5 rounded-full bg-white/90 border border-gray-200 text-gray-700 flex items-center justify-center hover:bg-white" onClick={() => removeImageAt(i)}>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

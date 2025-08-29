@@ -50,6 +50,7 @@ from .api import (
     api_webauthn,
     api_admin,
     api_webhooks_events,
+    api_uploads,
 )
 
 # The “service-provider-profiles” router lives under app/api/v1/
@@ -519,6 +520,13 @@ app.include_router(
     tags=["ws"],
 )
 
+# Generic uploads (images)
+app.include_router(
+    api_uploads.router,
+    prefix=f"{api_prefix}",
+    tags=["uploads"],
+)
+
 # ─── NOTIFICATION ROUTES (under /api/v1) ───────────────────────────────────────
 app.include_router(
     api_notification.router,
@@ -669,6 +677,18 @@ async def start_background_tasks() -> None:
 @app.get("/")
 async def root():
     return {"message": "Welcome to Artist Booking API"}
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Serve a default favicon to avoid 404 noise in logs.
+
+    Uses the existing default avatar SVG; browsers will still accept it.
+    """
+    path = os.path.join(APP_STATIC_DIR, "default-avatar.svg")
+    if os.path.exists(path):
+        return FileResponse(path, media_type="image/svg+xml")
+    return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content={})
 
 
 @app.on_event("shutdown")

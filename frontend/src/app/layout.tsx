@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { NotificationsProvider } from '@/hooks/useNotifications';
 import MobileTelemetry from '@/components/analytics/MobileTelemetry';
+import RouteProgress from '@/components/layout/RouteProgress';
 import './globals.css';
 
 
@@ -36,6 +37,7 @@ export default function RootLayout({
         <AuthProvider>
           <NotificationsProvider>
             <Suspense fallback={null}>
+              <RouteProgress />
               {children}
             </Suspense>
             <Toaster position="top-right" />

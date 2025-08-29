@@ -253,6 +253,42 @@ export const getServiceProviders = async (params?: {
   };
 };
 
+// ─── SERVICE PROVIDERS LIST CACHE + PREFETCH ───────────────────────────────────
+type ProvidersKey = string;
+interface ProvidersCacheEntry {
+  value: GetServiceProvidersResponse;
+  timestamp: number;
+}
+const PROVIDERS_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+const providersCache = new Map<ProvidersKey, ProvidersCacheEntry>();
+
+const providersKey = (params: Record<string, unknown>): ProvidersKey => {
+  // Only keys that affect list rendering
+  const { category, location, when, sort, minPrice, maxPrice, page = 1, limit = 20, fields } = params as any;
+  const k = { category, location, when, sort, minPrice, maxPrice, page, limit, fields };
+  return JSON.stringify(k);
+};
+
+export const getCachedServiceProviders = (params: Parameters<typeof getServiceProviders>[0] = {}): GetServiceProvidersResponse | null => {
+  const key = providersKey(params || {});
+  const now = Date.now();
+  const entry = providersCache.get(key);
+  if (entry && now - entry.timestamp < PROVIDERS_CACHE_TTL_MS) {
+    return entry.value;
+  }
+  return null;
+};
+
+export const prefetchServiceProviders = async (params: Parameters<typeof getServiceProviders>[0] = {}): Promise<void> => {
+  const key = providersKey(params || {});
+  try {
+    const res = await getServiceProviders(params);
+    providersCache.set(key, { value: res, timestamp: Date.now() });
+  } catch {
+    // Best-effort
+  }
+};
+
 export const getServiceProvider = async (userId: number) => {
   const res = await api.get<ServiceProviderProfile>(`${API_V1}/service-provider-profiles/${userId}`);
   return { ...res, data: normalizeServiceProviderProfile(res.data) };
@@ -311,6 +347,16 @@ export const updateMyServiceProviderPortfolioImageOrder = (urls: string[]) =>
   api.put<ServiceProviderProfile>(`${API_V1}/service-provider-profiles/me/portfolio-images`, {
     portfolio_image_urls: urls,
   });
+
+// Generic image upload used by service wizard to avoid base64 payloads
+export const uploadImage = async (file: File): Promise<{ url: string }> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await api.post<{ url: string }>(`${API_V1}/uploads/images`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+};
 
 // ─── SERVICES ──────────────────────────────────────────────────────────────────
 

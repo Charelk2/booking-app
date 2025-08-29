@@ -90,6 +90,18 @@ remotePatterns.push(
   { protocol: 'https', hostname: 'api.booka.co.za', pathname: '/static/attachments/**' },
 );
 
+// Cloudflare Images delivery (groundwork)
+remotePatterns.push(
+  { protocol: 'https', hostname: 'imagedelivery.net', pathname: '/**' },
+);
+// Optional custom domain for Cloudflare Images (e.g., images.example.com)
+if (process.env.NEXT_PUBLIC_CF_IMAGES_DOMAIN) {
+  try {
+    const u = new URL(`https://${process.env.NEXT_PUBLIC_CF_IMAGES_DOMAIN.replace(/^https?:\/\//, '')}`);
+    remotePatterns.push({ protocol: 'https', hostname: u.hostname, pathname: '/**' });
+  } catch {}
+}
+
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
@@ -99,8 +111,8 @@ const nextConfig = {
   typescript: { ignoreBuildErrors: true },
   images: {
     remotePatterns,
-    // Temporarily bypass optimizer globally to stabilize external image URLs
-    unoptimized: true,
+    // Enable Next.js image optimizer; we’ll mark blob/data previews as unoptimized per-image.
+    unoptimized: false,
   },
   async headers() {
     return [

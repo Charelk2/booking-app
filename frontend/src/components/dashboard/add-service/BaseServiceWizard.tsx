@@ -15,6 +15,7 @@ import { Stepper } from "@/components/ui";
 import {
   createService as apiCreateService,
   updateService as apiUpdateService,
+  uploadImage as apiUploadImage,
 } from "@/lib/api";
 import type { Service } from "@/types";
 
@@ -172,12 +173,14 @@ export default function BaseServiceWizard<T extends FieldValues>({
     try {
       let mediaUrl: string | null = existingMediaUrl;
       if (mediaFiles[0]) {
-        mediaUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(new Error("Failed to read file"));
-          reader.readAsDataURL(mediaFiles[0]);
-        });
+        // Upload the first selected image and use the returned URL (avoid base64 in payloads)
+        try {
+          const uploaded = await apiUploadImage(mediaFiles[0]);
+          mediaUrl = uploaded?.url || null;
+        } catch (e) {
+          console.error('Image upload failed:', e);
+          throw new Error('Failed to upload image. Please try again.');
+        }
       }
       const payload: Partial<Service> = toPayload(data, mediaUrl);
       if (!serviceCategorySlug) {

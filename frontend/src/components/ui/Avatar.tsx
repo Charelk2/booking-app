@@ -1,7 +1,6 @@
 'use client';
-import Image from 'next/image';
+import SafeImage from '@/components/ui/SafeImage';
 import clsx from 'clsx';
-import { getFullImageUrl } from '@/lib/utils';
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 
 interface AvatarProps {
@@ -31,8 +30,8 @@ export default function Avatar({
       style={{ width: dimension, height: dimension }}
     >
       {src ? (
-        <Image
-          src={getFullImageUrl(src) as string}
+        <SafeImage
+          src={src}
           alt={alt}
           width={size}
           height={size}
@@ -41,17 +40,14 @@ export default function Avatar({
           blurDataURL={BLUR_PLACEHOLDER}
           loading="lazy"
           className="object-cover rounded-full"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
-          }}
         />
       ) : initials ? (
         <span>{initials}</span>
       ) : icon ? (
         icon
       ) : (
-        <Image
-          src={getFullImageUrl('/static/default-avatar.svg') as string}
+        <SafeImage
+          src={'/static/default-avatar.svg'}
           alt={alt}
           width={size}
           height={size}

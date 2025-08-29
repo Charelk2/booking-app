@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
+import SafeImage from '@/components/ui/SafeImage';
 import { getMessageThreadsPreview } from '@/lib/api';
 import { ThreadPreview } from '@/types';
 import { getFullImageUrl } from '@/lib/utils';
@@ -50,15 +50,13 @@ export default function ThreadList({ role, onOpenThread }: ThreadListProps) {
           onClick={() => onOpenThread?.(it.thread_id)}
         >
           {it.counterparty.avatar_url ? (
-            <Image
-              src={getFullImageUrl(it.counterparty.avatar_url) as string}
+            <SafeImage
+              src={it.counterparty.avatar_url}
               alt="Avatar"
               width={36}
               height={36}
               className="h-9 w-9 rounded-full object-cover"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
-              }}
+              sizes="36px"
             />
           ) : (
             <div className="h-9 w-9 rounded-full bg-gray-300 flex items-center justify-center text-sm font-medium">

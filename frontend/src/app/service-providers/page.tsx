@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { format, parseISO, isValid } from 'date-fns';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import MainLayout from '@/components/layout/MainLayout';
-import { getServiceProviders, type PriceBucket } from '@/lib/api';
+import { getServiceProviders, getCachedServiceProviders, prefetchServiceProviders, type PriceBucket } from '@/lib/api';
 import useServiceCategories from '@/hooks/useServiceCategories';
 import { getFullImageUrl } from '@/lib/utils';
 import type { ServiceProviderProfile } from '@/types';
@@ -147,7 +147,8 @@ export default function ServiceProvidersPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await getServiceProviders({
+        // Quick show from cache if present
+        const cacheParams = {
           category: serviceName,
           location: location || undefined,
           when: when || undefined,
@@ -156,8 +157,29 @@ export default function ServiceProvidersPage() {
           maxPrice: debouncedMaxPrice,
           page: pageNumber,
           limit: LIMIT,
-          includePriceDistribution: true,
-        });
+          fields: [
+            'id','business_name','custom_subtitle','profile_picture_url','portfolio_urls','hourly_rate','price_visible','rating','rating_count','location','service_categories','service_price','user.first_name','user.last_name'
+          ],
+        } as const;
+
+        const cached = getCachedServiceProviders(cacheParams);
+        if (cached && !append) {
+          const filteredCached = cached.data.filter((a: ServiceProviderProfile) => {
+            if (serviceName === 'DJ') {
+              const business = a.business_name?.trim().toLowerCase();
+              const fullName = `${a.user?.first_name ?? ''} ${a.user?.last_name ?? ''}`
+                .trim()
+                .toLowerCase();
+              return !!business && business !== fullName;
+            }
+            return !!(a.business_name || a.user);
+          });
+          setHasMore(filteredCached.length === LIMIT);
+          setArtists(filteredCached as any);
+          setPriceDistribution(cached.price_distribution || []);
+        }
+
+        const res = await getServiceProviders({ ...cacheParams, includePriceDistribution: true });
 
         // Filter client-side to guard against any backend responses that
         // include artists from other service categories. For the DJ category,
@@ -193,6 +215,26 @@ export default function ServiceProvidersPage() {
       debouncedMaxPrice,
     ],
   );
+
+  // Idle prefetch page 2 for current filters to make pagination snappy
+  useEffect(() => {
+    if (!filtersReady) return;
+    const idler = () => prefetchServiceProviders({
+      category: serviceName,
+      location: location || undefined,
+      sort,
+      page: 2,
+      limit: LIMIT,
+      fields: ['id','business_name','profile_picture_url','user.first_name','user.last_name']
+    });
+    const id = ('requestIdleCallback' in window)
+      ? (window as any).requestIdleCallback(idler, { timeout: 1500 })
+      : setTimeout(idler, 1000) as any;
+    return () => {
+      if ('cancelIdleCallback' in window) (window as any).cancelIdleCallback?.(id);
+      else clearTimeout(id as any);
+    };
+  }, [filtersReady, serviceName, location, sort]);
 
   useEffect(() => {
     if (!filtersReady) return;
@@ -261,7 +303,7 @@ export default function ServiceProvidersPage() {
 
   return (
     <MainLayout headerFilter={filterControl}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 fade-in">
         {serviceName && (
           <div className="flex items-center space-x-2 mb-4">
             <svg

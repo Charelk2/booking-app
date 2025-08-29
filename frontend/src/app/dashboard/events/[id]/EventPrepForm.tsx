@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import SafeImage from "@/components/ui/SafeImage";
+import { BLUR_PLACEHOLDER } from "@/lib/blurPlaceholder";
 import Link from "next/link";
 import { format } from "date-fns";
 import {
@@ -1093,8 +1095,7 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
           {heroImage && (
             <div className="mb-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
               <div className="aspect-[16/9] bg-gray-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={heroImage} alt={booking.service?.title || 'Event'} className="h-full w-full object-cover" />
+                <SafeImage src={heroImage} alt={booking.service?.title || 'Event'} fill sizes="(max-width: 768px) 100vw, 360px" className="h-full w-full object-cover" priority placeholder="blur" blurDataURL={BLUR_PLACEHOLDER} />
               </div>
             </div>
           )}
