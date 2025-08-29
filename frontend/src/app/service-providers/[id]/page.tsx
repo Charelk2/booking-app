@@ -1543,31 +1543,32 @@ export default function ServiceProviderProfilePage() {
                         ))}
                       </ul>
                     </section>
-                    {(serviceProvider as any)?.cancellation_policy && (() => {
-                      const { intro, bullets } = sanitizePolicy((serviceProvider as any).cancellation_policy);
-                      return (
-                        <>
-                          <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
-                          <section aria-labelledby="policies-heading-desktop">
-                            <h2 id="policies-heading-desktop" className="text-2xl font-bold text-gray-800 mb-4">
-                              Cancellation Policy
-                            </h2>
-                            <div className="rounded-2xl border border-gray-100 p-6 bg-gradient-to-br from-white to-gray-50 shadow-sm text-gray-700">
-                              {intro && <p className="mb-2 leading-relaxed">{intro}</p>}
-                              {!!bullets.length && (
-                                <ul className="list-disc pl-6 space-y-1">
-                                  {bullets.map((b, i) => (
-                                    <li key={`desktop-pol-${i}`}>{b}</li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          </section>
-                        </>
-                      );
-                    })()}
                   </>
                 )}
+
+                {(serviceProvider as any)?.cancellation_policy && (() => {
+                  const { intro, bullets } = sanitizePolicy((serviceProvider as any).cancellation_policy);
+                  return (
+                    <>
+                      <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
+                      <section aria-labelledby="policies-heading-desktop">
+                        <h2 id="policies-heading-desktop" className="text-2xl font-bold text-gray-800 mb-4">
+                          Cancellation Policy
+                        </h2>
+                        <div className="rounded-2xl border border-gray-100 p-6 bg-gradient-to-br from-white to-gray-50 shadow-sm text-gray-700">
+                          {intro && <p className="mb-2 leading-relaxed">{intro}</p>}
+                          {!!bullets.length && (
+                            <ul className="list-disc pl-6 space-y-1">
+                              {bullets.map((b, i) => (
+                                <li key={`desktop-pol-${i}`}>{b}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </section>
+                    </>
+                  );
+                })()}
 
 <section aria-label="Vetted by Booka" className="mt-16 pt-16">
   <div className="relative isolate overflow-hidden rounded-3xl bg-gray-100 p-6 shadow-sm md:p-10 dark:border-gray-800 dark:bg-gray-900">
