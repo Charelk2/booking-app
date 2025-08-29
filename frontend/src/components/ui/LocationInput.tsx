@@ -29,6 +29,8 @@ export interface LocationInputProps {
   showDropdown?: boolean;
   /** NEW: bubble input focus to parent if needed */
   onFocus?: React.FocusEventHandler<HTMLInputElement>;
+  /** When true, only show towns/cities and fill input with the town name (ZA only). */
+  cityOnly?: boolean;
 }
 
 export const AUTOCOMPLETE_LISTBOX_ID = "autocomplete-options";
@@ -46,6 +48,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       enterKeyHint,
       showDropdown = true,
       onFocus, // NEW
+      cityOnly = false,
     },
     ref
   ) => {
@@ -138,10 +141,9 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
       if (value.trim().length === 0 || !isPlacesReady) return;
       if (suppressAutocompleteRef.current) return;
       const handler = setTimeout(() => {
-        autocompleteServiceRef.current?.getPlacePredictions(
-          {
-            input: value,
-            componentRestrictions: { country: ["za"] },
+        const req: any = {
+          input: value,
+          componentRestrictions: { country: ["za"] },
             ...(userLocation && {
               location: new google.maps.LatLng(
                 userLocation.lat,
@@ -149,10 +151,71 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
               ),
               radius: 30000,
             }),
-            sessionToken: sessionTokenRef.current || undefined,
-          },
+          sessionToken: sessionTokenRef.current || undefined,
+        };
+        if (cityOnly) {
+          // Prefer cities in predictions
+          req.types = ["(cities)"];
+        }
+        autocompleteServiceRef.current?.getPlacePredictions(
+          req,
           (results) => {
-            const preds = results || [];
+            let preds = results || [];
+            if (cityOnly) {
+              // In cityOnly mode, ensure we list unique city names, with province if present (strip country)
+              const seen = new Set<string>();
+              preds = preds
+                .map((p) => {
+                  const city = p.structured_formatting?.main_text || p.description || "";
+                  let secondary = p.structured_formatting?.secondary_text || "";
+                  secondary = secondary.replace(/,?\s*South Africa$/i, "").trim();
+                  const key = `${city}|${secondary}`;
+                  return { p, city, secondary, key } as const;
+                })
+                .filter((x) => {
+                  if (!x.city) return false;
+                  if (seen.has(x.key)) return false;
+                  seen.add(x.key);
+                  return true;
+                })
+                .map((x) => x.p);
+
+              // Fallback: If no cities returned, derive cities from general predictions
+              if (preds.length === 0) {
+                const fallbackReq: any = { ...req };
+                delete fallbackReq.types;
+                autocompleteServiceRef.current?.getPlacePredictions(
+                  fallbackReq,
+                  (fallback) => {
+                    const items = (fallback || []).map((p) => {
+                      const sec = p.structured_formatting?.secondary_text || '';
+                      const cleaned = sec.replace(/,?\s*South Africa$/i, '').trim();
+                      const [cityGuess, provinceGuess] = cleaned.split(/,\s*/);
+                      const city = cityGuess || p.structured_formatting?.main_text || '';
+                      const province = provinceGuess || '';
+                      const key = `${city}|${province}`;
+                      return { city, province, key, original: p };
+                    });
+                    const uniqSeen = new Set<string>();
+                    const transformed = items
+                      .filter((it) => it.city && !uniqSeen.has(it.key) && (uniqSeen.add(it.key) || true))
+                      .map((it) => ({
+                        ...it.original,
+                        structured_formatting: {
+                          ...(it.original.structured_formatting as any),
+                          main_text: it.city,
+                          secondary_text: it.province ? `${it.province}` : (it.original.structured_formatting?.secondary_text || ''),
+                        },
+                      } as google.maps.places.AutocompletePrediction));
+                    setPredictions(transformed);
+                    onPredictionsChange?.(transformed);
+                    setDropdownVisible(isFocused && transformed.length > 0);
+                    if (transformed.length > 0) setHighlightedIndex(-1);
+                  }
+                );
+                return; // Stop normal flow; fallback path will update state
+              }
+            }
             setPredictions(preds);
             onPredictionsChange?.(preds);
             // Only show dropdown when user has focused the input
@@ -231,6 +294,35 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
     ) => {
       setPredictions([]);
       setDropdownVisible(false);
+
+      if (cityOnly) {
+        // Prefer only the Town/City name for the input value.
+        const main = prediction.structured_formatting?.main_text || prediction.description || '';
+        let secondary = prediction.structured_formatting?.secondary_text || '';
+        // Strip country, then try to extract the city from secondary when main is a suburb.
+        secondary = secondary.replace(/,?\s*South Africa$/i, '').trim();
+        const parts = secondary.split(/,\s*/).filter(Boolean);
+        let city = '';
+        if (parts.length >= 1) {
+          // Usually parts[0] is the city/town when main is a suburb; if it's actually the province, we'll fall back to main.
+          city = parts[0];
+        }
+        if (!city) city = main;
+        const displayCity = city;
+
+        const fakePlace: PlaceResult = {
+          name: displayCity,
+          formatted_address: `${displayCity}, South Africa`,
+        } as any;
+        onPlaceSelect(fakePlace);
+        onValueChange(displayCity);
+        setLiveMessage(`Location selected: ${displayCity}`);
+        suppressAutocompleteRef.current = true;
+        setTimeout(() => {
+          suppressAutocompleteRef.current = false;
+        }, 600);
+        return;
+      }
 
       const service = placesServiceRef.current;
       if (!service) {
@@ -339,9 +431,14 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
           >
             {predictions.map((prediction, index) => {
               const isActive = index === highlightedIndex;
-              const placeName = prediction.structured_formatting.main_text;
-              const placeDetails =
-                prediction.structured_formatting.secondary_text;
+              let placeName = prediction.structured_formatting.main_text;
+              let placeDetails = prediction.structured_formatting.secondary_text;
+              if (cityOnly) {
+                // Ensure we present City, Province (without country)
+                if (placeDetails) {
+                  placeDetails = placeDetails.replace(/,?\s*South Africa$/i, '').trim();
+                }
+              }
 
               return (
                 <div
@@ -360,9 +457,7 @@ const LocationInput = forwardRef<HTMLInputElement, LocationInputProps>(
                 >
                   <MapPinIcon className="mr-3 h-5 w-5 shrink-0 text-gray-400" />
                   <div>
-                    <span className="font-medium text-gray-800">
-                      {placeName}
-                    </span>
+                    <span className="font-medium text-gray-800">{placeName}</span>
                     {placeDetails && (
                       <span className="ml-2 text-gray-500">{placeDetails}</span>
                     )}

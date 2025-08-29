@@ -10,7 +10,7 @@ import {
 } from 'react';
 import clsx from 'clsx';
 import LocationInput, { PlaceResult } from '../ui/LocationInput';
-import { MusicalNoteIcon, CalendarIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { MusicalNoteIcon, CalendarIcon, MapPinIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 // Import types for consistency
 import type { ActivePopup } from './SearchBar'; // Assuming SearchBar defines ActivePopup
@@ -44,6 +44,10 @@ export interface SearchFieldsProps {
     fieldBase?: string;
     divider?: string;
   };
+  submitBusy?: boolean;
+  showExpanded?: boolean;
+  /** Restrict Where autocomplete to city/town in SearchBar only */
+  locationCityOnly?: boolean;
 }
 
 export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
@@ -60,6 +64,9 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
       compact = false,
       locationInputRef,
       onPredictionsChange,
+      submitBusy = false,
+      showExpanded = false,
+      locationCityOnly = false,
     },
     ref
   ) => {
@@ -99,7 +106,7 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             onClick={() => onFieldClick(id, buttonRef.current!)} // Pass the ID and the button element
             className={clsx(
               'group relative z-10 w-full flex flex-col rounded-full justify-center text-left transition-all duration-200 ease-out outline-none focus:outline-none focus:ring-0 focus:ring-offset-0',
-              compact ? 'px-4 py-2' : 'px-6 py-4',
+              compact ? 'px-4 py-2' : 'px-6 py-2',
               isActive
                 ? 'bg-gray-100 rounded-full'
                 : 'hover:bg-gray-100 focus:bg-gray-50', // Removed rounded-full here
@@ -129,8 +136,8 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
             </span>
           </button>
 
-          {/* Clear button - only visible when a value is present AND the field is NOT active */}
-          {isValuePresent && !isActive && (
+          {/* Clear button - only visible when a value is present AND the field IS active */}
+          {isValuePresent && isActive && (
             <button
               type="button"
               onClick={(e) => {
@@ -182,7 +189,9 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
         ref={locationContainerRef}
         className={clsx(
           'relative min-w-0 transition-all duration-200 ease-out', 
-          compact ? 'px-4 py-2' : 'px-6 py-4',
+          compact ? 'px-4 py-2' : 'px-6 py-2',
+          // Make room for the inline submit button on the right (slightly tighter)
+          'pr-16',
           activeField === 'location'
             ? 'bg-gray-100 rounded-full '
             : 'rounded-full hover:bg-gray-100 focus:bg-gray-50 ',
@@ -203,33 +212,59 @@ export const SearchFields = forwardRef<HTMLDivElement, SearchFieldsProps>(
           ref={locationInputRef}
           value={location}
           onValueChange={setLocation}
-          onPlaceSelect={(place: PlaceResult) => setLocation(place.formatted_address || place.name || '')}
+          onPlaceSelect={(place: PlaceResult) => {
+            if (locationCityOnly) {
+              // LocationInput already set the display value via onValueChange; don't override it here
+              return;
+            }
+            setLocation(place.formatted_address || place.name || '');
+          }}
           placeholder="Add location"
           className="w-full"
           inputClassName={clsx(
             'block truncate p-0 bg-transparent',
             location ? 'text-gray-800' : 'text-gray-500',
             compact ? 'text-sm' : 'text-base text-xs',
+            // Avoid text under the submit button (slightly tighter)
+            'pr-6',
           )}
           showDropdown={false}
           onPredictionsChange={onPredictionsChange}
+          cityOnly={locationCityOnly}
         />
 
-        {location && activeField !== 'location' && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setLocation('');
-              locationInputRef.current?.focus();
-            }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none rounded-full p-1 z-20 transition-transform active:scale-90"
-            aria-label="Clear location"
-            title="Clear location"
-          >
-            &times;
-          </button>
-        )}
+        {/* No clear (x) button for Where in SearchBar context */}
+
+        {/* Inline submit button inside the Where field */}
+        <button
+          type="submit"
+          aria-label="Search now"
+          aria-expanded={!!activeField}
+          className={clsx(
+            'absolute right-3 top-1/2 -translate-y-1/2 h-10 rounded-full flex items-center',
+            !!activeField || showExpanded ? 'px-3 gap-2 w-auto justify-center' : 'w-10 justify-center',
+            'bg-white/70 hover:bg-gray-100',
+            'border border-white/60 ring-1 ring-white/40 backdrop-blur-md',
+            'transition-all duration-200',
+            submitBusy && 'cursor-not-allowed opacity-80',
+          )}
+          disabled={submitBusy}
+        >
+          {submitBusy ? (
+            <svg className="h-5 w-5 animate-spin text-slate-800" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+          ) : (
+            <>
+              <MagnifyingGlassIcon className="h-5 w-5 text-slate-900/80" />
+              {(!!activeField || showExpanded) && (
+                <span className="text-xs font-semibold text-slate-900/90">Search</span>
+              )}
+            </>
+          )}
+          <span className="sr-only">Search</span>
+        </button>
       </div>
     </div>
   );
