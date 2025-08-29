@@ -27,6 +27,7 @@ import { ConversationList, ConversationShow } from './resources/conversations';
 // Custom pages
 import PayoutsRun from './routes/PayoutsRun';
 import UsersSearch from './routes/UsersSearch';
+import Migrations from './routes/Migrations';
 
 const customEn = {
   app: {
@@ -88,6 +89,7 @@ export default function App() {
         <CustomRoutes>
           <Route path="/payouts/run" element={<PayoutsRun />} />
           <Route path="/users" element={<UsersSearch />} />
+          <Route path="/ops/migrations" element={<Migrations />} />
           <Route path="/providers/deleted" element={<ProviderList />} />
         </CustomRoutes>
       </Admin>

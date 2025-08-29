@@ -19,6 +19,10 @@ export const metadata = {
   title: 'Service Provider Booking App',
   description: 'Book your favorite artists for services',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+  },
 };
 
 export const viewport = {
