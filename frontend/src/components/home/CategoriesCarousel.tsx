@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+// Use plain <img> for static category icons to avoid /_next/image revalidation costs
 import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -237,17 +237,14 @@ export default function CategoriesCarousel() {
               onFocus={() => router.prefetch?.(`/category/${encodeURIComponent(cat.value)}`)}
             >
               <div className="relative h-36 w-36 overflow-hidden rounded-lg bg-gray-100">
-                <Image
+                <img
                   src={CATEGORY_IMAGES[cat.value] || '/bartender.png'}
                   alt={cat.display}
-                  fill
-                  sizes="160px"
-                  className="object-cover"
-                  priority={i === 0}
-                  fetchPriority={i === 0 ? 'high' : undefined}
-                  {...(i === 0 ? { elementtiming: 'LCP-hero' } as any : {})}
-                  placeholder="blur"
-                  blurDataURL={BLUR_PLACEHOLDER}
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  width={144}
+                  height={144}
+                  style={{ objectFit: 'cover', width: '100%', height: '100%' }}
                 />
               </div>
               <p className="mt-2 text-xs text-left text-black font-semibold whitespace-nowrap">

@@ -89,15 +89,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionStorage.removeItem('user');
       }
     }
-    // Attempt to fetch current user using cookie-based session if present
+    // Only attempt to fetch the current user if a user is already present in storage
+    // This avoids an extra /auth/me request for anonymous homepage visitors.
     (async () => {
-      try {
-        const userData = await fetchCurrentUserWithArtist();
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-      } catch (err) {
-        // Not authenticated by cookie; proceed with whatever we have in storage
-      } finally {
+      if (storedUser) {
+        try {
+          const userData = await fetchCurrentUserWithArtist();
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
+        } catch (err) {
+          // Not authenticated by cookie; proceed with whatever we have in storage
+        } finally {
+          setLoading(false);
+        }
+      } else {
         setLoading(false);
       }
     })();

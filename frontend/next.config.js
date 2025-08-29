@@ -113,6 +113,8 @@ const nextConfig = {
     remotePatterns,
     // Enable Next.js image optimizer; we’ll mark blob/data previews as unoptimized per-image.
     unoptimized: false,
+    // Reduce revalidation frequency for optimized images; encourages browser to reuse cached transforms
+    minimumCacheTTL: 86400, // 1 day
   },
   async headers() {
     return [

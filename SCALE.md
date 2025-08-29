@@ -245,3 +245,53 @@ References
 
 Changelog
 - 2025-08-29: Initial version.
+
+Operational Log — 2025‑08‑29
+Summary
+- Enabled Redis caching in production (Fly.io + Upstash) and ensured hot list routes use the cacheable path by not requesting price histograms on first load. Histogram is fetched lazily post‑render.
+ - Optimized HAR-identified bottlenecks: added cache headers + ETag for provider lists, removed anonymous /auth/me on home, avoided next/image for static category icons, and set a longer minimum TTL for optimized images.
+
+What we did
+- Provisioned Redis (Upstash via Fly):
+  - Command: `flyctl redis create --region jnb`
+  - Result: database `booka-redis-v1` with connection string like
+    `redis://default:<PASSWORD>@fly-booka-redis-v1.upstash.io:6379/0`
+  - Note: Keep the real password out of the repo and tickets.
+- Set Fly secret on backend app (no .env changes):
+  - `flyctl secrets set REDIS_URL='redis://default:<PASSWORD>@fly-booka-redis-v1.upstash.io:6379/0' -a booka-api-charel`
+  - If TLS is required/preferred, use `rediss://` (port may differ per provider).
+- Redeployed backend:
+  - `flyctl deploy -c fly.toml -a booka-api-charel`
+- Verified health and caching:
+  - Health: `curl -sS https://api.booka.co.za/healthz` → HTTP 200 JSON.
+  - Logs: `flyctl logs -a booka-api-charel | rg -i redis` → no "Redis unavailable" warnings.
+  - TTFB MISS vs HIT (run twice, identical params with no `include_price_distribution` and no `when`):
+    `curl -s -o /dev/null -w 'TTFB:%{time_starttransfer}s\n' 'https://api.booka.co.za/api/v1/service-provider-profiles?limit=20&page=1'`
+  - Optional key scan (if you have redis-cli):
+    `redis-cli -u 'redis://default:<PASSWORD>@fly-booka-redis-v1.upstash.io:6379/0' --scan --pattern 'service_provider_profiles:list:*' | head`
+    `redis-cli -u 'redis://default:<PASSWORD>@fly-booka-redis-v1.upstash.io:6379/0' --scan --pattern 'availability:*' | head`
+
+ App changes (performance)
+ - Backend (FastAPI) — Provider list endpoint (`backend/app/api/v1/api_service_provider.py`):
+   - Added `Cache-Control: public, s-maxage=60, stale-while-revalidate=300` and `ETag` on cacheable list responses (no `when`, no `include_price_distribution`, no artist search).
+   - Added `X-Cache: HIT|MISS|BYPASS` header to aid debugging and dashboards.
+   - Avoided per-artist availability lookups when `when` is not provided; default `is_available` to `true` to prevent N+1 query patterns on list pages.
+ - Frontend (Next.js):
+   - Stopped eager `/auth/me` fetch for anonymous users (AuthContext); only fetches when a stored user exists.
+   - Switched category carousel icons from `next/image` to plain `<img>` to eliminate ~300ms revalidation 304s per icon on refresh/back navigation.
+   - Increased `images.minimumCacheTTL` to 86400s in `next.config.js` so browsers keep optimized images longer.
+
+ HAR expectations after changes
+ - HTML for `/` is served via ISR (already `revalidate = 60`), reducing server wait on repeat loads.
+ - Provider list JSON now carries cache headers and ETag; back/refresh should avoid full refetch or at least benefit from shared/browser caches.
+ - Category icons no longer hit `/_next/image`; requests should be fast static asset hits.
+ - No `/auth/me` on anonymous homepage loads.
+
+Frontend behavior (cache‑friendly)
+- Provider list on homepage/category:
+  - Main list request no longer includes `include_price_distribution=true` and omits `when` → eligible for backend Redis caching.
+  - Price histogram is fetched lazily after initial render (non‑blocking UI).
+
+Notes
+- Do not commit real secrets to the repo. Use Fly secrets for credentials.
+- Keep Redis in/near `jnb` to minimize RTT from the API.
