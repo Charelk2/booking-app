@@ -1042,10 +1042,11 @@ export default function ServiceProviderProfilePage() {
                     <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
                     <section aria-labelledby="policies-heading">
                       <h2 id="policies-heading" className="text-lg font-bold text-gray-900">
-                        Cancellation Policy
+                        Policies
                       </h2>
                       <div className="mt-3 rounded-2xl border border-gray-100 p-5 text-sm text-gray-700 bg-gradient-to-br from-white to-gray-50 shadow-sm">
-                        {intro && <p className="mb-2 leading-relaxed">{intro}</p>}
+                        <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">Cancellation Policy</p>
+                        {intro && <p className="mb-3 leading-relaxed">{intro}</p>}
                         {!!bullets.length && (
                           <ul className="list-disc pl-5 space-y-1">
                             {bullets.map((b, i) => (
@@ -1552,11 +1553,12 @@ export default function ServiceProviderProfilePage() {
                     <>
                       <div className="mt-16 mb-10 h-px w-full bg-gray-200" />
                       <section aria-labelledby="policies-heading-desktop">
-                        <h2 id="policies-heading-desktop" className="text-2xl font-bold text-gray-800 mb-4">
-                          Cancellation Policy
+                        <h2 id="policies-heading-desktop" className="text-2xl font-bold text-gray-800 mb-1">
+                          Policies
                         </h2>
                         <div className="rounded-2xl border border-gray-100 p-6 bg-gradient-to-br from-white to-gray-50 shadow-sm text-gray-700">
-                          {intro && <p className="mb-2 leading-relaxed">{intro}</p>}
+                          <p className="mb-2 text-xs uppercase tracking-wide text-gray-500">Cancellation Policy</p>
+                          {intro && <p className="mb-3 leading-relaxed">{intro}</p>}
                           {!!bullets.length && (
                             <ul className="list-disc pl-6 space-y-1">
                               {bullets.map((b, i) => (
@@ -1661,12 +1663,15 @@ export default function ServiceProviderProfilePage() {
         />
       )}
 
-      {/* Service Picker Sheet (mobile) */}
+      {/* Service Picker Sheet (mobile + desktop) */}
       {isServicePickerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Choose a service to book">
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Choose a service to book">
           <div className="absolute inset-0 bg-black/40" onClick={() => setIsServicePickerOpen(false)} aria-hidden="true" />
-          <div className="absolute inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-2xl bg-white shadow-xl">
-            <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3">
+          <div
+            className="absolute inset-x-0 bottom-0 max-h-[90vh] overflow-y-auto rounded-t-2xl bg-white shadow-xl
+                       md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-2xl md:rounded-2xl"
+          >
+            <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3 md:rounded-t-2xl">
               <div className="mx-auto max-w-5xl flex items-center justify-between">
                 <h3 className="text-base font-semibold text-gray-900">Select a service</h3>
                 <button onClick={() => setIsServicePickerOpen(false)} className="p-2 rounded-lg hover:bg-gray-50" aria-label="Close">
@@ -1745,7 +1750,41 @@ export default function ServiceProviderProfilePage() {
                             </div>
                             {s.description && <p className="mt-1 text-[13px] text-gray-600 line-clamp-2">{s.description}</p>}
                           </div>
-                          <div className="ml-2 shrink-0 text-sm font-semibold text-gray-900">{formatZAR(getServicePrice(s))}</div>
+                          <div className="ml-2 shrink-0 flex flex-col items-end gap-1">
+                            <div className="text-sm font-semibold text-gray-900">{formatZAR(getServicePrice(s))}</div>
+                            {checked && (
+                              <>
+                                {/* Desktop per-card Continue */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleBookService(s);
+                                    setIsServicePickerOpen(false);
+                                  }}
+                                  className="hidden md:inline-flex rounded-lg bg-gray-900 px-3 py-1 text-xs font-semibold text-white hover:bg-gray-800 active:scale-[0.99]"
+                                  aria-label={`Continue with ${s.title || (s as any).service_type}`}
+                                >
+                                  Continue
+                                </button>
+                                {/* Mobile per-card Go button (appears after selection) */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleBookService(s);
+                                    setIsServicePickerOpen(false);
+                                  }}
+                                  className="md:hidden inline-flex rounded-lg bg-gray-900 px-3 py-1 text-xs font-semibold text-white hover:bg-gray-800 active:scale-[0.99]"
+                                  aria-label={`Go with ${s.title || (s as any).service_type}`}
+                                >
+                                  Go
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </label>
                       </li>
                     );
