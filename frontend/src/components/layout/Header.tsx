@@ -490,7 +490,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   'transition-opacity'
                 )}
               >
-                <div className="relative w-full max-w-2xl">
+                <div className="relative w-full max-w-lg">
                   <button
                     id="compact-search-trigger"
                     type="button"

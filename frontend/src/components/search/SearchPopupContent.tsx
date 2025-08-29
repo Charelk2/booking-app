@@ -29,6 +29,7 @@ interface SearchPopupContentProps {
   locationInputRef: RefObject<HTMLInputElement>;
   categoryListboxOptionsRef: RefObject<HTMLUListElement>;
   locationPredictions: google.maps.places.AutocompletePrediction[];
+  locationCityOnly?: boolean;
 }
 
 type CustomHeaderProps = {
@@ -58,6 +59,7 @@ export default function SearchPopupContent({
   locationInputRef,
   categoryListboxOptionsRef,
   locationPredictions,
+  locationCityOnly = false,
 }: SearchPopupContentProps) {
   const [isClient, setIsClient] = useState(false);
   // Live region message used to announce selections to assistive tech.
@@ -69,6 +71,7 @@ export default function SearchPopupContent({
   const artistInputRef = useRef<HTMLInputElement>(null);
   const categories = useServiceCategories();
   const router = useRouter();
+  // Artist quick search state (unchanged)
 
   useEffect(() => {
     setIsClient(true);
@@ -110,14 +113,25 @@ export default function SearchPopupContent({
     return () => clearTimeout(handler);
   }, [artistQuery]);
 
+  // no-op helpers removed
+
   const handleLocationSelect = useCallback(
-    (place: { name: string; formatted_address?: string }) => {
-      const displayName = place.formatted_address || place.name || '';
+    (prediction: google.maps.places.AutocompletePrediction) => {
+      let displayName = prediction.description || '';
+      if (locationCityOnly) {
+        const main = prediction.structured_formatting?.main_text || '';
+        let secondary = prediction.structured_formatting?.secondary_text || '';
+        secondary = secondary.replace(/,?\s*South Africa$/i, '').trim();
+        const parts = secondary.split(/,\s*/).filter(Boolean);
+        // Prefer only the city/town name for SearchBar
+        const city = parts[0] || main;
+        displayName = city;
+      }
       setLocation(displayName);
       setAnnouncement(`Location selected: ${displayName}`);
-      closeAllPopups(); // Close popup after selection
+      closeAllPopups();
     },
-    [setLocation, closeAllPopups],
+    [setLocation, closeAllPopups, locationCityOnly],
   );
 
   const handleCategorySelect = useCallback(
@@ -228,12 +242,7 @@ export default function SearchPopupContent({
             <li
               key={p.place_id || p.description}
               id={optionId}
-              onClick={() =>
-                handleLocationSelect({
-                  name: p.description,
-                  formatted_address: p.description,
-                })
-              }
+              onClick={() => handleLocationSelect(p)}
               className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition"
               role="option"
               aria-selected={activeId === optionId}
