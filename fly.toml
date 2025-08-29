@@ -13,6 +13,10 @@ primary_region = "jnb"  # Johannesburg (fallback to ams if not available)
   SQLALCHEMY_DATABASE_URL = "sqlite:////data/booking.db"
   ATTACHMENTS_DIR = "/data/attachments"
   UPLOADS_DIR = "/data/uploads"
+  # Set this to your managed Redis instance URL (e.g., Upstash, Fly Redis, etc.).
+  # Example: REDIS_URL = "redis://default:<password>@<host>:<port>/0"
+  # You can also set as a Fly secret: flyctl secrets set REDIS_URL=... (takes precedence)
+  REDIS_URL = "redis://localhost:6379/0"
 
 [http_service]
   internal_port = 8000
