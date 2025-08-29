@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
+import SafeImage from '@/components/ui/SafeImage';
+import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 import { format, isValid } from 'date-fns';
 import { getFullImageUrl, formatCurrency, buildReceiptUrl } from '@/lib/utils';
 import { Booking, QuoteV2 } from '@/types';
@@ -95,12 +96,14 @@ export default function BookingSummaryCard({
       <div className="px-4 mt-3 flex items-center gap-3">
         <div className="relative h-16 w-16 rounded-xl overflow-hidden shrink-0">
           {imageUrl ? (
-            <Image
-              src={getFullImageUrl(imageUrl) as string}
+            <SafeImage
+              src={imageUrl}
               alt="Service image"
               fill
               className="object-cover"
               sizes="64px"
+              placeholder="blur"
+              blurDataURL={BLUR_PLACEHOLDER}
             />
           ) : (
             <div className="absolute inset-0 bg-gray-200" aria-hidden="true" />

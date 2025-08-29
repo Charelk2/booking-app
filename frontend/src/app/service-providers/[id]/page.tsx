@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useDeferredValue, startTransition } from 'react';
 import Head from 'next/head';
+import { BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
 // next/image is wrapped via SafeImage to ensure reliable fallback
 import SafeImage from '@/components/ui/SafeImage';
 import dynamic from 'next/dynamic';
@@ -651,13 +652,24 @@ export default function ServiceProviderProfilePage() {
       </Head>
 
       <MainLayout hideFooter>
-        <div className="bg-white">
+        <div className="bg-white fade-in">
           {/* ======================== MOBILE ======================== */}
           <section className="md:hidden">
             {/* Hero */}
             <div className="relative h-48 w-full overflow-hidden">
               {coverPhotoUrl ? (
-                <SafeImage src={coverPhotoUrl} alt="Cover photo" fill priority className="object-cover" sizes="100vw" />
+                <SafeImage
+                  src={coverPhotoUrl}
+                  alt="Cover photo"
+                  fill
+                  priority
+                  fetchPriority="high"
+                  {...{ elementtiming: 'LCP-hero' }}
+                  className="object-cover"
+                  sizes="100vw"
+                  placeholder="blur"
+                  blurDataURL={BLUR_PLACEHOLDER}
+                />
               ) : (
                 <div className="h-full w-full bg-gray-100" />
               )}
@@ -682,7 +694,7 @@ export default function ServiceProviderProfilePage() {
                 <div className="flex items-center gap-4">
                   <div className="relative -mt-10 h-20 w-20 shrink-0 rounded-full ring-4 ring-white overflow-hidden bg-gray-200">
                     {profilePictureUrl ? (
-                      <SafeImage src={profilePictureUrl} alt={displayName} fill className="object-cover" sizes="80px" />
+                      <SafeImage src={profilePictureUrl} alt={displayName} fill className="object-cover" sizes="80px" placeholder="blur" blurDataURL={BLUR_PLACEHOLDER} />
                     ) : (
                       <div className="h-full w-full grid place-items-center">
                         <UserIcon className="h-10 w-10 text-gray-400" />

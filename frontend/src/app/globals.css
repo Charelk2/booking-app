@@ -129,6 +129,14 @@ html, body {
   .hero-gradient {
     @apply bg-gradient-to-br from-indigo-50 to-indigo-100;
   }
+  .fade-in {
+    animation: fadeIn 180ms ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes flashText {

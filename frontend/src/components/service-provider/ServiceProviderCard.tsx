@@ -1,5 +1,5 @@
 'use client';
-import Image from 'next/image';
+import SafeImage from '@/components/ui/SafeImage';
 import Link from 'next/link';
 import type { HTMLAttributes } from 'react';
 import { useEffect, useState } from 'react';
@@ -87,29 +87,26 @@ export default function ServiceProviderCard({
         <div className="relative h-48 w-full overflow-hidden rounded-t-2xl bg-gray-100">
           {!imgLoaded && <div className="absolute inset-0 animate-pulse bg-gray-200" />}
           {imageUrl ? (
-            <Image
+            <SafeImage
               src={imageUrl}
               alt={name}
               width={512}
               height={512}
-              sizes="(max-width: 640px) 100vw, 512px"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 512px"
               placeholder="blur"
               blurDataURL={BLUR_PLACEHOLDER}
               className="object-cover w-full h-full"
               {...(priority ? {} : { loading: 'lazy' })}
               priority={priority}
               onLoad={() => setImgLoaded(true)}
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = getFullImageUrl('/static/default-avatar.svg') as string;
-              }}
             />
           ) : (
-            <Image
-              src={getFullImageUrl('/static/default-avatar.svg') as string}
+            <SafeImage
+              src={'/static/default-avatar.svg'}
               alt={name}
               width={512}
               height={512}
-              sizes="(max-width: 640px) 100vw, 512px"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 512px"
               placeholder="blur"
               blurDataURL={BLUR_PLACEHOLDER}
               className="object-cover w-full h-full"

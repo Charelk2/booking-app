@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import StatusBadge from '../ui/StatusBadge';
 import { X } from 'lucide-react';
 import { StarIcon, CheckBadgeIcon, MapPinIcon, CalendarDaysIcon } from '@heroicons/react/24/solid';
+import SafeImage from '@/components/ui/SafeImage';
 import { getServiceProviderReviews } from '@/lib/api';
 import type { Review } from '@/types';
 
@@ -504,8 +505,7 @@ export default function QuotePeek(props: QuotePeekProps) {
               <div className="mb-3">
                 <div className="flex items-center gap-2">
                   {providerAvatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={providerAvatarUrl} alt="Provider avatar" className="h-8 w-8 rounded-full object-cover" />
+                    <SafeImage src={providerAvatarUrl} alt="Provider avatar" width={32} height={32} sizes="32px" className="h-8 w-8 rounded-full object-cover" />
                   ) : (
                     <div className="h-8 w-8 rounded-full bg-gray-200" aria-hidden />
                   )}

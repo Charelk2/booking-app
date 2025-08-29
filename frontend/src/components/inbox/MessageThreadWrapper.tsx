@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import SafeImage from '@/components/ui/SafeImage';
 
 import { Booking, BookingRequest, QuoteV2 } from '@/types';
 import * as api from '@/lib/api';
@@ -143,17 +143,14 @@ export default function MessageThreadWrapper({
               </div>
             ) : isUserArtist ? (
               bookingRequest.client?.profile_picture_url ? (
-                <Image
-                  src={getFullImageUrl(bookingRequest.client.profile_picture_url) as string}
+                <SafeImage
+                  src={bookingRequest.client.profile_picture_url}
                   alt="Client avatar"
                   width={40}
                   height={40}
                   loading="lazy"
                   className="h-10 w-10 rounded-full object-cover"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src =
-                      getFullImageUrl('/static/default-avatar.svg') as string;
-                  }}
+                  sizes="40px"
                 />
               ) : (
                 <div className="h-10 w-10 rounded-full bg-black flex items-center justify-center text-base font-medium text-white">
@@ -175,17 +172,14 @@ export default function MessageThreadWrapper({
                 aria-label="Service Provider profile"
                 className="flex-shrink-0"
               >
-                <Image
-                  src={getFullImageUrl(bookingRequest.artist_profile.profile_picture_url) as string}
+                <SafeImage
+                  src={bookingRequest.artist_profile.profile_picture_url}
                   alt="Service Provider avatar"
                   width={40}
                   height={40}
                   loading="lazy"
                   className="h-10 w-10 rounded-full object-cover"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src =
-                      getFullImageUrl('/static/default-avatar.svg') as string;
-                  }}
+                  sizes="40px"
                 />
               </Link>
             ) : (

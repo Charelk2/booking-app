@@ -94,6 +94,7 @@ export default function ProfilePicturePage() {
             width={128}
             height={128}
             className="w-32 h-32 object-cover rounded-full"
+            unoptimized
           />
         ) : currentUrl ? (
           <Image
@@ -128,6 +129,7 @@ export default function ProfilePicturePage() {
                   width={300}
                   height={300}
                   className="max-h-[300px] object-contain"
+                  unoptimized
                 />
               </ReactCrop>
               <Button

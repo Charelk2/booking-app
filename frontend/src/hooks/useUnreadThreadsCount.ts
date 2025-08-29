@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getMessageThreadsPreview, getMessageThreads } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function useUnreadThreadsCount(pollMs = 30000) {
   const [count, setCount] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const { user, loading } = useAuth();
 
   const refresh = useCallback(async () => {
+    if (loading || !user) return; // Skip when unauthenticated or not ready
     try {
       const res = await getMessageThreadsPreview();
       const items = res.data?.items || [];
@@ -28,6 +31,11 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
   }, []);
 
   useEffect(() => {
+    if (!user || loading) {
+      setCount(0);
+      if (timerRef.current) clearInterval(timerRef.current);
+      return; // Do not start timers when logged out
+    }
     void refresh();
     const handleBump = () => void refresh();
     if (typeof window !== 'undefined') {
@@ -47,7 +55,7 @@ export default function useUnreadThreadsCount(pollMs = 30000) {
         window.removeEventListener('threads:updated', handleBump);
       }
     };
-  }, [refresh, pollMs]);
+  }, [refresh, pollMs, user, loading]);
 
   return { count, refresh };
 }
