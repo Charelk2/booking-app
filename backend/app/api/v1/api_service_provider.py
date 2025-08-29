@@ -7,6 +7,8 @@ from sqlalchemy import func, desc, or_
 from collections import defaultdict
 from datetime import datetime, timedelta, date
 import logging
+import hashlib
+import json
 import re
 import shutil
 from pathlib import Path
@@ -441,6 +443,7 @@ def update_portfolio_images_order_me(
     description="Return a paginated list of service provider profiles.",
 )
 def read_all_service_provider_profiles(
+    response: Response,
     db: Session = Depends(get_db),
     # Accept category as a string so unknown values (e.g. "Musician")
     # don't trigger a validation error. We'll attempt to coerce it to
@@ -498,7 +501,8 @@ def read_all_service_provider_profiles(
 
     cache_category = category_slug
     cached = None
-    if not include_price_distribution and when is None and not artist:
+    cacheable = (not include_price_distribution) and (when is None) and (not artist)
+    if cacheable:
         cached = get_cached_artist_list(
             page=page,
             limit=limit,
@@ -509,6 +513,15 @@ def read_all_service_provider_profiles(
             max_price=max_price,
         )
     if cached is not None:
+        try:
+            etag = 'W/"' + hashlib.sha256(json.dumps(cached, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest() + '"'
+        except Exception:
+            etag = None
+        # Shared-cache friendly headers for hot list paths
+        response.headers["Cache-Control"] = "public, s-maxage=60, stale-while-revalidate=300"
+        if etag:
+            response.headers["ETag"] = etag
+        response.headers["X-Cache"] = "HIT"
         return {
             "data": [ArtistProfileResponse.model_validate(item) for item in cached],
             "total": len(cached),
@@ -661,17 +674,17 @@ def read_all_service_provider_profiles(
                 "service_categories": categories,
             }
         )
-        availability = read_artist_availability(
-            artist.user_id,
-            when=when,
-            db=db,
-        )
+        # Avoid per-artist availability lookups for list pages without a specific date
         if when:
-            profile.is_available = (
-                when.isoformat() not in availability["unavailable_dates"]
+            availability = read_artist_availability(
+                artist.user_id,
+                when=when,
+                db=db,
             )
+            profile.is_available = (when.isoformat() not in availability["unavailable_dates"]) 
         else:
-            profile.is_available = len(availability["unavailable_dates"]) == 0
+            # Default to available when no specific date filter is applied to keep the list fast
+            profile.is_available = True
         profiles.append(profile)
 
     if when:
@@ -707,7 +720,7 @@ def read_all_service_provider_profiles(
         profiles = [p for p in profiles if not _is_placeholder(p)]
         total_count = len(profiles)
 
-    if not include_price_distribution and when is None:
+    if cacheable:
         cache_artist_list(
             [
                 {**profile.model_dump(), "user_id": profile.user_id}
@@ -721,6 +734,22 @@ def read_all_service_provider_profiles(
             min_price=min_price,
             max_price=max_price,
         )
+
+    # Set caching headers on the response
+    if cacheable:
+        try:
+            # Serialize a compact representation for ETag stability
+            payload = [p.model_dump() for p in profiles]
+            etag = 'W/"' + hashlib.sha256(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest() + '"'
+        except Exception:
+            etag = None
+        response.headers["Cache-Control"] = "public, s-maxage=60, stale-while-revalidate=300"
+        if etag:
+            response.headers["ETag"] = etag
+        response.headers["X-Cache"] = "MISS"
+    else:
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["X-Cache"] = "BYPASS"
 
     return {
         "data": profiles,
