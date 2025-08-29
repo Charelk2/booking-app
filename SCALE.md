@@ -271,7 +271,7 @@ What we did
     `redis-cli -u 'redis://default:<PASSWORD>@fly-booka-redis-v1.upstash.io:6379/0' --scan --pattern 'service_provider_profiles:list:*' | head`
     `redis-cli -u 'redis://default:<PASSWORD>@fly-booka-redis-v1.upstash.io:6379/0' --scan --pattern 'availability:*' | head`
 
- App changes (performance)
+App changes (performance)
  - Backend (FastAPI) — Provider list endpoint (`backend/app/api/v1/api_service_provider.py`):
    - Added `Cache-Control: public, s-maxage=60, stale-while-revalidate=300` and `ETag` on cacheable list responses (no `when`, no `include_price_distribution`, no artist search).
    - Added `X-Cache: HIT|MISS|BYPASS` header to aid debugging and dashboards.
@@ -279,13 +279,30 @@ What we did
  - Frontend (Next.js):
    - Stopped eager `/auth/me` fetch for anonymous users (AuthContext); only fetches when a stored user exists.
    - Switched category carousel icons from `next/image` to plain `<img>` to eliminate ~300ms revalidation 304s per icon on refresh/back navigation.
-   - Increased `images.minimumCacheTTL` to 86400s in `next.config.js` so browsers keep optimized images longer.
+ - Increased `images.minimumCacheTTL` to 86400s in `next.config.js` so browsers keep optimized images longer.
 
- HAR expectations after changes
+HAR expectations after changes
  - HTML for `/` is served via ISR (already `revalidate = 60`), reducing server wait on repeat loads.
  - Provider list JSON now carries cache headers and ETag; back/refresh should avoid full refetch or at least benefit from shared/browser caches.
  - Category icons no longer hit `/_next/image`; requests should be fast static asset hits.
- - No `/auth/me` on anonymous homepage loads.
+- No `/auth/me` on anonymous homepage loads.
+
+Current Status Snapshot (as of 2025‑08‑29)
+- Redis: Upstash instance provisioned in `jnb`; `REDIS_URL` set via Fly secrets; cache keys present and HITs observed for list/availability.
+- Homepage/Category Lists: Request path avoids `include_price_distribution` & `when`; backend sends `Cache-Control` + `ETag`; client lazily fetches histogram post‑render.
+- Images: Category icons use static `<img>` (no `/_next/image`); Next/Image minimumCacheTTL raised for other media. Cloudflare Images supported in code but not yet enabled.
+- HTML Delivery: Homepage already exports `revalidate = 60` for ISR; category uses client route (server shared page module). Edge caching for SSR being evaluated.
+- Auth: `/auth/me` suppressed for anonymous first loads; fetched only when a stored user is present or after login.
+- Docs: This SCALE.md is the single source of truth for production scaling status and decisions; changes here are informational and do not imply automatic execution.
+
+Potential Next Improvements (confirm before executing)
+- Database move to Postgres (managed, ZA region), add listed indexes, and enable slow‑query logs to tighten list/availability queries at scale.
+- Media delivery: add a CDN rule for `/_next/image` caching by querystring or adopt Cloudflare Images + loader to offload transforms.
+- Observability: enable RUM for LCP/TTFB and instrument cache HIT/MISS counters with alert thresholds.
+- Query shaping: refactor provider list to strict SQL pagination and precomputed/bulk availability.
+
+Note on Process
+- Before making operational or code changes related to performance or scale, confirm intent explicitly. This avoids duplicate work and ensures we do not act on stale “next steps”. This document records what is in place and what options exist; it is not a task queue.
 
 Frontend behavior (cache‑friendly)
 - Provider list on homepage/category:
