@@ -63,6 +63,13 @@ export default function GoogleOneTap({ next, enabled = true }: Props) {
     const init = async () => {
       try {
         if (!clientId) return;
+        // Suppress when already logged in (cookie session + cached user)
+        try {
+          if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem('user') || sessionStorage.getItem('user');
+            if (stored) return; // user already signed in
+          }
+        } catch {}
         await loadGsi();
         if (cancelled || !window.google?.accounts?.id) return;
 
@@ -114,4 +121,3 @@ export default function GoogleOneTap({ next, enabled = true }: Props) {
 
   return null;
 }
-
