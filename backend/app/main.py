@@ -15,7 +15,12 @@ from fastapi.staticfiles import StaticFiles
 from routes import distance
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
+try:  # Optional: older Starlette may not include ProxyHeadersMiddleware
+    from starlette.middleware.proxy_headers import ProxyHeadersMiddleware  # type: ignore
+    _HAS_PROXY_HEADERS = True
+except Exception:  # pragma: no cover
+    ProxyHeadersMiddleware = None  # type: ignore
+    _HAS_PROXY_HEADERS = False
 
 from . import models
 
@@ -353,7 +358,8 @@ app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 # Honor X-Forwarded-* headers from the reverse proxy so url_for() builds
 # correct HTTPS callback URLs for OAuth (e.g., Google). This prevents
 # redirect_uri mismatches in production behind TLS terminators.
-app.add_middleware(ProxyHeadersMiddleware)
+if _HAS_PROXY_HEADERS and ProxyHeadersMiddleware is not None:
+    app.add_middleware(ProxyHeadersMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
