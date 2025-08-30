@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from routes import distance
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from . import models
 
@@ -349,6 +350,10 @@ logger.info("CORS origins set to: %s", allow_origins)
 # session cookie. Add SessionMiddleware so Authlib can sign and read
 # that cookie using our SECRET_KEY.
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+# Honor X-Forwarded-* headers from the reverse proxy so url_for() builds
+# correct HTTPS callback URLs for OAuth (e.g., Google). This prevents
+# redirect_uri mismatches in production behind TLS terminators.
+app.add_middleware(ProxyHeadersMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
