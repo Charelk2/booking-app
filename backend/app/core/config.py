@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # frontend does not raise a validation error when extra fields are forbidden
     # by Pydantic settings.
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: str = ""
+    # Frontend One Tap client id (mirrors GOOGLE_OAUTH_CLIENT_ID); included to
+    # prevent validation errors when the backend loads the shared .env.
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: str = ""
     GOOGLE_MAPS_API_KEY: str = ""
 
     # Base frontend URL used for OAuth redirects
