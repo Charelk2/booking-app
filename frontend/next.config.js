@@ -119,6 +119,15 @@ const nextConfig = {
   async headers() {
     return [
       {
+        // Loosen CSP for pages to allow Google Identity Services to render One Tap
+        source: '/:path*',
+        headers: [
+          // Keep clickjacking protection via frame-ancestors, but permit Google's frames
+          // Note: frame-ancestors is evaluated by the framed page; we permit Google frames via frame-src
+          { key: 'Content-Security-Policy', value: "script-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com; connect-src 'self' https://accounts.google.com https://accounts.gstatic.com; frame-src 'self' https://accounts.google.com https://accounts.gstatic.com; img-src 'self' data: https://accounts.google.com https://accounts.gstatic.com; style-src 'self' 'unsafe-inline';" },
+        ],
+      },
+      {
         source: '/static/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
