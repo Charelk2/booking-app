@@ -453,7 +453,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
             <Link
               href="/"
               className={clsx(
-                'text-4xl font-bold tracking-tight',
+                'text-4xl font-bold tracking-tight hover:text-white',
                 'text-white',
                 hoverNeutralLink2
               )}
