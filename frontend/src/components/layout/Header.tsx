@@ -608,7 +608,22 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     leaveFrom="opacity-100 scale-100"
                     leaveTo="opacity-0 scale-95"
                   >
-                    <Menu.Items className="absolute right-0 mt-2 w-64 origin-top-right bg-white rounded-xl shadow-lg ring-1 ring-black/5 focus:outline-none divide-y divide-slate-100">
+                    <Menu.Items className="absolute right-0 mt-2 w-72 origin-top-right bg-white rounded-xl shadow-xl ring-1 ring-black/5 focus:outline-none">
+                      {/* Profile summary */}
+                      <div className="px-4 py-3 flex items-center gap-3">
+                        <Avatar
+                          src={user.profile_picture_url || null}
+                          initials={user.first_name?.[0] || user.email[0]}
+                          size={44}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {user.first_name || user.email?.split('@')[0]}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        </div>
+                      </div>
+                      <div className="border-t border-slate-200" />
                       <div className="py-1">
                         {user.user_type === 'service_provider' ? (
                           <>
@@ -744,12 +759,11 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                               onClick={logout}
                               className={clsx(
                                 'group flex w-full items-center px-4 py-2 text-sm',
-                                'text-black',
-                                active && 'bg-slate-100',
+                                active ? 'bg-red-50 text-red-700' : 'text-red-600',
                                 hoverNeutralLink
                               )}
                             >
-                              <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5 text-slate-500 group-hover:text-slate-600" />
+                              <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5" />
                               Sign out
                             </button>
                           )}

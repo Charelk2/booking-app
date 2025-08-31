@@ -7,6 +7,7 @@ import clsx from 'clsx';
 import type { User } from '@/types';
 import NavLink from './NavLink';
 import { navItemClasses } from './navStyles';
+import Avatar from '../ui/Avatar';
 
 interface NavItem {
   name: string;
@@ -36,17 +37,14 @@ const useMobileNavItems = (user: User | null): NavItem[] => {
       return [
         { name: 'Dashboard', href: '/dashboard/artist' },
         { name: 'Edit Profile', href: '/dashboard/profile/edit' },
-        { name: 'Quotes', href: '/dashboard/quotes' },
-        { name: 'Quote Templates', href: '/dashboard/profile/quote-templates' },
-        { name: 'Sign out', href: '#' },
+        { name: 'Messages', href: '/inbox' },
       ];
     }
     // client
     return [
       { name: 'Events', href: '/dashboard/client' },
-      { name: 'Messages', href: '/messages' },
+      { name: 'Messages', href: '/inbox' },
       { name: 'Edit Profile', href: '/account' },
-      { name: 'Sign out', href: '#' },
     ];
   }, [user]);
 };
@@ -168,36 +166,56 @@ export default function MobileMenuDrawer({
               </div>
               <div className="mt-auto border-t border-gray-200 pt-4 px-2">
                 <nav aria-label="Account" className="pb-safe">
+                  {/* Signed-in identity summary */}
+                  {user && (
+                    <div className="flex items-center gap-3 px-2 pb-3">
+                      <Avatar
+                        src={user.profile_picture_url || null}
+                        initials={(user.first_name || user.email || 'U')[0]}
+                        size={40}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {user.first_name || user.email?.split('@')[0] || 'Account'}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                      </div>
+                    </div>
+                  )}
+
                   <ul className="space-y-1">
                     {accountLinks.map((item) => (
                       <li key={item.name}>
-                        {item.name === 'Sign out' ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              logout();
-                              onClose();
-                            }}
-                            className={clsx(
-                              navItemClasses,
-                              'w-full text-left text-base text-gray-700 hover:bg-gray-100 hover:text-red-600 px-2 py-2 rounded-md justify-start',
-                            )}
-                          >
-                            Sign out
-                          </button>
-                        ) : (
-                          <NavLink
-                            href={item.href}
-                            onClick={onClose}
-                            isActive={pathname === item.href}
-                            className="w-full border-l-4 text-base justify-start gap-3 px-2 py-2 rounded-md hover:bg-gray-100 transition-colors"
-                          >
-                            <span>{item.name}</span>
-                          </NavLink>
-                        )}
+                        <NavLink
+                          href={item.href}
+                          onClick={onClose}
+                          isActive={pathname === item.href}
+                          className="w-full border-l-4 text-base justify-start gap-3 px-2 py-2 rounded-md hover:bg-gray-100 transition-colors"
+                        >
+                          <span>{item.name}</span>
+                        </NavLink>
                       </li>
                     ))}
                   </ul>
+
+                  {/* Emphasized destructive section */}
+                  {user && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          logout();
+                          onClose();
+                        }}
+                        className={clsx(
+                          navItemClasses,
+                          'w-full text-left text-base text-red-600 hover:bg-red-50 px-2 py-2 rounded-md justify-start',
+                        )}
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  )}
                 </nav>
               </div>
             </Dialog.Panel>

@@ -166,8 +166,11 @@ describe('MobileMenuDrawer', () => {
     });
     await flushPromises();
     const body = document.body.textContent || '';
-    expect(body).toContain('Quotes');
-    expect(body).toContain('Quote Templates');
+    expect(body).toContain('Dashboard');
+    expect(body).toContain('Edit Profile');
+    // Quotes and templates removed from mobile drawer per request
+    expect(body).not.toContain('Quotes');
+    expect(body).not.toContain('Quote Templates');
   });
 
   it('shows Events and Messages links for clients', async () => {
