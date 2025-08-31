@@ -3,11 +3,13 @@
 import { Fragment, type ComponentType, type SVGProps, useMemo } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import type { User } from '@/types';
 import NavLink from './NavLink';
 import { navItemClasses } from './navStyles';
 import Avatar from '../ui/Avatar';
+import Link from 'next/link';
 
 interface NavItem {
   name: string;
@@ -146,27 +148,10 @@ export default function MobileMenuDrawer({
                   Menu
                 </Dialog.Title>
               </div>
-              <div className="flex-1 px-2">
-                {navigation.length > 0 && (
-                  <NavigationSection
-                    title="Explore"
-                    items={navigation}
-                    onClose={onClose}
-                    pathname={pathname}
-                  />
-                )}
-                {extraNavigation.length > 0 && (
-                  <div className="mt-4 border-t border-gray-200 pt-4">
-                    <NavigationSection
-                      title="More"
-                      items={extraNavigation}
-                      onClose={onClose}
-                      pathname={pathname}
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="mt-auto border-t border-gray-200 pt-4 px-2">
+          
+           
+             
+              <div className="border-t border-gray-200 pt-4 px-2">
                 <nav aria-label="Account" className="pb-safe">
                   {/* Signed-in identity summary */}
                   {user && (
@@ -219,6 +204,20 @@ export default function MobileMenuDrawer({
                     </div>
                   )}
                 </nav>
+
+                {/* Subtle Help link at the very bottom */}
+                <div className="mt-2 pb-safe">
+                  <div className="border-t border-gray-100" />
+                  <Link
+                    href="/faq"
+                    aria-label="Help and FAQs"
+                    onClick={onClose}
+                    className="mt-2 flex items-center gap-2 px-2 py-2 text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                    <span>Help</span>
+                  </Link>
+                </div>
               </div>
             </Dialog.Panel>
           </Transition.Child>
