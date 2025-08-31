@@ -668,6 +668,24 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                           </>
                         ) : (
                           <>
+                            {/* Client-only: quick upgrade to provider */}
+                            <Menu.Item>
+                              {({ active }) => (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowBecomeProvider(true)}
+                                  className={clsx(
+                                    'group flex w-full items-center px-4 py-2 text-sm',
+                                    'text-black',
+                                    active && 'bg-slate-100',
+                                    hoverNeutralLink
+                                  )}
+                                >
+                                  <span className="mr-3 inline-flex h-5 w-5 items-center justify-center text-slate-500 group-hover:text-slate-600">⭐</span>
+                                  List your service
+                                </button>
+                              )}
+                            </Menu.Item>
                             <Menu.Item>
                               {({ active }) => (
                                 <Link
