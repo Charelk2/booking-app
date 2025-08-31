@@ -781,7 +781,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                         router.push(`/register?user_type=service_provider&next=${encodeURIComponent(next)}`);
                       }}
                       className={clsx(
-                        'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-900 hover:text-black',
+                        'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
                         hoverNeutralLink2
                       )}
                     >
@@ -793,7 +793,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   href="/login"
                   onClick={goToLogin}
                   className={clsx(
-                    'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900',
+                    'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 hover:text-white',
                     hoverNeutralLink2
                   )}
                 >
@@ -803,7 +803,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   href="/register"
                   onClick={goToRegister}
                   className={clsx(
-                    'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900',
+                    'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900 hover:text-white',
                     hoverNeutralLink2
                   )}
                 >
