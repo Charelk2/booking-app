@@ -147,12 +147,14 @@ export default function MobileMenuDrawer({
                 </Dialog.Title>
               </div>
               <div className="flex-1 px-2">
-                <NavigationSection
-                  title="Explore"
-                  items={navigation}
-                  onClose={onClose}
-                  pathname={pathname}
-                />
+                {navigation.length > 0 && (
+                  <NavigationSection
+                    title="Explore"
+                    items={navigation}
+                    onClose={onClose}
+                    pathname={pathname}
+                  />
+                )}
                 {extraNavigation.length > 0 && (
                   <div className="mt-4 border-t border-gray-200 pt-4">
                     <NavigationSection

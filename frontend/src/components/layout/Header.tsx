@@ -70,7 +70,7 @@ type SearchParamsShape = {
   when?: Date | null;
 };
 
-const SHOW_CLIENT_TOP_NAV = true;
+const SHOW_CLIENT_TOP_NAV = false;
 
 const clientNav = [
   { name: 'Services', href: '/services' },
