@@ -575,6 +575,17 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     {artistViewActive ? 'Switch to Booking' : 'Switch to Hosting'}
                   </button>
                 )}
+                {user.user_type === 'client' && (
+                  <button
+                    onClick={() => setShowBecomeProvider(true)}
+                    className={clsx(
+                      'px-3 py-2 text-sm rounded-lg bg-white text-black hover:bg-gray-100',
+                      hoverNeutralLink2
+                    )}
+                  >
+                    List your service
+                  </button>
+                )}
                 {/* Messages link with unread badge (no flicker) */}
                 <HeaderMessagesLink />
 
