@@ -119,11 +119,16 @@ const nextConfig = {
   async headers() {
     const connectApi = apiBase; // e.g., https://api.booka.co.za
     const csp = [
-      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com",
-      `connect-src 'self' ${connectApi} https://accounts.google.com https://accounts.gstatic.com`,
+      // Allow Google Identity Services and Google Maps JS API
+      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com",
+      // Permit XHR/fetch to backend API and Google Identity/Maps endpoints used by Places
+      `connect-src 'self' ${connectApi} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com`,
+      // Frames for Google Identity widgets
       "frame-src 'self' https://accounts.google.com https://accounts.gstatic.com",
-      "img-src 'self' data: https://accounts.google.com https://accounts.gstatic.com",
-      "style-src 'self' 'unsafe-inline'",
+      // Images from Google Identity and Google Maps (tiles, sprites)
+      "img-src 'self' data: https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com",
+      // Allow inline styles and GSI stylesheet; Maps injects inline styles too
+      "style-src 'self' 'unsafe-inline' https://accounts.google.com",
     ].join('; ');
     return [
       {
