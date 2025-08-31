@@ -13,17 +13,19 @@ from pydantic import BaseModel
 from ..database import get_db
 from ..models import (
     User,
+    UserType,
     Booking,
     BookingSimple,
     Message,
     BookingRequest,
 )
+from ..models.service_provider_profile import ServiceProviderProfile
 from ..schemas.user import UserResponse
 from ..schemas.booking import BookingResponse
 from ..schemas.quote_v2 import BookingSimpleRead
 from ..schemas.message import MessageResponse
 from .dependencies import get_current_user
-from ..utils.auth import verify_password
+from ..utils.auth import verify_password, normalize_email
 from ..utils.email import send_email
 from ..utils import error_response
 
@@ -178,3 +180,67 @@ def delete_me(
     except Exception as exc:  # pragma: no cover - email failure shouldn't block
         logger.error("Failed to send deletion email: %s", exc)
     return None
+
+
+class BecomeProviderRequest(BaseModel):
+    first_name: str
+    last_name: str
+    email: str
+    phone_number: str | None = None
+    dob: str | None = None  # accepted for future use; not persisted currently
+
+
+@router.post(
+    "/users/me/become-service-provider",
+    response_model=UserResponse,
+    summary="Upgrade the current client to a service provider",
+    description=(
+        "Converts the authenticated client account into a service provider, "
+        "updates basic contact details, and ensures a service provider profile exists."
+    ),
+)
+def become_service_provider(
+    payload: BecomeProviderRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    if current_user.user_type == UserType.SERVICE_PROVIDER:
+        # Already a provider; return current state
+        return current_user
+
+    # Update user details
+    try:
+        current_user.first_name = (payload.first_name or current_user.first_name).strip()
+        current_user.last_name = (payload.last_name or current_user.last_name).strip()
+        if payload.email:
+            current_user.email = normalize_email(payload.email)
+        if payload.phone_number is not None:
+            current_user.phone_number = payload.phone_number.strip() or None
+        current_user.user_type = UserType.SERVICE_PROVIDER
+        current_user.is_verified = True  # providers are treated as verified
+
+        # Ensure a service provider profile exists
+        prof = (
+            db.query(ServiceProviderProfile)
+            .filter(ServiceProviderProfile.user_id == current_user.id)
+            .first()
+        )
+        if not prof:
+            prof = ServiceProviderProfile(
+                user_id=current_user.id,
+                contact_email=current_user.email,
+                contact_phone=current_user.phone_number,
+                onboarding_completed=False,
+            )
+            db.add(prof)
+
+        db.add(current_user)
+        db.commit()
+        db.refresh(current_user)
+    except Exception as exc:
+        db.rollback()
+        raise error_response(
+            f"Unable to upgrade account: {exc}", {}, status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    return current_user

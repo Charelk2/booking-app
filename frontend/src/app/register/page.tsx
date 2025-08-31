@@ -31,6 +31,8 @@ export default function RegisterPage() {
   const params = useSearchParams();
   const next = params.get('next') || '/dashboard';
   const prefillEmail = params.get('email') || '';
+  const qRole = (params.get('user_type') || params.get('role') || '').toLowerCase();
+  const defaultUserType: RegisterForm['user_type'] | '' = qRole === 'service_provider' ? 'service_provider' : '' as any;
 
   const { register: registerUser, login } = useAuth();
 
@@ -59,7 +61,7 @@ export default function RegisterPage() {
   } = useForm<RegisterForm>({
     defaultValues: {
       email: prefillEmail,
-      user_type: '',
+      user_type: defaultUserType,
       marketing_opt_in: true,
       terms: false,
     },

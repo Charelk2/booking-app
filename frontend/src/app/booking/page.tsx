@@ -25,11 +25,16 @@ export default function BookingPage() {
   }
 
   if (!user) {
+    const here = typeof window === 'undefined' ? '/booking' : `${window.location.pathname}${window.location.search}`;
+    const onClickLogin = (e: React.MouseEvent) => {
+      e.preventDefault();
+      router.push(`/login?next=${encodeURIComponent(here)}`);
+    };
     return (
       <MainLayout>
         <div className="flex justify-center items-center min-h-screen text-center space-y-4 flex-col">
           <p>You must log in to create a booking.</p>
-          <Link href="/login" className="text-brand-dark underline">
+          <Link href="/login" onClick={onClickLogin} className="text-brand-dark underline">
             Login
           </Link>
         </div>

@@ -58,10 +58,11 @@ import React from 'react';
 import { FEATURE_EVENT_PREP } from '@/lib/constants';
 import dynamic from 'next/dynamic';
 import useNotifications from '@/hooks/useNotifications';
+const BecomeProviderModal = dynamic(() => import('@/components/auth/BecomeProviderModal'), { ssr: false });
 import useIsMobile from '@/hooks/useIsMobile';
 
-const NotificationDrawer = dynamic(() => import('./NotificationDrawer'), { ssr: false });
-const FullScreenNotificationModal = dynamic(() => import('./FullScreenNotificationModal'), { ssr: false });
+  const NotificationDrawer = dynamic(() => import('./NotificationDrawer'), { ssr: false });
+  const FullScreenNotificationModal = dynamic(() => import('./FullScreenNotificationModal'), { ssr: false });
 
 export type HeaderState = 'initial' | 'compacted' | 'expanded-from-compact';
 
@@ -77,6 +78,16 @@ const clientNav = [
   { name: 'Services', href: '/services' },
   { name: 'Contact', href: '/contact' },
 ];
+
+// Compute current path + query for return-to behavior after auth
+const useCurrentPathWithQuery = () => {
+  const pathname = usePathname();
+  const params = useSearchParams();
+  return useMemo(() => {
+    const q = params?.toString();
+    return q ? `${pathname}?${q}` : pathname;
+  }, [pathname, params]);
+};
 
 // Shared classes to *ensure* no red/underline on hover
 const hoverNeutralLink =
@@ -253,6 +264,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [showBecomeProvider, setShowBecomeProvider] = useState(false);
   const isMobile = useIsMobile();
   const { items: notifItems, markItem, markAll, loadMore, hasMore, error: notifError } = useNotifications();
   const [currentBookingId, setCurrentBookingId] = useState<number | null>(null);
@@ -282,6 +294,22 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
 
   // Desktop SearchBar mount (for focus)
   const desktopSearchMountRef = useRef<HTMLDivElement>(null);
+
+  // Build return URL (path + query) for auth redirects
+  const nextAfterAuth = useMemo(() => {
+    const q = searchParams?.toString();
+    return q ? `${pathname}?${q}` : pathname;
+  }, [pathname, searchParams]);
+
+  const goToLogin = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    router.push(`/login?next=${encodeURIComponent(nextAfterAuth)}`);
+  }, [router, nextAfterAuth]);
+
+  const goToRegister = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    router.push(`/register?next=${encodeURIComponent(nextAfterAuth)}`);
+  }, [router, nextAfterAuth]);
 
   // Hydrate from URL
   useEffect(() => {
@@ -396,6 +424,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
   );
 
   return (
+    <>
     <header
       ref={ref}
       id="app-header"
@@ -739,8 +768,37 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
               </>
             ) : (
               <div className="flex gap-2">
+                {(!user || user.user_type === 'client') && (
+                  user ? (
+                    <button
+                      onClick={() => setShowBecomeProvider(true)}
+                      className={clsx(
+                        'px-3 py-2 text-sm rounded-lg bg-white text-black hover:bg-gray-100',
+                        hoverNeutralLink2
+                      )}
+                    >
+                      List your service
+                    </button>
+                  ) : (
+                    <Link
+                      href="/register"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const next = '/dashboard/artist';
+                        router.push(`/register?user_type=service_provider&next=${encodeURIComponent(next)}`);
+                      }}
+                      className={clsx(
+                        'px-3 py-2 text-sm rounded-lg bg-white text-black hover:bg-gray-100',
+                        hoverNeutralLink2
+                      )}
+                    >
+                      List your service
+                    </Link>
+                  )
+                )}
                 <Link
                   href="/login"
+                  onClick={goToLogin}
                   className={clsx(
                     'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900',
                     hoverNeutralLink2
@@ -750,6 +808,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                 </Link>
                 <Link
                   href="/register"
+                  onClick={goToRegister}
                   className={clsx(
                     'px-3 py-2 text-sm rounded-lg text-white hover:bg-gray-900',
                     hoverNeutralLink2
@@ -875,6 +934,10 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
         )
       )}
     </header>
+    {showBecomeProvider && (
+      <BecomeProviderModal isOpen={showBecomeProvider} onClose={() => setShowBecomeProvider(false)} />
+    )}
+    </>
   );
 });
 

@@ -177,6 +177,15 @@ export const forgotPassword = (email: string) => api.post('/auth/forgot-password
 export const resetPassword = (token: string, password: string) =>
   api.post('/auth/reset-password', { token, password });
 
+// Upgrade client → service provider
+export const becomeServiceProvider = (payload: {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone_number?: string;
+  dob?: string;
+}) => api.post('/api/v1/users/me/become-service-provider', payload);
+
 // Magic link
 export const requestMagicLink = (email: string, next?: string) =>
   api.post('/auth/magic-link/request', { email, next });
