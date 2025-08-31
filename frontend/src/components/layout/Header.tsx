@@ -91,7 +91,7 @@ const useCurrentPathWithQuery = () => {
 const hoverNeutralLink =
   'no-underline hover:no-underline hover:text-inherit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
 const hoverNeutralLink2 =
-  'no-underline hover:no-underline hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
+  'no-underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50';
 
 // Filter icon overlay: forces white icon/text and supports placing it *outside* on the right
 function FilterSlot({
@@ -575,7 +575,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                   <button
                     onClick={() => setShowBecomeProvider(true)}
                     className={clsx(
-                      'px-3 py-2 text-sm rounded-lg border border-white bg-black text-white font-semi-bold hover:bg-gray-900 hover:text-black',
+                      'px-3 py-2 text-sm rounded-lg border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
                       hoverNeutralLink2
                     )}
                   >
@@ -766,7 +766,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     <button
                       onClick={() => setShowBecomeProvider(true)}
                       className={clsx(
-                        'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-900 hover:text-black',
+                        'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
                         hoverNeutralLink2
                       )}
                     >
