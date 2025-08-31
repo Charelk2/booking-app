@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import api from '@/lib/api';
+import api, { getCurrentUser } from '@/lib/api';
 
 declare global {
   interface Window { google?: any }
@@ -51,7 +51,12 @@ export default function GoogleOneTap({ next, enabled = true }: Props) {
           }
         } catch {}
         await api.post('/auth/google/onetap', { credential: response.credential, next: nextPath, deviceId: did });
-        // Let the app react to cookie session
+        // Populate client state before navigation so AuthContext detects the session
+        try {
+          const me = await getCurrentUser();
+          const user = me.data;
+          try { localStorage.setItem('user', JSON.stringify(user)); } catch {}
+        } catch {}
         if (typeof window !== 'undefined') window.location.replace(nextPath);
       } catch (e) {
         // Silent fail; One Tap should be non-blocking
