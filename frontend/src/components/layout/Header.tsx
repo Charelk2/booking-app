@@ -766,7 +766,7 @@ const Header = forwardRef<HTMLElement, HeaderProps>(function Header(
                     <button
                       onClick={() => setShowBecomeProvider(true)}
                       className={clsx(
-                        'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100',
+                        'px-3 py-2 text-sm rounded-lg  border border-white bg-black text-white font-semi-bold hover:bg-gray-100 hover:text-black',
                         hoverNeutralLink2
                       )}
                     >

@@ -9,26 +9,26 @@ import MainLayout from '@/components/layout/MainLayout';
 import Button from '@/components/ui/Button';
 import AuthInput from '@/components/auth/AuthInput';
 import { useAuth } from '@/contexts/AuthContext';
-import api, {
-  requestMagicLink,
-  webauthnGetAuthenticationOptions,
-  webauthnVerifyAuthentication,
-} from '@/lib/api';
+import api, { requestMagicLink } from '@/lib/api';
 
+// --------------------------------------
+// Types
+// --------------------------------------
+type EmailOnlyForm = { email: string };
 type PwForm = { email: string; password: string; remember: boolean };
 type MfaForm = { code: string; trustedDevice?: boolean };
-type MagicForm = { email: string };
 
 declare global {
   interface Window {
     google?: any;
-    AppleID?: any;
   }
 }
 
+// External widget script URLs
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
-const APPLE_SRC = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
 const TRUSTED_DEVICE_KEY = 'booka.trusted_device_id';
+
+type Stage = 'email' | 'password' | 'mfa';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,21 +38,16 @@ export default function LoginPage() {
 
   const { login, verifyMfa, user, refreshUser } = useAuth();
 
-  // UI / state
+  // UI & flow state
+  const [stage, setStage] = useState<Stage>('email');
   const [error, setError] = useState('');
   const [mfaToken, setMfaToken] = useState<string | null>(null);
-  const [autoTrying, setAutoTrying] = useState(true);
+  // Passkey auto-try removed for this view
   const [magicSent, setMagicSent] = useState(false);
 
-  // Google button + Apple button readiness (to hide fallbacks)
-  const [googleButtonReady, setGoogleButtonReady] = useState(false);
-  const [appleButtonReady, setAppleButtonReady] = useState(false);
+  // Hide official buttons; keep One Tap only
 
-  // Refs to button containers for responsive rendering
-  const googleBtnRef = useRef<HTMLDivElement | null>(null);
-  const appleBtnRef = useRef<HTMLDivElement | null>(null);
-
-  // “Trust this device” id for MFA skip
+  // Trusted device id (for MFA skip)
   const [trustedDeviceId] = useState<string>(() => {
     if (typeof window === 'undefined') return '';
     const existing = localStorage.getItem(TRUSTED_DEVICE_KEY);
@@ -62,8 +57,11 @@ export default function LoginPage() {
     return id;
   });
 
+  // a11y polite announcements
   const liveRef = useRef<HTMLParagraphElement | null>(null);
-  const announce = (msg: string) => { if (liveRef.current) liveRef.current.textContent = msg; };
+  const announce = (msg: string) => {
+    if (liveRef.current) liveRef.current.textContent = msg;
+  };
 
   // Redirect if already signed in
   useEffect(() => {
@@ -73,29 +71,35 @@ export default function LoginPage() {
     }
   }, [user, next, router]);
 
+  // --------------------------------------
   // Forms
-  const { register: regPw, handleSubmit: submitPw, formState: { isSubmitting: pwSubmitting, errors: pwErrors } } =
-    useForm<PwForm>({ defaultValues: { email: '', remember: true } });
+  // --------------------------------------
+  const {
+    register: regEmail,
+    handleSubmit: submitEmail,
+    formState: { errors: emailErrors, isSubmitting: emailSubmitting },
+    getValues: getEmailValues,
+  } = useForm<EmailOnlyForm>({ defaultValues: { email: '' } });
 
-  const { register: regMfa, handleSubmit: submitMfa, formState: { isSubmitting: mfaSubmitting } } =
-    useForm<MfaForm>({ defaultValues: { trustedDevice: true } });
+  const {
+    register: regPw,
+    handleSubmit: submitPw,
+    setValue: setPwValue,
+    formState: { isSubmitting: pwSubmitting, errors: pwErrors },
+  } = useForm<PwForm>({ defaultValues: { email: '', remember: true } });
 
-  const { register: regMagic, handleSubmit: submitMagic, formState: { isSubmitting: magicSubmitting, errors: magicErrors } } =
-    useForm<MagicForm>({ defaultValues: { email: '' } });
+  const {
+    register: regMfa,
+    handleSubmit: submitMfa,
+    formState: { isSubmitting: mfaSubmitting },
+  } = useForm<MfaForm>({ defaultValues: { trustedDevice: true } });
 
-  // Helpers for WebAuthn (passkeys)
-  const b64ToBuf = (s: string) => {
-    let base64 = s.replace(/-/g, '+').replace(/_/g, '/');
-    while (base64.length % 4) base64 += '=';
-    const raw = atob(base64);
-    return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
-  };
-  const bufToB64 = (buf: ArrayBuffer) => {
-    const bin = String.fromCharCode(...new Uint8Array(buf));
-    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/,'');
-  };
+  // --------------------------------------
+  // (Passkeys removed for this view)
 
-  // -------- Google Identity Services: One Tap + Official Button (responsive) --------
+  // --------------------------------------
+  // Google Identity Services: One Tap + official button
+  // --------------------------------------
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
   const loadScript = (id: string, src: string) =>
@@ -119,31 +123,16 @@ export default function LoginPage() {
         next: nextPath,
         deviceId: trustedDeviceId,
       });
-      try { await refreshUser?.(); } catch {}
+      try {
+        await refreshUser?.();
+      } catch {}
       router.replace(nextPath);
     } catch (e: any) {
       console.warn('One Tap / button sign-in failed', e?.response?.data || e?.message);
     }
   };
 
-  // Render (or re-render) the official Google button with a computed width
-  const renderGoogleButton = () => {
-    const container = googleBtnRef.current;
-    if (!container || !window.google?.accounts?.id?.renderButton) return;
-    // Clear previous render
-    container.innerHTML = '';
-    const width = Math.min(420, Math.max(280, container.offsetWidth || 320));
-    window.google.accounts.id.renderButton(container, {
-      type: 'standard',
-      theme: 'outline',
-      size: 'large',
-      shape: 'pill',
-      text: 'continue_with',
-      logo_alignment: 'left',
-      width, // px
-    });
-    setGoogleButtonReady(true);
-  };
+  // Hide official Google button; only initialize One Tap prompt
 
   useEffect(() => {
     let cancelled = false;
@@ -162,30 +151,11 @@ export default function LoginPage() {
           context: 'signin',
         });
 
-        // Official button
-        renderGoogleButton();
-
-        // Re-render on container resize (best) or window resize (fallback)
-        let ro: ResizeObserver | null = null;
-        if ('ResizeObserver' in window && googleBtnRef.current) {
-          ro = new ResizeObserver(() => renderGoogleButton());
-          ro.observe(googleBtnRef.current);
-        } else {
-          const onResize = () => { renderGoogleButton(); };
-          window.addEventListener('resize', onResize);
-          // cleanup attached on return
-          (renderGoogleButton as any)._cleanup = () => window.removeEventListener('resize', onResize);
-        }
-
-        // One Tap prompt (GIS decides visibility)
         window.google.accounts.id.prompt();
 
-        // Cleanup
         return () => {
           cancelled = true;
           try {
-            ro?.disconnect();
-            (renderGoogleButton as any)._cleanup?.();
             window.google?.accounts.id.cancel();
             window.google?.accounts.id.disableAutoSelect();
           } catch {}
@@ -194,193 +164,28 @@ export default function LoginPage() {
         console.warn('GSI init failed', e);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleClientId, nextPath, trustedDeviceId]);
 
-  // Manual passkey trigger
-  const signInWithPasskey = async () => {
+  // Apple official widget removed; we use redirect via icon button
+
+  // Passkeys disabled on this page
+
+  // --------------------------------------
+  // Actions
+  // --------------------------------------
+  const onEmailContinue = ({ email }: EmailOnlyForm) => {
     setError('');
-    try {
-      if (!('PublicKeyCredential' in window)) {
-        setError('Passkeys are not supported on this device.');
-        return;
-      }
-      const { data: opts } = await webauthnGetAuthenticationOptions();
-      const publicKey: PublicKeyCredentialRequestOptions = {
-        challenge: b64ToBuf(opts.challenge),
-        allowCredentials: (opts.allowCredentials || []).map((c: any) => ({ type: 'public-key', id: b64ToBuf(c.id) })),
-        userVerification: opts.userVerification || 'preferred',
-      };
-      const cred = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential;
-      const assertion = cred.response as AuthenticatorAssertionResponse;
-
-      await webauthnVerifyAuthentication({
-        id: cred.id,
-        type: cred.type,
-        rawId: bufToB64(cred.rawId),
-        response: {
-          clientDataJSON: bufToB64(assertion.clientDataJSON),
-          authenticatorData: bufToB64(assertion.authenticatorData),
-          signature: bufToB64(assertion.signature),
-          userHandle: assertion.userHandle ? bufToB64(assertion.userHandle) : undefined,
-        },
-        deviceId: trustedDeviceId,
-      });
-      try { await refreshUser?.(); } catch {}
-      router.replace(nextPath);
-    } catch (e: any) {
-      const msg = e?.response?.data?.detail || e?.message || 'Passkey sign-in failed.';
-      setError(typeof msg === 'string' ? msg : 'Passkey sign-in failed.');
-      announce('Passkey sign-in failed.');
-    }
+    setPwValue('email', (email || '').trim().toLowerCase());
+    setStage('password');
   };
 
-  // Try auto passkey (Conditional UI)
-  useEffect(() => {
-    let cancelled = false;
-    const tryAutoPasskey = async () => {
-      if (!('PublicKeyCredential' in window)) { setAutoTrying(false); return; }
-      try {
-        // @ts-ignore
-        const condAvailable = typeof PublicKeyCredential.isConditionalMediationAvailable === 'function'
-          // @ts-ignore
-          ? await PublicKeyCredential.isConditionalMediationAvailable()
-          : false;
-
-        const { data: opts } = await webauthnGetAuthenticationOptions();
-        const publicKey: PublicKeyCredentialRequestOptions = {
-          challenge: b64ToBuf(opts.challenge),
-          allowCredentials: (opts.allowCredentials || []).map((c: any) => ({ type: 'public-key', id: b64ToBuf(c.id) })),
-          userVerification: opts.userVerification || 'preferred',
-        };
-
-        const cred = (await navigator.credentials.get({
-          publicKey,
-          // @ts-ignore
-          mediation: condAvailable ? 'conditional' : undefined,
-        })) as PublicKeyCredential | null;
-
-        if (!cred) { if (!cancelled) setAutoTrying(false); return; }
-        const assertion = cred.response as AuthenticatorAssertionResponse;
-
-        await webauthnVerifyAuthentication({
-          id: cred.id,
-          type: cred.type,
-          rawId: bufToB64(cred.rawId),
-          response: {
-            clientDataJSON: bufToB64(assertion.clientDataJSON),
-            authenticatorData: bufToB64(assertion.authenticatorData),
-            signature: bufToB64(assertion.signature),
-            userHandle: assertion.userHandle ? bufToB64(assertion.userHandle) : undefined,
-          },
-          deviceId: trustedDeviceId,
-        });
-
-        try { await refreshUser?.(); } catch {}
-        if (!cancelled) router.replace(nextPath);
-      } catch {
-        if (!cancelled) setAutoTrying(false);
-      }
-    };
-    const t = setTimeout(() => { void tryAutoPasskey(); }, 120);
-    return () => { cancelled = true; clearTimeout(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nextPath, trustedDeviceId]);
-
-  // -------- Apple JS Sign In (official widget + popup) --------
-  const appleClientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID;             // e.g., com.yourapp.web
-  const appleRedirectURI = process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI || ''; // your backend callback URL
-
-  const initApple = async () => {
-    if (!appleClientId || !appleRedirectURI) return;
-    await loadScript('appleid-js', APPLE_SRC);
-    if (!window.AppleID?.auth) return;
-
-    // Initialize Apple JS
-    window.AppleID.auth.init({
-      clientId: appleClientId,
-      scope: 'name email',
-      redirectURI: appleRedirectURI,
-      usePopup: true, // no full-page redirect; we’ll POST the result to backend
-    });
-
-    // Render a responsive Apple button by using Apple’s container + data-* attrs
-    const host = appleBtnRef.current;
-    if (!host) return;
-
-    // Clear & build the button container
-    host.innerHTML = '';
-    const btn = document.createElement('div');
-    btn.id = 'appleid-signin';
-    btn.setAttribute('data-color', 'black');   // 'black' | 'white'
-    btn.setAttribute('data-border', 'true');   // Apple styles the border
-    btn.setAttribute('data-type', 'continue'); // 'sign in' | 'continue'
-    btn.style.height = '44px';
-    btn.style.width = '100%';
-    host.appendChild(btn);
-
-    // Click to trigger Apple sign in popup; on success we post token/code to backend
-    btn.addEventListener('click', async () => {
-      try {
-        const result = await window.AppleID.auth.signIn();
-        // Send id_token / code to your backend for verification & session creation
-        await api.post('/auth/apple/js', {
-          id_token: result?.authorization?.id_token,
-          code: result?.authorization?.code,
-          user: result?.user, // name/email on first sign
-          next: nextPath,
-          deviceId: trustedDeviceId,
-        });
-        try { await refreshUser?.(); } catch {}
-        router.replace(nextPath);
-      } catch (err) {
-        console.warn('Apple sign-in failed', err);
-      }
-    });
-
-    setAppleButtonReady(true);
-  };
-
-  // Initialize Apple and re-size button responsively
-  useEffect(() => {
-    let ro: ResizeObserver | null = null;
-    let cleanupResize: (() => void) | null = null;
-
-    (async () => {
-      try {
-        await initApple();
-
-        // ResizeObserver to keep visuals crisp
-        if ('ResizeObserver' in window && appleBtnRef.current) {
-          ro = new ResizeObserver(() => {
-            // Re-init to let Apple button match new width
-            void initApple();
-          });
-          ro.observe(appleBtnRef.current);
-        } else {
-          const onResize = () => { void initApple(); };
-          window.addEventListener('resize', onResize);
-          cleanupResize = () => window.removeEventListener('resize', onResize);
-        }
-      } catch (e) {
-        console.warn('Apple init failed', e);
-      }
-    })();
-
-    return () => {
-      ro?.disconnect();
-      cleanupResize?.();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appleClientId, appleRedirectURI, nextPath, trustedDeviceId]);
-
-  // Password sign-in
   const onPasswordSignIn = async ({ email, password, remember }: PwForm) => {
     setError('');
     try {
       const res = await login(email.trim().toLowerCase(), password, remember);
       if (res?.mfaRequired && res?.token) {
         setMfaToken(res.token);
+        setStage('mfa');
         return;
       }
     } catch (e: any) {
@@ -389,7 +194,6 @@ export default function LoginPage() {
     }
   };
 
-  // MFA verify
   const onVerifyMfa = async ({ code, trustedDevice }: MfaForm) => {
     if (!mfaToken) return;
     try {
@@ -401,12 +205,16 @@ export default function LoginPage() {
     }
   };
 
-  // Magic link
-  const onSendMagic = async ({ email }: MagicForm) => {
+  const onSendMagicLink = async () => {
     setError('');
     setMagicSent(false);
+    const email = (getEmailValues('email') || '').trim().toLowerCase();
+    if (!email) {
+      setError('Enter your email first.');
+      return;
+    }
     try {
-      await requestMagicLink(email.trim().toLowerCase(), nextPath);
+      await requestMagicLink(email, nextPath);
       setMagicSent(true);
       announce('Magic link sent. Check your inbox.');
     } catch {
@@ -415,150 +223,252 @@ export default function LoginPage() {
     }
   };
 
-  // Fallback OAuth links (used only if buttons fail to render)
+  // Fallback OAuth links (only used if JS widgets fail)
   const base = (api.defaults.baseURL || '').replace(/\/+$/, '');
   const googleHref = `${base}/auth/google/login?next=${encodeURIComponent(nextPath)}`;
   const appleHref  = `${base}/auth/apple/login?next=${encodeURIComponent(nextPath)}`;
+  const facebookHref = `${base}/auth/facebook/login?next=${encodeURIComponent(nextPath)}`;
+
+const SocialRow = () => (
+  <div className="flex items-center justify-center gap-4">
+    {/* Google square button */}
+    <a
+      href={googleHref}
+      className="inline-flex h-16 w-16 items-center justify-center rounded-xl bg-white text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50"
+      aria-label="Sign in with Google"
+      title="Sign in with Google"
+    >
+      <svg viewBox="0 0 262 262" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid" aria-hidden="true" focusable="false" width="22" height="22" role="img">
+        <path d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027" fill="#4285F4"></path>
+        <path d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1" fill="#34A853"></path>
+        <path d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 13.925 58.602l42.356-32.782" fill="#FBBC05"></path>
+        <path d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251" fill="#EB4335"></path>
+      </svg>
+  </a>
+
+    {/* Apple square button */}
+    <a
+      href={appleHref}
+      className="inline-flex h-16 w-16 items-center justify-center rounded-xl bg-white text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50"
+      aria-label="Sign in with Apple"
+      title="Sign in with Apple"
+    >
+      <svg width="22" xmlns="http://www.w3.org/2000/svg" height="22" viewBox="0 0 170 170" aria-hidden="true" focusable="false" role="img">
+        <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.197-2.12-9.973-3.17-14.34-3.17-4.58 0-9.492 1.05-14.746 3.17-5.262 2.13-9.501 3.24-12.742 3.35-4.929.21-9.842-1.96-14.746-6.52-3.13-2.73-7.045-7.41-11.735-14.04-5.032-7.08-9.169-15.29-12.41-24.65-3.471-10.11-5.211-19.9-5.211-29.378 0-10.857 2.346-20.221 7.045-28.068 3.693-6.303 8.606-11.275 14.755-14.925s12.793-5.51 19.948-5.629c3.915 0 9.049 1.211 15.429 3.591 6.362 2.388 10.447 3.599 12.238 3.599 1.339 0 5.877-1.416 13.57-4.239 7.275-2.618 13.415-3.702 18.445-3.275 13.63 1.1 23.87 6.473 30.68 16.153-12.19 7.386-18.22 17.731-18.1 31.002.11 10.337 3.86 18.939 11.23 25.769 3.34 3.17 7.07 5.62 11.22 7.36-.9 2.61-1.85 5.11-2.86 7.51zM119.11 7.24c0 8.102-2.96 15.667-8.86 22.669-7.12 8.324-15.732 13.134-25.071 12.375a25.222 25.222 0 0 1-.188-3.07c0-7.778 3.386-16.102 9.399-22.908 3.002-3.446 6.82-6.311 11.45-8.597 4.62-2.252 8.99-3.497 13.1-3.71.12 1.083.17 2.166.17 3.24z"></path>
+      </svg>
+    </a>
+
+    {/* Facebook square button */}
+    <a
+      href={facebookHref}
+      className="inline-flex h-16 w-16 items-center justify-center rounded-xl bg-white text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50"
+      aria-label="Sign in with Facebook"
+      title="Sign in with Facebook"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false" role="img">
+        <path d="M22.675 0H1.325C.593 0 0 .593 0 1.325v21.351C0 23.407.593 24 1.325 24H12.82v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116c.73 0 1.323-.593 1.323-1.325V1.325C24 .593 23.407 0 22.675 0z"></path>
+      </svg>
+    </a>
+  </div>
+);
 
   return (
     <MainLayout>
-      <div className="flex min-h-[calc(100vh-120px)] items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight">Sign in to Booka</h1>
-            <p className="mt-1 text-sm text-gray-600">Fast options first. Or use your email below.</p>
+      <div className="flex min-h-[calc(100vh-120px)] items-center justify-center px-4 py-10">
+        <div className="w-full max-w-[440px]">
+          <div className="text-left">
+            <h1 className="text-2xl font-bold tracking-tight">Sign in or create an account</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Use your Booka account to access bookings, messages, and payments.
+            </p>
             <p ref={liveRef} aria-live="polite" className="sr-only" />
           </div>
 
-          {/* Auto passkey hint */}
-          {autoTrying && (
-            <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-4 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
-              <p className="text-sm text-gray-700 dark:text-gray-200">Checking for a saved passkey…</p>
-            </div>
-          )}
+          {/* Panel */}
+          <div className="mt-6 bg-white border-b dark:border-gray-800 dark:bg-gray-900">
+            <div className="">
+              {/* EMAIL STAGE */}
+              {stage === 'email' && (
+                <form onSubmit={submitEmail(onEmailContinue)} className="space-y-4">
+                  <AuthInput
+                    id="email"
+                    type="email"
+                    label="Email address"
+                    placeholder="Enter your email address"
+                    autoComplete="email webauthn"
+                    registration={
+                      regEmail('email', {
+                        required: 'Email is required',
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: 'Invalid email address',
+                        },
+                        setValueAs: (v) => String(v || '').trim().toLowerCase(),
+                      })
+                    }
+                    error={emailErrors.email}
+                  />
+                  <Button type="submit" disabled={emailSubmitting} className="w-full">
+                    {emailSubmitting ? 'Continuing…' : 'Continue with email'}
+                  </Button>
 
-          {/* Primary: Passkey + Google + Apple (official widgets) */}
-          <div className="mt-6 grid gap-3">
-            <Button onClick={signInWithPasskey} className="w-full">Continue with Passkey</Button>
+                  {/* Divider with text */}
+                  <div className="my-4 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+                    <span className="text-sm  tracking-wider text-gray-500">
+                      or use one of these options
+                    </span>
+                    <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+                  </div>
 
-            {/* Google official button with resize-aware rendering */}
-            <div className="relative">
-              <div ref={googleBtnRef} className="w-full flex justify-center" />
-              {!googleButtonReady && (
-                <a
-                  href={googleHref}
-                  className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50"
-                >
-                  Continue with Google
-                </a>
+                  {/* Social options */}
+                  <div className="grid pt-2 gap-3">
+                    <SocialRow />
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={onSendMagicLink}
+                        className="text-xs font-light text-gray-500 hover:text-brand pb-4"
+                      >
+                        Email me a sign-in link instead
+                      </button>
+                      {magicSent && (
+                        <p className="mt-1 text-sm text-green-700">We sent you a sign-in link. Check your inbox.</p>
+                      )}
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {/* PASSWORD STAGE */}
+              {stage === 'password' && (
+                <form onSubmit={submitPw(onPasswordSignIn)} className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-semibold">Enter your password</h2>
+                    <button
+                      type="button"
+                      onClick={() => setStage('email')}
+                      className="text-sm text-gray-600 hover:text-gray-900"
+                    >
+                      Change email
+                    </button>
+                  </div>
+
+                  <AuthInput
+                    id="pw-email"
+                    type="email"
+                    label="Email address"
+                    autoComplete="email"
+                    registration={
+                      regPw('email', {
+                        required: 'Email is required',
+                        pattern: {
+                          value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                          message: 'Invalid email address',
+                        },
+                        setValueAs: (v) => String(v || '').trim().toLowerCase(),
+                      })
+                    }
+                    error={pwErrors.email}
+                  />
+
+                  <AuthInput
+                    id="password"
+                    type="password"
+                    label="Password"
+                    autoComplete="current-password"
+                    registration={
+                      regPw('password', {
+                        required: 'Password is required',
+                        minLength: { value: 6, message: 'Must be at least 6 characters' },
+                      })
+                    }
+                    error={pwErrors.password}
+                  />
+
+                  <div className="mt-1 flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" className="h-4 w-4 rounded border-gray-300" {...regPw('remember')} defaultChecked />
+                      Remember me
+                    </label>
+                    <Link href="/forgot-password" className="text-sm font-medium text-brand-dark hover:text-brand">
+                      Forgot password?
+                    </Link>
+                  </div>
+
+                  {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</div>}
+
+                  <Button type="submit" disabled={pwSubmitting} className="w-full">
+                    {pwSubmitting ? 'Signing in…' : 'Sign in'}
+                  </Button>
+
+                  {/* Divider within password stage */}
+                  <div className="my-4 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+                    <span className="text-xs uppercase tracking-wider text-gray-500">or use one of these options</span>
+                    <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+                  </div>
+
+                  <div className="grid gap-3">
+                    <SocialRow />
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={onSendMagicLink}
+                        className="text-sm font-medium text-brand-dark hover:text-brand"
+                      >
+                        Email me a sign-in link instead
+                      </button>
+                      {magicSent && (
+                        <p className="mt-1 text-sm text-green-700">We sent you a sign-in link. Check your inbox.</p>
+                      )}
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {/* MFA STAGE */}
+              {stage === 'mfa' && mfaToken && (
+                <form onSubmit={submitMfa(onVerifyMfa)} className="space-y-4">
+                  <h2 className="text-base font-semibold">Verification code</h2>
+                  <AuthInput
+                    id="mfa-code"
+                    type="text"
+                    label="Enter the 6-digit code"
+                    registration={regMfa('code', { required: 'Code is required' })}
+                    error={undefined}
+                  />
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" className="h-4 w-4 rounded border-gray-300" {...regMfa('trustedDevice')} defaultChecked />
+                    Trust this device for 30 days
+                  </label>
+                  {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</div>}
+                  <Button type="submit" disabled={mfaSubmitting} className="w-full">
+                    {mfaSubmitting ? 'Verifying…' : 'Verify'}
+                  </Button>
+                </form>
               )}
             </div>
 
-            {/* Apple official widget container (responsive); shows fallback <a> if JS fails */}
-            <div className="relative">
-              <div ref={appleBtnRef} className="w-full" />
-              {!appleButtonReady && (
-                <a
-                  href={appleHref}
-                  className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-black px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-900"
-                >
-                  Continue with Apple
-                </a>
-              )}
-            </div>
+            {/* Passkey hint removed */}
           </div>
 
-          {/* Divider */}
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
-            <span className="text-xs uppercase tracking-wider text-gray-500">or</span>
-            <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+          {/* Footer (Terms & Privacy) */}
+          <div className="mt-6 text-center text-xs text-gray-500">
+            By signing in or creating an account, you agree with our{' '}
+            <Link href="/terms" className="font-medium text-brand-dark hover:text-brand">
+              Terms & Conditions
+            </Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="font-medium text-brand-dark hover:text-brand">
+              Privacy Policy
+            </Link>
+            .
+            <div className="mt-2">© {new Date().getFullYear()} Booka.co.za — All rights reserved.</div>
           </div>
 
-          {/* Email + Password (always visible) */}
-          <form className="space-y-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900" onSubmit={submitPw(onPasswordSignIn)}>
-            <AuthInput
-              id="email"
-              type="email"
-              label="Email address"
-              autoComplete="email"
-              registration={regPw('email', {
-                required: 'Email is required',
-                pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, message: 'Invalid email address' },
-                setValueAs: (v) => String(v || '').trim().toLowerCase(),
-              })}
-              error={pwErrors.email}
-            />
-            <AuthInput
-              id="password"
-              type="password"
-              label="Password"
-              autoComplete="current-password"
-              registration={regPw('password', {
-                required: 'Password is required',
-                minLength: { value: 6, message: 'Must be at least 6 characters' },
-              })}
-              error={pwErrors.password}
-            />
-            <div className="mt-1 flex items-center justify-between">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" className="h-4 w-4 rounded border-gray-300" {...regPw('remember')} defaultChecked />
-                Remember me
-              </label>
-              <Link href="/forgot-password" className="text-sm font-medium text-brand-dark hover:text-brand">
-                Forgot password?
-              </Link>
-            </div>
-
-            {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</div>}
-
-            <Button type="submit" disabled={pwSubmitting} className="w-full">
-              {pwSubmitting ? 'Signing in…' : 'Sign in'}
-            </Button>
-          </form>
-
-          {/* Magic link */}
-          <form onSubmit={submitMagic(onSendMagic)} className="mt-3 space-y-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <AuthInput
-              id="magic-email"
-              type="email"
-              label="Prefer a magic link? Enter email"
-              autoComplete="email"
-              registration={regMagic('email', {
-                required: 'Email is required',
-                pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, message: 'Invalid email address' },
-                setValueAs: (v) => String(v || '').trim().toLowerCase(),
-              })}
-              error={magicErrors.email}
-            />
-            <Button type="submit" className="w-full" disabled={magicSubmitting}>
-              {magicSubmitting ? 'Sending…' : 'Send magic link'}
-            </Button>
-            {magicSent && <p className="text-sm text-green-700">We sent you a sign-in link. Check your inbox.</p>}
-          </form>
-
-          {/* MFA step (trusted device) */}
-          {mfaToken && (
-            <form className="mt-6 space-y-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900" onSubmit={submitMfa(onVerifyMfa)}>
-              <AuthInput
-                id="mfa-code"
-                type="text"
-                label="Verification code"
-                registration={regMfa('code', { required: 'Code is required' })}
-                error={undefined}
-              />
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" className="h-4 w-4 rounded border-gray-300" {...regMfa('trustedDevice')} defaultChecked />
-                Trust this device for 30 days
-              </label>
-              {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</div>}
-              <Button type="submit" disabled={mfaSubmitting} className="w-full">
-                {mfaSubmitting ? 'Verifying…' : 'Verify'}
-              </Button>
-            </form>
-          )}
-
-          <p className="mt-8 text-center text-sm text-gray-500">
+          {/* New user link */}
+          <p className="mt-6 text-center text-sm text-gray-500">
             New to Booka?{' '}
             <Link href={`/register?next=${encodeURIComponent(nextPath)}`} className="font-semibold text-brand-dark hover:text-brand">
               Create an account

@@ -58,6 +58,23 @@ if _google_oauth_client_id:
     except Exception:
         logger.info("Google OAuth registered")
 
+# Facebook OAuth (conditionally registered)
+_facebook_client_id = getattr(settings, "FACEBOOK_CLIENT_ID", None)
+_facebook_client_secret = getattr(settings, "FACEBOOK_CLIENT_SECRET", None)
+if _facebook_client_id and _facebook_client_secret:
+    oauth.register(
+        name="facebook",
+        client_id=_facebook_client_id,
+        client_secret=_facebook_client_secret,
+        authorize_url="https://www.facebook.com/v16.0/dialog/oauth",
+        access_token_url="https://graph.facebook.com/v16.0/oauth/access_token",
+        api_base_url="https://graph.facebook.com/v16.0/",
+        client_kwargs={"scope": "email"},
+    )
+    try:
+        logger.info("Facebook OAuth registered (client_id suffix=%s)", _facebook_client_id[-6:])
+    except Exception:
+        logger.info("Facebook OAuth registered")
 # Sign in with Apple (conditionally registered when credentials are present)
 if getattr(settings, "APPLE_CLIENT_ID", None) and getattr(settings, "APPLE_TEAM_ID", None) and getattr(settings, "APPLE_KEY_ID", None) and getattr(settings, "APPLE_PRIVATE_KEY", None):
     # Authlib supports Apple OpenID; client_secret must be a signed JWT
@@ -292,6 +309,87 @@ async def google_onetap(request: Request, db: Session = Depends(get_db)):
     access_token = create_access_token({"sub": user.email}, expires)
     refresh_token, r_exp = _create_refresh_token(user.email)
     _store_refresh_token(db, user, refresh_token, r_exp)
+    _set_access_cookie(resp, access_token)
+    _set_refresh_cookie(resp, refresh_token, r_exp)
+    return resp
+
+
+@router.get("/facebook/login")
+async def facebook_login(
+    request: Request,
+    next: str = settings.FRONTEND_URL.rstrip("/") + "/dashboard",
+):
+    """Start Facebook OAuth flow."""
+    if not hasattr(oauth, "facebook"):
+        raise error_response(
+            "Facebook OAuth not configured",
+            {},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    redirect_uri = request.url_for("facebook_callback")
+    return await oauth.facebook.authorize_redirect(request, redirect_uri, state=next)
+
+
+@router.get("/facebook/callback")
+async def facebook_callback(request: Request, db: Session = Depends(get_db)):
+    if not hasattr(oauth, "facebook"):
+        raise error_response(
+            "Facebook OAuth not configured",
+            {},
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    next_url = request.query_params.get("state") or settings.FRONTEND_URL
+    if next_url.startswith("/"):
+        next_url = settings.FRONTEND_URL.rstrip("/") + next_url
+    try:
+        token = await oauth.facebook.authorize_access_token(request)
+    except Exception as exc:
+        logger.error("Facebook token exchange failed: %s", exc)
+        raise error_response("Facebook authentication failed", {}, status.HTTP_400_BAD_REQUEST)
+
+    # Fetch user profile
+    email = None
+    first_name = ""
+    last_name = ""
+    try:
+        resp = await oauth.facebook.get("me?fields=id,name,email,first_name,last_name", token=token)
+        if resp.status_code == 200:
+            data = resp.json()
+            email = data.get("email")
+            first_name = data.get("first_name") or ""
+            last_name = data.get("last_name") or ""
+    except Exception as exc:
+        logger.warning("Facebook profile fetch failed: %s", exc)
+
+    if not email:
+        # Facebook apps may not return email if permission not granted
+        raise error_response("Email not available from Facebook", {}, status.HTTP_400_BAD_REQUEST)
+
+    email = normalize_email(email)
+    user = get_user_by_email(db, email)
+    if not user:
+        user = User(
+            email=email,
+            password=get_password_hash(secrets.token_hex(8)),
+            first_name=first_name or email.split("@")[0],
+            last_name=last_name,
+            user_type=UserType.CLIENT,
+            is_verified=True,
+        )
+        db.add(user)
+    else:
+        user.first_name = user.first_name or first_name
+        user.last_name = user.last_name or last_name
+        user.is_verified = True
+    db.commit()
+    db.refresh(user)
+
+    # Issue cookies and redirect
+    expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token({"sub": user.email}, expires)
+    refresh_token, r_exp = _create_refresh_token(user.email)
+    _store_refresh_token(db, user, refresh_token, r_exp)
+    resp = RedirectResponse(url=next_url)
     _set_access_cookie(resp, access_token)
     _set_refresh_cookie(resp, refresh_token, r_exp)
     return resp
