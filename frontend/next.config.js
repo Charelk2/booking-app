@@ -138,6 +138,8 @@ const nextConfig = {
           // Keep clickjacking protection via frame-ancestors, but permit Google's frames
           // Note: frame-ancestors is evaluated by the framed page; we permit Google frames via frame-src
           { key: 'Content-Security-Policy', value: csp },
+          // Explicitly allow FedCM in modern browsers
+          { key: 'Permissions-Policy', value: 'identity-credentials-get=(self)' },
         ],
       },
       {
