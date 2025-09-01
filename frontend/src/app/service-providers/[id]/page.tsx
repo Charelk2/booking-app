@@ -800,7 +800,7 @@ export default function ServiceProviderProfilePage() {
                               <div className="flex items-center gap-3">
                                 <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                                   {img ? (
-                                    <SafeImage src={img} alt="" fill className="object-cover" sizes="64px" unoptimized />
+                                    <SafeImage src={img} alt="" fill className="object-cover" sizes="64px" />
                                   ) : (
                                     <div className="h-full w-full bg-gray-100" />
                                   )}
@@ -1687,7 +1687,7 @@ export default function ServiceProviderProfilePage() {
                   <div className="relative h-40 w-full bg-gray-100">
                     {(() => {
                       const img = getServiceImage(selectedServiceObj);
-                      return img ? <SafeImage src={img} alt="" fill className="object-cover" sizes="100vw" unoptimized /> : <div className="h-full w-full bg-gray-100" />;
+                      return img ? <SafeImage src={img} alt="" fill className="object-cover" sizes="100vw" /> : <div className="h-full w-full bg-gray-100" />;
                     })()}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
                       <div className="flex items-end justify-between gap-3">
@@ -1737,7 +1737,7 @@ export default function ServiceProviderProfilePage() {
                             aria-label={`Select ${s.title || (s as any).service_type}`}
                           />
                           <div className="relative h-14 w-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                            {img ? <SafeImage src={img} alt="" fill className="object-cover" sizes="56px" unoptimized /> : <div className="h-full w-full bg-gray-100" />}
+                            {img ? <SafeImage src={img} alt="" fill className="object-cover" sizes="56px" /> : <div className="h-full w-full bg-gray-100" />}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-gray-900 truncate">{s.title || (s as any).service_type}</p>
@@ -2078,7 +2078,7 @@ export default function ServiceProviderProfilePage() {
                 <div className="relative h-40 w-full bg-gray-100 md:h-48">
                   {(() => {
                     const img = getServiceImage(detailedService);
-                    return img ? <SafeImage src={img} alt="" fill className="object-cover" sizes="100vw" unoptimized /> : <div className="h-full w-full grid place-items-center text-gray-400">No image available</div>;
+                    return img ? <SafeImage src={img} alt="" fill className="object-cover" sizes="100vw" /> : <div className="h-full w-full grid place-items-center text-gray-400">No image available</div>;
                   })()}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
                     <div className="flex items-end justify-between gap-3">

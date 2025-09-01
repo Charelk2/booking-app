@@ -26,20 +26,9 @@ function ensureStaticPath(pathname: string): string {
   return pathname.startsWith('/static/') ? pathname : `/static/${strip}`;
 }
 
-function lowercaseExtension(pathname: string): string {
-  const qIndex = pathname.indexOf('?');
-  const hashIndex = pathname.indexOf('#');
-  const end = [qIndex === -1 ? pathname.length : qIndex, hashIndex === -1 ? pathname.length : hashIndex].reduce(
-    (a, b) => Math.min(a, b),
-  );
-  const head = pathname.slice(0, end);
-  const tail = pathname.slice(end);
-  const dot = head.lastIndexOf('.');
-  if (dot === -1) return pathname;
-  const base = head.slice(0, dot);
-  const ext = head.slice(dot);
-  if (!/\.(png|jpg|jpeg|webp|gif|svg|avif)$/i.test(ext)) return pathname;
-  return `${base}${ext.toLowerCase()}${tail}`;
+// Preserve extension case; some files may be stored uppercase on disk.
+function preserveExtension(pathname: string): string {
+  return pathname;
 }
 
 export function toCanonicalImageUrl(input?: string | null): string | null {
@@ -57,8 +46,8 @@ export function toCanonicalImageUrl(input?: string | null): string | null {
     const isApi = u.origin === origin || /(^|\.)booka\.co\.za$/i.test(u.hostname);
     if (isApi) {
       const normalized = ensureStaticPath(u.pathname);
-      const lowered = lowercaseExtension(normalized);
-      return `${origin}${lowered}${u.search}`;
+      const finalPath = preserveExtension(normalized);
+      return `${origin}${finalPath}${u.search}`;
     }
     // External absolute URL: if looks like an image, return as-is; else null
     if (EXT_RE.test(u.pathname)) return v;
@@ -66,12 +55,11 @@ export function toCanonicalImageUrl(input?: string | null): string | null {
   } catch {
     // Relative path: coerce to /static and absolute origin
     const normalized = ensureStaticPath(v.startsWith('/') ? v : `/${v}`);
-    const lowered = lowercaseExtension(normalized);
-    return `${origin}${lowered}`;
+    const finalPath = preserveExtension(normalized);
+    return `${origin}${finalPath}`;
   }
 }
 
 export function isDataOrBlob(src: string | null | undefined): boolean {
   return !!src && /^(data:|blob:)/i.test(src);
 }
-
