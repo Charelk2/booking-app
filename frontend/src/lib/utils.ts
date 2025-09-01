@@ -22,7 +22,16 @@ export const getFullImageUrl = (
       const u = new URL(sanitized);
       const host = u.hostname.toLowerCase();
       const origPath = u.pathname; // preserve case
-      // Do NOT rewrite /static to direct mounts for external URLs; production may serve
+      // If this is our own domain and the path points to a known mount without /static,
+      // normalize to /static/<mount>/... so it works behind the API server.
+      if (/(^|\.)booka\.co\.za$/i.test(host)) {
+        const mDirect = origPath.match(/^\/(profile_pics|cover_photos|portfolio_images|attachments)\/(.*)$/i);
+        if (mDirect) {
+          const normalized = `${u.protocol}//${u.host}/static/${mDirect[1]}/${mDirect[2]}${u.search}`;
+          return normalized;
+        }
+      }
+      // Do NOT rewrite /static to direct mounts for other external URLs; production may serve
       // only under /static. Just return the URL if it looks like an image.
       const hasImageExt = /(\.png|\.jpg|\.jpeg|\.webp|\.gif|\.svg|\.avif)(\?|$)/i.test(origPath);
       if (hasImageExt) return sanitized;

@@ -344,7 +344,8 @@ FRONTEND_URL=http://localhost:3000
 ```
 Your OAuth consent screen should also request the scopes
 `https://www.googleapis.com/auth/calendar.readonly`,
-`https://www.googleapis.com/auth/userinfo.email`, and `openid`.
+`https://www.googleapis.com/auth/userinfo.email`,
+`https://www.googleapis.com/auth/userinfo.profile`, and `openid`.
 
 Use `GET /api/v1/google-calendar/connect` to begin OAuth. After the Google
 callback completes, the API redirects to

@@ -125,8 +125,8 @@ const nextConfig = {
       `connect-src 'self' ${connectApi} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com`,
       // Frames for Google Identity widgets
       "frame-src 'self' https://accounts.google.com https://accounts.gstatic.com",
-      // Images from Google Identity and Google Maps (tiles, sprites)
-      "img-src 'self' data: https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com",
+      // Images from backend API, Google Identity, and Google Maps (tiles, sprites)
+      `img-src 'self' data: blob: ${connectApi} https://api.booka.co.za https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com`,
       // Allow inline styles and GSI stylesheet; Maps injects inline styles too
       "style-src 'self' 'unsafe-inline' https://accounts.google.com",
     ].join('; ');

@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 SCOPES = [
     "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
     "openid",
 ]
 
@@ -175,4 +176,3 @@ def fetch_events(user_id: int, start: datetime, end: datetime, db: Session) -> L
             except ValueError:
                 continue
     return results
-
