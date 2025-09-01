@@ -798,9 +798,9 @@ export default function ServiceProviderProfilePage() {
                               aria-label={`View ${s.title || (s as any).service_type}`}
                             >
                               <div className="flex items-center gap-3">
-                                <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                                <div className="relative aspect-square w-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                                   {img ? (
-                                    <SafeImage src={img} alt="" fill className="object-cover" sizes="64px" />
+                                    <SafeImage src={img} alt="" fill className="object-cover" sizes="(max-width: 640px) 64px, (max-width: 1024px) 96px, 128px" />
                                   ) : (
                                     <div className="h-full w-full bg-gray-100" />
                                   )}

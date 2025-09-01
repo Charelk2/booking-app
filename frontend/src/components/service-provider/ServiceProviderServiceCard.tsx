@@ -50,11 +50,12 @@ export default function ServiceProviderServiceCard({ service, onBook }: ServiceP
       {/* Increased gap to add more spacing between media and details */}
       <div className="flex gap-6">
         {currentService.media_url && (
-          <div className="relative w-35 h-35 flex-shrink-0 pr-4">
+          <div className="relative aspect-square w-20 sm:w-24 md:w-28 lg:w-32 flex-shrink-0 pr-4 overflow-hidden">
             <SafeImage
               src={getFullImageUrl(currentService.media_url) || currentService.media_url}
               alt={currentService.title}
               fill
+              sizes="(max-width: 640px) 80px, (max-width: 768px) 96px, (max-width: 1024px) 112px, 128px"
               className="object-cover rounded-3xl"
             />
           </div>
