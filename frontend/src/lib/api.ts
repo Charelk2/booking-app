@@ -810,6 +810,32 @@ export const ensureBookaThread = () =>
     {}
   );
 
+// ─── UNIFIED THREADS INDEX (server-composed) ────────────────────────────────
+export interface ThreadsIndexItem {
+  thread_id: number;
+  booking_request_id: number;
+  state: string;
+  counterparty_name: string;
+  counterparty_avatar_url?: string | null;
+  last_message_snippet: string;
+  last_message_at: string;
+  unread_count: number;
+  meta?: Record<string, any> | null;
+}
+export interface ThreadsIndexResponse {
+  items: ThreadsIndexItem[];
+  next_cursor?: string | null;
+}
+export const getThreadsIndex = (role?: 'artist' | 'client', limit = 50) =>
+  api.get<ThreadsIndexResponse>(
+    `${API_V1}/threads`,
+    { params: { role, limit } }
+  );
+
+// ─── QUOTES BATCH ──────────────────────────────────────────────────────────
+export const getQuotesBatch = (ids: number[]) =>
+  api.get<QuoteV2[]>(`${API_V1}/quotes`, { params: { ids: ids.join(',') } });
+
 // Start a message-only thread to contact an artist, without needing a full booking request
 export const startMessageThread = (payload: {
   artist_id: number;
