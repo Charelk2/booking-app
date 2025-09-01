@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { User } from '@/types';
 import {
   login as apiLogin,
@@ -115,6 +116,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Global handler for session expiration broadcasts from the API layer
   useEffect(() => {
     const onExpired = () => {
+      try { toast.dismiss(); } catch {}
+      try { toast.error('Session expired — please sign in again.'); } catch {}
       try { void import('@/lib/api').then(m => m.logout()); } catch {}
       setUser(null);
       setArtistViewActive(true);

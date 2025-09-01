@@ -86,17 +86,20 @@ export default function DashboardPage() {
     }
   }, [activeTab, router, pathname]);
 
-  // Load calendar connection status to include in completion rule
+  // Load calendar connection status to include in completion rule (providers only)
   useEffect(() => {
+    if (!user || user.user_type !== 'service_provider') return;
+    let cancelled = false;
     (async () => {
       try {
         const res = await getGoogleCalendarStatus();
-        setCalendarConnected(!!res.data?.connected);
+        if (!cancelled) setCalendarConnected(!!res.data?.connected);
       } catch {
-        setCalendarConnected(false);
+        if (!cancelled) setCalendarConnected(false);
       }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [user?.user_type]);
 
   // Profile completion guard (exclude bank details)
   const isProfileComplete = useMemo(() => {
