@@ -11,15 +11,14 @@ type Props = Omit<ImageProps, 'src' | 'alt'> & {
 
 export default function AppImage({ src, alt = '', ...rest }: Props) {
   const url = toCanonicalImageUrl(src) || '/static/default-avatar.svg';
-  const unoptimized = isDataOrBlob(url);
-
+  // Force direct loads for absolute reliability across devices.
+  // This bypasses Next's optimizer (no /_next/image) so mobile and web fetch the same URL.
   const imgProps: ImageProps = {
     ...(rest as ImageProps),
     src: url,
     alt,
-    unoptimized,
+    unoptimized: true,
   } as ImageProps;
 
-  return <Image {...imgProps} {...(isCfLoaderEnabled ? { loader: cfLoader } : {})} />;
+  return <Image {...imgProps} />;
 }
-
