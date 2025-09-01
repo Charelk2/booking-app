@@ -780,7 +780,8 @@ export default function ServiceProviderProfilePage() {
                   ) : services.length ? (
                     <ul className="space-y-3">
                       {services.map((s) => {
-                        const img = getServiceImage(s);
+                        // Align mobile thumbnail source with desktop: prefer media_url only
+                        const img = getFullImageUrl((s as any).media_url) || (s as any).media_url || null;
                         const duration =
                           (s as any).duration ||
                           (s as any)?.details?.duration_label ||
