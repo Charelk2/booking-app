@@ -96,11 +96,18 @@ api.interceptors.response.use(
             return api(originalRequest);
           })
           .catch((refreshErr) => {
+            // Refresh failed: treat as session expired. Clean up client state,
+            // notify the app, and let the caller handle navigation if needed.
             pendingQueue = [];
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('user');
-              sessionStorage.removeItem('user');
-            }
+            try {
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('user');
+                sessionStorage.removeItem('user');
+                // Broadcast a global event so AuthContext (or others) can respond
+                // by logging out and redirecting to the login page.
+                window.dispatchEvent(new Event('app:session-expired'));
+              }
+            } catch {}
             return Promise.reject(refreshErr);
           })
           .finally(() => {

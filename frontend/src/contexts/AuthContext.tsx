@@ -71,7 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         userData = { ...userData, ...extras };
       } catch (err) {
-        console.error('Failed to fetch service provider profile:', err);
+        // Non-fatal: provider profile fetch can fail transiently; avoid loud errors.
+        console.warn('Provider profile not available yet or failed to load. Continuing as-is.');
       }
     }
     return userData;
@@ -100,7 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(userData);
           localStorage.setItem('user', JSON.stringify(userData));
         } catch (err) {
-          // Not authenticated by cookie; proceed with whatever we have in storage
+          // Not authenticated by cookie; axios interceptor will broadcast session expiry.
+          // Proceed silently; session-expired handler will redirect if needed.
         } finally {
           setLoading(false);
         }
@@ -109,6 +111,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })();
   }, []);
+
+  // Global handler for session expiration broadcasts from the API layer
+  useEffect(() => {
+    const onExpired = () => {
+      try { void import('@/lib/api').then(m => m.logout()); } catch {}
+      setUser(null);
+      setArtistViewActive(true);
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          localStorage.removeItem('artistViewActive');
+          sessionStorage.removeItem('user');
+          sessionStorage.removeItem('token');
+          const path = window.location.pathname + window.location.search;
+          const next = encodeURIComponent(path || '/');
+          router.replace(`/login?next=${next}`);
+          return;
+        }
+      } catch {}
+      router.replace('/login');
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('app:session-expired', onExpired);
+      return () => window.removeEventListener('app:session-expired', onExpired);
+    }
+    return () => {};
+  }, [router]);
 
   const login = async (
     email: string,
