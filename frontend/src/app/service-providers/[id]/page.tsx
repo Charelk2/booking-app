@@ -800,7 +800,7 @@ export default function ServiceProviderProfilePage() {
                               <div className="flex items-center gap-3">
                                 <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                                   {img ? (
-                                    <SafeImage src={img} alt="" fill className="object-cover" sizes="64px" />
+                                    <SafeImage src={img} alt="" fill className="object-cover" sizes="64px" unoptimized />
                                   ) : (
                                     <div className="h-full w-full bg-gray-100" />
                                   )}
