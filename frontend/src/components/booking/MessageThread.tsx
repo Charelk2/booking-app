@@ -997,10 +997,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
 
   // ---- WS connection
   const token = typeof window !== 'undefined'
-    ? localStorage.getItem('token') || sessionStorage.getItem('token') || ''
-    : '';
+    ? (localStorage.getItem('token') || sessionStorage.getItem('token') || null)
+    : null;
+  // Do not attempt to open a WebSocket when no auth token is available
+  const wsUrl = token
+    ? `${WS_BASE}${API_V1}/ws/booking-requests/${bookingRequestId}?token=${encodeURIComponent(token)}`
+    : null;
   const { onMessage: onSocketMessage, updatePresence } = useWebSocket(
-    `${WS_BASE}${API_V1}/ws/booking-requests/${bookingRequestId}?token=${token}`,
+    wsUrl,
     (event) => {
       if (event?.code === 4401) {
         setThreadError('Authentication error. Please sign in again.');
