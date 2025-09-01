@@ -65,6 +65,8 @@ export const buildCloudflareImageUrl = (
 export const normalizeToCloudflareIfPossible = (src?: string | null): string | null => {
   if (!src) return null;
   const built = buildCloudflareImageUrl(src);
-  return built || src;
+  // Only return a value when we can produce a Cloudflare Images URL.
+  // Otherwise, return null so callers can fall back to their own
+  // normalization logic (e.g., getFullImageUrl for API-hosted media).
+  return built || null;
 };
-
