@@ -45,7 +45,16 @@ api.defaults.withCredentials = true;
 // Automatically attach the bearer token (if present) to every request
 api.interceptors.request.use(
   (config) => {
-    logger.info({ method: config.method, url: config.url }, 'API request');
+    if (process.env.NODE_ENV === 'development') {
+      // Keep logs useful but quiet in dev
+      // eslint-disable-next-line no-console
+      console.debug('API request', {
+        method: config.method,
+        url: config.url,
+        params: config.params,
+        data: config.data,
+      });
+    }
     // Cookie-only: do not attach Authorization headers from JS
     if (config.headers && 'Authorization' in config.headers) {
       delete config.headers.Authorization;
@@ -133,11 +142,21 @@ api.interceptors.response.use(
         message = 'Network error. Please check your connection.';
       }
 
-      logger.error({ err: error, status, detail }, 'API error');
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.error('API error', {
+          status,
+          url: originalRequest?.url,
+          detail,
+        });
+      }
       return Promise.reject(new Error(message));
     }
 
-    logger.error({ err: error }, 'Unexpected API error');
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.error('Unexpected API error', error);
+    }
     return Promise.reject(
       error instanceof Error ? error : new Error('An unexpected error occurred.'),
     );
