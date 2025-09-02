@@ -111,6 +111,8 @@ def get_threads_preview(
         # Preview label (PV-aware)
         service_type = (getattr(br.service, "service_type", "") or "").lower()
         is_pv = service_type == "personalized video".lower()
+        preview_key = None
+        preview_args = {}
         if is_pv:
             def _is_skip(msg) -> bool:
                 if not msg or not getattr(msg, "content", None):
@@ -142,15 +144,53 @@ def get_threads_preview(
                     m = re.search(r"order\s*#\s*([A-Za-z0-9\-]+)", text, flags=re.IGNORECASE)
                     order = f" — order #{m.group(1)}" if m else ""
                     preview = f"Payment received{order} · View receipt"
+                    preview_key = "payment_received"
                 elif "brief completed" in low:
                     preview = "Brief completed"
+                    preview_key = "brief_completed"
                 else:
                     preview = preview_label_for_message(candidate, thread_state=state, sender_display=display)
+                    if getattr(candidate, "system_key", None):
+                        sk = (candidate.system_key or "").strip().lower()
+                        if sk.startswith("booking_details"):
+                            preview_key = "new_booking_request"
+                        elif sk.startswith("payment_received") or sk == "payment_received":
+                            preview_key = "payment_received"
+                        elif sk.startswith("event_reminder"):
+                            preview_key = "event_reminder"
+                            # Attempt to derive args from content
+                            dm = re.search(r"event\s+in\s+(\d+)\s+days\s*:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})", low, flags=re.IGNORECASE)
+                            if dm:
+                                preview_args = {"daysBefore": int(dm.group(1)), "date": dm.group(2)}
             else:
                 preview = preview_label_for_message(last_m, thread_state=state, sender_display=display)
+                if getattr(last_m, "system_key", None):
+                    sk = (last_m.system_key or "").strip().lower()
+                    if sk.startswith("booking_details"):
+                        preview_key = "new_booking_request"
+                    elif sk.startswith("payment_received") or sk == "payment_received":
+                        preview_key = "payment_received"
+                    elif sk.startswith("event_reminder"):
+                        preview_key = "event_reminder"
+                        lm = (last_m.content or "").strip().lower()
+                        dm = re.search(r"event\s+in\s+(\d+)\s+days\s*:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})", lm, flags=re.IGNORECASE)
+                        if dm:
+                            preview_args = {"daysBefore": int(dm.group(1)), "date": dm.group(2)}
         else:
             # Non-PV threads use shared helper
             preview = preview_label_for_message(last_m, thread_state=state, sender_display=display)
+            if last_m and getattr(last_m, "system_key", None):
+                sk = (last_m.system_key or "").strip().lower()
+                if sk.startswith("booking_details"):
+                    preview_key = "new_booking_request"
+                elif sk.startswith("payment_received") or sk == "payment_received":
+                    preview_key = "payment_received"
+                elif sk.startswith("event_reminder"):
+                    preview_key = "event_reminder"
+                    lm = (last_m.content or "").strip().lower()
+                    dm = re.search(r"event\s+in\s+(\d+)\s+days\s*:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})", lm, flags=re.IGNORECASE)
+                    if dm:
+                        preview_args = {"daysBefore": int(dm.group(1)), "date": dm.group(2)}
 
         # Meta
         meta = {}
@@ -174,6 +214,8 @@ def get_threads_preview(
                 state=state,
                 meta=meta or None,
                 pinned=False,
+                preview_key=preview_key,
+                preview_args=preview_args or None,
             )
         )
 
@@ -235,6 +277,20 @@ def get_threads_index(
 
         state = _state_from_status(br.status)
         snippet = preview_label_for_message(last_m, thread_state=state, sender_display=name)
+        p_key = None
+        p_args: Dict[str, Any] = {}
+        if last_m and getattr(last_m, "system_key", None):
+            sk = (last_m.system_key or "").strip().lower()
+            if sk.startswith("booking_details"):
+                p_key = "new_booking_request"
+            elif sk.startswith("payment_received") or sk == "payment_received":
+                p_key = "payment_received"
+            elif sk.startswith("event_reminder"):
+                p_key = "event_reminder"
+                lm = (last_m.content or "").strip().lower()
+                dm = re.search(r"event\s+in\s+(\d+)\s+days\s*:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})", lm, flags=re.IGNORECASE)
+                if dm:
+                    p_args = {"daysBefore": int(dm.group(1)), "date": dm.group(2)}
 
         meta: Dict[str, Any] = {}
         if getattr(br, "travel_breakdown", None):
@@ -256,6 +312,8 @@ def get_threads_index(
                 last_message_at=last_ts,
                 unread_count=unread_by_id.get(br.id, 0),
                 meta=meta or None,
+                preview_key=p_key,
+                preview_args=p_args or None,
             )
         )
 
