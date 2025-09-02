@@ -1469,24 +1469,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
     }
 
-    // Deposit due / Pay now CTA when there is an unpaid quote
-    if (key === 'deposit_due' || /\bdeposit\b/i.test(label)) {
-      const accepted = Object.values(quotes).find((q) => q.status === 'accepted');
-      const pending = Object.values(quotes).find((q) => q.status === 'pending');
-      const qForPay = accepted || pending;
-      if (qForPay && isClientViewFlag && !isPaidFlag && !isPaymentOpen) {
-        actions.push(
-          <Button
-            key="pay-now"
-            type="button"
-            onClick={() => { setIsPaymentOpen(true); openPaymentModal({ bookingRequestId, amount: Number(qForPay.total || 0) } as any); }}
-            className="ml-2 !py-0.5 !px-2 !text-[11px]"
-          >
-            {t('system.payNow', 'Pay now')}
-          </Button>
-        );
-      }
-    }
+    // Deposit flow removed: clients pay full upfront; do not inject deposit CTAs
 
     // Review request CTA
     if (key === 'review_request' && onShowReviewModal) {

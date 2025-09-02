@@ -37,6 +37,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [full] = useState(true); // always full amount
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paystackUrl, setPaystackUrl] = useState<string | null>(null);
   const modalRef = useRef<HTMLFormElement | null>(null);
   const autoRunRef = useRef(false);
 
@@ -101,7 +102,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         if (data && data.authorization_url && data.reference) {
           const authUrl = String(data.authorization_url);
           const reference = String(data.reference);
-          window.open(authUrl, '_blank', 'noopener,noreferrer');
+          // Render inline widget via iframe instead of a new tab
+          setPaystackUrl(authUrl);
           // Poll verify endpoint for a short period; fallback to mocked success if not available
           const apiBase = API_BASE.replace(/\/+$/,'');
           const verifyUrl = `${apiBase}/api/v1/payments/paystack/verify?reference=${encodeURIComponent(reference)}`;
@@ -192,15 +194,30 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             <span className="text-base font-semibold">{formatCurrency(amount)}</span>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
+          {USE_PAYSTACK && paystackUrl && (
+            <div className="mt-2">
+              <iframe
+                title="Paystack Checkout"
+                src={paystackUrl}
+                className="w-full h-[560px] border rounded-md"
+              />
+              <div className="mt-2 text-[12px] text-gray-600">
+                Having trouble?{' '}
+                <a href={paystackUrl} target="_blank" rel="noopener noreferrer" className="underline">Open in new tab</a>
+              </div>
+            </div>
+          )}
         </div>
-        <div className="flex justify-end gap-2 mt-4">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" isLoading={loading}>
-            {USE_PAYSTACK ? 'Open Paystack' : 'Pay'}
-          </Button>
-        </div>
+        {!paystackUrl && (
+          <div className="flex justify-end gap-2 mt-4">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={loading}>
+              {USE_PAYSTACK ? 'Open Paystack' : 'Pay'}
+            </Button>
+          </div>
+        )}
       </form>
     </div>
   );

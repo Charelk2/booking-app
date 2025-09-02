@@ -58,12 +58,12 @@ These sample commands demonstrate the basic booking flow using the API. Replace 
      -d '{"status":"accepted_by_client"}'
    ```
 
-6. **Pay the deposit using the fake gateway**
+6. **Pay using the fake gateway (full upfront)**
    ```bash
    PAYMENT_GATEWAY_FAKE=1 curl -X POST http://localhost:8000/api/v1/payments \
      -H "Authorization: Bearer CLIENT_TOKEN" \
      -H 'Content-Type: application/json' \
-     -d '{"booking_request_id":REQUEST_ID,"amount":250}'
+     -d '{"booking_request_id":REQUEST_ID}'
    ```
 
    If testing entirely in the browser, set `NEXT_PUBLIC_FAKE_PAYMENTS=1` in

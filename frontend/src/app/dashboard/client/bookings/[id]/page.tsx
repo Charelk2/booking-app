@@ -8,11 +8,7 @@ import PaymentModal from "@/components/booking/PaymentModal";
 import toast from "@/components/ui/Toast";
 import { getBookingDetails, downloadBookingIcs } from "@/lib/api";
 import type { Booking } from "@/types";
-import {
-  formatCurrency,
-  formatStatus,
-  formatDepositReminder,
-} from "@/lib/utils";
+import { formatCurrency, formatStatus } from "@/lib/utils";
 import { Spinner } from "@/components/ui";
 
 export default function BookingDetailsPage() {
@@ -100,20 +96,7 @@ export default function BookingDetailsPage() {
         >
           View Service Provider
         </Link>
-        {booking.deposit_amount !== undefined && (
-          <p className="text-sm text-gray-700">
-            Deposit: {formatCurrency(Number(booking.deposit_amount || 0))} (
-            {formatStatus(booking.payment_status || '')})
-          </p>
-        )}
-        {booking.payment_status === "pending" && booking.deposit_due_by && (
-          <p className="text-sm text-gray-700">
-            {formatDepositReminder(
-              Number(booking.deposit_amount || 0),
-              booking.deposit_due_by,
-            )}
-          </p>
-        )}
+        {/* No deposit flow; full upfront payment only */}
         {booking.payment_id && (
           <p>
             <a
@@ -138,9 +121,9 @@ export default function BookingDetailsPage() {
               type="button"
               onClick={() => setShowPayment(true)}
               className="text-brand-dark underline text-sm"
-              data-testid="pay-deposit-button"
+              data-testid="pay-now-button"
             >
-              Pay deposit
+              Pay now
             </button>
           )}
           {booking.status === "confirmed" && (

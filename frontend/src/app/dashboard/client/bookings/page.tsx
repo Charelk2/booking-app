@@ -8,11 +8,7 @@ import type { Booking, Review } from "@/types";
 import ReviewFormModal from "@/components/review/ReviewFormModal";
 import usePaymentModal from "@/hooks/usePaymentModal";
 import { format } from "date-fns";
-import {
-  formatCurrency,
-  formatStatus,
-  formatDepositReminder,
-} from "@/lib/utils";
+import { formatCurrency, formatStatus } from "@/lib/utils";
 import Link from "next/link";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { Spinner } from "@/components/ui";
@@ -25,11 +21,11 @@ interface BookingWithReview extends Booking {
 function BookingList({
   items,
   onReview,
-  onPayDeposit,
+  onPayNow,
 }: {
   items: BookingWithReview[];
   onReview: (id: number) => void;
-  onPayDeposit: (id: number) => void;
+  onPayNow: (id: number) => void;
 }) {
   return (
     <div>
@@ -37,11 +33,11 @@ function BookingList({
         const actions: BookingCardAction[] = [];
         if (b.payment_status === "pending") {
           actions.push({
-            label: "Pay deposit",
-            onClick: () => onPayDeposit(b.id),
+            label: "Pay now",
+            onClick: () => onPayNow(b.id),
             primary: true,
-            ariaLabel: `Pay deposit for ${b.service.title} – ${b.service.artist.business_name}`,
-            dataTestId: "pay-deposit-button",
+            ariaLabel: `Pay now for ${b.service.title} – ${b.service.artist.business_name}`,
+            dataTestId: "pay-now-button",
           });
         }
         if (b.booking_request_id) {
@@ -65,11 +61,7 @@ function BookingList({
             title={`${b.service.title} - ${b.service.artist.business_name}`}
             date={format(new Date(b.start_time), "MMM d, yyyy h:mm a")}
             status={formatStatus(b.status)}
-            deposit={
-              b.deposit_amount !== undefined
-                ? `Deposit: ${formatCurrency(Number(b.deposit_amount || 0))} (${formatStatus(b.payment_status || '')})`
-                : undefined
-            }
+            deposit={undefined}
             price={formatCurrency(Number(b.total_price))}
             actions={actions}
           >
@@ -85,14 +77,7 @@ function BookingList({
                 {format(new Date(b.start_time), "MMM d, yyyy h:mm a")}
               </div>
             </Link>
-            {b.payment_status === "pending" && b.deposit_due_by && (
-              <div className="text-sm text-gray-500 mt-1">
-                {formatDepositReminder(
-                  Number(b.deposit_amount || 0),
-                  b.deposit_due_by,
-                )}
-              </div>
-            )}
+            {/* No deposit flow; full upfront payment only */}
             {b.payment_id && (
               <a
                 href={`/api/v1/payments/${b.payment_id}/receipt`}
@@ -105,21 +90,11 @@ function BookingList({
               </a>
             )}
             <div className="flex justify-between text-xs text-gray-500 mt-2">
-              {[
-                "Requested",
-                "Confirmed",
-                "Deposit Paid",
-                b.status === "cancelled" ? "Cancelled" : "Completed",
-              ].map((step, idx) => {
+              {["Requested", "Confirmed", b.status === "cancelled" ? "Cancelled" : "Completed"].map((step, idx) => {
                 const activeIdx =
                   b.status === "pending"
                     ? 0
-                    : b.status === "confirmed"
-                      ? b.payment_status === "deposit_paid" ||
-                        b.payment_status === "paid"
-                        ? 2
-                        : 1
-                      : 3;
+                    : b.status === "confirmed" ? 1 : 2;
                 return (
                   <span
                     key={step}
@@ -217,9 +192,8 @@ export default function ClientBookingsPage() {
       setPaymentBookingId(id);
       openPaymentModal({
         bookingRequestId: res.data.booking_request_id ?? 0,
-        depositAmount: res.data.deposit_amount || undefined,
-        depositDueBy: res.data.deposit_due_by ?? undefined,
-      });
+        amount: Number(res.data.total_price || 0),
+      } as any);
     } catch (err) {
       console.error("Failed to load booking details for payment", err);
       setError("Failed to load payment details");
@@ -279,7 +253,7 @@ export default function ClientBookingsPage() {
           >
             <div className="flex items-start justify-between">
               <p className="text-sm text-yellow-700">
-                You have {pendingBookings.length} pending deposit
+                You have {pendingBookings.length} pending payment
                 {pendingBookings.length > 1 ? "s" : ""}.{" "}
                 <Link
                   href={`/dashboard/client/bookings/${oldestPending.id}`}

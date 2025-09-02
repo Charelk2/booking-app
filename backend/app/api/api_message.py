@@ -18,7 +18,7 @@ from ..utils.notifications import (
     notify_user_new_booking_request,
     VIDEO_FLOW_READY_MESSAGE,
 )
-from ..utils.messages import BOOKING_DETAILS_PREFIX
+from ..utils.messages import BOOKING_DETAILS_PREFIX, preview_label_for_message
 from ..utils import error_response
 from .api_ws import manager
 import os
@@ -145,6 +145,28 @@ def read_messages(
                 avatar_url = sender.profile_picture_url
         data = schemas.MessageResponse.model_validate(m).model_dump()
         data["avatar_url"] = avatar_url
+        # Server-computed preview label for uniform clients
+        try:
+            data["preview_label"] = preview_label_for_message(m)
+            # Provide a coarse preview_key/args so clients can unify previews
+            key = None
+            if m.message_type == models.MessageType.QUOTE:
+                key = "quote"
+            elif m.system_key:
+                # normalize known keys
+                low = (m.system_key or "").strip().lower()
+                if low.startswith("booking_details"):
+                    key = "new_booking_request"
+                elif low.startswith("payment_received") or low == "payment_received":
+                    key = "payment_received"
+                elif low.startswith("event_reminder"):
+                    key = "event_reminder"
+                else:
+                    key = low
+            data["preview_key"] = key
+            data["preview_args"] = {}
+        except Exception:
+            data["preview_label"] = None
         # Reply preview
         if m.reply_to_message_id:
             parent = (
