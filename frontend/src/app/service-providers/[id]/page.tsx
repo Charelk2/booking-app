@@ -736,11 +736,7 @@ export default function ServiceProviderProfilePage() {
                   </div>
                 )}
 
-                {priceBand && (
-                  <p className="mt-3 text-sm text-gray-900">
-                    <span className="font-semibold">Typical price:</span> {priceBand}
-                  </p>
-                )}
+               
 
                 {/* Quick Actions */}
                 <div className="mt-4 grid grid-cols-3 gap-2">
