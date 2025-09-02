@@ -704,6 +704,12 @@ export default function ServiceProviderProfilePage() {
                   <div className="min-w-0">
                     <h1 className="text-xl font-bold text-gray-900 truncate">{displayName}</h1>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                      {formattedLocation && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2.5 py-1 border border-gray-200">
+                          <MapPinIcon className="h-4 w-4" />
+                          {formattedLocation}
+                        </span>
+                      )}
                       {averageRating && (
                         <span
                           className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 border border-amber-100 text-amber-700"
@@ -714,7 +720,6 @@ export default function ServiceProviderProfilePage() {
                           {averageRating} ({displayReviews.length})
                         </span>
                       )}
-                      {/* Location pill removed per request */}
                     </div>
                   </div>
                 </div>
