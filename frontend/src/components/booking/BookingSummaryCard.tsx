@@ -306,7 +306,7 @@ export default function BookingSummaryCard({
 
           return (
             <div className="mt-4">
-              <div className="font-semibold mb-1">Estimated total</div>
+              <div className="font-semibold mb-1">Total</div>
               <div className="rounded-lg bg-gray-50 border border-gray-100 p-3">
                 <div className="flex justify-between text-gray-700">
                   <span>Base fee</span>
@@ -317,7 +317,7 @@ export default function BookingSummaryCard({
                   <span>{formatCurrency(Number(travelFee || 0))}</span>
                 </div>
                 <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
-                  <span>Total estimate</span>
+                  <span>Total</span>
                   <span>{formatCurrency(Number(baseFee || 0) + Number(travelFee || 0))}</span>
                 </div>
                 {typeof initialSound !== 'undefined' && (

@@ -13,7 +13,7 @@ import MessageThread from '../booking/MessageThread';
 import BookingDetailsPanel from './BookingDetailsPanel';
 import usePaymentModal from '@/hooks/usePaymentModal';
 
-import { InformationCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon } from '@heroicons/react/24/outline';
 
 interface ParsedBookingDetails {
   eventType?: string;
@@ -211,9 +211,11 @@ export default function MessageThreadWrapper({
             type="button"
             onClick={() => setShowSidePanel((s) => !s)}
             aria-label={showSidePanel ? 'Hide details' : 'Show details'}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+            className="px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
           >
-            <InformationCircleIcon className="h-6 w-6 text-gray-600" />
+            <span className="text-sm font-medium text-gray-700">
+              {showSidePanel ? 'Hide details' : 'Show details'}
+            </span>
           </button>
         </div>
       </header>
