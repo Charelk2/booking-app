@@ -46,6 +46,7 @@ import {
     uploadMessageAttachment,
     createQuoteV2,
     getQuoteV2,
+    getQuotesBatch,
     acceptQuoteV2,
     declineQuoteV2,
     getBookingDetails,
@@ -843,14 +844,33 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         console.error('Failed to mark messages read:', err);
       }
 
-      // Ensure quotes referenced are hydrated
-      for (const m of normalized) {
-        const qid = Number(m.quote_id);
-        const isQuote =
-          qid > 0 &&
-          (normalizeType(m.message_type) === 'QUOTE' ||
-            (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
-        if (isQuote) void ensureQuoteLoaded(qid);
+      // Ensure quotes referenced are hydrated (batch first, fallback per-id)
+      try {
+        const qids = Array.from(new Set(
+          normalized
+            .map((m) => Number(m.quote_id))
+            .filter((qid) => qid > 0)
+        ));
+        const missing = qids.filter((id) => !quotes[id]);
+        if (missing.length) {
+          const batch = await getQuotesBatch(missing);
+          if (Array.isArray(batch.data) && batch.data.length) {
+            setQuotes((prev) => ({
+              ...prev,
+              ...Object.fromEntries(batch.data.map((q: any) => [q.id, q])),
+            }));
+          }
+        }
+      } catch (e) {
+        // Fall back to per-quote fetch
+        for (const m of normalized) {
+          const qid = Number(m.quote_id);
+          const isQuote =
+            qid > 0 &&
+            (normalizeType(m.message_type) === 'QUOTE' ||
+              (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
+          if (isQuote) void ensureQuoteLoaded(qid);
+        }
       }
 
       setMessages((prev) => mergeMessages(prev.length ? prev : [], normalized));

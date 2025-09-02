@@ -8,6 +8,7 @@ from ..schemas.threads import (
     ThreadPreviewResponse,
     Counterparty,
 )
+from ..schemas.threads_index import ThreadsIndexItem, ThreadsIndexResponse
 from .dependencies import get_db, get_current_user, get_current_active_client
 from .. import schemas
 from ..crud import crud_booking_request, crud_notification, crud_message
@@ -178,6 +179,88 @@ def get_threads_preview(
 
     items.sort(key=lambda i: i.last_ts, reverse=True)
     return ThreadPreviewResponse(items=items, next_cursor=None)
+
+
+# Unified threads index: server-side merged list with preview and unread
+@router.get("/threads", response_model=ThreadsIndexResponse)
+def get_threads_index(
+    role: Optional[str] = Query(None, regex="^(artist|client)$"),
+    limit: int = Query(50, ge=1, le=200),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Return a unified threads index for the Inbox list.
+
+    Includes counterparty, last_message_snippet, unread_count, state, and light metadata.
+    Internally composes booking-request last message and notification unread counts.
+    """
+    is_artist = current_user.user_type == models.UserType.SERVICE_PROVIDER
+    if role == "client":
+        is_artist = False
+    elif role == "artist":
+        is_artist = True
+
+    brs = crud_booking_request.get_booking_requests_with_last_message(
+        db,
+        artist_id=current_user.id if is_artist else None,
+        client_id=current_user.id if not is_artist else None,
+        skip=0,
+        limit=limit,
+    )
+    # Map unread counts via notification aggregator for now
+    threads = crud_notification.get_message_thread_notifications(db, current_user.id)
+    unread_by_id: Dict[int, int] = {t["booking_request_id"]: int(t.get("unread_count", 0)) for t in threads}
+
+    items: List[ThreadsIndexItem] = []
+    for br in brs:
+        last_m = crud_message.get_last_message_for_request(db, br.id)
+        last_ts = getattr(br, "last_message_timestamp", None) or br.created_at
+        # Counterparty name/avatar
+        if is_artist:
+            other = br.client
+            name = f"{other.first_name} {other.last_name}" if other else "Client"
+            avatar_url = other.profile_picture_url if other else None
+        else:
+            other = br.artist
+            name = f"{other.first_name} {other.last_name}" if other else "Artist"
+            avatar_url = None
+            if other:
+                profile = other.artist_profile
+                if profile and profile.business_name:
+                    name = profile.business_name
+                if profile and profile.profile_picture_url:
+                    avatar_url = profile.profile_picture_url
+                elif other.profile_picture_url:
+                    avatar_url = other.profile_picture_url
+
+        state = _state_from_status(br.status)
+        snippet = preview_label_for_message(last_m, thread_state=state, sender_display=name)
+
+        meta: Dict[str, Any] = {}
+        if getattr(br, "travel_breakdown", None):
+            tb = br.travel_breakdown or {}
+            city = tb.get("event_city") or tb.get("address") or tb.get("place_name")
+            if city:
+                meta["location"] = city
+        if getattr(br, "proposed_datetime_1", None):
+            meta["event_date"] = br.proposed_datetime_1
+
+        items.append(
+            ThreadsIndexItem(
+                thread_id=br.id,
+                booking_request_id=br.id,
+                state=state,
+                counterparty_name=name,
+                counterparty_avatar_url=avatar_url,
+                last_message_snippet=snippet or "",
+                last_message_at=last_ts,
+                unread_count=unread_by_id.get(br.id, 0),
+                meta=meta or None,
+            )
+        )
+
+    items.sort(key=lambda i: i.last_message_at, reverse=True)
+    return ThreadsIndexResponse(items=items, next_cursor=None)
 
 
 @router.post("/message-threads/ensure-booka-thread")

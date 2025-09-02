@@ -12,12 +12,11 @@ import ConversationList from '@/components/inbox/ConversationList';
 import MessageThreadWrapper from '@/components/inbox/MessageThreadWrapper';
 import ReviewFormModal from '@/components/review/ReviewFormModal';
 import {
-  getMyBookingRequests,
-  getBookingRequestsForArtist,
-  getMessageThreads,
-  getMessageThreadsPreview,
+  getThreadsIndex,
   getMessagesForBookingRequest,
   ensureBookaThread,
+  getMyBookingRequests,
+  getBookingRequestsForArtist,
 } from '@/lib/api';
 import { BREAKPOINT_MD } from '@/lib/breakpoints';
 import { BookingRequest } from '@/types';
@@ -52,6 +51,48 @@ export default function InboxPage() {
   const fetchAllRequests = useCallback(async () => {
     // Only show the page-level spinner if we have nothing yet
     setLoadingRequests((prev) => prev || allBookingRequests.length === 0);
+    // Unified threads index (server-composed) when enabled
+    try {
+      if (process.env.NEXT_PUBLIC_INBOX_THREADS_INDEX === '1') {
+        const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
+        const res = await getThreadsIndex(role as any, 100);
+        const items = res.data.items || [];
+        const isArtist = user?.user_type === 'service_provider';
+        const mapped: BookingRequest[] = items.map((it) => ({
+          id: it.thread_id,
+          client_id: 0 as any,
+          service_provider_id: 0 as any,
+          status: (it.state as any) || 'pending_quote',
+          created_at: it.last_message_at,
+          updated_at: it.last_message_at,
+          last_message_content: it.last_message_snippet,
+          last_message_timestamp: it.last_message_at,
+          is_unread_by_current_user: (it.unread_count || 0) > 0 as any,
+          message: null,
+          travel_mode: null,
+          travel_cost: null,
+          travel_breakdown: null,
+          proposed_datetime_1: (it.meta as any)?.event_date || null,
+          proposed_datetime_2: null,
+          attachment_url: null,
+          service_id: undefined,
+          service: undefined,
+          artist: undefined as any,
+          artist_profile: (!isArtist ? ({ business_name: it.counterparty_name, profile_picture_url: it.counterparty_avatar_url || undefined } as any) : undefined),
+          client: (isArtist ? ({ first_name: it.counterparty_name, profile_picture_url: it.counterparty_avatar_url || undefined } as any) : undefined),
+          accepted_quote_id: null,
+          sound_required: undefined as any,
+          ...(it.counterparty_name === 'Booka' ? { is_booka_synthetic: true } : {}),
+          ...(it.state ? { thread_state: it.state } : {}),
+        } as any));
+        setAllBookingRequests(mapped);
+        setError(null);
+        setLoadingRequests(false);
+        return;
+      }
+    } catch (e) {
+      // fall through to legacy merge path
+    }
     try {
       const mineRes = await getMyBookingRequests();
       let artistRes: AxiosResponse<BookingRequest[]> = { data: [] } as unknown as AxiosResponse<BookingRequest[]>;

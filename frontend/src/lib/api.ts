@@ -45,7 +45,16 @@ api.defaults.withCredentials = true;
 // Automatically attach the bearer token (if present) to every request
 api.interceptors.request.use(
   (config) => {
-    logger.info({ method: config.method, url: config.url }, 'API request');
+    if (process.env.NODE_ENV === 'development') {
+      // Keep logs useful but quiet in dev
+      // eslint-disable-next-line no-console
+      console.debug('API request', {
+        method: config.method,
+        url: config.url,
+        params: config.params,
+        data: config.data,
+      });
+    }
     // Cookie-only: do not attach Authorization headers from JS
     if (config.headers && 'Authorization' in config.headers) {
       delete config.headers.Authorization;
@@ -133,11 +142,21 @@ api.interceptors.response.use(
         message = 'Network error. Please check your connection.';
       }
 
-      logger.error({ err: error, status, detail }, 'API error');
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.error('API error', {
+          status,
+          url: originalRequest?.url,
+          detail,
+        });
+      }
       return Promise.reject(new Error(message));
     }
 
-    logger.error({ err: error }, 'Unexpected API error');
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console
+      console.error('Unexpected API error', error);
+    }
     return Promise.reject(
       error instanceof Error ? error : new Error('An unexpected error occurred.'),
     );
@@ -809,6 +828,32 @@ export const ensureBookaThread = () =>
     `${API_V1}/message-threads/ensure-booka-thread`,
     {}
   );
+
+// ─── UNIFIED THREADS INDEX (server-composed) ────────────────────────────────
+export interface ThreadsIndexItem {
+  thread_id: number;
+  booking_request_id: number;
+  state: string;
+  counterparty_name: string;
+  counterparty_avatar_url?: string | null;
+  last_message_snippet: string;
+  last_message_at: string;
+  unread_count: number;
+  meta?: Record<string, any> | null;
+}
+export interface ThreadsIndexResponse {
+  items: ThreadsIndexItem[];
+  next_cursor?: string | null;
+}
+export const getThreadsIndex = (role?: 'artist' | 'client', limit = 50) =>
+  api.get<ThreadsIndexResponse>(
+    `${API_V1}/threads`,
+    { params: { role, limit } }
+  );
+
+// ─── QUOTES BATCH ──────────────────────────────────────────────────────────
+export const getQuotesBatch = (ids: number[]) =>
+  api.get<QuoteV2[]>(`${API_V1}/quotes`, { params: { ids: ids.join(',') } });
 
 // Start a message-only thread to contact an artist, without needing a full booking request
 export const startMessageThread = (payload: {
