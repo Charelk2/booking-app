@@ -990,6 +990,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         setBookingConfirmed(true);
         onBookingConfirmedChange?.(true, bookingDetails);
         try { localStorage.setItem(`booking-confirmed-${bookingRequestId}`, '1'); } catch {}
+        try { if (typeof window !== 'undefined') window.dispatchEvent(new Event('threads:updated')); } catch {}
         if (paymentId) {
           setBookingDetails((prev) => (prev ? { ...prev, payment_id: paymentId as any } : prev));
         }

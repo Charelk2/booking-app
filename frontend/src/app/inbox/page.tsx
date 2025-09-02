@@ -345,11 +345,17 @@ export default function InboxPage() {
     const onVisibility = () => {
       if (document.visibilityState === 'visible') fetchAllRequests();
     };
+    // Also refresh when the chat layer signals updates (e.g., quote sent, payment received)
+    const onThreadsUpdated = () => {
+      fetchAllRequests();
+    };
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('threads:updated', onThreadsUpdated as any);
     return () => {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('threads:updated', onThreadsUpdated as any);
     };
   }, [fetchAllRequests]);
 
