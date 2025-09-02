@@ -966,7 +966,7 @@ export default function EditServiceProviderProfilePage(): JSX.Element {
                     <button
                       type="button"
                       aria-label="Upload profile picture"
-                      className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white shadow flex items-center justify-center text-gray-600 hover:bg-gray-300/60 transition"
+                      className="w-24 h-24 text-xs rounded-full bg-gray-200 border-4 border-white shadow flex items-center justify-center text-gray-600 hover:bg-gray-300/60 transition"
                       onClick={() => {
                         document
                           .getElementById('profilePicInputHidden')
