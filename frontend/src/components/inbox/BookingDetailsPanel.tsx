@@ -105,6 +105,14 @@ export default function BookingDetailsPanel({
     };
   }, [isBookaThread, user?.user_type]);
 
+  // Determine service type once for conditional UI
+  const serviceTypeText = String(
+    bookingRequest.service?.service_type ||
+    bookingRequest.service?.service_category?.name ||
+    ''
+  ).toLowerCase();
+  const isPersonalized = serviceTypeText.includes('personalized video');
+
   // Render a rich, action‑oriented panel for Booka updates
   if (isBookaThread) {
     const currentArtistId =
@@ -258,8 +266,8 @@ export default function BookingDetailsPanel({
     <div className="w-full flex flex-col h-full">
       <h4 className="mb-3 text-base font-semibold text-gray-900">Booking Details</h4>
 
-      {/* Quick Event glance */}
-      {(() => {
+      {/* Quick Event glance (hidden for Personalized Video) */}
+      {(!isPersonalized) && (() => {
         const displayEventType = eventType || parsedBookingDetails?.eventType || null;
         const displayGuests = (guestsCount != null ? String(guestsCount) : (parsedBookingDetails?.guests || '')).toString().trim();
         if (!displayEventType && !displayGuests) return null;
@@ -293,13 +301,6 @@ export default function BookingDetailsPanel({
           (bookingRequest as any).service?.artist?.user_id ||
           0;
 
-        const serviceTypeText = String(
-          bookingRequest.service?.service_type ||
-          bookingRequest.service?.service_category?.name ||
-          ''
-        ).toLowerCase();
-        const isPersonalized = serviceTypeText.includes('personalized video');
-
         return (
           <BookingSummaryCard
         parsedBookingDetails={parsedBookingDetails ?? undefined}
@@ -322,6 +323,7 @@ export default function BookingDetailsPanel({
         showTravel={!isPersonalized}
         showSound={!isPersonalized}
         showPolicy={!isPersonalized}
+        showEventDetails={!isPersonalized}
         showReceiptBelowTotal={isPersonalized}
       />
         );

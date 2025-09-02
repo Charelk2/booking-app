@@ -48,6 +48,7 @@ interface BookingSummaryCardProps {
   showSound?: boolean;
   showPolicy?: boolean;
   showReceiptBelowTotal?: boolean;
+  showEventDetails?: boolean;
 }
 
 export default function BookingSummaryCard({
@@ -72,6 +73,7 @@ export default function BookingSummaryCard({
   showSound = true,
   showPolicy = true,
   showReceiptBelowTotal = false,
+  showEventDetails = true,
 }: BookingSummaryCardProps) {
   const { user } = useAuth();
   const [briefLink, setBriefLink] = React.useState<string | null>(null);
@@ -133,13 +135,13 @@ export default function BookingSummaryCard({
       <div className="px-4 pb-4 overflow-y-auto max-h-[60vh] text-sm leading-6">
         {/* Booking details list */}
         <ul className="divide-y divide-gray-100">
-          {parsedBookingDetails?.eventType && (
+          {showEventDetails && parsedBookingDetails?.eventType && (
             <li className="py-2">
               <span className="font-semibold">Event Type:</span>{' '}
               {parsedBookingDetails.eventType}
             </li>
           )}
-          {parsedBookingDetails?.date && (
+          {showEventDetails && parsedBookingDetails?.date && (
             <li className="py-2">
               <span className="font-semibold">Date:</span>{' '}
               {isValid(new Date(parsedBookingDetails.date))
@@ -147,7 +149,7 @@ export default function BookingSummaryCard({
                 : parsedBookingDetails.date}
             </li>
           )}
-          {(() => {
+          {showEventDetails && (() => {
             const locName = (parsedBookingDetails as any)?.location_name as string | undefined;
             const raw = (parsedBookingDetails?.location || '').trim();
             let name = (locName || '').trim();
@@ -172,25 +174,25 @@ export default function BookingSummaryCard({
               </li>
             ) : null;
           })()}
-          {parsedBookingDetails?.guests && (
+          {showEventDetails && parsedBookingDetails?.guests && (
             <li className="py-2">
               <span className="font-semibold">Guests:</span>{' '}
               {parsedBookingDetails.guests}
             </li>
           )}
-          {parsedBookingDetails?.venueType && (
+          {showEventDetails && parsedBookingDetails?.venueType && (
             <li className="py-2">
               <span className="font-semibold">Venue Type:</span>{' '}
               {parsedBookingDetails.venueType}
             </li>
           )}
-          {showSound && parsedBookingDetails?.soundNeeded && (
+          {showSound && showEventDetails && parsedBookingDetails?.soundNeeded && (
             <li className="py-2">
               <span className="font-semibold">Sound:</span>{' '}
               {parsedBookingDetails.soundNeeded}
             </li>
           )}
-          {parsedBookingDetails?.notes && (
+          {showEventDetails && parsedBookingDetails?.notes && (
             <li className="py-2">
               <span className="font-semibold">Notes:</span>{' '}
               {parsedBookingDetails.notes}

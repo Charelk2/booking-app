@@ -154,7 +154,50 @@ const EventPrepCard: React.FC<EventPrepCardProps> = ({ bookingId, bookingRequest
     }
   }, [bookingId, ep]);
 
-  if (!ep) return null;
+  // If the prep record isn't loaded yet (or not created yet), still render
+  // a minimal CTA so users can reach the event prep form immediately.
+  if (!ep) {
+    return (
+      <section
+        className={summaryOnly ? 'rounded-xl border border-gray-200 bg-green-400 text-gray-900 p-3 cursor-pointer' : 'rounded-2xl shadow border border-gray-200 bg-indigo-50   text-gray-900 p-5 cursor-pointer'}
+        aria-label="Event preparation"
+        role="button"
+        tabIndex={0}
+        onClick={() => (onContinuePrep ? onContinuePrep(bookingId) : router.push(`/dashboard/events/${bookingId}`))}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onContinuePrep ? onContinuePrep(bookingId) : router.push(`/dashboard/events/${bookingId}`);
+          }
+        }}
+      >
+        <div className={summaryOnly ? 'flex items-center justify-between gap-3' : 'flex items-start justify-between gap-3'}>
+          <div>
+            {summaryOnly ? (
+              <Link
+                href={`/dashboard/events/${bookingId}`}
+                onClick={(e) => e.stopPropagation()}
+                className="no-underline"
+              >
+                <h3 className="text-sm font-semibold tracking-tight">Let’s prep your event</h3>
+              </Link>
+            ) : (
+              <h3 className="text-lg font-semibold tracking-tight">Let’s prep your event</h3>
+            )}
+            <p className={summaryOnly ? 'text-[10px] text-gray-800 mt-0.5' : 'text-[11px] text-gray-800 mt-0.5'}>
+              A quick checklist to keep the day smooth.
+            </p>
+          </div>
+          {/* Minimal placeholder meta while loading */}
+          <div className="flex flex-col items-end gap-1">
+            <span className={summaryOnly ? 'inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold bg-white text-gray-700' : 'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold bg-gray-100 text-gray-700'}>
+              Prep —
+            </span>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   // Build the ordered checklist steps according to role
   const stepsBase: PrepStep[] = (

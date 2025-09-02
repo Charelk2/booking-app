@@ -2953,6 +2953,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 artistCancellationPolicy={artistCancellationPolicy}
                 currentArtistId={currentArtistId}
                 instantBookingPrice={instantBookingPrice}
+                // Adapt UI to service type in modal
+                showTravel={!isPersonalizedVideo}
+                showSound={!isPersonalizedVideo}
+                showPolicy={!isPersonalizedVideo}
+                showEventDetails={!isPersonalizedVideo}
+                showReceiptBelowTotal={isPersonalizedVideo}
               />
             </div>
           </div>
