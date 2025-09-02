@@ -46,6 +46,8 @@ interface BookingSummaryCardProps {
   /** UI toggles to tailor panel per service type */
   showTravel?: boolean;
   showSound?: boolean;
+  showPolicy?: boolean;
+  showReceiptBelowTotal?: boolean;
 }
 
 export default function BookingSummaryCard({
@@ -68,6 +70,8 @@ export default function BookingSummaryCard({
   instantBookingPrice,
   showTravel = true,
   showSound = true,
+  showPolicy = true,
+  showReceiptBelowTotal = false,
 }: BookingSummaryCardProps) {
   const { user } = useAuth();
   const [briefLink, setBriefLink] = React.useState<string | null>(null);
@@ -293,6 +297,26 @@ export default function BookingSummaryCard({
                   </div>
                 </div>
 
+                {(() => {
+                  if (!showReceiptBelowTotal) return null;
+                  const url = buildReceiptUrl(
+                    paymentInfo?.receiptUrl ?? null,
+                    bookingDetails?.payment_id ?? null
+                  );
+                  return url ? (
+                    <div className="mt-2">
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm underline text-gray-700"
+                      >
+                        View receipt
+                      </a>
+                    </div>
+                  ) : null;
+                })()}
+
                 {allowInstantBooking && !accepted && (
                   <div className="mt-3 text-right">
                     <Button
@@ -338,6 +362,26 @@ export default function BookingSummaryCard({
                 )}
               </div>
 
+              {(() => {
+                if (!showReceiptBelowTotal) return null;
+                const url = buildReceiptUrl(
+                  paymentInfo?.receiptUrl ?? null,
+                  bookingDetails?.payment_id ?? null
+                );
+                return url ? (
+                  <div className="mt-2">
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm underline text-gray-700"
+                    >
+                      View receipt
+                    </a>
+                  </div>
+                ) : null;
+              })()}
+
               {allowInstantBooking && (
                 <div className="mt-3 text-right">
                   <Button
@@ -363,6 +407,7 @@ export default function BookingSummaryCard({
         })()}
 
         {/* Policy */}
+        {showPolicy && (
         <div className="mt-5">
           <div className="font-semibold mb-1">Cancellation policy</div>
           <p className="text-gray-600 text-sm">
@@ -370,6 +415,7 @@ export default function BookingSummaryCard({
               'Free cancellation within 48 hours of booking. 50% refund up to 7 days before the event. Policies may vary by provider.'}
           </p>
         </div>
+        )}
 
         {/* Links */}
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2">
