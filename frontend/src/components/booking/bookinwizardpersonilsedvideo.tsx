@@ -13,6 +13,9 @@ import {
 import { Button, TextInput, TextArea, Spinner, Toast } from "@/components/ui";
 import api from "@/lib/api";
 
+// Shared payment config
+const PAYSTACK_CURRENCY = process.env.NEXT_PUBLIC_PAYSTACK_CURRENCY || 'ZAR';
+
 // Personalized Video Booking Wizard
 // Step 1: Basics & Delivery (sheet) → creates draft order and routes to payment page
 // Step 2: Payment (full page, 3DS safe) — exported helper component
@@ -139,7 +142,6 @@ export default function BookinWizardPersonilsedVideo({
   const router = useRouter();
   const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
   const PAYSTACK_PK = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_PK;
-  const PAYSTACK_CURRENCY = process.env.NEXT_PUBLIC_PAYSTACK_CURRENCY || 'ZAR';
   const [deliveryBy, setDeliveryBy] = useState<string>(""); // YYYY-MM-DD
   const [lengthChoice, setLengthChoice] = useState<LengthChoice>("30_45");
   const [language, setLanguage] = useState<string>("EN");
@@ -171,15 +173,31 @@ export default function BookinWizardPersonilsedVideo({
         return;
       }
       setChecking(true);
-      const data = await safeGet<{ capacity_ok: boolean; blackout?: boolean }>(
-        `/api/v1/artists/${artistId}/availability`,
-        { by: deliveryBy },
-      );
+      // Prefer the canonical endpoint. Fall back to legacy alias if present.
+      // Canonical shape: { unavailable_dates: string[] }
+      // Legacy alias shape: { capacity_ok: boolean; blackout?: boolean }
+      let ok: boolean | null = null;
+      try {
+        const res = await safeGet<{ unavailable_dates: string[] }>(
+          `/api/v1/service-provider-profiles/${artistId}/availability`,
+          { when: deliveryBy },
+        );
+        if (res && Array.isArray(res.unavailable_dates)) {
+          ok = !res.unavailable_dates.includes(deliveryBy);
+        }
+      } catch {}
+      if (ok == null) {
+        const legacy = await safeGet<{ capacity_ok: boolean; blackout?: boolean }>(
+          `/api/v1/artists/${artistId}/availability`,
+          { by: deliveryBy },
+        );
+        if (legacy) ok = Boolean(legacy.capacity_ok) && !legacy.blackout;
+      }
       if (cancel) return;
-      if (!data) {
+      if (ok == null) {
         setAvailable(true); // assume ok if API unavailable
       } else {
-        setAvailable(Boolean(data.capacity_ok) && !data.blackout);
+        setAvailable(ok);
       }
       setChecking(false);
     })();
@@ -301,7 +319,6 @@ export default function BookinWizardPersonilsedVideo({
         const thread = await safePost<{ id: number }>(`/api/v1/booking-requests/`, {
           artist_id: artistId,
           service_id: serviceId,
-          service_provider_id: 0,
         }, { 'Idempotency-Key': `vo-thread-${artistId}-${serviceId}-${deliveryBy}-${lengthSec}` });
         if (thread?.id) {
           try {
@@ -344,7 +361,6 @@ export default function BookinWizardPersonilsedVideo({
       const thread = await safePost<{ id: number }>(`/api/v1/booking-requests/`, {
         artist_id: artistId,
         service_id: serviceId,
-        service_provider_id: 0,
       }, { 'Idempotency-Key': `vo-thread-${artistId}-${serviceId}-${deliveryBy}-${lengthSec}` });
       if (thread?.id) {
         try {

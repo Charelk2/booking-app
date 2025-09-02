@@ -121,12 +121,12 @@ const nextConfig = {
     // Derive the secure WebSocket origin for CSP connect-src
     const wsApi = apiBase.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
     const csp = [
-      // Allow Google Identity Services and Google Maps JS API
-      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com",
-      // Permit XHR/fetch and secure WebSocket to backend API and Google Identity/Maps endpoints used by Places
-      `connect-src 'self' ${connectApi} ${wsApi} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com`,
-      // Frames for Google Identity widgets
-      "frame-src 'self' https://accounts.google.com https://accounts.gstatic.com",
+      // Allow Google Identity Services, Google Maps, and Paystack inline checkout
+      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com https://js.paystack.co",
+      // Permit XHR/fetch and secure WebSocket to backend API, Google Identity/Maps, and Paystack API endpoints
+      `connect-src 'self' ${connectApi} ${wsApi} https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://places.googleapis.com https://api.paystack.co`,
+      // Frames for Google Identity widgets and Paystack's checkout iframe
+      "frame-src 'self' https://accounts.google.com https://accounts.gstatic.com https://js.paystack.co https://checkout.paystack.com",
       // Images from backend API, Google Identity, and Google Maps (tiles, sprites)
       `img-src 'self' data: blob: ${connectApi} https://api.booka.co.za https://accounts.google.com https://accounts.gstatic.com https://maps.googleapis.com https://maps.gstatic.com`,
       // Allow inline styles and GSI stylesheet; Maps injects inline styles too

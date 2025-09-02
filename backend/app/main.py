@@ -57,6 +57,7 @@ from .api import (
     api_admin,
     api_webhooks_events,
     api_uploads,
+    api_artist_alias,
 )
 
 # The “service-provider-profiles” router lives under app/api/v1/
@@ -577,6 +578,13 @@ app.include_router(
     api_calendar.router,
     prefix=f"{api_prefix}",
     tags=["google-calendar"],
+)
+
+# ─── COMPAT (legacy path aliases) ─────────────────────────────────────────────
+app.include_router(
+    api_artist_alias.router,
+    prefix=f"{api_prefix}",
+    tags=["compat"],
 )
 
 # ─── PAYMENT ROUTES (under /api/v1/payments) ─────────────────────────────
