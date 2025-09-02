@@ -704,12 +704,6 @@ export default function ServiceProviderProfilePage() {
                   <div className="min-w-0">
                     <h1 className="text-xl font-bold text-gray-900 truncate">{displayName}</h1>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
-                      {formattedLocation && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2.5 py-1 border border-gray-200">
-                          <MapPinIcon className="h-4 w-4" />
-                          {formattedLocation}
-                        </span>
-                      )}
                       {averageRating && (
                         <span
                           className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 border border-amber-100 text-amber-700"
@@ -720,6 +714,7 @@ export default function ServiceProviderProfilePage() {
                           {averageRating} ({displayReviews.length})
                         </span>
                       )}
+                      {/* Location pill removed per request */}
                     </div>
                   </div>
                 </div>
@@ -1193,18 +1188,21 @@ export default function ServiceProviderProfilePage() {
                       </div>
                     )}
 
-                    <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-gray-500">
-                      {formattedLocation && !serviceProvider.custom_subtitle && (
-                        <span className="flex items-center">
-                          <MapPinIcon className="h-3 w-3 mr-1" /> {formattedLocation}
-                        </span>
-                      )}
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm text-gray-500">
                       {averageRating && (
                         <span className="flex items-center cursor-pointer" onClick={() => setIsAllReviewsOpen(true)}>
-                          <StarSolidIcon className="h-3 w-3 mr-1 text-yellow-400" /> {averageRating} ({displayReviews.length} reviews)
+                          <StarSolidIcon className="h-3 w-3 mr-1 text-yellow-400" />
+                          {averageRating} ({displayReviews.length} reviews)
                         </span>
                       )}
-                      
+                      {averageRating && formattedLocation && (
+                        <span aria-hidden className="text-gray-300">•</span>
+                      )}
+                      {formattedLocation && (
+                        <span className="flex items-center">
+                          {formattedLocation}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1299,7 +1297,7 @@ export default function ServiceProviderProfilePage() {
                               onKeyDown={(e) => e.key === 'Enter' && (setDetailedService(service), setIsDetailsOpen(true))}
                               aria-label={`View details for ${service.title || (service as any).service_type}`}
                             >
-                              <div className="flex gap-4 h-full">
+                              <div className="flex items-center gap-4">
                                 <div className="relative h-32 w-32 rounded-3xl overflow-hidden bg-gray-100 shrink-0 group-hover:scale-105 transition-transform duration-200">
                                   {img ? (
                                     <SafeImage src={img} alt={service.title || (service as any).service_type} fill className="object-cover" sizes="128px" />
@@ -1307,7 +1305,7 @@ export default function ServiceProviderProfilePage() {
                                     <div className="h-full w-full grid place-items-center text-gray-400">No image</div>
                                   )}
                                 </div>
-                                <div className="flex-1 flex flex-col justify-between">
+                                <div className="flex-1">
                                   <div>
                                     <h3 className="text-md font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
                                       {service.title || (service as any).service_type}
