@@ -1094,7 +1094,7 @@ export default function EventPrepForm({ bookingId }: { bookingId: number }) {
         <aside>
           {heroImage && (
             <div className="mb-4 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-              <div className="aspect-[16/9] bg-gray-100">
+              <div className="relative aspect-[16/9] bg-gray-100">
                 <SafeImage src={heroImage} alt={booking.service?.title || 'Event'} fill sizes="(max-width: 768px) 100vw, 360px" className="h-full w-full object-cover" priority placeholder="blur" blurDataURL={BLUR_PLACEHOLDER} />
               </div>
             </div>
