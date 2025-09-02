@@ -410,7 +410,6 @@ export default function ServiceProviderProfilePage() {
     const out: string[] = [];
     const sp: any = serviceProvider;
     if (!sp) return out;
-    if (sp.location) out.push(getTownProvinceFromAddress(sp.location));
     // Do not include subtitle in highlights; shown separately under name
     if (Array.isArray(sp.specialties) && sp.specialties.length) out.push(...sp.specialties.slice(0, 3));
     if (sp.owns_pa) out.push('Owns PA');
