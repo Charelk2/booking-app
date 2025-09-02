@@ -1,19 +1,23 @@
-'use client';
+"use client";
 
-import React, { Fragment, useEffect, useMemo, useState } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { useRouter } from 'next/navigation';
+import React, { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Dialog, Transition } from "@headlessui/react";
+import { useRouter } from "next/navigation";
 import {
   XMarkIcon,
   BoltIcon,
+  ClockIcon,
   CheckBadgeIcon,
-} from '@heroicons/react/24/outline';
-import { Button, TextInput, TextArea, Spinner, Toast } from '@/components/ui';
-import api from '@/lib/api';
+  PaperAirplaneIcon,
+} from "@heroicons/react/24/outline";
+import { Button, TextInput, TextArea, Spinner, Toast } from "@/components/ui";
+import api from "@/lib/api";
 
-// ————————————————————————————————————————————————————————————————
-// Types
-// ————————————————————————————————————————————————————————————————
+// Personalized Video Booking Wizard
+// Step 1: Basics & Delivery (sheet) → creates draft order and routes to payment page
+// Step 2: Payment (full page, 3DS safe) — exported helper component
+// Step 3: Inline Chat Brief (autosave) — exported helper component
+
 export interface VideoOrderDraftPayload {
   artist_id: number;
   delivery_by_utc: string; // ISO date YYYY-MM-DDT00:00:00Z
@@ -36,13 +40,13 @@ export interface VideoOrder {
   artist_id: number;
   buyer_id: number;
   status:
-    | 'draft'
-    | 'awaiting_payment'
-    | 'paid'
-    | 'info_pending'
-    | 'in_production'
-    | 'delivered'
-    | 'closed';
+    | "draft"
+    | "awaiting_payment"
+    | "paid"
+    | "info_pending"
+    | "in_production"
+    | "delivered"
+    | "closed";
   delivery_by_utc: string;
   length_sec: number;
   language: string;
@@ -58,45 +62,42 @@ export interface VideoOrder {
   payment_intent_id?: string;
 }
 
-type LengthChoice = '30_45' | '60_90';
+type LengthChoice = "30_45" | "60_90";
 
 interface Props {
   artistId: number;
   isOpen: boolean;
   onClose: () => void;
-  // Optional overrides
+  // Optional override defaults
   basePriceZar?: number; // default base
   addOnLongZar?: number; // surcharge for 60–90s
   serviceId?: number; // create a related booking request thread
 }
 
 const LANGS = [
-  { v: 'EN', l: 'English' },
-  { v: 'AF', l: 'Afrikaans' },
-  { v: 'Bilingual', l: 'Bilingual' },
+  { v: "EN", l: "English" },
+  { v: "AF", l: "Afrikaans" },
+  { v: "Bilingual", l: "Bilingual" },
 ] as const;
 
 const TONES = [
-  'Cheerful',
-  'Heartfelt',
-  'Funny',
-  'Sincere',
-  'Formal',
-  'Casual',
-  'Inspirational',
-  'Romantic',
+  "Cheerful",
+  "Heartfelt",
+  "Funny",
+  "Sincere",
+  "Formal",
+  "Casual",
+  "Inspirational",
+  "Romantic",
 ];
 
-// ————————————————————————————————————————————————————————————————
-// Utils
-// ————————————————————————————————————————————————————————————————
-function formatCurrency(val: number, currency = 'ZAR', locale = 'en-ZA') {
-  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(val);
+function formatCurrency(val: number, currency = "ZAR", locale = "en-ZA") {
+  return new Intl.NumberFormat(locale, { style: "currency", currency }).format(val);
 }
 
 function toIsoDateUtc(day: string): string {
   // day: YYYY-MM-DD → set 00:00:00Z
-  const [y, m, d] = day.split('-').map((s) => parseInt(s, 10));
+  const [y, m, d] = day.split("-").map((s) => parseInt(s, 10));
   const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1, 0, 0, 0));
   return dt.toISOString();
 }
@@ -127,9 +128,6 @@ function computeRushFee(base: number, deliveryBy: Date): number {
   return 0;
 }
 
-// ————————————————————————————————————————————————————————————————
-// Step 1 — Basics & Delivery (Responsive Sheet / Modal)
-// ————————————————————————————————————————————————————————————————
 export default function BookinWizardPersonilsedVideo({
   artistId,
   isOpen,
@@ -142,27 +140,26 @@ export default function BookinWizardPersonilsedVideo({
   const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
   const PAYSTACK_PK = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_PK;
   const PAYSTACK_CURRENCY = process.env.NEXT_PUBLIC_PAYSTACK_CURRENCY || 'ZAR';
-
-  const [deliveryBy, setDeliveryBy] = useState<string>(''); // YYYY-MM-DD
-  const [lengthChoice, setLengthChoice] = useState<LengthChoice>('30_45');
-  const [language, setLanguage] = useState<string>('EN');
-  const [tone, setTone] = useState<string>('Cheerful');
-  const [recipient, setRecipient] = useState<string>('');
-  const [contactEmail, setContactEmail] = useState<string>('');
-  const [contactWhatsapp, setContactWhatsapp] = useState<string>('');
-  const [promo, setPromo] = useState<string>('');
+  const [deliveryBy, setDeliveryBy] = useState<string>(""); // YYYY-MM-DD
+  const [lengthChoice, setLengthChoice] = useState<LengthChoice>("30_45");
+  const [language, setLanguage] = useState<string>("EN");
+  const [tone, setTone] = useState<string>("Cheerful");
+  const [recipient, setRecipient] = useState<string>("");
+  const [contactEmail, setContactEmail] = useState<string>("");
+  const [contactWhatsapp, setContactWhatsapp] = useState<string>("");
+  const [promo, setPromo] = useState<string>("");
   const [checking, setChecking] = useState<boolean>(false);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [creating, setCreating] = useState<boolean>(false);
 
-  const lengthSec = useMemo(() => (lengthChoice === '30_45' ? 40 : 75), [lengthChoice]);
-  const priceAddOn = useMemo(() => (lengthChoice === '60_90' ? addOnLongZar : 0), [lengthChoice, addOnLongZar]);
+  const lengthSec = useMemo(() => (lengthChoice === "30_45" ? 40 : 75), [lengthChoice]);
+  const priceAddOn = useMemo(() => (lengthChoice === "60_90" ? addOnLongZar : 0), [lengthChoice, addOnLongZar]);
   const deliveryDate = useMemo(() => (deliveryBy ? new Date(`${deliveryBy}T00:00:00`) : null), [deliveryBy]);
-  const rushFee = useMemo(() => (deliveryDate ? computeRushFee(basePriceZar, deliveryDate) : 0), [deliveryDate, basePriceZar]);
-  const discount = useMemo(
-    () => (promo.trim().toUpperCase() === 'SAVE10' ? Math.round((basePriceZar + priceAddOn + rushFee) * 0.1) : 0),
-    [promo, basePriceZar, priceAddOn, rushFee]
+  const rushFee = useMemo(
+    () => (deliveryDate ? computeRushFee(basePriceZar, deliveryDate) : 0),
+    [deliveryDate, basePriceZar],
   );
+  const discount = useMemo(() => (promo.trim().toUpperCase() === "SAVE10" ? Math.round((basePriceZar + priceAddOn + rushFee) * 0.1) : 0), [promo, basePriceZar, priceAddOn, rushFee]);
   const total = useMemo(() => Math.max(0, basePriceZar + priceAddOn + rushFee - discount), [basePriceZar, priceAddOn, rushFee, discount]);
 
   // Availability ping (capacity + blackout) — permissive if API missing
@@ -174,10 +171,16 @@ export default function BookinWizardPersonilsedVideo({
         return;
       }
       setChecking(true);
-      const data = await safeGet<{ capacity_ok: boolean; blackout?: boolean }>(`/api/v1/artists/${artistId}/availability`, { by: deliveryBy });
+      const data = await safeGet<{ capacity_ok: boolean; blackout?: boolean }>(
+        `/api/v1/artists/${artistId}/availability`,
+        { by: deliveryBy },
+      );
       if (cancel) return;
-      if (!data) setAvailable(true);
-      else setAvailable(Boolean(data.capacity_ok) && !data.blackout);
+      if (!data) {
+        setAvailable(true); // assume ok if API unavailable
+      } else {
+        setAvailable(Boolean(data.capacity_ok) && !data.blackout);
+      }
       setChecking(false);
     })();
     return () => {
@@ -225,9 +228,7 @@ export default function BookinWizardPersonilsedVideo({
               });
             }
           } catch {}
-          try {
-            localStorage.removeItem(`vo-sim-${orderId}`);
-          } catch {}
+          try { localStorage.removeItem(`vo-sim-${orderId}`); } catch {}
           Toast.success('Payment received. Thank you!');
           router.push(`/video-orders/${orderId}/brief`);
         })();
@@ -259,27 +260,18 @@ export default function BookinWizardPersonilsedVideo({
     };
     const idempotency = `vo-${artistId}-${deliveryBy}-${lengthSec}-${total}`;
     setCreating(true);
-    const res = await safePost<VideoOrder>('/api/v1/video-orders', payload, { 'Idempotency-Key': idempotency });
+    const res = await safePost<VideoOrder>("/api/v1/video-orders", payload, {
+      "Idempotency-Key": idempotency,
+    });
     setCreating(false);
-
-    // Fallback simulation if API is down
-    const proceed = async (orderId: number) => {
-      if (USE_PAYSTACK && PAYSTACK_PK) {
-        Toast.success('Opening Paystack…');
-        await openPaystackForOrder(orderId, total, contactEmail || undefined);
-        return;
-      }
-      Toast.success('Order created — continue to payment');
-      router.push(`/video-orders/${orderId}/pay` + (!res ? '?sim=1' : ''));
-    };
-
     if (!res) {
+      // Fallback: simulate an order locally and route to demo payment page
       const fakeId = Date.now();
       const fakeOrder: VideoOrder = {
         id: fakeId,
         artist_id: artistId,
         buyer_id: 0,
-        status: 'awaiting_payment',
+        status: "awaiting_payment",
         delivery_by_utc: toIsoDateUtc(deliveryBy),
         length_sec: lengthSec,
         language,
@@ -292,9 +284,10 @@ export default function BookinWizardPersonilsedVideo({
       } as VideoOrder;
       try {
         localStorage.setItem(`vo-sim-${fakeId}`, JSON.stringify(fakeOrder));
+        // Seed brief defaults for Step 3
         const seed = {
           delivery_by_utc: fakeOrder.delivery_by_utc,
-          length_label: lengthChoice === '30_45' ? '30–45s' : '60–90s',
+          length_label: lengthChoice === "30_45" ? "30–45s" : "60–90s",
           contact_email: contactEmail,
           contact_whatsapp: contactWhatsapp,
           language,
@@ -303,29 +296,41 @@ export default function BookinWizardPersonilsedVideo({
         };
         localStorage.setItem(`vo-brief-seed-${fakeId}`, JSON.stringify(seed));
       } catch {}
-      // Best-effort: create a thread early
+      // Best-effort: create a message thread (booking request) so chat exists early
       if (serviceId) {
-        const thread = await safePost<{ id: number }>(
-          `/api/v1/booking-requests/`,
-          { artist_id: artistId, service_id: serviceId, service_provider_id: 0 },
-          { 'Idempotency-Key': `vo-thread-${artistId}-${serviceId}-${deliveryBy}-${lengthSec}` }
-        );
+        const thread = await safePost<{ id: number }>(`/api/v1/booking-requests/`, {
+          artist_id: artistId,
+          service_id: serviceId,
+          service_provider_id: 0,
+        }, { 'Idempotency-Key': `vo-thread-${artistId}-${serviceId}-${deliveryBy}-${lengthSec}` });
         if (thread?.id) {
           try {
             localStorage.setItem(`vo-thread-${fakeId}`, String(thread.id));
             localStorage.setItem(`vo-order-for-thread-${thread.id}`, String(fakeId));
           } catch {}
+          // No initial system message per request
         }
       }
-      proceed(fakeId);
+      if (USE_PAYSTACK && PAYSTACK_PK) {
+        Toast.success("Opening Paystack…");
+        openPaystackForOrder(fakeId, total, contactEmail || undefined);
+        return;
+      }
+      Toast.success("Demo order created — continue to payment");
+      router.push(`/video-orders/${fakeId}/pay?sim=1`);
       return;
     }
-
-    // Happy path
+    if (USE_PAYSTACK && PAYSTACK_PK) {
+      Toast.success("Opening Paystack…");
+      openPaystackForOrder(res.id, total, contactEmail || undefined);
+      return;
+    }
+    Toast.success("Order created — continue to payment");
+    // Save brief seed for Step 3
     try {
       const seed = {
         delivery_by_utc: payload.delivery_by_utc,
-        length_label: lengthChoice === '30_45' ? '30–45s' : '60–90s',
+        length_label: lengthChoice === "30_45" ? "30–45s" : "60–90s",
         contact_email: contactEmail,
         contact_whatsapp: contactWhatsapp,
         language,
@@ -334,27 +339,24 @@ export default function BookinWizardPersonilsedVideo({
       };
       localStorage.setItem(`vo-brief-seed-${res.id}`, JSON.stringify(seed));
     } catch {}
-
+    // Best-effort create thread and initial system message
     if (serviceId) {
-      const thread = await safePost<{ id: number }>(
-        `/api/v1/booking-requests/`,
-        { artist_id: artistId, service_id: serviceId, service_provider_id: 0 },
-        { 'Idempotency-Key': `vo-thread-${artistId}-${serviceId}-${deliveryBy}-${lengthSec}` }
-      );
+      const thread = await safePost<{ id: number }>(`/api/v1/booking-requests/`, {
+        artist_id: artistId,
+        service_id: serviceId,
+        service_provider_id: 0,
+      }, { 'Idempotency-Key': `vo-thread-${artistId}-${serviceId}-${deliveryBy}-${lengthSec}` });
       if (thread?.id) {
         try {
           localStorage.setItem(`vo-thread-${res.id}`, String(thread.id));
           localStorage.setItem(`vo-order-for-thread-${thread.id}`, String(res.id));
         } catch {}
+        // No initial system message per request
       }
     }
-
-    proceed(res.id);
+    router.push(`/video-orders/${res.id}/pay`);
   };
 
-  // ————————————————————————————————————————————————————————
-  // UI
-  // ————————————————————————————————————————————————————————
   return (
     <Transition show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -363,7 +365,7 @@ export default function BookinWizardPersonilsedVideo({
           <Dialog.Overlay className="fixed inset-0 bg-black/40" />
         </Transition.Child>
 
-        {/* Panel wrapper */}
+        {/* Sheet content */}
         <div className="fixed inset-x-0 bottom-0 md:inset-0 flex items-end md:items-center justify-center p-0 md:p-6">
           <Transition.Child
             as={Fragment}
@@ -374,159 +376,156 @@ export default function BookinWizardPersonilsedVideo({
             leaveFrom="opacity-100 translate-y-0 md:scale-100"
             leaveTo="opacity-0 translate-y-6 md:scale-95"
           >
-            <Dialog.Panel
-              className="pointer-events-auto w-full md:max-w-2xl max-h-[85vh] md:max-h-[90vh] bg-white rounded-t-2xl md:rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden"
-            >
-              {/* Header */}
+            <Dialog.Panel className="w-full md:max-w-2xl bg-white rounded-t-2xl md:rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
               <div className="sticky top-0 z-10 border-b border-gray-100 bg-white px-4 py-3">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-gray-500">Step 1 of 3</div>
-                    <Dialog.Title className="text-base font-semibold text-gray-900">Basics & Delivery</Dialog.Title>
-                  </div>
+                  <Dialog.Title className="text-base font-semibold text-gray-900">Basics & Delivery</Dialog.Title>
                   <button onClick={onClose} className="p-2 rounded hover:bg-gray-50" aria-label="Close">
                     <XMarkIcon className="h-5 w-5 text-gray-600" />
                   </button>
                 </div>
               </div>
 
-              {/* Body (scrollable) */}
-              <div className="flex-1 overflow-y-auto px-4 py-4">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {/* Left column */}
-                  <div className="space-y-4">
-                    {/* Delivery date */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Delivery by</label>
-                      <input
-                        type="date"
-                        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-gray-900 focus:border-gray-900"
-                        value={deliveryBy}
-                        min={new Date(Date.now() + 24 * 3600000).toISOString().slice(0, 10)}
-                        onChange={(e) => setDeliveryBy(e.target.value)}
-                      />
-                      <p className="mt-1 text-xs text-gray-500">Rush pricing applies inside 24–48h.</p>
-                      <div className="mt-2 text-xs" role="status" aria-live="polite">
-                        {checking ? (
-                          <span className="inline-flex items-center gap-1 text-gray-600"><Spinner size="sm" /> Checking availability…</span>
-                        ) : available == null ? null : available ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-700"><CheckBadgeIcon className="h-4 w-4" /> Looks good</span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-red-600"><BoltIcon className="h-4 w-4" /> Not available that day</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Length */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Length</label>
-                      <div className="mt-1 flex gap-2">
-                        {(
-                          [
-                            { v: '30_45' as LengthChoice, l: '30–45s', desc: 'Most popular' },
-                            { v: '60_90' as LengthChoice, l: '60–90s', desc: `+ ${formatCurrency(addOnLongZar)}` },
-                          ] as const
-                        ).map((o) => (
-                          <button
-                            key={o.v}
-                            type="button"
-                            onClick={() => setLengthChoice(o.v)}
-                            className={`rounded-lg border px-3 py-1.5 text-sm ${
-                              lengthChoice === o.v ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 hover:border-gray-400'
-                            }`}
-                            aria-pressed={lengthChoice === o.v}
-                          >
-                            <div className="font-medium">{o.l}</div>
-                            <div className="text-[11px] opacity-80">{o.desc}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Language */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Language</label>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        {LANGS.map((o) => (
-                          <button
-                            key={o.v}
-                            type="button"
-                            onClick={() => setLanguage(o.v)}
-                            className={`rounded-full border px-3 py-1 text-sm ${
-                              language === o.v ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 hover:border-gray-400'
-                            }`}
-                          >
-                            {o.l}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Tone */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Tone</label>
-                      <div className="mt-1 flex flex-wrap gap-2">
-                        {TONES.map((t) => (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => setTone(t)}
-                            className={`rounded-full border px-3 py-1 text-sm ${
-                              tone === t ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 hover:border-gray-400'
-                            }`}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                      </div>
+              <div className="px-4 py-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Delivery by</label>
+                    <input
+                      type="date"
+                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-gray-900 focus:border-gray-900"
+                      value={deliveryBy}
+                      min={new Date(Date.now() + 24 * 3600000).toISOString().slice(0, 10)}
+                      onChange={(e) => setDeliveryBy(e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Rush pricing applies inside 24–48h.</p>
+                    <div className="mt-2 text-xs">
+                      {checking ? (
+                        <span className="inline-flex items-center gap-1 text-gray-600"><Spinner size="sm" /> Checking availability…</span>
+                      ) : available == null ? null : available ? (
+                        <span className="inline-flex items-center gap-1 text-emerald-700"><CheckBadgeIcon className="h-4 w-4" /> Looks good</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-red-600"><BoltIcon className="h-4 w-4" /> Not available that day</span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Right column */}
-                  <div className="space-y-4">
-                    <TextInput label="Recipient name (optional)" value={recipient} onChange={(e: any) => setRecipient(e.target.value)} />
-                    <TextInput label="Delivery email" type="email" value={contactEmail} onChange={(e: any) => setContactEmail(e.target.value)} placeholder="you@example.com" />
-                    <TextInput label="WhatsApp (optional)" value={contactWhatsapp} onChange={(e: any) => setContactWhatsapp(e.target.value)} placeholder="+27 …" />
-                    <TextInput label="Promo code (optional)" value={promo} onChange={(e: any) => setPromo(e.target.value)} placeholder="SAVE10" />
-                    <div className="rounded-md border border-gray-200 p-3 text-xs text-gray-600">You won’t be charged until you confirm payment.</div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Length</label>
+                    <div className="mt-1 flex gap-2">
+                      {(
+                        [
+                          { v: "30_45" as LengthChoice, l: "30–45s", desc: "Most popular" },
+                          { v: "60_90" as LengthChoice, l: "60–90s", desc: `+ ${formatCurrency(addOnLongZar)}` },
+                        ]
+                      ).map((o) => (
+                        <button
+                          key={o.v}
+                          type="button"
+                          onClick={() => setLengthChoice(o.v)}
+                          className={`rounded-lg border px-3 py-1.5 text-sm ${lengthChoice === o.v ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300 hover:border-gray-400"}`}
+                          aria-pressed={lengthChoice === o.v}
+                        >
+                          <div className="font-medium">{o.l}</div>
+                          <div className="text-[11px] opacity-80">{o.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Language</label>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {LANGS.map((o) => (
+                        <button
+                          key={o.v}
+                          type="button"
+                          onClick={() => setLanguage(o.v)}
+                          className={`rounded-full border px-3 py-1 text-sm ${language === o.v ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300 hover:border-gray-400"}`}
+                        >
+                          {o.l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Tone</label>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {TONES.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setTone(t)}
+                          className={`rounded-full border px-3 py-1 text-sm ${tone === t ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300 hover:border-gray-400"}`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <TextInput label="Recipient name (optional)" value={recipient} onChange={(e: any) => setRecipient(e.target.value)} />
+                  <TextInput
+                    label="Delivery email"
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e: any) => setContactEmail(e.target.value)}
+                    placeholder="you@example.com"
+                  />
+                  <TextInput
+                    label="WhatsApp (optional)"
+                    value={contactWhatsapp}
+                    onChange={(e: any) => setContactWhatsapp(e.target.value)}
+                    placeholder="+27 …"
+                  />
+                  <TextInput
+                    label="Promo code (optional)"
+                    value={promo}
+                    onChange={(e: any) => setPromo(e.target.value)}
+                    placeholder="SAVE10"
+                  />
+                  <div className="rounded-md border border-gray-200 p-3 text-xs text-gray-600">
+                    You won’t be charged until you confirm payment.
                   </div>
                 </div>
               </div>
 
-              {/* Footer — inside panel so it never overflows */}
-              <div className="shrink-0 border-t border-gray-100 bg-white px-4 py-3 pb-[env(safe-area-inset-bottom)]">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  {/* Price summary (stacked xs) */}
-                  <div className="text-sm text-gray-700 w-full sm:w-auto">
-                    <div className="font-semibold">Total {formatCurrency(total)}</div>
-                    <div className="mt-1 grid grid-cols-2 gap-y-1 text-xs text-gray-600">
-                      <div>Base</div>
-                      <div className="text-right font-medium">{formatCurrency(basePriceZar)}</div>
-                      <div>Rush</div>
-                      <div className="text-right font-medium">{formatCurrency(rushFee)}</div>
-                      <div>Length</div>
-                      <div className="text-right font-medium">{formatCurrency(priceAddOn)}</div>
-                      <div>Discount</div>
-                      <div className="text-right font-medium">−{formatCurrency(discount)}</div>
+              {/* Price summary sticky bar */}
+              <div className="sticky bottom-0 z-10 border-t border-gray-100 bg-white px-4 py-3">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div className="text-sm text-gray-700">
+                    <div className="flex items-center gap-2">
+                      <span>Base</span>
+                      <span className="font-medium">{formatCurrency(basePriceZar)}</span>
+                      <span aria-hidden className="text-gray-300">·</span>
+                      <span>Rush</span>
+                      <span className="font-medium">{formatCurrency(rushFee)}</span>
+                      <span aria-hidden className="text-gray-300">·</span>
+                      <span>Length</span>
+                      <span className="font-medium">{formatCurrency(priceAddOn)}</span>
+                      <span aria-hidden className="text-gray-300">·</span>
+                      <span>Discount</span>
+                      <span className="font-medium">−{formatCurrency(discount)}</span>
+                      <span aria-hidden className="text-gray-300">=</span>
+                      <span className="font-semibold">Total {formatCurrency(total)}</span>
                     </div>
                     {deliveryBy && (
-                      <div className="mt-1 text-[11px] text-gray-500">Delivery by {new Date(`${deliveryBy}T00:00:00`).toLocaleDateString()} · {lengthChoice === '30_45' ? '30–45s' : '60–90s'}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Delivery by {new Date(`${deliveryBy}T00:00:00`).toLocaleDateString()}; length {lengthChoice === "30_45" ? "30–45s" : "60–90s"}
+                      </div>
                     )}
                   </div>
-
-                  {/* Actions — responsive, no overflow */}
-                  <div className="flex w-full sm:w-auto flex-col-reverse sm:flex-row gap-2">
-                    <button onClick={onClose} className="w-full sm:w-auto text-sm text-gray-700 hover:text-gray-900 rounded-md px-3 py-2 border border-gray-300 bg-white">
-                      Cancel
-                    </button>
+                  <div className="flex items-center gap-2">
                     <Button
-                      className="w-full sm:w-auto"
                       onClick={createDraftAndGoToPayment}
                       disabled={!canContinue}
-                      title={!deliveryBy ? 'Choose a delivery date' : available === false ? 'Not available on that day' : !contactEmail ? 'Enter delivery email' : undefined}
+                      title={!deliveryBy ? "Choose a delivery date" : available === false ? "Not available on that day" : !contactEmail ? "Enter delivery email" : undefined}
                     >
-                      {creating ? 'Creating…' : 'Continue to payment'}
+                      {creating ? "Creating…" : "Continue to payment"}
                     </Button>
+                    <button onClick={onClose} className="text-sm text-gray-600 hover:text-gray-800 px-3 py-2">Cancel</button>
                   </div>
                 </div>
               </div>
@@ -538,19 +537,16 @@ export default function BookinWizardPersonilsedVideo({
   );
 }
 
-// ————————————————————————————————————————————————————————————————
-// Step 2 — Minimalist Payment Page (fixed PAYSTACK_CURRENCY)
-// ————————————————————————————————————————————————————————————————
+// Step 2 — minimalist payment page (optional export)
 export function VideoPaymentPage({ orderId }: { orderId: number }) {
   const router = useRouter();
   const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
-  const PAYSTACK_PK = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_PK;
-  const PAYSTACK_CURRENCY = process.env.NEXT_PUBLIC_PAYSTACK_CURRENCY || 'ZAR';
-
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<VideoOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const PAYSTACK_PK = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_PK;
 
+  // Load order summary (from API or simulated local storage)
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -566,6 +562,7 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
     })();
   }, [orderId]);
 
+  // Dynamically load Paystack script if needed
   const loadPaystack = async (): Promise<void> => {
     if (typeof window === 'undefined') return;
     if ((window as any).PaystackPop) return;
@@ -608,9 +605,7 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
                 });
               }
             } catch {}
-            try {
-              localStorage.removeItem(`vo-sim-${orderId}`);
-            } catch {}
+            try { localStorage.removeItem(`vo-sim-${orderId}`); } catch {}
             Toast.success('Payment received. Thank you!');
             router.push(`/video-orders/${orderId}/brief`);
           })();
@@ -638,9 +633,7 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
         });
       }
     } catch {}
-    try {
-      localStorage.removeItem(`vo-sim-${orderId}`);
-    } catch {}
+    try { localStorage.removeItem(`vo-sim-${orderId}`); } catch {}
     router.push(`/video-orders/${orderId}/brief`);
   };
 
@@ -658,7 +651,11 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
         </div>
       )}
       <div className="rounded-md border p-3 text-sm bg-gray-50">
-        {USE_PAYSTACK && PAYSTACK_PK ? <div>Pay securely with Paystack.</div> : <div>Payment provider not configured.</div>}
+        {USE_PAYSTACK && PAYSTACK_PK ? (
+          <div>Pay securely with Paystack.</div>
+        ) : (
+          <div>Payment provider not configured.</div>
+        )}
       </div>
       {USE_PAYSTACK && PAYSTACK_PK ? (
         <Button onClick={payWithPaystack}>Pay with Paystack</Button>
@@ -669,13 +666,13 @@ export function VideoPaymentPage({ orderId }: { orderId: number }) {
   );
 }
 
-// ————————————————————————————————————————————————————————————————
-// Step 3 — Inline Chat Brief (unchanged, small improvements only)
-// ————————————————————————————————————————————————————————————————
+// Step 3 — inline chat brief (optional export)
 export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadId?: number }) {
   const router = useRouter();
+  const USE_PAYSTACK = process.env.NEXT_PUBLIC_USE_PAYSTACK === '1';
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState<{ answered: number; total: number }>({ answered: 0, total: 15 });
+  // Initialize with empty answers to avoid SSR/CSR mismatch; load from storage after mount.
   const [answers, setAnswers] = useState<Record<string, any>>({});
 
   useEffect(() => {
@@ -685,29 +682,30 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
     } catch {}
   }, [orderId]);
 
-  const questions: { key: string; label: string; type: 'text' | 'chips' }[] = [
-    { key: 'recipient_name', label: 'Who is the video for?', type: 'text' },
-    { key: 'pronunciation', label: 'Pronunciation (optional)', type: 'text' },
-    { key: 'occasion', label: 'Occasion', type: 'chips' },
-    { key: 'script_points', label: 'What should I say? (3–5 bullets)', type: 'text' },
-    { key: 'inside_jokes', label: 'Inside jokes / special details', type: 'text' },
-    { key: 'avoid', label: 'Anything to avoid', type: 'text' },
-    { key: 'tone', label: 'Tone & style', type: 'chips' },
-    { key: 'language', label: 'Language', type: 'chips' },
-    { key: 'address_how', label: 'How to address them', type: 'chips' },
-    { key: 'desired_length', label: 'Desired length', type: 'chips' },
-    { key: 'deadline_confirm', label: 'Deadline confirmation', type: 'chips' },
-    { key: 'where_played', label: 'Where it’ll be played', type: 'chips' },
-    { key: 'share_permission', label: 'Can we share a short clip?', type: 'chips' },
-    { key: 'delivery_contact', label: 'Delivery email / WhatsApp', type: 'text' },
-    { key: 'reference_assets', label: 'Optional photo/reference upload (paste links)', type: 'text' },
+  const questions: { key: string; label: string; type: "text" | "chips" }[] = [
+    { key: "recipient_name", label: "Who is the video for?", type: "text" },
+    { key: "pronunciation", label: "Pronunciation (optional)", type: "text" },
+    { key: "occasion", label: "Occasion", type: "chips" },
+    { key: "script_points", label: "What should I say? (3–5 bullets)", type: "text" },
+    { key: "inside_jokes", label: "Inside jokes / special details", type: "text" },
+    { key: "avoid", label: "Anything to avoid", type: "text" },
+    { key: "tone", label: "Tone & style", type: "chips" },
+    { key: "language", label: "Language", type: "chips" },
+    { key: "address_how", label: "How to address them", type: "chips" },
+    { key: "desired_length", label: "Desired length", type: "chips" },
+    { key: "deadline_confirm", label: "Deadline confirmation", type: "chips" },
+    { key: "where_played", label: "Where it’ll be played", type: "chips" },
+    { key: "share_permission", label: "Can we share a short clip?", type: "chips" },
+    { key: "delivery_contact", label: "Delivery email / WhatsApp", type: "text" },
+    { key: "reference_assets", label: "Optional photo/reference upload (paste links)", type: "text" },
   ];
 
   useEffect(() => {
-    const a = Object.values(answers).filter((v) => (typeof v === 'string' ? v.trim().length > 0 : v != null)).length;
+    const a = Object.values(answers).filter((v) => (typeof v === "string" ? v.trim().length > 0 : v != null)).length;
     setProgress({ answered: a, total: questions.length });
   }, [answers]);
 
+  // Prefill defaults from Step 1 seed (delivery date, length, contacts, language/tone, recipient)
   useEffect(() => {
     try {
       const raw = localStorage.getItem(`vo-brief-seed-${orderId}`);
@@ -734,6 +732,7 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
       }
       const contact = seed.contact_email || seed.contact_whatsapp;
       maybeSet('delivery_contact', contact);
+      // Normalize language chip labels
       const langMap: Record<string, string> = { EN: 'English', AF: 'Afrikaans', Bilingual: 'Bilingual' };
       if (seed.language) maybeSet('language', langMap[seed.language] || seed.language);
       maybeSet('tone', seed.tone);
@@ -749,7 +748,10 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
     try {
       localStorage.setItem(`vo-ans-${orderId}`, JSON.stringify(next));
     } catch {}
-    await safePost(`/api/v1/video-orders/${orderId}/answers`, { question_key: key, value });
+    await safePost(`/api/v1/video-orders/${orderId}/answers`, {
+      question_key: key,
+      value,
+    });
     setSaving(false);
   };
 
@@ -773,81 +775,21 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
         {/* Bulleted brief summary */}
         <div className="mt-3 text-sm text-gray-800">
           <ul className="list-disc pl-5 space-y-1">
-            {answers.recipient_name && (
-              <li>
-                <strong>Recipient:</strong> {answers.recipient_name}
-              </li>
-            )}
-            {answers.pronunciation && (
-              <li>
-                <strong>Pronunciation:</strong> {answers.pronunciation}
-              </li>
-            )}
-            {answers.occasion && (
-              <li>
-                <strong>Occasion:</strong> {answers.occasion}
-              </li>
-            )}
-            {answers.script_points && (
-              <li>
-                <strong>What to say:</strong> {answers.script_points}
-              </li>
-            )}
-            {answers.inside_jokes && (
-              <li>
-                <strong>Inside jokes / details:</strong> {answers.inside_jokes}
-              </li>
-            )}
-            {answers.avoid && (
-              <li>
-                <strong>Avoid:</strong> {answers.avoid}
-              </li>
-            )}
-            {answers.tone && (
-              <li>
-                <strong>Tone:</strong> {answers.tone}
-              </li>
-            )}
-            {answers.language && (
-              <li>
-                <strong>Language:</strong> {answers.language}
-              </li>
-            )}
-            {answers.address_how && (
-              <li>
-                <strong>Address as:</strong> {answers.address_how}
-              </li>
-            )}
-            {answers.desired_length && (
-              <li>
-                <strong>Desired length:</strong> {answers.desired_length}
-              </li>
-            )}
-            {answers.deadline_confirm && (
-              <li>
-                <strong>Delivery by:</strong> {answers.deadline_confirm}
-              </li>
-            )}
-            {answers.where_played && (
-              <li>
-                <strong>Where it’ll be played:</strong> {answers.where_played}
-              </li>
-            )}
-            {answers.share_permission && (
-              <li>
-                <strong>Share a clip publicly:</strong> {answers.share_permission}
-              </li>
-            )}
-            {answers.delivery_contact && (
-              <li>
-                <strong>Delivery contact:</strong> {answers.delivery_contact}
-              </li>
-            )}
-            {answers.reference_assets && (
-              <li>
-                <strong>References:</strong> {answers.reference_assets}
-              </li>
-            )}
+            {answers.recipient_name && <li><strong>Recipient:</strong> {answers.recipient_name}</li>}
+            {answers.pronunciation && <li><strong>Pronunciation:</strong> {answers.pronunciation}</li>}
+            {answers.occasion && <li><strong>Occasion:</strong> {answers.occasion}</li>}
+            {answers.script_points && <li><strong>What to say:</strong> {answers.script_points}</li>}
+            {answers.inside_jokes && <li><strong>Inside jokes / details:</strong> {answers.inside_jokes}</li>}
+            {answers.avoid && <li><strong>Avoid:</strong> {answers.avoid}</li>}
+            {answers.tone && <li><strong>Tone:</strong> {answers.tone}</li>}
+            {answers.language && <li><strong>Language:</strong> {answers.language}</li>}
+            {answers.address_how && <li><strong>Address as:</strong> {answers.address_how}</li>}
+            {answers.desired_length && <li><strong>Desired length:</strong> {answers.desired_length}</li>}
+            {answers.deadline_confirm && <li><strong>Delivery by:</strong> {answers.deadline_confirm}</li>}
+            {answers.where_played && <li><strong>Where it’ll be played:</strong> {answers.where_played}</li>}
+            {answers.share_permission && <li><strong>Share a clip publicly:</strong> {answers.share_permission}</li>}
+            {answers.delivery_contact && <li><strong>Delivery contact:</strong> {answers.delivery_contact}</li>}
+            {answers.reference_assets && <li><strong>References:</strong> {answers.reference_assets}</li>}
           </ul>
         </div>
       </section>
@@ -859,39 +801,20 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
         </div>
       </div>
       <div className="rounded-md border p-3 text-xs text-gray-600">Finish later anytime — your answers auto‑save.</div>
-
       <ul className="space-y-3">
         {questions.map((q) => (
           <li key={q.key} className="rounded-md border p-3">
             <div className="text-sm font-medium text-gray-800 mb-1">{q.label}</div>
-            {q.type === 'text' ? (
-              <TextArea rows={3} value={answers[q.key] || ''} onChange={(e: any) => save(q.key, e.target.value)} />
+            {q.type === "text" ? (
+              <TextArea rows={3} value={answers[q.key] || ""} onChange={(e: any) => save(q.key, e.target.value)} />
             ) : (
               <div className="flex flex-wrap gap-2">
-                {[
-                  'Yes',
-                  'No',
-                  'Maybe',
-                  'Short',
-                  'Medium',
-                  'Long',
-                  'English',
-                  'Afrikaans',
-                  'Bilingual',
-                  'First name',
-                  'Mr',
-                  'Ms',
-                  'Phone',
-                  'Big screen',
-                  'Social',
-                ].map((opt) => (
+                {["Yes", "No", "Maybe", "Short", "Medium", "Long", "English", "Afrikaans", "Bilingual", "First name", "Mr", "Ms", "Phone", "Big screen", "Social"].map((opt) => (
                   <button
                     key={opt}
                     type="button"
                     onClick={() => save(q.key, opt)}
-                    className={`rounded-full border px-3 py-1 text-sm ${
-                      answers[q.key] === opt ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 hover:border-gray-400'
-                    }`}
+                    className={`rounded-full border px-3 py-1 text-sm ${answers[q.key] === opt ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300 hover:border-gray-400"}`}
                   >
                     {opt}
                   </button>
@@ -906,8 +829,9 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
         <button
           type="button"
           onClick={async () => {
-            await safePost(`/api/v1/video-orders/${orderId}/status`, { status: 'in_production' });
-            Toast.success('Brief submitted. We’ll notify the artist.');
+            await safePost(`/api/v1/video-orders/${orderId}/status`, { status: "in_production" });
+            Toast.success("Brief submitted. We’ll notify the artist.");
+            // Send a system line and redirect to inbox thread
             try {
               const tid = threadId || localStorage.getItem(`vo-thread-${orderId}`);
               if (tid) {
@@ -917,9 +841,7 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
                   message_type: 'SYSTEM',
                   content: `Brief complete for order #${orderId}. Ready to start production. View brief: ${briefUrl}`,
                 });
-                try {
-                  localStorage.setItem(`vo-brief-complete-${orderId}`, '1');
-                } catch {}
+                try { localStorage.setItem(`vo-brief-complete-${orderId}`, '1'); } catch {}
                 router.push(`/inbox?requestId=${tid}`);
                 return;
               }
@@ -930,7 +852,7 @@ export function VideoChatBrief({ orderId, threadId }: { orderId: number; threadI
         >
           Mark brief complete
         </button>
-        <Button onClick={() => Toast.success('Saved')}>Done</Button>
+        <Button onClick={() => Toast.success("Saved")}>Done</Button>
       </div>
 
       {/* Print styles */}

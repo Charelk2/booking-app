@@ -346,6 +346,7 @@ ALLOWED_ORIGINS = [
     "https://www.booka.co.za",
     "https://join.booka.co.za",
     "https://staging.booka.co.za",
+    "https://booka-admin.fly.dev",
     "http://localhost:3000",
     "http://localhost:5173",
 ]
@@ -367,7 +368,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Link", "X-Total-Count"],
+    expose_headers=["Link", "X-Total-Count", "Content-Range"],
 )
 logger.info("CORS origins set to: %s", ALLOWED_ORIGINS)
 

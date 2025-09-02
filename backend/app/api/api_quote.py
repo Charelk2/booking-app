@@ -140,12 +140,12 @@ def create_quote_for_request(
             )
         # Avoid circular references when serialized by Pydantic models
         new_quote.booking_request = None
-    return new_quote
     except ValueError as e:
         logger.warning(
             "Invalid quote create payload by user %s: %s", current_artist.id, e
         )
         raise error_response(str(e), {"quote": str(e)}, status.HTTP_400_BAD_REQUEST)
+    return new_quote
 
 
 @router.get(

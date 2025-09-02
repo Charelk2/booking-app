@@ -10,6 +10,7 @@ import os
 
 from ..database import get_db
 from ..models import Booking, Review, Service, User, AdminUser, ServiceProviderProfile
+from ..models import BookingSimple, Invoice, InvoiceStatus
 from sqlalchemy import JSON
 from ..models.booking_status import BookingStatus
 from ..api.auth import get_user_by_email
@@ -320,6 +321,25 @@ def provider_to_admin(u: User, p: ServiceProviderProfile | None, services_count:
     }
 
 
+def client_to_admin(
+    u: User,
+    paid_count: int = 0,
+    completed_count: int = 0,
+) -> Dict[str, Any]:
+    return {
+        "id": str(u.id),
+        "email": u.email,
+        "first_name": u.first_name,
+        "last_name": u.last_name,
+        "phone_number": u.phone_number,
+        "is_active": bool(u.is_active),
+        "is_verified": bool(u.is_verified),
+        "created_at": (getattr(u, "created_at", None).isoformat() if getattr(u, "created_at", None) else None),
+        "bookings_paid_count": int(paid_count or 0),
+        "bookings_completed_count": int(completed_count or 0),
+    }
+
+
 # ────────────────────────────────────────────────────────────────────────────────
 # Providers
 
@@ -354,6 +374,248 @@ def get_provider(user_id: int, _: Tuple[User, AdminUser] = Depends(require_roles
     p = db.query(ServiceProviderProfile).filter(ServiceProviderProfile.user_id == user_id).first()
     svc_count = db.query(func.count(Service.id)).filter(Service.artist_id == user_id).scalar() or 0
     return provider_to_admin(u, p, int(svc_count))
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Clients (non-service providers)
+
+@router.get("/clients")
+def list_clients(
+    request: Request,
+    _: Tuple[User, AdminUser] = Depends(require_roles("support", "payments", "admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
+    offset, limit, start, end = _get_offset_limit(request.query_params)
+    # Base query: Users with CLIENT role; also exclude any user that somehow has a provider profile
+    q = (
+        db.query(User)
+        .outerjoin(ServiceProviderProfile, ServiceProviderProfile.user_id == User.id)
+        # Show any user that is not a service provider (no provider profile), regardless of legacy user_type values
+        .filter(ServiceProviderProfile.user_id.is_(None))
+    )
+
+    # Filters/sorting on User fields
+    q = _apply_ra_filters(q, User, request.query_params)
+    q = _apply_ra_sorting(q, User, request.query_params)
+    total = q.count()
+    rows: List[User] = q.offset(offset).limit(limit).all()
+
+    items: List[Dict[str, Any]] = []
+    # For each client row, compute paid and completed counts
+    for u in rows:
+        # Paid bookings via BookingSimple or Invoices marked paid
+        try:
+            paid_bs = (
+                db.query(func.count(BookingSimple.id))
+                .filter(BookingSimple.client_id == u.id)
+                .filter(
+                    (BookingSimple.deposit_paid == True)  # noqa: E712
+                    | (func.lower(BookingSimple.payment_status).in_(["paid", "deposit_paid"]))
+                    | ((BookingSimple.charged_total_amount.isnot(None)) & (BookingSimple.charged_total_amount > 0))
+                )
+                .scalar()
+                or 0
+            )
+        except Exception:
+            paid_bs = 0
+        try:
+            paid_invoices = (
+                db.query(func.count(Invoice.id))
+                .filter(Invoice.client_id == u.id)
+                .filter(Invoice.status == InvoiceStatus.PAID)
+                .scalar()
+                or 0
+            )
+        except Exception:
+            paid_invoices = 0
+        paid_count = int(max(paid_bs, paid_invoices) if paid_bs and paid_invoices else (paid_bs or paid_invoices or 0))
+
+        # Completed bookings via legacy Booking table
+        try:
+            completed_count = (
+                db.query(func.count(Booking.id))
+                .filter(Booking.client_id == u.id)
+                .filter(Booking.status == models.BookingStatus.COMPLETED)
+                .scalar()
+                or 0
+            )
+        except Exception:
+            completed_count = 0
+
+        items.append(client_to_admin(u, paid_count, int(completed_count)))
+
+    return _with_total(items, total, "clients", start, start + len(items) - 1)
+
+
+@router.get("/clients/{user_id}")
+def get_client(
+    user_id: int,
+    _: Tuple[User, AdminUser] = Depends(require_roles("support", "payments", "admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
+    u = (
+        db.query(User)
+        .outerjoin(ServiceProviderProfile, ServiceProviderProfile.user_id == User.id)
+        .filter(User.id == user_id)
+        .filter(ServiceProviderProfile.user_id.is_(None))
+        .first()
+    )
+    if not u:
+        raise HTTPException(status_code=404, detail="Not found")
+    # Compute counts for the single client
+    paid_bs = (
+        db.query(func.count(BookingSimple.id))
+        .filter(BookingSimple.client_id == u.id)
+        .filter(
+            (BookingSimple.deposit_paid == True)  # noqa: E712
+            | (func.lower(BookingSimple.payment_status).in_(["paid", "deposit_paid"]))
+            | ((BookingSimple.charged_total_amount.isnot(None)) & (BookingSimple.charged_total_amount > 0))
+        )
+        .scalar()
+        or 0
+    )
+    paid_invoices = (
+        db.query(func.count(Invoice.id))
+        .filter(Invoice.client_id == u.id)
+        .filter(Invoice.status == InvoiceStatus.PAID)
+        .scalar()
+        or 0
+    )
+    paid_count = int(max(paid_bs, paid_invoices) if paid_bs and paid_invoices else (paid_bs or paid_invoices or 0))
+    completed_count = (
+        db.query(func.count(Booking.id))
+        .filter(Booking.client_id == u.id)
+        .filter(Booking.status == models.BookingStatus.COMPLETED)
+        .scalar()
+        or 0
+    )
+    return client_to_admin(u, paid_count, int(completed_count))
+
+
+@router.get("/clients/export")
+def export_clients_csv(
+    request: Request,
+    _: Tuple[User, AdminUser] = Depends(require_roles("support", "payments", "admin", "superadmin")),
+    db: Session = Depends(get_db),
+):
+    import csv
+    from io import StringIO
+
+    # Build the same base query as list_clients, but export all (respecting filters)
+    q = (
+        db.query(User)
+        .outerjoin(ServiceProviderProfile, ServiceProviderProfile.user_id == User.id)
+        .filter(ServiceProviderProfile.user_id.is_(None))
+    )
+    q = _apply_ra_filters(q, User, request.query_params)
+    q = _apply_ra_sorting(q, User, request.query_params)
+    rows: List[User] = q.all()
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "id",
+        "email",
+        "first_name",
+        "last_name",
+        "phone_number",
+        "created_at",
+        "bookings_paid_count",
+        "bookings_completed_count",
+    ])
+    for u in rows:
+        try:
+            paid_bs = (
+                db.query(func.count(BookingSimple.id))
+                .filter(BookingSimple.client_id == u.id)
+                .filter(
+                    (BookingSimple.deposit_paid == True)  # noqa: E712
+                    | (func.lower(BookingSimple.payment_status).in_(["paid", "deposit_paid"]))
+                    | ((BookingSimple.charged_total_amount.isnot(None)) & (BookingSimple.charged_total_amount > 0))
+                )
+                .scalar()
+                or 0
+            )
+        except Exception:
+            paid_bs = 0
+        try:
+            paid_invoices = (
+                db.query(func.count(Invoice.id))
+                .filter(Invoice.client_id == u.id)
+                .filter(Invoice.status == InvoiceStatus.PAID)
+                .scalar()
+                or 0
+            )
+        except Exception:
+            paid_invoices = 0
+        paid_count = int(max(paid_bs, paid_invoices) if paid_bs and paid_invoices else (paid_bs or paid_invoices or 0))
+        try:
+            completed_count = (
+                db.query(func.count(Booking.id))
+                .filter(Booking.client_id == u.id)
+                .filter(Booking.status == models.BookingStatus.COMPLETED)
+                .scalar()
+                or 0
+            )
+        except Exception:
+            completed_count = 0
+        writer.writerow([
+            str(u.id),
+            u.email,
+            u.first_name,
+            u.last_name,
+            u.phone_number or "",
+            (getattr(u, "created_at", None).isoformat() if getattr(u, "created_at", None) else ""),
+            int(paid_count or 0),
+            int(completed_count or 0),
+        ])
+
+    csv_data = output.getvalue()
+    return Response(content=csv_data, media_type="text/csv", headers={
+        "Content-Disposition": "attachment; filename=clients.csv",
+        "Access-Control-Expose-Headers": "Content-Disposition",
+    })
+
+
+@router.post("/clients/{user_id}/activate")
+def activate_client(user_id: int, current: Tuple[User, AdminUser] = Depends(require_roles("admin", "superadmin")), db: Session = Depends(get_db)):
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+    u.is_active = True
+    db.add(u)
+    db.commit()
+    db.refresh(u)
+    _audit(db, current[1].id, "client", str(user_id), "activate", {"is_active": False}, {"is_active": True})
+    return {"status": "ok"}
+
+
+@router.post("/clients/{user_id}/deactivate")
+def deactivate_client(user_id: int, current: Tuple[User, AdminUser] = Depends(require_roles("admin", "superadmin")), db: Session = Depends(get_db)):
+    u = db.query(User).filter(User.id == user_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+    u.is_active = False
+    db.add(u)
+    db.commit()
+    db.refresh(u)
+    _audit(db, current[1].id, "client", str(user_id), "deactivate", {"is_active": True}, {"is_active": False})
+    return {"status": "ok"}
+
+
+@router.post("/clients/{user_id}/impersonate")
+def impersonate_client(user_id: int, current: Tuple[User, AdminUser] = Depends(require_roles("admin", "superadmin")), db: Session = Depends(get_db)):
+    """Generate a short-lived access token for acting as a specific client.
+
+    Returns a JWT that can be used as a Bearer token against the public API.
+    Admin UIs can present a copy-to-clipboard and/or open-frontend-with-token flow.
+    """
+    u = db.query(User).filter(User.id == user_id, User.user_type == models.UserType.CLIENT).first()
+    if not u:
+        raise HTTPException(status_code=404, detail="User not found")
+    # 10-minute token with an impersonation claim
+    token = create_access_token({"sub": u.email, "impersonated_by_admin_id": current[1].id})
+    return {"token": token, "user": {"id": str(u.id), "email": u.email}}
 
 
 # ────────────────────────────────────────────────────────────────────────────────
