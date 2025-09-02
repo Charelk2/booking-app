@@ -211,9 +211,9 @@ export default function MessageThreadWrapper({
             type="button"
             onClick={() => setShowSidePanel((s) => !s)}
             aria-label={showSidePanel ? 'Hide details' : 'Show details'}
-            className="px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+            className="px-3 py-1.5 border bg-gray-50 rounded-md hover:bg-gray-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
           >
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-gray-900">
               {showSidePanel ? 'Hide details' : 'Show details'}
             </span>
           </button>
