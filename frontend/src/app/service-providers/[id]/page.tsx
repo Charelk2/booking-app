@@ -1204,11 +1204,7 @@ export default function ServiceProviderProfilePage() {
                           <StarSolidIcon className="h-3 w-3 mr-1 text-yellow-400" /> {averageRating} ({displayReviews.length} reviews)
                         </span>
                       )}
-                      {priceBand && (
-                        <span className="flex items-center">
-                          <BoltIcon className="h-3 w-3 mr-1" /> {priceBand}
-                        </span>
-                      )}
+                      
                     </div>
                   </div>
 
