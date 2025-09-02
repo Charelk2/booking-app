@@ -43,6 +43,9 @@ interface BookingSummaryCardProps {
   artistCancellationPolicy?: string | null;
   currentArtistId: number;
   instantBookingPrice?: number;
+  /** UI toggles to tailor panel per service type */
+  showTravel?: boolean;
+  showSound?: boolean;
 }
 
 export default function BookingSummaryCard({
@@ -63,6 +66,8 @@ export default function BookingSummaryCard({
   artistCancellationPolicy,
   currentArtistId,
   instantBookingPrice,
+  showTravel = true,
+  showSound = true,
 }: BookingSummaryCardProps) {
   const { user } = useAuth();
   const [briefLink, setBriefLink] = React.useState<string | null>(null);
@@ -175,7 +180,7 @@ export default function BookingSummaryCard({
               {parsedBookingDetails.venueType}
             </li>
           )}
-          {parsedBookingDetails?.soundNeeded && (
+          {showSound && parsedBookingDetails?.soundNeeded && (
             <li className="py-2">
               <span className="font-semibold">Sound:</span>{' '}
               {parsedBookingDetails.soundNeeded}
@@ -258,14 +263,18 @@ export default function BookingSummaryCard({
                       <span>{formatCurrency(Number(best.services[0].price || 0))}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-gray-700">
-                    <span>Sound</span>
-                    <span>{formatCurrency(Number(best.sound_fee || 0))}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-700">
-                    <span>Travel</span>
-                    <span>{formatCurrency(Number(best.travel_fee || 0))}</span>
-                  </div>
+                  {showSound && (
+                    <div className="flex justify-between text-gray-700">
+                      <span>Sound</span>
+                      <span>{formatCurrency(Number(best.sound_fee || 0))}</span>
+                    </div>
+                  )}
+                  {showTravel && (
+                    <div className="flex justify-between text-gray-700">
+                      <span>Travel</span>
+                      <span>{formatCurrency(Number(best.travel_fee || 0))}</span>
+                    </div>
+                  )}
                   {best.accommodation && (
                     <div className="flex justify-between text-gray-700">
                       <span>Accommodation</span>
@@ -312,15 +321,17 @@ export default function BookingSummaryCard({
                   <span>Base fee</span>
                   <span>{formatCurrency(Number(baseFee || 0))}</span>
                 </div>
-                <div className="flex justify-between text-gray-700 mt-1">
-                  <span>Travel</span>
-                  <span>{formatCurrency(Number(travelFee || 0))}</span>
-                </div>
+                {showTravel && (
+                  <div className="flex justify-between text-gray-700 mt-1">
+                    <span>Travel</span>
+                    <span>{formatCurrency(Number(travelFee || 0))}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-semibold mt-2 border-t border-gray-200 pt-2">
                   <span>Total</span>
                   <span>{formatCurrency(Number(baseFee || 0) + Number(travelFee || 0))}</span>
                 </div>
-                {typeof initialSound !== 'undefined' && (
+                {showSound && typeof initialSound !== 'undefined' && (
                   <div className="text-xs text-gray-500 mt-1">
                     Sound equipment: {initialSound ? 'Yes' : 'No'} (if required, may be quoted separately)
                   </div>

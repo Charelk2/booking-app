@@ -293,8 +293,8 @@ export default function BookingDetailsPanel({
           (bookingRequest as any).service?.artist?.user_id ||
           0;
 
-        return (
-          <BookingSummaryCard
+      return (
+        <BookingSummaryCard
         parsedBookingDetails={parsedBookingDetails ?? undefined}
         imageUrl={bookingRequest.service?.media_url}
         serviceName={bookingRequest.service?.title}
@@ -311,9 +311,23 @@ export default function BookingDetailsPanel({
         initialSound={parsedBookingDetails?.soundNeeded === 'Yes'}
         artistCancellationPolicy={bookingRequest.artist_profile?.cancellation_policy}
         currentArtistId={Number(currentArtistId) || 0}
+        /**
+         * Adapt panel to service type. Personalized Video doesn't need
+         * travel or sound rows; live/other services keep defaults.
+         */
+        showTravel={!String(
+          bookingRequest.service?.service_type ||
+          bookingRequest.service?.service_category?.name ||
+          ''
+        ).toLowerCase().includes('personalized video')}
+        showSound={!String(
+          bookingRequest.service?.service_type ||
+          bookingRequest.service?.service_category?.name ||
+          ''
+        ).toLowerCase().includes('personalized video')}
       />
-        );
-      })()}
+      );
+    })()}
       {bookingConfirmed &&
         confirmedBookingDetails?.status === 'completed' &&
         !(confirmedBookingDetails as Booking & { review?: Review }).review && (
