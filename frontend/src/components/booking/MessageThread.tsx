@@ -844,7 +844,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         console.error('Failed to mark messages read:', err);
       }
 
-      // Ensure quotes referenced are hydrated (batch first, fallback per-id)
+      // Ensure quotes referenced are hydrated (batch first, then per-id for any still missing)
       try {
         const qids = Array.from(new Set(
           normalized
@@ -854,11 +854,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         const missing = qids.filter((id) => !quotes[id]);
         if (missing.length) {
           const batch = await getQuotesBatch(missing);
-          if (Array.isArray(batch.data) && batch.data.length) {
+          const got = Array.isArray(batch.data) ? batch.data : [];
+          if (got.length) {
             setQuotes((prev) => ({
               ...prev,
-              ...Object.fromEntries(batch.data.map((q: any) => [q.id, q])),
+              ...Object.fromEntries(got.map((q: any) => [q.id, q])),
             }));
+          }
+          // Some backends only batch-return legacy quotes; hydrate any V2 IDs individually
+          const receivedIds = new Set<number>(got.map((q: any) => Number(q?.id)).filter((n) => !Number.isNaN(n)));
+          const stillMissing = missing.filter((id) => !receivedIds.has(id));
+          for (const id of stillMissing) {
+            try { await ensureQuoteLoaded(id); } catch {}
           }
         }
       } catch (e) {
