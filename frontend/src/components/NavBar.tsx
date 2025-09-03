@@ -43,7 +43,7 @@ export default function NavBar() {
         open={open}
         onClose={toggleDrawer}
         items={items}
-        onItemClick={handleItemClick
+        onItemClick={handleItemClick}
         markAllRead={markAllRead}
         error={error}
       />
