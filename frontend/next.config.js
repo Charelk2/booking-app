@@ -166,7 +166,9 @@ const nextConfig = {
   async rewrites() {
     return [
       // Proxy all backend HTTP requests through Next (works on phone + laptop)
-      { source: '/api/:path*',   destination: `${apiBase}/:path*` },
+      // Preserve the `/api` prefix when forwarding so paths like
+      // `/api/v1/service-provider-profiles` hit `/api/v1/...` on the backend.
+      { source: '/api/:path*',   destination: `${apiBase}/api/:path*` },
       // Auth routes (cookie-based) should also proxy to the backend
       { source: '/auth/:path*',  destination: `${apiBase}/auth/:path*` },
       { source: '/media/:path*', destination: `${apiBase}/media/:path*` },
