@@ -35,6 +35,7 @@ Custom domain for API
   - NEXT_PUBLIC_API_URL=https://api.booka.co.za
   - NEXT_PUBLIC_WS_URL=wss://api.booka.co.za (optional; otherwise derived)
   - NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your key
+  - NEXT_PUBLIC_VIRTUALIZE_CHAT=1 (enable virtualized chat rendering with react-virtuoso)
   - Any other NEXT_PUBLIC_* as needed
 
 Custom domain for frontend
@@ -60,4 +61,3 @@ Custom domain for frontend
 
 Notes
 - The repo ships with a CI-focused Dockerfile. For runtime containers on your own VPS, prefer a compose stack with a reverse proxy (e.g., Caddy) and separate services for frontend, backend, Postgres, and Redis.
-

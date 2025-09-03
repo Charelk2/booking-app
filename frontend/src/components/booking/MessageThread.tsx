@@ -74,6 +74,7 @@ import EventPrepCard from './EventPrepCard';
 import { ImagePreviewModal } from '@/components/ui';
 
 const EmojiPicker = dynamic(() => import('@emoji-mart/react'), { ssr: false });
+const Virtuoso = dynamic(() => import('react-virtuoso').then((m: any) => m.Virtuoso), { ssr: false });
 const MemoQuoteBubble = React.memo(QuoteBubble);
 const MemoInlineQuoteForm = React.memo(InlineQuoteForm);
 
@@ -340,6 +341,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const [imageModalIndex, setImageModalIndex] = useState<number | null>(null);
   const [filePreviewSrc, setFilePreviewSrc] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const VIRTUALIZE = process.env.NEXT_PUBLIC_VIRTUALIZE_CHAT === '1';
 
   // ---- Offline queue
   const { enqueue: enqueueMessage } = useOfflineQueue<{
@@ -1231,19 +1233,18 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     });
   }, []);
 
-  // ---- Scrolling logic
+  // ---- Scrolling logic (disabled when virtualized)
   useEffect(() => {
+    if (VIRTUALIZE) return;
     if (!messagesContainerRef.current || !messagesEndRef.current) return;
     if (stabilizingRef.current) return;
     const anchored = distanceFromBottomRef.current <= MIN_SCROLL_OFFSET;
     const shouldAutoScroll = messages.length > prevMessageCountRef.current || (typingIndicator && anchored);
     if (shouldAutoScroll) {
-      try {
-        messagesContainerRef.current.scrollTo({ top: messagesContainerRef.current.scrollHeight, behavior: 'auto' });
-      } catch {}
+      try { messagesContainerRef.current.scrollTo({ top: messagesContainerRef.current.scrollHeight, behavior: 'auto' }); } catch {}
     }
     prevMessageCountRef.current = messages.length;
-  }, [messages, typingIndicator]);
+  }, [messages, typingIndicator, VIRTUALIZE]);
 
   // Hook typing emission to composer input
   useEffect(() => {
@@ -1266,6 +1267,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     prevScrollHeightRef.current = el.scrollHeight;
   }, []);
   useEffect(() => {
+    if (VIRTUALIZE) return;
     handleScroll();
     const container = messagesContainerRef.current;
     if (container) {
@@ -1273,7 +1275,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       return () => container.removeEventListener('scroll', handleScroll);
     }
     return () => {};
-  }, [handleScroll]);
+  }, [handleScroll, VIRTUALIZE]);
 
   // ---- iOS scroll unlocks
   const handleTouchStartOnList = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
@@ -2073,12 +2075,12 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     <div ref={wrapperRef} className="relative flex flex-col rounded-b-2xl overflow-hidden w-full bg-white h-full min-h-0">
       {/* Messages */}
       <div
-        ref={messagesContainerRef}
-        onScroll={handleScroll}
-        onTouchStart={handleTouchStartOnList}
-        onTouchMove={handleTouchMoveOnList}
-        onWheel={handleWheelOnList}
-        className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-3 bg-white px-3 pt-3"
+        ref={VIRTUALIZE ? null : messagesContainerRef}
+        onScroll={VIRTUALIZE ? undefined : handleScroll}
+        onTouchStart={VIRTUALIZE ? undefined : handleTouchStartOnList}
+        onTouchMove={VIRTUALIZE ? undefined : handleTouchMoveOnList}
+        onWheel={VIRTUALIZE ? undefined : handleWheelOnList}
+        className={`relative flex-1 min-h-0 ${VIRTUALIZE ? '' : 'overflow-y-auto overflow-x-hidden'} flex flex-col gap-3 bg-white px-3 pt-3`}
         style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', paddingBottom: effectiveBottomPadding }}
       >
         {!loading && (
@@ -2130,8 +2132,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
           </div>
         )}
 
-        {/* Grouped messages */}
-        {groupedMessages.map((group, idx) => {
+        {/* Grouped messages (virtualized when enabled) */}
+        {(() => {
+          const elements = groupedMessages.map((group, idx) => {
           const firstMsgInGroup = group.messages[0];
           // Determine if the first non-system message is from the other party
           const firstNonSystem = group.messages.find((m) => normalizeType(m.message_type) !== 'SYSTEM');
@@ -2283,13 +2286,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     if (!quoteData) return null;
                     const isClient = isClientViewFlag;
                     const isPaid = isPaidFlag;
-                    return (
-                      <div
-                        key={msg.id}
-                        id={`quote-${quoteId}`}
-                        className="mb-0.5 w/full"
-                        ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
-                      >
+                  return (
+                    <div
+                      key={msg.id}
+                      id={`quote-${quoteId}`}
+                      className="mb-0.5 w/full"
+                      ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
+                    >
                         {isClient && quoteData.status === 'pending' && !isPaid && (
                           <div className="my-2">
                             <div className="flex items-center gap-3 text-gray-500">
@@ -2773,13 +2776,31 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               </div>
             </React.Fragment>
           );
-        })}
+          });
+          if (VIRTUALIZE) {
+            return (
+              <div className="min-h-0 flex-1">
+                <Virtuoso
+                  totalCount={elements.length}
+                  itemContent={(index) => <div className="w-full">{elements[index]}</div>}
+                  followOutput="smooth"
+                  atBottomStateChange={(atBottom: boolean) => {
+                    setShowScrollButton(!atBottom);
+                    setIsUserScrolledUp(!atBottom);
+                  }}
+                  increaseViewportBy={{ top: 400, bottom: 600 }}
+                  overscan={200}
+                />
+              </div>
+            );
+          }
+          return elements;
+        })()}
 
         {typingIndicator && <p className="text-xs text-gray-500" aria-live="polite">{typingIndicator}</p>}
 
-        {/* messagesEnd anchor */}
-        
-        <div ref={messagesEndRef} className="absolute bottom-0 left-0 w-0 h-0" aria-hidden="true" />
+        {/* messagesEnd anchor (non-virtual only) */}
+        {!VIRTUALIZE && <div ref={messagesEndRef} className="absolute bottom-0 left-0 w-0 h-0" aria-hidden="true" />}
       </div>
 
       {/* No skeleton or spinner per request */}
