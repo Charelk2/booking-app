@@ -379,16 +379,14 @@ By default it calls `http://localhost:8000`. To point elsewhere, create `fronten
 NEXT_PUBLIC_API_URL=http://192.168.3.203:8000
 NEXT_PUBLIC_WS_URL=ws://192.168.3.203:8000
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDm-BKmMtzMSMd-XUdfapjEUU6O5mYy2bk
-NEXT_PUBLIC_GOOGLE_MAPS_KEY=<your-distance-matrix-key>
 ```
 
 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` should be a browser key with the Places API
-enabled. It powers the `LocationInput` autocomplete fields used in the artist
-filters, search bar, and booking steps.
-
-`NEXT_PUBLIC_GOOGLE_MAPS_KEY` is still required for geocoding but the frontend
-no longer contacts Google directly for distance calculations. Instead it calls
-`/api/v1/distance`, and the backend forwards the request using your server key.
+and Geocoding API enabled. It powers the `LocationInput` autocomplete fields
+and the client-side geocoding used by the travel calculation helpers.
+The frontend no longer contacts Google directly for distance calculations.
+Instead it calls `/api/v1/distance`, and the backend forwards the request using
+your server key.
 
 Set `GOOGLE_MAPS_API_KEY` in your `.env` so this proxy works. The key is never
 exposed to the browser.
