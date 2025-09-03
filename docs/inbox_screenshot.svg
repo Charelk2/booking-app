@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200" viewBox="0 0 400 200">
+  <rect x="0" y="0" width="400" height="200" fill="#ffffff" />
+  <rect x="0" y="0" width="120" height="200" fill="#f0f0f0" stroke="#cccccc" />
+  <text x="60" y="100" text-anchor="middle" font-size="12" fill="#333333">Conversations</text>
+  <rect x="120" y="0" width="160" height="200" fill="#fafafa" stroke="#cccccc" />
+  <text x="200" y="100" text-anchor="middle" font-size="12" fill="#333333">Chat</text>
+  <rect x="280" y="0" width="120" height="200" fill="#f0f0f0" stroke="#cccccc" />
+  <text x="340" y="100" text-anchor="middle" font-size="12" fill="#333333">Details</text>
+</svg>
