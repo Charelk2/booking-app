@@ -170,10 +170,31 @@ function normalizeVisibleTo(raw: VisibleToAny | string | null | undefined): 'cli
   // Legacy 'artist' -> 'service_provider'
   return 'service_provider';
 }
+const toNum = (v: any) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
 function normalizeMessage(raw: any): ThreadMessage {
+  const brId =
+    toNum(raw.booking_request_id) ??
+    toNum(raw.booking_request?.id) ??
+    toNum(raw.thread_id) ??
+    toNum(raw.thread?.id) ??
+    toNum(raw.request_id) ??
+    toNum(raw.conversation_id) ??
+    0;
+
+  const ts =
+    raw.timestamp ||
+    raw.created_at ||
+    raw.sent_at ||
+    raw.inserted_at ||
+    raw.created ||
+    new Date().toISOString();
+
   return {
     id: Number(raw.id),
-    booking_request_id: Number(raw.booking_request_id),
+    booking_request_id: brId,
     sender_id: Number(raw.sender_id),
     sender_type: normalizeSenderType(raw.sender_type),
     content: String(raw.content ?? ''),
@@ -187,7 +208,7 @@ function normalizeMessage(raw: any): ThreadMessage {
     expires_at: raw.expires_at ?? null,
     unread: Boolean(raw.unread),
     is_read: Boolean(raw.is_read),
-    timestamp: raw.timestamp ?? new Date().toISOString(),
+    timestamp: ts,
     status: raw.status as MessageStatus | undefined,
     reactions: (raw as any).reactions || null,
     my_reactions: (raw as any).my_reactions || null,
@@ -219,6 +240,53 @@ function mergeMessages(existing: ThreadMessage[], incoming: ThreadMessage | Thre
   return arr.sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
+}
+
+// ---- Realtime envelope helpers ---------------------------------------------
+function extractMessagesFromEnvelope(payload: any): any[] {
+  if (!payload) return [];
+
+  // Raw arrays / shapes
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.messages)) return payload.messages;
+  if ((payload as any).message) return [payload.message];
+  if ('id' in (payload || {})) return [payload];
+
+  // v1 envelopes (and a few aliases)
+  const typ = String((payload as any).type || '').toLowerCase();
+  const inner = (payload as any).payload ?? (payload as any).data ?? null;
+
+  const isMsgType =
+    /^message(?:[_-](?:created|new))?$/.test(typ) ||
+    /^new[_-]?message$/.test(typ) ||
+    typ === 'msg' ||
+    typ === 'chat_message';
+  const isMsgsType = /^(messages?|message_list)$/.test(typ);
+
+  if (isMsgType) {
+    const m = (payload as any).message ?? inner ?? null;
+    return m ? [m] : [];
+  }
+  if (isMsgsType) {
+    const arr = (payload as any).messages ?? inner ?? null;
+    return Array.isArray(arr) ? arr : [];
+  }
+
+  // Some servers put type inside payload
+  const innerType = String(inner?.type || '').toLowerCase();
+  if ((/^message(?:[_-](?:created|new))?$/.test(innerType) || /^new[_-]?message$/.test(innerType)) && inner?.payload) {
+    const m = inner.payload.message ?? inner.payload ?? null;
+    return m ? [m] : [];
+  }
+
+  // Fallbacks inside payload (don’t require numeric id here)
+  if (inner) {
+    if (Array.isArray(inner.messages)) return inner.messages;
+    if (inner.message) return [inner.message];
+    if ('id' in inner) return [inner];
+  }
+
+  return [];
 }
 
 // ===== Public API =============================================================
@@ -372,6 +440,9 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   const stabilizeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const fetchInFlightRef = useRef(false);
   const activeThreadRef = useRef<number | null>(null);
+  // Buffer for WS messages that arrive before initial REST load completes
+  const wsBufferRef = useRef<ThreadMessage[]>([]);
+  const lastFetchAtRef = useRef<number>(0);
 
   // Local ephemeral features
   const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
@@ -814,20 +885,32 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
       }
 
       let parsedDetails: ParsedBookingDetails | undefined;
-      // Filter meta booking-details system msg out of the visible list,
-      // but still parse it into booking details.
-      const normalized = res.data
-        .map((raw: any) => normalizeMessage(raw))
-        .filter((msg: ThreadMessage) => {
-          if (normalizeType(msg.message_type) === 'SYSTEM' && typeof msg.content === 'string' && msg.content.startsWith(BOOKING_DETAILS_PREFIX)) {
-            parsedDetails = parseBookingDetailsFromMessage(msg.content);
-            return false;
-          }
-          if (initialNotes && normalizeType(msg.message_type) === 'USER' && msg.content.trim() === initialNotes.trim()) {
-            return false;
-          }
-          return true;
-        });
+      // Parse booking-details system messages and include a concise system line
+      // so the live thread shows an immediate preview like the conversation list.
+      const normalized: ThreadMessage[] = [];
+      for (const raw of res.data as any[]) {
+        const msg = normalizeMessage(raw);
+        // Capture booking details for the side panel, but keep a short system line in the thread
+        if (
+          normalizeType(msg.message_type) === 'SYSTEM' &&
+          typeof msg.content === 'string' &&
+          msg.content.startsWith(BOOKING_DETAILS_PREFIX)
+        ) {
+          parsedDetails = parseBookingDetailsFromMessage(msg.content);
+          // Keep a minimal visible system entry so the thread reflects a new request immediately
+          normalized.push({ ...msg, content: systemLabel(msg) });
+          continue;
+        }
+        // Hide the initial user-provided notes that we already show in the details panel
+        if (
+          initialNotes &&
+          normalizeType(msg.message_type) === 'USER' &&
+          msg.content.trim() === initialNotes.trim()
+        ) {
+          continue;
+        }
+        normalized.push(msg);
+      }
 
       setParsedBookingDetails(parsedDetails);
       if (parsedDetails && onBookingDetailsParsed) onBookingDetailsParsed(parsedDetails);
@@ -901,6 +984,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     } finally {
       setLoading(false);
       initialLoadedRef.current = true; // <— gate opens: WS can merge now
+      // Flush any buffered realtime messages that arrived during initial load
+      try {
+        if (wsBufferRef.current.length) {
+          setMessages((prev) => mergeMessages(prev, wsBufferRef.current));
+          wsBufferRef.current = [];
+        }
+      } catch {}
       // Defer initial scroll to a layout effect to avoid any visible jump
       stabilizingRef.current = true;
       if (stabilizeTimerRef.current) clearTimeout(stabilizeTimerRef.current);
@@ -914,6 +1004,19 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   useEffect(() => {
     activeThreadRef.current = bookingRequestId;
     fetchMessages();
+  }, [bookingRequestId, fetchMessages]);
+
+  // When the global inbox emits a threads:updated (via notifications), refresh this thread too.
+  useEffect(() => {
+    const onThreadsUpdated = () => {
+      const now = Date.now();
+      if (activeThreadRef.current !== bookingRequestId) return;
+      if (now - lastFetchAtRef.current < 800) return; // debounce
+      lastFetchAtRef.current = now;
+      void fetchMessages();
+    };
+    try { window.addEventListener('threads:updated', onThreadsUpdated as any); } catch {}
+    return () => { try { window.removeEventListener('threads:updated', onThreadsUpdated as any); } catch {} };
   }, [bookingRequestId, fetchMessages]);
 
   // Reset initial scrolled flag when switching threads
@@ -1027,19 +1130,33 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
   // ---- Realtime (multiplex) connection
   const authToken = token || (typeof window !== 'undefined' ? (localStorage.getItem('token') || sessionStorage.getItem('token') || null) : null);
   const { subscribe, publish, status: socketStatus, lastReconnectDelay, forceReconnect } = useRealtime(authToken || undefined);
-  const topic = `booking-requests:${bookingRequestId}`;
+  const topics = useMemo(() => [
+    `booking-requests:${bookingRequestId}`,
+    `threads:${bookingRequestId}`,
+    // common alternates used by some stacks:
+    `thread:${bookingRequestId}`,
+    `message-threads:${bookingRequestId}`,
+    `booking_requests:${bookingRequestId}`,
+    // `messages:${bookingRequestId}`, // uncomment if backend uses this
+  ], [bookingRequestId]);
+  const primaryTopic = topics[0];
+  // Expose minimal debug helper in the browser console
+  useEffect(() => {
+    try { (window as any).__threadInfo = () => ({ bookingRequestId, topics }); } catch {}
+  }, [bookingRequestId, topics]);
 
-  // ---- Presence updates via multiplex
+  // ---- Presence updates via multiplex (v1 envelope)
   useEffect(() => {
     if (!user?.id) return;
-    publish(topic, { type: 'presence', updates: { [user.id]: 'online' } });
-    const handleVisibility = () => publish(topic, { type: 'presence', updates: { [user.id]: document.hidden ? 'away' : 'online' } });
+    try { topics.forEach((t) => publish(t, { v: 1, type: 'presence', updates: { [user.id]: 'online' } })); } catch {}
+    const handleVisibility = () =>
+      topics.forEach((t) => publish(t, { v: 1, type: 'presence', updates: { [user.id]: document.hidden ? 'away' : 'online' } }));
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
-      publish(topic, { type: 'presence', updates: { [user.id]: 'offline' } });
+      try { topics.forEach((t) => publish(t, { v: 1, type: 'presence', updates: { [user.id]: 'offline' } })); } catch {}
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [publish, topic, user?.id]);
+  }, [publish, topics, user?.id]);
 
   // ---- Typing emission (throttled)
   const lastTypingSentRef = useRef(0);
@@ -1047,127 +1164,185 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
     if (!user?.id) return;
     const ta = textareaRef.current;
     if (!ta) return;
-    const hasText = (ta.value || '').trim().length > 0;
-    if (!hasText) return;
     const now = Date.now();
     if (now - lastTypingSentRef.current < 1000) return; // 1/sec
     lastTypingSentRef.current = now;
-    try { publish(topic, { type: 'typing', user_id: user.id }); } catch {}
-  }, [publish, topic, user?.id]);
+    try {
+      topics.forEach((t) => publish(t, {
+        v: 1,
+        type: 'typing',
+        user_id: user.id,
+        users: [user.id],
+        payload: { user_id: user.id },
+        data: { user_id: user.id },
+      }));
+    } catch {}
+  }, [publish, topics, user?.id]);
 
-  // ---- Realtime: subscribe per topic
+  // ---- Realtime: subscribe per topic (unwrap v1 envelopes; accept both typing shapes)
+  const lastRealtimeAtRef = useRef<number>(0);
   useEffect(() => {
-    const unsubscribe = subscribe(topic, (payload: any) => {
+    const handler = (payload: any) => {
       if (activeThreadRef.current !== bookingRequestId) return;
-      const v = payload?.v ?? 1;
-      if (v !== 1) return;
+      const vNum = Number(payload?.v ?? 1);
+      if (Number.isFinite(vNum) && vNum !== 1) return;
 
-      // Handle non-message events
-      if (payload?.type === 'typing' && Array.isArray(payload.users)) {
-          setTypingUsers(payload.users.filter((id: number) => id !== user?.id));
+      const typeStr = String(payload?.type || '').toLowerCase();
+      if (typeof window !== 'undefined' && localStorage.getItem('CHAT_DEBUG') === '1') {
+        try { console.debug('[thread] recv', { topic: payload?.topic, type: typeStr }); } catch {}
+      }
+
+      // Non-message events
+      if (typeStr === 'typing') {
+        const src: any = payload?.payload || payload?.data || payload || {};
+        const arr =
+          (Array.isArray(src.users) ? src.users : null) ||
+          (Array.isArray(payload?.users) ? payload.users : null) ||
+          null;
+        const idCandidate =
+          src.user_id ?? src.userId ?? src.sender_id ?? src.from_user_id ?? payload?.user_id ?? payload?.userId;
+        const incoming = arr ? arr : (typeof idCandidate === 'number' ? [idCandidate] : []);
+        if (incoming.length) {
+          setTypingUsers(incoming.filter((id: number) => id !== user?.id));
           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(() => setTypingUsers([]), 2000);
-          return;
         }
-      if (payload?.type === 'presence' || payload?.type === 'reconnect' || payload?.type === 'reconnect_hint' || payload?.type === 'ping') {
-          // Presence/heartbeat/reconnect hints are not chat messages
-          return;
+        lastRealtimeAtRef.current = Date.now();
+        return;
+      }
+      if (typeStr === 'presence' || typeStr === 'reconnect' || typeStr === 'reconnect_hint' || typeStr === 'ping' || typeStr === 'pong' || typeStr === 'heartbeat') {
+        return;
+      }
+      if (typeStr === 'read') {
+        const upTo: number | undefined = typeof payload.up_to_id === 'number' ? payload.up_to_id : undefined;
+        const readerId: number | undefined = typeof payload.user_id === 'number' ? payload.user_id : undefined;
+        if (upTo && readerId && readerId !== user?.id) {
+          setMessages((prev) => prev.map((m) => (m.sender_id === (user?.id || 0) && m.id <= upTo ? { ...m, is_read: true } : m)));
         }
-
-        if (payload?.type === 'read') {
-          const upTo: number | undefined = typeof payload.up_to_id === 'number' ? payload.up_to_id : undefined;
-          const readerId: number | undefined = typeof payload.user_id === 'number' ? payload.user_id : undefined;
-          if (upTo && readerId && readerId !== user?.id) {
-            setMessages((prev) => prev.map((m) => (m.sender_id === (user?.id || 0) && m.id <= upTo ? { ...m, is_read: true } : m)));
-          }
-          return;
+        return;
+      }
+      if (typeStr === 'message_deleted' && typeof payload.id === 'number') {
+        const mid = Number(payload.id);
+        setMessages((prev) => prev.filter((m) => m.id !== mid));
+        return;
+      }
+      if (typeStr === 'event_prep_updated') return;
+      if (typeStr === 'reaction_added' && payload?.payload) {
+        const { message_id, emoji, user_id } = payload.payload as { message_id: number; emoji: string; user_id: number };
+        if (user_id === user?.id) {
+          const mine = myReactionsRef.current[message_id];
+          if (mine && mine.has(emoji)) return;
         }
-
-        if (payload?.type === 'message_deleted' && typeof payload.id === 'number') {
-          const mid = Number(payload.id);
-          setMessages((prev) => prev.filter((m) => m.id !== mid));
-          return;
-        }
-
-        // Event prep updates are handled by the EventPrepCard subscriber
-        if (payload?.type === 'event_prep_updated') {
-          return;
-        }
-
-        // Live reaction updates
-        if (payload?.type === 'reaction_added' && payload?.payload) {
-          const { message_id, emoji, user_id } = payload.payload as { message_id: number; emoji: string; user_id: number };
-          if (user_id === user?.id) {
-            const mine = myReactionsRef.current[message_id];
-            if (mine && mine.has(emoji)) return; // already applied optimistically
-          }
-          setReactions((prev) => {
-            const cur = { ...(prev[message_id] || {}) } as Record<string, number>;
-            cur[emoji] = (cur[emoji] || 0) + 1;
-            return { ...prev, [message_id]: cur };
+        setReactions((prev) => {
+          const cur = { ...(prev[message_id] || {}) } as Record<string, number>;
+          cur[emoji] = (cur[emoji] || 0) + 1;
+          return { ...prev, [message_id]: cur };
+        });
+        if (user_id === user?.id) {
+          setMyReactions((m) => {
+            const set = new Set(m[message_id] || []);
+            set.add(emoji);
+            return { ...m, [message_id]: set };
           });
-          if (user_id === user?.id) {
-            setMyReactions((m) => {
-              const set = new Set(m[message_id] || []);
-              set.add(emoji);
-              return { ...m, [message_id]: set };
-            });
-          }
-          return;
         }
-        if (payload?.type === 'reaction_removed' && payload?.payload) {
-          const { message_id, emoji, user_id } = payload.payload as { message_id: number; emoji: string; user_id: number };
-          if (user_id === user?.id) {
-            const mine = myReactionsRef.current[message_id];
-            if (!mine || !mine.has(emoji)) return; // already applied optimistically
-          }
-          setReactions((prev) => {
-            const cur = { ...(prev[message_id] || {}) } as Record<string, number>;
-            cur[emoji] = Math.max(0, (cur[emoji] || 0) - 1);
-            return { ...prev, [message_id]: cur };
+        return;
+      }
+      if (typeStr === 'reaction_removed' && payload?.payload) {
+        const { message_id, emoji, user_id } = payload.payload as { message_id: number; emoji: string; user_id: number };
+        if (user_id === user?.id) {
+          const mine = myReactionsRef.current[message_id];
+          if (!mine || !mine.has(emoji)) return;
+        }
+        setReactions((prev) => {
+          const cur = { ...(prev[message_id] || {}) } as Record<string, number>;
+          cur[emoji] = Math.max(0, (cur[emoji] || 0) - 1);
+          return { ...prev, [message_id]: cur };
+        });
+        if (user_id === user?.id) {
+          setMyReactions((m) => {
+            const set = new Set(m[message_id] || []);
+            set.delete(emoji);
+            return { ...m, [message_id]: set };
           });
-          if (user_id === user?.id) {
-            setMyReactions((m) => {
-              const set = new Set(m[message_id] || []);
-              set.delete(emoji);
-              return { ...m, [message_id]: set };
-            });
-          }
-          return;
         }
+        return;
+      }
 
-        const maybeList: any[] = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload?.messages)
-            ? payload.messages
-            : [payload];
-
-        if (!initialLoadedRef.current) {
-          // Ignore backlog until initial REST load is done to avoid flicker
-          return;
+      // Message events: unwrap any envelope shape into raw messages
+      const candidateItems = extractMessagesFromEnvelope(payload);
+      if (!candidateItems.length) {
+        // Fallback: if this looks like a message-related event but we couldn't extract
+        // a concrete message payload, trigger a light REST refresh so the thread stays live.
+        const looksLikeMessage = /message/.test(typeStr) || payload?.last_message || payload?.preview;
+        if (looksLikeMessage) {
+          try { void fetchMessages(); } catch {}
         }
+        return;
+      }
 
-        // Only accept items that look like real messages
-        const candidateItems = maybeList.filter((item: any) => typeof item?.id === 'number' && !Number.isNaN(item.id));
-        if (candidateItems.length === 0) return;
-        const normalized = candidateItems.map(normalizeMessage);
-        setMessages((prev) => mergeMessages(prev, normalized));
-        // Debounced read receipt when anchored and new incoming
+      if (!initialLoadedRef.current) {
         try {
-          const el = messagesContainerRef.current;
-          if (el) {
-            const distance = el.scrollHeight - (el.scrollTop + el.clientHeight);
-            const anchored = distance <= MIN_SCROLL_OFFSET;
-            const gotIncoming = normalized.some((m) => m.sender_id !== (user?.id || 0));
-            if (anchored && gotIncoming) {
-              if ((typingTimeoutRef.current as any)?._readTimer) clearTimeout((typingTimeoutRef.current as any)?._readTimer);
-              (typingTimeoutRef.current as any) = (typingTimeoutRef.current || null);
-              (typingTimeoutRef.current as any)._readTimer = setTimeout(async () => {
+          const topicId =
+            Number(String((payload?.topic || '')).split(':').pop()) ||
+            Number(String((topics?.[0] || '')).split(':').pop());
+          const buffered = candidateItems
+            .map(normalizeMessage)
+            .filter((m: any) => Number.isFinite(m.id))
+            .filter((m: any) => {
+              const br = Number(m.booking_request_id);
+              return Number.isFinite(br) && br > 0 ? br === topicId : true;
+            });
+          if (buffered.length) wsBufferRef.current = mergeMessages(wsBufferRef.current, buffered);
+          if (typeof window !== 'undefined' && localStorage.getItem('CHAT_DEBUG') === '1') {
+            try { console.debug('[thread] buffer (pre-load)', { topicId, cand: candidateItems.length, buffered: buffered.length }); } catch {}
+          }
+        } catch {}
+        return;
+      }
+
+      const topicId =
+        Number(String((payload?.topic || '')).split(':').pop()) ||
+        Number(String((topics?.[0] || '')).split(':').pop());
+      const normalized = candidateItems
+        .map(normalizeMessage)
+        .filter((m: any) => Number.isFinite(m.id))
+        .filter((m: any) => {
+          const br = Number(m.booking_request_id);
+          return Number.isFinite(br) && br > 0 ? br === topicId : true;
+        });
+      if (normalized.length === 0) {
+        if (typeof window !== 'undefined' && localStorage.getItem('CHAT_DEBUG') === '1') {
+          try {
+            const brs = candidateItems.map((c: any) => ({ id: c?.id, br: c?.booking_request_id, thread_id: c?.thread_id, nested_br: c?.booking_request?.id }));
+            console.warn('[thread] dropped all candidates after filter', { topicId, cand: candidateItems.length, brs });
+          } catch {}
+        }
+        return;
+      }
+
+      setMessages((prev) => mergeMessages(prev, normalized));
+      lastRealtimeAtRef.current = Date.now();
+      if (typeof window !== 'undefined' && localStorage.getItem('CHAT_DEBUG') === '1') {
+        try { console.debug('[thread] merged', { topicId, added: normalized.length }); } catch {}
+      }
+
+      // Debounced read receipt when anchored and new incoming
+      try {
+        const el = messagesContainerRef.current;
+        if (el) {
+          const distance = el.scrollHeight - (el.scrollTop + el.clientHeight);
+          const anchored = distance <= MIN_SCROLL_OFFSET;
+          const gotIncoming = normalized.some((m) => m.sender_id !== (user?.id || 0));
+          if (anchored && gotIncoming) {
+            if ((typingTimeoutRef.current as any)?._readTimer) clearTimeout((typingTimeoutRef.current as any)?._readTimer);
+            (typingTimeoutRef.current as any) = (typingTimeoutRef.current || null);
+            (typingTimeoutRef.current as any)._readTimer = setTimeout(async () => {
               try { await markMessagesRead(bookingRequestId); } catch {}
               try {
                 const last = normalized[normalized.length - 1];
                 if (last && typeof last.id === 'number') {
-                  publish(topic, { type: 'read', up_to_id: last.id });
+                  const replyTopic = String(payload?.topic || primaryTopic);
+                  publish(replyTopic, { v: 1, type: 'read', up_to_id: last.id, user_id: user?.id });
                 }
               } catch {}
             }, 700);
@@ -1175,26 +1350,61 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         }
       } catch {}
 
-        // Bump header unread badge when new inbound messages arrive
-        try {
-          const anyInbound = normalized.some((m) => m.sender_id !== user?.id);
-          if (anyInbound && typeof window !== 'undefined') {
-            window.dispatchEvent(new Event('threads:updated'));
-          }
-        } catch {}
-
-        // Ensure quotes are hydrated
-        for (const m of normalized) {
-          const qid = Number(m.quote_id);
-          const isQuote =
-            qid > 0 &&
-            (normalizeType(m.message_type) === 'QUOTE' ||
-              (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
-          if (isQuote) void ensureQuoteLoaded(qid);
+      // Update inbox thread previews on inbound
+      try {
+        const anyInbound = normalized.some((m) => m.sender_id !== user?.id);
+        if (anyInbound && typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('threads:updated'));
         }
+      } catch {}
+
+      // Hydrate quotes if needed
+      for (const m of normalized) {
+        const qid = Number(m.quote_id);
+        const isQuote =
+          qid > 0 &&
+          (normalizeType(m.message_type) === 'QUOTE' ||
+            (normalizeType(m.message_type) === 'SYSTEM' && m.action === 'review_quote'));
+        if (isQuote) void ensureQuoteLoaded(qid);
+      }
+    };
+    const unsubs = topics.map((t) => subscribe(t, handler));
+    return () => { unsubs.forEach((u) => u()); };
+  }, [subscribe, topics, ensureQuoteLoaded, user?.id, bookingRequestId, fetchMessages]);
+
+  // ---- Gentle polling fallback: if no realtime in ~4s, poll every 2s until we see activity
+  useEffect(() => {
+    lastRealtimeAtRef.current = Date.now();
+    const id = setInterval(() => {
+      const idleMs = Date.now() - lastRealtimeAtRef.current;
+      if (idleMs > 4000) void fetchMessages();
+    }, 2000);
+    return () => clearInterval(id);
+  }, [fetchMessages]);
+
+  // Also listen to global notifications as a safety net; if a new_message
+  // notification arrives, refresh this thread if ids match or if no id is present.
+  useEffect(() => {
+    const unsub = subscribe('notifications', (payload: any) => {
+      try {
+        const typ = String(payload?.type || '').toLowerCase();
+        if (!/message/.test(typ)) return;
+        const id = Number(
+          payload?.booking_request_id ??
+          payload?.thread_id ??
+          payload?.booking_request?.id ??
+          payload?.thread?.id ??
+          payload?.request_id ??
+          payload?.conversation_id ??
+          NaN
+        );
+        if (!Number.isFinite(id) || id === bookingRequestId) {
+          void fetchMessages();
+        }
+      } catch {}
     });
-    return unsubscribe;
-  }, [subscribe, topic, ensureQuoteLoaded, user?.id, bookingRequestId]);
+    return () => { try { unsub(); } catch {} };
+  }, [subscribe, bookingRequestId, fetchMessages]);
 
   // ---- Attachment preview URL
   useEffect(() => {
@@ -1321,18 +1531,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
         (user?.user_type === 'service_provider' && msg.visible_to === 'service_provider') ||
         (user?.user_type === 'client' && msg.visible_to === 'client');
 
-      const isHiddenSystem =
-        normalizeType(msg.message_type) === 'SYSTEM' &&
-        typeof msg.content === 'string' &&
-        msg.content.startsWith(BOOKING_DETAILS_PREFIX);
-
       // Hide redundant provider-side "Quote sent with total ..." style messages
       const isRedundantQuoteSent =
         normalizeType(msg.message_type) === 'SYSTEM' &&
         typeof msg.content === 'string' &&
         /^\s*quote\s+sent/i.test(msg.content.trim());
 
-      return visibleToCurrentUser && !isHiddenSystem && !isRedundantQuoteSent;
+      return visibleToCurrentUser && !isRedundantQuoteSent;
     });
 
     // Global dedupe: only show a given SYSTEM line once (same system_key+content)
@@ -1759,6 +1964,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
               byId.set(real.id, real);
               return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
             });
+            // Update inbox preview for sender immediately
+            try {
+              if (typeof window !== 'undefined') {
+                const previewText = String(real.content || '').slice(0, 160);
+                window.dispatchEvent(new CustomEvent('thread:preview', { detail: { id: bookingRequestId, content: previewText, ts: real.timestamp, unread: false } }));
+                window.dispatchEvent(new Event('threads:updated'));
+              }
+            } catch {}
           } catch (err) {
             console.error('Failed to send first image message:', err);
             setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'queued' as const } : m)));
@@ -1788,6 +2001,13 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                 byId.set(real.id, real);
                 return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
               });
+              try {
+                if (typeof window !== 'undefined') {
+                  const previewText = String(real.content || '').slice(0, 160);
+                  window.dispatchEvent(new CustomEvent('thread:preview', { detail: { id: bookingRequestId, content: previewText, ts: real.timestamp, unread: false } }));
+                  window.dispatchEvent(new Event('threads:updated'));
+                }
+              } catch {}
             } catch (err) {
               console.error('Failed to send image message:', err);
               setMessages((prev) => prev.map((m) => (m.id === temp ? { ...m, status: 'queued' as const } : m)));
@@ -1896,6 +2116,14 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
             byId.set(real.id, real);
             return Array.from(byId.values()).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
           });
+          // Update inbox preview for sender immediately
+          try {
+            if (typeof window !== 'undefined') {
+              const previewText = String(real.content || '').slice(0, 160);
+              window.dispatchEvent(new CustomEvent('thread:preview', { detail: { id: bookingRequestId, content: previewText, ts: real.timestamp, unread: false } }));
+              window.dispatchEvent(new Event('threads:updated'));
+            }
+          } catch {}
           onMessageSent?.();
         } catch (err) {
           console.error('Failed to send message:', err);
@@ -2280,7 +2508,7 @@ const MessageThread = forwardRef<MessageThreadHandle, MessageThreadProps>(functi
                     <div
                       key={msg.id}
                       id={`quote-${quoteId}`}
-                      className="mb-0.5 w/full"
+                      className="mb-0.5 w-full"
                       ref={idx === firstUnreadIndex && msgIdx === 0 ? firstUnreadMessageRef : null}
                     >
                         {isClient && quoteData.status === 'pending' && !isPaid && (

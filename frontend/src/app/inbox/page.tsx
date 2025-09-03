@@ -9,7 +9,15 @@ import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@/components/ui';
 import ConversationList from '@/components/inbox/ConversationList';
-import MessageThreadWrapper from '@/components/inbox/MessageThreadWrapper';
+import dynamic from 'next/dynamic';
+const MessageThreadWrapper = dynamic(() => import('@/components/inbox/MessageThreadWrapper'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-full text-gray-500 text-center p-4">
+      <Spinner />
+    </div>
+  ),
+});
 import ReviewFormModal from '@/components/review/ReviewFormModal';
 import {
   getThreadsIndex,
@@ -40,6 +48,28 @@ export default function InboxPage() {
   const [listHeight, setListHeight] = useState<number>(420);
   // Ensure we only attempt to create a Booka thread once per mount
   const ensureTriedRef = useRef(false);
+  // Debounce focus/visibility-triggered refreshes
+  const lastRefreshAtRef = useRef<number>(0);
+
+  // Fast session cache for instant render on return navigations
+  const CACHE_KEY = useMemo(() => {
+    const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
+    const uid = user?.id ? String(user.id) : 'anon';
+    return `inbox:threadsCache:v2:${role}:${uid}`;
+  }, [user?.user_type, user?.id]);
+
+  // Bootstrap from cache immediately for snappy paint
+  useEffect(() => {
+    try {
+      const cached = typeof window !== 'undefined' ? sessionStorage.getItem(CACHE_KEY) : null;
+      if (cached) {
+        const parsed = JSON.parse(cached) as BookingRequest[];
+        if (Array.isArray(parsed) && parsed.length) {
+          setAllBookingRequests(parsed);
+        }
+      }
+    } catch {}
+  }, [CACHE_KEY]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < BREAKPOINT_MD);
@@ -50,46 +80,48 @@ export default function InboxPage() {
 
   const fetchAllRequests = useCallback(async () => {
     // Only show the page-level spinner if we have nothing yet
-    setLoadingRequests((prev) => prev || allBookingRequests.length === 0);
-    // Unified threads index (server-composed) when enabled
+    if (allBookingRequests.length === 0) setLoadingRequests(true);
+    // Try unified threads index first (fast, server-joined). Fall back if not available.
     try {
-      if (process.env.NEXT_PUBLIC_INBOX_THREADS_INDEX === '1') {
-        const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
-        const res = await getThreadsIndex(role as any, 100);
-        const items = res.data.items || [];
-        const isArtist = user?.user_type === 'service_provider';
-        const mapped: BookingRequest[] = items.map((it) => ({
-          id: it.thread_id,
-          client_id: 0 as any,
-          service_provider_id: 0 as any,
-          status: (it.state as any) || 'pending_quote',
-          created_at: it.last_message_at,
-          updated_at: it.last_message_at,
-          last_message_content: it.last_message_snippet,
-          last_message_timestamp: it.last_message_at,
-          is_unread_by_current_user: (it.unread_count || 0) > 0 as any,
-          message: null,
-          travel_mode: null,
-          travel_cost: null,
-          travel_breakdown: null,
-          proposed_datetime_1: (it.meta as any)?.event_date || null,
-          proposed_datetime_2: null,
-          attachment_url: null,
-          service_id: undefined,
-          service: undefined,
-          artist: undefined as any,
-          artist_profile: (!isArtist ? ({ business_name: it.counterparty_name, profile_picture_url: it.counterparty_avatar_url || undefined } as any) : undefined),
-          client: (isArtist ? ({ first_name: it.counterparty_name, profile_picture_url: it.counterparty_avatar_url || undefined } as any) : undefined),
-          accepted_quote_id: null,
-          sound_required: undefined as any,
-          ...(it.counterparty_name === 'Booka' ? { is_booka_synthetic: true } : {}),
-          ...(it.state ? { thread_state: it.state } : {}),
-        } as any));
-        setAllBookingRequests(mapped);
-        setError(null);
-        setLoadingRequests(false);
-        return;
-      }
+      const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
+      const res = await getThreadsIndex(role as any, 50);
+      const items = res.data.items || [];
+      const isArtist = user?.user_type === 'service_provider';
+      const mapped: BookingRequest[] = items.map((it) => ({
+        id: it.thread_id,
+        client_id: 0 as any,
+        service_provider_id: 0 as any,
+        status: (it.state as any) || 'pending_quote',
+        created_at: it.last_message_at,
+        updated_at: it.last_message_at,
+        last_message_content: it.last_message_snippet,
+        last_message_timestamp: it.last_message_at,
+        is_unread_by_current_user: (it.unread_count || 0) > 0 as any,
+        message: null,
+        travel_mode: null,
+        travel_cost: null,
+        travel_breakdown: null,
+        proposed_datetime_1: (it.meta as any)?.event_date || null,
+        proposed_datetime_2: null,
+        attachment_url: null,
+        service_id: undefined,
+        service: undefined,
+        artist: undefined as any,
+        artist_profile: (!isArtist ? ({ business_name: it.counterparty_name, profile_picture_url: it.counterparty_avatar_url || undefined } as any) : undefined),
+        client: (isArtist ? ({ first_name: it.counterparty_name, profile_picture_url: it.counterparty_avatar_url || undefined } as any) : undefined),
+        accepted_quote_id: null,
+        sound_required: undefined as any,
+        ...(it.counterparty_name === 'Booka' ? { is_booka_synthetic: true } : {}),
+        ...(it.state ? { thread_state: it.state } : {}),
+      } as any));
+      // Sort newest to oldest by last activity
+      mapped.sort((a, b) => new Date(String((b as any).last_message_timestamp || b.updated_at || b.created_at)).getTime() -
+                              new Date(String((a as any).last_message_timestamp || a.updated_at || a.created_at)).getTime());
+      setAllBookingRequests(mapped);
+      try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(mapped)); } catch {}
+      setError(null);
+      setLoadingRequests(false);
+      return;
     } catch (e) {
       // fall through to legacy merge path
     }
@@ -123,7 +155,7 @@ export default function InboxPage() {
       } catch (e) {
         // best-effort; ignore errors and show existing flags
       }
-      // Overlay moderation previews from the threads preview endpoint directly onto existing rows
+      // Overlay moderation previews from the threads preview endpoint directly onto existing rows (non-blocking)
       try {
         const role = user?.user_type === 'service_provider' ? 'artist' : 'client';
         const preview = await getMessageThreadsPreview(role as any, 50);
@@ -238,52 +270,69 @@ export default function InboxPage() {
         } catch {}
       }
 
-      // Fallback: if preview overlay missed, inspect last chat messages for recent threads (best-effort)
+      // Fallback: if preview overlay missed, inspect a few last chat messages for recent threads (best-effort, idle)
       try {
-        // Check up to 8 most recent rows and patch moderation previews if found
-        const sample = [...combined]
-          .sort((a, b) => new Date(String((b as any).last_message_timestamp ?? b.updated_at ?? b.created_at)).getTime() -
-                          new Date(String((a as any).last_message_timestamp ?? a.updated_at ?? a.created_at)).getTime())
-          .slice(0, 8);
-        const results = await Promise.allSettled(
-          sample.map(async (r) => {
-            const res = await getMessagesForBookingRequest(r.id);
-            const msgs = res.data || [];
-            // Detect Booka moderation update based on the last message
-            const last = msgs[msgs.length - 1];
-            let moderation: { id: number; text: string; ts: string } | null = null;
-            if (last && last.content) {
-              const text = String(last.content || '').trim();
-              if (/^(listing\s+approved:|listing\s+rejected:)/i.test(text)) {
-                moderation = { id: r.id, text: 'Booka update', ts: last.timestamp } as const;
+        const base = [...combined];
+        const schedule = (fn: () => void) => {
+          try {
+            const ric = (window as any)?.requestIdleCallback as ((cb: () => void, opts?: any) => void) | undefined;
+            if (typeof ric === 'function') ric(fn, { timeout: 1000 });
+            else setTimeout(fn, 0);
+          } catch { setTimeout(fn, 0); }
+        };
+        schedule(async () => {
+          try {
+            const sample = [...base]
+              .sort((a, b) => new Date(String((b as any).last_message_timestamp ?? b.updated_at ?? b.created_at)).getTime() -
+                              new Date(String((a as any).last_message_timestamp ?? a.updated_at ?? a.created_at)).getTime())
+              .slice(0, 6);
+            const results = await Promise.allSettled(
+              sample.map(async (r) => {
+                const res = await getMessagesForBookingRequest(r.id);
+                const msgs = res.data || [];
+                // Detect Booka moderation update based on the last message
+                const last = msgs[msgs.length - 1];
+                let moderation: { id: number; text: string; ts: string } | null = null;
+                if (last && last.content) {
+                  const text = String(last.content || '').trim();
+                  if (/^(listing\s+approved:|listing\s+rejected:)/i.test(text)) {
+                    moderation = { id: r.id, text: 'Booka update', ts: last.timestamp } as const;
+                  }
+                }
+                // Detect explicit inquiry card anywhere in the message list
+                const hasInquiryCard = Array.isArray(msgs) && msgs.some((m) => {
+                  const raw = (m && (m as any).content) ? String((m as any).content) : '';
+                  return raw.includes('inquiry_sent_v1');
+                });
+                return { moderation, hasInquiryCard } as const;
+              })
+            );
+            const found: Array<{ moderation: { id: number; text: string; ts: string } | null; hasInquiryCard: boolean } | null> =
+              results.map((r) => r.status === 'fulfilled' ? r.value : null);
+            const byId = new Map<number, BookingRequest>(base.map((r) => [r.id, r] as [number, BookingRequest]));
+            for (let i = 0; i < sample.length; i++) {
+              const res = found[i];
+              const r = sample[i];
+              if (!res) continue;
+              const target = byId.get(r.id);
+              if (!target) continue;
+              if (res.moderation) {
+                (target as any).last_message_content = res.moderation.text;
+                (target as any).last_message_timestamp = res.moderation.ts;
+                (target as any).is_booka_synthetic = true;
+              }
+              if (res.hasInquiryCard) {
+                (target as any).has_inquiry_card = true;
               }
             }
-            // Detect explicit inquiry card anywhere in the message list
-            const hasInquiryCard = Array.isArray(msgs) && msgs.some((m) => {
-              const raw = (m && (m as any).content) ? String((m as any).content) : '';
-              return raw.includes('inquiry_sent_v1');
-            });
-            return { moderation, hasInquiryCard } as const;
-          })
-        );
-        const found: Array<{ moderation: { id: number; text: string; ts: string } | null; hasInquiryCard: boolean } | null> =
-          results.map((r) => r.status === 'fulfilled' ? r.value : null);
-        const byId = new Map<number, BookingRequest>(combined.map((r) => [r.id, r] as [number, BookingRequest]));
-        for (let i = 0; i < sample.length; i++) {
-          const res = found[i];
-          const r = sample[i];
-          if (!res) continue;
-          const target = byId.get(r.id);
-          if (!target) continue;
-          if (res.moderation) {
-            (target as any).last_message_content = res.moderation.text;
-            (target as any).last_message_timestamp = res.moderation.ts;
-            (target as any).is_booka_synthetic = true;
-          }
-          if (res.hasInquiryCard) {
-            (target as any).has_inquiry_card = true;
-          }
-        }
+            const updated = Array.from(byId.values()).sort(
+              (a, b) => new Date(String((b as any).last_message_timestamp ?? b.updated_at ?? b.created_at)).getTime() -
+                        new Date(String((a as any).last_message_timestamp ?? a.updated_at ?? a.created_at)).getTime(),
+            );
+            setAllBookingRequests(updated);
+            try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(updated)); } catch {}
+          } catch {}
+        });
       } catch {}
 
       combined.sort(
@@ -292,6 +341,7 @@ export default function InboxPage() {
           new Date(String((a as any).last_message_timestamp ?? a.updated_at ?? a.created_at)).getTime(),
       );
       setAllBookingRequests(combined);
+      try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(combined)); } catch {}
 
       // If artist has zero threads, attempt to ensure a Booka thread exists once
       try {
@@ -314,6 +364,7 @@ export default function InboxPage() {
                 new Date(String((a as any).last_message_timestamp ?? a.updated_at ?? a.created_at)).getTime(),
             );
             setAllBookingRequests(combined2);
+            try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(combined2)); } catch {}
           }
         }
       } catch {
@@ -337,17 +388,55 @@ export default function InboxPage() {
     }
   }, [authLoading, user, router, fetchAllRequests]);
 
-  // Refresh list on window focus / tab visibility change so previews update
+  // Live patch previews from thread events to avoid waiting for a refetch
+  useEffect(() => {
+    const onPreview = (e: any) => {
+      try {
+        const detail = (e && e.detail) || {};
+        const id = Number(detail.id);
+        if (!id) return;
+        setAllBookingRequests((prev) => {
+          const next = prev.map((r) => {
+            if (r.id !== id) return r;
+            return {
+              ...r,
+              last_message_content: String(detail.content || r.last_message_content || ''),
+              last_message_timestamp: String(detail.ts || r.last_message_timestamp || r.updated_at || r.created_at),
+              is_unread_by_current_user: detail.unread === true ? (true as any) : r.is_unread_by_current_user,
+            } as BookingRequest;
+          });
+          try { sessionStorage.setItem(CACHE_KEY, JSON.stringify(next)); } catch {}
+          return next;
+        });
+      } catch {}
+    };
+    try { window.addEventListener('thread:preview', onPreview as any); } catch {}
+    return () => { try { window.removeEventListener('thread:preview', onPreview as any); } catch {} };
+  }, [CACHE_KEY]);
+
+  // Refresh list on window focus / tab visibility change so previews update (throttled)
   useEffect(() => {
     const onFocus = () => {
-      fetchAllRequests();
+      const now = Date.now();
+      if (now - lastRefreshAtRef.current > 2000) {
+        lastRefreshAtRef.current = now;
+        fetchAllRequests();
+      }
     };
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') fetchAllRequests();
+      const now = Date.now();
+      if (document.visibilityState === 'visible' && now - lastRefreshAtRef.current > 2000) {
+        lastRefreshAtRef.current = now;
+        fetchAllRequests();
+      }
     };
     // Also refresh when the chat layer signals updates (e.g., quote sent, payment received)
     const onThreadsUpdated = () => {
-      fetchAllRequests();
+      const now = Date.now();
+      if (now - lastRefreshAtRef.current > 1000) {
+        lastRefreshAtRef.current = now;
+        fetchAllRequests();
+      }
     };
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibility);

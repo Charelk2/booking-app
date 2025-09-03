@@ -15,11 +15,14 @@ interface UseRealtimeReturn {
   forceReconnect: () => void;
 }
 
-const WS_BASE = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL?.replace(/^http/, 'ws') || '').replace(/\/+$/, '');
-// Use same-origin for SSE so cookies are included via Next.js rewrites.
-const API_BASE = '';
+// Compute WS and SSE bases with safe client fallbacks.
+// - WS: prefer env; else same-origin (http->ws)
+// - SSE: allow relative path when base is empty
+let WS_BASE_ENV = (process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || '') as string;
+WS_BASE_ENV = WS_BASE_ENV.replace(/\/+$/, '');
 
 export default function useRealtime(token?: string | null): UseRealtimeReturn {
+  const DEBUG = typeof window !== 'undefined' && (localStorage.getItem('CHAT_DEBUG') === '1');
   const [mode, setMode] = useState<Mode>('ws');
   const [status, setStatus] = useState<Status>('closed');
   const [failureCount, setFailureCount] = useState(0);
@@ -34,17 +37,24 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
   const [refreshAttempted, setRefreshAttempted] = useState(false);
   useEffect(() => { setWsToken(token ?? null); }, [token]);
 
+  const wsBase = useMemo(() => {
+    if (WS_BASE_ENV) return WS_BASE_ENV.replace(/^http/, 'ws');
+    if (typeof window !== 'undefined') return window.location.origin.replace(/^http/, 'ws');
+    return '';
+  }, []);
+
   const wsUrl = useMemo(() => {
-    if (!WS_BASE) return null;
+    if (!wsBase) return null;
     if (!wsToken) return null; // never attempt cross-origin WS without token
-    return `${WS_BASE}/api/v1/ws?token=${encodeURIComponent(wsToken)}`;
-  }, [wsToken]);
+    return `${wsBase}/api/v1/ws?token=${encodeURIComponent(wsToken)}`;
+  }, [wsBase, wsToken]);
 
   const sseUrlForTopics = useCallback((topics: string[]) => {
-    if (!API_BASE) return null;
+    const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '');
     const qs = new URLSearchParams();
     if (topics.length) qs.set('topics', topics.join(','));
     if (token) qs.set('token', token);
+    // When API_BASE is empty, this yields a same-origin relative URL
     return `${API_BASE}/api/v1/sse?${qs.toString()}`;
   }, [token]);
 
@@ -56,6 +66,19 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       if (!set || set.size === 0) return;
       set.forEach((h) => {
         try { h(msg); } catch {}
+      });
+    } catch {}
+  }, []);
+
+  // When server omits a topic, fan out to all current subscribers, tagging the
+  // delivered message with each subscription topic. Downstream filters will
+  // drop mismatches based on booking/thread ids.
+  const deliverFanout = useCallback((msg: any) => {
+    try {
+      subs.current.forEach((handlers, topic) => {
+        handlers.forEach((h) => {
+          try { h({ ...msg, topic }); } catch {}
+        });
       });
     } catch {}
   }, []);
@@ -72,6 +95,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       attemptsRef.current = 0;
       lastDelayRef.current = null;
       setStatus('open');
+      if (DEBUG) try { console.info('[rt] ws open', { url: wsUrl }); } catch {}
       // Heartbeat
       const isMobile = /Mobi|Android/i.test(navigator.userAgent);
       const base = isMobile ? 60 : 30;
@@ -80,6 +104,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       const topics = Array.from(subs.current.keys());
       for (const t of topics) {
         try { ws.send(JSON.stringify({ v: 1, type: 'subscribe', topic: t })); } catch {}
+        if (DEBUG) try { console.info('[rt] ws subscribe', t); } catch {}
       }
     };
     ws.onmessage = (e) => {
@@ -89,7 +114,13 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
           ws.send(JSON.stringify({ v: 1, type: 'pong' }));
           return;
         }
-        if (data?.topic) deliver(data);
+        if (data?.topic) {
+          if (DEBUG) try { console.debug('[rt] ws recv', { topic: data.topic, type: data.type, keys: Object.keys(data || {}) }); } catch {}
+          deliver(data);
+        } else {
+          if (DEBUG) try { console.debug('[rt] ws recv (no topic)', { type: data?.type, keys: Object.keys(data || {}) }); } catch {}
+          deliverFanout(data);
+        }
       } catch {}
     };
     const schedule = (e?: CloseEvent) => {
@@ -104,6 +135,7 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       const delay = raw + jitter;
       lastDelayRef.current = delay;
       setStatus('reconnecting');
+      if (DEBUG) try { console.warn('[rt] ws closed, scheduling reconnect', { code: e?.code, reason: e?.reason, delay }); } catch {}
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       reconnectTimer.current = setTimeout(() => {
         // Fallback to SSE after 6 failures
@@ -128,16 +160,26 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     setStatus('connecting');
     const es = new EventSource(url, { withCredentials: true } as any);
     esRef.current = es;
-    es.onopen = () => setStatus('open');
+    es.onopen = () => {
+      setStatus('open');
+      if (DEBUG) try { console.info('[rt] sse open', { url }); } catch {}
+    };
     es.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        if (data?.topic) deliver(data);
+        if (data?.topic) {
+          if (DEBUG) try { console.debug('[rt] sse recv', { topic: data.topic, type: data.type, keys: Object.keys(data || {}) }); } catch {}
+          deliver(data);
+        } else {
+          if (DEBUG) try { console.debug('[rt] sse recv (no topic)', { type: data?.type, keys: Object.keys(data || {}) }); } catch {}
+          deliverFanout(data);
+        }
       } catch {}
     };
     es.onerror = () => {
       setStatus('reconnecting');
       setFailureCount((c) => c + 1);
+      if (DEBUG) try { console.warn('[rt] sse error; retrying'); } catch {}
       // simple retry
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       reconnectTimer.current = setTimeout(() => openSSE(), 3000);
@@ -173,8 +215,12 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
 
   useEffect(() => {
     if (mode === 'ws') {
-      if (!wsUrl) return; // wait for token-derived URL
-      openWS();
+      if (!wsUrl) {
+        // No token yet or URL unresolved — open SSE best-effort (keep mode)
+        openSSE();
+      } else {
+        openWS();
+      }
     } else {
       openSSE();
     }
@@ -200,9 +246,11 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     if (mode === 'ws' && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       try { wsRef.current.send(JSON.stringify({ v: 1, type: 'subscribe', topic })); } catch {}
     }
-    if (mode === 'sse') {
+    // Ensure SSE tracks current topics even if mode is still 'ws' (best-effort fallback active)
+    if (mode === 'sse' || esRef.current) {
       refreshSSE();
     }
+    if (DEBUG) try { console.info('[rt] subscribe', topic); } catch {}
     return () => {
       const set2 = subs.current.get(topic);
       if (set2) {
@@ -212,7 +260,8 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
       if (mode === 'ws' && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         try { wsRef.current.send(JSON.stringify({ v: 1, type: 'unsubscribe', topic })); } catch {}
       }
-      if (mode === 'sse') refreshSSE();
+      if (mode === 'sse' || esRef.current) refreshSSE();
+      if (DEBUG) try { console.info('[rt] unsubscribe', topic); } catch {}
     };
   }, [mode, refreshSSE]);
 
@@ -231,6 +280,11 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     }
   }, [mode, openWS, openSSE]);
 
+  // Debug helpers (DevTools)
+  useEffect(() => {
+    try { __attachRealtimeDebug(mode, status, subs, subscribe, publish, forceReconnect); } catch {}
+  }, [mode, status, subscribe, publish, forceReconnect]);
+
   return {
     mode,
     status,
@@ -240,4 +294,28 @@ export default function useRealtime(token?: string | null): UseRealtimeReturn {
     publish,
     forceReconnect,
   };
+}
+
+// Attach debug helpers each time a hook instance renders
+// Provides: window.__rtInfo(), __rtSub(topic), __rtPub(topic, payload), __rtForce()
+try {
+  // noop – actual assignment happens inside the hook below
+} catch {}
+
+// We deliberately place this effect near the end to capture the latest closures
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function __attachRealtimeDebug(
+  mode: Mode,
+  status: Status,
+  subsRef: React.MutableRefObject<Map<string, Set<RealtimeHandler>>>,
+  subscribe: (topic: string, handler: RealtimeHandler) => () => void,
+  publish: (topic: string, payload: Record<string, any>) => void,
+  forceReconnect: () => void,
+) {
+  if (typeof window === 'undefined') return;
+  const W: any = window as any;
+  W.__rtInfo = () => ({ mode, status, topics: Array.from(subsRef.current.keys()) });
+  W.__rtSub = (topic: string) => subscribe(topic, (msg: any) => console.log('[__rtSub recv]', topic, msg));
+  W.__rtPub = (topic: string, payload: any) => publish(topic, { v: 1, ...payload });
+  W.__rtForce = () => forceReconnect();
 }

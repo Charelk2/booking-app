@@ -19,7 +19,7 @@ For scaling, performance, and production runbooks, see [SCALE.md](SCALE.md).
 | **Quote Generator** | Gathers performance, provider, travel, and accommodation costs | `backend/app/api/api_quote.py`<br>`frontend/src/components/booking/MessageThread.tsx` | After all booking info is entered |
 | **Quote Preview** | Shows an estimated total during the review step | `frontend/src/components/booking/wizard/Steps.tsx` | Right before submitting a booking request |
 | **Review** | Manages star ratings and comments for completed bookings | `backend/app/api/api_review.py`<br>`frontend/src/app/service-providers/[id]/page.tsx` | After a booking is marked completed |
-| **Payment** | Handles full upfront payments via `/api/v1/payments` | `backend/app/api/api_payment.py` | After quote acceptance |
+| **Payment** | Handles deposit or full payments via `/api/v1/payments` | `backend/app/api/api_payment.py` | After quote acceptance |
 | **Notification** | Sends emails, chat alerts, and booking status updates | `backend/app/api/api_notification.py`<br>`backend/app/utils/notifications.py`<br>`frontend/hooks/useNotifications.ts` | On status changes, messages, actions |
 | **Chat** | Manages client–artist chat and WebSocket updates; queues offline messages and retries with exponential backoff, batches typing indicators, lengthens heartbeats on mobile or hidden tabs, coalesces presence updates, and defers image previews until opened | `backend/app/api/api_message.py`<br>`backend/app/api/api_ws.py`<br>`frontend/src/components/booking/MessageThread.tsx` | Always on for active bookings |
 | **Caching** | Caches artist lists using Redis | `backend/app/utils/redis_cache.py`<br>`backend/app/api/v1/api_service_provider.py` | On artist list requests |
@@ -73,9 +73,9 @@ For scaling, performance, and production runbooks, see [SCALE.md](SCALE.md).
 
 ### 7. Payment Agent
 
-* **Purpose:** Collects full upfront payment when a quote is accepted.
+* **Purpose:** Collects deposits or full payments when a quote is accepted.
 * **Frontend:** Payment form appears after quote approval.
-* **Backend:** `api_payment.py` creates and confirms payments (supports Paystack init/verify or mock gateway for local testing).
+* **Backend:** `api_payment.py` creates and confirms payments (currently a stub).
 
 ### 8. Notification Agent
 
@@ -86,8 +86,9 @@ For scaling, performance, and production runbooks, see [SCALE.md](SCALE.md).
   - `new_message` — someone sent a chat message.
   - `new_booking_request` — a client created a booking request.
   - `booking_status_updated` — the request status changed.
+  - `deposit_due` — deposit payment reminder when a booking is accepted.
   - `review_request` — triggered after an event is completed to solicit feedback.
-* **UI:** Booking confirmed alerts show the artist's avatar so recipients can instantly recognize who the notification is from.
+* **UI:** Booking confirmed and deposit due alerts show the artist's avatar so recipients can instantly recognize who the notification is from.
 
 ### 9. Chat Agent
 

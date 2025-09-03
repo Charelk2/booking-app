@@ -316,6 +316,7 @@ export default function ConversationList({
                 alt={`${rowName} avatar`}
                 width={40}
                 height={40}
+                sizes="40px"
                 loading="lazy"
                 className={clsx('rounded-full object-cover flex-shrink-0 border border-gray-200')}
               />
